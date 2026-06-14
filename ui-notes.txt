@@ -1,0 +1,1 @@
+Add font-variant-numeric: tabular-nums on your table cells — this makes room prices and dates align perfectly in columns, which is a tiny detail that makes hotel staff love the UI
