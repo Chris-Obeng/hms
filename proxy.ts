@@ -1,18 +1,25 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+
+const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)", "/", "/api/webhooks(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
   const { userId, orgId } = await auth();
   const isOnboarding = req.nextUrl.pathname.startsWith("/onboarding");
-  const isDashboard = req.nextUrl.pathname.startsWith("/dashboard");
 
-  if (!userId && isDashboard) {
-    return NextResponse.redirect(new URL("/sign-in", req.url));
+  // If no user and trying to access a protected route (which includes onboarding), redirect to sign-in
+  if (!userId && !isPublicRoute(req)) {
+    return NextResponse.redirect(new URL("/sign-up", req.url)); // redirecting to sign-up instead of sign-in if they go to onboarding without account
   }
 
   // Signed in but no org = hasn't completed onboarding
-  if (userId && !orgId && !isOnboarding) {
+  if (userId && !orgId && !isOnboarding && !isPublicRoute(req)) {
     return NextResponse.redirect(new URL("/onboarding", req.url));
+  }
+
+  // If already onboarded (has orgId) but trying to access /onboarding, redirect to dashboard
+  if (userId && orgId && isOnboarding) {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 });
 
