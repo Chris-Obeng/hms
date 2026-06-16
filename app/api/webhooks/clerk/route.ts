@@ -1,7 +1,7 @@
 import { Webhook } from 'svix'
 import { headers } from 'next/headers'
 import { WebhookEvent } from '@clerk/nextjs/server'
-import { createAdminClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
@@ -44,7 +44,6 @@ export async function POST(req: Request) {
   }
 
   const evt = payload as WebhookEvent
-  const supabaseAdmin = await createAdminClient()
   const eventType = evt.type
 
   if (eventType === 'organizationMembership.created') {

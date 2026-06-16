@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { createAdminClient } from "../../lib/supabase/server";
+import { supabaseAdmin } from "../../lib/supabase/admin";
 
 const OnboardingSchema = z.object({
   name: z.string().min(1, "Hotel name is required"),
@@ -40,7 +40,7 @@ export async function createHotelProfile(formData: OnboardingInput) {
   // Make the slug unique by appending a random string to avoid collisions on onboarding
   const slug = slugify(data.name);
 
-  const supabase = await createAdminClient();
+  const supabase = supabaseAdmin;
 
   const settings = {
     hotel_type: data.hotel_type,

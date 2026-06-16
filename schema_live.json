@@ -1,0 +1,5345 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "",
+    "title": "standard public schema",
+    "version": "14.5"
+  },
+  "host": "wtgldgyxtpbzjmaygeif.supabase.co:443",
+  "basePath": "/",
+  "schemes": [
+    "https"
+  ],
+  "consumes": [
+    "application/json",
+    "application/vnd.pgrst.object+json;nulls=stripped",
+    "application/vnd.pgrst.object+json",
+    "text/csv"
+  ],
+  "produces": [
+    "application/json",
+    "application/vnd.pgrst.object+json;nulls=stripped",
+    "application/vnd.pgrst.object+json",
+    "text/csv"
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "produces": [
+          "application/openapi+json",
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "OpenAPI description (this document)",
+        "tags": [
+          "Introspection"
+        ]
+      }
+    },
+    "/beds24_property_mappings": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.beds24_property_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.beds24_room_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.room_type_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.created_at"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/beds24_property_mappings"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "beds24_property_mappings"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.beds24_property_mappings"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "beds24_property_mappings"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.beds24_property_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.beds24_room_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.room_type_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.created_at"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "beds24_property_mappings"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.beds24_property_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.beds24_room_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.room_type_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_property_mappings.created_at"
+          },
+          {
+            "$ref": "#/parameters/body.beds24_property_mappings"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "beds24_property_mappings"
+        ]
+      }
+    },
+    "/payments": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.payments.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.booking_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.amount"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.method"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.paystack_reference"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.paystack_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.paystack_subaccount"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.platform_fee"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.paid_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.recorded_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.notes"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.metadata"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.created_at"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/payments"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "payments"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.payments"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "payments"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.payments.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.booking_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.amount"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.method"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.paystack_reference"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.paystack_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.paystack_subaccount"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.platform_fee"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.paid_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.recorded_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.notes"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.metadata"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.created_at"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "payments"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.payments.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.booking_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.amount"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.method"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.paystack_reference"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.paystack_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.paystack_subaccount"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.platform_fee"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.paid_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.recorded_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.notes"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.metadata"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.payments.created_at"
+          },
+          {
+            "$ref": "#/parameters/body.payments"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/platform_admins": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.clerk_user_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.email"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.full_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.role"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.is_active"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.created_at"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/platform_admins"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "platform_admins"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.platform_admins"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "platform_admins"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.clerk_user_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.email"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.full_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.role"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.is_active"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.created_at"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "platform_admins"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.clerk_user_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.email"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.full_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.role"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.is_active"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.platform_admins.created_at"
+          },
+          {
+            "$ref": "#/parameters/body.platform_admins"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "platform_admins"
+        ]
+      }
+    },
+    "/room_types": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.room_types.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.slug"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.short_description"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.description"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.bed_configuration"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.max_adults"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.max_children"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.base_price"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.weekend_price"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.amenities"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.images"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.is_active"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.sort_order"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.updated_at"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/room_types"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "room_types"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.room_types"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "room_types"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.room_types.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.slug"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.short_description"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.description"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.bed_configuration"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.max_adults"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.max_children"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.base_price"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.weekend_price"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.amenities"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.images"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.is_active"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.sort_order"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.updated_at"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "room_types"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.room_types.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.slug"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.short_description"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.description"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.bed_configuration"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.max_adults"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.max_children"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.base_price"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.weekend_price"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.amenities"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.images"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.is_active"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.sort_order"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.room_types.updated_at"
+          },
+          {
+            "$ref": "#/parameters/body.room_types"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "room_types"
+        ]
+      }
+    },
+    "/guests": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.guests.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.full_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.email"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.phone"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.national_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.nationality"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.notes"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.tags"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.total_stays"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.total_spend"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.last_stay_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.updated_at"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/guests"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "guests"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.guests"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "guests"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.guests.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.full_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.email"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.phone"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.national_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.nationality"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.notes"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.tags"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.total_stays"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.total_spend"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.last_stay_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.updated_at"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "guests"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.guests.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.full_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.email"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.phone"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.national_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.nationality"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.notes"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.tags"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.total_stays"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.total_spend"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.last_stay_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.guests.updated_at"
+          },
+          {
+            "$ref": "#/parameters/body.guests"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "guests"
+        ]
+      }
+    },
+    "/bookings": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.bookings.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.reference"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.guest_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.room_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.room_type_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.check_in"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.check_out"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.nights"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.adults"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.children"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.room_rate"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.subtotal"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.tax_amount"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.total_amount"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.amount_paid"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.outstanding_balance"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.payment_status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.payment_preference"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.source"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.special_requests"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.estimated_arrival"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.internal_notes"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.check_in_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.check_out_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.cancelled_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.cancellation_reason"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.beds24_booking_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.created_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.updated_at"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/bookings"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "bookings"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.bookings"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "bookings"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.bookings.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.reference"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.guest_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.room_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.room_type_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.check_in"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.check_out"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.nights"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.adults"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.children"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.room_rate"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.subtotal"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.tax_amount"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.total_amount"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.amount_paid"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.outstanding_balance"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.payment_status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.payment_preference"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.source"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.special_requests"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.estimated_arrival"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.internal_notes"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.check_in_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.check_out_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.cancelled_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.cancellation_reason"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.beds24_booking_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.created_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.updated_at"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "bookings"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.bookings.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.reference"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.guest_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.room_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.room_type_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.check_in"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.check_out"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.nights"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.adults"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.children"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.room_rate"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.subtotal"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.tax_amount"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.total_amount"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.amount_paid"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.outstanding_balance"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.payment_status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.payment_preference"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.source"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.special_requests"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.estimated_arrival"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.internal_notes"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.check_in_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.check_out_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.cancelled_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.cancellation_reason"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.beds24_booking_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.created_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.bookings.updated_at"
+          },
+          {
+            "$ref": "#/parameters/body.bookings"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/beds24_sync_log": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.direction"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.event_type"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.beds24_booking_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.booking_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.payload"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.conflict_details"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.error_message"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.processed_at"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/beds24_sync_log"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "beds24_sync_log"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.beds24_sync_log"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "beds24_sync_log"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.direction"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.event_type"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.beds24_booking_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.booking_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.payload"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.conflict_details"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.error_message"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.processed_at"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "beds24_sync_log"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.direction"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.event_type"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.beds24_booking_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.booking_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.payload"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.conflict_details"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.error_message"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.beds24_sync_log.processed_at"
+          },
+          {
+            "$ref": "#/parameters/body.beds24_sync_log"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "beds24_sync_log"
+        ]
+      }
+    },
+    "/staff_profiles": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.clerk_user_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.email"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.full_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.avatar_url"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.role"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.is_active"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.granted_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.granted_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.last_login_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.notification_prefs"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.updated_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.clerk_org_id"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/staff_profiles"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "staff_profiles"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.staff_profiles"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "staff_profiles"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.clerk_user_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.email"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.full_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.avatar_url"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.role"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.is_active"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.granted_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.granted_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.last_login_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.notification_prefs"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.updated_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.clerk_org_id"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "staff_profiles"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.clerk_user_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.email"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.full_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.avatar_url"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.role"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.is_active"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.granted_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.granted_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.last_login_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.notification_prefs"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.updated_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.staff_profiles.clerk_org_id"
+          },
+          {
+            "$ref": "#/parameters/body.staff_profiles"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "staff_profiles"
+        ]
+      }
+    },
+    "/hotels": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.hotels.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.slug"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.description"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.address"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.city"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.country"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.phone"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.email"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.logo_url"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.cover_image_url"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.timezone"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.check_in_time"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.check_out_time"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.cancellation_policy"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.custom_domain"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.clerk_org_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.paystack_subaccount_code"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.paystack_business_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.paystack_bank_code"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.paystack_account_number"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.paystack_settlement_schedule"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.beds24_property_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.beds24_api_key"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.arkesel_api_key"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.arkesel_sender_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.plan"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.settings"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.updated_at"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/hotels"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "hotels"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.hotels"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "hotels"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.hotels.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.slug"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.description"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.address"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.city"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.country"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.phone"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.email"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.logo_url"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.cover_image_url"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.timezone"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.check_in_time"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.check_out_time"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.cancellation_policy"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.custom_domain"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.clerk_org_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.paystack_subaccount_code"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.paystack_business_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.paystack_bank_code"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.paystack_account_number"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.paystack_settlement_schedule"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.beds24_property_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.beds24_api_key"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.arkesel_api_key"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.arkesel_sender_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.plan"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.settings"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.updated_at"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "hotels"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.hotels.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.slug"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.description"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.address"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.city"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.country"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.phone"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.email"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.logo_url"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.cover_image_url"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.timezone"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.currency"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.check_in_time"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.check_out_time"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.cancellation_policy"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.custom_domain"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.clerk_org_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.paystack_subaccount_code"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.paystack_business_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.paystack_bank_code"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.paystack_account_number"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.paystack_settlement_schedule"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.beds24_property_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.beds24_api_key"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.arkesel_api_key"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.arkesel_sender_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.plan"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.settings"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.hotels.updated_at"
+          },
+          {
+            "$ref": "#/parameters/body.hotels"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "hotels"
+        ]
+      }
+    },
+    "/notifications": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.notifications.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.type"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.title"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.message"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.booking_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.is_read"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.read_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.created_at"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/notifications"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "notifications"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.notifications"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "notifications"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.notifications.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.type"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.title"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.message"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.booking_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.is_read"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.read_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.created_at"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "notifications"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.notifications.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.type"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.title"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.message"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.booking_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.is_read"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.read_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.notifications.created_at"
+          },
+          {
+            "$ref": "#/parameters/body.notifications"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/audit_logs": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.staff_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.staff_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.action"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.entity_type"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.entity_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.before_state"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.after_state"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.created_at"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/audit_logs"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "audit_logs"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.audit_logs"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "audit_logs"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.staff_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.staff_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.action"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.entity_type"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.entity_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.before_state"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.after_state"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.created_at"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "audit_logs"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.staff_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.staff_name"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.action"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.entity_type"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.entity_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.before_state"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.after_state"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.audit_logs.created_at"
+          },
+          {
+            "$ref": "#/parameters/body.audit_logs"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "audit_logs"
+        ]
+      }
+    },
+    "/availability_blocks": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.room_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.start_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.end_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.reason"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.notes"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.created_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.created_at"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/availability_blocks"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "availability_blocks"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.availability_blocks"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "availability_blocks"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.room_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.start_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.end_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.reason"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.notes"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.created_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.created_at"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "availability_blocks"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.room_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.start_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.end_date"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.reason"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.notes"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.created_by"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.availability_blocks.created_at"
+          },
+          {
+            "$ref": "#/parameters/body.availability_blocks"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "availability_blocks"
+        ]
+      }
+    },
+    "/rooms": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.rooms.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.room_type_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.room_number"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.floor"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.notes"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.is_active"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.updated_at"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/order"
+          },
+          {
+            "$ref": "#/parameters/range"
+          },
+          {
+            "$ref": "#/parameters/rangeUnit"
+          },
+          {
+            "$ref": "#/parameters/offset"
+          },
+          {
+            "$ref": "#/parameters/limit"
+          },
+          {
+            "$ref": "#/parameters/preferCount"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/rooms"
+              },
+              "type": "array"
+            }
+          },
+          "206": {
+            "description": "Partial Content"
+          }
+        },
+        "tags": [
+          "rooms"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/body.rooms"
+          },
+          {
+            "$ref": "#/parameters/select"
+          },
+          {
+            "$ref": "#/parameters/preferPost"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "tags": [
+          "rooms"
+        ]
+      },
+      "delete": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.rooms.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.room_type_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.room_number"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.floor"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.notes"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.is_active"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.updated_at"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "rooms"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "$ref": "#/parameters/rowFilter.rooms.id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.hotel_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.room_type_id"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.room_number"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.floor"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.notes"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.status"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.is_active"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.created_at"
+          },
+          {
+            "$ref": "#/parameters/rowFilter.rooms.updated_at"
+          },
+          {
+            "$ref": "#/parameters/body.rooms"
+          },
+          {
+            "$ref": "#/parameters/preferReturn"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "tags": [
+          "rooms"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "beds24_property_mappings": {
+      "required": [
+        "id",
+        "hotel_id",
+        "beds24_property_id",
+        "beds24_room_id",
+        "room_type_id"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "hotel_id": {
+          "description": "Note:\nThis is a Foreign Key to `hotels.id`.<fk table='hotels' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "beds24_property_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "beds24_room_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "room_type_id": {
+          "description": "Note:\nThis is a Foreign Key to `room_types.id`.<fk table='room_types' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "payments": {
+      "required": [
+        "id",
+        "hotel_id",
+        "booking_id",
+        "amount"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "hotel_id": {
+          "description": "Note:\nThis is a Foreign Key to `hotels.id`.<fk table='hotels' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "booking_id": {
+          "description": "Note:\nThis is a Foreign Key to `bookings.id`.<fk table='bookings' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "amount": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "currency": {
+          "default": "GHS",
+          "format": "text",
+          "type": "string"
+        },
+        "method": {
+          "format": "text",
+          "type": "string"
+        },
+        "paystack_reference": {
+          "format": "text",
+          "type": "string"
+        },
+        "paystack_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "paystack_subaccount": {
+          "format": "text",
+          "type": "string"
+        },
+        "platform_fee": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "status": {
+          "default": "pending",
+          "format": "text",
+          "type": "string"
+        },
+        "paid_at": {
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "recorded_by": {
+          "description": "Note:\nThis is a Foreign Key to `staff_profiles.id`.<fk table='staff_profiles' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "notes": {
+          "format": "text",
+          "type": "string"
+        },
+        "metadata": {
+          "format": "jsonb"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "platform_admins": {
+      "required": [
+        "id",
+        "clerk_user_id",
+        "email"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "clerk_user_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "email": {
+          "format": "text",
+          "type": "string"
+        },
+        "full_name": {
+          "format": "text",
+          "type": "string"
+        },
+        "role": {
+          "default": "admin",
+          "format": "text",
+          "type": "string"
+        },
+        "is_active": {
+          "default": true,
+          "format": "boolean",
+          "type": "boolean"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "room_types": {
+      "required": [
+        "id",
+        "hotel_id",
+        "name",
+        "slug",
+        "base_price"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "hotel_id": {
+          "description": "Note:\nThis is a Foreign Key to `hotels.id`.<fk table='hotels' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "name": {
+          "format": "text",
+          "type": "string"
+        },
+        "slug": {
+          "format": "text",
+          "type": "string"
+        },
+        "short_description": {
+          "format": "text",
+          "type": "string"
+        },
+        "description": {
+          "format": "text",
+          "type": "string"
+        },
+        "bed_configuration": {
+          "format": "text",
+          "type": "string"
+        },
+        "max_adults": {
+          "default": 2,
+          "format": "integer",
+          "type": "integer"
+        },
+        "max_children": {
+          "default": 0,
+          "format": "integer",
+          "type": "integer"
+        },
+        "base_price": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "weekend_price": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "amenities": {
+          "format": "jsonb"
+        },
+        "images": {
+          "format": "jsonb"
+        },
+        "is_active": {
+          "default": true,
+          "format": "boolean",
+          "type": "boolean"
+        },
+        "sort_order": {
+          "default": 0,
+          "format": "integer",
+          "type": "integer"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "updated_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "guests": {
+      "required": [
+        "id",
+        "hotel_id",
+        "full_name"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "hotel_id": {
+          "description": "Note:\nThis is a Foreign Key to `hotels.id`.<fk table='hotels' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "full_name": {
+          "format": "text",
+          "type": "string"
+        },
+        "email": {
+          "format": "text",
+          "type": "string"
+        },
+        "phone": {
+          "format": "text",
+          "type": "string"
+        },
+        "national_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "nationality": {
+          "format": "text",
+          "type": "string"
+        },
+        "notes": {
+          "format": "text",
+          "type": "string"
+        },
+        "tags": {
+          "format": "jsonb"
+        },
+        "total_stays": {
+          "default": 0,
+          "format": "integer",
+          "type": "integer"
+        },
+        "total_spend": {
+          "default": 0,
+          "format": "numeric",
+          "type": "number"
+        },
+        "last_stay_date": {
+          "format": "date",
+          "type": "string"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "updated_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "bookings": {
+      "required": [
+        "id",
+        "hotel_id",
+        "reference",
+        "check_in",
+        "check_out",
+        "room_rate",
+        "subtotal",
+        "total_amount"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "hotel_id": {
+          "description": "Note:\nThis is a Foreign Key to `hotels.id`.<fk table='hotels' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "reference": {
+          "format": "text",
+          "type": "string"
+        },
+        "guest_id": {
+          "description": "Note:\nThis is a Foreign Key to `guests.id`.<fk table='guests' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "room_id": {
+          "description": "Note:\nThis is a Foreign Key to `rooms.id`.<fk table='rooms' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "room_type_id": {
+          "description": "Note:\nThis is a Foreign Key to `room_types.id`.<fk table='room_types' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "check_in": {
+          "format": "date",
+          "type": "string"
+        },
+        "check_out": {
+          "format": "date",
+          "type": "string"
+        },
+        "nights": {
+          "format": "integer",
+          "type": "integer"
+        },
+        "adults": {
+          "default": 1,
+          "format": "integer",
+          "type": "integer"
+        },
+        "children": {
+          "default": 0,
+          "format": "integer",
+          "type": "integer"
+        },
+        "room_rate": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "subtotal": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "tax_amount": {
+          "default": 0,
+          "format": "numeric",
+          "type": "number"
+        },
+        "total_amount": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "amount_paid": {
+          "default": 0,
+          "format": "numeric",
+          "type": "number"
+        },
+        "outstanding_balance": {
+          "format": "numeric",
+          "type": "number"
+        },
+        "currency": {
+          "default": "GHS",
+          "format": "text",
+          "type": "string"
+        },
+        "status": {
+          "default": "pending",
+          "format": "text",
+          "type": "string"
+        },
+        "payment_status": {
+          "default": "unpaid",
+          "format": "text",
+          "type": "string"
+        },
+        "payment_preference": {
+          "default": "pay_at_checkin",
+          "format": "text",
+          "type": "string"
+        },
+        "source": {
+          "default": "direct",
+          "format": "text",
+          "type": "string"
+        },
+        "special_requests": {
+          "format": "text",
+          "type": "string"
+        },
+        "estimated_arrival": {
+          "format": "time without time zone",
+          "type": "string"
+        },
+        "internal_notes": {
+          "format": "text",
+          "type": "string"
+        },
+        "check_in_at": {
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "check_out_at": {
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "cancelled_at": {
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "cancellation_reason": {
+          "format": "text",
+          "type": "string"
+        },
+        "beds24_booking_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "created_by": {
+          "description": "Note:\nThis is a Foreign Key to `staff_profiles.id`.<fk table='staff_profiles' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "updated_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "beds24_sync_log": {
+      "required": [
+        "id",
+        "hotel_id"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "hotel_id": {
+          "description": "Note:\nThis is a Foreign Key to `hotels.id`.<fk table='hotels' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "direction": {
+          "format": "text",
+          "type": "string"
+        },
+        "event_type": {
+          "format": "text",
+          "type": "string"
+        },
+        "beds24_booking_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "booking_id": {
+          "description": "Note:\nThis is a Foreign Key to `bookings.id`.<fk table='bookings' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "payload": {
+          "format": "jsonb"
+        },
+        "status": {
+          "format": "text",
+          "type": "string"
+        },
+        "conflict_details": {
+          "format": "text",
+          "type": "string"
+        },
+        "error_message": {
+          "format": "text",
+          "type": "string"
+        },
+        "processed_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "staff_profiles": {
+      "required": [
+        "id",
+        "clerk_user_id",
+        "email",
+        "clerk_org_id"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "clerk_user_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "email": {
+          "format": "text",
+          "type": "string"
+        },
+        "full_name": {
+          "format": "text",
+          "type": "string"
+        },
+        "avatar_url": {
+          "format": "text",
+          "type": "string"
+        },
+        "role": {
+          "default": "pending",
+          "format": "text",
+          "type": "string"
+        },
+        "is_active": {
+          "default": false,
+          "format": "boolean",
+          "type": "boolean"
+        },
+        "granted_at": {
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "granted_by": {
+          "description": "Note:\nThis is a Foreign Key to `staff_profiles.id`.<fk table='staff_profiles' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "last_login_at": {
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "notification_prefs": {
+          "format": "jsonb"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "updated_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "clerk_org_id": {
+          "format": "text",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "hotels": {
+      "required": [
+        "id",
+        "slug",
+        "name",
+        "clerk_org_id"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "slug": {
+          "format": "text",
+          "type": "string"
+        },
+        "name": {
+          "format": "text",
+          "type": "string"
+        },
+        "description": {
+          "format": "text",
+          "type": "string"
+        },
+        "address": {
+          "format": "text",
+          "type": "string"
+        },
+        "city": {
+          "format": "text",
+          "type": "string"
+        },
+        "country": {
+          "default": "Ghana",
+          "format": "text",
+          "type": "string"
+        },
+        "phone": {
+          "format": "text",
+          "type": "string"
+        },
+        "email": {
+          "format": "text",
+          "type": "string"
+        },
+        "logo_url": {
+          "format": "text",
+          "type": "string"
+        },
+        "cover_image_url": {
+          "format": "text",
+          "type": "string"
+        },
+        "timezone": {
+          "default": "Africa/Accra",
+          "format": "text",
+          "type": "string"
+        },
+        "currency": {
+          "default": "GHS",
+          "format": "text",
+          "type": "string"
+        },
+        "check_in_time": {
+          "default": "14:00:00",
+          "format": "time without time zone",
+          "type": "string"
+        },
+        "check_out_time": {
+          "default": "11:00:00",
+          "format": "time without time zone",
+          "type": "string"
+        },
+        "cancellation_policy": {
+          "format": "text",
+          "type": "string"
+        },
+        "custom_domain": {
+          "format": "text",
+          "type": "string"
+        },
+        "clerk_org_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "paystack_subaccount_code": {
+          "format": "text",
+          "type": "string"
+        },
+        "paystack_business_name": {
+          "format": "text",
+          "type": "string"
+        },
+        "paystack_bank_code": {
+          "format": "text",
+          "type": "string"
+        },
+        "paystack_account_number": {
+          "format": "text",
+          "type": "string"
+        },
+        "paystack_settlement_schedule": {
+          "default": "auto",
+          "format": "text",
+          "type": "string"
+        },
+        "beds24_property_id": {
+          "format": "text",
+          "type": "string"
+        },
+        "beds24_api_key": {
+          "format": "text",
+          "type": "string"
+        },
+        "arkesel_api_key": {
+          "format": "text",
+          "type": "string"
+        },
+        "arkesel_sender_name": {
+          "format": "text",
+          "type": "string"
+        },
+        "plan": {
+          "default": "starter",
+          "format": "text",
+          "type": "string"
+        },
+        "status": {
+          "default": "pending",
+          "format": "text",
+          "type": "string"
+        },
+        "settings": {
+          "format": "jsonb"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "updated_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "notifications": {
+      "required": [
+        "id",
+        "hotel_id",
+        "title",
+        "message"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "hotel_id": {
+          "description": "Note:\nThis is a Foreign Key to `hotels.id`.<fk table='hotels' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "type": {
+          "format": "text",
+          "type": "string"
+        },
+        "title": {
+          "format": "text",
+          "type": "string"
+        },
+        "message": {
+          "format": "text",
+          "type": "string"
+        },
+        "booking_id": {
+          "description": "Note:\nThis is a Foreign Key to `bookings.id`.<fk table='bookings' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "is_read": {
+          "default": false,
+          "format": "boolean",
+          "type": "boolean"
+        },
+        "read_at": {
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "audit_logs": {
+      "required": [
+        "id",
+        "hotel_id",
+        "action"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "hotel_id": {
+          "description": "Note:\nThis is a Foreign Key to `hotels.id`.<fk table='hotels' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "staff_id": {
+          "description": "Note:\nThis is a Foreign Key to `staff_profiles.id`.<fk table='staff_profiles' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "staff_name": {
+          "format": "text",
+          "type": "string"
+        },
+        "action": {
+          "format": "text",
+          "type": "string"
+        },
+        "entity_type": {
+          "format": "text",
+          "type": "string"
+        },
+        "entity_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "before_state": {
+          "format": "jsonb"
+        },
+        "after_state": {
+          "format": "jsonb"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "availability_blocks": {
+      "required": [
+        "id",
+        "hotel_id",
+        "room_id",
+        "start_date",
+        "end_date"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "hotel_id": {
+          "description": "Note:\nThis is a Foreign Key to `hotels.id`.<fk table='hotels' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "room_id": {
+          "description": "Note:\nThis is a Foreign Key to `rooms.id`.<fk table='rooms' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "start_date": {
+          "format": "date",
+          "type": "string"
+        },
+        "end_date": {
+          "format": "date",
+          "type": "string"
+        },
+        "reason": {
+          "format": "text",
+          "type": "string"
+        },
+        "notes": {
+          "format": "text",
+          "type": "string"
+        },
+        "created_by": {
+          "description": "Note:\nThis is a Foreign Key to `staff_profiles.id`.<fk table='staff_profiles' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "rooms": {
+      "required": [
+        "id",
+        "hotel_id",
+        "room_type_id",
+        "room_number"
+      ],
+      "properties": {
+        "id": {
+          "default": "gen_random_uuid()",
+          "description": "Note:\nThis is a Primary Key.<pk/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "hotel_id": {
+          "description": "Note:\nThis is a Foreign Key to `hotels.id`.<fk table='hotels' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "room_type_id": {
+          "description": "Note:\nThis is a Foreign Key to `room_types.id`.<fk table='room_types' column='id'/>",
+          "format": "uuid",
+          "type": "string"
+        },
+        "room_number": {
+          "format": "text",
+          "type": "string"
+        },
+        "floor": {
+          "format": "text",
+          "type": "string"
+        },
+        "notes": {
+          "format": "text",
+          "type": "string"
+        },
+        "status": {
+          "default": "available",
+          "format": "text",
+          "type": "string"
+        },
+        "is_active": {
+          "default": true,
+          "format": "boolean",
+          "type": "boolean"
+        },
+        "created_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        },
+        "updated_at": {
+          "default": "now()",
+          "format": "timestamp with time zone",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "parameters": {
+    "preferParams": {
+      "name": "Prefer",
+      "description": "Preference",
+      "required": false,
+      "in": "header",
+      "type": "string"
+    },
+    "preferReturn": {
+      "name": "Prefer",
+      "description": "Preference",
+      "required": false,
+      "enum": [
+        "return=representation",
+        "return=minimal",
+        "return=none"
+      ],
+      "in": "header",
+      "type": "string"
+    },
+    "preferCount": {
+      "name": "Prefer",
+      "description": "Preference",
+      "required": false,
+      "enum": [
+        "count=none"
+      ],
+      "in": "header",
+      "type": "string"
+    },
+    "preferPost": {
+      "name": "Prefer",
+      "description": "Preference",
+      "required": false,
+      "enum": [
+        "return=representation",
+        "return=minimal",
+        "return=none",
+        "resolution=ignore-duplicates",
+        "resolution=merge-duplicates"
+      ],
+      "in": "header",
+      "type": "string"
+    },
+    "select": {
+      "name": "select",
+      "description": "Filtering Columns",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "on_conflict": {
+      "name": "on_conflict",
+      "description": "On Conflict",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "order": {
+      "name": "order",
+      "description": "Ordering",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "range": {
+      "name": "Range",
+      "description": "Limiting and Pagination",
+      "required": false,
+      "in": "header",
+      "type": "string"
+    },
+    "rangeUnit": {
+      "name": "Range-Unit",
+      "description": "Limiting and Pagination",
+      "required": false,
+      "default": "items",
+      "in": "header",
+      "type": "string"
+    },
+    "offset": {
+      "name": "offset",
+      "description": "Limiting and Pagination",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "limit": {
+      "name": "limit",
+      "description": "Limiting and Pagination",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.beds24_property_mappings": {
+      "name": "beds24_property_mappings",
+      "description": "beds24_property_mappings",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/beds24_property_mappings"
+      }
+    },
+    "rowFilter.beds24_property_mappings.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.beds24_property_mappings.hotel_id": {
+      "name": "hotel_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.beds24_property_mappings.beds24_property_id": {
+      "name": "beds24_property_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.beds24_property_mappings.beds24_room_id": {
+      "name": "beds24_room_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.beds24_property_mappings.room_type_id": {
+      "name": "room_type_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.beds24_property_mappings.created_at": {
+      "name": "created_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.payments": {
+      "name": "payments",
+      "description": "payments",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/payments"
+      }
+    },
+    "rowFilter.payments.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.payments.hotel_id": {
+      "name": "hotel_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.payments.booking_id": {
+      "name": "booking_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.payments.amount": {
+      "name": "amount",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.payments.currency": {
+      "name": "currency",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.payments.method": {
+      "name": "method",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.payments.paystack_reference": {
+      "name": "paystack_reference",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.payments.paystack_id": {
+      "name": "paystack_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.payments.paystack_subaccount": {
+      "name": "paystack_subaccount",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.payments.platform_fee": {
+      "name": "platform_fee",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.payments.status": {
+      "name": "status",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.payments.paid_at": {
+      "name": "paid_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.payments.recorded_by": {
+      "name": "recorded_by",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.payments.notes": {
+      "name": "notes",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.payments.metadata": {
+      "name": "metadata",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.payments.created_at": {
+      "name": "created_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.platform_admins": {
+      "name": "platform_admins",
+      "description": "platform_admins",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/platform_admins"
+      }
+    },
+    "rowFilter.platform_admins.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.platform_admins.clerk_user_id": {
+      "name": "clerk_user_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.platform_admins.email": {
+      "name": "email",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.platform_admins.full_name": {
+      "name": "full_name",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.platform_admins.role": {
+      "name": "role",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.platform_admins.is_active": {
+      "name": "is_active",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.platform_admins.created_at": {
+      "name": "created_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.room_types": {
+      "name": "room_types",
+      "description": "room_types",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/room_types"
+      }
+    },
+    "rowFilter.room_types.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.room_types.hotel_id": {
+      "name": "hotel_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.room_types.name": {
+      "name": "name",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.room_types.slug": {
+      "name": "slug",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.room_types.short_description": {
+      "name": "short_description",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.room_types.description": {
+      "name": "description",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.room_types.bed_configuration": {
+      "name": "bed_configuration",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.room_types.max_adults": {
+      "name": "max_adults",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.room_types.max_children": {
+      "name": "max_children",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.room_types.base_price": {
+      "name": "base_price",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.room_types.weekend_price": {
+      "name": "weekend_price",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.room_types.amenities": {
+      "name": "amenities",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.room_types.images": {
+      "name": "images",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.room_types.is_active": {
+      "name": "is_active",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.room_types.sort_order": {
+      "name": "sort_order",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.room_types.created_at": {
+      "name": "created_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.room_types.updated_at": {
+      "name": "updated_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.guests": {
+      "name": "guests",
+      "description": "guests",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/guests"
+      }
+    },
+    "rowFilter.guests.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.guests.hotel_id": {
+      "name": "hotel_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.guests.full_name": {
+      "name": "full_name",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.guests.email": {
+      "name": "email",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.guests.phone": {
+      "name": "phone",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.guests.national_id": {
+      "name": "national_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.guests.nationality": {
+      "name": "nationality",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.guests.notes": {
+      "name": "notes",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.guests.tags": {
+      "name": "tags",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.guests.total_stays": {
+      "name": "total_stays",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.guests.total_spend": {
+      "name": "total_spend",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.guests.last_stay_date": {
+      "name": "last_stay_date",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.guests.created_at": {
+      "name": "created_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.guests.updated_at": {
+      "name": "updated_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.bookings": {
+      "name": "bookings",
+      "description": "bookings",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/bookings"
+      }
+    },
+    "rowFilter.bookings.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.hotel_id": {
+      "name": "hotel_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.reference": {
+      "name": "reference",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.guest_id": {
+      "name": "guest_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.room_id": {
+      "name": "room_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.room_type_id": {
+      "name": "room_type_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.check_in": {
+      "name": "check_in",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.check_out": {
+      "name": "check_out",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.nights": {
+      "name": "nights",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.adults": {
+      "name": "adults",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.children": {
+      "name": "children",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.room_rate": {
+      "name": "room_rate",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.subtotal": {
+      "name": "subtotal",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.tax_amount": {
+      "name": "tax_amount",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.total_amount": {
+      "name": "total_amount",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.amount_paid": {
+      "name": "amount_paid",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.outstanding_balance": {
+      "name": "outstanding_balance",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.currency": {
+      "name": "currency",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.status": {
+      "name": "status",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.payment_status": {
+      "name": "payment_status",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.payment_preference": {
+      "name": "payment_preference",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.source": {
+      "name": "source",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.special_requests": {
+      "name": "special_requests",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.estimated_arrival": {
+      "name": "estimated_arrival",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.internal_notes": {
+      "name": "internal_notes",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.check_in_at": {
+      "name": "check_in_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.check_out_at": {
+      "name": "check_out_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.cancelled_at": {
+      "name": "cancelled_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.cancellation_reason": {
+      "name": "cancellation_reason",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.beds24_booking_id": {
+      "name": "beds24_booking_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.created_by": {
+      "name": "created_by",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.created_at": {
+      "name": "created_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.bookings.updated_at": {
+      "name": "updated_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.beds24_sync_log": {
+      "name": "beds24_sync_log",
+      "description": "beds24_sync_log",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/beds24_sync_log"
+      }
+    },
+    "rowFilter.beds24_sync_log.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.beds24_sync_log.hotel_id": {
+      "name": "hotel_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.beds24_sync_log.direction": {
+      "name": "direction",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.beds24_sync_log.event_type": {
+      "name": "event_type",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.beds24_sync_log.beds24_booking_id": {
+      "name": "beds24_booking_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.beds24_sync_log.booking_id": {
+      "name": "booking_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.beds24_sync_log.payload": {
+      "name": "payload",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.beds24_sync_log.status": {
+      "name": "status",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.beds24_sync_log.conflict_details": {
+      "name": "conflict_details",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.beds24_sync_log.error_message": {
+      "name": "error_message",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.beds24_sync_log.processed_at": {
+      "name": "processed_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.staff_profiles": {
+      "name": "staff_profiles",
+      "description": "staff_profiles",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/staff_profiles"
+      }
+    },
+    "rowFilter.staff_profiles.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.staff_profiles.clerk_user_id": {
+      "name": "clerk_user_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.staff_profiles.email": {
+      "name": "email",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.staff_profiles.full_name": {
+      "name": "full_name",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.staff_profiles.avatar_url": {
+      "name": "avatar_url",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.staff_profiles.role": {
+      "name": "role",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.staff_profiles.is_active": {
+      "name": "is_active",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.staff_profiles.granted_at": {
+      "name": "granted_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.staff_profiles.granted_by": {
+      "name": "granted_by",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.staff_profiles.last_login_at": {
+      "name": "last_login_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.staff_profiles.notification_prefs": {
+      "name": "notification_prefs",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.staff_profiles.created_at": {
+      "name": "created_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.staff_profiles.updated_at": {
+      "name": "updated_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.staff_profiles.clerk_org_id": {
+      "name": "clerk_org_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.hotels": {
+      "name": "hotels",
+      "description": "hotels",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/hotels"
+      }
+    },
+    "rowFilter.hotels.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.slug": {
+      "name": "slug",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.name": {
+      "name": "name",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.description": {
+      "name": "description",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.address": {
+      "name": "address",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.city": {
+      "name": "city",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.country": {
+      "name": "country",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.phone": {
+      "name": "phone",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.email": {
+      "name": "email",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.logo_url": {
+      "name": "logo_url",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.cover_image_url": {
+      "name": "cover_image_url",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.timezone": {
+      "name": "timezone",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.currency": {
+      "name": "currency",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.check_in_time": {
+      "name": "check_in_time",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.check_out_time": {
+      "name": "check_out_time",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.cancellation_policy": {
+      "name": "cancellation_policy",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.custom_domain": {
+      "name": "custom_domain",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.clerk_org_id": {
+      "name": "clerk_org_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.paystack_subaccount_code": {
+      "name": "paystack_subaccount_code",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.paystack_business_name": {
+      "name": "paystack_business_name",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.paystack_bank_code": {
+      "name": "paystack_bank_code",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.paystack_account_number": {
+      "name": "paystack_account_number",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.paystack_settlement_schedule": {
+      "name": "paystack_settlement_schedule",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.beds24_property_id": {
+      "name": "beds24_property_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.beds24_api_key": {
+      "name": "beds24_api_key",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.arkesel_api_key": {
+      "name": "arkesel_api_key",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.arkesel_sender_name": {
+      "name": "arkesel_sender_name",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.plan": {
+      "name": "plan",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.status": {
+      "name": "status",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.settings": {
+      "name": "settings",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.created_at": {
+      "name": "created_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.hotels.updated_at": {
+      "name": "updated_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.notifications": {
+      "name": "notifications",
+      "description": "notifications",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/notifications"
+      }
+    },
+    "rowFilter.notifications.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.notifications.hotel_id": {
+      "name": "hotel_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.notifications.type": {
+      "name": "type",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.notifications.title": {
+      "name": "title",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.notifications.message": {
+      "name": "message",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.notifications.booking_id": {
+      "name": "booking_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.notifications.is_read": {
+      "name": "is_read",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.notifications.read_at": {
+      "name": "read_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.notifications.created_at": {
+      "name": "created_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.audit_logs": {
+      "name": "audit_logs",
+      "description": "audit_logs",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/audit_logs"
+      }
+    },
+    "rowFilter.audit_logs.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.audit_logs.hotel_id": {
+      "name": "hotel_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.audit_logs.staff_id": {
+      "name": "staff_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.audit_logs.staff_name": {
+      "name": "staff_name",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.audit_logs.action": {
+      "name": "action",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.audit_logs.entity_type": {
+      "name": "entity_type",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.audit_logs.entity_id": {
+      "name": "entity_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.audit_logs.before_state": {
+      "name": "before_state",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.audit_logs.after_state": {
+      "name": "after_state",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.audit_logs.created_at": {
+      "name": "created_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.availability_blocks": {
+      "name": "availability_blocks",
+      "description": "availability_blocks",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/availability_blocks"
+      }
+    },
+    "rowFilter.availability_blocks.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.availability_blocks.hotel_id": {
+      "name": "hotel_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.availability_blocks.room_id": {
+      "name": "room_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.availability_blocks.start_date": {
+      "name": "start_date",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.availability_blocks.end_date": {
+      "name": "end_date",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.availability_blocks.reason": {
+      "name": "reason",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.availability_blocks.notes": {
+      "name": "notes",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.availability_blocks.created_by": {
+      "name": "created_by",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.availability_blocks.created_at": {
+      "name": "created_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "body.rooms": {
+      "name": "rooms",
+      "description": "rooms",
+      "required": false,
+      "in": "body",
+      "schema": {
+        "$ref": "#/definitions/rooms"
+      }
+    },
+    "rowFilter.rooms.id": {
+      "name": "id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.rooms.hotel_id": {
+      "name": "hotel_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.rooms.room_type_id": {
+      "name": "room_type_id",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.rooms.room_number": {
+      "name": "room_number",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.rooms.floor": {
+      "name": "floor",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.rooms.notes": {
+      "name": "notes",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.rooms.status": {
+      "name": "status",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.rooms.is_active": {
+      "name": "is_active",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.rooms.created_at": {
+      "name": "created_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    },
+    "rowFilter.rooms.updated_at": {
+      "name": "updated_at",
+      "required": false,
+      "in": "query",
+      "type": "string"
+    }
+  },
+  "externalDocs": {
+    "description": "PostgREST Documentation",
+    "url": "https://postgrest.org/en/v14/references/api.html"
+  }
+}

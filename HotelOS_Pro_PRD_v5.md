@@ -378,6 +378,8 @@ If the team grows, or `(booking)` traffic genuinely needs to scale independently
 ### Design Principles
 
 * Every hotel-scoped table has `hotel\\\_id UUID NOT NULL REFERENCES hotels(id)`
+* Every **mutable** table has `created\\\_at TIMESTAMPTZ DEFAULT NOW()` and `updated\\\_at TIMESTAMPTZ DEFAULT NOW()`. A `BEFORE UPDATE` trigger (`handle\\\_updated\\\_at`) auto-bumps `updated\\\_at` on every UPDATE.
+* Truly event-sourced / fact tables (`audit\\\_logs`, `beds24\\\_sync\\\_log`) are **APPEND-ONLY** — no `updated\\\_at`, and a `BEFORE UPDATE OR DELETE` trigger (`prevent\\\_modification`) actively blocks mutation by any role, including the service role. "Amendments" are made by inserting a compensating row.
 * RLS policies enforce isolation at the database layer — the app layer is a second line of defence
 * Indexes placed on every column used in availability queries and booking lookups
 * `seasonal\\\_pricing` excluded from MVP schema — added in v2
@@ -599,7 +601,8 @@ CREATE TABLE payments (
   recorded\\\_by           UUID REFERENCES staff\\\_profiles(id),
   notes                 TEXT,
   metadata              JSONB DEFAULT '{}',
-  created\\\_at            TIMESTAMPTZ DEFAULT NOW()
+  created\\\_at            TIMESTAMPTZ DEFAULT NOW(),
+  updated\\\_at            TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx\\\_payments\\\_booking ON payments(booking\\\_id);
@@ -660,6 +663,7 @@ CREATE TABLE availability\\\_blocks (
   notes       TEXT,
   created\\\_by  UUID REFERENCES staff\\\_profiles(id),
   created\\\_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated\\\_at  TIMESTAMPTZ DEFAULT NOW(),
   CHECK (end\\\_date > start\\\_date)
 );
 
@@ -685,7 +689,8 @@ CREATE TABLE notifications (
   booking\\\_id  UUID REFERENCES bookings(id) ON DELETE SET NULL,
   is\\\_read     BOOLEAN DEFAULT FALSE,
   read\\\_at     TIMESTAMPTZ,
-  created\\\_at  TIMESTAMPTZ DEFAULT NOW()
+  created\\\_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated\\\_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx\\\_notifications\\\_hotel ON notifications(hotel\\\_id, created\\\_at DESC);
@@ -698,20 +703,26 @@ CREATE INDEX idx\\\_notifications\\\_unread ON notifications(hotel\\\_id, is\\\_
 ### `beds24\\\_property\\\_mappings`
 
 ```sql
-CREATE TABLE beds24\\\_property\\\_mappings (
-  id                  UUID PRIMARY KEY DEFAULT gen\\\_random\\\_uuid(),
-  hotel\\\_id            UUID NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
-  beds24\\\_property\\\_id  TEXT NOT NULL,
-  beds24\\\_room\\\_id      TEXT NOT NULL,
-  room\\\_type\\\_id        UUID NOT NULL REFERENCES room\\\_types(id),
-  created\\\_at          TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(hotel\\\_id, beds24\\\_room\\\_id)
+CREATE TABLE beds24\\\\\\_property\\\\\\_mappings (
+  id                  UUID PRIMARY KEY DEFAULT gen\\\\\\_random\\\\\\_uuid(),
+  hotel\\\\\\_id            UUID NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
+  beds24\\\\\\_property\\\\\\_id  TEXT NOT NULL,
+  beds24\\\\\\_room\\\\\\_id      TEXT NOT NULL,
+  room\\\\\\_type\\\\\\_id        UUID NOT NULL REFERENCES room\\\\\\_types(id),
+  created\\\\\\_at          TIMESTAMPTZ DEFAULT NOW(),
+  updated\\\\\\_at          TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(hotel\\\\\\_id, beds24\\\\\\_room\\\\\\_id)
 );
 ```
 
 \---
 
 ### `beds24\\\_sync\\\_log`
+
+
+> **APPEND-ONLY.** Each row is an immutable record of one Beds24 sync
+> event. The same `BEFORE UPDATE OR DELETE` trigger pattern as
+> `audit_logs` blocks mutations at the database level.
 
 ```sql
 CREATE TABLE beds24\\\_sync\\\_log (
@@ -734,6 +745,12 @@ CREATE INDEX idx\\\_beds24\\\_log\\\_hotel ON beds24\\\_sync\\\_log(hotel\\\_id)
 \---
 
 ### `audit\\\_logs`
+
+
+> **APPEND-ONLY.** Rows are immutable facts about staff actions. A
+> `BEFORE UPDATE OR DELETE` trigger (`prevent_modification`) blocks all
+> mutations, including from the service role. "Amendments" are made by
+> inserting a compensating row (e.g. with `action = 'X.reverted'`).
 
 ```sql
 CREATE TABLE audit\\\_logs (
@@ -765,11 +782,47 @@ CREATE TABLE platform\\\_admins (
   role          TEXT DEFAULT 'admin'
                 CHECK (role IN ('super\\\_admin', 'admin', 'support')),
   is\\\_active     BOOLEAN DEFAULT TRUE,
-  created\\\_at    TIMESTAMPTZ DEFAULT NOW()
+  created\\\_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated\\\_at    TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 
 \---
+
+### Append-only Tables
+
+`audit\_logs` and `beds24\_sync\_log` are immutable event-sourced tables.
+A row is a record of something that happened, not mutable state.
+Mutations are blocked at the database layer — even the service role cannot
+UPDATE or DELETE a row. The pattern (used by Stripe, GitHub, AWS
+CloudTrail) is a `BEFORE UPDATE OR DELETE` trigger that raises an
+exception, plus no `updated\_at` column so callers cannot silently
+rewrite history.
+
+```sql
+CREATE OR REPLACE FUNCTION public.prevent_modification()
+RETURNS TRIGGER AS $$
+BEGIN
+  RAISE EXCEPTION
+    'Table % is append-only. Create a compensating row instead of modifying %',
+    TG_TABLE_NAME, TG_TABLE_NAME;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER audit_logs_no_modify
+  BEFORE UPDATE OR DELETE ON public.audit_logs
+  FOR EACH ROW EXECUTE FUNCTION public.prevent_modification();
+
+CREATE TRIGGER beds24_sync_log_no_modify
+  BEFORE UPDATE OR DELETE ON public.beds24_sync_log
+  FOR EACH ROW EXECUTE FUNCTION public.prevent_modification();
+```
+
+"Amendments" to an append-only row are made by inserting a new row that
+references the original (e.g. a `reverted` audit entry, or a separate
+`payments` row with `method = 'refund'`).
+
+---
 
 ### Row Level Security Pattern
 
