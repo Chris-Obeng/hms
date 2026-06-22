@@ -45,6 +45,12 @@ interface NewBookingSheetProps {
   onOpenChange: (open: boolean) => void;
   roomTypes: { id: string; name: string }[];
   currency: string;
+  /** Pre-fill room type ID (from calendar click-to-create) */
+  prefillRoomTypeId?: string;
+  /** Pre-fill check-in date (from calendar click-to-create) */
+  prefillCheckIn?: Date;
+  /** Pre-fill check-out date (from calendar click-to-create) */
+  prefillCheckOut?: Date;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -71,10 +77,35 @@ export function NewBookingSheet({
   onOpenChange,
   roomTypes: roomTypeOptions,
   currency,
+  prefillRoomTypeId,
+  prefillCheckIn,
+  prefillCheckOut,
 }: NewBookingSheetProps) {
   // ── Form State ─────────────────────────────────────────────────
   const [step, setStep] = React.useState(1);
   const [loading, setLoading] = React.useState(false);
+
+  // Apply prefill values when they change or sheet opens
+  const initialised = React.useRef(false);
+  React.useEffect(() => {
+    if (open && !initialised.current) {
+      initialised.current = true;
+      if (prefillRoomTypeId) setSelectedRoomTypeId(prefillRoomTypeId);
+      if (prefillCheckIn || prefillCheckOut) {
+        setDateRange({
+          from: prefillCheckIn || undefined,
+          to: prefillCheckOut || undefined,
+        });
+        // Jump to step 3 if both room and dates are pre-filled
+        if (prefillRoomTypeId && prefillCheckIn && prefillCheckOut) {
+          setStep(2);
+        }
+      }
+    }
+    if (!open) {
+      initialised.current = false;
+    }
+  }, [open, prefillRoomTypeId, prefillCheckIn, prefillCheckOut]);
 
   // Guest
   const [guestName, setGuestName] = React.useState("");

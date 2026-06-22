@@ -79,7 +79,7 @@ export async function createHotelProfile(formData: OnboardingInput) {
       email:              clerkUser.emailAddresses?.[0]?.emailAddress ?? null,
       full_name:          `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim(),
       avatar_url:         clerkUser.imageUrl ?? null,
-      role:               'admin',
+      role:               'super_admin',
       is_active:          true,
       granted_at:         new Date().toISOString(),
       granted_by:         null,

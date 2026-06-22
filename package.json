@@ -17,6 +17,7 @@
     "@animateicons/react": "^0.3.3",
     "@base-ui/react": "^1.5.0",
     "@clerk/nextjs": "^7.5.2",
+    "@daypilot/daypilot-lite-react": "^5.9.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.1",
     "@tanstack/react-table": "^8.21.3",
@@ -25,6 +26,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.4.0",
     "framer-motion": "^12.40.0",
+    "howler": "^2.2.4",
     "lucide-react": "^1.18.0",
     "motion": "^12.40.0",
     "next": "16.2.9",
@@ -42,6 +44,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/howler": "^2.2.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

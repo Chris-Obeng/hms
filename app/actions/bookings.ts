@@ -16,6 +16,7 @@ const NewBookingSchema = z.object({
 
   // Booking
   roomTypeId: z.string().uuid("Room type is required"),
+  roomId: z.string().uuid().optional(), // optional: direct room assignment (calendar)
   checkIn: z.string().min(1, "Check-in date is required"),
   checkOut: z.string().min(1, "Check-out date is required"),
   adults: z.coerce.number().int().min(1).default(1),
@@ -186,6 +187,46 @@ export async function createBooking(
     const checkInStr = format(checkIn, "yyyy-MM-dd");
     const checkOutStr = format(checkOut, "yyyy-MM-dd");
 
+    // ── Room availability check ─────────────────────────────────────
+    // If a specific room is requested, verify type compatibility and availability
+    if (data.roomId) {
+      const { data: room } = await supabase
+        .from("rooms")
+        .select("id, room_type_id, status")
+        .eq("id", data.roomId)
+        .eq("hotel_id", hotelId)
+        .single();
+
+      if (!room) {
+        return { success: false, error: "Room not found" };
+      }
+      if (room.status === "maintenance" || room.status === "out_of_service") {
+        return { success: false, error: `Room is ${room.status.replace("_", " ")}` };
+      }
+      if (room.room_type_id !== data.roomTypeId) {
+        return { success: false, error: "Room type mismatch" };
+      }
+
+      // Check for overlapping bookings on this room
+      const { data: conflicts } = await supabase
+        .from("bookings")
+        .select("id, reference, guests(full_name), check_in, check_out")
+        .eq("hotel_id", hotelId)
+        .eq("room_id", data.roomId)
+        .in("status", ["pending", "confirmed", "checked_in"])
+        .lt("check_in", checkOutStr)
+        .gt("check_out", checkInStr)
+        .limit(1);
+
+      if (conflicts && conflicts.length > 0) {
+        const conflict = conflicts[0];
+        return {
+          success: false,
+          error: `Room already booked by ${conflict.guests?.full_name || conflict.reference} (${conflict.check_in} → ${conflict.check_out})`,
+        };
+      }
+    }
+
     // Create booking
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
@@ -194,6 +235,7 @@ export async function createBooking(
         reference,
         guest_id: guestId,
         room_type_id: data.roomTypeId,
+        room_id: data.roomId || null,
         check_in: checkInStr,
         check_out: checkOutStr,
         adults: data.adults,
@@ -246,6 +288,15 @@ export async function updateBookingStatus(
 
     const supabase = await createClient();
 
+    // Resolve hotel_id for defense-in-depth scoping
+    const { data: hotel } = await supabase
+      .from("hotels")
+      .select("id")
+      .eq("clerk_org_id", orgId)
+      .single();
+
+    if (!hotel) return { success: false, error: "Hotel not found" };
+
     const { error } = await supabase
       .from("bookings")
       .update({
@@ -254,7 +305,8 @@ export async function updateBookingStatus(
         ...(status === "checked_out" ? { check_out_at: new Date().toISOString() } : {}),
         ...(status === "cancelled" ? { cancelled_at: new Date().toISOString() } : {}),
       })
-      .eq("id", bookingId);
+      .eq("id", bookingId)
+      .eq("hotel_id", hotel.id);
 
     if (error) {
       return { success: false, error: error.message };

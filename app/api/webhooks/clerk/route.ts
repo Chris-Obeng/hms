@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     const clerk_user_id = data.public_user_data.user_id
     const clerk_org_id = data.organization.id
     const rawRole = data.role
-    const role = rawRole === 'org:admin' ? 'admin' : 'member'
+    const role = rawRole === 'org:admin' ? 'super_admin' : 'front_desk'
     const full_name = `${data.public_user_data.first_name ?? ''} ${data.public_user_data.last_name ?? ''}`.trim()
     const avatar_url = data.public_user_data.image_url ?? null
     const email = data.public_user_data.identifier ?? null
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
     const clerk_user_id = data.public_user_data.user_id
     const clerk_org_id = data.organization.id
     const rawRole = data.role
-    const role = rawRole === 'org:admin' ? 'admin' : 'member'
+    const role = rawRole === 'org:admin' ? 'super_admin' : 'front_desk'
 
     await supabaseAdmin
       .from('staff_profiles')

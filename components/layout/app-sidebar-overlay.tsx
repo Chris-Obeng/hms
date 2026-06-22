@@ -44,6 +44,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Dashboard", url: "/dashboard", icon: DashboardIcon },
       { title: "Bookings", url: "/dashboard/bookings", icon: CalendarDays },
+      { title: "Calendar", url: "/dashboard/calendar", icon: CalendarDays },
       { title: "Customers", url: "/dashboard/customers", icon: Users },
     ],
   },
