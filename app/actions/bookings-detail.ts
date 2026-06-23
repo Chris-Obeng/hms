@@ -261,7 +261,7 @@ export async function recordPayment(
       return { success: false, error: parsed.error.issues[0]?.message || "Invalid input" };
     }
 
-    const { supabase, hotelId } = await getHotelScopedClient();
+    const { supabase, hotelId, hotel } = await getHotelScopedClient();
     const data = parsed.data;
 
     // Verify booking exists and belongs to this hotel
@@ -285,7 +285,7 @@ export async function recordPayment(
         status: "success",
         paid_at: new Date().toISOString(),
         notes: data.notes || null,
-        currency: "GHS",
+        currency: hotel.currency || "GHS",
       })
       .select("id")
       .single();

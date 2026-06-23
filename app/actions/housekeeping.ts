@@ -201,15 +201,26 @@ export async function bulkUpdateHousekeepingStatus(
       "cleaning", "maintenance", "out_of_service",
     ];
 
+    // Validate ALL updates before applying any (atomicity)
     for (const update of updates) {
       if (!validStatuses.includes(update.status)) {
         return { success: false, error: `Invalid status: ${update.status}` };
       }
+    }
 
+    // Batch same-status updates into a single query when possible
+    const byStatus = new Map<string, string[]>();
+    for (const update of updates) {
+      const existing = byStatus.get(update.status) || [];
+      existing.push(update.roomId);
+      byStatus.set(update.status, existing);
+    }
+
+    for (const [status, roomIds] of byStatus) {
       const { error } = await supabase
         .from("rooms")
-        .update({ status: update.status })
-        .eq("id", update.roomId)
+        .update({ status })
+        .in("id", roomIds)
         .eq("hotel_id", hotelId);
 
       if (error) return { success: false, error: error.message };

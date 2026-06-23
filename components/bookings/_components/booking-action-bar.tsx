@@ -22,7 +22,6 @@ interface BookingActionBarProps {
   actionLoading: string | null;
   onAction: (action: string, actionFn: () => Promise<any>) => void;
   onOpenPaymentForm: () => void;
-  onBookingChanged?: () => void;
 }
 
 export function BookingActionBar({

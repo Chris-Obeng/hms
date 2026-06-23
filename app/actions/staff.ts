@@ -29,7 +29,7 @@ async function getHotelScopedClient() {
     .single();
 
   const isSuperAdmin = currentUser?.role === "super_admin";
-  return { supabase, hotelId: hotel.id, hotel, userId, isSuperAdmin };
+  return { supabase, hotelId: hotel.id, hotel, orgId, userId, isSuperAdmin };
 }
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -64,14 +64,14 @@ export async function getStaffList(): Promise<
   | { success: false; error: string }
 > {
   try {
-    const { supabase, hotelId } = await getHotelScopedClient();
+    const { supabase, orgId } = await getHotelScopedClient();
 
     const { data, error } = await supabase
       .from("staff_profiles")
       .select(
         "id, clerk_user_id, email, full_name, avatar_url, role, is_active, granted_at, last_login_at, created_at"
       )
-      .eq("clerk_org_id", hotelId)
+      .eq("clerk_org_id", orgId)
       .order("created_at", { ascending: true });
 
     if (error) return { success: false, error: error.message };
@@ -105,14 +105,14 @@ export async function getPendingStaff(): Promise<
   | { success: false; error: string }
 > {
   try {
-    const { supabase, hotelId } = await getHotelScopedClient();
+    const { supabase, orgId } = await getHotelScopedClient();
 
     const { data, error } = await supabase
       .from("staff_profiles")
       .select(
         "id, clerk_user_id, email, full_name, avatar_url, role, created_at"
       )
-      .eq("clerk_org_id", hotelId)
+      .eq("clerk_org_id", orgId)
       .eq("role", "pending")
       .eq("is_active", false)
       .order("created_at", { ascending: true });
@@ -145,7 +145,7 @@ export async function approveStaff(
   role: "front_desk" | "manager" | "read_only"
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { supabase, hotelId, userId, isSuperAdmin } =
+    const { supabase, orgId, userId, isSuperAdmin } =
       await getHotelScopedClient();
 
     if (!isSuperAdmin) {
@@ -161,7 +161,7 @@ export async function approveStaff(
         granted_by: userId,
       })
       .eq("id", staffId)
-      .eq("clerk_org_id", hotelId);
+      .eq("clerk_org_id", orgId);
 
     if (error) return { success: false, error: error.message };
 
@@ -181,7 +181,7 @@ export async function rejectStaff(
   staffId: string
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { supabase, hotelId, isSuperAdmin } =
+    const { supabase, orgId, isSuperAdmin } =
       await getHotelScopedClient();
 
     if (!isSuperAdmin) {
@@ -192,7 +192,7 @@ export async function rejectStaff(
       .from("staff_profiles")
       .delete()
       .eq("id", staffId)
-      .eq("clerk_org_id", hotelId);
+      .eq("clerk_org_id", orgId);
 
     if (error) return { success: false, error: error.message };
 
@@ -213,7 +213,7 @@ export async function toggleStaffActive(
   isActive: boolean
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { supabase, hotelId, isSuperAdmin } =
+    const { supabase, orgId, isSuperAdmin } =
       await getHotelScopedClient();
 
     if (!isSuperAdmin) {
@@ -224,7 +224,7 @@ export async function toggleStaffActive(
       .from("staff_profiles")
       .update({ is_active: isActive })
       .eq("id", staffId)
-      .eq("clerk_org_id", hotelId);
+      .eq("clerk_org_id", orgId);
 
     if (error) return { success: false, error: error.message };
 
@@ -245,7 +245,7 @@ export async function changeStaffRole(
   role: "super_admin" | "manager" | "front_desk" | "read_only"
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { supabase, hotelId, isSuperAdmin } =
+    const { supabase, orgId, isSuperAdmin } =
       await getHotelScopedClient();
 
     if (!isSuperAdmin) {
@@ -256,7 +256,7 @@ export async function changeStaffRole(
       .from("staff_profiles")
       .update({ role })
       .eq("id", staffId)
-      .eq("clerk_org_id", hotelId);
+      .eq("clerk_org_id", orgId);
 
     if (error) return { success: false, error: error.message };
 
@@ -279,18 +279,10 @@ export async function getPendingStaffCount(): Promise<number> {
 
     const supabase = await createClient();
 
-    const { data: hotel } = await supabase
-      .from("hotels")
-      .select("id")
-      .eq("clerk_org_id", orgId)
-      .single();
-
-    if (!hotel) return 0;
-
     const { count } = await supabase
       .from("staff_profiles")
       .select("*", { count: "exact", head: true })
-      .eq("clerk_org_id", hotel.id)
+      .eq("clerk_org_id", orgId)
       .eq("role", "pending")
       .eq("is_active", false);
 

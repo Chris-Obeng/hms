@@ -181,7 +181,6 @@ export function BookingDetailDrawer({
                 // Switch to payments tab when opening payment form
                 setActiveTab("payments");
               }}
-              onBookingChanged={onBookingChanged}
             />
 
             {/* ═══ Tabs ═══ */}
