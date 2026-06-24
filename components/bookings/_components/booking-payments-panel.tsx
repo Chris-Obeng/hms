@@ -216,15 +216,17 @@ export function BookingPaymentsPanel({
           </div>
         </form>
       ) : (
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full rounded-xl text-xs h-9 border-dashed border-border/60"
-          onClick={openPaymentForm}
-        >
-          <Plus className="size-3 mr-1.5" />
-          Record Payment
-        </Button>
+        !["cancelled", "checked_out"].includes(booking.status ?? "") && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full rounded-xl text-xs h-9 border-dashed border-border/60"
+            onClick={openPaymentForm}
+          >
+            <Plus className="size-3 mr-1.5" />
+            Record Payment
+          </Button>
+        )
       )}
 
       {/* Payment History */}

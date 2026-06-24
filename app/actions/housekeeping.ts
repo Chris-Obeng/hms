@@ -96,8 +96,14 @@ export async function getHousekeepingData(): Promise<
       confirmed: 1,
     };
     const bookingByRoom = new Map<string, { guestName: string | null; checkIn: string; checkOut: string; status: string | null }>();
+    // Track rooms with a confirmed arrival today, independent of the priority logic
+    const arrivingTodayRooms = new Set<string>();
     for (const b of todayBookings || []) {
       if (b.room_id) {
+        // If this is a confirmed booking checking in today, mark it as an arrival
+        if (b.status === "confirmed" && b.check_in === today) {
+          arrivingTodayRooms.add(b.room_id);
+        }
         const existing = bookingByRoom.get(b.room_id);
         const newPriority = STATUS_PRIORITY[b.status || ""] || 0;
         const existingPriority = existing ? STATUS_PRIORITY[existing.status || ""] || 0 : 0;
@@ -124,7 +130,7 @@ export async function getHousekeepingData(): Promise<
         status: r.status || "available",
         isActive: r.is_active || false,
         notes: r.notes,
-        hasArrivalToday: booking?.checkIn === today && booking?.status !== "checked_in",
+        hasArrivalToday: arrivingTodayRooms.has(r.id) || (booking?.checkIn === today && booking?.status !== "checked_in"),
         hasDepartureToday: booking?.checkOut === today,
         isVip: false, // VIP flag can be extended later
         guestName: booking?.guestName ?? null,
