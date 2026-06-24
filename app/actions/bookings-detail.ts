@@ -8,8 +8,8 @@ import { revalidatePath } from "next/cache";
 // ── Get Hotel ID Helper ──────────────────────────────────────────
 
 async function getHotelScopedClient() {
-  const { orgId } = await auth();
-  if (!orgId) throw new Error("Not authenticated");
+  const { orgId, userId } = await auth();
+  if (!orgId || !userId) throw new Error("Not authenticated");
 
   const supabase = await createClient();
 
@@ -21,7 +21,7 @@ async function getHotelScopedClient() {
 
   if (!hotel) throw new Error("Hotel not found");
 
-  return { supabase, hotelId: hotel.id, hotel };
+  return { supabase, hotelId: hotel.id, hotel, orgId, userId };
 }
 
 // ── Types ────────────────────────────────────────────────────────
@@ -261,7 +261,7 @@ export async function recordPayment(
       return { success: false, error: parsed.error.issues[0]?.message || "Invalid input" };
     }
 
-    const { supabase, hotelId, hotel } = await getHotelScopedClient();
+    const { supabase, hotelId, hotel, orgId, userId } = await getHotelScopedClient();
     const data = parsed.data;
 
     // Verify booking exists and belongs to this hotel
@@ -273,6 +273,14 @@ export async function recordPayment(
       .single();
 
     if (!booking) return { success: false, error: "Booking not found" };
+
+    // Resolve staff profile ID for recorded_by
+    const { data: staffProfile } = await supabase
+      .from("staff_profiles")
+      .select("id")
+      .eq("clerk_user_id", userId)
+      .eq("clerk_org_id", orgId)
+      .single();
 
     // Insert payment record
     const { data: payment, error } = await supabase
@@ -286,6 +294,7 @@ export async function recordPayment(
         paid_at: new Date().toISOString(),
         notes: data.notes || null,
         currency: hotel.currency || "GHS",
+        recorded_by: staffProfile?.id || null,
       })
       .select("id")
       .single();
