@@ -79,7 +79,9 @@ export async function getHousekeepingData(): Promise<
 
     if (roomsError) return { success: false, error: roomsError.message };
 
-    // Fetch today's bookings to check arrivals, departures, VIP status, guest names
+    // Fetch today-relevant bookings to check arrivals, departures, VIP status, guest names
+    // Limit to check_in ≤ today to exclude future confirmed bookings that would pollute
+    // guest names on empty rooms
     const { data: todayBookings } = await supabase
       .from("bookings")
       .select(`
@@ -87,7 +89,8 @@ export async function getHousekeepingData(): Promise<
         guests(full_name)
       `)
       .eq("hotel_id", hotelId)
-      .in("status", ["confirmed", "checked_in"]);
+      .in("status", ["confirmed", "checked_in"])
+      .lte("check_in", today);
 
     // Build a map of room_id → booking info
     // For same-day turnovers, prefer checked_in over confirmed so departure flags are preserved
@@ -130,10 +133,12 @@ export async function getHousekeepingData(): Promise<
         status: r.status || "available",
         isActive: r.is_active || false,
         notes: r.notes,
-        hasArrivalToday: arrivingTodayRooms.has(r.id) || (booking?.checkIn === today && booking?.status !== "checked_in"),
+        hasArrivalToday: arrivingTodayRooms.has(r.id),
         hasDepartureToday: booking?.checkOut === today && booking?.status === "checked_in",
         isVip: false, // VIP flag can be extended later
-        guestName: booking?.guestName ?? null,
+        guestName: arrivingTodayRooms.has(r.id) || booking?.status === "checked_in"
+          ? (booking?.guestName ?? null)
+          : null,
       };
     });
 
