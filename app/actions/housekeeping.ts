@@ -90,15 +90,26 @@ export async function getHousekeepingData(): Promise<
       .in("status", ["confirmed", "checked_in"]);
 
     // Build a map of room_id → booking info
+    // For same-day turnovers, prefer checked_in over confirmed so departure flags are preserved
+    const STATUS_PRIORITY: Record<string, number> = {
+      checked_in: 2,
+      confirmed: 1,
+    };
     const bookingByRoom = new Map<string, { guestName: string | null; checkIn: string; checkOut: string; status: string | null }>();
     for (const b of todayBookings || []) {
       if (b.room_id) {
-        bookingByRoom.set(b.room_id, {
-          guestName: (b.guests as any)?.full_name || null,
-          checkIn: b.check_in,
-          checkOut: b.check_out,
-          status: b.status,
-        });
+        const existing = bookingByRoom.get(b.room_id);
+        const newPriority = STATUS_PRIORITY[b.status || ""] || 0;
+        const existingPriority = existing ? STATUS_PRIORITY[existing.status || ""] || 0 : 0;
+        // Only overwrite if the new booking has higher or equal priority
+        if (!existing || newPriority >= existingPriority) {
+          bookingByRoom.set(b.room_id, {
+            guestName: (b.guests as any)?.full_name || null,
+            checkIn: b.check_in,
+            checkOut: b.check_out,
+            status: b.status,
+          });
+        }
       }
     }
 

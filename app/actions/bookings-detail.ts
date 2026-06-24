@@ -274,6 +274,11 @@ export async function recordPayment(
 
     if (!booking) return { success: false, error: "Booking not found" };
 
+    // Reject payments for cancelled or checked-out bookings
+    if (booking.status === "cancelled" || booking.status === "checked_out") {
+      return { success: false, error: "Cannot record payment for a cancelled or checked-out booking" };
+    }
+
     // Resolve staff profile ID for recorded_by
     const { data: staffProfile } = await supabase
       .from("staff_profiles")

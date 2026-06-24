@@ -81,15 +81,17 @@ export function BookingActionBar({
           {actionLoading === "check_out" ? "Checking out..." : "Check Out"}
         </Button>
       )}
-      <Button
-        size="sm"
-        variant="outline"
-        className="rounded-lg text-xs h-8 border-border/60"
-        onClick={onOpenPaymentForm}
-      >
-        <Receipt className="size-3 mr-1 shrink-0" />
-        Record Payment
-      </Button>
+      {(booking.status === "confirmed" || booking.status === "checked_in" || booking.status === "pending") && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="rounded-lg text-xs h-8 border-border/60"
+          onClick={onOpenPaymentForm}
+        >
+          <Receipt className="size-3 mr-1 shrink-0" />
+          Record Payment
+        </Button>
+      )}
       {!booking.room && (
         <Button
           size="sm"
