@@ -131,7 +131,7 @@ export async function getHousekeepingData(): Promise<
         isActive: r.is_active || false,
         notes: r.notes,
         hasArrivalToday: arrivingTodayRooms.has(r.id) || (booking?.checkIn === today && booking?.status !== "checked_in"),
-        hasDepartureToday: booking?.checkOut === today,
+        hasDepartureToday: booking?.checkOut === today && booking?.status === "checked_in",
         isVip: false, // VIP flag can be extended later
         guestName: booking?.guestName ?? null,
       };
