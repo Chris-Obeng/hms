@@ -23,13 +23,14 @@ async function getHotelScopedClient() {
   // Get current user's role
   const { data: currentUser } = await supabase
     .from("staff_profiles")
-    .select("role")
+    .select("id, role")
     .eq("clerk_user_id", userId)
     .eq("clerk_org_id", orgId)
     .single();
 
   const isSuperAdmin = currentUser?.role === "super_admin";
-  return { supabase, hotelId: hotel.id, hotel, orgId, userId, isSuperAdmin };
+  const currentStaffId = currentUser?.id ?? null;
+  return { supabase, hotelId: hotel.id, hotel, orgId, userId, isSuperAdmin, currentStaffId };
 }
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -213,11 +214,29 @@ export async function toggleStaffActive(
   isActive: boolean
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { supabase, orgId, isSuperAdmin } =
+    const { supabase, orgId, isSuperAdmin, currentStaffId } =
       await getHotelScopedClient();
 
     if (!isSuperAdmin) {
       return { success: false, error: "Only super admins can manage staff" };
+    }
+
+    if (currentStaffId === staffId) {
+      return { success: false, error: "You cannot change your own active status" };
+    }
+
+    // Prevent deactivating the last active super admin
+    if (!isActive) {
+      const { count } = await supabase
+        .from("staff_profiles")
+        .select("*", { count: "exact", head: true })
+        .eq("clerk_org_id", orgId)
+        .eq("role", "super_admin")
+        .eq("is_active", true);
+
+      if ((count ?? 0) <= 1) {
+        return { success: false, error: "Cannot deactivate the last active super admin" };
+      }
     }
 
     const { error } = await supabase
@@ -245,11 +264,38 @@ export async function changeStaffRole(
   role: "super_admin" | "manager" | "front_desk" | "read_only"
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { supabase, orgId, isSuperAdmin } =
+    const { supabase, orgId, isSuperAdmin, currentStaffId } =
       await getHotelScopedClient();
 
     if (!isSuperAdmin) {
       return { success: false, error: "Only super admins can change roles" };
+    }
+
+    if (currentStaffId === staffId) {
+      return { success: false, error: "You cannot change your own role" };
+    }
+
+    // Prevent demoting the last active super admin
+    if (role !== "super_admin") {
+      const { data: target } = await supabase
+        .from("staff_profiles")
+        .select("role")
+        .eq("id", staffId)
+        .eq("clerk_org_id", orgId)
+        .single();
+
+      if (target?.role === "super_admin") {
+        const { count } = await supabase
+          .from("staff_profiles")
+          .select("*", { count: "exact", head: true })
+          .eq("clerk_org_id", orgId)
+          .eq("role", "super_admin")
+          .eq("is_active", true);
+
+        if ((count ?? 0) <= 1) {
+          return { success: false, error: "Cannot demote the last active super admin" };
+        }
+      }
     }
 
     const { error } = await supabase
