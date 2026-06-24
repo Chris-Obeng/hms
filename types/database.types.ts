@@ -898,6 +898,18 @@ export type Database = {
       get_user_hotel_ids: { Args: never; Returns: string[] }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      record_payment_atomic: {
+        Args: {
+          p_hotel_id: string
+          p_booking_id: string
+          p_amount: number
+          p_method: string
+          p_notes: string | null
+          p_currency: string
+          p_recorded_by: string | null
+        }
+        Returns: { payment_id: string }[]
+      }
     }
     Enums: {
       [_ in never]: never
