@@ -287,6 +287,10 @@ export async function recordPayment(
       .eq("clerk_org_id", orgId)
       .single();
 
+    if (!staffProfile) {
+      return { success: false, error: "Staff profile not found — cannot record payment" };
+    }
+
     // Insert payment and atomically increment amount_paid in one DB transaction,
     // eliminating the read-modify-write race that could drop concurrent payments.
     const { data: rpcResult, error: rpcError } = await supabase
@@ -295,9 +299,9 @@ export async function recordPayment(
         p_booking_id:  data.bookingId,
         p_amount:      data.amount,
         p_method:      data.method,
-        p_notes:       data.notes || null,
+        p_notes:       data.notes || "",
         p_currency:    hotel.currency || "GHS",
-        p_recorded_by: staffProfile?.id || null,
+        p_recorded_by: staffProfile.id,
       });
 
     if (rpcError || !rpcResult?.[0]?.payment_id) {

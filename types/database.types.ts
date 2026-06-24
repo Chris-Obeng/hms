@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       audit_logs: {
@@ -894,22 +919,53 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      bulk_update_room_statuses: {
+        Args: { p_hotel_id: string; p_updates: Json }
+        Returns: undefined
+      }
+      check_room_availability: {
+        Args: {
+          p_check_in: string
+          p_check_out: string
+          p_exclude_booking_id?: string
+          p_room_id: string
+        }
+        Returns: {
+          booking_id: string
+          check_in: string
+          check_out: string
+          guest_name: string
+          reference: string
+          status: string
+        }[]
+      }
       get_user_clerk_org_ids: { Args: never; Returns: string[] }
       get_user_hotel_ids: { Args: never; Returns: string[] }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
       record_payment_atomic: {
         Args: {
-          p_hotel_id: string
-          p_booking_id: string
           p_amount: number
-          p_method: string
-          p_notes: string | null
+          p_booking_id: string
           p_currency: string
-          p_recorded_by: string | null
+          p_hotel_id: string
+          p_method: string
+          p_notes: string
+          p_recorded_by: string
         }
-        Returns: { payment_id: string }[]
+        Returns: {
+          payment_id: string
+          payment_status: string
+        }[]
       }
+      room_type_available_count: {
+        Args: {
+          p_check_in: string
+          p_check_out: string
+          p_room_type_id: string
+        }
+        Returns: number
+      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       [_ in never]: never
@@ -1038,6 +1094,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

@@ -78,7 +78,7 @@ BEGIN
       AND b2.status IN ('pending', 'confirmed', 'checked_in')
       AND b1.check_in < b2.check_out
       AND b2.check_in < b1.check_out
-  ) overlaps;
+  ) "overlaps";
 
   IF overlap_count > 0 THEN
     RAISE NOTICE 'Found % existing overlapping booking pair(s). These must be resolved before the exclusion constraint can be applied.', overlap_count;
