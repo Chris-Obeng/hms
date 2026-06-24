@@ -62,6 +62,8 @@ BEGIN
 END;
 $$;
 
+REVOKE EXECUTE ON FUNCTION public.record_payment_atomic(uuid,uuid,numeric,text,text,text,uuid) FROM anon, authenticated;
+
 -- ── bulk_update_room_statuses ────────────────────────────────────────────────
 -- Updates multiple rooms to potentially different statuses in one transaction.
 -- p_updates is a JSON array: [{"room_id": "<uuid>", "status": "<status>"}, ...]
@@ -88,3 +90,5 @@ BEGIN
   END LOOP;
 END;
 $$;
+
+REVOKE EXECUTE ON FUNCTION public.bulk_update_room_statuses(uuid, jsonb) FROM anon, authenticated;

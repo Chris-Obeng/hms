@@ -227,15 +227,24 @@ export async function toggleStaffActive(
 
     // Prevent deactivating the last active super admin
     if (!isActive) {
-      const { count } = await supabase
+      const { data: target } = await supabase
         .from("staff_profiles")
-        .select("*", { count: "exact", head: true })
+        .select("role")
+        .eq("id", staffId)
         .eq("clerk_org_id", orgId)
-        .eq("role", "super_admin")
-        .eq("is_active", true);
+        .single();
 
-      if ((count ?? 0) <= 1) {
-        return { success: false, error: "Cannot deactivate the last active super admin" };
+      if (target?.role === "super_admin") {
+        const { count } = await supabase
+          .from("staff_profiles")
+          .select("*", { count: "exact", head: true })
+          .eq("clerk_org_id", orgId)
+          .eq("role", "super_admin")
+          .eq("is_active", true);
+
+        if ((count ?? 0) <= 1) {
+          return { success: false, error: "Cannot deactivate the last active super admin" };
+        }
       }
     }
 
