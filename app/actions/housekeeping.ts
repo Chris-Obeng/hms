@@ -233,23 +233,17 @@ export async function bulkUpdateHousekeepingStatus(
       }
     }
 
-    // Batch same-status updates into a single query when possible
-    const byStatus = new Map<string, string[]>();
-    for (const update of updates) {
-      const existing = byStatus.get(update.status) || [];
-      existing.push(update.roomId);
-      byStatus.set(update.status, existing);
-    }
+    // Perform all updates in a single DB transaction via RPC to ensure atomicity.
+    // A loop of individual Supabase client calls cannot be wrapped in a transaction
+    // from the application layer, so partial failures would otherwise leave the DB
+    // in an inconsistent state.
+    const { error: rpcError } = await supabase
+      .rpc("bulk_update_room_statuses", {
+        p_hotel_id: hotelId,
+        p_updates:  updates.map((u) => ({ room_id: u.roomId, status: u.status })),
+      });
 
-    for (const [status, roomIds] of byStatus) {
-      const { error } = await supabase
-        .from("rooms")
-        .update({ status })
-        .in("id", roomIds)
-        .eq("hotel_id", hotelId);
-
-      if (error) return { success: false, error: error.message };
-    }
+    if (rpcError) return { success: false, error: rpcError.message };
 
     revalidatePath("/dashboard/housekeeping");
     return { success: true };
