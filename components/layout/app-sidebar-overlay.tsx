@@ -16,6 +16,8 @@ import {
   Receipt,
   BarChart3,
   Settings,
+  Table2,
+  Shield,
 } from "lucide-react";
 import { DashboardIcon } from "@/components/ui/dashboard-icon";
 import { cn } from "@/lib/utils";
@@ -45,6 +47,7 @@ const navGroups: NavGroup[] = [
       { title: "Dashboard", url: "/dashboard", icon: DashboardIcon },
       { title: "Bookings", url: "/dashboard/bookings", icon: CalendarDays },
       { title: "Calendar", url: "/dashboard/calendar", icon: CalendarDays },
+      { title: "Availability", url: "/dashboard/availability", icon: Table2 },
       { title: "Customers", url: "/dashboard/customers", icon: Users },
     ],
   },
@@ -60,6 +63,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Housekeeping", url: "/dashboard/housekeeping", icon: Sparkles },
       { title: "Billing", url: "/dashboard/billing", icon: Receipt },
+      { title: "Staff", url: "/dashboard/staff", icon: Shield },
     ],
   },
   {
@@ -81,19 +85,11 @@ export function AppSidebarOverlay({
   const pathname = usePathname();
   const { user } = useUser();
   const { openMobile, setOpenMobile, open, setOpen } = useSidebar();
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const isOpen = mounted ? openMobile || open : false;
+  const isOpen = openMobile || open;
   const onClose = React.useCallback(() => {
     setOpenMobile(false);
     setOpen(false);
   }, [setOpenMobile, setOpen]);
-
-  if (!mounted) return null;
 
   return (
     <Sheet open={isOpen} onOpenChange={(val) => !val && onClose()}>

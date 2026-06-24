@@ -9,11 +9,12 @@ import { Button } from "@/components/ui/button";
 import { DashboardHeader } from "./_components/dashboard-header";
 import { ActivityTabs, buildActivityTabs, type ActivityTab } from "./_components/activity-tabs";
 import { ActivityList, type ActivityBooking } from "./_components/activity-list";
-import { ReservationDrawer } from "./_components/reservation-drawer";
+import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import { OccupancyCard } from "./_components/occupancy-card";
 import { ForecastStrip } from "./_components/forecast-strip";
 import { QuickStats, TodaySummary } from "./_components/quick-stats";
 import { getDashboardData, checkInBooking, checkOutBooking, type DashboardData } from "./actions";
+import { updateBookingStatus } from "@/app/actions/bookings";
 
 // ── Props ──────────────────────────────────────────────────────
 
@@ -40,8 +41,8 @@ const defaultEmptyStats = {
 export function DashboardClient({ hotelId, hotelName, currency }: DashboardClientProps) {
   const [selectedDate, setSelectedDate] = React.useState(new Date());
   const [activeTab, setActiveTab] = React.useState<ActivityTab>("arrivals");
-  const [selectedBooking, setSelectedBooking] = React.useState<ActivityBooking | null>(null);
-  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [selectedBookingId, setSelectedBookingId] = React.useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = React.useState(false);
 
   // Data state
   const [data, setData] = React.useState<DashboardData | null>(null);
@@ -66,6 +67,11 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
     }
   }, []);
 
+  // Re-fetch when booking changes (check-in/out/cancel from drawer)
+  const handleBookingChanged = React.useCallback(() => {
+    fetchData(selectedDate);
+  }, [fetchData, selectedDate]);
+
   React.useEffect(() => {
     fetchData(selectedDate);
   }, [selectedDate, fetchData]);
@@ -88,8 +94,8 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
 
   // View booking details
   const handleViewDetails = React.useCallback((booking: ActivityBooking) => {
-    setSelectedBooking(booking);
-    setDrawerOpen(true);
+    setSelectedBookingId(booking.id);
+    setDetailOpen(true);
   }, []);
 
   // Check-in with optimistic UI
@@ -291,17 +297,16 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
         onDayClick={handleForecastDayClick}
       />
 
-      {/* Reservation Detail Drawer */}
-      <ReservationDrawer
-        booking={selectedBooking}
-        open={drawerOpen}
+      {/* Booking Detail Drawer */}
+      <BookingDetailDrawer
+        bookingId={selectedBookingId}
+        open={detailOpen}
         onClose={() => {
-          setDrawerOpen(false);
-          setSelectedBooking(null);
+          setDetailOpen(false);
+          setSelectedBookingId(null);
         }}
         currency={currency}
-        onCheckIn={handleCheckIn}
-        onCheckOut={handleCheckOut}
+        onBookingChanged={handleBookingChanged}
       />
     </div>
   );

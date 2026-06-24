@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   useReactTable,
   getCoreRowModel,
@@ -52,6 +53,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NewBookingSheet } from "@/components/bookings/new-booking-sheet";
+import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import { updateBookingStatus } from "@/app/actions/bookings";
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -170,7 +172,10 @@ function formatDate(dateStr: string): string {
 
 // ── Columns ────────────────────────────────────────────────────────
 
-function getColumns(currency: string): ColumnDef<BookingRow>[] {
+function getColumns(
+  currency: string,
+  onViewDetails: (id: string) => void
+): ColumnDef<BookingRow>[] {
   return [
     {
       accessorKey: "reference",
@@ -294,7 +299,9 @@ function getColumns(currency: string): ColumnDef<BookingRow>[] {
                 {booking.reference}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onViewDetails(booking.id)}
+              >
                 <Eye className="size-3.5 mr-2" />
                 View Details
               </DropdownMenuItem>
@@ -451,6 +458,7 @@ function exportToCsv(data: BookingRow[], currency: string) {
 // ── Main Component ─────────────────────────────────────────────────
 
 export function BookingsTable({ data, roomTypes, currency }: BookingsTableProps) {
+  const router = useRouter();
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: "checkIn", desc: false },
   ]);
@@ -462,6 +470,8 @@ export function BookingsTable({ data, roomTypes, currency }: BookingsTableProps)
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [showFilters, setShowFilters] = React.useState(false);
   const [newBookingOpen, setNewBookingOpen] = React.useState(false);
+  const [detailBookingId, setDetailBookingId] = React.useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = React.useState(false);
 
   // Selected filters
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
@@ -487,7 +497,12 @@ export function BookingsTable({ data, roomTypes, currency }: BookingsTableProps)
     setColumnFilters(filters);
   }, [statusFilter, paymentFilter, sourceFilter, roomTypeFilter]);
 
-  const columns = React.useMemo(() => getColumns(currency), [currency]);
+  const handleViewDetails = React.useCallback((id: string) => {
+    setDetailBookingId(id);
+    setDetailOpen(true);
+  }, []);
+
+  const columns = React.useMemo(() => getColumns(currency, handleViewDetails), [currency, handleViewDetails]);
 
   const table = useReactTable({
     data,
@@ -801,6 +816,18 @@ export function BookingsTable({ data, roomTypes, currency }: BookingsTableProps)
         onOpenChange={setNewBookingOpen}
         roomTypes={roomTypes}
         currency={currency}
+      />
+
+      {/* Booking Detail Drawer */}
+      <BookingDetailDrawer
+        bookingId={detailBookingId}
+        open={detailOpen}
+        onClose={() => {
+          setDetailOpen(false);
+          setDetailBookingId(null);
+        }}
+        currency={currency}
+        onBookingChanged={() => router.refresh()}
       />
     </div>
   );
