@@ -50,8 +50,8 @@ BEGIN
   WHERE id = p_booking_id
     AND hotel_id = p_hotel_id
   RETURNING
-    COALESCE(bookings.amount_paid, 0) AS v_new_paid,
-    bookings.payment_status            AS v_status
+    COALESCE(amount_paid, 0) AS v_new_paid,
+    payment_status            AS v_status
   INTO v_new_paid, v_status;
 
   IF NOT FOUND THEN
