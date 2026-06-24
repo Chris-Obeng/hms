@@ -99,13 +99,14 @@ export async function getHousekeepingData(): Promise<
       confirmed: 1,
     };
     const bookingByRoom = new Map<string, { guestName: string | null; checkIn: string; checkOut: string; status: string | null }>();
-    // Track rooms with a confirmed arrival today, independent of the priority logic
-    const arrivingTodayRooms = new Set<string>();
+    // Track rooms with a confirmed arrival today and the arriving guest's name,
+    // independent of the priority logic (so same-day turnovers don't show the departing guest's name)
+    const arrivingTodayRooms = new Map<string, string | null>();
     for (const b of todayBookings || []) {
       if (b.room_id) {
         // If this is a confirmed booking checking in today, mark it as an arrival
         if (b.status === "confirmed" && b.check_in === today) {
-          arrivingTodayRooms.add(b.room_id);
+          arrivingTodayRooms.set(b.room_id, (b.guests as any)?.full_name || null);
         }
         const existing = bookingByRoom.get(b.room_id);
         const newPriority = STATUS_PRIORITY[b.status || ""] || 0;
@@ -136,9 +137,11 @@ export async function getHousekeepingData(): Promise<
         hasArrivalToday: arrivingTodayRooms.has(r.id),
         hasDepartureToday: booking?.checkOut === today && booking?.status === "checked_in",
         isVip: false, // VIP flag can be extended later
-        guestName: arrivingTodayRooms.has(r.id) || booking?.status === "checked_in"
-          ? (booking?.guestName ?? null)
-          : null,
+        guestName: arrivingTodayRooms.has(r.id)
+          ? (arrivingTodayRooms.get(r.id) ?? null)
+          : booking?.status === "checked_in"
+            ? (booking?.guestName ?? null)
+            : null,
       };
     });
 
