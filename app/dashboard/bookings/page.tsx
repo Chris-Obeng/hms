@@ -5,9 +5,7 @@ import { BookingsTable, type BookingRow } from "@/components/bookings/bookings-t
 
 export const dynamic = "force-dynamic";
 
-type PageProps = { searchParams?: Promise<{ new?: string }> };
-
-export default async function BookingsPage({ searchParams }: PageProps) {
+export default async function BookingsPage() {
   const { orgId } = await auth();
   const supabase = await createClient();
 

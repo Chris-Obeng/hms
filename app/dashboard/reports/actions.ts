@@ -150,16 +150,16 @@ export async function getRevenueReport(
   // Group by week
   const weekMap = new Map<string, number>();
   for (const b of bookings) {
-    const weekStart = format(
-      startOfWeek(parseISO(b.check_in), { weekStartsOn: 1 }),
-      "MMM d"
-    );
-    weekMap.set(weekStart, (weekMap.get(weekStart) ?? 0) + Number(b.total_amount));
+    const ws = startOfWeek(parseISO(b.check_in), { weekStartsOn: 1 });
+    const key = format(ws, "yyyy-MM-dd");
+    weekMap.set(key, (weekMap.get(key) ?? 0) + Number(b.total_amount));
   }
-  const weeklyRevenue = Array.from(weekMap.entries()).map(([week, revenue]) => ({
-    week,
-    revenue: Math.round(revenue * 100) / 100,
-  }));
+  const weeklyRevenue = Array.from(weekMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, revenue]) => ({
+      week: format(parseISO(key), "MMM d"),
+      revenue: Math.round(revenue * 100) / 100,
+    }));
 
   const totalRevenue = bookings.reduce((s, b) => s + Number(b.total_amount), 0);
   const totalNights = bookings.reduce((s, b) => s + (b.nights ?? 0), 0);

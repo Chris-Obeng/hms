@@ -820,7 +820,12 @@ export function BookingsTable({ data, roomTypes, currency }: BookingsTableProps)
       {/* New Booking Sheet */}
       <NewBookingSheet
         open={newBookingOpen}
-        onOpenChange={setNewBookingOpen}
+        onOpenChange={(open) => {
+          setNewBookingOpen(open);
+          if (!open && searchParams.get("new")) {
+            router.replace("/dashboard/bookings");
+          }
+        }}
         roomTypes={roomTypes}
         currency={currency}
       />
