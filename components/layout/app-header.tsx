@@ -141,7 +141,7 @@ export function AppHeader({
             variant="default"
             size="sm"
             className="h-8 rounded-lg text-xs gap-1.5 bg-foreground text-background hover:bg-foreground/90 hidden sm:inline-flex"
-            onClick={() => router.push("/dashboard/bookings/new")}
+            onClick={() => router.push("/dashboard/bookings?new=1")}
           >
             <Plus className="size-3.5" />
             <span className="hidden md:inline">New Booking</span>
