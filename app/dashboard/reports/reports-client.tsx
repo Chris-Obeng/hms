@@ -178,7 +178,7 @@ function OccupancyTab({
                 domain={[0, 100]}
               />
               <Tooltip
-                formatter={(v: number) => [`${v}%`, "Occupancy"]}
+                formatter={(v) => [`${v ?? 0}%`, "Occupancy"]}
                 labelFormatter={(l) => format(parseISO(l), "MMM d, yyyy")}
                 contentStyle={{
                   fontSize: 12,
@@ -288,7 +288,7 @@ function RevenueTab({
                 tickLine={false}
               />
               <Tooltip
-                formatter={(v: number) => [fmt(v, currency), "Revenue"]}
+                formatter={(v) => [fmt(Number(v ?? 0), currency), "Revenue"]}
                 contentStyle={{
                   fontSize: 12,
                   border: "1px solid hsl(var(--border))",
@@ -387,7 +387,7 @@ function SourcesTab({
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(v: number, name: string) => [v, SOURCE_LABELS[name] ?? name]}
+                  formatter={(v, name) => [v ?? 0, name ? (SOURCE_LABELS[name] ?? name) : ""]}
                   contentStyle={{
                     fontSize: 12,
                     border: "1px solid hsl(var(--border))",
