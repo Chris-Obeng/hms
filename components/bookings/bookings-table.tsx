@@ -470,7 +470,13 @@ export function BookingsTable({ data, roomTypes, currency }: BookingsTableProps)
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [showFilters, setShowFilters] = React.useState(false);
   const searchParams = useSearchParams();
-  const [newBookingOpen, setNewBookingOpen] = React.useState(() => searchParams.get("new") === "1");
+  const [newBookingOpen, setNewBookingOpen] = React.useState(
+    () => searchParams.get("new") === "1"
+  );
+
+  React.useEffect(() => {
+    if (searchParams.get("new") === "1") setNewBookingOpen(true);
+  }, [searchParams]);
   const [detailBookingId, setDetailBookingId] = React.useState<string | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
 
