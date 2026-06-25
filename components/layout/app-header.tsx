@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useUser, useAuth } from "@clerk/nextjs";
 import {
   Search,
@@ -46,20 +46,11 @@ export function AppHeader({
   notificationCount = 0,
 }: AppHeaderProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user, isLoaded } = useUser();
   const { signOut } = useAuth();
   const { toggleSidebar } = useSidebar();
   const isMobile = useIsMobile();
   const [commandOpen, setCommandOpen] = React.useState(false);
-  const [newBookingOpen, setNewBookingOpen] = React.useState(
-    () => searchParams.get("new") === "1"
-  );
-
-  React.useEffect(() => {
-    if (searchParams.get("new") === "1") setNewBookingOpen(true);
-  }, [searchParams]);
-
   // Keyboard shortcut for command palette
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
