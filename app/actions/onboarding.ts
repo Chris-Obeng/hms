@@ -20,13 +20,20 @@ const OnboardingSchema = z.object({
 export type OnboardingInput = z.infer<typeof OnboardingSchema>;
 
 function slugify(text: string) {
-  return text
+  const base = text
     .toString()
     .toLowerCase()
     .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")   // strip accents
+    .replace(/[^a-z0-9\s-]/g, "")      // keep alphanumeric + spaces + hyphens
     .replace(/\s+/g, "-")
-    .replace(/[^\w\-]+/g, "")
-    .replace(/\-\-+/g, "-") + "-" + Math.random().toString(36).substring(2, 6);
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40);
+  // 4-char base36 suffix ensures uniqueness while keeping slug readable
+  const suffix = Math.random().toString(36).slice(2, 6);
+  return `${base}-${suffix}`;
 }
 
 export async function createHotelProfile(formData: OnboardingInput) {

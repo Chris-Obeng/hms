@@ -1,27 +1,39 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
+import { Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RoomTypeForm, type RoomTypeFormValues } from "../../_components/room-type-form";
-import { getRoomType, updateRoomType } from "@/app/actions/rooms";
+import { getRoomType, updateRoomType, getHotelSlug } from "@/app/actions/rooms";
 import { AMENITIES_LIST } from "@/lib/amenities";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RoomPreviewSheet } from "../../_components/room-preview-sheet";
 
 export default function EditRoomTypePage() {
-  const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
+  const isNew = searchParams.get("new") === "1";
 
   const [fetching, setFetching] = React.useState(true);
   const [notFound, setNotFound] = React.useState(false);
   const [initialValues, setInitialValues] = React.useState<Partial<RoomTypeFormValues> | undefined>(undefined);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [hotelId, setHotelId] = React.useState<string | undefined>(undefined);
+  const [initialImages, setInitialImages] = React.useState<{ url: string; caption: string; order: number }[]>([]);
+  const [showBanner, setShowBanner] = React.useState(isNew);
+  const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [roomData, setRoomData] = React.useState<any>(null);
+  const [bookingUrl, setBookingUrl] = React.useState<string | undefined>(undefined);
 
-  // Fetch room type on mount
+  React.useEffect(() => {
+    getHotelSlug().then((url) => { if (url) setBookingUrl(url); });
+  }, []);
+
   React.useEffect(() => {
     async function load() {
       const result = await getRoomType(id);
@@ -31,6 +43,7 @@ export default function EditRoomTypePage() {
         return;
       }
       const rt = result.data;
+      setRoomData(rt);
       setInitialValues({
         name: rt.name,
         slug: rt.slug,
@@ -45,6 +58,8 @@ export default function EditRoomTypePage() {
         isActive: rt.isActive ?? true,
         sortOrder: rt.sortOrder || 0,
       });
+      setInitialImages((rt.images || []) as { url: string; caption: string; order: number }[]);
+      setHotelId(rt.hotelId);
       setFetching(false);
     }
     load();
@@ -71,9 +86,7 @@ export default function EditRoomTypePage() {
     });
 
     if (result.success) {
-      toast.success(`Room type "${values.name}" updated`);
-      router.push("/dashboard/rooms/types");
-      router.refresh();
+      toast.success(`"${values.name}" updated`);
       return { success: true };
     } else {
       if (result.fieldErrors) {
@@ -88,16 +101,12 @@ export default function EditRoomTypePage() {
     }
   }
 
-  // Loading skeleton
   if (fetching) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="flex items-center gap-4">
           <Skeleton className="size-8 rounded-lg" />
-          <div>
-            <Skeleton className="h-6 w-48 mb-1" />
-            <Skeleton className="h-4 w-32" />
-          </div>
+          <div><Skeleton className="h-6 w-48 mb-1" /><Skeleton className="h-4 w-32" /></div>
         </div>
         {[1, 2, 3, 4].map((i) => (
           <Card key={i}>
@@ -112,30 +121,64 @@ export default function EditRoomTypePage() {
     );
   }
 
-  // Not found state
   if (notFound) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh]">
         <p className="text-lg font-semibold text-foreground">Room type not found</p>
         <Link href="/dashboard/rooms/types">
-          <Button variant="outline" className="mt-4 text-sm rounded-xl">
-            Back to Room Types
-          </Button>
+          <Button variant="outline" className="mt-4 text-sm rounded-xl">Back to Room Types</Button>
         </Link>
       </div>
     );
   }
 
-  // Ready to render form (initialValues must be set by now)
   return (
-    <RoomTypeForm
-      initialValues={initialValues}
-      onSubmit={handleSubmit}
-      submitLabel="Save Changes"
-      submittingLabel="Saving..."
-      title="Edit Room Type"
-      subtitle="Update room type details and pricing."
-      errors={errors}
-    />
+    <>
+      {/* "Just created" banner — shown when redirected from new page */}
+      {showBanner && (
+        <div className="max-w-2xl mx-auto mb-4">
+          <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-3">
+            <Camera className="size-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-amber-900">Room created — now add photos</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Rooms with photos get significantly more bookings. Add at least 3 photos below.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowBanner(false)}
+              className="text-amber-400 hover:text-amber-600 text-xs shrink-0"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      <RoomTypeForm
+        initialValues={initialValues}
+        hotelId={hotelId}
+        roomTypeId={id}
+        initialImages={initialImages}
+        photosFirst={true}
+        onSubmit={handleSubmit}
+        onPreview={() => setPreviewOpen(true)}
+        submitLabel="Save Changes"
+        submittingLabel="Saving..."
+        title="Edit Room Type"
+        subtitle="Update room details. Changes go live on your booking page immediately."
+        errors={errors}
+      />
+
+      {roomData && (
+        <RoomPreviewSheet
+          open={previewOpen}
+          onClose={() => setPreviewOpen(false)}
+          roomType={roomData}
+          bookingUrl={bookingUrl}
+        />
+      )}
+    </>
   );
 }

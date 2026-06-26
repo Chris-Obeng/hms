@@ -1,23 +1,57 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)", "/", "/api/webhooks(.*)"]);
+const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? "hotelosprp.com";
+
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/api/webhooks(.*)",
+  "/api/booking(.*)",
+]);
 
 export default clerkMiddleware(async (auth, req) => {
-  const { userId, orgId } = await auth();
-  const isOnboarding = req.nextUrl.pathname.startsWith("/onboarding");
+  const host = req.headers.get("host") ?? "";
+  const { pathname } = req.nextUrl;
 
-  // If no user and trying to access a protected route (which includes onboarding), redirect to sign-in
-  if (!userId && !isPublicRoute(req)) {
-    return NextResponse.redirect(new URL("/sign-up", req.url)); // redirecting to sign-up instead of sign-in if they go to onboarding without account
+  const isApp = host === `app.${BASE_DOMAIN}` || host.startsWith("localhost");
+  const isPlatform = host === `platform.${BASE_DOMAIN}`;
+  const isBooking =
+    !isApp &&
+    !isPlatform &&
+    (host.endsWith(`.${BASE_DOMAIN}`) || !host.includes(BASE_DOMAIN));
+
+  // Booking app: inject hotel slug, no auth
+  if (isBooking && !isApp) {
+    const slug = host.endsWith(`.${BASE_DOMAIN}`)
+      ? host.replace(`.${BASE_DOMAIN}`, "")
+      : host;
+    const res = NextResponse.next();
+    res.headers.set("x-hotel-slug", slug);
+    return res;
   }
 
-  // Signed in but no org = hasn't completed onboarding
+  // Dev: local booking app override via ?__slug= or NEXT_PUBLIC_DEV_HOTEL_SLUG
+  const devSlug = req.nextUrl.searchParams.get("__slug") ?? process.env.NEXT_PUBLIC_DEV_HOTEL_SLUG;
+  if (isApp && devSlug && (pathname.startsWith("/book") || pathname === "/" || pathname.startsWith("/rooms"))) {
+    const res = NextResponse.next();
+    res.headers.set("x-hotel-slug", devSlug);
+    return res;
+  }
+
+  // Admin / Platform: Clerk auth protection
+  const { userId, orgId } = await auth();
+  const isOnboarding = pathname.startsWith("/onboarding");
+
+  if (!userId && !isPublicRoute(req)) {
+    return NextResponse.redirect(new URL("/sign-up", req.url));
+  }
+
   if (userId && !orgId && !isOnboarding && !isPublicRoute(req)) {
     return NextResponse.redirect(new URL("/onboarding", req.url));
   }
 
-  // If already onboarded (has orgId) but trying to access /onboarding, redirect to dashboard
   if (userId && orgId && isOnboarding) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
@@ -25,11 +59,8 @@ export default clerkMiddleware(async (auth, req) => {
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files, unless found in search params
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    // Always run for Clerk's auto-proxy path
     "/__clerk/:path*",
-    // Always run for API routes
     "/(api|trpc)(.*)",
   ],
 };

@@ -52,15 +52,17 @@ export default async function CalendarPage() {
   const { canEdit, canBlock } = await getCurrentStaffRole();
 
   return (
-    <CalendarClient
-      initialData={initialData}
-      roomTypes={roomTypes}
-      hotelId={hotel.id}
-      hotelName={hotel.name}
-      currency={hotel.currency || "GHS"}
-      canEdit={canEdit}
-      canBlock={canBlock}
-    />
+    <div className="-mx-4 -mb-4 md:-mx-6 md:-mb-6 lg:-mx-8 lg:-mb-8 overflow-hidden">
+      <CalendarClient
+        initialData={initialData}
+        roomTypes={roomTypes}
+        hotelId={hotel.id}
+        hotelName={hotel.name}
+        currency={hotel.currency || "GHS"}
+        canEdit={canEdit}
+        canBlock={canBlock}
+      />
+    </div>
   );
 }
 

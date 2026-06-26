@@ -1,30 +1,29 @@
 // Calendar helper constants and pure formatting functions.
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
 export function getBookingBarColor(
   status: string,
   source: string | null
 ): { bg: string; text: string; border: string } {
+  // Status-based color system per spec
   if (status === "checked_in") {
-    return { bg: "#16A34A", text: "#FFFFFF", border: "#15803D" };
+    return { bg: "#16A34A", text: "#FFFFFF", border: "#15803D" }; // IN HOUSE - green
   }
-  if (status === "pending") {
-    return { bg: "#7C3AED", text: "#FFFFFF", border: "#6D28D9" };
+  if (status === "checked_out") {
+    return { bg: "#6B7280", text: "#FFFFFF", border: "#4B5563" }; // CHECKED OUT - gray
   }
   if (status === "cancelled") {
     return { bg: "#94A3B8", text: "#FFFFFF", border: "#64748B" };
   }
-
-  switch (source) {
-    case "bookings_com":
-      return { bg: "#6D5DF6", text: "#FFFFFF", border: "#5448D9" };
-    case "direct":
-      return { bg: "#16A7D8", text: "#FFFFFF", border: "#0E8DB8" };
-    case "manual":
-    case "phone":
-    case "walk_in":
-    default:
-      return { bg: "#2FAA67", text: "#FFFFFF", border: "#238451" };
+  if (status === "maintenance" || status === "out_of_service") {
+    return { bg: "#D97706", text: "#FFFFFF", border: "#B45309" }; // MAINTENANCE - amber
   }
+
+  // Default: RESERVED - blue
+  return { bg: "#2563EB", text: "#FFFFFF", border: "#1D4ED8" };
 }
 
 export function getRoomStatusColor(status: string): {
@@ -86,31 +85,47 @@ export function getEventHtml(
   status: string,
   source: string | null,
   totalDays: number,
-  paymentStatus?: string | null
+  paymentStatus?: string | null,
+  stripeColor?: string
 ): string {
   const name = guestName || "Guest";
   const n = nights || totalDays;
-  const unpaid = paymentStatus === "unpaid" || paymentStatus === "partial";
-  const unpaidDot = unpaid
-    ? `<span class="event-unpaid-dot" title="Payment outstanding"></span>`
-    : "";
-  const statusDot = `<span class="event-status-dot event-status-dot--${status.replace(/_/g, "-")}"></span>`;
+  const compact = totalDays <= 2;
+  const truncate = (s: string, max: number) =>
+    s.length > max ? `${s.slice(0, max - 1)}…` : s;
 
-  if (totalDays <= 1) {
-    const truncated = name.length > 10 ? `${name.slice(0, 9)}...` : name;
-    return `<div class="event-inner compact">${unpaidDot}${statusDot}<span class="event-name">${truncated}</span></div>`;
-  }
+  // Status badge text
+  let statusText = "";
+  if (status === "checked_in") statusText = "IN HOUSE";
+  else if (status === "confirmed" || status === "pending") statusText = "RESERVED";
+  else if (status === "checked_out") statusText = "CHECKED OUT";
 
-  if (totalDays <= 3) {
-    const truncated = name.length > 14 ? `${name.slice(0, 13)}...` : name;
-    return `<div class="event-inner compact">${unpaidDot}${statusDot}<span class="event-name">${truncated}</span></div>`;
-  }
+  // Background color based on status (solid colors as per spec)
+  let bgColor = stripeColor || "#16a34a";
+  if (status === "checked_in") bgColor = "#16a34a";
+  else if (status === "confirmed" || status === "pending") bgColor = "#2563eb";
+  else if (status === "checked_out") bgColor = "#6b7280";
+  else if (status === "cancelled") bgColor = "#6b7280";
 
-  const truncated = name.length > 22 ? `${name.slice(0, 21)}...` : name;
   const sourceLabel = getSourceShortLabel(source);
-  return `<div class="event-inner">
-    <div class="event-name-row">${unpaidDot}${statusDot}<span class="event-name">${truncated}</span></div>
-    <span class="event-meta">${n}n - ${sourceLabel}</span>
+  const guestPart = escapeHtml(truncate(name, compact ? 14 : 20));
+  const sourcePart = sourceLabel && sourceLabel !== "Direct" ? `<span class="cal-evt-source">${sourceLabel}</span>` : "";
+  const statusPart = statusText ? `<span class="cal-evt-status-pill">${statusText}</span>` : "";
+  const nightsPart = `<span class="cal-evt-nights">${n}n</span>`;
+
+  // Use darker shade for the stripe accent
+  const stripeColorDarker = status === "checked_in" ? "#15803d" 
+    : status === "checked_out" ? "#4b5563"
+    : "#1d4ed8";
+
+  return `<div class="cal-evt ${compact ? 'compact' : ''}" style="background:${bgColor}">
+    <div class="cal-evt-stripe" style="background:${stripeColorDarker}"></div>
+    <div class="cal-evt-bar">
+      <span class="cal-evt-name">${guestPart}</span>
+      ${sourcePart}
+      ${!compact ? nightsPart : ''}
+      ${statusPart}
+    </div>
   </div>`;
 }
 
@@ -141,8 +156,8 @@ export const VIEW_PRESETS = [
 
 export type ViewPreset = (typeof VIEW_PRESETS)[number]["label"];
 
-export const ROW_HEIGHT = 42;
-export const ROW_HEADER_WIDTH = 228;
+export const ROW_HEIGHT = 40;
+export const ROW_HEADER_WIDTH = 220;
 
 export interface LegendItem {
   label: string;

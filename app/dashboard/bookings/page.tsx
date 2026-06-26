@@ -73,6 +73,7 @@ export default async function BookingsPage() {
       data={bookings}
       roomTypes={roomTypes}
       currency={currency}
+      hotelId={hotelId}
     />
   );
 }

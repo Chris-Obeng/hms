@@ -74,7 +74,7 @@ export default async function RoomsDirectoryPage() {
         </p>
       </div>
 
-      <RoomsDirectory data={roomList} roomTypes={types} />
+      <RoomsDirectory data={roomList} roomTypes={types} hotelId={hotelId} />
     </div>
   );
 }

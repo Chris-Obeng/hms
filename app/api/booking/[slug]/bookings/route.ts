@@ -1,0 +1,219 @@
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { initializeTransaction } from "@/lib/paystack";
+import { z } from "zod";
+
+const Schema = z.object({
+  room_type_id: z.string().uuid(),
+  check_in: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  check_out: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  adults: z.coerce.number().int().min(1).max(20).default(1),
+  children: z.coerce.number().int().min(0).max(10).default(0),
+  guest_name: z.string().min(1).max(120),
+  guest_email: z.string().email(),
+  guest_phone: z.string().min(7).max(20),
+  payment_preference: z.enum(["pay_now", "pay_at_checkin"]),
+  special_requests: z.string().max(500).optional(),
+  estimated_arrival: z.string().optional(),
+});
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  try {
+    const { slug } = await params;
+
+    // Reject anything that isn't a safe slug/domain before querying
+    if (!/^[a-z0-9.-]+$/i.test(slug)) {
+      return NextResponse.json({ error: "Hotel not found" }, { status: 404 });
+    }
+
+    const body = await req.json();
+    const parsed = Schema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+    }
+    const data = parsed.data;
+
+    // Resolve hotel
+    const { data: hotel } = await supabaseAdmin
+      .from("hotels")
+      .select("id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, cancellation_policy")
+      .or(`slug.eq.${slug},custom_domain.eq.${slug}`)
+      .eq("status", "active")
+      .single();
+    if (!hotel) return NextResponse.json({ error: "Hotel not found" }, { status: 404 });
+
+    // Enforce payment policy
+    const policy = ((hotel.settings as Record<string, unknown>)?.payment_policy as string) ?? "choice";
+    if (policy === "pay_now_only" && data.payment_preference === "pay_at_checkin") {
+      return NextResponse.json({ error: "This hotel requires payment to confirm your booking." }, { status: 400 });
+    }
+    if (policy === "pay_later_only" && data.payment_preference === "pay_now") {
+      return NextResponse.json({ error: "This hotel collects payment at check-in." }, { status: 400 });
+    }
+    if (data.payment_preference === "pay_now" && !hotel.paystack_subaccount_code) {
+      return NextResponse.json({ error: "Online payment is not available for this hotel." }, { status: 400 });
+    }
+
+    // Validate dates
+    if (data.check_out <= data.check_in) {
+      return NextResponse.json({ error: "Check-out must be after check-in." }, { status: 400 });
+    }
+
+    // Check room type exists and is active
+    const { data: roomType } = await supabaseAdmin
+      .from("room_types")
+      .select("id, name, base_price, weekend_price")
+      .eq("id", data.room_type_id)
+      .eq("hotel_id", hotel.id)
+      .eq("is_active", true)
+      .single();
+    if (!roomType) return NextResponse.json({ error: "Room type not available." }, { status: 400 });
+
+    // Re-check availability (fast-path; DB exclusion constraint is the final guard)
+    const { data: availCount } = await supabaseAdmin.rpc("room_type_available_count", {
+      p_room_type_id: data.room_type_id,
+      p_check_in: data.check_in,
+      p_check_out: data.check_out,
+    });
+    if ((availCount ?? 0) < 1) {
+      return NextResponse.json({ error: "No rooms available for these dates." }, { status: 409 });
+    }
+
+    // Calculate pricing — use weekend_price (if set) for Fri/Sat nights
+    const checkInDate = new Date(data.check_in);
+    const checkOutDate = new Date(data.check_out);
+    const nights = Math.ceil(
+      (checkOutDate.getTime() - checkInDate.getTime()) / 86400000
+    );
+    let subtotal = 0;
+    for (let i = 0; i < nights; i++) {
+      const night = new Date(checkInDate);
+      night.setUTCDate(night.getUTCDate() + i);
+      const dow = night.getUTCDay(); // 0 = Sun, 5 = Fri, 6 = Sat
+      const isWeekendNight = dow === 5 || dow === 6;
+      const nightRate =
+        isWeekendNight && roomType.weekend_price != null
+          ? roomType.weekend_price
+          : roomType.base_price;
+      subtotal += nightRate;
+    }
+    const rate = nights > 0 ? subtotal / nights : roomType.base_price;
+    const total = subtotal;
+
+    // Find or create guest
+    let guestId: string;
+    const { data: existingGuest } = await supabaseAdmin
+      .from("guests")
+      .select("id")
+      .eq("hotel_id", hotel.id)
+      .eq("email", data.guest_email)
+      .maybeSingle();
+
+    if (existingGuest) {
+      guestId = existingGuest.id;
+    } else {
+      const { data: newGuest, error: guestErr } = await supabaseAdmin
+        .from("guests")
+        .insert({ hotel_id: hotel.id, full_name: data.guest_name, email: data.guest_email, phone: data.guest_phone })
+        .select("id")
+        .single();
+      if (guestErr || !newGuest) return NextResponse.json({ error: "Failed to create guest record." }, { status: 500 });
+      guestId = newGuest.id;
+    }
+
+    // Generate booking reference atomically (race-safe DB counter)
+    const { data: generatedRef, error: refErr } = await supabaseAdmin.rpc(
+      "generate_booking_reference",
+      { p_hotel_id: hotel.id }
+    );
+    if (refErr || !generatedRef) {
+      return NextResponse.json({ error: "Failed to generate booking reference." }, { status: 500 });
+    }
+    const reference: string = generatedRef;
+
+    // For pay_now: booking starts as pending until payment confirmed
+    const status = data.payment_preference === "pay_now" ? "pending" : "confirmed";
+    const paymentStatus = "unpaid";
+
+    const { data: booking, error: bookingErr } = await supabaseAdmin
+      .from("bookings")
+      .insert({
+        hotel_id: hotel.id,
+        reference,
+        guest_id: guestId,
+        room_type_id: data.room_type_id,
+        check_in: data.check_in,
+        check_out: data.check_out,
+        nights,
+        adults: data.adults,
+        children: data.children,
+        room_rate: rate,
+        subtotal,
+        tax_amount: 0,
+        total_amount: total,
+        amount_paid: 0,
+        currency: hotel.currency ?? "GHS",
+        status,
+        payment_status: paymentStatus,
+        payment_preference: data.payment_preference,
+        source: "direct",
+        special_requests: data.special_requests || null,
+        estimated_arrival: data.estimated_arrival || null,
+      })
+      .select("id, reference")
+      .single();
+
+    if (bookingErr || !booking) {
+      // Postgres exclusion-constraint violation (23P01) means a concurrent booking
+      // grabbed the last room between our availability check and this insert.
+      if ((bookingErr as { code?: string } | null)?.code === "23P01") {
+        return NextResponse.json({ error: "No rooms available for these dates." }, { status: 409 });
+      }
+      return NextResponse.json({ error: "Failed to create booking." }, { status: 500 });
+    }
+
+    // Insert admin notification
+    await supabaseAdmin.from("notifications").insert({
+      hotel_id: hotel.id,
+      type: "new_booking",
+      title: "New Booking",
+      message: `${data.guest_name} · ${roomType.name} · ${data.check_in} → ${data.check_out}`,
+      booking_id: booking.id,
+      is_read: false,
+    });
+
+    // Pay Later: done
+    if (data.payment_preference === "pay_at_checkin") {
+      return NextResponse.json({ bookingId: booking.id, reference: booking.reference });
+    }
+
+    // Pay Now: initialize Paystack transaction
+    const origin = req.headers.get("origin") ?? req.nextUrl.origin;
+    const callbackUrl = `${origin}/book/confirmation?reference=${booking.reference}&slug=${slug}`;
+    const payRef = `${booking.reference}-${Date.now()}`;
+
+    const txn = await initializeTransaction({
+      email: data.guest_email,
+      amount: Math.round(total * 100), // pesewas
+      currency: hotel.currency ?? "GHS",
+      reference: payRef,
+      callback_url: callbackUrl,
+      subaccount: hotel.paystack_subaccount_code!,
+      metadata: { booking_id: booking.id, hotel_id: hotel.id, booking_reference: booking.reference },
+    });
+
+    return NextResponse.json({
+      bookingId: booking.id,
+      reference: booking.reference,
+      paymentRequired: true,
+      authorizationUrl: txn.authorization_url,
+      paymentReference: payRef,
+    });
+  } catch (err) {
+    console.error("[booking/create]", err);
+    return NextResponse.json({ error: "Unexpected error. Please try again." }, { status: 500 });
+  }
+}

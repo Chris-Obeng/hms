@@ -12,6 +12,9 @@ import {
   Settings,
   ChevronDown,
   Building2,
+  ExternalLink,
+  Copy,
+  Check,
 } from "lucide-react";
 import { MenuIcon } from "@/components/ui/menu-icon";
 import { NotificationIcon } from "@/components/ui/notification-icon";
@@ -29,13 +32,16 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { createClient } from "@/lib/supabase/client";
 
 // ── Props ──────────────────────────────────────────────────────
 
 export interface AppHeaderProps {
   hotelName?: string;
   hotelLogoUrl?: string | null;
+  hotelId?: string;
   notificationCount?: number;
+  bookingUrl?: string;
 }
 
 // ── Component ───────────────────────────────────────────────────
@@ -43,7 +49,9 @@ export interface AppHeaderProps {
 export function AppHeader({
   hotelName,
   hotelLogoUrl,
+  hotelId,
   notificationCount = 0,
+  bookingUrl,
 }: AppHeaderProps) {
   const router = useRouter();
   const { user, isLoaded } = useUser();
@@ -51,6 +59,55 @@ export function AppHeader({
   const { toggleSidebar } = useSidebar();
   const isMobile = useIsMobile();
   const [commandOpen, setCommandOpen] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+
+  // Live notification count — starts from server-rendered value, updates via Realtime
+  const [liveNotificationCount, setLiveNotificationCount] = React.useState(notificationCount);
+
+  // Sync when server-side prop changes (e.g., on navigation)
+  React.useEffect(() => {
+    setLiveNotificationCount(notificationCount);
+  }, [notificationCount]);
+
+  // Realtime subscription for notifications
+  React.useEffect(() => {
+    if (!hotelId) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`hotel:${hotelId}:notifications`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `hotel_id=eq.${hotelId}` },
+        () => {
+          setLiveNotificationCount((prev) => prev + 1);
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "notifications", filter: `hotel_id=eq.${hotelId}` },
+        async () => {
+          // Re-fetch unread count when notifications are marked as read
+          const { count } = await supabase
+            .from("notifications")
+            .select("*", { count: "exact", head: true })
+            .eq("hotel_id", hotelId)
+            .eq("is_read", false);
+          setLiveNotificationCount(count ?? 0);
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [hotelId]);
+
+  function copyBookingUrl() {
+    if (!bookingUrl) return;
+    navigator.clipboard.writeText(bookingUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
   // Keyboard shortcut for command palette
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -74,7 +131,7 @@ export function AppHeader({
         className={cn(
           "fixed top-0 left-0 right-0 z-40 flex h-12 items-center gap-2",
           "border-b border-border/60 bg-background/80 backdrop-blur-md supports-backdrop-filter:bg-background/60",
-          "px-3 md:px-4 lg:px-6"
+          "px-3 md:px-4 lg:px-6",
         )}
       >
         {/* Left: Hamburger + Hotel name */}
@@ -117,7 +174,7 @@ export function AppHeader({
             className={cn(
               "flex items-center gap-2 w-full max-w-md h-8 px-3 rounded-lg",
               "border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors",
-              "text-sm text-muted-foreground/70 text-left"
+              "text-sm text-muted-foreground/70 text-left",
             )}
           >
             <Search className="size-3.5 shrink-0 text-muted-foreground/50" />
@@ -135,6 +192,35 @@ export function AppHeader({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {/* Booking page link */}
+          {bookingUrl && (
+            <div className="hidden sm:flex items-center gap-1 h-8 rounded-lg border border-border/60 bg-muted/20 px-2 text-xs text-muted-foreground max-w-[180px]">
+              <a
+                href={bookingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 hover:text-foreground transition-colors min-w-0 flex-1"
+                title={bookingUrl}
+              >
+                <ExternalLink className="size-3 shrink-0" />
+                <span className="truncate">
+                  {bookingUrl.replace(/^https?:\/\//, "")}
+                </span>
+              </a>
+              <button
+                onClick={copyBookingUrl}
+                className="shrink-0 hover:text-foreground transition-colors ml-1"
+                title="Copy booking link"
+              >
+                {copied ? (
+                  <Check className="size-3 text-emerald-600" />
+                ) : (
+                  <Copy className="size-3" />
+                )}
+              </button>
+            </div>
+          )}
+
           {/* New Booking */}
           <Button
             variant="default"
@@ -143,7 +229,6 @@ export function AppHeader({
             onClick={() => router.push("/dashboard/bookings?new=1")}
           >
             <Plus className="size-3.5" />
-            <span className="hidden md:inline">New Booking</span>
           </Button>
 
           {/* Notifications */}
@@ -159,9 +244,9 @@ export function AppHeader({
               }
             >
               <NotificationIcon size={16} />
-              {notificationCount > 0 && (
+              {liveNotificationCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground ring-2 ring-background">
-                  {notificationCount > 9 ? "9+" : notificationCount}
+                  {liveNotificationCount > 9 ? "9+" : liveNotificationCount}
                 </span>
               )}
             </DropdownMenuTrigger>
@@ -169,8 +254,8 @@ export function AppHeader({
               <DropdownMenuLabel>Notifications</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <div className="p-4 text-center text-sm text-muted-foreground">
-                {notificationCount > 0
-                  ? `${notificationCount} unread notification${notificationCount !== 1 ? "s" : ""}`
+                {liveNotificationCount > 0
+                  ? `${liveNotificationCount} unread notification${liveNotificationCount !== 1 ? "s" : ""}`
                   : "No new notifications"}
               </div>
             </DropdownMenuContent>
@@ -194,8 +279,7 @@ export function AppHeader({
                     alt={user.fullName || "User"}
                   />
                   <AvatarFallback className="text-[10px] font-medium rounded-md bg-foreground/10">
-                    {(user.firstName?.[0] || "U") +
-                      (user.lastName?.[0] || "")}
+                    {(user.firstName?.[0] || "U") + (user.lastName?.[0] || "")}
                   </AvatarFallback>
                 </Avatar>
                 <span className="text-sm font-medium text-foreground hidden md:inline max-w-[100px] truncate">
@@ -215,10 +299,31 @@ export function AppHeader({
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>
+                <DropdownMenuItem
+                  onClick={() => router.push("/dashboard/settings")}
+                >
                   <Settings className="size-3.5" />
                   Settings
                 </DropdownMenuItem>
+                {bookingUrl && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => window.open(bookingUrl, "_blank")}
+                    >
+                      <ExternalLink className="size-3.5" />
+                      View booking page
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={copyBookingUrl}>
+                      {copied ? (
+                        <Check className="size-3.5 text-emerald-600" />
+                      ) : (
+                        <Copy className="size-3.5" />
+                      )}
+                      {copied ? "Copied!" : "Copy booking link"}
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => signOut({ redirectUrl: "/" })}>
                   <LogOut className="size-3.5" />

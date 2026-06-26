@@ -19,7 +19,7 @@ export default async function DashboardLayout({
   const supabase = await createClient()
   const { data: hotel } = await supabase
     .from('hotels')
-    .select('id, name, logo_url')
+    .select('id, name, logo_url, slug, custom_domain, currency')
     .eq('clerk_org_id', orgId)
     .single()
 
@@ -47,11 +47,13 @@ export default async function DashboardLayout({
           <AppHeader
             hotelName={hotel?.name}
             hotelLogoUrl={hotel?.logo_url}
+            hotelId={hotel?.id}
             notificationCount={notificationCount}
+            bookingUrl={hotel?.slug ? (hotel.custom_domain ? `https://${hotel.custom_domain}` : `https://${hotel.slug}.${process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'hotelosprp.com'}`) : undefined}
           />
           
           {/* Page Content (pushes below fixed header) */}
-          <main className="flex-1 pt-12 p-4 md:p-6 lg:p-8">
+          <main className="flex-1 pt-12 px-4 pb-4 md:px-6 md:pb-6 lg:px-8 lg:pb-8">
             {children}
           </main>
         </div>

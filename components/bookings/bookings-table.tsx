@@ -55,6 +55,7 @@ import {
 import { NewBookingSheet } from "@/components/bookings/new-booking-sheet";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import { updateBookingStatus } from "@/app/actions/bookings";
+import { createClient } from "@/lib/supabase/client";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -82,6 +83,7 @@ interface BookingsTableProps {
   data: BookingRow[];
   roomTypes: { id: string; name: string }[];
   currency: string;
+  hotelId?: string;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -457,7 +459,7 @@ function exportToCsv(data: BookingRow[], currency: string) {
 
 // ── Main Component ─────────────────────────────────────────────────
 
-export function BookingsTable({ data, roomTypes, currency }: BookingsTableProps) {
+export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTableProps) {
   const router = useRouter();
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: "checkIn", desc: false },
@@ -477,6 +479,24 @@ export function BookingsTable({ data, roomTypes, currency }: BookingsTableProps)
   React.useEffect(() => {
     if (searchParams.get("new") === "1") setNewBookingOpen(true);
   }, [searchParams]);
+
+  // Realtime subscription — refresh on any booking change for this hotel
+  React.useEffect(() => {
+    if (!hotelId) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`hotel:${hotelId}:bookings-list`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
+        () => router.refresh(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [hotelId, router]);
+
   const [detailBookingId, setDetailBookingId] = React.useState<string | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
 

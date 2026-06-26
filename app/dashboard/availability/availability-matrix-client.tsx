@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { createClient } from "@/lib/supabase/client";
 
 export type AvailabilityMatrixData = {
   hotelName: string;
@@ -85,13 +86,34 @@ type RoomAvailabilityCell = {
 
 const DAY_PRESETS = [7, 14, 30, 45] as const;
 
-export function AvailabilityMatrixClient({ data }: { data: AvailabilityMatrixData }) {
+export function AvailabilityMatrixClient({ data, hotelId }: { data: AvailabilityMatrixData; hotelId: string }) {
   const router = useRouter();
   const [view, setView] = React.useState<"inventory" | "rack">("inventory");
   const [query, setQuery] = React.useState("");
   const [visibleTypeIds, setVisibleTypeIds] = React.useState<Set<string>>(
     () => new Set(data.roomTypes.map((roomType) => roomType.id))
   );
+
+  // Realtime subscription — auto-refresh on booking or availability_block changes
+  React.useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`hotel:${hotelId}:availability`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
+        () => router.refresh(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "availability_blocks", filter: `hotel_id=eq.${hotelId}` },
+        () => router.refresh(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [hotelId, router]);
 
   const gridTemplateColumns = React.useMemo(
     () => `220px repeat(${data.dates.length}, minmax(78px, 1fr))`,

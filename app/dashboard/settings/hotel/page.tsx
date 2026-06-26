@@ -3,29 +3,24 @@ import { createClient } from "@/lib/supabase/server";
 import { Building2 } from "lucide-react";
 import Link from "next/link";
 import { HotelSettingsClient } from "./hotel-client";
+import { BookingPageCard } from "./booking-page-card";
 
 export const dynamic = "force-dynamic";
 
 export default async function HotelSettingsPage() {
   const { orgId, userId } = await auth();
-
-  if (!orgId || !userId) {
-    return <NoAccessState />;
-  }
+  if (!orgId || !userId) return <NoAccessState />;
 
   const supabase = await createClient();
 
   const { data: hotel } = await supabase
     .from("hotels")
-    .select("id, name, address, city, country, phone, email, description, check_in_time, check_out_time, timezone, currency, logo_url, cover_image_url")
+    .select("id, name, slug, custom_domain, address, city, country, phone, email, description, check_in_time, check_out_time, timezone, currency, cancellation_policy, logo_url, cover_image_url")
     .eq("clerk_org_id", orgId)
     .single();
 
-  if (!hotel) {
-    return <NoAccessState />;
-  }
+  if (!hotel) return <NoAccessState />;
 
-  // Check if user is super admin
   const { data: currentUser } = await supabase
     .from("staff_profiles")
     .select("role, full_name")
@@ -35,9 +30,15 @@ export default async function HotelSettingsPage() {
 
   const isSuperAdmin = currentUser?.role === "super_admin";
 
+  const base = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? "hotelosprp.com";
+  const bookingUrl = hotel.custom_domain
+    ? `https://${hotel.custom_domain}`
+    : hotel.slug
+    ? `https://${hotel.slug}.${base}`
+    : null;
+
   return (
     <div className="space-y-6 max-w-2xl">
-      {/* Header */}
       <div className="flex items-center gap-4">
         <Link
           href="/dashboard/settings"
@@ -48,22 +49,19 @@ export default async function HotelSettingsPage() {
           </svg>
         </Link>
         <div>
-          <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-foreground">
-            Hotel Profile
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Manage your property&apos;s public information and branding
-          </p>
+          <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-foreground">Hotel Profile</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Manage your property's public information and branding</p>
         </div>
       </div>
+
+      {/* Booking page link — always visible */}
+      {bookingUrl && <BookingPageCard url={bookingUrl} hotelName={hotel.name} />}
 
       {!isSuperAdmin ? (
         <div className="flex flex-col items-center justify-center min-h-[40vh] text-center px-6">
           <Building2 className="size-10 text-muted-foreground/30 mb-3" />
           <h2 className="text-sm font-semibold text-foreground">Super Admin Only</h2>
-          <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-            Only the hotel Super Admin can manage settings.
-          </p>
+          <p className="text-xs text-muted-foreground mt-1 max-w-sm">Only the hotel Super Admin can manage settings.</p>
         </div>
       ) : (
         <HotelSettingsClient
@@ -80,6 +78,7 @@ export default async function HotelSettingsPage() {
             checkOutTime: hotel.check_out_time || "",
             timezone: hotel.timezone || "",
             currency: hotel.currency || "",
+            cancellationPolicy: hotel.cancellation_policy || "",
           }}
           logoUrl={hotel.logo_url}
           coverImageUrl={hotel.cover_image_url}
@@ -95,9 +94,7 @@ function NoAccessState() {
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
       <Building2 className="size-12 text-muted-foreground/30 mb-4" />
       <h2 className="text-lg font-semibold text-foreground">Access Denied</h2>
-      <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-        Please sign in to manage settings.
-      </p>
+      <p className="text-sm text-muted-foreground mt-1 max-w-sm">Please sign in to manage settings.</p>
     </div>
   );
 }

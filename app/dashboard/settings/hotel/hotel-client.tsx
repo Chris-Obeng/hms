@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateHotelProfile } from "@/app/actions/settings";
+import { saveHotelImageUrl } from "@/app/actions/upload";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -26,6 +28,7 @@ interface HotelSettingsClientProps {
     checkOutTime: string;
     timezone: string;
     currency: string;
+    cancellationPolicy: string;
   };
   logoUrl: string | null;
   coverImageUrl: string | null;
@@ -68,6 +71,8 @@ export function HotelSettingsClient({
   const router = useRouter();
   const [values, setValues] = React.useState(initialData);
   const [saving, setSaving] = React.useState(false);
+  const [currentLogoUrl, setCurrentLogoUrl] = React.useState(logoUrl);
+  const [currentCoverUrl, setCurrentCoverUrl] = React.useState(coverImageUrl);
 
   function set<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -265,6 +270,22 @@ export function HotelSettingsClient({
               </select>
             </div>
           </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+              Cancellation Policy
+            </label>
+            <textarea
+              placeholder="e.g. Free cancellation up to 24 hours before check-in. No refunds for late cancellations."
+              value={values.cancellationPolicy}
+              onChange={(e) => set("cancellationPolicy", e.target.value)}
+              rows={3}
+              maxLength={500}
+              className="w-full rounded-xl border border-border/60 bg-background px-3 py-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 placeholder:text-muted-foreground resize-none"
+            />
+            <p className="text-[10px] text-muted-foreground/50 mt-1">
+              {values.cancellationPolicy.length}/500 · Shown to guests at checkout
+            </p>
+          </div>
         </CardContent>
       </Card>
 
@@ -273,50 +294,38 @@ export function HotelSettingsClient({
         <CardHeader>
           <CardTitle className="text-sm font-medium">Media</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-              Logo
-            </label>
-            {logoUrl ? (
-              <div className="flex items-center gap-3 mb-2">
-                <img
-                  src={logoUrl}
-                  alt="Hotel logo"
-                  className="size-12 rounded-lg object-cover ring-1 ring-border/30"
-                />
-                <span className="text-xs text-muted-foreground">Current logo</span>
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground/50 italic mb-2">
-                No logo uploaded yet.
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground/60">
-              Logo upload via Supabase Storage coming soon.
-            </p>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-              Cover Image
-            </label>
-            {coverImageUrl ? (
-              <div className="flex items-center gap-3 mb-2">
-                <img
-                  src={coverImageUrl}
-                  alt="Cover image"
-                  className="h-12 w-24 rounded-lg object-cover ring-1 ring-border/30"
-                />
-                <span className="text-xs text-muted-foreground">Current cover</span>
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground/50 italic mb-2">
-                No cover image uploaded yet.
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground/60">
-              Cover image upload via Supabase Storage coming soon.
-            </p>
+        <CardContent className="space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <ImageUpload
+              label="Logo"
+              hint="Shown in the admin header and guest booking page. Square recommended."
+              currentUrl={currentLogoUrl}
+              storagePath={`hotels/${hotelId}/branding`}
+              aspect="aspect-square"
+              onUpload={async (url) => {
+                await saveHotelImageUrl("logo", url);
+                setCurrentLogoUrl(url);
+              }}
+              onRemove={async () => {
+                await saveHotelImageUrl("logo", "");
+                setCurrentLogoUrl(null);
+              }}
+            />
+            <ImageUpload
+              label="Cover Image"
+              hint="Hero image on the guest booking page. Landscape recommended."
+              currentUrl={currentCoverUrl}
+              storagePath={`hotels/${hotelId}/branding`}
+              aspect="aspect-video"
+              onUpload={async (url) => {
+                await saveHotelImageUrl("cover", url);
+                setCurrentCoverUrl(url);
+              }}
+              onRemove={async () => {
+                await saveHotelImageUrl("cover", "");
+                setCurrentCoverUrl(null);
+              }}
+            />
           </div>
         </CardContent>
       </Card>

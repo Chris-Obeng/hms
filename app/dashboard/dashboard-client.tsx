@@ -15,6 +15,7 @@ import { ForecastStrip } from "./_components/forecast-strip";
 import { QuickStats, TodaySummary } from "./_components/quick-stats";
 import { getDashboardData, checkInBooking, checkOutBooking, type DashboardData } from "./actions";
 import { updateBookingStatus } from "@/app/actions/bookings";
+import { createClient } from "@/lib/supabase/client";
 
 // ── Props ──────────────────────────────────────────────────────
 
@@ -81,6 +82,22 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
     const interval = setInterval(() => fetchData(selectedDate), 60000);
     return () => clearInterval(interval);
   }, [selectedDate, fetchData]);
+
+  // Realtime subscription — refresh on any booking change for this hotel
+  React.useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`hotel:${hotelId}:dashboard`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
+        () => fetchData(selectedDate),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [hotelId, fetchData, selectedDate]);
 
   // Date change handler
   const handleDateChange = React.useCallback((date: Date) => {

@@ -53,13 +53,13 @@ export default async function SettingsPage() {
       ],
     },
     {
-      title: "Billing & Integrations",
+      title: "Payments & Integrations",
       items: [
         {
           icon: CreditCard,
-          label: "Billing",
-          description: "Paystack bank account, settlement schedule, and subaccount",
-          href: "/dashboard/billing",
+          label: "Payments",
+          description: "Payment policy, Paystack bank account, and subaccount setup",
+          href: "/dashboard/settings/payments",
           restricted: true,
         },
         {
@@ -68,6 +68,18 @@ export default async function SettingsPage() {
           description: "Beds24 OTA sync, Arkesel SMS/email, and connection status",
           href: "/dashboard/settings/integrations",
           restricted: true,
+        },
+      ],
+    },
+    {
+      title: "Subscription",
+      items: [
+        {
+          icon: Settings,
+          label: "Billing & Plan",
+          description: "Your current plan, features, and upgrade options",
+          href: "/dashboard/billing",
+          restricted: false,
         },
       ],
     },

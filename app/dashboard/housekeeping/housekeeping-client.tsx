@@ -22,16 +22,18 @@ import {
   type HousekeepingData,
   type HousekeepingRoom,
 } from "@/app/actions/housekeeping";
+import { createClient } from "@/lib/supabase/client";
 
 // ── Props ──────────────────────────────────────────────────────────
 
 interface HousekeepingClientProps {
   initialData: HousekeepingData;
+  hotelId: string;
 }
 
 // ── Component ──────────────────────────────────────────────────────
 
-export function HousekeepingClient({ initialData }: HousekeepingClientProps) {
+export function HousekeepingClient({ initialData, hotelId }: HousekeepingClientProps) {
   const [data, setData] = React.useState<HousekeepingData>(initialData);
   const [loading, setLoading] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -60,6 +62,27 @@ export function HousekeepingClient({ initialData }: HousekeepingClientProps) {
     const interval = setInterval(fetchData, 60000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  // Realtime subscription — refresh on any room or booking change for this hotel
+  React.useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`hotel:${hotelId}:housekeeping`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "rooms", filter: `hotel_id=eq.${hotelId}` },
+        fetchData,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
+        fetchData,
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [hotelId, fetchData]);
 
   // ── Status Change Handler ──────────────────────────────────────
 

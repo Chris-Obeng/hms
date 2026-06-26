@@ -371,18 +371,6 @@ hotelosprp/
 └── .env.local
 ```
 
-### Why this fits a solo developer
-
-- One `package.json`, one `next.config.js`, one `tsconfig.json` — nothing to keep in sync across projects, no workspace linking.
-- Shared UI, Supabase client, and utilities are plain imports from `components/` and `lib/` — change something once, every route group picks it up immediately.
-- `middleware.ts` is the single source of truth for tenant resolution: it checks `host` against `platform.hotelosprp.com`, `app.hotelosprp.com`, or anything else (hotel slug subdomain or `hotels.custom_domain`), and rewrites into `(platform)`, `(admin)`, or `(booking)` accordingly — the same pattern used by Vercel's own multi-tenant "Platforms" starter template.
-- Rendering strategy still differs per route, not per app: `(booking)` pages can use static generation / ISR to hit the Lighthouse targets in Section 24, while `(admin)` and `(platform)` stay fully dynamic and auth-gated.
-- One Render web service, with the wildcard + custom domains attached to it (Section 26.3) — one set of env vars, one deploy, one set of logs.
-
-### If this ever needs to split later
-
-If the team grows, or `(booking)` traffic genuinely needs to scale independently of `(admin)` as a measured problem — not a hypothetical one — this structure splits cleanly into a Turborepo monorepo: each route group becomes its own app under `apps/`, and `components/` + `lib/` become shared `packages/`. The internal page structure above doesn't change — only the top-level layout does.
-
 --
 
 ## 8 Database Schema

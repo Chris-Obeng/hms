@@ -32,9 +32,9 @@ export default function NewRoomTypePage() {
     });
 
     if (result.success) {
-      toast.success(`Room type "${values.name}" created`);
-      router.push("/dashboard/rooms/types");
-      router.refresh();
+      toast.success(`"${values.name}" created — now add photos`);
+      // Auto-redirect to edit page so staff can immediately upload images
+      router.push(`/dashboard/rooms/types/${result.id}?new=1`);
       return { success: true };
     } else {
       if (result.fieldErrors) {
@@ -55,7 +55,7 @@ export default function NewRoomTypePage() {
       submitLabel="Create Room Type"
       submittingLabel="Creating..."
       title="New Room Type"
-      subtitle="Add a new room category to your hotel."
+      subtitle="Add a new room category. You'll add photos on the next step."
       errors={errors}
     />
   );
