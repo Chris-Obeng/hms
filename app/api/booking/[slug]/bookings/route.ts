@@ -24,6 +24,12 @@ export async function POST(
 ) {
   try {
     const { slug } = await params;
+
+    // Reject anything that isn't a safe slug/domain before querying
+    if (!/^[a-z0-9.-]+$/i.test(slug)) {
+      return NextResponse.json({ error: "Hotel not found" }, { status: 404 });
+    }
+
     const body = await req.json();
     const parsed = Schema.safeParse(body);
     if (!parsed.success) {
