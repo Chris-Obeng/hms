@@ -43,6 +43,9 @@ export async function POST(req: NextRequest) {
   if (!booking) return NextResponse.json({ received: true });
 
   const amountPaid = txn.amount / 100; // pesewas → GHS
+  const fullyPaid =
+    (txn.currency ?? booking.currency) === booking.currency &&
+    amountPaid >= Number(booking.total_amount);
 
   // Insert payment record
   await supabaseAdmin.from("payments").insert({
@@ -62,8 +65,8 @@ export async function POST(req: NextRequest) {
   await supabaseAdmin
     .from("bookings")
     .update({
-      status: "confirmed",
-      payment_status: "paid",
+      status: fullyPaid ? "confirmed" : "pending",
+      payment_status: fullyPaid ? "paid" : "partial",
       amount_paid: amountPaid,
     })
     .eq("id", bookingId)
