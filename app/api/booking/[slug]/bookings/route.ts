@@ -123,7 +123,7 @@ export async function POST(
 
     // For pay_now: booking starts as pending until payment confirmed
     const status = data.payment_preference === "pay_now" ? "pending" : "confirmed";
-    const paymentStatus = data.payment_preference === "pay_now" ? "unpaid" : "unpaid";
+    const paymentStatus = "unpaid";
 
     const { data: booking, error: bookingErr } = await supabaseAdmin
       .from("bookings")

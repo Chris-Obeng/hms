@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
@@ -10,7 +10,9 @@ export async function POST(req: NextRequest) {
   const expected = createHmac("sha512", process.env.PAYSTACK_SECRET_KEY ?? "")
     .update(rawBody)
     .digest("hex");
-  if (sig !== expected) {
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
