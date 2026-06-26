@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { initializeTransaction } from "@/lib/paystack";
 import { z } from "zod";
-import { format } from "date-fns";
 
 const Schema = z.object({
   room_type_id: z.string().uuid(),
@@ -112,18 +111,15 @@ export async function POST(
       guestId = newGuest.id;
     }
 
-    // Generate booking reference
-    const year = format(new Date(), "yyyy");
-    const { data: lastBooking } = await supabaseAdmin
-      .from("bookings")
-      .select("reference")
-      .eq("hotel_id", hotel.id)
-      .like("reference", `HOP-${year}-%`)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const lastNum = lastBooking ? parseInt(lastBooking.reference.split("-")[2] ?? "0", 10) : 0;
-    const reference = `HOP-${year}-${String((isNaN(lastNum) ? 0 : lastNum) + 1).padStart(5, "0")}`;
+    // Generate booking reference atomically (race-safe DB counter)
+    const { data: generatedRef, error: refErr } = await supabaseAdmin.rpc(
+      "generate_booking_reference",
+      { p_hotel_id: hotel.id }
+    );
+    if (refErr || !generatedRef) {
+      return NextResponse.json({ error: "Failed to generate booking reference." }, { status: 500 });
+    }
+    const reference: string = generatedRef;
 
     // For pay_now: booking starts as pending until payment confirmed
     const status = data.payment_preference === "pay_now" ? "pending" : "confirmed";
