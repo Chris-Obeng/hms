@@ -44,7 +44,6 @@ export function DashboardHeader({
         <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-foreground">
           Dashboard
         </h1>
-        <Button></Button>
         <p className="text-sm text-muted-foreground mt-0.5">{dateStr}</p>
       </div>
 

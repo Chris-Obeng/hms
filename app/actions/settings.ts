@@ -48,6 +48,7 @@ const HotelProfileSchema = z.object({
   checkOutTime: z.string().optional().or(z.literal("")),
   timezone: z.string().optional().or(z.literal("")),
   currency: z.string().optional().or(z.literal("")),
+  cancellationPolicy: z.string().max(500).optional().or(z.literal("")),
 });
 
 export type HotelProfileInput = z.infer<typeof HotelProfileSchema>;
@@ -65,7 +66,7 @@ export async function getHotelProfile(): Promise<
 
     const { data, error } = await supabase
       .from("hotels")
-      .select("name, address, city, country, phone, email, description, check_in_time, check_out_time, timezone, currency, logo_url, cover_image_url")
+      .select("name, address, city, country, phone, email, description, check_in_time, check_out_time, timezone, currency, cancellation_policy, logo_url, cover_image_url")
       .eq("id", hotelId)
       .single();
 
@@ -86,6 +87,7 @@ export async function getHotelProfile(): Promise<
         checkOutTime: data.check_out_time || "",
         timezone: data.timezone || "",
         currency: data.currency || "",
+        cancellationPolicy: data.cancellation_policy || "",
         logoUrl: data.logo_url,
         coverImageUrl: data.cover_image_url,
       },
@@ -129,6 +131,7 @@ export async function updateHotelProfile(
         check_out_time: data.checkOutTime || null,
         timezone: data.timezone || null,
         currency: data.currency || null,
+        cancellation_policy: data.cancellationPolicy || null,
       })
       .eq("id", hotelId);
 

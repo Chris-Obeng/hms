@@ -9,9 +9,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Loader2,
   Plus,
-  RefreshCw,
   Search,
   SlidersHorizontal,
   X,
@@ -21,7 +19,11 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { createClient } from "@/lib/supabase/client";
 import { checkInBooking, checkOutBooking } from "@/app/dashboard/actions";
 import { updateBookingStatus } from "@/app/actions/bookings";
@@ -51,8 +53,11 @@ import { UnassignedTray } from "./_components/unassigned-tray";
 import "./calendar.css";
 
 const DayPilotScheduler = dynamic(
-  () => import("@daypilot/daypilot-lite-react").then((mod) => mod.DayPilotScheduler),
-  { ssr: false }
+  () =>
+    import("@daypilot/daypilot-lite-react").then(
+      (mod) => mod.DayPilotScheduler,
+    ),
+  { ssr: false },
 ) as React.ComponentType<any>;
 
 interface CalendarClientProps {
@@ -72,7 +77,13 @@ interface RoomTypeFilter {
 }
 
 const STATUS_OPTIONS = ["pending", "confirmed", "checked_in"] as const;
-const SOURCE_OPTIONS = ["direct", "bookings_com", "manual", "phone", "walk_in"] as const;
+const SOURCE_OPTIONS = [
+  "direct",
+  "bookings_com",
+  "manual",
+  "phone",
+  "walk_in",
+] as const;
 
 function getDateRangeKey(startDate: Date, days: number): string {
   return `${format(startDate, "yyyy-MM-dd")}_${days}`;
@@ -90,28 +101,41 @@ export function CalendarClient({
 
   const [startDate, setStartDate] = React.useState(() => new Date());
   const [viewPreset, setViewPreset] = React.useState<ViewPreset>("2 Wks");
-  const days = VIEW_PRESETS.find((preset) => preset.label === viewPreset)?.days ?? 14;
+  const days =
+    VIEW_PRESETS.find((preset) => preset.label === viewPreset)?.days ?? 14;
 
   const [rooms, setRooms] = React.useState<CalendarRoom[]>(initialData.rooms);
-  const [bookings, setBookings] = React.useState<CalendarBooking[]>(initialData.bookings);
-  const [availabilityBlocks, setAvailabilityBlocks] = React.useState<CalendarAvailabilityBlock[]>(
-    initialData.availabilityBlocks
+  const [bookings, setBookings] = React.useState<CalendarBooking[]>(
+    initialData.bookings,
   );
+  const [availabilityBlocks, setAvailabilityBlocks] = React.useState<
+    CalendarAvailabilityBlock[]
+  >(initialData.availabilityBlocks);
   const [loading, setLoading] = React.useState(false);
-  const [newBookingIds, setNewBookingIds] = React.useState<Set<string>>(new Set());
+  const [newBookingIds, setNewBookingIds] = React.useState<Set<string>>(
+    new Set(),
+  );
   const knownBookingIdsRef = React.useRef<Set<string>>(
-    new Set(initialData.bookings.map((booking) => booking.id))
+    new Set(initialData.bookings.map((booking) => booking.id)),
   );
 
-  const [roomTypeFilters, setRoomTypeFilters] = React.useState<RoomTypeFilter[]>(
-    () => roomTypes.map((roomType) => ({ id: roomType.id, name: roomType.name, visible: true }))
+  const [roomTypeFilters, setRoomTypeFilters] = React.useState<
+    RoomTypeFilter[]
+  >(() =>
+    roomTypes.map((roomType) => ({
+      id: roomType.id,
+      name: roomType.name,
+      visible: true,
+    })),
   );
   const [statusFilters, setStatusFilters] = React.useState<string[]>([]);
   const [sourceFilters, setSourceFilters] = React.useState<string[]>([]);
   const [showFilters, setShowFilters] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
 
-  const [selectedBookingId, setSelectedBookingId] = React.useState<string | null>(null);
+  const [selectedBookingId, setSelectedBookingId] = React.useState<
+    string | null
+  >(null);
   const [detailPanelOpen, setDetailPanelOpen] = React.useState(false);
   const [newBookingOpen, setNewBookingOpen] = React.useState(false);
   const [newBookingPrefill, setNewBookingPrefill] = React.useState<{
@@ -121,8 +145,20 @@ export function CalendarClient({
     checkOut?: Date;
   } | null>(null);
   const [blockRoomOpen, setBlockRoomOpen] = React.useState(false);
-  const [blockPrefillRoomId, setBlockPrefillRoomId] = React.useState<string | undefined>();
-  const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; event: CalendarEvent } | null>(null);
+  const [blockPrefillRoomId, setBlockPrefillRoomId] = React.useState<
+    string | undefined
+  >();
+  const [contextMenu, setContextMenu] = React.useState<{
+    x: number;
+    y: number;
+    event: CalendarEvent;
+  } | null>(null);
+  const [hoveredEvent, setHoveredEvent] = React.useState<{
+    x: number;
+    y: number;
+    event: CalendarEvent;
+  } | null>(null);
+  const hoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const dateRangeKey = getDateRangeKey(startDate, days);
   const dateRangeRef = React.useRef({ startDate, days });
@@ -132,36 +168,51 @@ export function CalendarClient({
 
   const unassignedBookings = React.useMemo(
     () => bookings.filter((booking) => !booking.roomId && booking.roomTypeId),
-    [bookings]
+    [bookings],
   );
 
   const visibleRoomTypeIds = React.useMemo(
-    () => new Set(roomTypeFilters.filter((filter) => filter.visible).map((filter) => filter.id)),
-    [roomTypeFilters]
+    () =>
+      new Set(
+        roomTypeFilters
+          .filter((filter) => filter.visible)
+          .map((filter) => filter.id),
+      ),
+    [roomTypeFilters],
   );
 
   const filteredRooms = React.useMemo(
     () => rooms.filter((room) => visibleRoomTypeIds.has(room.roomTypeId)),
-    [rooms, visibleRoomTypeIds]
+    [rooms, visibleRoomTypeIds],
   );
 
   const resources = React.useMemo(
     () => buildResources(filteredRooms, currency),
-    [filteredRooms, currency]
+    [filteredRooms, currency],
   );
   const events = React.useMemo(
     () => buildEvents(bookings, availabilityBlocks, newBookingIds),
-    [bookings, availabilityBlocks, newBookingIds]
+    [bookings, availabilityBlocks, newBookingIds],
   );
 
   const filteredEvents = React.useMemo(() => {
-    let next = events.filter((event) => filteredRooms.some((room) => room.id === event.resource));
+    let next = events.filter((event) =>
+      filteredRooms.some((room) => room.id === event.resource),
+    );
 
     if (statusFilters.length > 0) {
-      next = next.filter((event) => event.isBlock || (event.status && statusFilters.includes(event.status)));
+      next = next.filter(
+        (event) =>
+          event.isBlock ||
+          (event.status && statusFilters.includes(event.status)),
+      );
     }
     if (sourceFilters.length > 0) {
-      next = next.filter((event) => event.isBlock || (event.source && sourceFilters.includes(event.source)));
+      next = next.filter(
+        (event) =>
+          event.isBlock ||
+          (event.source && sourceFilters.includes(event.source)),
+      );
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -169,7 +220,7 @@ export function CalendarClient({
         (event) =>
           event.isBlock ||
           (event.guestName || "").toLowerCase().includes(q) ||
-          (event.reference || "").toLowerCase().includes(q)
+          (event.reference || "").toLowerCase().includes(q),
       );
     }
 
@@ -178,25 +229,58 @@ export function CalendarClient({
 
   const selectedBooking = React.useMemo(
     () => bookings.find((booking) => booking.id === selectedBookingId) ?? null,
-    [bookings, selectedBookingId]
+    [bookings, selectedBookingId],
   );
 
-  const fetchCalendarData = React.useCallback(async (date: Date, numDays: number) => {
-    setLoading(true);
+  const fetchCalendarData = React.useCallback(
+    async (date: Date, numDays: number) => {
+      setLoading(true);
+      try {
+        const data = await getCalendarData(format(date, "yyyy-MM-dd"), numDays);
+        setRooms(data.rooms);
+        setBookings(data.bookings);
+        setAvailabilityBlocks(data.availabilityBlocks);
+      } catch (error) {
+        console.error("Failed to fetch calendar data:", error);
+        toast.error("Calendar refresh failed");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  // Silent background refresh — no overlay, no toast on success
+  const silentRefresh = React.useCallback(async () => {
+    const { startDate: currentStart, days: currentDays } = dateRangeRef.current;
     try {
-      const data = await getCalendarData(format(date, "yyyy-MM-dd"), numDays);
+      const data = await getCalendarData(
+        format(currentStart, "yyyy-MM-dd"),
+        currentDays,
+      );
       setRooms(data.rooms);
       setBookings(data.bookings);
       setAvailabilityBlocks(data.availabilityBlocks);
     } catch (error) {
-      console.error("Failed to fetch calendar data:", error);
-      toast.error("Calendar refresh failed");
-    } finally {
-      setLoading(false);
+      console.error("Silent refresh failed:", error);
     }
   }, []);
 
+  const isInitialMountRef = React.useRef(true);
+  const prevDateRangeKeyRef = React.useRef(dateRangeKey);
+  const knownDateRangeKeyRef = React.useRef(dateRangeKey);
+
   React.useEffect(() => {
+    // Skip the very first render — initialData from the server is already loaded
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      prevDateRangeKeyRef.current = dateRangeKey;
+      return;
+    }
+    // Only fetch when the date range actually changes
+    if (dateRangeKey === prevDateRangeKeyRef.current) return;
+    prevDateRangeKeyRef.current = dateRangeKey;
+
     const timer = window.setTimeout(() => {
       fetchCalendarData(startDate, days);
     }, 0);
@@ -207,7 +291,9 @@ export function CalendarClient({
     const rangeChanged = dateRangeKey !== knownDateRangeKeyRef.current;
     knownDateRangeKeyRef.current = dateRangeKey;
     const current = new Set(bookings.map((booking) => booking.id));
-    const added = rangeChanged ? [] : [...current].filter((id) => !knownBookingIdsRef.current.has(id));
+    const added = rangeChanged
+      ? []
+      : [...current].filter((id) => !knownBookingIdsRef.current.has(id));
     knownBookingIdsRef.current = current;
     if (added.length === 0) return;
 
@@ -227,31 +313,35 @@ export function CalendarClient({
     return () => window.clearTimeout(timer);
   }, [bookings, dateRangeKey]);
 
-  const knownDateRangeKeyRef = React.useRef(dateRangeKey);
-
   React.useEffect(() => {
     const supabase = createClient();
-    const refreshVisibleRange = () => {
-      const range = dateRangeRef.current;
-      fetchCalendarData(range.startDate, range.days);
-    };
     const channel = supabase
       .channel(`hotel:${hotelId}:calendar`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
-        refreshVisibleRange
+        {
+          event: "*",
+          schema: "public",
+          table: "bookings",
+          filter: `hotel_id=eq.${hotelId}`,
+        },
+        silentRefresh,
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "availability_blocks", filter: `hotel_id=eq.${hotelId}` },
-        refreshVisibleRange
+        {
+          event: "*",
+          schema: "public",
+          table: "availability_blocks",
+          filter: `hotel_id=eq.${hotelId}`,
+        },
+        silentRefresh,
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchCalendarData, hotelId]);
+  }, [silentRefresh, hotelId]);
 
   React.useEffect(() => {
     const close = () => setContextMenu(null);
@@ -259,8 +349,14 @@ export function CalendarClient({
     return () => document.removeEventListener("click", close);
   }, []);
 
-  const goToPrev = React.useCallback(() => setStartDate((previous) => subDays(previous, days)), [days]);
-  const goToNext = React.useCallback(() => setStartDate((previous) => addDays(previous, days)), [days]);
+  const goToPrev = React.useCallback(
+    () => setStartDate((previous) => subDays(previous, days)),
+    [days],
+  );
+  const goToNext = React.useCallback(
+    () => setStartDate((previous) => addDays(previous, days)),
+    [days],
+  );
   const goToToday = React.useCallback(() => {
     const today = new Date();
     setStartDate(today);
@@ -268,7 +364,9 @@ export function CalendarClient({
   }, []);
 
   const clearFilters = React.useCallback(() => {
-    setRoomTypeFilters((previous) => previous.map((filter) => ({ ...filter, visible: true })));
+    setRoomTypeFilters((previous) =>
+      previous.map((filter) => ({ ...filter, visible: true })),
+    );
     setStatusFilters([]);
     setSourceFilters([]);
     setSearchQuery("");
@@ -277,20 +375,24 @@ export function CalendarClient({
   const toggleRoomTypeFilter = React.useCallback((typeId: string) => {
     setRoomTypeFilters((previous) =>
       previous.map((filter) =>
-        filter.id === typeId ? { ...filter, visible: !filter.visible } : filter
-      )
+        filter.id === typeId ? { ...filter, visible: !filter.visible } : filter,
+      ),
     );
   }, []);
 
   const toggleStatusFilter = React.useCallback((status: string) => {
     setStatusFilters((previous) =>
-      previous.includes(status) ? previous.filter((item) => item !== status) : [...previous, status]
+      previous.includes(status)
+        ? previous.filter((item) => item !== status)
+        : [...previous, status],
     );
   }, []);
 
   const toggleSourceFilter = React.useCallback((source: string) => {
     setSourceFilters((previous) =>
-      previous.includes(source) ? previous.filter((item) => item !== source) : [...previous, source]
+      previous.includes(source)
+        ? previous.filter((item) => item !== source)
+        : [...previous, source],
     );
   }, []);
 
@@ -305,7 +407,9 @@ export function CalendarClient({
         toast.error("No permission to create bookings");
         return;
       }
-      const room = filteredRooms.find((item) => item.id === String(args.resource));
+      const room = filteredRooms.find(
+        (item) => item.id === String(args.resource),
+      );
       if (!room) return;
 
       setNewBookingPrefill({
@@ -316,13 +420,42 @@ export function CalendarClient({
       });
       setNewBookingOpen(true);
     },
-    [canEdit, filteredRooms]
+    [canEdit, filteredRooms],
   );
 
-  const handleEventClick = React.useCallback((args: { e: { data: CalendarEvent } }) => {
-    const eventData = args.e.data;
-    if (eventData?.bookingId) openBooking(eventData.bookingId);
-  }, [openBooking]);
+  const handleEventClick = React.useCallback(
+    (args: { e: { data: CalendarEvent } }) => {
+      const eventData = args.e.data;
+      if (eventData?.bookingId) openBooking(eventData.bookingId);
+    },
+    [openBooking],
+  );
+
+  const handleEventHover = React.useCallback((args: any) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+
+    const eventData = args.e.data as CalendarEvent;
+    if (!eventData?.bookingId || eventData.isBlock) return;
+
+    hoverTimeoutRef.current = setTimeout(() => {
+      const rect = args.div.getBoundingClientRect();
+      setHoveredEvent({
+        x: rect.left + rect.width / 2,
+        y: rect.top - 8,
+        event: eventData,
+      });
+    }, 400);
+  }, []);
+
+  const handleEventHoverEnd = React.useCallback(() => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setHoveredEvent(null);
+  }, []);
 
   const handleMoveOrResize = React.useCallback(
     async (args: any, mode: "move" | "resize") => {
@@ -335,7 +468,10 @@ export function CalendarClient({
       if (!eventData?.bookingId || eventData.isBlock) return;
 
       const booking = bookings.find((item) => item.id === eventData.bookingId);
-      const newRoomId = mode === "move" ? String(args.newResource || booking?.roomId || "") : booking?.roomId || "";
+      const newRoomId =
+        mode === "move"
+          ? String(args.newResource || booking?.roomId || "")
+          : booking?.roomId || "";
       const newCheckIn = format(args.newStart as Date, "yyyy-MM-dd");
       const newCheckOut = format(args.newEnd as Date, "yyyy-MM-dd");
 
@@ -345,19 +481,23 @@ export function CalendarClient({
         return;
       }
 
-      const toastId = toast.loading(mode === "move" ? "Checking room..." : "Updating dates...");
+      const toastId = toast.loading(
+        mode === "move" ? "Checking room..." : "Updating dates...",
+      );
       try {
         if (newRoomId) {
           const availability = await checkRoomAvailability(
             newRoomId,
             newCheckIn,
             newCheckOut,
-            eventData.bookingId
+            eventData.bookingId,
           );
           if (!availability.available) {
             const conflict = availability.conflicts[0];
             toast.dismiss(toastId);
-            toast.error(`Conflict with ${conflict.guestName || conflict.reference}`);
+            toast.error(
+              `Conflict with ${conflict.guestName || conflict.reference}`,
+            );
             fetchCalendarData(startDate, days);
             return;
           }
@@ -381,7 +521,7 @@ export function CalendarClient({
         fetchCalendarData(startDate, days);
       }
     },
-    [bookings, canEdit, days, fetchCalendarData, startDate]
+    [bookings, canEdit, days, fetchCalendarData, startDate],
   );
 
   const handleAssignBooking = React.useCallback(
@@ -396,8 +536,16 @@ export function CalendarClient({
         return;
       }
 
-      for (const room of rooms.filter((item) => item.roomTypeId === booking.roomTypeId && item.status === "available")) {
-        const availability = await checkRoomAvailability(room.id, booking.checkIn, booking.checkOut, booking.id);
+      for (const room of rooms.filter(
+        (item) =>
+          item.roomTypeId === booking.roomTypeId && item.status === "available",
+      )) {
+        const availability = await checkRoomAvailability(
+          room.id,
+          booking.checkIn,
+          booking.checkOut,
+          booking.id,
+        );
         if (!availability.available) continue;
 
         const result = await assignBookingToRoom(booking.id, room.id);
@@ -409,7 +557,7 @@ export function CalendarClient({
       }
       toast.error("No available room for this booking");
     },
-    [bookings, canEdit, days, fetchCalendarData, rooms, startDate]
+    [bookings, canEdit, days, fetchCalendarData, rooms, startDate],
   );
 
   const handleCheckIn = React.useCallback(
@@ -422,7 +570,7 @@ export function CalendarClient({
       }
       fetchCalendarData(startDate, days);
     },
-    [days, fetchCalendarData, startDate]
+    [days, fetchCalendarData, startDate],
   );
 
   const handleCheckOut = React.useCallback(
@@ -435,7 +583,7 @@ export function CalendarClient({
       }
       fetchCalendarData(startDate, days);
     },
-    [days, fetchCalendarData, startDate]
+    [days, fetchCalendarData, startDate],
   );
 
   const handleStatusUpdate = React.useCallback(
@@ -443,20 +591,27 @@ export function CalendarClient({
       if (!canEdit) return;
       const result = await updateBookingStatus(bookingId, status);
       if (result.success) {
-        toast.success(status === "confirmed" ? "Booking confirmed" : "Booking cancelled");
+        toast.success(
+          status === "confirmed" ? "Booking confirmed" : "Booking cancelled",
+        );
       } else {
         toast.error(result.error || "Update failed");
       }
       if (status === "cancelled") setDetailPanelOpen(false);
       fetchCalendarData(startDate, days);
     },
-    [canEdit, days, fetchCalendarData, startDate]
+    [canEdit, days, fetchCalendarData, startDate],
   );
 
   React.useEffect(() => {
     const down = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      )
+        return;
       if (event.shiftKey && event.key === "ArrowLeft") {
         event.preventDefault();
         goToPrev();
@@ -479,8 +634,17 @@ export function CalendarClient({
     return () => window.removeEventListener("keydown", down);
   }, [goToNext, goToPrev, goToToday]);
 
+  const bookingsRef = React.useRef(bookings);
+  const roomsRef = React.useRef(rooms);
+  React.useEffect(() => {
+    bookingsRef.current = bookings;
+  }, [bookings]);
+  React.useEffect(() => {
+    roomsRef.current = rooms;
+  }, [rooms]);
+
   const schedulerConfig = React.useMemo(() => {
-    const cellWidth = days <= 3 ? 126 : days <= 7 ? 94 : days <= 14 ? 78 : 64;
+    const cellWidth = 48; // Fixed 48px per spec
     return {
       startDate: format(startDate, "yyyy-MM-dd"),
       days,
@@ -488,10 +652,16 @@ export function CalendarClient({
       cellWidth,
       rowHeight: ROW_HEIGHT,
       rowHeaderWidth: ROW_HEADER_WIDTH,
-      eventHeight: ROW_HEIGHT - 8,
+      eventHeight: ROW_HEIGHT - 6,
+      height: "100%",
+      heightSpec: "Parent100Pct" as const,
       eventMoveHandling: canEdit ? ("Update" as const) : ("Disabled" as const),
-      eventResizeHandling: canEdit ? ("Update" as const) : ("Disabled" as const),
-      timeRangeSelectedHandling: canEdit ? ("Enabled" as const) : ("Disabled" as const),
+      eventResizeHandling: canEdit
+        ? ("Update" as const)
+        : ("Disabled" as const),
+      timeRangeSelectedHandling: canEdit
+        ? ("Enabled" as const)
+        : ("Disabled" as const),
       allowEventOverlap: false,
       showNonBusiness: true,
       eventBarHidden: true,
@@ -500,165 +670,222 @@ export function CalendarClient({
       floatingTimeHeaders: true,
       progressiveRowRendering: true,
       dynamicEventRendering: "Progressive" as const,
-      headerHeight: 82,
+      headerHeight: 56,
       timeHeaders: [{ groupBy: "Day" as const, format: "ddd d" }],
       onBeforeCellRender: (args: any) => {
         const date = args.cell.start.toString("yyyy-MM-dd");
         const weekday = args.cell.start.toString("ddd");
         const classes = [args.cell.properties.cssClass || ""];
-        if (date === format(new Date(), "yyyy-MM-dd")) classes.push("today-column");
-        if (weekday === "Sat" || weekday === "Sun") classes.push("weekend-column");
-        if (String(args.cell.resource).startsWith("section-")) classes.push("section-header");
+        if (date === format(new Date(), "yyyy-MM-dd"))
+          classes.push("today-col");
+        if (weekday === "Sat" || weekday === "Sun") classes.push("weekend-col");
+        if (String(args.cell.resource).startsWith("section-"))
+          classes.push("cal-section-row");
         args.cell.properties.cssClass = classes.join(" ");
       },
       onBeforeTimeHeaderRender: (args: any) => {
         const date = args.header.start.toString("yyyy-MM-dd");
-        const occupied = bookings.filter(
+        const occupied = bookingsRef.current.filter(
           (booking) =>
             booking.roomId &&
             booking.checkIn <= date &&
             booking.checkOut > date &&
             booking.status !== "cancelled" &&
-            booking.status !== "checked_out"
+            booking.status !== "checked_out",
         ).length;
-        const occupancy = rooms.length > 0 ? Math.round((occupied / rooms.length) * 100) : 0;
+        const totalRooms = roomsRef.current.filter(
+          (r) =>
+            !r.status?.includes("maintenance") &&
+            !r.status?.includes("out_of_service"),
+        ).length;
+        const occupancy =
+          totalRooms > 0 ? Math.round((occupied / totalRooms) * 100) : 0;
         const today = date === format(new Date(), "yyyy-MM-dd");
-        args.header.html = `<div class="calendar-day-header ${today ? "is-today" : ""}">
-          <span class="calendar-day-week">${args.header.start.toString("ddd")}</span>
-          <span class="calendar-day-number">${args.header.start.toString("d")}</span>
-          <span class="calendar-day-occ">${occupancy}% occupied</span>
-          <span class="calendar-day-inv">${Math.max(rooms.length - occupied, 0)} open</span>
+
+        // Color-coded dot: green ≥70%, amber 40–69%, red <40%, gray 0%
+        let dotClass = "gray";
+        if (occupancy >= 70) dotClass = "green";
+        else if (occupancy >= 40) dotClass = "amber";
+        else if (occupancy > 0) dotClass = "red";
+
+        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const dayIndex = args.header.start.getDay() || 0;
+
+        args.header.html = `<div class="cal-day-hdr${today ? " is-today" : ""}">
+          <span class="cal-day-dow">${dayNames[dayIndex] || "Sun"}</span>
+          <span class="cal-day-num">${args.header.start.toString("d")}</span>
+          <div class="cal-day-occ-wrap">
+            <span class="cal-day-occ-dot ${dotClass}"></span>
+            <span class="cal-day-occ">${occupancy}%</span>
+          </div>
         </div>`;
-        if (today) args.header.cssClass = `${args.header.cssClass || ""} today-column`;
+        if (today)
+          args.header.properties = {
+            ...args.header.properties,
+            cssClass: `${args.header.properties?.cssClass || ""} today-col`,
+          };
       },
     };
-  }, [bookings, canEdit, days, rooms, startDate]);
+  }, [canEdit, days, startDate]);
 
-  const filteredCount = roomTypeFilters.filter((filter) => filter.visible).length;
+  const filteredCount = roomTypeFilters.filter(
+    (filter) => filter.visible,
+  ).length;
   const hiddenTypeCount = roomTypeFilters.length - filteredCount;
-  const activeFilterCount = hiddenTypeCount + statusFilters.length + sourceFilters.length + (searchQuery ? 1 : 0);
+  const activeFilterCount =
+    hiddenTypeCount +
+    statusFilters.length +
+    sourceFilters.length +
+    (searchQuery ? 1 : 0);
 
   return (
-    <div className="calendar-container relative -m-4 min-h-[calc(100vh-5rem)] bg-[#f7f8fa] p-4 pb-20">
-      <div className="sticky top-0 z-30 -mx-4 -mt-4 border-b border-border/70 bg-background/95 px-4 py-3 backdrop-blur">
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="mr-2 hidden min-w-0 lg:block">
-                <p className="text-sm font-semibold text-foreground">
-                  {format(startDate, "MMM d")} - {format(addDays(startDate, days - 1), "MMM d, yyyy")}
-                </p>
-              </div>
-              <div className="flex items-center rounded-lg border border-border/70 bg-background p-0.5 shadow-sm">
-                <Button variant="ghost" size="icon-sm" className="size-7 rounded-md" onClick={goToPrev}>
-                  <ChevronLeft className="size-3.5" />
-                </Button>
-                <Popover>
-                  <PopoverTrigger
-                    render={<Button variant="ghost" size="sm" className="h-7 px-2.5 text-xs font-medium rounded-md" />}
-                  >
-                    <CalendarDays className="size-3 mr-1" />
-                    {format(startDate, "MMM yyyy")}
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={startDate} onSelect={(date) => date && setStartDate(date)} />
-                  </PopoverContent>
-                </Popover>
-                <Button variant="ghost" size="icon-sm" className="size-7 rounded-md" onClick={goToNext}>
-                  <ChevronRight className="size-3.5" />
-                </Button>
-              </div>
+    <div className="cal-wrap flex flex-col h-[calc(100vh-3rem)] bg-background overflow-hidden min-h-0">
+      {/* ── Desktop Toolbar ── */}
+      <div className="hidden md:flex items-center gap-2 px-3 py-2 border-b border-[#E2E8F0] bg-background sticky top-12 z-30 min-h-[44px]">
+        {/* Date nav */}
+        <div className="flex items-center rounded-lg border border-border overflow-hidden shadow-sm">
+          <button
+            onClick={goToPrev}
+            title="Previous period (Shift + ←)"
+            className="h-9 w-9 flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+          <Popover>
+            <PopoverTrigger className="h-9 px-4 text-xs font-semibold text-foreground hover:bg-muted transition-colors flex items-center gap-2 border-x border-border min-w-[180px] justify-center">
+              <CalendarDays className="size-3.5 text-muted-foreground" />
+              {format(startDate, "MMM d")}–
+              {format(addDays(startDate, days - 1), "d, yyyy")}
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={startDate}
+                onSelect={(d) => d && setStartDate(d)}
+              />
+            </PopoverContent>
+          </Popover>
+          <button
+            onClick={goToNext}
+            title="Next period (Shift + →)"
+            className="h-9 w-9 flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
 
-              <Button variant="outline" size="sm" className="h-8 rounded-lg border-border/70 text-xs" onClick={goToToday}>
-                Today
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="size-8 rounded-lg text-muted-foreground"
-                onClick={() => fetchCalendarData(startDate, days)}
-                disabled={loading}
-                title="Refresh"
-              >
-                <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
-              </Button>
+        <button
+          onClick={goToToday}
+          title="Jump to today (T)"
+          className="h-9 px-4 rounded-lg text-xs font-semibold text-muted-foreground border border-border hover:text-foreground hover:bg-muted transition-colors shadow-sm"
+        >
+          Today
+        </button>
 
-              <div className="relative min-w-[240px] flex-1 sm:flex-none">
-                <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/60" />
-                <input
-                  type="text"
-                  placeholder="Search guest or reference"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  className="h-8 w-full rounded-lg border border-border/60 bg-background pl-8 pr-8 text-xs outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 sm:w-56"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="size-3" />
-                  </button>
-                )}
-              </div>
+        <div className="cal-toolbar-divider" />
 
-              <div className="flex items-center rounded-lg border border-border/70 bg-background p-0.5 shadow-sm">
-                {VIEW_PRESETS.map((preset) => (
-                  <Button
-                    key={preset.label}
-                    variant={viewPreset === preset.label ? "secondary" : "ghost"}
-                    size="sm"
-                    className={cn(
-                      "h-7 px-3 text-xs font-medium rounded-md",
-                      viewPreset === preset.label
-                        ? "bg-foreground text-background hover:bg-foreground/90"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                    onClick={() => setViewPreset(preset.label)}
-                  >
-                    {preset.label}
-                  </Button>
-                ))}
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1.5 rounded-lg border-border/70 text-xs"
-                onClick={() => setShowFilters(true)}
-              >
-                <SlidersHorizontal className="size-3.5" />
-                Filter
-                {activeFilterCount > 0 && <Badge className="h-4 min-w-4 rounded-full px-1 text-[9px]">{activeFilterCount}</Badge>}
-              </Button>
-              {canBlock && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 rounded-lg border-border/70 text-xs"
-                  onClick={() => {
-                    setBlockPrefillRoomId(undefined);
-                    setBlockRoomOpen(true);
-                  }}
-                >
-                  Block Room
-                </Button>
+        {/* View presets - segmented control style per spec */}
+        <div className="flex items-center rounded-md border border-[#E2E8F0] overflow-hidden">
+          {VIEW_PRESETS.map((p) => (
+            <button
+              key={p.label}
+              onClick={() => setViewPreset(p.label)}
+              title={`View ${p.days} day${p.days > 1 ? "s" : ""}`}
+              className={cn(
+                "h-9 px-4 text-xs font-semibold transition-all border-r border-[#E2E8F0] last:border-r-0",
+                viewPreset === p.label
+                  ? "bg-[#1D4ED8] text-white"
+                  : "text-[#64748B] hover:text-[#1E293B] hover:bg-muted/50",
               )}
-              <Button
-                size="sm"
-                className="h-8 rounded-lg bg-foreground text-xs text-background hover:bg-foreground/90"
-                onClick={() => {
-                  setNewBookingPrefill(null);
-                  setNewBookingOpen(true);
-                }}
-              >
-                <Plus className="mr-1.5 size-3.5" />
-                New Booking
-              </Button>
-            </div>
-          </div>
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
 
+        <div className="cal-toolbar-divider" />
+
+        {/* Search bar per spec */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search guest name or reference..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-9 w-44 rounded-md border border-[#E2E8F0] bg-background pl-10 pr-9 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-[#1D4ED8]/50"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Filter with active count badge */}
+        <button
+          onClick={() => setShowFilters(true)}
+          title="Filter bookings"
+          className="h-9 px-4 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-2 shadow-sm"
+        >
+          <SlidersHorizontal className="size-3.5" />
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="size-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center shadow-sm">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+
+        <div className="flex-1" />
+
+        {/* Legend - now more prominent */}
+        <div className="hidden xl:flex items-center gap-4 px-3 py-1.5 rounded-lg bg-muted/50 border border-border">
+          {CALENDAR_LEGEND.slice(0, 4).map((item) => (
+            <div key={item.label} className="flex items-center gap-2">
+              <span
+                className="size-2.5 rounded-sm flex-shrink-0 shadow-sm"
+                style={{ background: item.color }}
+              />
+              <span className="text-[10px] font-medium text-foreground">
+                {item.label}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {canBlock && (
+          <button
+            onClick={() => {
+              setBlockPrefillRoomId(undefined);
+              setBlockRoomOpen(true);
+            }}
+            title="Block a room from bookings"
+            className="h-9 px-4 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-sm"
+          >
+            Block Room
+          </button>
+        )}
+
+        {/* Primary action - brand primary per spec */}
+        <Button
+          onClick={() => {
+            setNewBookingPrefill(null);
+            setNewBookingOpen(true);
+          }}
+          title="Create new booking (N)"
+          className="h-9 px-5 rounded-md bg-[#1D4ED8] text-white text-xs font-semibold hover:bg-[#1E40AF] transition-all flex items-center gap-2 shadow-sm"
+        >
+          <Plus className="size-4" />+ New Booking
+        </Button>
+      </div>
+
+      {/* Active filter chips */}
+      {activeFilterCount > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 px-4 py-2 border-b border-border bg-background">
           <ActiveFilterChips
             roomTypeFilters={roomTypeFilters}
             statusFilters={statusFilters}
@@ -671,35 +898,26 @@ export function CalendarClient({
             onClearAll={clearFilters}
           />
         </div>
-      </div>
+      )}
 
-      {showFilters && (
-        <FilterPanel
-          roomTypeFilters={roomTypeFilters}
-          statusFilters={statusFilters}
-          sourceFilters={sourceFilters}
-          onClose={() => setShowFilters(false)}
-          onClear={clearFilters}
-          onToggleRoomType={toggleRoomTypeFilter}
-          onToggleStatus={toggleStatusFilter}
-          onToggleSource={toggleSourceFilter}
+      {/* Unassigned tray */}
+      {unassignedBookings.length > 0 && (
+        <UnassignedTray
+          bookings={unassignedBookings}
+          currency={currency}
+          onAssign={handleAssignBooking}
+          onViewBooking={openBooking}
         />
       )}
 
-      <UnassignedTray
-        bookings={unassignedBookings}
-        currency={currency}
-        onAssign={handleAssignBooking}
-        onViewBooking={openBooking}
-      />
-
-      <div className="mt-4 overflow-hidden rounded-xl border border-border/70 bg-background shadow-sm relative">
+      {/* Scheduler */}
+      <div className="hidden md:block flex-1 relative overflow-hidden min-h-0">
         {loading && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
-            <div className="flex items-center gap-2 rounded-lg border bg-background/90 px-4 py-2 text-sm text-muted-foreground shadow-sm">
-              <Loader2 className="size-4 animate-spin" />
-              Loading calendar
-            </div>
+          <div className="absolute top-0 left-0 right-0 h-0.5 z-30 bg-primary/10 overflow-hidden">
+            <div
+              className="h-full bg-primary/60 w-1/3"
+              style={{ animation: "shimmer 1.5s ease-in-out infinite" }}
+            />
           </div>
         )}
 
@@ -724,40 +942,262 @@ export function CalendarClient({
                 });
               }
             }}
+            onEventMouseEnter={handleEventHover}
+            onEventMouseLeave={handleEventHoverEnd}
           />
         ) : (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <CalendarDays className="mb-3 size-10 text-muted-foreground/30" />
-            <h3 className="text-sm font-medium text-foreground">No rooms available</h3>
-            <p className="mt-1 max-w-[280px] text-xs text-muted-foreground/70">
-              Add room types and rooms to start managing your property.
+          <div className="flex flex-col items-center justify-center h-[500px] text-center px-6">
+            <div className="mb-6 relative">
+              <CalendarDays className="size-20 text-muted-foreground/20" />
+              <div className="absolute -right-2 -bottom-2 size-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Plus className="size-5 text-primary" />
+              </div>
+            </div>
+            <h3 className="text-lg font-bold text-foreground mb-2">
+              No rooms configured yet
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-md mb-6">
+              Set up your room types and rooms to start managing bookings on the
+              calendar. You can drag and drop bookings between rooms, resize to
+              change dates, and create new bookings by clicking on empty cells.
             </p>
+            <div className="flex items-center gap-3">
+              <a href="/dashboard/rooms/types">
+                <Button variant="outline">Set up rooms</Button>
+              </a>
+              <a href="/dashboard/rooms/types/new">
+                <Button>Create room type</Button>
+              </a>
+            </div>
+
+            {/* Quick tips */}
+            <div className="mt-12 grid grid-cols-3 gap-6 max-w-2xl">
+              <div className="flex flex-col items-center text-center">
+                <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
+                  <svg
+                    className="size-5 text-primary"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
+                    />
+                  </svg>
+                </div>
+                <p className="text-xs font-semibold text-foreground mb-1">
+                  Click to create
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  Click any empty cell to book
+                </p>
+              </div>
+              <div className="flex flex-col items-center text-center">
+                <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
+                  <svg
+                    className="size-5 text-primary"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+                    />
+                  </svg>
+                </div>
+                <p className="text-xs font-semibold text-foreground mb-1">
+                  Drag to move
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  Drag bookings between rooms
+                </p>
+              </div>
+              <div className="flex flex-col items-center text-center">
+                <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
+                  <svg
+                    className="size-5 text-primary"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                    />
+                  </svg>
+                </div>
+                <p className="text-xs font-semibold text-foreground mb-1">
+                  Resize dates
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  Drag edges to change stay
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>
 
+      {/* Hover tooltip */}
+      {hoveredEvent &&
+        (() => {
+          const booking = bookings.find(
+            (b) => b.id === hoveredEvent.event.bookingId,
+          );
+          if (!booking) return null;
+
+          const nights =
+            booking.nights ||
+            Math.round(
+              (new Date(booking.checkOut).getTime() -
+                new Date(booking.checkIn).getTime()) /
+                (1000 * 60 * 60 * 24),
+            );
+
+          const balance =
+            booking.totalAmount -
+            (booking.paymentStatus === "paid" ? booking.totalAmount : 0);
+
+          return (
+            <div
+              className="cal-evt-tooltip"
+              style={{
+                left: hoveredEvent.x,
+                top: hoveredEvent.y,
+                transform: "translate(-50%, -100%)",
+              }}
+            >
+              <div className="cal-evt-tooltip-header">
+                <span className="cal-evt-tooltip-name">
+                  {booking.guestName || "Guest"}
+                </span>
+                <span
+                  className="cal-evt-tooltip-status"
+                  style={{
+                    background: `${hoveredEvent.event.barColor}20`,
+                    color: hoveredEvent.event.barColor,
+                  }}
+                >
+                  {booking.status.replace(/_/g, " ")}
+                </span>
+              </div>
+              <div className="cal-evt-tooltip-row">
+                <span className="cal-evt-tooltip-label">Reference</span>
+                <span className="cal-evt-tooltip-value">
+                  {booking.reference}
+                </span>
+              </div>
+              <div className="cal-evt-tooltip-row">
+                <span className="cal-evt-tooltip-label">Check-in</span>
+                <span className="cal-evt-tooltip-value">
+                  {format(parseISO(booking.checkIn), "MMM d, yyyy")}
+                </span>
+              </div>
+              <div className="cal-evt-tooltip-row">
+                <span className="cal-evt-tooltip-label">Check-out</span>
+                <span className="cal-evt-tooltip-value">
+                  {format(parseISO(booking.checkOut), "MMM d, yyyy")}
+                </span>
+              </div>
+              <div className="cal-evt-tooltip-row">
+                <span className="cal-evt-tooltip-label">Duration</span>
+                <span className="cal-evt-tooltip-value">
+                  {nights} {nights === 1 ? "night" : "nights"}
+                </span>
+              </div>
+              {booking.adults && (
+                <div className="cal-evt-tooltip-row">
+                  <span className="cal-evt-tooltip-label">Guests</span>
+                  <span className="cal-evt-tooltip-value">
+                    {booking.adults} adult{booking.adults !== 1 ? "s" : ""}
+                    {booking.children
+                      ? `, ${booking.children} child${booking.children !== 1 ? "ren" : ""}`
+                      : ""}
+                  </span>
+                </div>
+              )}
+              <div className="cal-evt-tooltip-row">
+                <span className="cal-evt-tooltip-label">Total</span>
+                <span
+                  className="cal-evt-tooltip-value"
+                  style={{ fontWeight: 700 }}
+                >
+                  {currency} {booking.totalAmount.toLocaleString()}
+                </span>
+              </div>
+              {balance > 0 && (
+                <div className="cal-evt-tooltip-row">
+                  <span className="cal-evt-tooltip-label">Balance</span>
+                  <span
+                    className="cal-evt-tooltip-value"
+                    style={{ color: "#f59e0b", fontWeight: 650 }}
+                  >
+                    {currency} {balance.toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {booking.roomNumber && (
+                <div className="cal-evt-tooltip-row">
+                  <span className="cal-evt-tooltip-label">Room</span>
+                  <span className="cal-evt-tooltip-value">
+                    {booking.roomNumber}
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+      {/* Context menu */}
       {contextMenu && (
         <div
-          className="fixed z-50 min-w-44 overflow-hidden rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg"
+          className="fixed z-50 min-w-44 overflow-hidden rounded-xl border border-border bg-popover p-1 shadow-lg"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
-          <MenuButton onClick={() => openBooking(contextMenu.event.bookingId!)}>View Details</MenuButton>
+          <MenuButton onClick={() => openBooking(contextMenu.event.bookingId!)}>
+            View Details
+          </MenuButton>
           {contextMenu.event.status === "pending" && (
-            <MenuButton onClick={() => handleStatusUpdate(contextMenu.event.bookingId!, "confirmed")}>
-              Confirm Booking
+            <MenuButton
+              onClick={() =>
+                handleStatusUpdate(contextMenu.event.bookingId!, "confirmed")
+              }
+            >
+              Confirm
             </MenuButton>
           )}
           {contextMenu.event.status === "confirmed" && (
-            <MenuButton onClick={() => handleCheckIn(contextMenu.event.bookingId!)}>Check In</MenuButton>
+            <MenuButton
+              onClick={() => handleCheckIn(contextMenu.event.bookingId!)}
+            >
+              Check In
+            </MenuButton>
           )}
           {contextMenu.event.status === "checked_in" && (
-            <MenuButton onClick={() => handleCheckOut(contextMenu.event.bookingId!)}>Check Out</MenuButton>
+            <MenuButton
+              onClick={() => handleCheckOut(contextMenu.event.bookingId!)}
+            >
+              Check Out
+            </MenuButton>
           )}
           {canEdit && (
             <>
               <div className="my-1 h-px bg-border" />
-              <MenuButton destructive onClick={() => handleStatusUpdate(contextMenu.event.bookingId!, "cancelled")}>
-                Cancel Booking
+              <MenuButton
+                destructive
+                onClick={() =>
+                  handleStatusUpdate(contextMenu.event.bookingId!, "cancelled")
+                }
+              >
+                Cancel
               </MenuButton>
             </>
           )}
@@ -775,16 +1215,15 @@ export function CalendarClient({
         canEdit={canEdit}
         onCheckIn={handleCheckIn}
         onCheckOut={handleCheckOut}
-        onCancel={(bookingId) => handleStatusUpdate(bookingId, "cancelled")}
-        onReinstate={(bookingId) => handleStatusUpdate(bookingId, "confirmed")}
+        onCancel={(id) => handleStatusUpdate(id, "cancelled")}
+        onReinstate={(id) => handleStatusUpdate(id, "confirmed")}
         onAssign={handleAssignBooking}
-        onConfirm={(bookingId) => handleStatusUpdate(bookingId, "confirmed")}
+        onConfirm={(id) => handleStatusUpdate(id, "confirmed")}
         onBlockRoom={(roomId) => {
           setBlockPrefillRoomId(roomId);
           setBlockRoomOpen(true);
         }}
       />
-
       <BlockRoomSheet
         open={blockRoomOpen}
         onOpenChange={setBlockRoomOpen}
@@ -792,7 +1231,6 @@ export function CalendarClient({
         prefillRoomId={blockPrefillRoomId}
         onSuccess={() => fetchCalendarData(startDate, days)}
       />
-
       <NewBookingSheet
         open={newBookingOpen}
         onOpenChange={(open) => {
@@ -808,6 +1246,19 @@ export function CalendarClient({
         prefillCheckIn={newBookingPrefill?.checkIn}
         prefillCheckOut={newBookingPrefill?.checkOut}
       />
+
+      {showFilters && (
+        <FilterPanel
+          roomTypeFilters={roomTypeFilters}
+          statusFilters={statusFilters}
+          sourceFilters={sourceFilters}
+          onClose={() => setShowFilters(false)}
+          onClear={clearFilters}
+          onToggleRoomType={toggleRoomTypeFilter}
+          onToggleStatus={toggleStatusFilter}
+          onToggleSource={toggleSourceFilter}
+        />
+      )}
     </div>
   );
 }
@@ -828,56 +1279,57 @@ function ActiveFilterChips({
   sourceFilters: string[];
   searchQuery: string;
   onToggleRoomType: (id: string) => void;
-  onToggleStatus: (status: string) => void;
-  onToggleSource: (source: string) => void;
+  onToggleStatus: (s: string) => void;
+  onToggleSource: (s: string) => void;
   onClearSearch: () => void;
   onClearAll: () => void;
 }) {
-  const hiddenTypes = roomTypeFilters.filter((filter) => !filter.visible);
-  const hasFilters = hiddenTypes.length > 0 || statusFilters.length > 0 || sourceFilters.length > 0 || !!searchQuery;
-  if (!hasFilters) {
-    return (
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="ml-auto hidden items-center gap-3 lg:flex">
-          {CALENDAR_LEGEND.map((item) => (
-            <div key={item.label} className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-sm" style={{ backgroundColor: item.color }} />
-              <span className="text-[10px] text-muted-foreground">{item.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {hiddenTypes.map((filter) => (
-        <Chip key={filter.id} label={`Room type: ${filter.name}`} onClick={() => onToggleRoomType(filter.id)} />
+    <>
+      {roomTypeFilters
+        .filter((f) => !f.visible)
+        .map((f) => (
+          <Chip
+            key={f.id}
+            label={`Type: ${f.name}`}
+            onClick={() => onToggleRoomType(f.id)}
+          />
+        ))}
+      {statusFilters.map((s) => (
+        <Chip
+          key={s}
+          label={`Status: ${s.replace(/_/g, " ")}`}
+          onClick={() => onToggleStatus(s)}
+        />
       ))}
-      {statusFilters.map((status) => (
-        <Chip key={status} label={`Status: ${status.replace(/_/g, " ")}`} onClick={() => onToggleStatus(status)} />
+      {sourceFilters.map((s) => (
+        <Chip
+          key={s}
+          label={`Source: ${s.replace(/_/g, " ")}`}
+          onClick={() => onToggleSource(s)}
+        />
       ))}
-      {sourceFilters.map((source) => (
-        <Chip key={source} label={`Source: ${source.replace(/_/g, " ")}`} onClick={() => onToggleSource(source)} />
-      ))}
-      {searchQuery && <Chip label={`Search: ${searchQuery}`} onClick={onClearSearch} />}
-      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onClearAll}>
+      {searchQuery && (
+        <Chip label={`"${searchQuery}"`} onClick={onClearSearch} />
+      )}
+      <button
+        onClick={onClearAll}
+        className="text-[10px] text-muted-foreground hover:text-primary transition-colors ml-1"
+      >
         Clear all
-      </Button>
-    </div>
+      </button>
+    </>
   );
 }
 
 function Chip({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
-      type="button"
       onClick={onClick}
-      className="inline-flex h-7 max-w-[240px] items-center gap-1 rounded-full border border-border/70 bg-muted/40 px-2 text-[11px] font-medium text-muted-foreground"
+      className="inline-flex h-6 items-center gap-1 rounded-full border border-border bg-muted/50 px-2 text-[10px] text-muted-foreground hover:border-border/80 hover:text-foreground transition-colors"
     >
-      <span className="truncate capitalize">{label}</span>
-      <X className="size-3 shrink-0" />
+      <span className="truncate max-w-[140px] capitalize">{label}</span>
+      <X className="size-2.5 flex-shrink-0" />
     </button>
   );
 }
@@ -898,64 +1350,62 @@ function FilterPanel({
   onClose: () => void;
   onClear: () => void;
   onToggleRoomType: (id: string) => void;
-  onToggleStatus: (status: string) => void;
-  onToggleSource: (source: string) => void;
+  onToggleStatus: (s: string) => void;
+  onToggleSource: (s: string) => void;
 }) {
   return (
     <div className="fixed inset-0 z-50">
       <button
-        type="button"
-        className="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px]"
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
-        aria-label="Close filters"
+        aria-label="Close"
       />
-      <aside className="absolute right-0 top-0 h-full w-[min(460px,100vw)] overflow-y-auto border-l border-border bg-background p-6 shadow-2xl">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold">Filter By</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Turn filters on or off and select filter values.
-            </p>
+      <aside className="absolute right-0 top-0 h-full w-[min(380px,100vw)] overflow-y-auto bg-background border-l border-border shadow-2xl flex flex-col">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-muted/20">
+          <h2 className="text-base font-semibold text-foreground">Filters</h2>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onClear}
+              className="text-sm font-medium text-primary hover:opacity-80 transition-opacity"
+            >
+              Reset all
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <X className="size-5" />
+            </button>
           </div>
-          <Button variant="ghost" size="icon-sm" onClick={onClose}>
-            <X className="size-4" />
-          </Button>
         </div>
-
-        <div className="mt-6 flex gap-3 text-sm font-semibold text-blue-600">
-          <button type="button" onClick={onClear}>
-            Reset All
-          </button>
-        </div>
-
-        <div className="mt-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-8">
           <FilterGroup title="Room Types">
-            {roomTypeFilters.map((filter) => (
+            {roomTypeFilters.map((f) => (
               <FilterToggle
-                key={filter.id}
-                label={filter.name}
-                active={filter.visible}
-                onClick={() => onToggleRoomType(filter.id)}
+                key={f.id}
+                label={f.name}
+                active={f.visible}
+                onClick={() => onToggleRoomType(f.id)}
               />
             ))}
           </FilterGroup>
-          <FilterGroup title="Status">
-            {STATUS_OPTIONS.map((status) => (
+          <FilterGroup title="Booking Status">
+            {STATUS_OPTIONS.map((s) => (
               <FilterToggle
-                key={status}
-                label={status.replace(/_/g, " ")}
-                active={statusFilters.includes(status)}
-                onClick={() => onToggleStatus(status)}
+                key={s}
+                label={s.replace(/_/g, " ")}
+                active={statusFilters.includes(s)}
+                onClick={() => onToggleStatus(s)}
               />
             ))}
           </FilterGroup>
-          <FilterGroup title="Source">
-            {SOURCE_OPTIONS.map((source) => (
+          <FilterGroup title="Booking Source">
+            {SOURCE_OPTIONS.map((s) => (
               <FilterToggle
-                key={source}
-                label={source.replace(/_/g, " ")}
-                active={sourceFilters.includes(source)}
-                onClick={() => onToggleSource(source)}
+                key={s}
+                label={s.replace(/_/g, " ")}
+                active={sourceFilters.includes(s)}
+                onClick={() => onToggleSource(s)}
               />
             ))}
           </FilterGroup>
@@ -965,10 +1415,18 @@ function FilterPanel({
   );
 }
 
-function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
+function FilterGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section>
-      <h3 className="mb-3 text-sm font-semibold text-foreground">{title}</h3>
+    <section className="space-y-3">
+      <p className="text-xs font-semibold text-foreground px-1">
+        {title}
+      </p>
       <div className="space-y-2">{children}</div>
     </section>
   );
@@ -985,24 +1443,28 @@ function FilterToggle({
 }) {
   return (
     <button
-      type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-between gap-4 rounded-lg border border-border/60 bg-background px-3 py-2 text-left capitalize hover:bg-muted/30"
+      className={cn(
+        "flex w-full items-center justify-between gap-3 rounded-lg border px-4 py-3 text-left transition-all",
+        active
+          ? "border-primary/30 bg-primary/5"
+          : "border-border bg-background hover:bg-muted/50"
+      )}
     >
-      <span className="text-sm font-medium">{label}</span>
-      <span
+      <span className="text-sm capitalize font-medium text-foreground">{label}</span>
+      <div
         className={cn(
-          "relative h-6 w-11 rounded-full transition-colors",
-          active ? "bg-teal-500" : "bg-slate-300"
+          "relative h-6 w-11 rounded-full transition-colors flex-shrink-0",
+          active ? "bg-primary" : "bg-muted-foreground/20",
         )}
       >
-        <span
+        <div
           className={cn(
-            "absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform",
-            active ? "translate-x-5" : "translate-x-0.5"
+            "absolute top-0.5 size-5 rounded-full bg-white shadow-md transition-transform",
+            active ? "translate-x-5" : "translate-x-0.5",
           )}
         />
-      </span>
+      </div>
     </button>
   );
 }
@@ -1018,12 +1480,11 @@ function MenuButton({
 }) {
   return (
     <button
-      type="button"
-      className={cn(
-        "flex w-full rounded-sm px-2 py-1.5 text-left text-xs font-medium outline-none hover:bg-accent hover:text-accent-foreground",
-        destructive && "text-destructive"
-      )}
       onClick={onClick}
+      className={cn(
+        "flex w-full rounded-lg px-3 py-1.5 text-left text-xs font-medium transition-colors hover:bg-muted",
+        destructive ? "text-destructive" : "text-foreground",
+      )}
     >
       {children}
     </button>

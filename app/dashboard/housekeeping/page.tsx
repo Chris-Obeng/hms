@@ -12,13 +12,20 @@ export default async function HousekeepingPage() {
     return <NoAccessState />;
   }
 
+  const supabase = await createClient();
+  const { data: hotel } = await supabase
+    .from("hotels")
+    .select("id")
+    .eq("clerk_org_id", orgId)
+    .single();
+
   const result = await getHousekeepingData();
 
   if (!result.success) {
     return <ErrorState message={result.error} />;
   }
 
-  return <HousekeepingClient initialData={result.data} />;
+  return <HousekeepingClient initialData={result.data} hotelId={hotel?.id ?? ""} />;
 }
 
 function NoAccessState() {

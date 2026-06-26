@@ -138,6 +138,7 @@ export async function getRoomType(id: string) {
     success: true as const,
     data: {
       id: data.id,
+      hotelId: data.hotel_id,
       name: data.name,
       slug: data.slug,
       shortDescription: data.short_description,
@@ -173,7 +174,7 @@ export async function createRoomType(input: RoomTypeInput) {
   const data = parsed.data;
   const supabase = await createClient();
 
-  const { error } = await supabase.from("room_types").insert({
+  const { error, data: newRoomType } = await supabase.from("room_types").insert({
     hotel_id: result.hotelId,
     name: data.name,
     slug: data.slug || slugify(data.name),
@@ -187,12 +188,12 @@ export async function createRoomType(input: RoomTypeInput) {
     amenities: data.amenities,
     is_active: data.isActive,
     sort_order: data.sortOrder,
-  });
+  }).select("id").single();
 
   if (error) return { success: false as const, error: error.message };
 
   revalidatePath("/dashboard/rooms/types");
-  return { success: true as const };
+  return { success: true as const, id: newRoomType.id };
 }
 
 export async function updateRoomType(id: string, input: RoomTypeInput) {
@@ -270,6 +271,22 @@ export async function deleteRoomType(id: string) {
 
   revalidatePath("/dashboard/rooms/types");
   return { success: true as const };
+}
+
+export async function getHotelSlug(): Promise<string | null> {
+  const result = await getHotelId();
+  if ("error" in result) return null;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("hotels")
+    .select("slug, custom_domain")
+    .eq("id", result.hotelId)
+    .single();
+  if (!data) return null;
+  const base = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? "hotelosprp.com";
+  return data.custom_domain
+    ? `https://${data.custom_domain}`
+    : `https://${data.slug}.${base}`;
 }
 
 // ── Rooms CRUD ─────────────────────────────────────────────────────

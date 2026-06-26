@@ -1,0 +1,129 @@
+"use client";
+
+import * as React from "react";
+import Image from "next/image";
+import { Upload, X, Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+interface ImageUploadProps {
+  /** Current image URL (from DB) */
+  currentUrl?: string | null;
+  /** Storage path prefix, e.g. `hotels/abc123/branding` */
+  storagePath: string;
+  /** Called with the public URL after successful upload */
+  onUpload: (url: string) => Promise<void>;
+  /** Called when user removes the image */
+  onRemove?: () => Promise<void>;
+  className?: string;
+  /** aspect ratio class, e.g. "aspect-square" or "aspect-video" */
+  aspect?: string;
+  label?: string;
+  hint?: string;
+}
+
+export function ImageUpload({
+  currentUrl, storagePath, onUpload, onRemove,
+  className, aspect = "aspect-video", label, hint,
+}: ImageUploadProps) {
+  const [uploading, setUploading] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  async function handleFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5 MB");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const filename = `${Date.now()}.${ext}`;
+      const path = `${storagePath}/${filename}`;
+      const supabase = createClient();
+      const { error } = await supabase.storage
+        .from("hotel-assets")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from("hotel-assets").getPublicUrl(path);
+      await onUpload(publicUrl);
+      toast.success("Image uploaded");
+    } catch (err) {
+      toast.error((err as Error).message ?? "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className={cn("space-y-1.5", className)}>
+      {label && <p className="text-xs font-medium text-muted-foreground">{label}</p>}
+
+      <div
+        className={cn(
+          "relative rounded-xl border-2 border-dashed border-border/60 overflow-hidden transition-colors",
+          "hover:border-border cursor-pointer bg-muted/20",
+          aspect
+        )}
+        onClick={() => !uploading && inputRef.current?.click()}
+      >
+        {currentUrl ? (
+          <>
+            <Image src={currentUrl} alt="Uploaded image" fill className="object-cover" />
+            {/* Overlay controls */}
+            <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors flex items-center justify-center gap-2 opacity-0 hover:opacity-100">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
+                className="flex items-center gap-1.5 bg-white/90 text-foreground text-xs font-medium px-2.5 py-1.5 rounded-lg"
+              >
+                <Upload className="size-3" /> Replace
+              </button>
+              {onRemove && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onRemove(); }}
+                  className="flex items-center gap-1.5 bg-destructive text-destructive-foreground text-xs font-medium px-2.5 py-1.5 rounded-lg"
+                >
+                  <X className="size-3" /> Remove
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+            {uploading ? (
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <Upload className="size-5 text-muted-foreground/50" />
+                <p className="text-xs text-muted-foreground/70">Click to upload</p>
+              </>
+            )}
+          </div>
+        )}
+
+        {uploading && currentUrl && (
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+            <Loader2 className="size-6 animate-spin text-white" />
+          </div>
+        )}
+      </div>
+
+      {hint && <p className="text-[10px] text-muted-foreground/50">{hint}</p>}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
+      />
+    </div>
+  );
+}

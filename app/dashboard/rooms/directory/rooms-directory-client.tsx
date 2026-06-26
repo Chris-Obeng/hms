@@ -54,6 +54,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { updateRoomStatus, createRoom, createAvailabilityBlock, type RoomInput, type AvailabilityBlockInput } from "@/app/actions/rooms";
+import { createClient } from "@/lib/supabase/client";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -73,6 +74,7 @@ export interface RoomRow {
 interface RoomsDirectoryProps {
   data: RoomRow[];
   roomTypes: { id: string; name: string }[];
+  hotelId: string;
 }
 
 // ── Status Config ──────────────────────────────────────────────────
@@ -97,7 +99,7 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 
 // ── Component ──────────────────────────────────────────────────────
 
-export function RoomsDirectory({ data, roomTypes }: RoomsDirectoryProps) {
+export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps) {
   const router = useRouter();
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: "roomNumber", desc: false },
@@ -127,6 +129,22 @@ export function RoomsDirectory({ data, roomTypes }: RoomsDirectoryProps) {
   React.useEffect(() => {
     setLocalData(data);
   }, [data]);
+
+  // Realtime subscription — refresh on any room change for this hotel
+  React.useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`hotel:${hotelId}:rooms-directory`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "rooms", filter: `hotel_id=eq.${hotelId}` },
+        () => router.refresh(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [hotelId, router]);
 
   // Filtered data
   const filteredData = React.useMemo(() => {

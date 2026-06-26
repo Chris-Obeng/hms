@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, X } from "lucide-react";
 import { toast } from "sonner";
@@ -11,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { AMENITIES_LIST } from "@/lib/amenities";
+import { RoomImagesUpload, type RoomImage } from "@/components/ui/room-images-upload";
+import { saveRoomImages } from "@/app/actions/upload";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -32,17 +33,22 @@ export interface RoomTypeFormValues {
 export interface RoomTypeFormProps {
   /** Pre-populated values for edit mode */
   initialValues?: Partial<RoomTypeFormValues>;
+  /** Hotel ID — required for image upload storage path */
+  hotelId?: string;
+  /** Room type ID — required for image upload (edit mode only) */
+  roomTypeId?: string;
+  /** Initial images from DB */
+  initialImages?: RoomImage[];
+  /** Show photos card first (edit mode) */
+  photosFirst?: boolean;
   /** Called with form values on submit */
   onSubmit: (values: RoomTypeFormValues) => Promise<{ success: boolean; error?: string }>;
-  /** Label for the submit button (e.g. "Create Room Type") */
+  /** Open preview sheet */
+  onPreview?: () => void;
   submitLabel: string;
-  /** Label while submitting (e.g. "Creating...") */
   submittingLabel: string;
-  /** Page title (e.g. "New Room Type") */
   title: string;
-  /** Page subtitle */
   subtitle: string;
-  /** Validation errors from server action, keyed by field name */
   errors: Record<string, string>;
 }
 
@@ -78,16 +84,22 @@ const DEFAULT_VALUES: RoomTypeFormValues = {
 
 export function RoomTypeForm({
   initialValues = {},
+  hotelId,
+  roomTypeId,
+  initialImages = [],
+  photosFirst = false,
   onSubmit,
+  onPreview,
   submitLabel,
   submittingLabel,
   title,
   subtitle,
   errors,
 }: RoomTypeFormProps) {
-  const router = useRouter();
   const [submitting, setSubmitting] = React.useState(false);
   const [slugManuallyEdited, setSlugManuallyEdited] = React.useState(false);
+  const [images, setImages] = React.useState<RoomImage[]>(initialImages);
+  const [savingImages, setSavingImages] = React.useState(false);
 
   // Merge defaults with initial values
   const [values, setValues] = React.useState<RoomTypeFormValues>({
@@ -138,13 +150,34 @@ export function RoomTypeForm({
         >
           <ArrowLeft className="size-4" />
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
         </div>
+        {onPreview && (
+          <button
+            type="button"
+            onClick={onPreview}
+            className="text-xs font-medium text-muted-foreground hover:text-foreground border border-border/60 rounded-lg px-3 py-1.5 transition-colors"
+          >
+            Preview
+          </button>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Photos first — shown at top in edit mode */}
+        {hotelId && roomTypeId && photosFirst && (
+          <PhotosCard
+            roomTypeId={roomTypeId}
+            hotelId={hotelId}
+            images={images}
+            setImages={setImages}
+            savingImages={savingImages}
+            setSavingImages={setSavingImages}
+          />
+        )}
+
         {/* Basic Info */}
         <Card>
           <CardHeader>
@@ -349,6 +382,18 @@ export function RoomTypeForm({
           </CardContent>
         </Card>
 
+        {/* Images — only shown in edit mode (roomTypeId exists) */}
+        {hotelId && roomTypeId && !photosFirst && (
+          <PhotosCard
+            roomTypeId={roomTypeId}
+            hotelId={hotelId}
+            images={images}
+            setImages={setImages}
+            savingImages={savingImages}
+            setSavingImages={setSavingImages}
+          />
+        )}
+
         {/* Settings */}
         <Card>
           <CardHeader>
@@ -411,5 +456,67 @@ export function RoomTypeForm({
         </div>
       </form>
     </div>
+  );
+}
+
+// ── Photos Card ────────────────────────────────────────────────
+
+function PhotosCard({
+  roomTypeId, hotelId, images, setImages, savingImages, setSavingImages,
+}: {
+  roomTypeId: string;
+  hotelId: string;
+  images: RoomImage[];
+  setImages: React.Dispatch<React.SetStateAction<RoomImage[]>>;
+  savingImages: boolean;
+  setSavingImages: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
+  return (
+    <Card className="border-2 border-dashed border-border/60 hover:border-border transition-colors">
+      <CardHeader>
+        <CardTitle className="text-sm font-medium flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span>Photos</span>
+            {images.length === 0 && (
+              <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
+                No photos yet
+              </span>
+            )}
+          </div>
+          {images.length > 0 && (
+            <button
+              type="button"
+              disabled={savingImages}
+              onClick={async () => {
+                setSavingImages(true);
+                const r = await saveRoomImages(roomTypeId, images);
+                setSavingImages(false);
+                if (r.success) toast.success("Photos saved");
+                else toast.error(r.error ?? "Failed to save photos");
+              }}
+              className="text-xs font-medium text-foreground hover:opacity-70 transition-opacity disabled:opacity-40"
+            >
+              {savingImages ? "Saving…" : "Save Photos"}
+            </button>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {images.length === 0 && (
+          <p className="text-xs text-amber-700/70 mb-3 bg-amber-50 rounded-lg px-3 py-2">
+            Rooms with photos get 3× more bookings. Add at least 3 photos.
+          </p>
+        )}
+        <RoomImagesUpload
+          hotelId={hotelId}
+          roomTypeId={roomTypeId}
+          images={images}
+          onChange={setImages}
+        />
+        <p className="text-[10px] text-muted-foreground/50 mt-2">
+          First photo is the listing thumbnail. Drag to reorder. Max 10.
+        </p>
+      </CardContent>
+    </Card>
   );
 }

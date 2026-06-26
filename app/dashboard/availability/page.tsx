@@ -40,7 +40,7 @@ export default async function AvailabilityPage({ searchParams }: PageProps) {
     );
   }
 
-  return <AvailabilityMatrixClient data={data} />;
+  return <AvailabilityMatrixClient data={data} hotelId={hotel.id} />;
 }
 
 function parseStartDate(value?: string) {

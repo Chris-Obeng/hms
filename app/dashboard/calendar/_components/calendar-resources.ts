@@ -15,6 +15,7 @@ export interface CalendarResource {
   eventClickEnabled?: boolean;
   eventMoveEnabled?: boolean;
   timeRangeSelectedEnabled?: boolean;
+  height?: number;
 }
 
 export function buildResources(
@@ -60,6 +61,7 @@ export function buildResources(
       eventClickEnabled: false,
       eventMoveEnabled: false,
       timeRangeSelectedEnabled: false,
+      height: 36,
     });
 
     for (const room of group.rooms) {
@@ -86,16 +88,12 @@ function buildSectionHeaderHtml(
   name: string,
   count: number,
   availableCount: number,
-  unavailableCount: number
+  _unavailableCount: number
 ): string {
-  return `<div class="section-header-content">
-    <span class="section-header-name">${escapeHtml(name)}</span>
-    <div class="section-header-meta-row">
-      <span>${count} rooms</span>
-      <span class="section-header-sep">/</span>
-      <span class="section-header-avail"><span class="status-dot dot-available"></span>${availableCount} open</span>
-      ${unavailableCount > 0 ? `<span class="section-header-sep">/</span><span>${unavailableCount} busy</span>` : ""}
-    </div>
+  return `<div class="cal-section-hdr">
+    <span class="cal-section-dot"></span>
+    <span class="cal-section-name">${escapeHtml(name)}</span>
+    <span class="cal-section-meta"><span class="cal-section-avail">${availableCount} open</span> · ${count} rooms</span>
   </div>`;
 }
 
@@ -103,16 +101,21 @@ function buildRoomRowHtml(
   roomNumber: string,
   floor: string | null,
   status: string,
-  statusInfo: { color: string; label: string }
+  _statusInfo: { color: string; label: string }
 ): string {
-  const floorText = floor ? `<span class="room-floor">Floor ${escapeHtml(floor)}</span>` : "";
-  return `<div class="room-header-content">
-    <div class="room-header-name-row">
-      <span class="room-status-dot" style="background:${statusInfo.color}" title="${escapeHtml(statusInfo.label)}"></span>
-      <span class="room-header-number">${escapeHtml(roomNumber)}</span>
-      <span class="room-status-label">${escapeHtml(statusInfo.label)}</span>
+  // Map status to CSS class
+  let statusClass = "available";
+  if (status === "occupied" || status === "checked_in") statusClass = "occupied";
+  else if (status === "cleaning" || status === "checkout_pending") statusClass = "cleaning";
+  else if (status === "maintenance" || status === "out_of_service") statusClass = "blocked";
+  
+  return `<div class="cal-room-hdr">
+    <span class="cal-room-dot ${statusClass}"></span>
+    <div class="cal-room-info">
+      <span class="cal-room-num">${escapeHtml(roomNumber)}</span>
+      <span class="cal-room-status">${_statusInfo.label}</span>
     </div>
-    ${floorText ? `<div class="room-header-sub">${floorText}</div>` : ""}
+    ${floor ? `<span class="cal-room-floor">Floor ${escapeHtml(floor)}</span>` : ""}
   </div>`;
 }
 

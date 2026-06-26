@@ -72,10 +72,11 @@ export function buildEvents(
         booking.status,
         booking.source,
         totalDays,
-        booking.paymentStatus
+        booking.paymentStatus,
+        colors.bg
       ),
       barColor: colors.bg,
-      backColor: colors.bg,
+      backColor: "transparent",
       fontColor: colors.text,
       borderColor: colors.border,
       cssClass,
@@ -99,15 +100,13 @@ export function buildEvents(
       start: block.startDate,
       end: block.endDate,
       text: reasonLabel,
-      html: `<div class="event-inner block-event">
-        <span class="event-block-icon"></span>
-        <span class="event-name">${escapeHtml(reasonLabel)}</span>
-        ${block.notes ? `<span class="event-meta">${escapeHtml(block.notes.slice(0, 30))}</span>` : ""}
+      html: `<div class="cal-evt-block">
+        <span class="cal-evt-block-name">${escapeHtml(reasonLabel)}</span>
       </div>`,
-      barColor: "#64748B",
+      barColor: "#30363D",
       backColor: "transparent",
-      fontColor: "#475569",
-      borderColor: "#94A3B8",
+      fontColor: "#7D8590",
+      borderColor: "#30363D",
       cssClass: "calendar-event calendar-event--block",
       blockId: block.id,
       isBlock: true,
