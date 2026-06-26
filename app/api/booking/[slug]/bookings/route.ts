@@ -72,7 +72,7 @@ export async function POST(
       .single();
     if (!roomType) return NextResponse.json({ error: "Room type not available." }, { status: 400 });
 
-    // Re-check availability (race-condition safe via DB function)
+    // Re-check availability (fast-path; DB exclusion constraint is the final guard)
     const { data: availCount } = await supabaseAdmin.rpc("room_type_available_count", {
       p_room_type_id: data.room_type_id,
       p_check_in: data.check_in,
@@ -82,12 +82,25 @@ export async function POST(
       return NextResponse.json({ error: "No rooms available for these dates." }, { status: 409 });
     }
 
-    // Calculate pricing
+    // Calculate pricing — use weekend_price (if set) for Fri/Sat nights
+    const checkInDate = new Date(data.check_in);
+    const checkOutDate = new Date(data.check_out);
     const nights = Math.ceil(
-      (new Date(data.check_out).getTime() - new Date(data.check_in).getTime()) / 86400000
+      (checkOutDate.getTime() - checkInDate.getTime()) / 86400000
     );
-    const rate = roomType.base_price;
-    const subtotal = rate * nights;
+    let subtotal = 0;
+    for (let i = 0; i < nights; i++) {
+      const night = new Date(checkInDate);
+      night.setUTCDate(night.getUTCDate() + i);
+      const dow = night.getUTCDay(); // 0 = Sun, 5 = Fri, 6 = Sat
+      const isWeekendNight = dow === 5 || dow === 6;
+      const nightRate =
+        isWeekendNight && roomType.weekend_price != null
+          ? roomType.weekend_price
+          : roomType.base_price;
+      subtotal += nightRate;
+    }
+    const rate = nights > 0 ? subtotal / nights : roomType.base_price;
     const total = subtotal;
 
     // Find or create guest
@@ -154,6 +167,11 @@ export async function POST(
       .single();
 
     if (bookingErr || !booking) {
+      // Postgres exclusion-constraint violation (23P01) means a concurrent booking
+      // grabbed the last room between our availability check and this insert.
+      if ((bookingErr as { code?: string } | null)?.code === "23P01") {
+        return NextResponse.json({ error: "No rooms available for these dates." }, { status: 409 });
+      }
       return NextResponse.json({ error: "Failed to create booking." }, { status: 500 });
     }
 
