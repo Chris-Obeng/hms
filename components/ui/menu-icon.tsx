@@ -91,7 +91,7 @@ const MenuIcon = forwardRef<MenuIconHandle, MenuIconProps>(
       (e: React.MouseEvent<HTMLDivElement>) => {
         if (!isAnimated || reduced) return;
         if (!isControlled.current) controls.start("animate");
-        else onMouseEnter?.(e as any);
+        else onMouseEnter?.(e);
       },
       [controls, reduced, isAnimated, onMouseEnter],
     );

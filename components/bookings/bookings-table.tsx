@@ -250,20 +250,45 @@ function getColumns(
     {
       accessorKey: "status",
       header: "Status",
-      cell: ({ row }) => (
-        <Badge variant={getStatusVariant(row.original.status)} className="text-[10px] px-1.5 py-0.5 h-5 font-medium">
-          {getStatusLabel(row.original.status)}
-        </Badge>
-      ),
+      cell: ({ row }) => {
+        const s = row.original.status;
+        const statusClass =
+          s === "confirmed" ? "status-confirmed" :
+          s === "checked_in" ? "status-checked-in" :
+          s === "checked_out" ? "status-checked-out" :
+          s === "pending" ? "status-pending" :
+          s === "cancelled" || s === "no_show" ? "status-cancelled" :
+          "status-checked-out";
+        return (
+          <span className={cn(
+            "inline-flex items-center px-2 py-0.5 rounded-md border text-caption font-medium",
+            statusClass
+          )}>
+            {getStatusLabel(s)}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "paymentStatus",
       header: "Payment",
-      cell: ({ row }) => (
-        <Badge variant={getPaymentVariant(row.original.paymentStatus)} className="text-[10px] px-1.5 py-0.5 h-5 font-medium">
-          {getPaymentLabel(row.original.paymentStatus)}
-        </Badge>
-      ),
+      cell: ({ row }) => {
+        const p = row.original.paymentStatus;
+        const payClass =
+          p === "paid" ? "status-confirmed" :
+          p === "partial" ? "status-pending" :
+          p === "unpaid" ? "status-checked-out" :
+          p === "refunded" ? "status-cancelled" :
+          "status-checked-out";
+        return (
+          <span className={cn(
+            "inline-flex items-center px-2 py-0.5 rounded-md border text-caption font-medium",
+            payClass
+          )}>
+            {getPaymentLabel(p)}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "source",
@@ -292,8 +317,8 @@ function getColumns(
         const booking = row.original;
         return (
           <DropdownMenu>
-            <DropdownMenuTrigger className="inline-flex items-center justify-center size-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
-              <MoreHorizontal className="size-3.5" />
+            <DropdownMenuTrigger className="inline-flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
+              <MoreHorizontal className="size-4" />
               <span className="sr-only">Actions</span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
@@ -563,10 +588,10 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-page-title text-foreground">
             Bookings
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-body text-muted-foreground mt-1">
             {totalCount} total booking{totalCount !== 1 ? "s" : ""}
             {filteredCount !== totalCount && (
               <span className="text-muted-foreground/60">
@@ -631,7 +656,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
               <div className="flex flex-wrap items-center gap-3">
                 {/* Status */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  <label className="text-label font-medium text-muted-foreground uppercase tracking-wider">
                     Status
                   </label>
                   <select
@@ -650,7 +675,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
 
                 {/* Payment Status */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  <label className="text-label font-medium text-muted-foreground uppercase tracking-wider">
                     Payment
                   </label>
                   <select
@@ -669,7 +694,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
 
                 {/* Source */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  <label className="text-label font-medium text-muted-foreground uppercase tracking-wider">
                     Source
                   </label>
                   <select
@@ -688,7 +713,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
 
                 {/* Room Type */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  <label className="text-label font-medium text-muted-foreground uppercase tracking-wider">
                     Room Type
                   </label>
                   <select
@@ -729,14 +754,14 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
       </div>
 
       {/* DataTable */}
-      <Card className="border-border/60 overflow-hidden">
+      <Card className="border-border/60 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
+                <TableRow key={headerGroup.id} className="hover:bg-transparent">
                   {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
+                    <TableHead key={header.id} className="text-label font-semibold uppercase tracking-wide text-muted-foreground/70 h-11">
                       {header.isPlaceholder ? null : (
                         <button
                           className={cn(
@@ -767,9 +792,12 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
             <TableBody>
               {table.getRowModel().rows.length > 0 ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} className="group">
+                  <TableRow
+                    key={row.id}
+                    className="group min-h-[44px] hover:bg-muted/30 transition-colors cursor-pointer"
+                  >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
+                      <TableCell key={cell.id} className="py-3">
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()
@@ -786,12 +814,12 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
                   >
                     <div className="flex flex-col items-center justify-center">
                       <CalendarIcon className="size-10 text-muted-foreground/30 mb-3" />
-                      <p className="text-sm font-medium text-muted-foreground">
+                      <p className="text-body font-medium text-muted-foreground">
                         {globalFilter || statusFilter !== "all" || paymentFilter !== "all"
                           ? "No bookings match your filters"
                           : "No bookings yet"}
                       </p>
-                      <p className="text-xs text-muted-foreground/60 mt-1 max-w-[240px]">
+                      <p className="text-caption text-muted-foreground/60 mt-1 max-w-[240px]">
                         {globalFilter || statusFilter !== "all" || paymentFilter !== "all"
                           ? "Try adjusting your search or filters"
                           : "Bookings will appear here once guests start reserving rooms."}

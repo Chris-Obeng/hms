@@ -379,23 +379,29 @@ for diffing.
 ### `platform_admins`
 
 HotelOS Pro internal team. Completely separate from `staff_profiles` — a
-platform admin can sign in to `platform.hotelosprp.com` to manage all
-tenants, but they are NOT staff of any specific hotel.
+platform admin signs in via **Supabase Auth** (email + password) at
+`/platform/sign-in`. They manage all tenants but are NOT staff of any hotel.
+
+New users are **auto-synced** from `auth.users` by the
+`on_auth_user_created` trigger (`handle_new_platform_admin()`). New rows
+default to `is_active = false` — a super_admin must activate them via the
+SQL editor before they can log in.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | `uuid` | PK |
-| `clerk_user_id` | `text` | UNIQUE. The Clerk user, not a Clerk org member |
-| `email` | `text` | NOT NULL |
+| `supabase_user_id` | `uuid` | UNIQUE. FK-equivalent to `auth.users.id` |
+| `email` | `text` | NOT NULL, UNIQUE |
 | `full_name` | `text` | |
-| `role` | `text` | CHECK in (`super_admin`, `admin`, `support`) |
-| `is_active` | `boolean` | DEFAULT `true` |
+| `role` | `text` | CHECK in (`super_admin`, `admin`, `support`). DEFAULT `admin` |
+| `is_active` | `boolean` | DEFAULT `false`. Must be set `true` by a super_admin |
 | `created_at` | `timestamptz` | |
-| `updated_at` | `timestamptz` | Auto-bumped (added in `20240101001400_add_updated_at.sql`) |
+| `updated_at` | `timestamptz` | Auto-bumped |
 
-- **UNIQUE**: `clerk_user_id`
-- **RLS**: self-access — `clerk_user_id = (auth.jwt() ->> 'sub') AND is_active = true`
-- **Indexes**: `idx_platform_admins_clerk_user_id`
+- **UNIQUE**: `supabase_user_id`, `email`
+- **RLS**: self-access — `(select auth.uid()) = supabase_user_id AND is_active = true`
+- **Indexes**: `idx_platform_admins_supabase_user_id`, `idx_platform_admins_email`
+- **Trigger**: `on_auth_user_created` on `auth.users` → `handle_new_platform_admin()`
 
 ---
 
@@ -457,7 +463,7 @@ inserting a new row that references the original (e.g. an `action =
 | `hotels` | `hotels_org_isolation` | `id IN (SELECT get_user_hotel_ids())` |
 | `staff_profiles` | `staff_profiles_org_isolation` | `clerk_org_id IN (SELECT get_user_clerk_org_ids())` |
 | `room_types`, `rooms`, `guests`, `bookings`, `payments`, `availability_blocks`, `notifications`, `beds24_property_mappings`, `beds24_sync_log`, `audit_logs` | `<table>_org_isolation` | `hotel_id IN (SELECT get_user_hotel_ids())` |
-| `platform_admins` | `platform_admins_self_access` | `clerk_user_id = auth.jwt() ->> 'sub' AND is_active` |
+| `platform_admins` | `platform_admins_self_read` | `(select auth.uid()) = supabase_user_id AND is_active` |
 
 The `SUPABASE_SERVICE_ROLE_KEY` bypasses all of the above automatically.
 Webhooks and any server-to-server code can use it freely. The anon key and

@@ -42,10 +42,12 @@ function OccupancyDonut({ percent }: { percent: number }) {
   return (
     <div className="relative flex items-center justify-center">
       <svg
-        width="140"
-        height="140"
+        width="150"
+        height="150"
         viewBox="0 0 120 120"
         className="transform -rotate-90"
+        role="img"
+        aria-label={`Occupancy: ${percent}%`}
       >
         {/* Background circle */}
         <circle
@@ -54,8 +56,8 @@ function OccupancyDonut({ percent }: { percent: number }) {
           r={radius}
           fill="none"
           stroke="currentColor"
-          className="text-muted/30"
-          strokeWidth="8"
+          className="text-muted/20"
+          strokeWidth="9"
           strokeLinecap="round"
         />
         {/* Filled arc */}
@@ -65,18 +67,18 @@ function OccupancyDonut({ percent }: { percent: number }) {
           r={radius}
           fill="none"
           className={cn("transition-all duration-1000 ease-out", color)}
-          strokeWidth="8"
+          strokeWidth="9"
           strokeLinecap="round"
           strokeDasharray={`${filledLength} ${emptyLength}`}
           strokeDashoffset={animatedOffset}
         />
       </svg>
       {/* Center text */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-bold tabular-nums text-foreground">
+      <div className="absolute inset-0 flex flex-col items-center justify-center" aria-hidden="true">
+        <span className="text-kpi-hero text-foreground">
           {percent}%
         </span>
-        <span className="text-[10px] font-medium text-muted-foreground">
+        <span className="text-caption font-medium text-muted-foreground uppercase tracking-wide mt-0.5">
           Occupancy
         </span>
       </div>
@@ -102,30 +104,30 @@ export function OccupancyCard({
   ];
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Occupancy</CardTitle>
-        <CardDescription className="text-xs mt-0.5">
+    <Card className="border-border/40 shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-section">Occupancy</CardTitle>
+        <CardDescription className="text-caption mt-0.5">
           {totalRooms} total room{totalRooms !== 1 ? "s" : ""}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         {/* Donut */}
-        <div className="flex justify-center py-1">
+        <div className="flex justify-center py-2">
           <OccupancyDonut percent={occupancyPercent} />
         </div>
 
         {/* 2x2 Stats Grid */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2.5">
           {stats.map((stat) => (
             <div
               key={stat.label}
-              className="rounded-lg border border-border/40 bg-muted/10 p-2.5"
+              className="rounded-xl border border-border/30 bg-muted/5 p-3 hover:bg-muted/10 transition-colors"
             >
-              <p className="text-[18px] font-bold tabular-nums text-foreground">
+              <p className={cn("text-xl font-bold tabular-nums", stat.color)}>
                 {stat.value}
               </p>
-              <p className="text-[10px] font-medium text-muted-foreground truncate">
+              <p className="text-caption text-muted-foreground truncate mt-0.5">
                 {stat.label}
               </p>
             </div>

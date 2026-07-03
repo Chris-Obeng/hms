@@ -3,13 +3,16 @@
 import * as React from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Bell, BellRing, Speaker, Volume2, ArrowLeft, Loader2 } from "lucide-react";
+import { Bell, BellRing, Speaker, Volume2, ArrowLeft, Loader2, MessageSquareText, Monitor, Smartphone, Info } from "lucide-react";
 
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getNotificationPrefs, updateNotificationPrefs } from "@/app/actions/settings";
+import { getNotificationTemplates } from "@/app/actions/notification-templates";
+import { NotificationTemplatesClient } from "./templates-client";
+import type { NotificationEventType, NotificationTemplate } from "@/lib/notification-templates";
 
 // ── Event Types ────────────────────────────────────────────────────
 
@@ -23,60 +26,40 @@ const EVENT_TYPES = [
   { key: "staff_access_request", label: "Staff Access Request", description: "When a staff member requests access" },
 ] as const;
 
-// ── Toggle Switch ──────────────────────────────────────────────────
-
-function Toggle({
-  enabled,
-  onChange,
-  label,
-}: {
-  enabled: boolean;
-  onChange: (value: boolean) => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!enabled)}
-      className={cn(
-        "relative inline-flex h-6 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        enabled ? "bg-foreground" : "bg-muted"
-      )}
-      aria-label={label}
-    >
-      <span
-        className={cn(
-          "pointer-events-none inline-block size-5 rounded-full bg-background shadow ring-0 transition-transform",
-          enabled ? "translate-x-4" : "translate-x-0"
-        )}
-      />
-    </button>
-  );
-}
-
 // ── Main Component ────────────────────────────────────────────────
 
 export default function NotificationSettingsPage() {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [soundEnabled, setSoundEnabled] = React.useState(true);
+  const [browserAlertsEnabled, setBrowserAlertsEnabled] = React.useState(false);
+  const [notificationPermission, setNotificationPermission] = React.useState<NotificationPermission>("default");
   const [eventPrefs, setEventPrefs] = React.useState<Record<string, boolean>>({});
+  const [notifTemplates, setNotifTemplates] = React.useState<Record<NotificationEventType, NotificationTemplate> | null>(null);
 
   // Load preferences
   React.useEffect(() => {
     async function loadPrefs() {
       try {
-        const result = await getNotificationPrefs();
-        if (result.success) {
-          const prefs = result.data;
-          setEventPrefs(prefs);
+        const [prefsResult, templatesResult] = await Promise.all([
+          getNotificationPrefs(),
+          getNotificationTemplates(),
+        ]);
+
+        if (prefsResult.success) {
+          setEventPrefs(prefsResult.data);
+        } else {
+          const defaults: Record<string, boolean> = {};
+          EVENT_TYPES.forEach((evt) => { defaults[evt.key] = true; });
+          setEventPrefs(defaults);
+        }
+
+        if (templatesResult.success) {
+          setNotifTemplates(templatesResult.data);
         }
       } catch {
-        // Default to all enabled
         const defaults: Record<string, boolean> = {};
-        EVENT_TYPES.forEach((evt) => {
-          defaults[evt.key] = true;
-        });
+        EVENT_TYPES.forEach((evt) => { defaults[evt.key] = true; });
         setEventPrefs(defaults);
       } finally {
         setLoading(false);
@@ -88,6 +71,13 @@ export default function NotificationSettingsPage() {
     const sound = localStorage.getItem("hotelos_sound_enabled");
     if (sound !== null) {
       setSoundEnabled(sound === "true");
+    }
+
+    // Load browser push preference & permission state
+    if (typeof window !== "undefined") {
+      setNotificationPermission(Notification.permission);
+      const alerts = localStorage.getItem("hotelos_browser_notifications_enabled") === "true";
+      setBrowserAlertsEnabled(alerts && Notification.permission === "granted");
     }
   }, []);
 
@@ -101,6 +91,36 @@ export default function NotificationSettingsPage() {
     const newVal = !soundEnabled;
     setSoundEnabled(newVal);
     localStorage.setItem("hotelos_sound_enabled", String(newVal));
+  };
+
+  // Toggle browser push alerts
+  const toggleBrowserAlerts = async () => {
+    if (typeof window === "undefined") return;
+
+    if (Notification.permission === "default") {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      if (permission === "granted") {
+        localStorage.setItem("hotelos_browser_notifications_enabled", "true");
+        setBrowserAlertsEnabled(true);
+        toast.success("Browser notifications authorized!");
+      } else {
+        localStorage.setItem("hotelos_browser_notifications_enabled", "false");
+        setBrowserAlertsEnabled(false);
+        toast.error("Notification permission denied");
+      }
+    } else if (Notification.permission === "denied") {
+      toast.error("Alerts are blocked. Please reset site permissions in your browser address bar.");
+    } else {
+      const newVal = !browserAlertsEnabled;
+      setBrowserAlertsEnabled(newVal);
+      localStorage.setItem("hotelos_browser_notifications_enabled", String(newVal));
+      if (newVal) {
+        toast.success("Browser alerts enabled");
+      } else {
+        toast.success("Browser alerts disabled");
+      }
+    }
   };
 
   // Test sound
@@ -154,10 +174,10 @@ export default function NotificationSettingsPage() {
           <ArrowLeft className="size-4" />
         </Link>
         <div>
-          <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-page-title text-foreground">
             Notifications
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-body text-muted-foreground mt-0.5">
             Control what notifications you receive
           </p>
         </div>
@@ -180,7 +200,7 @@ export default function NotificationSettingsPage() {
               <Speaker className="size-3.5 text-muted-foreground" />
               <span className="text-sm text-foreground">Enable sound</span>
             </div>
-            <Toggle enabled={soundEnabled} onChange={toggleSound} label="Toggle notification sound" />
+            <Switch checked={soundEnabled} onCheckedChange={toggleSound} size="lg" />
           </div>
           <Button
             variant="outline"
@@ -190,6 +210,51 @@ export default function NotificationSettingsPage() {
           >
             Test Sound
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Browser Alerts & PWA Notifications */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Monitor className="size-3.5" />
+            Browser & PWA Alerts
+          </CardTitle>
+          <CardDescription className="text-xs mt-0.5">
+            Receive desktop and mobile background notifications. Fully compatible with PWA features.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <Smartphone className="size-3.5 text-muted-foreground" />
+              <span className="text-sm text-foreground">Browser alerts</span>
+            </div>
+            <Switch checked={browserAlertsEnabled} onCheckedChange={toggleBrowserAlerts} size="lg" />
+          </div>
+          
+          <div className="rounded-xl bg-muted/30 border border-border/40 p-3 text-xs space-y-1.5">
+            <div className="flex items-center gap-1.5 text-muted-foreground font-medium">
+              <Info className="size-3.5" />
+              <span>Notification Status</span>
+            </div>
+            <p className="text-muted-foreground/80 pl-5">
+              Permission status:{" "}
+              <span className="font-semibold capitalize text-foreground">
+                {notificationPermission}
+              </span>
+            </p>
+            {notificationPermission === "denied" && (
+              <p className="text-destructive/80 pl-5 leading-normal">
+                Browser alerts are blocked. Click the lock/settings icon next to the site URL to reset.
+              </p>
+            )}
+            {notificationPermission === "granted" && browserAlertsEnabled && (
+              <p className="text-emerald-700 dark:text-emerald-400 pl-5 leading-normal">
+                Real-time alerts active. Keep the dashboard open, or install it as a PWA, to receive them.
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -217,17 +282,31 @@ export default function NotificationSettingsPage() {
                     {event.description}
                   </p>
                 </div>
-                <Toggle
-                  enabled={eventPrefs[event.key] ?? true}
-                  onChange={() => toggleEvent(event.key)}
-                  label={`Toggle ${event.label}`}
-                />
+                <Switch checked={eventPrefs[event.key] ?? true} onCheckedChange={() => toggleEvent(event.key)} size="lg" />
               </div>
               {index < EVENT_TYPES.length - 1 && <Separator className="opacity-30" />}
             </React.Fragment>
           ))}
         </CardContent>
       </Card>
+
+      {/* Message Templates */}
+      {notifTemplates && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <MessageSquareText className="size-3.5" />
+              Message Templates
+            </CardTitle>
+            <CardDescription className="text-xs mt-0.5">
+              Customize the SMS and email messages sent to guests. Click a card to edit. Use the variable chips to insert dynamic values.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <NotificationTemplatesClient initialTemplates={notifTemplates} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Save */}
       <div className="flex items-center justify-end pb-8">

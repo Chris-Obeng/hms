@@ -9,7 +9,9 @@ import { createHotelProfile, type OnboardingInput } from "@/app/actions/onboardi
 const STORAGE_KEY = "hotelos_onboarding_data";
 
 export default function OnboardingPage() {
-  const { isLoaded, setActive, createOrganization } = useOrganizationList();
+  const { isLoaded, setActive, createOrganization, userMemberships } = useOrganizationList({
+    userMemberships: true,
+  });
   const { userId, orgId } = useAuth();
   const { user } = useUser();
   const router = useRouter();
@@ -38,6 +40,14 @@ export default function OnboardingPage() {
       router.push("/dashboard");
     }
   }, [isLoaded, orgId, router]);
+
+  // Auto-activate organization if user was invited and joined via webhook
+  useEffect(() => {
+    if (isLoaded && !orgId && userMemberships?.data && userMemberships.data.length > 0 && setActive) {
+      const firstOrgId = userMemberships.data[0].organization.id;
+      setActive({ organization: firstOrgId });
+    }
+  }, [isLoaded, orgId, userMemberships, setActive]);
 
   // Load from local storage
   useEffect(() => {

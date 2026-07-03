@@ -73,6 +73,47 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* ── Typography scale ──────────────────────────────────────────
+   *  Six semantic levels. All Plus Jakarta Sans.
+   *  Nothing renders smaller than --text-caption (11px) in the
+   *  staff dashboard.
+   * ────────────────────────────────────────────────────────────── */
+
+  /* Page-level heading (h1 per page) */
+  --text-page-title-size: 1.375rem;   /* 22px */
+  --text-page-title-weight: 700;
+  --text-page-title-lh: 1.2;
+
+  /* Card titles / section headers */
+  --text-section-size: 0.9375rem;     /* 15px */
+  --text-section-weight: 600;
+  --text-section-lh: 1.3;
+
+  /* Table cells, descriptions, form fields (= base body) */
+  --text-body-size: 0.875rem;         /* 14px */
+  --text-body-weight: 400;
+  --text-body-lh: 1.6;
+
+  /* Field labels, group labels, badge text */
+  --text-label-size: 0.75rem;         /* 12px */
+  --text-label-weight: 500;
+  --text-label-lh: 1.4;
+
+  /* Timestamps, secondary metadata — FLOOR */
+  --text-caption-size: 0.6875rem;     /* 11px – minimum allowed */
+  --text-caption-weight: 400;
+  --text-caption-lh: 1.4;
+
+  /* KPI numerals — card-level (28px) */
+  --text-kpi-size: 1.75rem;           /* 28px */
+  --text-kpi-weight: 700;
+  --text-kpi-lh: 1.0;
+
+  /* KPI hero — single dominant number (e.g. occupancy %) */
+  --text-kpi-hero-size: 2.25rem;      /* 36px */
+  --text-kpi-hero-weight: 700;
+  --text-kpi-hero-lh: 1.0;
 }
 
 /* ── Radix data-state custom variants (from shadcn) ───────────────────── */
@@ -234,7 +275,115 @@
   }
 }
 
+/* ── Design System Utilities ──────────────────────────────────────────
+ *
+ *  Semantic typography — use these classes instead of raw text-* values
+ *  so every page uses the same deliberate scale.
+ *
+ * ────────────────────────────────────────────────────────────────────── */
+
+/* Page heading  (h1 per page) */
+.text-page-title {
+  font-size: var(--text-page-title-size);
+  font-weight: var(--text-page-title-weight);
+  line-height: var(--text-page-title-lh);
+  letter-spacing: -0.02em;
+}
+
+/* Card / section header */
+.text-section {
+  font-size: var(--text-section-size);
+  font-weight: var(--text-section-weight);
+  line-height: var(--text-section-lh);
+  letter-spacing: -0.01em;
+}
+
+/* Body — table cells, form fields */
+.text-body {
+  font-size: var(--text-body-size);
+  font-weight: var(--text-body-weight);
+  line-height: var(--text-body-lh);
+}
+
+/* Labels — field labels, group headers */
+.text-label {
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  line-height: var(--text-label-lh);
+}
+
+/* Caption — timestamps, secondary metadata  ← FLOOR (11px) */
+.text-caption {
+  font-size: var(--text-caption-size);
+  font-weight: var(--text-caption-weight);
+  line-height: var(--text-caption-lh);
+}
+
+/* KPI numeral — card-level */
+.text-kpi {
+  font-size: var(--text-kpi-size);
+  font-weight: var(--text-kpi-weight);
+  line-height: var(--text-kpi-lh);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.02em;
+}
+
+/* KPI hero — single dominant number */
+.text-kpi-hero {
+  font-size: var(--text-kpi-hero-size);
+  font-weight: var(--text-kpi-hero-weight);
+  line-height: var(--text-kpi-hero-lh);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.03em;
+}
+
+/* Tabular numerals (backwards-compat helper) */
 .font-tabular {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
+}
+
+/* ── Card defaults ─────────────────────────────────────────────────────
+ *  Every dashboard card gets a shadow-sm for depth.
+ *  Overridable per-component with shadow-none or shadow-md.
+ * ────────────────────────────────────────────────────────────────────── */
+.card-default {
+  @apply rounded-xl border border-border/40 bg-card shadow-sm;
+}
+
+/* ── Tap-target helper ─────────────────────────────────────────────────
+ *  Ensures interactive elements meet the 44px minimum for front-desk
+ *  tablet use (Apple HIG). Apply to small icon buttons.
+ * ────────────────────────────────────────────────────────────────────── */
+.tap-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Status badge semantic colours ────────────────────────────────────
+ *  Consistent across activity-list, bookings-table, anywhere a booking
+ *  status is displayed.
+ * ────────────────────────────────────────────────────────────────────── */
+.status-confirmed {
+  @apply bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800;
+}
+.status-checked-in {
+  @apply bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800;
+}
+.status-checked-out {
+  @apply bg-muted/60 text-muted-foreground border-border/60;
+}
+.status-pending {
+  @apply bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800;
+}
+.status-cancelled {
+  @apply bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800;
+}
+.status-no-show {
+  @apply bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-900/40 dark:text-slate-400 dark:border-slate-700;
 }

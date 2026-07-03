@@ -36,13 +36,26 @@ export async function POST(
     }
     const data = parsed.data;
 
-    // Resolve hotel
-    const { data: hotel } = await supabaseAdmin
+    // Resolve hotel — use separate eq() calls, never .or() with interpolated slug.
+    // PostgREST .or("slug.eq.${slug},...") is vulnerable to filter injection:
+    // a slug like "foo,status.eq.suspended" becomes two distinct filter clauses.
+    let hotelQuery = await supabaseAdmin
       .from("hotels")
-      .select("id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, cancellation_policy")
-      .or(`slug.eq.${slug},custom_domain.eq.${slug}`)
+      .select("id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, cancellation_policy, phone, address, beds24_api_key, beds24_property_id")
+      .eq("slug", slug)
       .eq("status", "active")
-      .single();
+      .maybeSingle();
+
+    if (!hotelQuery.data) {
+      hotelQuery = await supabaseAdmin
+        .from("hotels")
+        .select("id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, cancellation_policy, phone, address, beds24_api_key, beds24_property_id")
+        .eq("custom_domain", slug)
+        .eq("status", "active")
+        .maybeSingle();
+    }
+
+    const hotel = hotelQuery.data;
     if (!hotel) return NextResponse.json({ error: "Hotel not found" }, { status: 404 });
 
     // Enforce payment policy
@@ -78,7 +91,7 @@ export async function POST(
       p_check_in: data.check_in,
       p_check_out: data.check_out,
     });
-    if ((availCount ?? 0) < 1) {
+    if (((availCount as number) ?? 0) < 1) {
       return NextResponse.json({ error: "No rooms available for these dates." }, { status: 409 });
     }
 
@@ -101,7 +114,12 @@ export async function POST(
       subtotal += nightRate;
     }
     const rate = nights > 0 ? subtotal / nights : roomType.base_price;
-    const total = subtotal;
+    const taxEnabled = (hotel.settings as Record<string, unknown>)?.tax_enabled === true;
+    const taxPercentage = typeof (hotel.settings as Record<string, unknown>)?.tax_percentage === "number"
+      ? ((hotel.settings as Record<string, unknown>).tax_percentage as number)
+      : 0;
+    const taxAmount = taxEnabled ? Math.round(subtotal * (taxPercentage / 100) * 100) / 100 : 0;
+    const total = subtotal + taxAmount;
 
     // Find or create guest
     let guestId: string;
@@ -120,19 +138,32 @@ export async function POST(
         .insert({ hotel_id: hotel.id, full_name: data.guest_name, email: data.guest_email, phone: data.guest_phone })
         .select("id")
         .single();
-      if (guestErr || !newGuest) return NextResponse.json({ error: "Failed to create guest record." }, { status: 500 });
+      if (guestErr || !newGuest) {
+        console.error("Guest error:", guestErr);
+        return NextResponse.json({ error: "Failed to create guest record." }, { status: 500 });
+      }
       guestId = newGuest.id;
     }
 
+    // Derive a 2-3 char uppercase prefix from the hotel slug.
+    // 'golden-palm' → 'GP', 'sunrise-hotel' → 'SH', 'accra-grand-hotel' → 'AGH' (capped at 3)
+    const slugPrefix = slug
+      .split("-")
+      .map((word: string) => word[0] ?? "")
+      .join("")
+      .toUpperCase()
+      .slice(0, 3) || "BK";
+
     // Generate booking reference atomically (race-safe DB counter)
-    const { data: generatedRef, error: refErr } = await supabaseAdmin.rpc(
+    const { data: refData, error: refErr } = await supabaseAdmin.rpc(
       "generate_booking_reference",
-      { p_hotel_id: hotel.id }
+      { p_hotel_id: hotel.id, p_prefix: slugPrefix }
     );
-    if (refErr || !generatedRef) {
+    if (refErr || !refData) {
+      console.error("Ref error:", refErr);
       return NextResponse.json({ error: "Failed to generate booking reference." }, { status: 500 });
     }
-    const reference: string = generatedRef;
+    const reference = typeof refData === "string" ? refData : `${slugPrefix}-${Date.now()}`;
 
     // For pay_now: booking starts as pending until payment confirmed
     const status = data.payment_preference === "pay_now" ? "pending" : "confirmed";
@@ -147,12 +178,12 @@ export async function POST(
         room_type_id: data.room_type_id,
         check_in: data.check_in,
         check_out: data.check_out,
-        nights,
+        // `nights` is GENERATED ALWAYS AS (check_out - check_in) STORED — never insert explicitly
         adults: data.adults,
         children: data.children,
         room_rate: rate,
         subtotal,
-        tax_amount: 0,
+        tax_amount: taxAmount,
         total_amount: total,
         amount_paid: 0,
         currency: hotel.currency ?? "GHS",
@@ -172,6 +203,7 @@ export async function POST(
       if ((bookingErr as { code?: string } | null)?.code === "23P01") {
         return NextResponse.json({ error: "No rooms available for these dates." }, { status: 409 });
       }
+      console.error("Booking error:", bookingErr);
       return NextResponse.json({ error: "Failed to create booking." }, { status: 500 });
     }
 
@@ -185,14 +217,77 @@ export async function POST(
       is_read: false,
     });
 
-    // Pay Later: done
+    // Beds24 outbound availability push (Growth/Pro plans with Beds24 configured)
+    if (hotel.beds24_api_key && hotel.beds24_property_id) {
+      const { pushAvailability, bookingToAvailabilityRange } = await import("@/lib/beds24");
+      // Find Beds24 room mapping for this room type
+      const { data: mapping } = await supabaseAdmin
+        .from("beds24_property_mappings")
+        .select("beds24_room_id")
+        .eq("hotel_id", hotel.id)
+        .eq("room_type_id", data.room_type_id)
+        .maybeSingle();
+
+      if (mapping?.beds24_room_id) {
+        const { from, to } = bookingToAvailabilityRange(data.check_in, data.check_out);
+        await pushAvailability(
+          { token: hotel.beds24_api_key },
+          [{ roomId: mapping.beds24_room_id, from, to, availability: 0 }]
+        ).catch((e: unknown) => console.error("[beds24:outbound]", e));
+      }
+    }
+
+    // Pay Later: done — send booking confirmation (channel routed: GH SMS or Resend email)
     if (data.payment_preference === "pay_at_checkin") {
+      const { sendBookingConfirmation } = await import(
+        "@/lib/notifications/send-booking-confirmation"
+      );
+      const hotelSettings = (hotel.settings as Record<string, unknown>) ?? {};
+      const result = await sendBookingConfirmation({
+        hotelId: hotel.id,
+        bookingId: booking.id,
+        config: {
+          hotelName: hotel.name,
+          currency: hotel.currency ?? "GHS",
+          notificationsEnabled: hotelSettings.sms_notifications_enabled !== false,
+        },
+        booking: {
+          guestName: data.guest_name,
+          guestEmail: data.guest_email,
+          guestPhone: data.guest_phone,
+          reference: booking.reference,
+          roomName: roomType.name,
+          checkIn: data.check_in,
+          checkOut: data.check_out,
+          nights,
+          totalAmount: total,
+          checkInTime: hotel.check_in_time ?? null,
+          checkOutTime: hotel.check_out_time ?? null,
+          hotelPhone: hotel.phone ?? null,
+          hotelAddress: hotel.address ?? null,
+        },
+      });
+
+      if (!result.success) {
+        // Log failure but do not block the booking response — the booking
+        // itself succeeded. The notification_logs table records the failure.
+        console.error("[booking/create] Notification send failed", {
+          bookingId: booking.id,
+          channel: result.channel,
+          error: result.error,
+        });
+      }
+
       return NextResponse.json({ bookingId: booking.id, reference: booking.reference });
     }
 
     // Pay Now: initialize Paystack transaction
     const origin = req.headers.get("origin") ?? req.nextUrl.origin;
-    const callbackUrl = `${origin}/book/confirmation?reference=${booking.reference}&slug=${slug}`;
+    // Use 'bref' (booking reference) — NOT 'reference', because Paystack appends
+    // its own '?reference=<payRef>&trxref=<payRef>' to the callback URL.
+    // Two 'reference' params would make Next.js give searchParams.reference an
+    // array, breaking the DB lookup on the confirmation page.
+    const callbackUrl = `${origin}/${slug}/book/confirmation?bref=${booking.reference}`;
     const payRef = `${booking.reference}-${Date.now()}`;
 
     const txn = await initializeTransaction({

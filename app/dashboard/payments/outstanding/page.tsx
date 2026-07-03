@@ -35,10 +35,10 @@ export default async function OutstandingPage() {
     amountPaid: b.amount_paid ?? 0,
     outstandingBalance: b.outstanding_balance ?? 0,
     status: b.status ?? "confirmed",
-    guestName: (b.guests as any)?.full_name ?? "Unknown",
-    guestPhone: (b.guests as any)?.phone ?? null,
-    roomNumber: (b.rooms as any)?.room_number ?? null,
-    roomType: (b.room_types as any)?.name ?? null,
+    guestName: (b.guests as { full_name?: string | null } | null)?.full_name ?? "Unknown",
+    guestPhone: (b.guests as { phone?: string | null } | null)?.phone ?? null,
+    roomNumber: (b.rooms as { room_number?: string | null } | null)?.room_number ?? null,
+    roomType: (b.room_types as { name?: string | null } | null)?.name ?? null,
   }));
 
   const totalOutstanding = rows.reduce((s, r) => s + r.outstandingBalance, 0);

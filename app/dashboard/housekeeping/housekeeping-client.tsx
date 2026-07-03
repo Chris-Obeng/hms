@@ -158,49 +158,50 @@ export function HousekeepingClient({ initialData, hotelId }: HousekeepingClientP
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
-            Housekeeping
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="text-page-title text-foreground">Housekeeping</h1>
+          <p className="text-body text-muted-foreground mt-1">
             {format(new Date(), "EEEE, MMMM d, yyyy")}
             <span className="mx-1.5 text-muted-foreground/30">·</span>
             {data.stats.totalRooms} rooms
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {/* View toggles — size-9 for 36px tap target */}
           <Button
             variant="ghost"
             size="icon-sm"
             className={cn(
-              "size-8 rounded-lg",
+              "size-9 rounded-lg",
               viewMode === "board" && "bg-muted text-foreground"
             )}
             onClick={() => setViewMode("board")}
-            title="Board view"
+            aria-label="Board view"
+            aria-pressed={viewMode === "board"}
           >
-            <LayoutGrid className="size-3.5" />
+            <LayoutGrid className="size-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon-sm"
             className={cn(
-              "size-8 rounded-lg",
+              "size-9 rounded-lg",
               viewMode === "compact" && "bg-muted text-foreground"
             )}
             onClick={() => setViewMode("compact")}
-            title="Compact view"
+            aria-label="Compact view"
+            aria-pressed={viewMode === "compact"}
           >
-            <List className="size-3.5" />
+            <List className="size-4" />
           </Button>
           <Button
             variant="outline"
             size="icon-sm"
-            className="size-8 rounded-lg"
+            className="size-9 rounded-lg"
             onClick={fetchData}
             disabled={loading}
-            title="Refresh"
+            aria-label="Refresh housekeeping data"
           >
-            <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
+            <RefreshCw className={cn("size-4", loading && "animate-spin")} />
           </Button>
         </div>
       </div>

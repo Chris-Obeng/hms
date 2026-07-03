@@ -35,8 +35,8 @@ export default async function PaymentTransactionsPage() {
     createdAt: p.created_at,
     notes: p.notes,
     bookingId: p.booking_id,
-    bookingReference: (p.bookings as any)?.reference ?? null,
-    guestName: (p.bookings as any)?.guests?.full_name ?? null,
+    bookingReference: (p.bookings as { reference?: string | null } | null)?.reference ?? null,
+    guestName: (p.bookings as { guests?: { full_name?: string | null } | null } | null)?.guests?.full_name ?? null,
   }));
 
   return <TransactionsClient data={rows} currency={hotel.currency ?? "GHS"} hotelId={hotel.id} />;

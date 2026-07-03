@@ -3,14 +3,14 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { format, startOfDay, endOfDay, addDays, eachDayOfInterval } from "date-fns";
+import { format, startOfDay, endOfDay } from "date-fns";
+import { writeAuditLog } from "@/lib/audit";
 import type { ActivityBooking } from "./_components/activity-list";
-import type { ForecastDay } from "./_components/forecast-strip";
 
 // ── Get Hotel ID Helper ────────────────────────────────────────
 
 async function getHotelScopedClient() {
-  const { orgId } = await auth();
+  const { orgId, userId } = await auth();
   if (!orgId) throw new Error("Not authenticated");
 
   const supabase = await createClient();
@@ -23,7 +23,23 @@ async function getHotelScopedClient() {
 
   if (!hotel) throw new Error("Hotel not found");
 
-  return { supabase, hotelId: hotel.id, hotel };
+  // Resolve current staff for audit logs
+  const { data: staffProfile } = userId
+    ? await supabase
+        .from("staff_profiles")
+        .select("id, full_name")
+        .eq("clerk_user_id", userId)
+        .eq("clerk_org_id", orgId)
+        .single()
+    : { data: null };
+
+  return {
+    supabase,
+    hotelId: hotel.id,
+    hotel,
+    staffId: staffProfile?.id ?? null,
+    staffName: staffProfile?.full_name ?? null,
+  };
 }
 
 // ── Get Dashboard Data ────────────────────────────────────────
@@ -49,7 +65,6 @@ export type DashboardData = {
     outOfService: number;
     blocked: number;
   };
-  forecast: ForecastDay[];
   quickStats: {
     adr: number;
     revpar: number;
@@ -222,43 +237,6 @@ export async function getDashboardData(dateStr?: string): Promise<DashboardData>
     }
   }
 
-  // ── 14-Day Forecast ──────────────────────────────────────────
-
-  const forecastDays = eachDayOfInterval({
-    start: today,
-    end: addDays(today, 13),
-  });
-
-  const forecast: ForecastDay[] = await Promise.all(
-    forecastDays.map(async (day) => {
-      const dStr = format(day, "yyyy-MM-dd");
-
-      const { data: dayBookings } = await supabase
-        .from("bookings")
-        .select("id, total_amount, room_rate, room_id")
-        .eq("hotel_id", hotelId)
-        .in("status", ["confirmed", "checked_in"])
-        .lte("check_in", dStr)
-        .gte("check_out", dStr);
-
-      const roomsSold = dayBookings?.length || 0;
-      const totalRevenue = dayBookings?.reduce((s, b) => s + (b.room_rate || 0), 0) || 0;
-      const occupancyRate = activeRooms > 0 ? Math.round((roomsSold / activeRooms) * 100) : 0;
-      const adr = roomsSold > 0 ? Math.round(totalRevenue / roomsSold) : 0;
-      const revpar = activeRooms > 0 ? Math.round(totalRevenue / activeRooms) : 0;
-
-      return {
-        date: format(day, "MMM dd"),
-        iso: dStr,
-        occupancyRate,
-        adr,
-        roomsSold,
-        totalRooms: activeRooms,
-        revpar,
-      };
-    })
-  );
-
   // ── Quick Stats (today) ──────────────────────────────────────
 
   const { data: todayPayments } = await supabase
@@ -295,7 +273,6 @@ export async function getDashboardData(dateStr?: string): Promise<DashboardData>
       outOfService,
       blocked,
     },
-    forecast,
     quickStats: {
       adr: adrToday,
       revpar: revparToday,
@@ -309,36 +286,37 @@ export async function getDashboardData(dateStr?: string): Promise<DashboardData>
 
 export async function checkInBooking(bookingId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { supabase } = await getHotelScopedClient();
+    const { supabase, hotelId, staffId, staffName } = await getHotelScopedClient();
 
-    // Verify booking exists and belongs to this hotel
     const { data: booking } = await supabase
       .from("bookings")
-      .select("id, status, room_id")
+      .select("id, reference, status, room_id")
       .eq("id", bookingId)
       .single();
 
     if (!booking) return { success: false, error: "Booking not found" };
     if (booking.status !== "confirmed") return { success: false, error: "Booking cannot be checked in" };
 
-    // Update booking status
     const { error } = await supabase
       .from("bookings")
-      .update({
-        status: "checked_in",
-        check_in_at: new Date().toISOString(),
-      })
+      .update({ status: "checked_in", check_in_at: new Date().toISOString() })
       .eq("id", bookingId);
 
     if (error) return { success: false, error: error.message };
 
-    // Update room status if a room is assigned
     if (booking.room_id) {
-      await supabase
-        .from("rooms")
-        .update({ status: "occupied" })
-        .eq("id", booking.room_id);
+      await supabase.from("rooms").update({ status: "occupied" }).eq("id", booking.room_id);
     }
+
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId,
+      staffName,
+      action: "booking.checked_in",
+      entityType: "booking",
+      entityId: bookingId,
+      afterState: { reference: booking.reference, status: "checked_in" },
+    });
 
     revalidatePath("/dashboard");
     return { success: true };
@@ -351,35 +329,37 @@ export async function checkInBooking(bookingId: string): Promise<{ success: bool
 
 export async function checkOutBooking(bookingId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { supabase } = await getHotelScopedClient();
+    const { supabase, hotelId, staffId, staffName } = await getHotelScopedClient();
 
     const { data: booking } = await supabase
       .from("bookings")
-      .select("id, status, room_id")
+      .select("id, reference, status, room_id")
       .eq("id", bookingId)
       .single();
 
     if (!booking) return { success: false, error: "Booking not found" };
     if (booking.status !== "checked_in") return { success: false, error: "Booking is not checked in" };
 
-    // Update booking status
     const { error } = await supabase
       .from("bookings")
-      .update({
-        status: "checked_out",
-        check_out_at: new Date().toISOString(),
-      })
+      .update({ status: "checked_out", check_out_at: new Date().toISOString() })
       .eq("id", bookingId);
 
     if (error) return { success: false, error: error.message };
 
-    // Mark room as cleaning/available
     if (booking.room_id) {
-      await supabase
-        .from("rooms")
-        .update({ status: "cleaning" })
-        .eq("id", booking.room_id);
+      await supabase.from("rooms").update({ status: "cleaning" }).eq("id", booking.room_id);
     }
+
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId,
+      staffName,
+      action: "booking.checked_out",
+      entityType: "booking",
+      entityId: bookingId,
+      afterState: { reference: booking.reference, status: "checked_out" },
+    });
 
     revalidatePath("/dashboard");
     return { success: true };

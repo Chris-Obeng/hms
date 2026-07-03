@@ -1,9 +1,9 @@
 "use server";
 
 import { z } from "zod";
-import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAuth, requireMinRole, toActionError } from "@/lib/auth";
 
 // ── Schemas ──────────────────────────────────────────────────────────
 
@@ -57,21 +57,19 @@ function slugify(text: string): string {
     .trim();
 }
 
-// ── Get Hotel ID ─────────────────────────────────────────────────────
+// ── Auth helpers ─────────────────────────────────────────────────────
 
+/**
+ * Minimum auth for read operations: any active staff member.
+ * Returns { hotelId, currency } on success or { error } on failure.
+ */
 async function getHotelId(): Promise<{ hotelId: string; currency: string } | { error: string }> {
-  const { orgId } = await auth();
-  if (!orgId) return { error: "Not authenticated" };
-
-  const supabase = await createClient();
-  const { data: hotel } = await supabase
-    .from("hotels")
-    .select("id, currency")
-    .eq("clerk_org_id", orgId)
-    .single();
-
-  if (!hotel) return { error: "Hotel not found" };
-  return { hotelId: hotel.id, currency: hotel.currency || "GHS" };
+  try {
+    const ctx = await requireAuth();
+    return { hotelId: ctx.hotelId, currency: ctx.hotel.currency };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Not authenticated" };
+  }
 }
 
 // ── Room Types CRUD ────────────────────────────────────────────────
@@ -157,6 +155,8 @@ export async function getRoomType(id: string) {
 }
 
 export async function createRoomType(input: RoomTypeInput) {
+  try { await requireMinRole("manager", "create room types"); }
+  catch (err) { return toActionError(err); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };
 
@@ -197,6 +197,8 @@ export async function createRoomType(input: RoomTypeInput) {
 }
 
 export async function updateRoomType(id: string, input: RoomTypeInput) {
+  try { await requireMinRole("manager", "update room types"); }
+  catch (err) { return toActionError(err); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };
 
@@ -240,6 +242,8 @@ export async function updateRoomType(id: string, input: RoomTypeInput) {
 }
 
 export async function toggleRoomTypeActive(id: string, isActive: boolean) {
+  try { await requireMinRole("manager", "toggle room type active status"); }
+  catch (err) { return toActionError(err); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };
 
@@ -257,6 +261,8 @@ export async function toggleRoomTypeActive(id: string, isActive: boolean) {
 }
 
 export async function deleteRoomType(id: string) {
+  try { await requireMinRole("super_admin", "delete room types"); }
+  catch (err) { return toActionError(err); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };
 
@@ -283,7 +289,7 @@ export async function getHotelSlug(): Promise<string | null> {
     .eq("id", result.hotelId)
     .single();
   if (!data) return null;
-  const base = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? "hotelosprp.com";
+  const base = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? "localhost:3000";
   return data.custom_domain
     ? `https://${data.custom_domain}`
     : `https://${data.slug}.${base}`;
@@ -326,6 +332,8 @@ export async function getRooms() {
 }
 
 export async function createRoom(input: RoomInput) {
+  try { await requireMinRole("manager", "create rooms"); }
+  catch (err) { return toActionError(err); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };
 
@@ -360,6 +368,8 @@ export async function createRoom(input: RoomInput) {
 }
 
 export async function updateRoomStatus(id: string, status: string) {
+  try { await requireMinRole("front_desk", "update room status"); }
+  catch (err) { return toActionError(err); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };
 
@@ -377,6 +387,8 @@ export async function updateRoomStatus(id: string, status: string) {
 }
 
 export async function updateRoom(id: string, input: Partial<RoomInput>) {
+  try { await requireMinRole("manager", "update rooms"); }
+  catch (err) { return toActionError(err); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };
 

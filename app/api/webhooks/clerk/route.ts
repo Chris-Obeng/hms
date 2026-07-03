@@ -1,6 +1,6 @@
 import { Webhook } from 'svix'
 import { headers } from 'next/headers'
-import { WebhookEvent } from '@clerk/nextjs/server'
+import { WebhookEvent, clerkClient } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
@@ -46,12 +46,67 @@ export async function POST(req: Request) {
   const evt = payload as WebhookEvent
   const eventType = evt.type
 
+  if (eventType === 'user.created') {
+    const data = evt.data
+    const inviteToken = data.unsafe_metadata?.inviteToken as string | undefined
+    if (inviteToken) {
+      try {
+        const { data: invite } = await supabaseAdmin
+          .from('staff_invitations')
+          .select('*')
+          .eq('token', inviteToken)
+          .eq('is_used', false)
+          .single()
+
+        if (invite && new Date(invite.expires_at) > new Date()) {
+          const clerk = await clerkClient()
+          const clerkRole = invite.role === 'super_admin' ? 'org:admin' : 'org:member'
+          
+          await clerk.organizations.createOrganizationMembership({
+            organizationId: invite.clerk_org_id,
+            userId: data.id,
+            role: clerkRole,
+          })
+
+          await supabaseAdmin
+            .from('staff_invitations')
+            .update({ is_used: true })
+            .eq('token', inviteToken)
+        }
+      } catch (err) {
+        console.error('[webhook] failed to auto-join user to organization:', err)
+      }
+    }
+  }
+
   if (eventType === 'organizationMembership.created') {
     const data = evt.data
     const clerk_user_id = data.public_user_data.user_id
     const clerk_org_id = data.organization.id
     const rawRole = data.role
-    const role = rawRole === 'org:admin' ? 'super_admin' : 'front_desk'
+    
+    // Default role mapping
+    let role = rawRole === 'org:admin' ? 'super_admin' : 'front_desk'
+
+    // Look up correct role if user joined via invite token
+    try {
+      const clerk = await clerkClient()
+      const user = await clerk.users.getUser(clerk_user_id)
+      const token = user.unsafeMetadata?.inviteToken as string | undefined
+      if (token) {
+        const { data: invite } = await supabaseAdmin
+          .from('staff_invitations')
+          .select('role')
+          .eq('token', token)
+          .single()
+        if (invite) {
+          role = invite.role as string
+        }
+      }
+    } catch (err) {
+      console.error('[webhook] failed to resolve role from invite token:', err)
+    }
+
     const full_name = `${data.public_user_data.first_name ?? ''} ${data.public_user_data.last_name ?? ''}`.trim()
     const avatar_url = data.public_user_data.image_url ?? null
     const email = data.public_user_data.identifier ?? null

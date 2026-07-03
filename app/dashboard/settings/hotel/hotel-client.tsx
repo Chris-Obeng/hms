@@ -7,6 +7,7 @@ import { Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateHotelProfile } from "@/app/actions/settings";
 import { saveHotelImageUrl } from "@/app/actions/upload";
@@ -29,6 +30,8 @@ interface HotelSettingsClientProps {
     timezone: string;
     currency: string;
     cancellationPolicy: string;
+    taxEnabled: boolean;
+    taxPercentage: number;
   };
   logoUrl: string | null;
   coverImageUrl: string | null;
@@ -197,7 +200,7 @@ export function HotelSettingsClient({
               maxLength={2000}
               className="w-full rounded-xl border border-border/60 bg-background px-3 py-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 placeholder:text-muted-foreground resize-none"
             />
-            <p className="text-[10px] text-muted-foreground/50 mt-1">
+            <p className="text-caption text-muted-foreground/50 mt-1">
               {values.description.length}/2000 · Shown on the guest booking page
             </p>
           </div>
@@ -282,10 +285,52 @@ export function HotelSettingsClient({
               maxLength={500}
               className="w-full rounded-xl border border-border/60 bg-background px-3 py-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 placeholder:text-muted-foreground resize-none"
             />
-            <p className="text-[10px] text-muted-foreground/50 mt-1">
+            <p className="text-caption text-muted-foreground/50 mt-1">
               {values.cancellationPolicy.length}/500 · Shown to guests at checkout
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Tax / VAT */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Tax / VAT</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Enable Tax / VAT</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Applied to all new bookings when enabled. Shown as a line item on guest invoices.
+              </p>
+            </div>
+            <Switch checked={values.taxEnabled} onCheckedChange={() => set("taxEnabled", !values.taxEnabled)} />
+          </div>
+          {values.taxEnabled && (
+            <div className="flex items-center gap-3">
+              <div className="w-36">
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                  Tax rate (%)
+                </label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.1}
+                    value={values.taxPercentage}
+                    onChange={(e) => set("taxPercentage", parseFloat(e.target.value) || 0)}
+                    className="h-9 rounded-xl pr-8"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-5">
+                e.g. 15% VAT adds {values.taxPercentage}% to the room subtotal
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

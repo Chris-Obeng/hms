@@ -14,10 +14,11 @@ export function BookingPageCard({ url, hotelName }: { url: string; hotelName: st
   }
 
   const display = url.replace(/^https?:\/\//, "");
+  const isDev = url.includes("localhost");
 
   return (
-    <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
-      <div className="flex items-start justify-between gap-3 mb-3">
+    <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Your Booking Page</p>
           <p className="text-xs text-muted-foreground mt-0.5">Share this link so guests can book {hotelName} directly.</p>
@@ -45,6 +46,12 @@ export function BookingPageCard({ url, hotelName }: { url: string; hotelName: st
           }
         </button>
       </div>
+
+      {isDev && (
+        <p className="text-[11px] text-amber-600 dark:text-amber-500 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+          Local dev URL. Replace <code className="font-mono bg-amber-500/20 px-1 rounded">localhost:3000</code> with your domain in production.
+        </p>
+      )}
     </div>
   );
 }

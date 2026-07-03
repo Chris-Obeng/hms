@@ -82,7 +82,7 @@ export default async function RoomTypesPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-page-title text-foreground">
             Room Types
           </h1>
           <p className="text-sm text-muted-foreground mt-1">

@@ -4,6 +4,7 @@ import * as React from "react";
 import { format } from "date-fns";
 import { Download, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -108,17 +109,19 @@ export function TransactionsClient({ data, currency, hotelId }: { data: PaymentR
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Transactions</h1>
+          <h1 className="text-page-title text-foreground">Transactions</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {filtered.length} records · {fmt(totalSuccess, currency)} collected
           </p>
         </div>
-        <button
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 rounded-xl text-xs"
           onClick={() => exportCsv(filtered)}
-          className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border/60 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
-          <Download className="size-3.5" /> CSV
-        </button>
+          <Download className="size-3.5 mr-1.5" /> CSV
+        </Button>
       </div>
 
       {/* Filters */}

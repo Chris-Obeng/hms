@@ -12,12 +12,9 @@ import {
   Settings,
   ChevronDown,
   Building2,
-  ExternalLink,
-  Copy,
-  Check,
 } from "lucide-react";
 import { MenuIcon } from "@/components/ui/menu-icon";
-import { NotificationIcon } from "@/components/ui/notification-icon";
+import { NotificationIcon, type NotificationIconHandle } from "@/components/ui/notification-icon";
 import { GlobalSearch } from "@/app/dashboard/_components/global-search";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -41,6 +38,7 @@ export interface AppHeaderProps {
   hotelLogoUrl?: string | null;
   hotelId?: string;
   notificationCount?: number;
+  /** Kept for API compatibility with dashboard layout — not displayed in the header */
   bookingUrl?: string;
 }
 
@@ -51,64 +49,194 @@ export function AppHeader({
   hotelLogoUrl,
   hotelId,
   notificationCount = 0,
-  bookingUrl,
+  bookingUrl: _bookingUrl,
 }: AppHeaderProps) {
   const router = useRouter();
   const { user, isLoaded } = useUser();
-  const { signOut } = useAuth();
+  const { signOut, getToken } = useAuth();
   const { toggleSidebar } = useSidebar();
   const isMobile = useIsMobile();
   const [commandOpen, setCommandOpen] = React.useState(false);
-  const [copied, setCopied] = React.useState(false);
+
+  const bellRef = React.useRef<NotificationIconHandle>(null);
+
+  const playChime = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const AudioContext = window.AudioContext || (window as Window & { webkitAudioContext?: typeof window.AudioContext }).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      
+      const playTone = (time: number, freq: number, dur: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, time);
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.2, time + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(time);
+        osc.stop(time + dur);
+      };
+
+      const now = ctx.currentTime;
+      playTone(now, 1046.50, 0.6); // C6
+      playTone(now + 0.12, 1318.51, 1.0); // E6
+    } catch (e) {
+      console.error("Chime play error:", e);
+    }
+  }, []);
 
   // Live notification count — starts from server-rendered value, updates via Realtime
   const [liveNotificationCount, setLiveNotificationCount] = React.useState(notificationCount);
 
-  // Sync when server-side prop changes (e.g., on navigation)
+  // Notification list for dropdown
+  type NotificationItem = {
+    id: string;
+    type: string | null;
+    title: string;
+    message: string;
+    booking_id: string | null;
+    is_read: boolean;
+    created_at: string | null;
+  };
+  const [notifications, setNotifications] = React.useState<NotificationItem[]>([]);
+
+  async function fetchNotifications() {
+    if (!hotelId) return;
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("notifications")
+      .select("id, type, title, message, booking_id, is_read, created_at")
+      .eq("hotel_id", hotelId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    setNotifications((data ?? []) as NotificationItem[]);
+  }
+
+  async function markAllRead() {
+    if (!hotelId) return;
+    const supabase = createClient();
+    await supabase
+      .from("notifications")
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq("hotel_id", hotelId)
+      .eq("is_read", false);
+    setLiveNotificationCount(0);
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+  }
+
+  function handleNotificationClick(n: NotificationItem) {
+    // Mark this one as read
+    const supabase = createClient();
+    supabase.from("notifications").update({ is_read: true }).eq("id", n.id);
+    setNotifications((prev) => prev.map((item) => item.id === n.id ? { ...item, is_read: true } : item));
+    setLiveNotificationCount((prev) => Math.max(0, prev - (n.is_read ? 0 : 1)));
+    // Navigate to booking deep-link if available
+    if (n.booking_id) {
+      router.push(`/dashboard/bookings/${n.booking_id}`);
+    }
+  }
+
+  function timeAgo(iso: string | null): string {
+    if (!iso) return "";
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  }
+
   React.useEffect(() => {
     setLiveNotificationCount(notificationCount);
   }, [notificationCount]);
 
-  // Realtime subscription for notifications
   React.useEffect(() => {
-    if (!hotelId) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`hotel:${hotelId}:notifications`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `hotel_id=eq.${hotelId}` },
-        () => {
-          setLiveNotificationCount((prev) => prev + 1);
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "notifications", filter: `hotel_id=eq.${hotelId}` },
-        async () => {
-          // Re-fetch unread count when notifications are marked as read
-          const { count } = await supabase
-            .from("notifications")
-            .select("*", { count: "exact", head: true })
-            .eq("hotel_id", hotelId)
-            .eq("is_read", false);
-          setLiveNotificationCount(count ?? 0);
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [hotelId]);
+    if (!hotelId || !isLoaded) return;
+    const hId = hotelId;
+    let active = true;
 
-  function copyBookingUrl() {
-    if (!bookingUrl) return;
-    navigator.clipboard.writeText(bookingUrl).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }
-  // Keyboard shortcut for command palette
+    let channel: any = null;
+    const supabase = createClient();
+
+    async function initRealtime() {
+      await fetchNotifications();
+      if (!active) return;
+
+      try {
+        const token = await getToken({ template: "supabase" });
+        if (!active) return;
+        if (token) {
+          supabase.realtime.setAuth(token);
+        }
+      } catch (e) {
+        console.error("Realtime authentication failed:", e);
+      }
+
+      if (!active) return;
+
+      channel = supabase
+        .channel(`hotel:${hId}:notifications`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "notifications", filter: `hotel_id=eq.${hId}` },
+          (payload: any) => {
+            // Animate bell icon
+            bellRef.current?.startAnimation();
+
+            // Play sound if enabled in settings
+            const soundEnabled = localStorage.getItem("hotelos_sound_enabled") !== "false";
+            if (soundEnabled) {
+              playChime();
+            }
+
+            // Browser notification alert if enabled
+            const browserAlerts = localStorage.getItem("hotelos_browser_notifications_enabled") === "true";
+            if (browserAlerts && Notification.permission === "granted") {
+              try {
+                new Notification(payload.new.title || "New Notification", {
+                  body: payload.new.message || "",
+                  icon: "/icons/icon-192x192.png",
+                });
+              } catch (e) {
+                console.error("Failed to show browser notification:", e);
+              }
+            }
+
+            setLiveNotificationCount((prev) => prev + 1);
+            fetchNotifications();
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "notifications", filter: `hotel_id=eq.${hId}` },
+          async () => {
+            const { count } = await supabase
+              .from("notifications")
+              .select("*", { count: "exact", head: true })
+              .eq("hotel_id", hId)
+              .eq("is_read", false);
+            setLiveNotificationCount(count ?? 0);
+            fetchNotifications();
+          },
+        )
+        .subscribe();
+    }
+
+    initRealtime();
+
+    return () => {
+      active = false;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [hotelId, isLoaded, getToken, playChime]);
+
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -146,10 +274,7 @@ export function AppHeader({
             <MenuIcon size={16} />
           </Button>
 
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 min-w-0 group"
-          >
+          <Link href="/dashboard" className="flex items-center gap-2 min-w-0 group">
             {hotelLogoUrl ? (
               <img
                 src={hotelLogoUrl}
@@ -182,7 +307,7 @@ export function AppHeader({
               {isMobile ? "Search..." : "Search guests, bookings, rooms..."}
             </span>
             {!isMobile && (
-              <kbd className="hidden md:inline-flex items-center gap-0.5 rounded-md border border-border/50 bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/60 shrink-0">
+              <kbd className="hidden md:inline-flex items-center gap-0.5 rounded-md border border-border/50 bg-background px-1.5 py-0.5 text-caption font-medium text-muted-foreground/60 shrink-0">
                 <Command className="size-2.5" />
                 <span>K</span>
               </kbd>
@@ -192,35 +317,6 @@ export function AppHeader({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Booking page link */}
-          {bookingUrl && (
-            <div className="hidden sm:flex items-center gap-1 h-8 rounded-lg border border-border/60 bg-muted/20 px-2 text-xs text-muted-foreground max-w-[180px]">
-              <a
-                href={bookingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 hover:text-foreground transition-colors min-w-0 flex-1"
-                title={bookingUrl}
-              >
-                <ExternalLink className="size-3 shrink-0" />
-                <span className="truncate">
-                  {bookingUrl.replace(/^https?:\/\//, "")}
-                </span>
-              </a>
-              <button
-                onClick={copyBookingUrl}
-                className="shrink-0 hover:text-foreground transition-colors ml-1"
-                title="Copy booking link"
-              >
-                {copied ? (
-                  <Check className="size-3 text-emerald-600" />
-                ) : (
-                  <Copy className="size-3" />
-                )}
-              </button>
-            </div>
-          )}
-
           {/* New Booking */}
           <Button
             variant="default"
@@ -239,24 +335,70 @@ export function AppHeader({
                   variant="ghost"
                   size="icon-sm"
                   className="size-8 rounded-lg relative hover:bg-muted/60"
-                  aria-label="Notifications"
+                  aria-label={
+                    liveNotificationCount > 0
+                      ? `Notifications, ${liveNotificationCount} unread`
+                      : "Notifications"
+                  }
                 />
               }
             >
-              <NotificationIcon size={16} />
+              <NotificationIcon ref={bellRef} size={16} />
               {liveNotificationCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground ring-2 ring-background">
+                <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-caption font-bold text-destructive-foreground ring-2 ring-background">
                   {liveNotificationCount > 9 ? "9+" : liveNotificationCount}
                 </span>
               )}
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-72">
-              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <div className="p-4 text-center text-sm text-muted-foreground">
-                {liveNotificationCount > 0
-                  ? `${liveNotificationCount} unread notification${liveNotificationCount !== 1 ? "s" : ""}`
-                  : "No new notifications"}
+            <DropdownMenuContent align="end" className="w-80">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
+                <span className="text-sm font-semibold text-foreground">Notifications</span>
+                {liveNotificationCount > 0 && (
+                  <button
+                    onClick={markAllRead}
+                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Mark all read
+                  </button>
+                )}
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-muted-foreground">
+                    No notifications
+                  </div>
+                ) : (
+                  notifications.map((n) => (
+                    <button
+                      key={n.id}
+                      onClick={() => handleNotificationClick(n)}
+                      className={`w-full text-left flex items-start gap-3 px-3 py-2.5 hover:bg-muted/40 transition-colors border-b border-border/30 last:border-0 ${!n.is_read ? "bg-blue-50/40 dark:bg-blue-950/20" : ""}`}
+                    >
+                      <span className={`mt-1 size-2 rounded-full shrink-0 ${
+                        n.type === "new_booking" ? "bg-blue-500" :
+                        n.type === "payment_received" ? "bg-emerald-500" :
+                        n.type === "ota_conflict" ? "bg-red-500" :
+                        n.type === "booking_cancelled" ? "bg-orange-500" :
+                        "bg-muted-foreground/40"
+                      }`} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-foreground truncate">{n.title}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-1">
+                          {timeAgo(n.created_at)}
+                        </p>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+              <div className="border-t border-border/60 px-3 py-2">
+                <button
+                  onClick={() => router.push("/dashboard/bookings")}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-center"
+                >
+                  View all bookings →
+                </button>
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -274,11 +416,8 @@ export function AppHeader({
                 }
               >
                 <Avatar className="size-6 rounded-md">
-                  <AvatarImage
-                    src={user.imageUrl}
-                    alt={user.fullName || "User"}
-                  />
-                  <AvatarFallback className="text-[10px] font-medium rounded-md bg-foreground/10">
+                  <AvatarImage src={user.imageUrl} alt={user.fullName || "User"} />
+                  <AvatarFallback className="text-caption font-medium rounded-md bg-foreground/10">
                     {(user.firstName?.[0] || "U") + (user.lastName?.[0] || "")}
                   </AvatarFallback>
                 </Avatar>
@@ -299,31 +438,10 @@ export function AppHeader({
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => router.push("/dashboard/settings")}
-                >
+                <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>
                   <Settings className="size-3.5" />
                   Settings
                 </DropdownMenuItem>
-                {bookingUrl && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => window.open(bookingUrl, "_blank")}
-                    >
-                      <ExternalLink className="size-3.5" />
-                      View booking page
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={copyBookingUrl}>
-                      {copied ? (
-                        <Check className="size-3.5 text-emerald-600" />
-                      ) : (
-                        <Copy className="size-3.5" />
-                      )}
-                      {copied ? "Copied!" : "Copy booking link"}
-                    </DropdownMenuItem>
-                  </>
-                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => signOut({ redirectUrl: "/" })}>
                   <LogOut className="size-3.5" />

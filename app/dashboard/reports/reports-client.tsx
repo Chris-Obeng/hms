@@ -121,9 +121,9 @@ function KpiCard({ label, value, sub }: { label: string; value: string; sub?: st
   return (
     <Card className="border-border/60">
       <CardContent className="p-4">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-2xl font-semibold text-foreground mt-1">{value}</p>
-        {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+        <p className="text-label text-muted-foreground">{label}</p>
+        <p className="text-kpi text-foreground mt-1">{value}</p>
+        {sub && <p className="text-caption text-muted-foreground mt-0.5">{sub}</p>}
       </CardContent>
     </Card>
   );
@@ -520,8 +520,8 @@ export function ReportsClient({ currency, initialStartDate, initialEndDate }: Re
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">Reports</h1>
-          <p className="text-sm text-muted-foreground mt-1">Hotel performance analytics</p>
+          <h1 className="text-page-title text-foreground">Reports</h1>
+          <p className="text-body text-muted-foreground mt-1">Hotel performance analytics</p>
         </div>
       </div>
 
