@@ -140,7 +140,7 @@ export async function POST(
         .single();
       if (guestErr || !newGuest) {
         console.error("Guest error:", guestErr);
-        return NextResponse.json({ error: "Failed to create guest record.", details: guestErr }, { status: 500 });
+        return NextResponse.json({ error: "Failed to create guest record." }, { status: 500 });
       }
       guestId = newGuest.id;
     }
@@ -161,7 +161,7 @@ export async function POST(
     );
     if (refErr || !refData) {
       console.error("Ref error:", refErr);
-      return NextResponse.json({ error: "Failed to generate booking reference.", details: refErr }, { status: 500 });
+      return NextResponse.json({ error: "Failed to generate booking reference." }, { status: 500 });
     }
     const reference = typeof refData === "string" ? refData : `${slugPrefix}-${Date.now()}`;
 
@@ -204,7 +204,7 @@ export async function POST(
         return NextResponse.json({ error: "No rooms available for these dates." }, { status: 409 });
       }
       console.error("Booking error:", bookingErr);
-      return NextResponse.json({ error: "Failed to create booking.", details: bookingErr }, { status: 500 });
+      return NextResponse.json({ error: "Failed to create booking." }, { status: 500 });
     }
 
     // Insert admin notification
@@ -309,9 +309,6 @@ export async function POST(
     });
   } catch (err) {
     console.error("[booking/create]", err);
-    return NextResponse.json({ 
-      error: "Unexpected error. Please try again.",
-      details: err instanceof Error ? { message: err.message, stack: err.stack } : String(err)
-    }, { status: 500 });
+    return NextResponse.json({ error: "Unexpected error. Please try again." }, { status: 500 });
   }
 }
