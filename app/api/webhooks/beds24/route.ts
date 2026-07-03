@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { notifyOtaConflict } from "@/lib/arkesel";
 import { timingSafeEqual } from "crypto";
 import type { Beds24BookingWebhookPayload } from "@/lib/beds24";
 
