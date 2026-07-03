@@ -61,12 +61,12 @@ function QuickStatRow({
   color: string;
 }) {
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <div className="p-1 rounded-md bg-muted/30">
-          <Icon className={cn("size-3.5", color)} />
+    <div className="flex items-center justify-between group transition-colors hover:bg-muted/20 -mx-1 px-1 py-0.5 rounded-md">
+      <div className="flex items-center gap-2.5">
+        <div className="p-1.5 rounded-lg bg-muted/20 group-hover:bg-muted/30 transition-colors">
+          <Icon className={cn("size-4", color)} />
         </div>
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <span className="text-label text-muted-foreground">{label}</span>
       </div>
       <span className="text-sm font-semibold tabular-nums text-foreground">{value}</span>
     </div>
@@ -87,12 +87,12 @@ function SummaryRow({
   color: string;
 }) {
   return (
-    <div className="flex items-center justify-between py-1">
-      <div className="flex items-center gap-2">
-        <Icon className={cn("size-3.5", color)} />
-        <span className="text-xs text-muted-foreground">{label}</span>
+    <div className="flex items-center justify-between py-1.5 group hover:bg-muted/10 -mx-1 px-1 rounded-md transition-colors">
+      <div className="flex items-center gap-2.5">
+        <Icon className={cn("size-4", color)} />
+        <span className="text-label text-muted-foreground">{label}</span>
       </div>
-      <Badge variant="secondary" className="text-[10px] px-1.5 h-4 font-medium tabular-nums">
+      <Badge variant="secondary" className="text-caption px-2 h-5 font-semibold tabular-nums">
         {value}
       </Badge>
     </div>
@@ -103,35 +103,35 @@ function SummaryRow({
 
 export function QuickStats({ data, currency }: QuickStatsProps) {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Today&apos;s Revenue</CardTitle>
-        <CardDescription className="text-xs mt-0.5">
+    <Card className="border-border/40 shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-section">Today&apos;s Revenue</CardTitle>
+        <CardDescription className="text-caption mt-0.5">
           Financial summary for today
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4">
         <QuickStatRow
           label="ADR"
           value={formatCurrency(data.adr, currency)}
           icon={TrendingUp}
           color="text-blue-500"
         />
-        <Separator className="opacity-30" />
+        <Separator className="opacity-20" />
         <QuickStatRow
           label="RevPAR"
           value={formatCurrency(data.revpar, currency)}
           icon={Wallet}
           color="text-violet-500"
         />
-        <Separator className="opacity-30" />
+        <Separator className="opacity-20" />
         <QuickStatRow
           label="Total Revenue"
           value={formatCurrency(data.totalRevenue, currency)}
           icon={TrendingUp}
           color="text-emerald-500"
         />
-        <Separator className="opacity-30" />
+        <Separator className="opacity-20" />
         <QuickStatRow
           label="Room Nights"
           value={data.roomNightsSold.toString()}
@@ -147,11 +147,11 @@ export function QuickStats({ data, currency }: QuickStatsProps) {
 
 export function TodaySummary({ data }: TodaySummaryProps) {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Today&apos;s Summary</CardTitle>
+    <Card className="border-border/40 shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-section">Today&apos;s Summary</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="space-y-1">
         <SummaryRow icon={LogIn} label="Arrivals" value={data.arrivals} color="text-emerald-500" />
         <SummaryRow icon={LogOut} label="Departures" value={data.departures} color="text-amber-500" />
         <SummaryRow icon={CreditCard} label="In-house" value={data.inHouse} color="text-blue-500" />

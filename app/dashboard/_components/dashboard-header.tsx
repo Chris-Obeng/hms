@@ -39,24 +39,25 @@ export function DashboardHeader({
   }, [onDateChange]);
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
-        <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-foreground">
+        <h1 className="text-page-title text-foreground">
           Dashboard
         </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">{dateStr}</p>
+        <p className="text-body text-muted-foreground mt-1">{dateStr}</p>
       </div>
 
-      <div className="flex items-center gap-1.5">
-        {/* Date navigation */}
-        <div className="flex items-center rounded-lg border border-border/60 bg-background p-0.5 shadow-sm">
+      <div className="flex items-center gap-2">
+        {/* Date navigation — size-10 (40px) for tablet tap targets */}
+        <div className="flex items-center rounded-xl border border-border/40 bg-background p-0.5 shadow-sm">
           <Button
             variant="ghost"
             size="icon-sm"
-            className="size-7 rounded-md"
+            className="size-10 rounded-lg hover:bg-accent"
             onClick={goToPrevDay}
+            aria-label="Previous day"
           >
-            <ChevronLeft className="size-3.5" />
+            <ChevronLeft className="size-4" />
           </Button>
 
           <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
@@ -66,13 +67,14 @@ export function DashboardHeader({
                   variant="ghost"
                   size="sm"
                   className={cn(
-                    "h-7 px-2.5 text-xs font-medium rounded-md",
+                    "h-10 px-3 text-sm font-semibold rounded-lg hover:bg-accent",
                     isTodayDate && "text-primary",
                   )}
+                  aria-label="Open date picker"
                 />
               }
             >
-              <CalendarDays className="size-3 mr-1" />
+              <CalendarDays className="size-3.5 mr-1.5" />
               {isTodayDate ? "Today" : format(selectedDate, "MMM d")}
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="center">
@@ -92,10 +94,11 @@ export function DashboardHeader({
           <Button
             variant="ghost"
             size="icon-sm"
-            className="size-7 rounded-md"
+            className="size-10 rounded-lg hover:bg-accent"
             onClick={goToNextDay}
+            aria-label="Next day"
           >
-            <ChevronRight className="size-3.5" />
+            <ChevronRight className="size-4" />
           </Button>
         </div>
       </div>

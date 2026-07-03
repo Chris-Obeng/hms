@@ -11,7 +11,6 @@ import { ActivityTabs, buildActivityTabs, type ActivityTab } from "./_components
 import { ActivityList, type ActivityBooking } from "./_components/activity-list";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import { OccupancyCard } from "./_components/occupancy-card";
-import { ForecastStrip } from "./_components/forecast-strip";
 import { QuickStats, TodaySummary } from "./_components/quick-stats";
 import { getDashboardData, checkInBooking, checkOutBooking, type DashboardData } from "./actions";
 import { updateBookingStatus } from "@/app/actions/bookings";
@@ -102,11 +101,6 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
   // Date change handler
   const handleDateChange = React.useCallback((date: Date) => {
     setSelectedDate(date);
-  }, []);
-
-  // Day click on forecast
-  const handleForecastDayClick = React.useCallback((iso: string) => {
-    setSelectedDate(new Date(iso + "T00:00:00"));
   }, []);
 
   // View booking details
@@ -246,20 +240,9 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
   if (!data) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 md:space-y-8">
       {/* Page Header with Date Nav */}
       <DashboardHeader selectedDate={selectedDate} onDateChange={handleDateChange} />
-
-      {/* Greeting + Hotel */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 -mt-2">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground/70">{hotelName}</span>
-            <span className="mx-1.5 text-muted-foreground/30">·</span>
-            {dateStr}
-          </p>
-        </div>
-      </div>
 
       {/* Activity Tabs Scoreboard */}
       <ActivityTabs
@@ -269,7 +252,7 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
       />
 
       {/* Main Content: Two-column layout */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 md:gap-8">
         {/* Left: Activity List (3 cols) */}
         <div className="xl:col-span-3 space-y-6">
           <ActivityList
@@ -287,8 +270,8 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
           />
         </div>
 
-        {/* Right Panel: Occupancy + Forecast + Quick Stats (1 col) */}
-        <div className="space-y-4">
+        {/* Right Panel: Occupancy + Quick Stats + Summary (1 col) */}
+        <div className="space-y-5">
           {/* Occupancy Card */}
           <OccupancyCard
             occupancyPercent={data.occupancy.percent}
@@ -306,13 +289,6 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
           <TodaySummary data={{ arrivals: data.stats.arrivals, departures: data.stats.departures, inHouse: data.stats.inHouse }} />
         </div>
       </div>
-
-      {/* Forecast Strip - Full Width */}
-      <ForecastStrip
-        data={data.forecast}
-        currency={currency}
-        onDayClick={handleForecastDayClick}
-      />
 
       {/* Booking Detail Drawer */}
       <BookingDetailDrawer
@@ -333,36 +309,37 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
 
 function DashboardSkeleton() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 md:space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <Skeleton className="h-7 w-32 rounded-lg" />
-          <Skeleton className="h-4 w-56 rounded-lg" />
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-40 rounded-lg" />
+          <Skeleton className="h-4 w-64 rounded-lg" />
         </div>
         <div className="flex items-center gap-2">
-          <Skeleton className="h-8 w-48 rounded-lg" />
+          <Skeleton className="h-10 w-52 rounded-xl" />
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2">
+      <div className="flex gap-2.5">
         {Array.from({ length: 7 }).map((_, i) => (
-          <Skeleton key={i} className="h-20 flex-1 rounded-xl" />
+          <Skeleton key={i} className="h-24 flex-1 rounded-xl" />
         ))}
       </div>
 
       {/* Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div className="xl:col-span-3 space-y-3">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 md:gap-8">
+        <div className="xl:col-span-3 space-y-4">
           <Skeleton className="h-8 w-48 rounded-lg" />
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-xl" />
+            <Skeleton key={i} className="h-20 w-full rounded-xl" />
           ))}
         </div>
-        <div className="space-y-4">
-          <Skeleton className="h-72 w-full rounded-xl" />
-          <Skeleton className="h-44 w-full rounded-xl" />
+        <div className="space-y-5">
+          <Skeleton className="h-80 w-full rounded-xl" />
+          <Skeleton className="h-56 w-full rounded-xl" />
+          <Skeleton className="h-40 w-full rounded-xl" />
         </div>
       </div>
     </div>

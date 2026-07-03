@@ -7,20 +7,46 @@ export async function GET(
 ) {
   const { slug, reference } = await params;
 
-  const { data: hotel } = await supabaseAdmin
+  // Validate inputs before any DB query
+  if (!/^[a-z0-9.-]{1,253}$/i.test(slug)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (!/^[A-Z0-9-]{3,30}$/.test(reference)) {
+    return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+  }
+
+  // Resolve hotel — separate eq() calls, never .or() with interpolated slug.
+  let hotelQuery = await supabaseAdmin
     .from("hotels")
     .select("id, name, address, phone, check_in_time, check_out_time")
-    .or(`slug.eq.${slug},custom_domain.eq.${slug}`)
-    .single();
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (!hotelQuery.data) {
+    hotelQuery = await supabaseAdmin
+      .from("hotels")
+      .select("id, name, address, phone, check_in_time, check_out_time")
+      .eq("custom_domain", slug)
+      .maybeSingle();
+  }
+
+  const hotel = hotelQuery.data;
   if (!hotel) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const { data: booking } = await supabaseAdmin
     .from("bookings")
-    .select("id, reference, status, payment_status, check_in, check_out, nights, total_amount, currency, guests(full_name, email, phone), room_types(name)")
+    .select(
+      "id, reference, status, payment_status, check_in, check_out, nights, total_amount, currency, guests(full_name, email, phone), room_types(name)"
+    )
     .eq("hotel_id", hotel.id)
     .eq("reference", reference)
     .single();
+
   if (!booking) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+
+  // Type-narrow the nested relations returned by Supabase
+  const guest = booking.guests as { full_name?: string | null; email?: string | null; phone?: string | null } | null;
+  const roomType = booking.room_types as { name?: string | null } | null;
 
   return NextResponse.json({
     booking: {
@@ -33,9 +59,9 @@ export async function GET(
       nights: booking.nights,
       totalAmount: booking.total_amount,
       currency: booking.currency,
-      guestName: (booking.guests as any)?.full_name ?? null,
-      guestEmail: (booking.guests as any)?.email ?? null,
-      roomType: (booking.room_types as any)?.name ?? null,
+      guestName: guest?.full_name ?? null,
+      guestEmail: guest?.email ?? null,
+      roomType: roomType?.name ?? null,
     },
     hotel: {
       name: hotel.name,

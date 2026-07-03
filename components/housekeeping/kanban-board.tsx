@@ -35,8 +35,8 @@ export function HousekeepingBoard({
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <BedDoubleIcon className="size-10 text-muted-foreground/30 mb-3" />
-        <p className="text-sm font-medium text-muted-foreground">No rooms found</p>
-        <p className="text-xs text-muted-foreground/60 mt-1 max-w-[240px]">
+        <p className="text-body font-medium text-muted-foreground">No rooms found</p>
+        <p className="text-caption text-muted-foreground/60 mt-1 max-w-[240px]">
           Add rooms to your property to start managing housekeeping.
         </p>
       </div>
@@ -53,30 +53,33 @@ export function HousekeepingBoard({
         return (
           <div
             key={column.id}
-            className="flex w-56 shrink-0 flex-col rounded-xl border bg-card"
+            className="flex w-60 shrink-0 flex-col rounded-2xl border border-border/30 bg-muted/10 backdrop-blur-sm"
           >
             {/* Column Header */}
             <div
               className={cn(
-                "flex items-center justify-between rounded-t-xl border-b px-3 py-2.5",
+                "flex items-center justify-between rounded-t-2xl border-b border-border/30 px-3.5 py-3",
                 column.bg,
                 column.border
               )}
             >
               <div className="flex items-center gap-2 min-w-0">
-                <span className={cn("size-2 shrink-0 rounded-full", column.dotColor)} />
+                <span className={cn("size-2 shrink-0 rounded-full relative flex")}>
+                  <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-65", column.dotColor)} />
+                  <span className={cn("relative inline-flex rounded-full size-2", column.dotColor)} />
+                </span>
                 <div className="min-w-0">
-                  <p className={cn("text-xs font-semibold", column.textColor)}>
+                  <p className={cn("text-xs font-bold leading-none tracking-tight", column.textColor)}>
                     {column.label}
                   </p>
-                  <p className="text-[9px] text-muted-foreground/60">
+                  <p className="text-[10px] text-muted-foreground/60 mt-1 font-medium">
                     {column.description}
                   </p>
                 </div>
               </div>
               <span
                 className={cn(
-                  "flex size-5 items-center justify-center rounded-full text-[10px] font-bold",
+                  "flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-[10px] font-bold border border-border/10",
                   column.bg,
                   column.textColor
                 )}
@@ -86,7 +89,7 @@ export function HousekeepingBoard({
             </div>
 
             {/* Column Body */}
-            <div className="flex-1 space-y-2 overflow-y-auto p-2.5">
+            <div className="flex-1 space-y-2.5 overflow-y-auto p-3" style={{ scrollbarWidth: "none" }}>
               {columnRoomsSorted.length > 0 ? (
                 columnRoomsSorted.map((room) => (
                   <RoomCard
@@ -97,9 +100,9 @@ export function HousekeepingBoard({
                   />
                 ))
               ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <EmptyIcon className="size-6 text-muted-foreground/20 mb-1.5" />
-                  <p className="text-[10px] text-muted-foreground/40 italic">
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <EmptyIcon className="size-6 text-muted-foreground/20 mb-2" />
+                  <p className="text-[10px] text-muted-foreground/45 italic font-medium">
                     No rooms
                   </p>
                 </div>

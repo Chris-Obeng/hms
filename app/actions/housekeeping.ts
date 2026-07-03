@@ -3,24 +3,30 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAuth, requireMinRole, toActionError } from "@/lib/auth";
+import { writeAuditLog } from "@/lib/audit";
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-async function getHotelScopedClient() {
-  const { orgId } = await auth();
-  if (!orgId) throw new Error("Not authenticated");
+async function getHotelScopedClient(
+  minRole?: "front_desk" | "manager" | "super_admin",
+  actionName?: string
+) {
+  const ctx = minRole && actionName
+    ? await requireMinRole(minRole, actionName)
+    : await requireAuth();
 
   const supabase = await createClient();
 
   const { data: hotel } = await supabase
     .from("hotels")
     .select("id, name, currency")
-    .eq("clerk_org_id", orgId)
+    .eq("clerk_org_id", ctx.orgId)
     .single();
 
   if (!hotel) throw new Error("Hotel not found");
 
-  return { supabase, hotelId: hotel.id, hotel };
+  return { supabase, hotelId: hotel.id, hotel, ctx };
 }
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -170,10 +176,7 @@ export async function getHousekeepingData(): Promise<
       },
     };
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Failed to fetch housekeeping data",
-    };
+    return toActionError(err);
   }
 }
 
@@ -184,7 +187,10 @@ export async function updateHousekeepingStatus(
   status: string
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { supabase, hotelId } = await getHotelScopedClient();
+    const { supabase, hotelId, ctx } = await getHotelScopedClient(
+      "front_desk",
+      "update room housekeeping status"
+    );
 
     const validStatuses = [
       "available", "occupied", "checkout_pending",
@@ -195,6 +201,14 @@ export async function updateHousekeepingStatus(
       return { success: false, error: `Invalid status: ${status}` };
     }
 
+    // Fetch before state for audit logging
+    const { data: before } = await supabase
+      .from("rooms")
+      .select("room_number, status")
+      .eq("id", roomId)
+      .eq("hotel_id", hotelId)
+      .single();
+
     const { error } = await supabase
       .from("rooms")
       .update({ status })
@@ -203,13 +217,22 @@ export async function updateHousekeepingStatus(
 
     if (error) return { success: false, error: error.message };
 
+    // Write audit log
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
+      action: "room.status_changed",
+      entityType: "room",
+      entityId: roomId,
+      beforeState: { room_number: before?.room_number, status: before?.status },
+      afterState: { room_number: before?.room_number, status: status },
+    });
+
     revalidatePath("/dashboard/housekeeping");
     return { success: true };
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Failed to update room status",
-    };
+    return toActionError(err);
   }
 }
 
@@ -219,7 +242,10 @@ export async function bulkUpdateHousekeepingStatus(
   updates: { roomId: string; status: string }[]
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { supabase, hotelId } = await getHotelScopedClient();
+    const { supabase, hotelId, ctx } = await getHotelScopedClient(
+      "front_desk",
+      "bulk update room housekeeping status"
+    );
 
     const validStatuses = [
       "available", "occupied", "checkout_pending",
@@ -233,10 +259,15 @@ export async function bulkUpdateHousekeepingStatus(
       }
     }
 
+    // Fetch before states for audit logging
+    const roomIds = updates.map((u) => u.roomId);
+    const { data: beforeRooms } = await supabase
+      .from("rooms")
+      .select("id, room_number, status")
+      .in("id", roomIds)
+      .eq("hotel_id", hotelId);
+
     // Perform all updates in a single DB transaction via RPC to ensure atomicity.
-    // A loop of individual Supabase client calls cannot be wrapped in a transaction
-    // from the application layer, so partial failures would otherwise leave the DB
-    // in an inconsistent state.
     const { error: rpcError } = await supabase
       .rpc("bulk_update_room_statuses", {
         p_hotel_id: hotelId,
@@ -245,12 +276,28 @@ export async function bulkUpdateHousekeepingStatus(
 
     if (rpcError) return { success: false, error: rpcError.message };
 
+    // Write audit logs for each updated room
+    if (beforeRooms) {
+      for (const before of beforeRooms) {
+        const update = updates.find((u) => u.roomId === before.id);
+        if (update) {
+          await writeAuditLog(supabase, {
+            hotelId,
+            staffId: ctx.staffId,
+            staffName: ctx.staffName,
+            action: "room.status_changed",
+            entityType: "room",
+            entityId: before.id,
+            beforeState: { room_number: before.room_number, status: before.status },
+            afterState: { room_number: before.room_number, status: update.status },
+          });
+        }
+      }
+    }
+
     revalidatePath("/dashboard/housekeeping");
     return { success: true };
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Failed to update room statuses",
-    };
+    return toActionError(err);
   }
 }

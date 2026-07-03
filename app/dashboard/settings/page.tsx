@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { Settings, Building2, Bell, Shield, CreditCard, Link2, ChevronRight } from "lucide-react";
+import { Settings, Building2, Bell, Shield, CreditCard, Link2, ChevronRight, ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -93,6 +93,13 @@ export default async function SettingsPage() {
           href: "/dashboard/staff",
           restricted: false,
         },
+        {
+          icon: Shield,
+          label: "Audit Log",
+          description: "Append-only record of all staff actions and changes",
+          href: "/dashboard/settings/audit-log",
+          restricted: true,
+        },
       ],
     },
   ];
@@ -101,17 +108,15 @@ export default async function SettingsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
-          Settings
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h1 className="text-page-title text-foreground">Settings</h1>
+        <p className="text-body text-muted-foreground mt-1">
           Manage your hotel configuration and preferences
         </p>
       </div>
 
       {sections.map((section) => (
         <div key={section.title}>
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          <h2 className="text-label font-semibold text-muted-foreground uppercase tracking-wider mb-3">
             {section.title}
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -123,9 +128,9 @@ export default async function SettingsPage() {
                   key={item.href}
                   href={canAccess ? item.href : "#"}
                   className={cn(
-                    "flex items-center gap-4 rounded-xl border border-border/60 bg-card p-4 transition-all",
+                    "flex items-center gap-4 rounded-xl border border-border/60 bg-card p-4 transition-all shadow-sm",
                     canAccess
-                      ? "hover:border-border hover:shadow-sm hover:bg-accent/5"
+                      ? "hover:border-border hover:shadow-md hover:bg-accent/5"
                       : "opacity-50 cursor-not-allowed"
                   )}
                 >
@@ -133,8 +138,8 @@ export default async function SettingsPage() {
                     <Icon className="size-4 text-muted-foreground" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground">{item.label}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
+                    <p className="text-body font-medium text-foreground">{item.label}</p>
+                    <p className="text-caption text-muted-foreground mt-0.5">{item.description}</p>
                   </div>
                   <ChevronRight className="size-4 text-muted-foreground/30 shrink-0" />
                 </Link>
@@ -151,8 +156,8 @@ function NoAccessState() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
       <Settings className="size-12 text-muted-foreground/30 mb-4" />
-      <h2 className="text-lg font-semibold text-foreground">No Access</h2>
-      <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+      <h2 className="text-section text-foreground">No Access</h2>
+      <p className="text-body text-muted-foreground mt-1 max-w-sm">
         Please sign in to access settings.
       </p>
     </div>

@@ -696,6 +696,23 @@ function SidebarMenuSubButton({
 }
 
 export {
+  Sidebar,
   SidebarProvider,
   useSidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
+  SidebarRail,
+  SidebarSeparator,
+  SidebarTrigger,
+  SidebarInset,
 }

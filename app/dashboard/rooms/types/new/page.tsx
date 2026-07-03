@@ -37,10 +37,10 @@ export default function NewRoomTypePage() {
       router.push(`/dashboard/rooms/types/${result.id}?new=1`);
       return { success: true };
     } else {
-      if (result.fieldErrors) {
+      if ("fieldErrors" in result && result.fieldErrors) {
         const fieldErrors: Record<string, string> = {};
-        for (const [key, msgs] of Object.entries(result.fieldErrors)) {
-          fieldErrors[key] = msgs[0];
+        for (const [key, msgs] of Object.entries(result.fieldErrors as Record<string, string[]>)) {
+          fieldErrors[key] = (msgs as string[])[0];
         }
         setErrors(fieldErrors);
       }

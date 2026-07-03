@@ -43,7 +43,7 @@ export default async function StaffPage() {
     .select(
       "id, clerk_user_id, email, full_name, avatar_url, role, is_active, granted_at, last_login_at, created_at"
     )
-    .eq("clerk_org_id", hotel.id)
+    .eq("clerk_org_id", orgId)
     .order("created_at", { ascending: true });
 
   // Count pending
@@ -68,7 +68,7 @@ export default async function StaffPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-page-title text-foreground">
             Staff
           </h1>
           <p className="text-sm text-muted-foreground mt-1">

@@ -1,67 +1,57 @@
 "use server";
 
 import { z } from "zod";
-import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { format } from "date-fns";
+import { writeAuditLog } from "@/lib/audit";
+import { requireAuth, requireMinRole, toActionError } from "@/lib/auth";
 
-// ── Schemas ──────────────────────────────────────────────────────────
+// ── Schemas ──────────────────────────────────────────────────────
 
 const NewBookingSchema = z.object({
   // Guest
   guestId: z.string().uuid().optional(),
-  guestName: z.string().min(1, "Guest name is required"),
+  guestName: z.string().min(1, "Guest name is required").max(200),
   guestEmail: z.string().email().optional().or(z.literal("")),
-  guestPhone: z.string().optional().or(z.literal("")),
+  guestPhone: z.string().max(30).optional().or(z.literal("")),
 
   // Booking
   roomTypeId: z.string().uuid("Room type is required"),
-  roomId: z.string().uuid().optional(), // optional: direct room assignment (calendar)
-  checkIn: z.string().min(1, "Check-in date is required"),
-  checkOut: z.string().min(1, "Check-out date is required"),
-  adults: z.coerce.number().int().min(1).default(1),
-  children: z.coerce.number().int().min(0).default(0),
+  roomId: z.string().uuid().optional(),
+  checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid check-in date"),
+  checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid check-out date"),
+  adults: z.coerce.number().int().min(1).max(20).default(1),
+  children: z.coerce.number().int().min(0).max(10).default(0),
   roomRate: z.coerce.number().min(0),
   subtotal: z.coerce.number().min(0),
   taxAmount: z.coerce.number().min(0).default(0),
   totalAmount: z.coerce.number().min(0),
   estimatedArrival: z.string().optional().or(z.literal("")),
-  specialRequests: z.string().optional().or(z.literal("")),
+  specialRequests: z.string().max(1000).optional().or(z.literal("")),
   source: z.enum(["direct", "manual", "phone", "walk_in"]),
   paymentPreference: z.enum(["pay_now", "pay_at_checkin"]),
-  internalNotes: z.string().optional().or(z.literal("")),
+  internalNotes: z.string().max(2000).optional().or(z.literal("")),
 });
 
 export type NewBookingInput = z.infer<typeof NewBookingSchema>;
 
-// ── Reference Generation ─────────────────────────────────────────────
+// ── Allowed status transitions ────────────────────────────────────
+// Maps current status → allowed next statuses per role level.
+// front_desk: can check in, check out (normal workflow)
+// manager+:   can also cancel and confirm
+const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  pending:      ["confirmed", "cancelled"],
+  confirmed:    ["checked_in", "cancelled"],
+  checked_in:   ["checked_out"],
+  checked_out:  [], // terminal — no transitions
+  cancelled:    [], // terminal
+  no_show:      [], // terminal
+};
 
-async function generateReference(supabase: Awaited<ReturnType<typeof createClient>>, hotelId: string): Promise<string> {
-  const year = format(new Date(), "yyyy");
+// Statuses that require manager or above
+const MANAGER_ONLY_STATUSES = new Set(["cancelled", "confirmed"]);
 
-  // Get the latest reference for this hotel this year
-  const { data: lastBooking } = await supabase
-    .from("bookings")
-    .select("reference")
-    .eq("hotel_id", hotelId)
-    .like("reference", `HOP-${year}-%`)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
-
-  let nextNum = 1;
-  if (lastBooking?.reference) {
-    const parts = lastBooking.reference.split("-");
-    const lastNum = parseInt(parts[parts.length - 1], 10);
-    if (!isNaN(lastNum)) {
-      nextNum = lastNum + 1;
-    }
-  }
-
-  return `HOP-${year}-${String(nextNum).padStart(5, "0")}`;
-}
-
-// ── Create Booking ───────────────────────────────────────────────────
+// ── Create Booking ───────────────────────────────────────────────
 
 export type CreateBookingResult =
   | { success: true; bookingId: string; reference: string }
@@ -71,43 +61,25 @@ export async function createBooking(
   formData: NewBookingInput
 ): Promise<CreateBookingResult> {
   try {
-    const { orgId } = await auth();
-    if (!orgId) {
-      return { success: false, error: "Not authenticated" };
-    }
+    // front_desk and above can create bookings
+    const ctx = await requireMinRole("front_desk", "create bookings");
+    const supabase = await createClient();
 
     const parsed = NewBookingSchema.safeParse(formData);
     if (!parsed.success) {
       const fieldErrors: Record<string, string[]> = {};
       for (const issue of parsed.error.issues) {
         const path = issue.path.join(".");
-        if (!fieldErrors[path]) fieldErrors[path] = [];
+        fieldErrors[path] ??= [];
         fieldErrors[path].push(issue.message);
       }
-      return {
-        success: false,
-        error: "Validation failed",
-        fieldErrors,
-      };
+      return { success: false, error: "Validation failed", fieldErrors };
     }
 
     const data = parsed.data;
-    const supabase = await createClient();
+    const hotelId = ctx.hotelId;
 
-    // Get hotel ID
-    const { data: hotel } = await supabase
-      .from("hotels")
-      .select("id, currency")
-      .eq("clerk_org_id", orgId)
-      .single();
-
-    if (!hotel) {
-      return { success: false, error: "Hotel not found" };
-    }
-
-    const hotelId = hotel.id;
-
-    // Check room type exists
+    // Verify room type belongs to this hotel
     const { data: roomType } = await supabase
       .from("room_types")
       .select("id, name, base_price")
@@ -115,9 +87,7 @@ export async function createBooking(
       .eq("hotel_id", hotelId)
       .single();
 
-    if (!roomType) {
-      return { success: false, error: "Room type not found" };
-    }
+    if (!roomType) return { success: false, error: "Room type not found" };
 
     // Validate dates
     const checkIn = new Date(data.checkIn);
@@ -133,34 +103,26 @@ export async function createBooking(
     let guestId = data.guestId;
 
     if (!guestId) {
-      // Try to find existing guest by email or phone
       if (data.guestEmail) {
-        const { data: existingGuest } = await supabase
+        const { data: g } = await supabase
           .from("guests")
           .select("id")
           .eq("hotel_id", hotelId)
           .eq("email", data.guestEmail)
           .maybeSingle();
-
-        if (existingGuest) {
-          guestId = existingGuest.id;
-        }
+        if (g) guestId = g.id;
       }
 
       if (!guestId && data.guestPhone) {
-        const { data: existingGuest } = await supabase
+        const { data: g } = await supabase
           .from("guests")
           .select("id")
           .eq("hotel_id", hotelId)
           .eq("phone", data.guestPhone)
           .maybeSingle();
-
-        if (existingGuest) {
-          guestId = existingGuest.id;
-        }
+        if (g) guestId = g.id;
       }
 
-      // Create new guest if not found
       if (!guestId) {
         const { data: newGuest, error: guestError } = await supabase
           .from("guests")
@@ -176,19 +138,14 @@ export async function createBooking(
         if (guestError || !newGuest) {
           return { success: false, error: "Failed to create guest" };
         }
-
         guestId = newGuest.id;
       }
     }
 
-    // Generate reference
-    const reference = await generateReference(supabase, hotelId);
-
     const checkInStr = format(checkIn, "yyyy-MM-dd");
     const checkOutStr = format(checkOut, "yyyy-MM-dd");
 
-    // ── Room availability check ─────────────────────────────────────
-    // If a specific room is requested, verify type compatibility and availability
+    // Room assignment availability check
     if (data.roomId) {
       const { data: room } = await supabase
         .from("rooms")
@@ -197,9 +154,7 @@ export async function createBooking(
         .eq("hotel_id", hotelId)
         .single();
 
-      if (!room) {
-        return { success: false, error: "Room not found" };
-      }
+      if (!room) return { success: false, error: "Room not found" };
       if (room.status === "maintenance" || room.status === "out_of_service") {
         return { success: false, error: `Room is ${room.status.replace("_", " ")}` };
       }
@@ -207,7 +162,6 @@ export async function createBooking(
         return { success: false, error: "Room type mismatch" };
       }
 
-      // Check for overlapping bookings on this room
       const { data: conflicts } = await supabase
         .from("bookings")
         .select("id, reference, guests(full_name), check_in, check_out")
@@ -220,14 +174,33 @@ export async function createBooking(
 
       if (conflicts && conflicts.length > 0) {
         const conflict = conflicts[0];
+        const guestInfo = conflict.guests as { full_name?: string | null } | null;
         return {
           success: false,
-          error: `Room already booked by ${conflict.guests?.full_name || conflict.reference} (${conflict.check_in} → ${conflict.check_out})`,
+          error: `Room already booked by ${guestInfo?.full_name ?? conflict.reference} (${conflict.check_in} → ${conflict.check_out})`,
         };
       }
     }
 
-    // Create booking
+    // Generate reference atomically (race-safe DB counter)
+    const slugPrefix = ctx.hotel.name
+      .split(/\s+/)
+      .map((w) => w[0] ?? "")
+      .join("")
+      .toUpperCase()
+      .slice(0, 3) || "BK";
+
+    const { data: refData, error: refErr } = await supabase.rpc(
+      "generate_booking_reference" as never,
+      { p_hotel_id: hotelId, p_prefix: slugPrefix } as never
+    );
+
+    if (refErr || !refData) {
+      return { success: false, error: "Failed to generate booking reference" };
+    }
+
+    const reference = String(refData);
+
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .insert({
@@ -235,7 +208,7 @@ export async function createBooking(
         reference,
         guest_id: guestId,
         room_type_id: data.roomTypeId,
-        room_id: data.roomId || null,
+        room_id: data.roomId ?? null,
         check_in: checkInStr,
         check_out: checkOutStr,
         adults: data.adults,
@@ -248,8 +221,8 @@ export async function createBooking(
         special_requests: data.specialRequests || null,
         source: data.source,
         payment_preference: data.paymentPreference,
-        status: "confirmed",
-        payment_status: data.paymentPreference === "pay_at_checkin" ? "unpaid" : "unpaid",
+        status: data.paymentPreference === "pay_now" ? "pending" : "confirmed",
+        payment_status: "unpaid",
         internal_notes: data.internalNotes || null,
       })
       .select("id, reference")
@@ -258,21 +231,29 @@ export async function createBooking(
     if (bookingError || !booking) {
       return {
         success: false,
-        error: `Failed to create booking: ${bookingError?.message || "Unknown error"}`,
+        error: `Failed to create booking: ${bookingError?.message ?? "Unknown error"}`,
       };
     }
 
-    // If a room was assigned, update room status
-    // (room assignment handled separately)
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
+      action: "booking.created",
+      entityType: "booking",
+      entityId: booking.id,
+      afterState: {
+        reference: booking.reference,
+        source: data.source,
+        payment_preference: data.paymentPreference,
+        check_in: data.checkIn,
+        check_out: data.checkOut,
+      },
+    });
 
-    return {
-      success: true,
-      bookingId: booking.id,
-      reference: booking.reference,
-    };
+    return { success: true, bookingId: booking.id, reference: booking.reference };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "An unexpected error occurred";
-    return { success: false, error: message };
+    return toActionError(err);
   }
 }
 
@@ -283,19 +264,39 @@ export async function updateBookingStatus(
   status: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { orgId } = await auth();
-    if (!orgId) return { success: false, error: "Not authenticated" };
+    // Cancellation and manual confirmation require manager+
+    // Check-in and check-out are front_desk operations
+    const minRole = MANAGER_ONLY_STATUSES.has(status) ? "manager" : "front_desk";
+    const ctx = await requireMinRole(minRole as "manager" | "front_desk", `set booking status to '${status}'`);
+
+    // Validate status is a known value
+    const validStatuses = ["pending", "confirmed", "checked_in", "checked_out", "cancelled", "no_show"];
+    if (!validStatuses.includes(status)) {
+      return { success: false, error: "Invalid status" };
+    }
 
     const supabase = await createClient();
 
-    // Resolve hotel_id for defense-in-depth scoping
-    const { data: hotel } = await supabase
-      .from("hotels")
-      .select("id")
-      .eq("clerk_org_id", orgId)
+    // Fetch booking before update — needed for transition validation, audit, notifications
+    const { data: before } = await supabase
+      .from("bookings")
+      .select(
+        "id, reference, status, check_in, check_out, nights, total_amount, room_types(name), guests(full_name, email, phone)"
+      )
+      .eq("id", bookingId)
+      .eq("hotel_id", ctx.hotelId)
       .single();
 
-    if (!hotel) return { success: false, error: "Hotel not found" };
+    if (!before) return { success: false, error: "Booking not found" };
+
+    // Enforce state machine — prevent illegal transitions
+    const allowed = ALLOWED_TRANSITIONS[before.status ?? ""] ?? [];
+    if (!allowed.includes(status)) {
+      return {
+        success: false,
+        error: `Cannot transition booking from '${before.status}' to '${status}'`,
+      };
+    }
 
     const { error } = await supabase
       .from("bookings")
@@ -306,15 +307,121 @@ export async function updateBookingStatus(
         ...(status === "cancelled" ? { cancelled_at: new Date().toISOString() } : {}),
       })
       .eq("id", bookingId)
-      .eq("hotel_id", hotel.id);
+      .eq("hotel_id", ctx.hotelId);
 
-    if (error) {
-      return { success: false, error: error.message };
+    if (error) return { success: false, error: error.message };
+
+    await writeAuditLog(supabase, {
+      hotelId: ctx.hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
+      action:
+        status === "cancelled"
+          ? "booking.cancelled"
+          : status === "checked_in"
+          ? "booking.checked_in"
+          : status === "checked_out"
+          ? "booking.checked_out"
+          : "booking.status_changed",
+      entityType: "booking",
+      entityId: bookingId,
+      beforeState: { status: before.status },
+      afterState: { status, reference: before.reference },
+    });
+
+    // Fire-and-forget notifications — don't block the status update response
+    if (status === "cancelled") {
+      const guest = before.guests as {
+        full_name?: string | null;
+        email?: string | null;
+        phone?: string | null;
+      } | null;
+
+      import("@/lib/notifications/send-booking-confirmation")
+        .then(({ sendBookingCancellation }) =>
+          sendBookingCancellation({
+            hotelId: ctx.hotelId,
+            bookingId,
+            config: {
+              hotelName: ctx.hotel.name,
+              currency: ctx.hotel.currency,
+              notificationsEnabled:
+                ctx.hotel.settings.sms_notifications_enabled !== false,
+            },
+            booking: {
+              guestName: guest?.full_name ?? "Guest",
+              guestEmail: guest?.email,
+              guestPhone: guest?.phone,
+              reference: before.reference,
+              roomName: (before.room_types as { name?: string } | null)?.name ?? "Room",
+              checkIn: before.check_in,
+              hotelPhone: ctx.hotel.phone,
+            },
+          })
+        )
+        .then((result) => {
+          if (!result.success) {
+            console.error("[updateBookingStatus] Cancellation notification failed", {
+              bookingId,
+              channel: result.channel,
+              error: result.error,
+            });
+          }
+        })
+        .catch((e: unknown) =>
+          console.error("[updateBookingStatus:cancel-notify]", e)
+        );
+    }
+
+    if (status === "confirmed" && before.status === "pending") {
+      const guest = before.guests as {
+        full_name?: string | null;
+        email?: string | null;
+        phone?: string | null;
+      } | null;
+
+      import("@/lib/notifications/send-booking-confirmation")
+        .then(({ sendBookingConfirmation }) =>
+          sendBookingConfirmation({
+            hotelId: ctx.hotelId,
+            bookingId,
+            config: {
+              hotelName: ctx.hotel.name,
+              currency: ctx.hotel.currency,
+              notificationsEnabled:
+                ctx.hotel.settings.sms_notifications_enabled !== false,
+            },
+            booking: {
+              guestName: guest?.full_name ?? "Guest",
+              guestEmail: guest?.email,
+              guestPhone: guest?.phone,
+              reference: before.reference,
+              roomName: (before.room_types as { name?: string } | null)?.name ?? "Room",
+              checkIn: before.check_in,
+              checkOut: before.check_out ?? "",
+              nights: before.nights ?? 1,
+              totalAmount: Number(before.total_amount ?? 0),
+              hotelPhone: ctx.hotel.phone,
+              hotelAddress: ctx.hotel.address,
+            },
+          })
+        )
+        .then((result) => {
+          if (!result.success) {
+            console.error("[updateBookingStatus] Confirmation notification failed", {
+              bookingId,
+              channel: result.channel,
+              error: result.error,
+            });
+          }
+        })
+        .catch((e: unknown) =>
+          console.error("[updateBookingStatus:confirm-notify]", e)
+        );
     }
 
     return { success: true };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "An unexpected error occurred";
-    return { success: false, error: message };
+    return { success: false, error: err instanceof Error ? err.message : "Unexpected error" };
   }
 }

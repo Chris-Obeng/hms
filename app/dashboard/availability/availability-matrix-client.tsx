@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 
 export type AvailabilityMatrixData = {
+  hotelId: string;
   hotelName: string;
   currency: string;
   startDate: string;
@@ -172,7 +173,7 @@ export function AvailabilityMatrixClient({ data, hotelId }: { data: Availability
               Updated {format(parseISO(data.generatedAt), "MMM d, h:mm a")}
             </span>
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-page-title text-foreground">
             Availability Matrix
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -332,8 +333,8 @@ export function AvailabilityMatrixClient({ data, hotelId }: { data: Availability
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border/70 bg-background p-4 shadow-sm">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tracking-tight text-foreground">{value}</p>
+      <p className="text-label font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 text-kpi text-foreground">{value}</p>
     </div>
   );
 }

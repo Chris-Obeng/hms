@@ -15,7 +15,7 @@ export default async function HotelSettingsPage() {
 
   const { data: hotel } = await supabase
     .from("hotels")
-    .select("id, name, slug, custom_domain, address, city, country, phone, email, description, check_in_time, check_out_time, timezone, currency, cancellation_policy, logo_url, cover_image_url")
+    .select("id, name, slug, custom_domain, address, city, country, phone, email, description, check_in_time, check_out_time, timezone, currency, cancellation_policy, logo_url, cover_image_url, settings")
     .eq("clerk_org_id", orgId)
     .single();
 
@@ -30,11 +30,11 @@ export default async function HotelSettingsPage() {
 
   const isSuperAdmin = currentUser?.role === "super_admin";
 
-  const base = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? "hotelosprp.com";
+  const base = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? "localhost:3000";
   const bookingUrl = hotel.custom_domain
-    ? `https://${hotel.custom_domain}`
+    ? `https://${hotel.custom_domain}/${hotel.slug}`
     : hotel.slug
-    ? `https://${hotel.slug}.${base}`
+    ? `http://${base}/${hotel.slug}`
     : null;
 
   return (
@@ -49,7 +49,7 @@ export default async function HotelSettingsPage() {
           </svg>
         </Link>
         <div>
-          <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-foreground">Hotel Profile</h1>
+          <h1 className="text-page-title text-foreground">Hotel Profile</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Manage your property's public information and branding</p>
         </div>
       </div>
@@ -79,6 +79,8 @@ export default async function HotelSettingsPage() {
             timezone: hotel.timezone || "",
             currency: hotel.currency || "",
             cancellationPolicy: hotel.cancellation_policy || "",
+            taxEnabled: ((hotel.settings as Record<string, unknown>)?.tax_enabled as boolean) ?? false,
+            taxPercentage: ((hotel.settings as Record<string, unknown>)?.tax_percentage as number) ?? 0,
           }}
           logoUrl={hotel.logo_url}
           coverImageUrl={hotel.cover_image_url}

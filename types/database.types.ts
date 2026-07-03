@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       audit_logs: {
@@ -249,6 +224,32 @@ export type Database = {
           },
           {
             foreignKeyName: "beds24_sync_log_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_reference_counters: {
+        Row: {
+          hotel_id: string
+          last_seq: number
+          year: string
+        }
+        Insert: {
+          hotel_id: string
+          last_seq?: number
+          year: string
+        }
+        Update: {
+          hotel_id?: string
+          last_seq?: number
+          year?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_reference_counters_hotel_id_fkey"
             columns: ["hotel_id"]
             isOneToOne: false
             referencedRelation: "hotels"
@@ -564,7 +565,65 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_logs: {
+        Row: {
+          id: string
+          hotel_id: string
+          booking_id: string | null
+          event_type: string
+          channel: string
+          provider: string
+          recipient: string
+          provider_message_id: string | null
+          status: string
+          error_message: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          booking_id?: string | null
+          event_type: string
+          channel: string
+          provider: string
+          recipient: string
+          provider_message_id?: string | null
+          status?: string
+          error_message?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          booking_id?: string | null
+          event_type?: string
+          channel?: string
+          provider?: string
+          recipient?: string
+          provider_message_id?: string | null
+          status?: string
+          error_message?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_logs_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
+
         Row: {
           booking_id: string | null
           created_at: string | null
@@ -702,33 +761,33 @@ export type Database = {
       }
       platform_admins: {
         Row: {
-          clerk_user_id: string
           created_at: string | null
           email: string
           full_name: string | null
           id: string
           is_active: boolean | null
           role: string | null
+          supabase_user_id: string | null
           updated_at: string
         }
         Insert: {
-          clerk_user_id: string
           created_at?: string | null
           email: string
           full_name?: string | null
           id?: string
           is_active?: boolean | null
           role?: string | null
+          supabase_user_id?: string | null
           updated_at?: string
         }
         Update: {
-          clerk_user_id?: string
           created_at?: string | null
           email?: string
           full_name?: string | null
           id?: string
           is_active?: boolean | null
           role?: string | null
+          supabase_user_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -855,6 +914,36 @@ export type Database = {
           },
         ]
       }
+      staff_invitations: {
+        Row: {
+          clerk_org_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          is_used: boolean
+          role: string
+          token: string
+        }
+        Insert: {
+          clerk_org_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          is_used?: boolean
+          role: string
+          token: string
+        }
+        Update: {
+          clerk_org_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          is_used?: boolean
+          role?: string
+          token?: string
+        }
+        Relationships: []
+      }
       staff_profiles: {
         Row: {
           avatar_url: string | null
@@ -938,6 +1027,10 @@ export type Database = {
           reference: string
           status: string
         }[]
+      }
+      generate_booking_reference: {
+        Args: { p_hotel_id: string; p_prefix?: string }
+        Returns: string
       }
       get_user_clerk_org_ids: { Args: never; Returns: string[] }
       get_user_hotel_ids: { Args: never; Returns: string[] }
@@ -1094,9 +1187,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

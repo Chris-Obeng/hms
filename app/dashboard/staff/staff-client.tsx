@@ -14,6 +14,9 @@ import {
   UserCheck,
   UserX,
   Users,
+  Copy,
+  Share2,
+  Plus,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -37,7 +40,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { toggleStaffActive, changeStaffRole } from "@/app/actions/staff";
+import { createShareableInvite } from "@/app/actions/invitations";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -131,6 +143,12 @@ export function StaffClient({ data, currentUserId, isSuperAdmin }: StaffClientPr
   const [searchQuery, setSearchQuery] = React.useState("");
   const [localData, setLocalData] = React.useState(data);
 
+  // ── Invite Link States ──────────────────────────────────────────
+  const [isInviteOpen, setIsInviteOpen] = React.useState(false);
+  const [inviteRole, setInviteRole] = React.useState<"super_admin" | "manager" | "front_desk" | "read_only">("front_desk");
+  const [inviteLink, setInviteLink] = React.useState("");
+  const [isGenerating, setIsGenerating] = React.useState(false);
+
   React.useEffect(() => {
     setLocalData(data);
   }, [data]);
@@ -175,19 +193,126 @@ export function StaffClient({ data, currentUserId, isSuperAdmin }: StaffClientPr
     }
   };
 
+  const handleGenerateInvite = async () => {
+    setIsGenerating(true);
+    setInviteLink("");
+    const res = await createShareableInvite(inviteRole);
+    setIsGenerating(false);
+    if (res.success) {
+      setInviteLink(res.url);
+      toast.success("Invitation link generated!");
+    } else {
+      toast.error(res.error || "Failed to generate link");
+    }
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(inviteLink);
+    toast.success("Link copied to clipboard!");
+  };
+
+  const handleShareWhatsApp = () => {
+    const text = encodeURIComponent(
+      `Join our hotel team on HotelOS Pro! Sign up using this link: ${inviteLink}`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
+  };
+
   // ── Render ────────────────────────────────────────────────────
 
   return (
     <div className="space-y-4">
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/60 pointer-events-none" />
-        <Input
-          placeholder="Search staff by name, email, role..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-9 pl-9 text-sm rounded-xl border-border/60"
-        />
+      {/* Search & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/60 pointer-events-none" />
+          <Input
+            placeholder="Search staff by name, email, role..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-9 pl-9 text-sm rounded-xl border-border/60"
+          />
+        </div>
+
+        {isSuperAdmin && (
+          <Dialog open={isInviteOpen} onOpenChange={(open) => {
+            setIsInviteOpen(open);
+            if (!open) {
+              setInviteLink("");
+              setInviteRole("front_desk");
+            }
+          }}>
+            <DialogTrigger render={
+              <Button className="h-9 text-sm rounded-xl">
+                <Plus className="size-4 mr-1.5" />
+                Invite Staff Member
+              </Button>
+            } />
+
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Invite Staff Member</DialogTitle>
+                <DialogDescription>
+                  Generate a shareable signup link. Anyone with this link can sign up and join your hotel organization.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Assign Role
+                  </label>
+                  <select
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as "super_admin" | "manager" | "front_desk" | "read_only")}
+                    className="w-full rounded-xl border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="front_desk">Front Desk</option>
+                    <option value="manager">Manager</option>
+                    <option value="super_admin">Super Admin</option>
+                    <option value="read_only">Read Only</option>
+                  </select>
+                </div>
+
+                {!inviteLink ? (
+                  <Button
+                    onClick={handleGenerateInvite}
+                    disabled={isGenerating}
+                    className="w-full rounded-xl"
+                  >
+                    {isGenerating ? "Generating..." : "Generate Invite Link"}
+                  </Button>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <Input
+                        readOnly
+                        value={inviteLink}
+                        className="h-9 text-sm rounded-xl border-border/60 bg-muted/30"
+                      />
+                      <Button
+                        size="icon-sm"
+                        onClick={handleCopyLink}
+                        className="rounded-xl shrink-0 h-9 w-9"
+                      >
+                        <Copy className="size-4" />
+                      </Button>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      onClick={handleShareWhatsApp}
+                      className="w-full rounded-xl flex items-center justify-center gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                    >
+                      <Share2 className="size-4" />
+                      Share via WhatsApp
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {/* Staff Table */}
@@ -230,7 +355,7 @@ export function StaffClient({ data, currentUserId, isSuperAdmin }: StaffClientPr
                               {isCurrentUser && (
                                 <Badge
                                   variant="outline"
-                                  className="text-[9px] px-1 py-0 h-4 text-muted-foreground"
+                                  className="text-caption px-1 py-0 h-5 text-muted-foreground"
                                 >
                                   You
                                 </Badge>

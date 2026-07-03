@@ -10,15 +10,35 @@ export async function GET(
   const checkIn = searchParams.get("check_in");
   const checkOut = searchParams.get("check_out");
 
-  // Resolve hotel by slug or x-hotel-slug header
+  // Resolve hotel by slug or x-hotel-slug header.
+  // Use separate eq() calls instead of .or() string interpolation — the .or()
+  // pattern with template literals is vulnerable to PostgREST filter injection
+  // (e.g. a slug like "foo,status.eq.suspended" would be parsed as two filters).
   const resolvedSlug = slug === "current" ? req.headers.get("x-hotel-slug") ?? slug : slug;
 
-  const { data: hotel } = await supabase
+  // Hard-validate slug before any query — slugs are alphanumeric + hyphens + dots only.
+  if (!/^[a-z0-9.-]{1,253}$/i.test(resolvedSlug)) {
+    return NextResponse.json({ error: "Hotel not found" }, { status: 404 });
+  }
+
+  // Try slug first, then custom_domain — two clean parameterized queries.
+  let hotelQuery = await supabase
     .from("hotels")
     .select("id, name, currency, check_in_time, check_out_time, cancellation_policy, settings")
-    .or(`slug.eq.${resolvedSlug},custom_domain.eq.${resolvedSlug}`)
+    .eq("slug", resolvedSlug)
     .eq("status", "active")
-    .single();
+    .maybeSingle();
+
+  if (!hotelQuery.data) {
+    hotelQuery = await supabase
+      .from("hotels")
+      .select("id, name, currency, check_in_time, check_out_time, cancellation_policy, settings")
+      .eq("custom_domain", resolvedSlug)
+      .eq("status", "active")
+      .maybeSingle();
+  }
+
+  const hotel = hotelQuery.data;
 
   if (!hotel) return NextResponse.json({ error: "Hotel not found" }, { status: 404 });
 
@@ -99,7 +119,17 @@ export async function GET(
   });
 }
 
-function buildHotelShape(hotel: any, settings: Record<string, unknown>) {
+interface HotelRow {
+  id: string;
+  name: string;
+  currency: string | null;
+  check_in_time: string | null;
+  check_out_time: string | null;
+  cancellation_policy: string | null;
+  settings: unknown;
+}
+
+function buildHotelShape(hotel: HotelRow, settings: Record<string, unknown>) {
   return {
     id: hotel.id,
     name: hotel.name,

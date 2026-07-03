@@ -4,24 +4,24 @@ import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { writeAuditLog } from "@/lib/audit";
+import { notifyBookingCancelled, notifyPaymentReceived } from "@/lib/arkesel";
+import { requireAuth, requireMinRole, toActionError } from "@/lib/auth";
 
 // ── Get Hotel ID Helper ──────────────────────────────────────────
 
 async function getHotelScopedClient() {
-  const { orgId, userId } = await auth();
-  if (!orgId || !userId) throw new Error("Not authenticated");
-
+  const ctx = await requireAuth();
   const supabase = await createClient();
-
-  const { data: hotel } = await supabase
-    .from("hotels")
-    .select("id, name, currency")
-    .eq("clerk_org_id", orgId)
-    .single();
-
-  if (!hotel) throw new Error("Hotel not found");
-
-  return { supabase, hotelId: hotel.id, hotel, orgId, userId };
+  return {
+    supabase,
+    hotelId: ctx.hotelId,
+    hotel: ctx.hotel,
+    orgId: ctx.orgId,
+    userId: ctx.userId,
+    staffId: ctx.staffId,
+    staffName: ctx.staffName,
+  };
 }
 
 // ── Types ────────────────────────────────────────────────────────
@@ -206,23 +206,23 @@ export async function getFullBookingDetail(
       updatedAt: booking.updated_at,
       guest: booking.guests
         ? {
-            id: (booking.guests as any)?.id || null,
-            fullName: (booking.guests as any)?.full_name || null,
-            email: (booking.guests as any)?.email || null,
-            phone: (booking.guests as any)?.phone || null,
+            id: (booking.guests as { id?: string | null }).id ?? null,
+            fullName: (booking.guests as { full_name?: string | null }).full_name ?? null,
+            email: (booking.guests as { email?: string | null }).email ?? null,
+            phone: (booking.guests as { phone?: string | null }).phone ?? null,
           }
         : null,
       room: booking.rooms
         ? {
-            id: (booking.rooms as any)?.id || null,
-            roomNumber: (booking.rooms as any)?.room_number || null,
-            floor: (booking.rooms as any)?.floor || null,
+            id: (booking.rooms as { id?: string | null }).id ?? null,
+            roomNumber: (booking.rooms as { room_number?: string | null }).room_number ?? null,
+            floor: (booking.rooms as { floor?: string | null }).floor ?? null,
           }
         : null,
       roomType: booking.room_types
         ? {
-            id: (booking.room_types as any)?.id || null,
-            name: (booking.room_types as any)?.name || null,
+            id: (booking.room_types as { id?: string | null }).id ?? null,
+            name: (booking.room_types as { name?: string | null }).name ?? null,
           }
         : null,
       payments: mappedPayments,
@@ -256,12 +256,15 @@ export async function recordPayment(
   input: RecordPaymentInput
 ): Promise<{ success: true; paymentId: string } | { success: false; error: string }> {
   try {
+    // front_desk and above can record payments
+    await requireMinRole("front_desk", "record payments");
+
     const parsed = RecordPaymentSchema.safeParse(input);
     if (!parsed.success) {
       return { success: false, error: parsed.error.issues[0]?.message || "Invalid input" };
     }
 
-    const { supabase, hotelId, hotel, orgId, userId } = await getHotelScopedClient();
+    const { supabase, hotelId, hotel, orgId, userId, staffId, staffName } = await getHotelScopedClient();
     const data = parsed.data;
 
     // Verify booking exists and belongs to this hotel
@@ -309,6 +312,41 @@ export async function recordPayment(
     }
 
     const payment = { id: rpcResult[0].payment_id as string };
+
+    // Audit log
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId,
+      staffName,
+      action: "payment.recorded",
+      entityType: "booking",
+      entityId: data.bookingId,
+      afterState: { amount: data.amount, method: data.method, payment_id: payment.id },
+    });
+
+    // Arkesel email receipt to guest
+    const { data: fullBooking } = await supabase
+      .from("bookings")
+      .select("reference, total_amount, amount_paid, outstanding_balance, guests(full_name, email)")
+      .eq("id", data.bookingId)
+      .single();
+
+    if (fullBooking) {
+      await notifyPaymentReceived(
+        {
+          hotelName: hotel.name,
+          currency: hotel.currency,
+          notificationsEnabled: hotel.settings.sms_notifications_enabled !== false,
+        },
+        {
+          guestName: (fullBooking.guests as { full_name?: string | null } | null)?.full_name ?? "Guest",
+          guestEmail: (fullBooking.guests as { email?: string | null } | null)?.email,
+          reference: fullBooking.reference,
+          amountPaid: data.amount,
+          outstandingBalance: Number(fullBooking.outstanding_balance ?? 0),
+        }
+      );
+    }
 
     revalidatePath("/dashboard");
     return { success: true, paymentId: payment.id };

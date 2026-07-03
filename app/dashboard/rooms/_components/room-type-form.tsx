@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { AMENITIES_LIST } from "@/lib/amenities";
@@ -407,21 +408,7 @@ export function RoomTypeForm({
                   Inactive room types are hidden from the guest booking page.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => set("isActive", !values.isActive)}
-                className={cn(
-                  "relative inline-flex h-6 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                  values.isActive ? "bg-foreground" : "bg-muted"
-                )}
-              >
-                <span
-                  className={cn(
-                    "pointer-events-none inline-block size-5 rounded-full bg-background shadow ring-0 transition-transform",
-                    values.isActive ? "translate-x-4" : "translate-x-0"
-                  )}
-                />
-              </button>
+              <Switch checked={values.isActive} onCheckedChange={() => set("isActive", !values.isActive)} size="lg" />
             </div>
 
             <div>
@@ -478,7 +465,7 @@ function PhotosCard({
           <div className="flex items-center gap-2">
             <span>Photos</span>
             {images.length === 0 && (
-              <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
+              <span className="text-caption bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
                 No photos yet
               </span>
             )}
@@ -513,7 +500,7 @@ function PhotosCard({
           images={images}
           onChange={setImages}
         />
-        <p className="text-[10px] text-muted-foreground/50 mt-2">
+        <p className="text-caption text-muted-foreground/50 mt-2">
           First photo is the listing thumbnail. Drag to reorder. Max 10.
         </p>
       </CardContent>

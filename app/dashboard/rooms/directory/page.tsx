@@ -66,7 +66,7 @@ export default async function RoomsDirectoryPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
+        <h1 className="text-page-title text-foreground">
           Room Directory
         </h1>
         <p className="text-sm text-muted-foreground mt-1">

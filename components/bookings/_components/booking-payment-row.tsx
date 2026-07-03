@@ -38,7 +38,7 @@ export function PaymentRow({ payment, currency }: { payment: PaymentRecord; curr
           </span>
           <Badge
             variant="outline"
-            className="text-[9px] px-1 py-0 h-4 font-normal text-muted-foreground"
+            className="text-caption px-1.5 py-0 h-5 font-normal text-muted-foreground"
           >
             {getMethodLabel(payment.method)}
           </Badge>
@@ -58,7 +58,7 @@ export function PaymentRow({ payment, currency }: { payment: PaymentRecord; curr
       </div>
       <Badge
         variant={payment.status === "success" ? "default" : "outline"}
-        className="text-[9px] px-1.5 py-0 h-4 shrink-0"
+        className="text-caption px-1.5 py-0 h-5 shrink-0"
       >
         {payment.status === "success" ? "Success" : payment.status || "Pending"}
       </Badge>

@@ -49,6 +49,8 @@ const HotelProfileSchema = z.object({
   timezone: z.string().optional().or(z.literal("")),
   currency: z.string().optional().or(z.literal("")),
   cancellationPolicy: z.string().max(500).optional().or(z.literal("")),
+  taxEnabled: z.boolean().default(false),
+  taxPercentage: z.number().min(0).max(100).default(0),
 });
 
 export type HotelProfileInput = z.infer<typeof HotelProfileSchema>;
@@ -66,11 +68,13 @@ export async function getHotelProfile(): Promise<
 
     const { data, error } = await supabase
       .from("hotels")
-      .select("name, address, city, country, phone, email, description, check_in_time, check_out_time, timezone, currency, cancellation_policy, logo_url, cover_image_url")
+      .select("name, address, city, country, phone, email, description, check_in_time, check_out_time, timezone, currency, cancellation_policy, logo_url, cover_image_url, settings")
       .eq("id", hotelId)
       .single();
 
     if (error || !data) return { success: false, error: error?.message || "Hotel not found" };
+
+    const settings = (data.settings as Record<string, unknown>) ?? {};
 
     return {
       success: true,
@@ -90,6 +94,8 @@ export async function getHotelProfile(): Promise<
         cancellationPolicy: data.cancellation_policy || "",
         logoUrl: data.logo_url,
         coverImageUrl: data.cover_image_url,
+        taxEnabled: (settings.tax_enabled as boolean) ?? false,
+        taxPercentage: (settings.tax_percentage as number) ?? 0,
       },
     };
   } catch (err) {
@@ -117,6 +123,15 @@ export async function updateHotelProfile(
 
     const data = parsed.data;
 
+    // Read existing settings to preserve other keys (e.g. payment_policy)
+    const { data: existing } = await supabase
+      .from("hotels")
+      .select("settings")
+      .eq("id", hotelId)
+      .single();
+
+    const existingSettings = (existing?.settings as Record<string, unknown>) ?? {};
+
     const { error } = await supabase
       .from("hotels")
       .update({
@@ -132,6 +147,11 @@ export async function updateHotelProfile(
         timezone: data.timezone || null,
         currency: data.currency || null,
         cancellation_policy: data.cancellationPolicy || null,
+        settings: {
+          ...existingSettings,
+          tax_enabled: data.taxEnabled,
+          tax_percentage: data.taxPercentage,
+        },
       })
       .eq("id", hotelId);
 

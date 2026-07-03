@@ -97,7 +97,8 @@ export async function initializeTransaction(input: TransactionInitInput) {
     method: "POST",
     body: JSON.stringify({
       ...input,
-      metadata: input.metadata ? JSON.stringify(input.metadata) : undefined,
+      // Paystack expects metadata as a plain object, not a JSON string
+      metadata: input.metadata ?? undefined,
     }),
   });
   return res.data;

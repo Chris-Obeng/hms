@@ -108,7 +108,7 @@ function getColumns(
               </span>
               <Badge
                 variant={row.original.isActive ? "default" : "outline"}
-                className="text-[9px] px-1.5 py-0 h-4 font-medium"
+                className="text-caption px-1.5 py-0 h-5 font-medium"
               >
                 {row.original.isActive ? "Active" : "Inactive"}
               </Badge>
