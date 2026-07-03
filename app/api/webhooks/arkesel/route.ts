@@ -38,7 +38,11 @@ export async function POST(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");
   const expectedSecret = process.env.ARKESEL_WEBHOOK_SECRET;
 
-  if (expectedSecret && secret !== expectedSecret) {
+  if (!expectedSecret) {
+    console.error("[arkesel-webhook] ARKESEL_WEBHOOK_SECRET not configured");
+    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+  }
+  if (secret !== expectedSecret) {
     console.warn("[arkesel-webhook] Invalid secret in delivery callback");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -80,8 +80,9 @@ export async function GET(
     "BEGIN:VEVENT",
     `UID:${uid}`,
     `DTSTAMP:${now}Z`,
-    `DTSTART;TZID=${hotel.name}:${dtStart}`,
-    `DTEND;TZID=${hotel.name}:${dtEnd}`,
+    // Use a fixed IANA zone (or a hotel.timezone column). Ghana is UTC+0.
+    `DTSTART;TZID=Africa/Accra:${dtStart}`,
+    `DTEND;TZID=Africa/Accra:${dtEnd}`,
     `SUMMARY:Stay at ${hotel.name} — ${roomName}`,
     `DESCRIPTION:Booking Reference: ${reference}\\nGuest: ${guestName}\\nRoom: ${roomName}\\nCheck-in: ${booking.check_in}\\nCheck-out: ${booking.check_out}`,
     `LOCATION:${location}`,
