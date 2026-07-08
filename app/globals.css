@@ -98,6 +98,49 @@
   /* Field labels, group labels, badge text */
   --text-label-size: 0.75rem;         /* 12px */
   --text-label-weight: 500;
+
+  /* ── Onboarding Design System ──────────────────────────────────
+   *  Production-ready tokens for onboarding flow
+   * ────────────────────────────────────────────────────────────── */
+
+  /* Layout */
+  --onboarding-sidebar-width: 42%;
+  --onboarding-sidebar-width-xl: 38%;
+  --onboarding-content-max-width: 32rem;
+
+  /* Colors - Dark sidebar theme */
+  --onboarding-sidebar-bg: oklch(0.28 0.019 258.53);      /* #1e293b slate-800 - lighter */
+  --onboarding-sidebar-fg: oklch(0.99 0.002 264.54);      /* #f8fafc slate-50 */
+  --onboarding-sidebar-muted: oklch(0.58 0.013 257.89);   /* #94a3b8 slate-400 - lighter */
+  --onboarding-sidebar-border: oklch(0.38 0.020 258.98);  /* #334155 slate-700 */
+  
+  /* Colors - Light content area */
+  --onboarding-content-bg: oklch(0.99 0.002 264.54);      /* #fafafa neutral-50 */
+  --onboarding-card-bg: oklch(1.0 0 0);                   /* #ffffff white */
+  --onboarding-border: oklch(0.90 0.004 264.53);          /* #e5e7eb gray-200 */
+  --onboarding-border-muted: oklch(0.95 0.003 264.52);    /* #f3f4f6 gray-100 */
+  
+  /* Text colors */
+  --onboarding-text-primary: oklch(0.22 0.014 258.34);    /* #111827 gray-900 */
+  --onboarding-text-secondary: oklch(0.45 0.011 264.36);  /* #6b7280 gray-500 */
+  --onboarding-text-muted: oklch(0.63 0.006 264.53);      /* #9ca3af gray-400 */
+  
+  /* Interactive */
+  --onboarding-accent: var(--onboarding-sidebar-bg);
+  --onboarding-accent-hover: oklch(0.38 0.020 258.98);    /* slate-700 */
+  --onboarding-focus-ring: oklch(0.28 0.019 258.53 / 0.12);
+  
+  /* Status colors */
+  --onboarding-success-bg: oklch(0.97 0.020 142.50);      /* #f0fdf4 green-50 */
+  --onboarding-success-fg: oklch(0.55 0.154 143.52);      /* #16a34a green-600 */
+  --onboarding-error-bg: oklch(0.97 0.013 22.18);         /* #fef2f2 red-50 */
+  --onboarding-error-fg: oklch(0.57 0.215 27.33);         /* #ef4444 red-500 */
+  --onboarding-error-border: oklch(0.87 0.078 22.18);     /* #fecaca red-200 */
+  
+  /* Spacing */
+  --onboarding-input-height: 2.75rem;                     /* 44px - proper touch target */
+  --onboarding-button-height: 2.75rem;
+  --onboarding-section-gap: 1.5rem;
   --text-label-lh: 1.4;
 
   /* Timestamps, secondary metadata — FLOOR */
@@ -190,6 +233,15 @@
 /* ── Theme tokens ──────────────────────────────────────────────────── */
 
 :root {
+  /* ── Onboarding amber accent tokens ──────────────────────────
+   *  Used exclusively by the (admin)/onboarding flow.
+   *  oklch(0.78 0.18 70) ≈ #F59E0B amber — saturation < 80% ✓
+   *  Never bleed into dashboard or booking pages.
+   * ─────────────────────────────────────────────────────────── */
+  --ob-accent: oklch(0.78 0.18 70);
+  --ob-accent-muted: oklch(0.78 0.18 70 / 0.15);
+  --ob-accent-glow: oklch(0.78 0.18 70 / 0.06);
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -225,37 +277,37 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --background: oklch(0.13 0.01 240);
+  --foreground: oklch(0.98 0.005 240);
+  --card: oklch(0.16 0.01 240);
+  --card-foreground: oklch(0.98 0.005 240);
+  --popover: oklch(0.16 0.01 240);
+  --popover-foreground: oklch(0.98 0.005 240);
+  --primary: oklch(0.93 0.005 240);
+  --primary-foreground: oklch(0.13 0.01 240);
+  --secondary: oklch(0.21 0.01 240);
+  --secondary-foreground: oklch(0.98 0.005 240);
+  --muted: oklch(0.21 0.01 240);
+  --muted-foreground: oklch(0.68 0.01 240);
+  --accent: oklch(0.21 0.01 240);
+  --accent-foreground: oklch(0.98 0.005 240);
+  --destructive: oklch(0.62 0.17 24);
+  --border: oklch(1 0 0 / 6%);
+  --input: oklch(1 0 0 / 8%);
+  --ring: oklch(0.68 0.01 240);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar: oklch(0.12 0.01 240);
+  --sidebar-foreground: oklch(0.98 0.005 240);
+  --sidebar-primary: oklch(0.93 0.005 240);
+  --sidebar-primary-foreground: oklch(0.12 0.01 240);
+  --sidebar-accent: oklch(0.21 0.01 240);
+  --sidebar-accent-foreground: oklch(0.98 0.005 240);
+  --sidebar-border: oklch(1 0 0 / 6%);
+  --sidebar-ring: oklch(0.68 0.01 240);
 }
 
 @layer base {
@@ -386,4 +438,47 @@
 }
 .status-no-show {
   @apply bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-900/40 dark:text-slate-400 dark:border-slate-700;
+}
+
+/* ── Native / PWA shell ───────────────────────────────────────────────
+ *  iOS safe areas, touch feel, standalone mode polish.
+ * ────────────────────────────────────────────────────────────────────── */
+
+.native-shell {
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+.native-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+.native-chrome {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html.pwa-standalone body {
+  overscroll-behavior: none;
+}
+
+html.pwa-standalone [data-slot="app-header"] {
+  background: color-mix(in oklch, var(--background) 92%, transparent);
+}
+
+/* Toasts sit above home indicator on notched phones */
+.toaster {
+  bottom: calc(env(safe-area-inset-bottom) + 0.75rem) !important;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  button,
+  [role="button"],
+  a {
+    touch-action: manipulation;
+  }
 }

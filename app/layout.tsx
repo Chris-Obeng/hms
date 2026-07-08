@@ -3,6 +3,7 @@ import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { ClerkProvider } from "@clerk/nextjs";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/theme-provider";
 
 import "./globals.css";
 
@@ -24,23 +25,33 @@ export const metadata: Metadata = {
     template: "%s | HotelOS Pro",
   },
   description: "Hotel management and direct booking platform for independent properties",
-  manifest: "/manifest.json",
+  applicationName: "HotelOS Pro",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "HotelOS Pro",
+    title: "HotelOS",
+  },
+  formatDetection: {
+    telephone: false,
   },
   icons: {
-    icon: "/icons/icon.svg",
+    icon: [
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
+    ],
     apple: "/icons/icon-180x180.png",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1C1917",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FAFAF8" },
+    { media: "(prefers-color-scheme: dark)", color: "#1C1917" },
+  ],
 };
 
 export default function RootLayout({
@@ -52,19 +63,18 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${jakarta.variable} ${geistMono.variable} font-sans h-full antialiased`}
+      suppressHydrationWarning
     >
-      <head>
-        {/* PWA install hints */}
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="HotelOS Pro" />
-        <link rel="apple-touch-icon" href="/icons/icon-180x180.png" />
-      </head>
-      <body className="min-h-full flex flex-col font-sans">
+      <body className="native-shell min-h-dvh flex flex-col font-sans">
         <ClerkProvider>
-          <TooltipProvider>{children}</TooltipProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <TooltipProvider>{children}</TooltipProvider>
+          </ThemeProvider>
         </ClerkProvider>
         <Toaster />
       </body>

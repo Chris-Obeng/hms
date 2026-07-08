@@ -1,9 +1,0 @@
-Every user in HotelOS falls into one of two buckets:
-Bucket 1 — Hotel Admin (first person): Signs up, creates the Clerk org, fills in the hotel profile, becomes the org admin. This is the owner or general manager.
-Bucket 2 — Staff: Gets invited by the admin, clicks a link, signs up (or signs in), and automatically lands inside the hotel's org. They never touch onboarding.
-
-
-<onboarding>
-This page does two things in sequence:
-Step 1 — Hotel Profile Form. Collect hotel name, address, type (hotel/guesthouse/etc.), number of rooms, contact number. Nothing gets saved yet.
-Step 2 — On submit: You call Clerk's createOrganization with the hotel name, then immediately write the hotel profile to Supabase using the returned orgId as the foreign key.
