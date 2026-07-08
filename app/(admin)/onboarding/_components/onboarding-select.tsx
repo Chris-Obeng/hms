@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, SelectHTMLAttributes, useState, useId } from "react";
+import { forwardRef, SelectHTMLAttributes, useId } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface OnboardingSelectOption {
@@ -19,7 +19,6 @@ export const OnboardingSelect = forwardRef<HTMLSelectElement, OnboardingSelectPr
   ({ label, options, error, hint, className = "", id, ...props }, ref) => {
     const uid = useId();
     const selectId = id ?? uid;
-    const [focused, setFocused] = useState(false);
     const hasError = !!error;
 
     return (
@@ -32,8 +31,6 @@ export const OnboardingSelect = forwardRef<HTMLSelectElement, OnboardingSelectPr
         <select
           ref={ref}
           id={selectId}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
           className={`onboarding-select ${className}`}
           aria-invalid={hasError}
           aria-describedby={

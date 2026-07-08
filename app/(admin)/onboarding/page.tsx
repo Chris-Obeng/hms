@@ -172,7 +172,16 @@ export default function OnboardingPage() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed.step) setStep(parsed.step);
+        
+        // Validate and clamp step to valid range [1, STEP_META.length]
+        if (parsed.step) {
+          const restoredStep = Number(parsed.step);
+          const safeStep = Number.isFinite(restoredStep)
+            ? Math.min(STEP_META.length, Math.max(1, restoredStep))
+            : 1;
+          setStep(safeStep);
+        }
+        
         if (parsed.data) setFormData((p) => ({ ...p, ...parsed.data }));
       } catch {
         // Ignore parse errors
@@ -185,14 +194,14 @@ export default function OnboardingPage() {
 
   const goNext = (e: FormEvent) => {
     e.preventDefault();
-    const n = step + 1;
+    const n = Math.min(STEP_META.length, step + 1); // Clamp to max step
     setDirection(1);
     setStep(n);
     save(n, formData);
   };
 
   const goBack = () => {
-    const n = step - 1;
+    const n = Math.max(1, step - 1); // Clamp to min step
     setDirection(-1);
     setStep(n);
     save(n, formData);

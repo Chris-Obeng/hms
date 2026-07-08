@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, InputHTMLAttributes, useState, useId } from "react";
+import { forwardRef, InputHTMLAttributes, useId } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface OnboardingInputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -13,7 +13,6 @@ export const OnboardingInput = forwardRef<HTMLInputElement, OnboardingInputProps
   ({ label, error, hint, className = "", id, ...props }, ref) => {
     const uid = useId();
     const inputId = id ?? uid;
-    const [focused, setFocused] = useState(false);
     const hasError = !!error;
 
     return (
@@ -26,8 +25,6 @@ export const OnboardingInput = forwardRef<HTMLInputElement, OnboardingInputProps
         <input
           ref={ref}
           id={inputId}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
           className={`onboarding-input ${className}`}
           aria-invalid={hasError}
           aria-describedby={

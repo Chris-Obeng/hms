@@ -1,5 +1,6 @@
 "use client";
 
+import { type KeyboardEvent } from "react";
 import { Minus, Plus } from "lucide-react";
 
 interface RoomStepperProps {
@@ -27,7 +28,7 @@ export function RoomStepper({
     if (value < max) onChange(value + 1);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "ArrowUp" || e.key === "ArrowRight") {
       e.preventDefault();
       increment();

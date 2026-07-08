@@ -10,7 +10,6 @@ interface DeactivatedPageProps {
 }
 
 export default async function DeactivatedPage({ searchParams }: DeactivatedPageProps) {
-  const { reason } = await searchParams;
   const { orgId, userId } = await auth();
 
   // If not logged in, redirect to sign-in
