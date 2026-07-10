@@ -94,6 +94,10 @@ function getColumns(
 ): ColumnDef<RoomTypeRow>[] {
   return [
     {
+      accessorKey: "sortOrder",
+      header: "Sort Order",
+    },
+    {
       accessorKey: "name",
       header: "Room Type",
       cell: ({ row }) => (
@@ -228,6 +232,9 @@ export function RoomTypesTable({ data, currency }: RoomTypesTableProps) {
     { id: "sortOrder", desc: false },
   ]);
   const [globalFilter, setGlobalFilter] = React.useState("");
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
+    sortOrder: false,
+  });
   const [localData, setLocalData] = React.useState(data);
 
   // Sync when data changes
@@ -268,9 +275,10 @@ export function RoomTypesTable({ data, currency }: RoomTypesTableProps) {
   const table = useReactTable({
     data: localData,
     columns,
-    state: { sorting, globalFilter },
+    state: { sorting, globalFilter, columnVisibility },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),

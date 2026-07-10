@@ -66,6 +66,7 @@ export async function createHotelProfile(formData: OnboardingInput) {
     phone: data.phone,
     email: data.email,
     settings,
+    status: 'pending', // Deactivated by default until platform admin approval
   });
 
   if (error) {

@@ -2,9 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@clerk/nextjs";
-import { Users, CalendarDays, BedDouble, Search as SearchIcon } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { Users, CalendarDays, BedDouble, Search as SearchIcon, Loader2 } from "lucide-react";
+import { searchGlobal, type SearchResult } from "@/app/actions/search";
 import {
   CommandDialog,
   CommandEmpty,
@@ -13,17 +12,6 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { cn } from "@/lib/utils";
-
-// ── Types ──────────────────────────────────────────────────────
-
-interface SearchResult {
-  id: string;
-  type: "guest" | "booking" | "room";
-  label: string;
-  subLabel: string;
-  url: string;
-}
 
 // ── Props ──────────────────────────────────────────────────────
 
@@ -36,14 +24,13 @@ interface GlobalSearchProps {
 
 export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   const router = useRouter();
-  const { orgId } = useAuth();
   const [query, setQuery] = React.useState("");
   const [results, setResults] = React.useState<SearchResult[]>([]);
   const [searching, setSearching] = React.useState(false);
 
-  // Debounced search
+  // Debounced search via Server Action
   React.useEffect(() => {
-    if (!query.trim() || !orgId) {
+    if (!query.trim()) {
       setResults([]);
       return;
     }
@@ -51,82 +38,15 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
-        const supabase = createClient();
-        const q = query.trim().toLowerCase();
-
-        // Resolve hotel ID
-        const { data: hotel } = await supabase
-          .from("hotels")
-          .select("id")
-          .eq("clerk_org_id", orgId)
-          .single();
-
-        if (!hotel) {
-          setSearching(false);
-          return;
+        const res = await searchGlobal(query);
+        if (res.success) {
+          setResults(res.data);
+        } else {
+          console.error("Search failed:", res.error);
+          setResults([]);
         }
-
-        const hotelId = hotel.id;
-        const allResults: SearchResult[] = [];
-
-        // Search guests
-        const { data: guests } = await supabase
-          .from("guests")
-          .select("id, full_name, email, phone")
-          .eq("hotel_id", hotelId)
-          .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
-          .limit(5);
-
-        for (const guest of guests || []) {
-          allResults.push({
-            id: `guest-${guest.id}`,
-            type: "guest",
-            label: guest.full_name,
-            subLabel: guest.email || guest.phone || "Guest",
-            url: `/dashboard/customers`,
-          });
-        }
-
-        // Search bookings by reference
-        if (q.length >= 2) {
-          const { data: bookings } = await supabase
-            .from("bookings")
-            .select("id, reference")
-            .eq("hotel_id", hotelId)
-            .ilike("reference", `%${q}%`)
-            .limit(5);
-
-          for (const booking of bookings || []) {
-            allResults.push({
-              id: `booking-${booking.id}`,
-              type: "booking",
-              label: `Booking ${booking.reference}`,
-              subLabel: "Booking",
-              url: `/dashboard/bookings`,
-            });
-          }
-        }
-
-        // Search rooms
-        const { data: rooms } = await supabase
-          .from("rooms")
-          .select("id, room_number")
-          .eq("hotel_id", hotelId)
-          .ilike("room_number", `%${q}%`)
-          .limit(5);
-
-        for (const room of rooms || []) {
-          allResults.push({
-            id: `room-${room.id}`,
-            type: "room",
-            label: `Room ${room.room_number}`,
-            subLabel: "Room",
-            url: `/dashboard/rooms/directory`,
-          });
-        }
-
-        setResults(allResults.slice(0, 10));
-      } catch {
+      } catch (err) {
+        console.error("Search invocation error:", err);
         setResults([]);
       } finally {
         setSearching(false);
@@ -134,7 +54,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     }, 300); // 300ms debounce
 
     return () => clearTimeout(timer);
-  }, [query, orgId]);
+  }, [query]);
 
   const handleSelect = React.useCallback(
     (result: SearchResult) => {
@@ -154,30 +74,34 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         onValueChange={setQuery}
       />
       <CommandList>
-        {searching && query.trim() && results.length === 0 && (
-          <div className="py-6 text-center text-sm text-muted-foreground">
-            Searching...
+        {searching && (
+          <div className="flex items-center justify-center py-6 text-sm text-muted-foreground gap-2">
+            <Loader2 className="size-4 animate-spin text-primary" />
+            <span>Searching...</span>
           </div>
         )}
-        <CommandEmpty>No results found.</CommandEmpty>
+        {!searching && query.trim() && results.length === 0 && (
+          <CommandEmpty>No results found.</CommandEmpty>
+        )}
         {results.length > 0 && (
           <CommandGroup heading="Results">
             {results.map((result) => (
               <CommandItem
                 key={result.id}
                 onSelect={() => handleSelect(result)}
+                className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/50 rounded-md transition-colors"
               >
                 {result.type === "guest" && (
-                  <Users className="size-3.5 text-muted-foreground" />
+                  <Users className="size-4 text-muted-foreground" />
                 )}
                 {result.type === "booking" && (
-                  <CalendarDays className="size-3.5 text-muted-foreground" />
+                  <CalendarDays className="size-4 text-muted-foreground" />
                 )}
                 {result.type === "room" && (
-                  <BedDouble className="size-3.5 text-muted-foreground" />
+                  <BedDouble className="size-4 text-muted-foreground" />
                 )}
-                <span>{result.label}</span>
-                <span className="ml-auto text-xs text-muted-foreground capitalize">
+                <span className="font-medium text-foreground">{result.label}</span>
+                <span className="ml-auto text-xs text-muted-foreground">
                   {result.subLabel}
                 </span>
               </CommandItem>
@@ -188,10 +112,11 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
           <CommandItem
             onSelect={() => {
               onOpenChange(false);
-              router.push("/dashboard/bookings/new");
+              router.push("/dashboard/bookings?new=1");
             }}
+            className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/50 rounded-md transition-colors"
           >
-            <CalendarDays className="size-3.5" />
+            <CalendarDays className="size-4" />
             New Booking
           </CommandItem>
           <CommandItem
@@ -199,8 +124,9 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               onOpenChange(false);
               router.push("/dashboard");
             }}
+            className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/50 rounded-md transition-colors"
           >
-            <SearchIcon className="size-3.5" />
+            <SearchIcon className="size-4" />
             Go to Dashboard
           </CommandItem>
         </CommandGroup>

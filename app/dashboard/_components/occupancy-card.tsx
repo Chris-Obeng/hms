@@ -104,7 +104,7 @@ export function OccupancyCard({
   ];
 
   return (
-    <Card className="border-border/40 shadow-sm">
+    <Card className="card-default">
       <CardHeader className="pb-3">
         <CardTitle className="text-section">Occupancy</CardTitle>
         <CardDescription className="text-caption mt-0.5">

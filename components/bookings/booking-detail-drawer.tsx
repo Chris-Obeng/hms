@@ -67,10 +67,10 @@ export function BookingDetailDrawer({
       if (result.success) {
         setBooking(result.booking);
       } else {
-        toast.error(result.error || "Failed to load booking details");
+        toast.error(result.error || "Failed to load reservation details");
       }
     } catch {
-      toast.error("Failed to load booking details");
+      toast.error("Failed to load reservation details");
     } finally {
       setLoading(false);
     }
@@ -98,10 +98,10 @@ export function BookingDetailDrawer({
             : action === "check_out"
               ? "Guest checked out successfully"
               : action === "cancel"
-                ? "Booking cancelled"
+                ? "Reservation cancelled"
                 : action === "reinstate"
-                  ? "Booking reinstated"
-                  : "Booking updated"
+                  ? "Reservation reinstated"
+                  : "Reservation updated"
         );
         fetchBooking();
         if (onBookingChanged) onBookingChanged();
@@ -237,9 +237,9 @@ export function BookingDetailDrawer({
         ) : (
           <div className="flex flex-col items-center justify-center flex-1 px-6 text-center">
             <AlertCircle className="size-10 text-muted-foreground/20 mb-3" />
-            <p className="text-sm font-medium text-muted-foreground">Booking not found</p>
+            <p className="text-sm font-medium text-muted-foreground">Reservation not found</p>
             <p className="text-xs text-muted-foreground/60 mt-1">
-              This booking could not be loaded.
+              This reservation could not be loaded.
             </p>
           </div>
         )}

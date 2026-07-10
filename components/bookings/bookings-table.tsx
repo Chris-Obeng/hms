@@ -19,6 +19,8 @@ import {
   ChevronDown,
   Download,
   Eye,
+  LayoutGrid,
+  List,
   LogIn,
   LogOut,
   MoreHorizontal,
@@ -401,6 +403,100 @@ function getColumns(
   ];
 }
 
+// ── Reservation Card (​Grid View) ─────────────────────────────────
+
+function ReservationCard({
+  row,
+  currency,
+  onViewDetails,
+}: {
+  row: BookingRow;
+  currency: string;
+  onViewDetails: (id: string) => void;
+}) {
+  const statusVariant = getStatusVariant(row.status);
+  const statusLabel = getStatusLabel(row.status);
+  const sourceBadge = SOURCE_BADGES[row.source] || { label: row.source, color: "text-slate-600", bg: "bg-slate-500/10" };
+  const nights = row.nights ?? 0;
+  const outstanding = row.outstandingBalance ?? 0;
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onViewDetails(row.id)}
+      onKeyDown={(e) => e.key === "Enter" && onViewDetails(row.id)}
+      className="group relative flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm hover:shadow-md hover:border-border transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {/* Status dot + badge row */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            className={cn(
+              "size-2 rounded-full shrink-0 mt-0.5",
+              row.status === "checked_in" && "bg-emerald-500",
+              row.status === "confirmed" && "bg-blue-500",
+              row.status === "checked_out" && "bg-slate-400",
+              row.status === "cancelled" && "bg-rose-500",
+              row.status === "pending" && "bg-amber-500",
+              row.status === "no_show" && "bg-orange-500",
+            )}
+          />
+          <span className="text-sm font-semibold text-foreground truncate">
+            {row.guestName}
+          </span>
+        </div>
+        <Badge variant={statusVariant} className="text-[10px] px-2 py-0.5 shrink-0 capitalize whitespace-nowrap">
+          {statusLabel}
+        </Badge>
+      </div>
+
+      {/* Reference + Room */}
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span className="font-mono tracking-wide">{row.reference}</span>
+        <span className="flex items-center gap-1">
+          {row.roomNumber && (
+            <span className="font-medium text-foreground">Rm {row.roomNumber}</span>
+          )}
+          {row.roomType && (
+            <span className="text-muted-foreground/60">{row.roomNumber ? `· ${row.roomType}` : row.roomType}</span>
+          )}
+        </span>
+      </div>
+
+      {/* Dates */}
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 rounded-xl px-3 py-2">
+        <CalendarIcon className="size-3 shrink-0" />
+        <span>{formatDate(row.checkIn)}</span>
+        <span className="text-muted-foreground/40">→</span>
+        <span>{formatDate(row.checkOut)}</span>
+        <span className="ml-auto font-medium text-foreground">
+          {nights} night{nights !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {/* Amount + Payment + Source */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col">
+          <span className="text-sm font-semibold text-foreground">
+            {new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(row.totalAmount)}
+          </span>
+          {outstanding > 0 && (
+            <span className="text-[10px] text-rose-500 font-medium">
+              {new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(outstanding)} outstanding
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", sourceBadge.bg, sourceBadge.color)}>
+            {sourceBadge.label}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Filter Config ──────────────────────────────────────────────────
 
 const STATUS_OPTIONS = [
@@ -486,6 +582,7 @@ function exportToCsv(data: BookingRow[], currency: string) {
 
 export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTableProps) {
   const router = useRouter();
+  const [viewMode, setViewMode] = React.useState<"table" | "grid">("table");
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: "checkIn", desc: false },
   ]);
@@ -589,10 +686,10 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-page-title text-foreground">
-            Bookings
+            Reservations
           </h1>
           <p className="text-body text-muted-foreground mt-1">
-            {totalCount} total booking{totalCount !== 1 ? "s" : ""}
+            {totalCount} total reservation{totalCount !== 1 ? "s" : ""}
             {filteredCount !== totalCount && (
               <span className="text-muted-foreground/60">
                 {" "}· {filteredCount} visible
@@ -601,6 +698,33 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {/* View toggle */}
+          <div className="flex items-center rounded-xl border border-border/60 overflow-hidden h-9">
+            <button
+              onClick={() => setViewMode("table")}
+              className={cn(
+                "h-9 px-2.5 flex items-center gap-1.5 text-sm transition-colors",
+                viewMode === "table"
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+              title="Table view"
+            >
+              <List className="size-3.5" />
+            </button>
+            <button
+              onClick={() => setViewMode("grid")}
+              className={cn(
+                "h-9 px-2.5 flex items-center gap-1.5 text-sm transition-colors",
+                viewMode === "grid"
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+              title="Grid view"
+            >
+              <LayoutGrid className="size-3.5" />
+            </button>
+          </div>
           <Button
             variant="outline"
             size="sm"
@@ -617,7 +741,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
           >
             <span className="flex items-center gap-1.5">
               <span className="text-base leading-none">+</span>
-              New Booking
+              New Reservation
             </span>
           </Button>
         </div>
@@ -753,8 +877,74 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
         )}
       </div>
 
-      {/* DataTable */}
-      <Card className="border-border/60 shadow-sm overflow-hidden">
+      {/* Grid view */}
+      {viewMode === "grid" && (
+        <>
+          {table.getRowModel().rows.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {table.getRowModel().rows.map((row) => (
+                <ReservationCard
+                  key={row.id}
+                  row={row.original}
+                  currency={currency}
+                  onViewDetails={handleViewDetails}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <CalendarIcon className="size-10 text-muted-foreground/30 mb-3" />
+              <p className="text-body font-medium text-muted-foreground">
+                {globalFilter || statusFilter !== "all" || paymentFilter !== "all"
+                  ? "No reservations match your filters"
+                  : "No reservations yet"}
+              </p>
+              <p className="text-caption text-muted-foreground/60 mt-1 max-w-[240px]">
+                {globalFilter || statusFilter !== "all" || paymentFilter !== "all"
+                  ? "Try adjusting your search or filters"
+                  : "Reservations will appear here once guests start reserving rooms."}
+              </p>
+            </div>
+          )}
+          {/* Grid Pagination */}
+          {table.getPageCount() > 1 && (
+            <div className="flex items-center justify-between border-t border-border/50 pt-4">
+              <p className="text-xs text-muted-foreground">
+                {filteredCount > 0
+                  ? `Showing ${table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}–${Math.min(
+                      (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+                      filteredCount
+                    )} of ${filteredCount}`
+                  : "No results"}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs rounded-lg"
+                  onClick={() => table.previousPage()}
+                  disabled={!table.getCanPreviousPage()}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs rounded-lg"
+                  onClick={() => table.nextPage()}
+                  disabled={!table.getCanNextPage()}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Table view */}
+      {viewMode === "table" && (
+        <Card className="border-border/60 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -816,13 +1006,13 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
                       <CalendarIcon className="size-10 text-muted-foreground/30 mb-3" />
                       <p className="text-body font-medium text-muted-foreground">
                         {globalFilter || statusFilter !== "all" || paymentFilter !== "all"
-                          ? "No bookings match your filters"
-                          : "No bookings yet"}
+                          ? "No reservations match your filters"
+                          : "No reservations yet"}
                       </p>
                       <p className="text-caption text-muted-foreground/60 mt-1 max-w-[240px]">
                         {globalFilter || statusFilter !== "all" || paymentFilter !== "all"
                           ? "Try adjusting your search or filters"
-                          : "Bookings will appear here once guests start reserving rooms."}
+                          : "Reservations will appear here once guests start reserving rooms."}
                       </p>
                     </div>
                   </TableCell>
@@ -864,8 +1054,9 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
           </div>
         </div>
       </Card>
+      )}
 
-      {/* New Booking Sheet */}
+      {/* New Reservation Sheet */}
       <NewBookingSheet
         open={newBookingOpen}
         onOpenChange={(open) => {
@@ -878,7 +1069,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
         currency={currency}
       />
 
-      {/* Booking Detail Drawer */}
+      {/* Reservation Detail Drawer */}
       <BookingDetailDrawer
         bookingId={detailBookingId}
         open={detailOpen}

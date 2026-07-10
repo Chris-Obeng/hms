@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser, useAuth } from "@clerk/nextjs";
+import { useTheme } from "next-themes";
 import {
   Search,
   Plus,
@@ -12,6 +13,8 @@ import {
   Settings,
   ChevronDown,
   Building2,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { MenuIcon } from "@/components/ui/menu-icon";
 import { NotificationIcon, type NotificationIconHandle } from "@/components/ui/notification-icon";
@@ -57,6 +60,13 @@ export function AppHeader({
   const { toggleSidebar } = useSidebar();
   const isMobile = useIsMobile();
   const [commandOpen, setCommandOpen] = React.useState(false);
+
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const bellRef = React.useRef<NotificationIconHandle>(null);
 
@@ -257,9 +267,11 @@ export function AppHeader({
       <header
         data-slot="app-header"
         className={cn(
-          "fixed top-0 left-0 right-0 z-40 flex h-12 items-center gap-2",
-          "border-b border-border/60 bg-background/80 backdrop-blur-md supports-backdrop-filter:bg-background/60",
+          "fixed top-0 left-0 right-0 z-30 flex items-center gap-2",
+          "h-[calc(3rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)]",
+          "border-b border-border/60 bg-background/85 backdrop-blur-xl supports-backdrop-filter:bg-background/70",
           "px-3 md:px-4 lg:px-6",
+          "native-chrome",
         )}
       >
         {/* Left: Hamburger + Hotel name */}
@@ -326,6 +338,25 @@ export function AppHeader({
           >
             <Plus className="size-3.5" />
           </Button>
+
+          {/* Theme Toggle */}
+          {mounted ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="size-8 rounded-lg hover:bg-muted/60 text-muted-foreground hover:text-foreground active:scale-[0.98] transition-all duration-300"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              aria-label="Toggle theme"
+            >
+              {theme === "dark" ? (
+                <Sun className="size-4" />
+              ) : (
+                <Moon className="size-4" />
+              )}
+            </Button>
+          ) : (
+            <div className="size-8 rounded-lg" />
+          )}
 
           {/* Notifications */}
           <DropdownMenu>
