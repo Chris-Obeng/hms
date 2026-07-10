@@ -722,7 +722,7 @@ export function CalendarClient({
   return (
     <div className="cal-wrap flex flex-col h-[calc(100vh-3rem)] bg-background overflow-hidden min-h-0">
       {/* ── Desktop Toolbar ── */}
-      <div className="hidden md:flex items-center gap-2 px-3 py-2 border-b border-[#E2E8F0] bg-background sticky top-12 z-30 min-h-[44px]">
+      <div className="hidden md:flex items-center gap-2 px-3 py-2 border-b border-border bg-background sticky top-12 z-30 min-h-[44px]">
         {/* Date nav */}
         <div className="flex items-center rounded-lg border border-border overflow-hidden shadow-sm">
           <button
@@ -766,17 +766,17 @@ export function CalendarClient({
         <div className="cal-toolbar-divider" />
 
         {/* View presets - segmented control style per spec */}
-        <div className="flex items-center rounded-md border border-[#E2E8F0] overflow-hidden">
+        <div className="flex items-center rounded-md border border-border overflow-hidden">
           {VIEW_PRESETS.map((p) => (
             <button
               key={p.label}
               onClick={() => setViewPreset(p.label)}
               title={`View ${p.days} day${p.days > 1 ? "s" : ""}`}
               className={cn(
-                "h-9 px-4 text-xs font-semibold transition-all border-r border-[#E2E8F0] last:border-r-0",
+                "h-9 px-4 text-xs font-semibold transition-all border-r border-border last:border-r-0",
                 viewPreset === p.label
-                  ? "bg-[#1D4ED8] text-white"
-                  : "text-[#64748B] hover:text-[#1E293B] hover:bg-muted/50",
+                  ? "bg-primary text-primary-foreground font-bold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
               )}
             >
               {p.label}
@@ -794,7 +794,7 @@ export function CalendarClient({
             placeholder="Search guest name or reference..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-44 rounded-md border border-[#E2E8F0] bg-background pl-10 pr-9 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-[#1D4ED8]/50"
+            className="h-9 w-44 rounded-md border border-border bg-background pl-10 pr-9 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/50"
           />
           {searchQuery && (
             <button
@@ -858,7 +858,7 @@ export function CalendarClient({
             setNewBookingOpen(true);
           }}
           title="Create new booking (N)"
-          className="h-9 px-5 rounded-md bg-[#1D4ED8] text-white text-xs font-semibold hover:bg-[#1E40AF] transition-all flex items-center gap-2 shadow-sm"
+          className="h-9 px-5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/95 transition-all flex items-center gap-2 shadow-sm"
         >
           <Plus className="size-4" />+ New Booking
         </Button>

@@ -11,9 +11,11 @@
 }
 
 .availability-grid-shell {
-  overflow: auto;
-  max-height: calc(100vh - 300px);
-  min-height: 420px;
+  overflow-x: auto;
+  overflow-y: visible;
+  height: auto;
+  max-height: none;
+  min-height: 0;
   border: 1px solid var(--availability-border);
   border-radius: 10px;
   background: var(--availability-row-bg);
@@ -287,6 +289,6 @@
 
 @media (max-width: 768px) {
   .availability-grid-shell {
-    max-height: calc(100vh - 340px);
+    max-height: none;
   }
 }

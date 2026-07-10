@@ -39,12 +39,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -701,14 +701,14 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
         </Card>
       </div>
 
-      {/* ── Add Room Sheet ── */}
-      <Sheet open={addRoomOpen} onOpenChange={setAddRoomOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-sm">
-          <SheetHeader>
-            <SheetTitle>Add Room</SheetTitle>
-            <SheetDescription>Add a new physical room to your hotel.</SheetDescription>
-          </SheetHeader>
-          <form onSubmit={handleAddRoom} className="space-y-4 mt-4">
+      {/* ── Add Room Dialog ── */}
+      <Dialog open={addRoomOpen} onOpenChange={setAddRoomOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Room</DialogTitle>
+            <DialogDescription>Add a new physical room to your hotel.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddRoom} className="space-y-4 mt-2">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                 Room number *
@@ -778,19 +778,19 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
               </Button>
             </div>
           </form>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
-      {/* ── Block Room Sheet ── */}
-      <Sheet open={blockOpen} onOpenChange={setBlockOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-sm">
-          <SheetHeader>
-            <SheetTitle>Block Room Dates</SheetTitle>
-            <SheetDescription>
+      {/* ── Block Room Dialog ── */}
+      <Dialog open={blockOpen} onOpenChange={setBlockOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Block Room Dates</DialogTitle>
+            <DialogDescription>
               Block this room from being booked for maintenance, cleaning, or owner use.
-            </SheetDescription>
-          </SheetHeader>
-          <form onSubmit={handleBlockRoom} className="space-y-4 mt-4">
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleBlockRoom} className="space-y-4 mt-2">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                 Reason
@@ -861,8 +861,8 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
               </Button>
             </div>
           </form>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

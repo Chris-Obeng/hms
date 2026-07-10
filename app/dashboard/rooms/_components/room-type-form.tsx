@@ -51,6 +51,8 @@ export interface RoomTypeFormProps {
   title: string;
   subtitle: string;
   errors: Record<string, string>;
+  isModal?: boolean;
+  onCancel?: () => void;
 }
 
 // ── Slugify ────────────────────────────────────────────────────
@@ -96,6 +98,8 @@ export function RoomTypeForm({
   title,
   subtitle,
   errors,
+  isModal = false,
+  onCancel,
 }: RoomTypeFormProps) {
   const [submitting, setSubmitting] = React.useState(false);
   const [slugManuallyEdited, setSlugManuallyEdited] = React.useState(false);
@@ -144,27 +148,29 @@ export function RoomTypeForm({
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link
-          href="/dashboard/rooms/types"
-          className="inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-        >
-          <ArrowLeft className="size-4" />
-        </Link>
-        <div className="flex-1">
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
-        </div>
-        {onPreview && (
-          <button
-            type="button"
-            onClick={onPreview}
-            className="text-xs font-medium text-muted-foreground hover:text-foreground border border-border/60 rounded-lg px-3 py-1.5 transition-colors"
+      {!isModal && (
+        <div className="flex items-center gap-4">
+          <Link
+            href="/dashboard/rooms/types"
+            className="inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
-            Preview
-          </button>
-        )}
-      </div>
+            <ArrowLeft className="size-4" />
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
+          </div>
+          {onPreview && (
+            <button
+              type="button"
+              onClick={onPreview}
+              className="text-xs font-medium text-muted-foreground hover:text-foreground border border-border/60 rounded-lg px-3 py-1.5 transition-colors"
+            >
+              Preview
+            </button>
+          )}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Photos first — shown at top in edit mode */}
@@ -428,11 +434,17 @@ export function RoomTypeForm({
 
         {/* Actions */}
         <div className="flex items-center justify-between gap-3 pb-8">
-          <Link href="/dashboard/rooms/types">
-            <Button variant="ghost" type="button" className="text-sm rounded-xl">
+          {isModal ? (
+            <Button variant="ghost" type="button" onClick={onCancel} className="text-sm rounded-xl">
               Cancel
             </Button>
-          </Link>
+          ) : (
+            <Link href="/dashboard/rooms/types">
+              <Button variant="ghost" type="button" className="text-sm rounded-xl">
+                Cancel
+              </Button>
+            </Link>
+          )}
           <Button
             type="submit"
             disabled={submitting || !values.name || !values.basePrice}

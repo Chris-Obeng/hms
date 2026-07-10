@@ -15,6 +15,11 @@ import {
   Building2,
   Sun,
   Moon,
+  Bell,
+  CalendarDays,
+  DollarSign,
+  AlertTriangle,
+  CalendarX,
 } from "lucide-react";
 import { MenuIcon } from "@/components/ui/menu-icon";
 import { NotificationIcon, type NotificationIconHandle } from "@/components/ui/notification-icon";
@@ -33,6 +38,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { createClient } from "@/lib/supabase/client";
+import {
+  fetchNotificationsAction,
+  markAllReadAction,
+  markSingleReadAction,
+  type NotificationItem,
+} from "@/app/actions/notifications";
 
 // ── Props ──────────────────────────────────────────────────────
 
@@ -102,55 +113,41 @@ export function AppHeader({
   // Live notification count — starts from server-rendered value, updates via Realtime
   const [liveNotificationCount, setLiveNotificationCount] = React.useState(notificationCount);
 
-  // Notification list for dropdown
-  type NotificationItem = {
-    id: string;
-    type: string | null;
-    title: string;
-    message: string;
-    booking_id: string | null;
-    is_read: boolean;
-    created_at: string | null;
-  };
   const [notifications, setNotifications] = React.useState<NotificationItem[]>([]);
 
-  async function fetchNotifications() {
+  const fetchNotifications = React.useCallback(async () => {
     if (!hotelId) return;
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("notifications")
-      .select("id, type, title, message, booking_id, is_read, created_at")
-      .eq("hotel_id", hotelId)
-      .order("created_at", { ascending: false })
-      .limit(20);
-    setNotifications((data ?? []) as NotificationItem[]);
-  }
+    const res = await fetchNotificationsAction(hotelId);
+    if (res.success) {
+      setNotifications(res.data);
+    }
+  }, [hotelId]);
 
-  async function markAllRead() {
+  const markAllRead = React.useCallback(async () => {
     if (!hotelId) return;
-    const supabase = createClient();
-    await supabase
-      .from("notifications")
-      .update({ is_read: true, read_at: new Date().toISOString() })
-      .eq("hotel_id", hotelId)
-      .eq("is_read", false);
     setLiveNotificationCount(0);
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-  }
+    const res = await markAllReadAction(hotelId);
+    if (!res.success) {
+      // Re-fetch in case of failure to revert UI state
+      fetchNotifications();
+    }
+  }, [hotelId, fetchNotifications]);
 
-  function handleNotificationClick(n: NotificationItem) {
-    // Mark this one as read
-    const supabase = createClient();
-    supabase.from("notifications").update({ is_read: true }).eq("id", n.id);
+  const handleNotificationClick = React.useCallback(async (n: NotificationItem) => {
     setNotifications((prev) => prev.map((item) => item.id === n.id ? { ...item, is_read: true } : item));
     setLiveNotificationCount((prev) => Math.max(0, prev - (n.is_read ? 0 : 1)));
+    
+    // Fire and forget read update on server
+    markSingleReadAction(n.id);
+
     // Navigate to booking deep-link if available
     if (n.booking_id) {
       router.push(`/dashboard/bookings/${n.booking_id}`);
     }
-  }
+  }, [router]);
 
-  function timeAgo(iso: string | null): string {
+  const timeAgo = React.useCallback((iso: string | null): string => {
     if (!iso) return "";
     const diff = Date.now() - new Date(iso).getTime();
     const mins = Math.floor(diff / 60000);
@@ -159,7 +156,7 @@ export function AppHeader({
     const hrs = Math.floor(mins / 60);
     if (hrs < 24) return `${hrs}h ago`;
     return `${Math.floor(hrs / 24)}d ago`;
-  }
+  }, []);
 
   React.useEffect(() => {
     setLiveNotificationCount(notificationCount);
@@ -359,7 +356,11 @@ export function AppHeader({
           )}
 
           {/* Notifications */}
-          <DropdownMenu>
+          <DropdownMenu onOpenChange={(open) => {
+            if (open) {
+              fetchNotifications();
+            }
+          }}>
             <DropdownMenuTrigger
               render={
                 <Button
@@ -386,8 +387,11 @@ export function AppHeader({
                 <span className="text-sm font-semibold text-foreground">Notifications</span>
                 {liveNotificationCount > 0 && (
                   <button
-                    onClick={markAllRead}
-                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      markAllRead();
+                    }}
+                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                   >
                     Mark all read
                   </button>
@@ -399,34 +403,72 @@ export function AppHeader({
                     No notifications
                   </div>
                 ) : (
-                  notifications.map((n) => (
-                    <button
-                      key={n.id}
-                      onClick={() => handleNotificationClick(n)}
-                      className={`w-full text-left flex items-start gap-3 px-3 py-2.5 hover:bg-muted/40 transition-colors border-b border-border/30 last:border-0 ${!n.is_read ? "bg-blue-50/40 dark:bg-blue-950/20" : ""}`}
-                    >
-                      <span className={`mt-1 size-2 rounded-full shrink-0 ${
-                        n.type === "new_booking" ? "bg-blue-500" :
-                        n.type === "payment_received" ? "bg-emerald-500" :
-                        n.type === "ota_conflict" ? "bg-red-500" :
-                        n.type === "booking_cancelled" ? "bg-orange-500" :
-                        "bg-muted-foreground/40"
-                      }`} />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium text-foreground truncate">{n.title}</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
-                        <p className="text-[10px] text-muted-foreground/60 mt-1">
-                          {timeAgo(n.created_at)}
-                        </p>
-                      </div>
-                    </button>
-                  ))
+                  notifications.map((n) => {
+                    const renderNotificationIcon = (type: string | null) => {
+                      switch (type) {
+                        case "new_booking":
+                          return (
+                            <div className="size-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                              <CalendarDays className="size-4" />
+                            </div>
+                          );
+                        case "payment_received":
+                          return (
+                            <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                              <DollarSign className="size-4" />
+                            </div>
+                          );
+                        case "ota_conflict":
+                          return (
+                            <div className="size-8 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center shrink-0">
+                              <AlertTriangle className="size-4" />
+                            </div>
+                          );
+                        case "booking_cancelled":
+                          return (
+                            <div className="size-8 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0">
+                              <CalendarX className="size-4" />
+                            </div>
+                          );
+                        default:
+                          return (
+                            <div className="size-8 rounded-lg bg-slate-500/10 text-slate-500 flex items-center justify-center shrink-0">
+                              <Bell className="size-4" />
+                            </div>
+                          );
+                      }
+                    };
+
+                    return (
+                      <button
+                        key={n.id}
+                        onClick={() => handleNotificationClick(n)}
+                        className={`w-full text-left flex items-start gap-3 px-3 py-2.5 hover:bg-muted/40 transition-colors border-b border-border/30 last:border-0 cursor-pointer ${
+                          !n.is_read ? "bg-blue-50/20 dark:bg-blue-950/10" : ""
+                        }`}
+                      >
+                        {renderNotificationIcon(n.type)}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1.5">
+                            <p className="text-xs font-semibold text-foreground truncate">{n.title}</p>
+                            {!n.is_read && (
+                              <span className="size-1.5 shrink-0 rounded-full bg-blue-500" />
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+                          <p className="text-[10px] text-muted-foreground/60 mt-1">
+                            {timeAgo(n.created_at)}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })
                 )}
               </div>
               <div className="border-t border-border/60 px-3 py-2">
                 <button
                   onClick={() => router.push("/dashboard/bookings")}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-center"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-center cursor-pointer"
                 >
                   View all bookings →
                 </button>
