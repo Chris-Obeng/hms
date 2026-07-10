@@ -25,6 +25,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { createClient } from "@/lib/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/nextjs";
+import { qk } from "@/lib/query-keys";
 import { checkInBooking, checkOutBooking } from "@/app/dashboard/actions";
 import { updateBookingStatus } from "@/app/actions/bookings";
 import { NewBookingSheet } from "@/components/bookings/new-booking-sheet";
@@ -97,6 +100,8 @@ export function CalendarClient({
   canEdit,
   canBlock,
 }: CalendarClientProps) {
+  const queryClient = useQueryClient();
+  const { orgId } = useAuth();
   const schedulerRef = React.useRef<any>(null);
 
   const [startDate, setStartDate] = React.useState(() => new Date());
@@ -104,20 +109,28 @@ export function CalendarClient({
   const days =
     VIEW_PRESETS.find((preset) => preset.label === viewPreset)?.days ?? 14;
 
-  const [rooms, setRooms] = React.useState<CalendarRoom[]>(initialData.rooms);
-  const [bookings, setBookings] = React.useState<CalendarBooking[]>(
-    initialData.bookings,
-  );
-  const [availabilityBlocks, setAvailabilityBlocks] = React.useState<
-    CalendarAvailabilityBlock[]
-  >(initialData.availabilityBlocks);
-  const [loading, setLoading] = React.useState(false);
   const [newBookingIds, setNewBookingIds] = React.useState<Set<string>>(
     new Set(),
   );
   const knownBookingIdsRef = React.useRef<Set<string>>(
     new Set(initialData.bookings.map((booking) => booking.id)),
   );
+
+  const dateStr = format(startDate, "yyyy-MM-dd");
+
+  // ── Main calendar data query ──────────────────────────────────────
+  const { data: calendarData, isLoading: loading } = useQuery({
+    queryKey: qk.calendar(orgId || "", hotelId, dateStr, days),
+    queryFn: () => getCalendarData(dateStr, days),
+    enabled: !!orgId,
+    initialData: initialData,
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  const rooms = calendarData?.rooms ?? initialData.rooms;
+  const bookings = calendarData?.bookings ?? initialData.bookings;
+  const availabilityBlocks = calendarData?.availabilityBlocks ?? initialData.availabilityBlocks;
 
   const [roomTypeFilters, setRoomTypeFilters] = React.useState<
     RoomTypeFilter[]
@@ -161,10 +174,7 @@ export function CalendarClient({
   const hoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const dateRangeKey = getDateRangeKey(startDate, days);
-  const dateRangeRef = React.useRef({ startDate, days });
-  React.useEffect(() => {
-    dateRangeRef.current = { startDate, days };
-  }, [days, startDate]);
+
 
   const unassignedBookings = React.useMemo(
     () => bookings.filter((booking) => !booking.roomId && booking.roomTypeId),
@@ -232,60 +242,8 @@ export function CalendarClient({
     [bookings, selectedBookingId],
   );
 
-  const fetchCalendarData = React.useCallback(
-    async (date: Date, numDays: number) => {
-      setLoading(true);
-      try {
-        const data = await getCalendarData(format(date, "yyyy-MM-dd"), numDays);
-        setRooms(data.rooms);
-        setBookings(data.bookings);
-        setAvailabilityBlocks(data.availabilityBlocks);
-      } catch (error) {
-        console.error("Failed to fetch calendar data:", error);
-        toast.error("Calendar refresh failed");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
-
-  // Silent background refresh — no overlay, no toast on success
-  const silentRefresh = React.useCallback(async () => {
-    const { startDate: currentStart, days: currentDays } = dateRangeRef.current;
-    try {
-      const data = await getCalendarData(
-        format(currentStart, "yyyy-MM-dd"),
-        currentDays,
-      );
-      setRooms(data.rooms);
-      setBookings(data.bookings);
-      setAvailabilityBlocks(data.availabilityBlocks);
-    } catch (error) {
-      console.error("Silent refresh failed:", error);
-    }
-  }, []);
-
-  const isInitialMountRef = React.useRef(true);
-  const prevDateRangeKeyRef = React.useRef(dateRangeKey);
+  // ── Ref for new-booking highlight animation ───────────────────────
   const knownDateRangeKeyRef = React.useRef(dateRangeKey);
-
-  React.useEffect(() => {
-    // Skip the very first render — initialData from the server is already loaded
-    if (isInitialMountRef.current) {
-      isInitialMountRef.current = false;
-      prevDateRangeKeyRef.current = dateRangeKey;
-      return;
-    }
-    // Only fetch when the date range actually changes
-    if (dateRangeKey === prevDateRangeKeyRef.current) return;
-    prevDateRangeKeyRef.current = dateRangeKey;
-
-    const timer = window.setTimeout(() => {
-      fetchCalendarData(startDate, days);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [dateRangeKey, fetchCalendarData, startDate, days]);
 
   React.useEffect(() => {
     const rangeChanged = dateRangeKey !== knownDateRangeKeyRef.current;
@@ -313,8 +271,15 @@ export function CalendarClient({
     return () => window.clearTimeout(timer);
   }, [bookings, dateRangeKey]);
 
+  // ── Realtime subscription → invalidate React Query cache ────────────
   React.useEffect(() => {
+    if (!orgId) return;
     const supabase = createClient();
+    const invalidate = () => {
+      queryClient.invalidateQueries({
+        queryKey: ["calendar", orgId, hotelId],
+      });
+    };
     const channel = supabase
       .channel(`hotel:${hotelId}:calendar`)
       .on(
@@ -325,7 +290,7 @@ export function CalendarClient({
           table: "bookings",
           filter: `hotel_id=eq.${hotelId}`,
         },
-        silentRefresh,
+        invalidate,
       )
       .on(
         "postgres_changes",
@@ -335,13 +300,29 @@ export function CalendarClient({
           table: "availability_blocks",
           filter: `hotel_id=eq.${hotelId}`,
         },
-        silentRefresh,
+        invalidate,
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [silentRefresh, hotelId]);
+  }, [hotelId, orgId, queryClient]);
+
+  // Helper: invalidate current calendar query after a mutation
+  const invalidateCalendar = React.useCallback(() => {
+    if (!orgId) return;
+    queryClient.invalidateQueries({
+      queryKey: ["calendar", orgId, hotelId],
+    });
+  }, [orgId, hotelId, queryClient]);
+
+  // Kept for scheduler scroll-to behaviour; no longer used for data fetching
+  const fetchCalendarData = React.useCallback(
+    (_date: Date, _numDays: number) => {
+      invalidateCalendar();
+    },
+    [invalidateCalendar],
+  );
 
   React.useEffect(() => {
     const close = () => setContextMenu(null);

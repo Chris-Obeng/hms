@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   useReactTable,
   getCoreRowModel,
@@ -53,8 +53,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { updateRoomStatus, createRoom, createAvailabilityBlock, type RoomInput, type AvailabilityBlockInput } from "@/app/actions/rooms";
+import { type RoomInput, type AvailabilityBlockInput } from "@/app/actions/rooms";
 import { createClient } from "@/lib/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/nextjs";
+import { qk } from "@/lib/query-keys";
+import { writeAuditLog } from "@/lib/audit";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -100,22 +104,33 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 // ── Component ──────────────────────────────────────────────────────
 
 export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps) {
+  const queryClient = useQueryClient();
+  const { orgId, userId } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: "roomNumber", desc: false },
   ]);
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
-  const [localData, setLocalData] = React.useState(data);
 
-  // Add Room Sheet
+  // Sync search query param to table global filter
+  React.useEffect(() => {
+    const q = searchParams.get("search");
+    if (q) {
+      setGlobalFilter(q);
+    }
+  }, [searchParams]);
+
+  // Add Room Sheet State
   const [addRoomOpen, setAddRoomOpen] = React.useState(false);
   const [newRoomNumber, setNewRoomNumber] = React.useState("");
   const [newRoomTypeId, setNewRoomTypeId] = React.useState("");
   const [newFloor, setNewFloor] = React.useState("");
   const [newNotes, setNewNotes] = React.useState("");
 
-  // Block Room Sheet
+  // Block Room Sheet State
   const [blockOpen, setBlockOpen] = React.useState(false);
   const [blockRoomId, setBlockRoomId] = React.useState("");
   const [blockStartDate, setBlockStartDate] = React.useState("");
@@ -123,28 +138,74 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
   const [blockReason, setBlockReason] = React.useState<"maintenance" | "deep_cleaning" | "owner_use" | "renovation" | "other">("maintenance");
   const [blockNotes, setBlockNotes] = React.useState("");
 
-  const [loading, setLoading] = React.useState(false);
+  // Query staff profile for audit logs
+  const { data: staffProfile } = useQuery({
+    queryKey: qk.staffProfile(orgId || "", userId || ""),
+    queryFn: async () => {
+      if (!orgId || !userId) return null;
+      const supabase = createClient();
+      const { data: profile, error } = await supabase
+        .from("staff_profiles")
+        .select("id, full_name")
+        .eq("clerk_user_id", userId)
+        .eq("clerk_org_id", orgId)
+        .single();
+      if (error) throw error;
+      return profile;
+    },
+    enabled: !!orgId && !!userId,
+  });
 
-  // Sync when data changes
-  React.useEffect(() => {
-    setLocalData(data);
-  }, [data]);
+  // Rooms Query
+  const { data: localData = data, isLoading: loading } = useQuery({
+    queryKey: qk.rooms(orgId || "", hotelId),
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data: roomsData, error } = await supabase
+        .from("rooms")
+        .select(`
+          id, room_number, floor, status, is_active, notes, created_at,
+          room_types!inner(id, name, slug)
+        `)
+        .eq("hotel_id", hotelId)
+        .order("room_number", { ascending: true });
+      
+      if (error) throw error;
+      
+      return (roomsData || []).map((r) => ({
+        id: r.id,
+        roomNumber: r.room_number,
+        floor: r.floor,
+        status: r.status,
+        isActive: r.is_active,
+        notes: r.notes,
+        roomTypeId: r.room_types.id,
+        roomTypeName: r.room_types.name,
+        roomTypeSlug: r.room_types.slug,
+        createdAt: r.created_at,
+      }));
+    },
+    enabled: !!orgId,
+  });
 
   // Realtime subscription — refresh on any room change for this hotel
   React.useEffect(() => {
+    if (!orgId) return;
     const supabase = createClient();
     const channel = supabase
       .channel(`hotel:${hotelId}:rooms-directory`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "rooms", filter: `hotel_id=eq.${hotelId}` },
-        () => router.refresh(),
+        () => {
+          queryClient.invalidateQueries({ queryKey: qk.rooms(orgId, hotelId) });
+        },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [hotelId, router]);
+  }, [hotelId, orgId, queryClient]);
 
   // Filtered data
   const filteredData = React.useMemo(() => {
@@ -164,68 +225,154 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
     return result;
   }, [localData, statusFilter, globalFilter]);
 
-  // ── Handlers ──────────────────────────────────────────────────
+  // ── Mutations ──────────────────────────────────────────────────
 
-  async function handleStatusChange(roomId: string, newStatus: string) {
-    const result = await updateRoomStatus(roomId, newStatus);
-    if (result.success) {
-      setLocalData((prev) =>
-        prev.map((r) => (r.id === roomId ? { ...r, status: newStatus } : r))
-      );
-      const config = STATUS_CONFIG[newStatus];
-      toast.success(`Room status changed to ${config?.label || newStatus}`);
-    } else {
-      toast.error(result.error || "Failed to update status");
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ roomId, newStatus }: { roomId: string; newStatus: string }) => {
+      const supabase = createClient();
+      
+      const { data: before, error: selectError } = await supabase
+        .from("rooms")
+        .select("room_number, status")
+        .eq("id", roomId)
+        .single();
+
+      if (selectError) throw selectError;
+
+      const { error: updateError } = await supabase
+        .from("rooms")
+        .update({ status: newStatus })
+        .eq("id", roomId);
+
+      if (updateError) throw updateError;
+
+      if (staffProfile) {
+        await writeAuditLog(supabase, {
+          hotelId,
+          staffId: staffProfile.id,
+          staffName: staffProfile.full_name,
+          action: "room.status_changed",
+          entityType: "room",
+          entityId: roomId,
+          beforeState: { room_number: before?.room_number, status: before?.status },
+          afterState: { room_number: before?.room_number, status: newStatus },
+        });
+      }
+
+      return { roomId, newStatus };
+    },
+    onMutate: async ({ roomId, newStatus }) => {
+      const queryKey = qk.rooms(orgId || "", hotelId);
+      await queryClient.cancelQueries({ queryKey });
+      const previousData = queryClient.getQueryData(queryKey);
+
+      queryClient.setQueryData(queryKey, (old: any) => {
+        if (!old) return old;
+        return old.map((r: any) =>
+          r.id === roomId ? { ...r, status: newStatus } : r
+        );
+      });
+
+      return { previousData };
+    },
+    onError: (err, variables, context: any) => {
+      const queryKey = qk.rooms(orgId || "", hotelId);
+      if (context?.previousData) {
+        queryClient.setQueryData(queryKey, context.previousData);
+      }
+      toast.error(err instanceof Error ? err.message : "Failed to update status");
+    },
+    onSuccess: (res) => {
+      const config = STATUS_CONFIG[res.newStatus];
+      toast.success(`Room status changed to ${config?.label || res.newStatus}`);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: qk.rooms(orgId || "", hotelId) });
     }
-  }
+  });
 
-  async function handleAddRoom(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newRoomNumber || !newRoomTypeId) return;
+  const createRoomMutation = useMutation({
+    mutationFn: async (input: RoomInput) => {
+      const supabase = createClient();
+      
+      const { error, data: newRoom } = await supabase.from("rooms").insert({
+        hotel_id: hotelId,
+        room_type_id: input.roomTypeId,
+        room_number: input.roomNumber,
+        floor: input.floor || null,
+        notes: input.notes || null,
+        status: input.status,
+        is_active: input.isActive,
+      }).select("id").single();
 
-    setLoading(true);
-    const input: RoomInput = {
-      roomTypeId: newRoomTypeId,
-      roomNumber: newRoomNumber,
-      floor: newFloor,
-      notes: newNotes,
-      status: "available",
-      isActive: true,
-    };
-
-    const result = await createRoom(input);
-    setLoading(false);
-
-    if (result.success) {
+      if (error) throw error;
+      return newRoom;
+    },
+    onSuccess: () => {
       toast.success(`Room ${newRoomNumber} added`);
       setAddRoomOpen(false);
       setNewRoomNumber("");
       setNewRoomTypeId("");
       setNewFloor("");
       setNewNotes("");
-      router.refresh();
-    } else {
-      toast.error(result.error || "Failed to add room");
+      queryClient.invalidateQueries({ queryKey: qk.rooms(orgId || "", hotelId) });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to add room");
     }
-  }
+  });
 
-  async function handleBlockRoom(e: React.FormEvent) {
-    e.preventDefault();
-    if (!blockRoomId || !blockStartDate || !blockEndDate) return;
+  const createBlockMutation = useMutation({
+    mutationFn: async (input: AvailabilityBlockInput) => {
+      const supabase = createClient();
+      
+      const { data: roomData, error: roomError } = await supabase
+        .from("rooms")
+        .select("room_number")
+        .eq("id", input.roomId)
+        .single();
+      
+      if (roomError) throw roomError;
 
-    setLoading(true);
-    const input: AvailabilityBlockInput = {
-      roomId: blockRoomId,
-      startDate: blockStartDate,
-      endDate: blockEndDate,
-      reason: blockReason,
-      notes: blockNotes,
-    };
+      const { error, data: block } = await supabase.from("availability_blocks").insert({
+        hotel_id: hotelId,
+        room_id: input.roomId,
+        start_date: input.startDate,
+        end_date: input.endDate,
+        reason: input.reason,
+        notes: input.notes || null,
+      }).select("id").single();
 
-    const result = await createAvailabilityBlock(input);
-    setLoading(false);
+      if (error) throw error;
 
-    if (result.success) {
+      const statusToSet = input.reason === "maintenance" || input.reason === "deep_cleaning" ? "maintenance" : "out_of_service";
+      const { error: roomUpdateError } = await supabase
+        .from("rooms")
+        .update({ status: statusToSet })
+        .eq("id", input.roomId);
+
+      if (roomUpdateError) throw roomUpdateError;
+
+      if (staffProfile) {
+        await writeAuditLog(supabase, {
+          hotelId,
+          staffId: staffProfile.id,
+          staffName: staffProfile.full_name,
+          action: "room.block_created",
+          entityType: "room",
+          entityId: input.roomId,
+          afterState: {
+            room_number: roomData?.room_number,
+            start_date: input.startDate,
+            end_date: input.endDate,
+            reason: input.reason,
+          },
+        });
+      }
+
+      return block;
+    },
+    onSuccess: () => {
       toast.success("Room blocked for selected dates");
       setBlockOpen(false);
       setBlockRoomId("");
@@ -233,10 +380,43 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
       setBlockEndDate("");
       setBlockReason("maintenance");
       setBlockNotes("");
-    } else {
-      toast.error(result.error || "Failed to block room");
+      queryClient.invalidateQueries({ queryKey: qk.rooms(orgId || "", hotelId) });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to block room");
     }
-  }
+  });
+
+  const handleStatusChange = (roomId: string, newStatus: string) => {
+    updateStatusMutation.mutate({ roomId, newStatus });
+  };
+
+  const handleAddRoom = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRoomNumber || !newRoomTypeId) return;
+
+    createRoomMutation.mutate({
+      roomTypeId: newRoomTypeId,
+      roomNumber: newRoomNumber,
+      floor: newFloor,
+      notes: newNotes,
+      status: "available",
+      isActive: true,
+    });
+  };
+
+  const handleBlockRoom = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!blockRoomId || !blockStartDate || !blockEndDate) return;
+
+    createBlockMutation.mutate({
+      roomId: blockRoomId,
+      startDate: blockStartDate,
+      endDate: blockEndDate,
+      reason: blockReason,
+      notes: blockNotes,
+    });
+  };
 
   // ── Columns ───────────────────────────────────────────────────
   const columns = React.useMemo<ColumnDef<RoomRow>[]>(

@@ -267,7 +267,7 @@ export function AppHeader({
       <header
         data-slot="app-header"
         className={cn(
-          "fixed top-0 left-0 right-0 z-40 flex items-center gap-2",
+          "fixed top-0 left-0 right-0 z-30 flex items-center gap-2",
           "h-[calc(3rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)]",
           "border-b border-border/60 bg-background/85 backdrop-blur-xl supports-backdrop-filter:bg-background/70",
           "px-3 md:px-4 lg:px-6",

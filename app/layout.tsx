@@ -5,6 +5,8 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 
+import { Providers } from "@/components/providers";
+
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -67,14 +69,16 @@ export default function RootLayout({
     >
       <body className="native-shell min-h-dvh flex flex-col font-sans">
         <ClerkProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <TooltipProvider>{children}</TooltipProvider>
-          </ThemeProvider>
+          <Providers>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <TooltipProvider>{children}</TooltipProvider>
+            </ThemeProvider>
+          </Providers>
         </ClerkProvider>
         <Toaster />
       </body>

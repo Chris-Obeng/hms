@@ -84,7 +84,7 @@ function NoBookingsState() {
       <BookOpen className="size-12 text-muted-foreground/30 mb-4" />
       <h2 className="text-lg font-semibold text-foreground">Hotel not found</h2>
       <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-        No hotel is associated with this account. Bookings cannot be managed
+        No hotel is associated with this account. Reservations cannot be managed
         until your hotel is set up.
       </p>
     </div>

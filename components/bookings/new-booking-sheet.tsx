@@ -210,7 +210,7 @@ export function NewBookingSheet({
     setLoading(false);
 
     if (result.success) {
-      toast.success(`Booking ${result.reference} created`, {
+      toast.success(`Reservation ${result.reference} created`, {
         description: `${guestName} · ${format(dateRange!.from!, "MMM dd")} - ${format(dateRange!.to!, "MMM dd, yyyy")}`,
       });
       handleClose(false);
@@ -222,7 +222,7 @@ export function NewBookingSheet({
         }
         setErrors(fieldErrors);
       }
-      toast.error(result.error || "Failed to create booking");
+      toast.error(result.error || "Failed to create reservation");
     }
   }
 
@@ -237,11 +237,10 @@ export function NewBookingSheet({
         side="right"
         className="w-full sm:max-w-lg p-0 gap-0 flex flex-col"
       >
-        {/* Header */}
-        <SheetHeader className="px-5 pt-5 pb-3 border-b border-border/40">
-          <SheetTitle className="text-lg">New Booking</SheetTitle>
+        <SheetHeader className="px-5 pt-5 pb-3 border-b border-b border-border/40">
+          <SheetTitle className="text-lg">New Reservation</SheetTitle>
           <SheetDescription className="text-sm text-muted-foreground">
-            Create a manual reservation for walk-in, phone, or assisted bookings.
+            Create a manual reservation for walk-in, phone, or assisted reservations.
           </SheetDescription>
         </SheetHeader>
 
@@ -474,7 +473,7 @@ export function NewBookingSheet({
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                    Booking source
+                    Reservation source
                   </label>
                   <select
                     value={source}
@@ -499,7 +498,7 @@ export function NewBookingSheet({
                     Internal notes
                   </label>
                   <textarea
-                    placeholder="Staff-only notes about this booking..."
+                    placeholder="Staff-only notes about this reservation..."
                     value={internalNotes}
                     onChange={(e) => setInternalNotes(e.target.value)}
                     rows={2}
@@ -650,7 +649,7 @@ export function NewBookingSheet({
                     Creating...
                   </span>
                 ) : (
-                  "Create Booking"
+                  "Create Reservation"
                 )}
               </Button>
             )}

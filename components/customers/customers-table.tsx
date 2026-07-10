@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   useReactTable,
   getCoreRowModel,
@@ -147,6 +148,9 @@ function exportToCsv(data: GuestRow[]) {
 // ── Main Component ─────────────────────────────────────────────────
 
 export function CustomersTable({ data, currency }: CustomersTableProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: "totalSpend", desc: true },
   ]);
@@ -156,6 +160,29 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
   const [showFilters, setShowFilters] = React.useState(false);
   const [selectedGuest, setSelectedGuest] = React.useState<GuestRow | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
+
+  // Watch for guestId in search params to auto-open guest detail sheet
+  React.useEffect(() => {
+    const guestId = searchParams.get("guestId");
+    if (guestId) {
+      const guest = data.find((g) => g.id === guestId);
+      if (guest) {
+        setSelectedGuest(guest);
+        setDetailOpen(true);
+      }
+    }
+  }, [searchParams, data]);
+
+  const handleOpenChange = React.useCallback((open: boolean) => {
+    setDetailOpen(open);
+    if (!open) {
+      // Remove guestId from URL without triggering a full page reload or layout shift
+      const params = new URLSearchParams(window.location.search);
+      params.delete("guestId");
+      const cleanUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+      router.replace(cleanUrl);
+    }
+  }, [router]);
 
   // Tag filter
   const [tagFilter, setTagFilter] = React.useState<string>("all");
@@ -535,7 +562,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
         <GuestDetailSheet
           guest={selectedGuest}
           open={detailOpen}
-          onOpenChange={setDetailOpen}
+          onOpenChange={handleOpenChange}
           currency={currency}
           onGuestUpdated={() => {
             // Refresh will happen on next navigation

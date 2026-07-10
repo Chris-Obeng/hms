@@ -91,7 +91,7 @@ const navGroups: NavGroup[] = [
     title: "Main",
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-      { title: "Bookings", url: "/dashboard/bookings", icon: BookOpen },
+      { title: "Reservations", url: "/dashboard/bookings", icon: BookOpen },
       {
         title: "Calendar",
         url: "/dashboard/calendar",
@@ -221,13 +221,25 @@ export function AppSidebar({ hotelName }: { hotelName?: string }) {
   const pathname = usePathname();
   const { user } = useUser();
   const { membership } = useOrganization();
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile, setOpen } = useSidebar();
+
+  const prevPathname = React.useRef(pathname);
+  // Close sidebar on every navigation (overlay on desktop, Sheet on mobile)
+  React.useEffect(() => {
+    if (prevPathname.current !== pathname) {
+      setOpen(false);
+      setOpenMobile(false);
+      prevPathname.current = pathname;
+    }
+  }, [pathname, setOpen, setOpenMobile]);
 
   const handleNavClick = React.useCallback(() => {
     if (isMobile) {
       setOpenMobile(false);
+    } else {
+      setOpen(false);
     }
-  }, [isMobile, setOpenMobile]);
+  }, [isMobile, setOpen, setOpenMobile]);
 
   const clerkRole = membership?.role ?? null;
   const role = clerkRole?.replace(/^org:/, "") ?? null;
@@ -261,17 +273,18 @@ export function AppSidebar({ hotelName }: { hotelName?: string }) {
             </div>
           </div>
 
-          {/* Close — mobile only */}
-          {isMobile && (
-            <button
-              type="button"
-              onClick={() => setOpenMobile(false)}
-              aria-label="Close navigation"
-              className="size-8 rounded-lg flex items-center justify-center text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-            >
-              <X className="size-4" />
-            </button>
-          )}
+          {/* Close button — always visible on overlay (desktop + mobile) */}
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setOpenMobile(false);
+            }}
+            aria-label="Close navigation"
+            className="size-8 rounded-lg flex items-center justify-center text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors shrink-0"
+          >
+            <X className="size-4" />
+          </button>
         </div>
       </SidebarHeader>
 
