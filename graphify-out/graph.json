@@ -1263,7 +1263,7 @@
       "label": "markAllReadAction()",
       "file_type": "code",
       "source_file": "app/actions/notifications.ts",
-      "source_location": "L44",
+      "source_location": "L60",
       "_origin": "ast",
       "id": "app_actions_notifications_markallreadaction",
       "community": 53,
@@ -1273,7 +1273,7 @@
       "label": "markSingleReadAction()",
       "file_type": "code",
       "source_file": "app/actions/notifications.ts",
-      "source_location": "L71",
+      "source_location": "L87",
       "_origin": "ast",
       "id": "app_actions_notifications_marksinglereadaction",
       "community": 53,
@@ -4716,7 +4716,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_page",
-      "community": 90,
+      "community": 6,
       "norm_label": "page.tsx"
     },
     {
@@ -4726,7 +4726,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_page_roomsdirectorypage",
-      "community": 90,
+      "community": 6,
       "norm_label": "roomsdirectorypage()"
     },
     {
@@ -4736,7 +4736,7 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_page_nohotelstate",
-      "community": 90,
+      "community": 6,
       "norm_label": "nohotelstate()"
     },
     {
@@ -4796,7 +4796,7 @@
       "source_location": "L106",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_rooms_directory_client_roomsdirectory",
-      "community": 90,
+      "community": 6,
       "norm_label": "roomsdirectory()"
     },
     {
@@ -7713,7 +7713,7 @@
       "label": "AppHeaderProps",
       "file_type": "code",
       "source_file": "components/layout/app-header.tsx",
-      "source_location": "L50",
+      "source_location": "L51",
       "_origin": "ast",
       "id": "components_layout_app_header_appheaderprops",
       "community": 202,
@@ -7723,7 +7723,7 @@
       "label": "AppHeader()",
       "file_type": "code",
       "source_file": "components/layout/app-header.tsx",
-      "source_location": "L61",
+      "source_location": "L62",
       "_origin": "ast",
       "id": "components_layout_app_header_appheader",
       "community": 53,
@@ -18519,7 +18519,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/actions/notifications.ts",
-      "source_location": "L44",
+      "source_location": "L60",
       "weight": 1.0,
       "source": "app_actions_notifications",
       "target": "app_actions_notifications_markallreadaction",
@@ -18529,7 +18529,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/actions/notifications.ts",
-      "source_location": "L71",
+      "source_location": "L87",
       "weight": 1.0,
       "source": "app_actions_notifications",
       "target": "app_actions_notifications_marksinglereadaction",
@@ -18650,7 +18650,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/layout/app-header.tsx",
-      "source_location": "L120",
+      "source_location": "L121",
       "weight": 1.0,
       "source": "components_layout_app_header_appheader",
       "target": "app_actions_notifications_fetchnotificationsaction"
@@ -18661,7 +18661,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/actions/notifications.ts",
-      "source_location": "L48",
+      "source_location": "L64",
       "weight": 1.0,
       "source": "app_actions_notifications_markallreadaction",
       "target": "lib_auth_requireauth"
@@ -18672,7 +18672,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/actions/notifications.ts",
-      "source_location": "L53",
+      "source_location": "L69",
       "weight": 1.0,
       "source": "app_actions_notifications_markallreadaction",
       "target": "lib_supabase_server_createclient"
@@ -18694,7 +18694,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/layout/app-header.tsx",
-      "source_location": "L130",
+      "source_location": "L136",
       "weight": 1.0,
       "source": "components_layout_app_header_appheader",
       "target": "app_actions_notifications_markallreadaction"
@@ -18705,7 +18705,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/actions/notifications.ts",
-      "source_location": "L75",
+      "source_location": "L91",
       "weight": 1.0,
       "source": "app_actions_notifications_marksinglereadaction",
       "target": "lib_auth_requireauth"
@@ -18716,7 +18716,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/actions/notifications.ts",
-      "source_location": "L76",
+      "source_location": "L92",
       "weight": 1.0,
       "source": "app_actions_notifications_marksinglereadaction",
       "target": "lib_supabase_server_createclient"
@@ -18738,7 +18738,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/layout/app-header.tsx",
-      "source_location": "L142",
+      "source_location": "L152",
       "weight": 1.0,
       "source": "components_layout_app_header_appheader",
       "target": "app_actions_notifications_marksinglereadaction"
@@ -40091,7 +40091,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/layout/app-header.tsx",
-      "source_location": "L61",
+      "source_location": "L62",
       "weight": 1.0,
       "source": "components_layout_app_header",
       "target": "components_layout_app_header_appheader",
@@ -40101,7 +40101,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/layout/app-header.tsx",
-      "source_location": "L50",
+      "source_location": "L51",
       "weight": 1.0,
       "source": "components_layout_app_header",
       "target": "components_layout_app_header_appheaderprops",
@@ -40399,7 +40399,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/layout/app-header.tsx",
-      "source_location": "L71",
+      "source_location": "L72",
       "weight": 1.0,
       "source": "components_layout_app_header_appheader",
       "target": "components_ui_sidebar_usesidebar"
@@ -40410,7 +40410,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/layout/app-header.tsx",
-      "source_location": "L72",
+      "source_location": "L73",
       "weight": 1.0,
       "source": "components_layout_app_header_appheader",
       "target": "hooks_use_mobile_useismobile"
@@ -40421,7 +40421,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/layout/app-header.tsx",
-      "source_location": "L171",
+      "source_location": "L181",
       "weight": 1.0,
       "source": "components_layout_app_header_appheader",
       "target": "lib_supabase_client_createclient"
@@ -40432,7 +40432,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/layout/app-header.tsx",
-      "source_location": "L266",
+      "source_location": "L276",
       "weight": 1.0,
       "source": "components_layout_app_header_appheader",
       "target": "lib_utils_cn"
@@ -40443,7 +40443,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/layout/app-header.tsx",
-      "source_location": "L73",
+      "source_location": "L74",
       "weight": 1.0,
       "source": "components_layout_app_header_appheader",
       "target": "package_dependencies_react"
@@ -40797,7 +40797,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/layout/app-sidebar-overlay.tsx",
-      "source_location": "L366",
+      "source_location": "L361",
       "weight": 1.0,
       "source": "components_layout_app_sidebar_overlay_appsidebar",
       "target": "lib_utils_cn"
@@ -51048,5 +51048,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "9ebb3ac2f680b5620f68a5f33ff1b6a27fca7e1e"
+  "built_at_commit": "3416b133b0e5c17f5a72772bdb43fa639f9f5abe"
 }

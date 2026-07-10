@@ -15,7 +15,7 @@ export interface NotificationItem {
 
 export async function fetchNotificationsAction(
   hotelId: string
-): Promise<{ success: true; data: NotificationItem[] } | { success: false; error: string }> {
+): Promise<{ success: true; data: NotificationItem[]; unreadCount: number } | { success: false; error: string }> {
   try {
     const ctx = await requireAuth();
     if (ctx.hotelId !== hotelId) {
@@ -23,6 +23,18 @@ export async function fetchNotificationsAction(
     }
 
     const supabase = await createClient();
+
+    // Query exact count of unread notifications
+    const { count, error: countError } = await supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("hotel_id", hotelId)
+      .eq("is_read", false);
+
+    if (countError) {
+      return { success: false, error: countError.message };
+    }
+
     const { data, error } = await supabase
       .from("notifications")
       .select("id, type, title, message, booking_id, is_read, created_at")
@@ -34,7 +46,11 @@ export async function fetchNotificationsAction(
       return { success: false, error: error.message };
     }
 
-    return { success: true, data: (data ?? []) as NotificationItem[] };
+    return { 
+      success: true, 
+      data: (data ?? []) as NotificationItem[], 
+      unreadCount: count ?? 0 
+    };
   } catch (error: any) {
     console.error("fetchNotificationsAction error:", error);
     return { success: false, error: error.message || "Failed to fetch notifications" };
@@ -75,24 +91,20 @@ export async function markSingleReadAction(
     const ctx = await requireAuth();
     const supabase = await createClient();
 
-    // Verify notification belongs to the user's hotel
-    const { data: notification } = await supabase
-      .from("notifications")
-      .select("hotel_id")
-      .eq("id", notificationId)
-      .single();
-
-    if (!notification || notification.hotel_id !== ctx.hotelId) {
-      return { success: false, error: "Access denied" };
-    }
-
-    const { error } = await supabase
+    // Directly update matching id and hotel_id, returning the updated row to verify authorization/existence
+    const { data, error } = await supabase
       .from("notifications")
       .update({ is_read: true, read_at: new Date().toISOString() })
-      .eq("id", notificationId);
+      .eq("id", notificationId)
+      .eq("hotel_id", ctx.hotelId)
+      .select("id");
 
     if (error) {
       return { success: false, error: error.message };
+    }
+
+    if (!data || data.length === 0) {
+      return { success: false, error: "Notification not found or access denied" };
     }
 
     return { success: true };

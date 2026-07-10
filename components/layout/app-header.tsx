@@ -44,6 +44,7 @@ import {
   markSingleReadAction,
   type NotificationItem,
 } from "@/app/actions/notifications";
+import { toast } from "sonner";
 
 // ── Props ──────────────────────────────────────────────────────
 
@@ -120,19 +121,28 @@ export function AppHeader({
     const res = await fetchNotificationsAction(hotelId);
     if (res.success) {
       setNotifications(res.data);
+      setLiveNotificationCount(res.unreadCount);
     }
   }, [hotelId]);
 
   const markAllRead = React.useCallback(async () => {
     if (!hotelId) return;
+    const previousCount = liveNotificationCount;
+    const previousNotifications = notifications;
+
     setLiveNotificationCount(0);
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+
     const res = await markAllReadAction(hotelId);
     if (!res.success) {
-      // Re-fetch in case of failure to revert UI state
+      toast.error(res.error || "Failed to mark all as read");
+      // Revert optimistic updates
+      setLiveNotificationCount(previousCount);
+      setNotifications(previousNotifications);
+      // Fetch fresh state to be authoritative
       fetchNotifications();
     }
-  }, [hotelId, fetchNotifications]);
+  }, [hotelId, liveNotificationCount, notifications, fetchNotifications]);
 
   const handleNotificationClick = React.useCallback(async (n: NotificationItem) => {
     setNotifications((prev) => prev.map((item) => item.id === n.id ? { ...item, is_read: true } : item));

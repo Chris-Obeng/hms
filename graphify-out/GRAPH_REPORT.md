@@ -1,16 +1,16 @@
 # Graph Report - hms  (2026-07-10)
 
 ## Corpus Check
-- 271 files · ~166,316 words
+- 272 files · ~166,650 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1493 nodes · 3393 edges · 117 communities (99 shown, 18 thin omitted)
+- 1493 nodes · 3393 edges · 116 communities (99 shown, 17 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 1 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `9ebb3ac2`
+- Built from commit: `3416b133`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -100,7 +100,6 @@
 - Database Schema Conventions
 - database.types.ts
 - transactions-client.tsx
-- outstanding-client.tsx
 - buttonVariants
 - tooltip.tsx
 - unassigned-tray.tsx
@@ -155,7 +154,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (117 total, 18 thin omitted)
+## Communities (116 total, 17 thin omitted)
 
 ### Community 1 - "arkesel.ts"
 Cohesion: 0.07
@@ -179,7 +178,7 @@ Nodes (13): buildEvents(), CalendarEvent, escapeHtml(), titleCase(), BLOCK_REASO
 
 ### Community 6 - "createClient"
 Cohesion: 0.08
-Nodes (19): DeactivatedPage(), DeactivatedPageProps, SuspendedPage(), BookingsPage(), CustomersPage(), DashboardLayout(), DashboardHomePage(), PaymentTransactionsPage() (+11 more)
+Nodes (21): DeactivatedPage(), DeactivatedPageProps, SuspendedPage(), BookingsPage(), CustomersPage(), DashboardLayout(), DashboardHomePage(), PaymentTransactionsPage() (+13 more)
 
 ### Community 7 - "bookings-detail.ts"
 Cohesion: 0.15
@@ -536,22 +535,22 @@ Nodes (22): SearchResult, GlobalSearch(), GlobalSearchProps, Command(), CommandD
 ## Knowledge Gaps
 - **529 isolated node(s):** `supabase`, `DeactivatedPageProps`, `OnboardingInputProps`, `OnboardingSelectOption`, `OnboardingSelectProps` (+524 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **18 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **17 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `cn()` connect `cn` to `room-type-form.tsx`, `rooms.ts`, `dashboard-client.tsx`, `activity-list.tsx`, `createClient`, `writeAuditLog`, `sidebar.tsx`, `bookings-detail.ts`, `createClient`, `utils.ts`, `reports-client.tsx`, `booking-detail-drawer.tsx`, `guest-detail-sheet.tsx`, `kanban-board.tsx`, `bookings-table.tsx`, `dashboard-header.tsx`, `hotel-client.tsx`, `page.tsx`, `staff-client.tsx`, `invitations.ts`, `payments-client.tsx`, `dropdown-menu.tsx`, `providers.tsx`, `settings.ts`, `app-header.tsx`, `outstanding-client.tsx`, `buttonVariants`, `tooltip.tsx`, `unassigned-tray.tsx`, `availability-matrix-client.tsx`, `card.tsx`, `PlatformLoginForm`?**
+- **Why does `cn()` connect `cn` to `room-type-form.tsx`, `rooms.ts`, `dashboard-client.tsx`, `activity-list.tsx`, `createClient`, `writeAuditLog`, `sidebar.tsx`, `bookings-detail.ts`, `createClient`, `utils.ts`, `reports-client.tsx`, `booking-detail-drawer.tsx`, `guest-detail-sheet.tsx`, `kanban-board.tsx`, `bookings-table.tsx`, `dashboard-header.tsx`, `hotel-client.tsx`, `page.tsx`, `staff-client.tsx`, `invitations.ts`, `payments-client.tsx`, `dropdown-menu.tsx`, `providers.tsx`, `settings.ts`, `app-header.tsx`, `buttonVariants`, `tooltip.tsx`, `unassigned-tray.tsx`, `availability-matrix-client.tsx`, `card.tsx`, `PlatformLoginForm`?**
   _High betweenness centrality (0.186) - this node is a cross-community bridge._
-- **Why does `react` connect `PlatformLoginForm` to `arkesel.ts`, `room-type-form.tsx`, `rooms.ts`, `activity-list.tsx`, `createClient`, `bookings-detail.ts`, `sidebar.tsx`, `dependencies`, `createClient`, `utils.ts`, `reports-client.tsx`, `booking-detail-drawer.tsx`, `guest-detail-sheet.tsx`, `cn`, `kanban-board.tsx`, `bookings-table.tsx`, `beds24.ts`, `hotel-client.tsx`, `page.tsx`, `staff-client.tsx`, `invitations.ts`, `payments-client.tsx`, `providers.tsx`, `booking-wizard.tsx`, `page.tsx`, `page.tsx`, `settings.ts`, `upload.ts`, `app-header.tsx`, `transactions-client.tsx`, `outstanding-client.tsx`, `tooltip.tsx`, `unassigned-tray.tsx`, `availability-matrix-client.tsx`?**
+- **Why does `react` connect `PlatformLoginForm` to `arkesel.ts`, `room-type-form.tsx`, `rooms.ts`, `activity-list.tsx`, `createClient`, `bookings-detail.ts`, `sidebar.tsx`, `dependencies`, `createClient`, `utils.ts`, `reports-client.tsx`, `booking-detail-drawer.tsx`, `guest-detail-sheet.tsx`, `cn`, `kanban-board.tsx`, `bookings-table.tsx`, `beds24.ts`, `hotel-client.tsx`, `page.tsx`, `staff-client.tsx`, `invitations.ts`, `payments-client.tsx`, `providers.tsx`, `booking-wizard.tsx`, `page.tsx`, `page.tsx`, `settings.ts`, `upload.ts`, `app-header.tsx`, `transactions-client.tsx`, `tooltip.tsx`, `unassigned-tray.tsx`, `availability-matrix-client.tsx`?**
   _High betweenness centrality (0.083) - this node is a cross-community bridge._
-- **Why does `createClient()` connect `createClient` to `rooms.ts`, `createClient`, `guest-detail-sheet.tsx`, `booking-detail-drawer.tsx`, `reports-client.tsx`, `housekeeping.ts`, `beds24.ts`, `invitations.ts`, `payments-client.tsx`, `page.tsx`, `providers.tsx`, `settings.ts`, `pending-client.tsx`, `upload.ts`, `transactions-client.tsx`, `outstanding-client.tsx`, `buttonVariants`, `tooltip.tsx`, `availability-matrix-client.tsx`, `actions.ts`?**
+- **Why does `createClient()` connect `createClient` to `rooms.ts`, `createClient`, `guest-detail-sheet.tsx`, `booking-detail-drawer.tsx`, `reports-client.tsx`, `housekeeping.ts`, `beds24.ts`, `invitations.ts`, `payments-client.tsx`, `page.tsx`, `providers.tsx`, `settings.ts`, `pending-client.tsx`, `upload.ts`, `transactions-client.tsx`, `buttonVariants`, `tooltip.tsx`, `availability-matrix-client.tsx`, `actions.ts`?**
   _High betweenness centrality (0.063) - this node is a cross-community bridge._
 - **What connects `supabase`, `DeactivatedPageProps`, `OnboardingInputProps` to the rest of the system?**
   _533 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `arkesel.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.07211538461538461 - nodes in this community are weakly interconnected._
 - **Should `createClient` be split into smaller, more focused modules?**
-  _Cohesion score 0.08367071524966262 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.0753045404208195 - nodes in this community are weakly interconnected._
 - **Should `sidebar.tsx` be split into smaller, more focused modules?**
   _Cohesion score 0.11375661375661375 - nodes in this community are weakly interconnected._

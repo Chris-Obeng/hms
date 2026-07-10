@@ -726,7 +726,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "app_actions_bookings_detail_gethotelscopedclient",
-      "community": 16,
+      "community": 53,
       "norm_label": "gethotelscopedclient()"
     },
     {
@@ -826,7 +826,7 @@
       "source_location": "L406",
       "_origin": "ast",
       "id": "app_actions_bookings_detail_getcurrentuserrole",
-      "community": 6,
+      "community": 16,
       "norm_label": "getcurrentuserrole()"
     },
     {
@@ -836,7 +836,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_actions_bookings",
-      "community": 16,
+      "community": 65,
       "norm_label": "bookings.ts"
     },
     {
@@ -846,7 +846,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "app_actions_bookings_newbookingschema",
-      "community": 3,
+      "community": 65,
       "norm_label": "newbookingschema"
     },
     {
@@ -856,7 +856,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "app_actions_bookings_newbookinginput",
-      "community": 16,
+      "community": 65,
       "norm_label": "newbookinginput"
     },
     {
@@ -866,7 +866,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "app_actions_bookings_allowed_transitions",
-      "community": 16,
+      "community": 65,
       "norm_label": "allowed_transitions"
     },
     {
@@ -886,7 +886,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "app_actions_bookings_createbookingresult",
-      "community": 16,
+      "community": 65,
       "norm_label": "createbookingresult"
     },
     {
@@ -896,7 +896,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "app_actions_bookings_createbooking",
-      "community": 3,
+      "community": 65,
       "norm_label": "createbooking()"
     },
     {
@@ -1176,7 +1176,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_actions_invitations_createshareableinvite",
-      "community": 7,
+      "community": 28,
       "norm_label": "createshareableinvite()"
     },
     {
@@ -1246,7 +1246,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "app_actions_notifications_notificationitem",
-      "community": 53,
+      "community": 202,
       "norm_label": "notificationitem"
     },
     {
@@ -1636,7 +1636,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_actions_search",
-      "community": 274,
+      "community": 53,
       "norm_label": "search.ts"
     },
     {
@@ -1656,7 +1656,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "app_actions_search_searchglobal",
-      "community": 274,
+      "community": 53,
       "norm_label": "searchglobal()"
     },
     {
@@ -1666,7 +1666,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_actions_settings",
-      "community": 60,
+      "community": 89,
       "norm_label": "settings.ts"
     },
     {
@@ -1676,7 +1676,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "app_actions_settings_gethotelscopedclient",
-      "community": 60,
+      "community": 89,
       "norm_label": "gethotelscopedclient()"
     },
     {
@@ -1686,7 +1686,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "app_actions_settings_hotelprofileschema",
-      "community": 60,
+      "community": 89,
       "norm_label": "hotelprofileschema"
     },
     {
@@ -1696,7 +1696,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "app_actions_settings_hotelprofileinput",
-      "community": 60,
+      "community": 89,
       "norm_label": "hotelprofileinput"
     },
     {
@@ -1706,7 +1706,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "app_actions_settings_gethotelprofile",
-      "community": 60,
+      "community": 89,
       "norm_label": "gethotelprofile()"
     },
     {
@@ -1716,7 +1716,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "app_actions_settings_updatehotelprofile",
-      "community": 60,
+      "community": 89,
       "norm_label": "updatehotelprofile()"
     },
     {
@@ -1726,7 +1726,7 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "app_actions_settings_getnotificationprefs",
-      "community": 60,
+      "community": 89,
       "norm_label": "getnotificationprefs()"
     },
     {
@@ -1736,7 +1736,7 @@
       "source_location": "L203",
       "_origin": "ast",
       "id": "app_actions_settings_updatenotificationprefs",
-      "community": 60,
+      "community": 89,
       "norm_label": "updatenotificationprefs()"
     },
     {
@@ -2146,7 +2146,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "app_dashboard_components_activity_list_activitybooking",
-      "community": 133,
+      "community": 16,
       "norm_label": "activitybooking"
     },
     {
@@ -2476,7 +2476,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "app_dashboard_components_occupancy_card_occupancydonut",
-      "community": 33,
+      "community": 100,
       "norm_label": "occupancydonut()"
     },
     {
@@ -2986,7 +2986,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_bookings_id_page",
-      "community": 6,
+      "community": 16,
       "norm_label": "page.tsx"
     },
     {
@@ -2996,7 +2996,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "app_dashboard_bookings_id_page_props",
-      "community": 6,
+      "community": 16,
       "norm_label": "props"
     },
     {
@@ -3006,7 +3006,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "app_dashboard_bookings_id_page_bookingdetailpage",
-      "community": 6,
+      "community": 16,
       "norm_label": "bookingdetailpage()"
     },
     {
@@ -3036,7 +3036,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_bookings_page",
-      "community": 88,
+      "community": 6,
       "norm_label": "page.tsx"
     },
     {
@@ -3046,7 +3046,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_dashboard_bookings_page_bookingspage",
-      "community": 88,
+      "community": 6,
       "norm_label": "bookingspage()"
     },
     {
@@ -3056,7 +3056,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "app_dashboard_bookings_page_nobookingsstate",
-      "community": 88,
+      "community": 6,
       "norm_label": "nobookingsstate()"
     },
     {
@@ -3096,7 +3096,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel",
-      "community": 16,
+      "community": 143,
       "norm_label": "booking-detail-panel.tsx"
     },
     {
@@ -3106,7 +3106,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_fullbooking",
-      "community": 16,
+      "community": 143,
       "norm_label": "fullbooking"
     },
     {
@@ -3126,7 +3126,7 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_formatcurrency",
-      "community": 16,
+      "community": 143,
       "norm_label": "formatcurrency()"
     },
     {
@@ -3136,7 +3136,7 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_formatdatefull",
-      "community": 16,
+      "community": 143,
       "norm_label": "formatdatefull()"
     },
     {
@@ -3146,7 +3146,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_getnights",
-      "community": 16,
+      "community": 143,
       "norm_label": "getnights()"
     },
     {
@@ -3156,7 +3156,7 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_getstatusvariant",
-      "community": 16,
+      "community": 143,
       "norm_label": "getstatusvariant()"
     },
     {
@@ -3166,7 +3166,7 @@
       "source_location": "L107",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_getstatuslabel",
-      "community": 16,
+      "community": 143,
       "norm_label": "getstatuslabel()"
     },
     {
@@ -3176,7 +3176,7 @@
       "source_location": "L119",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_getsourcelabel",
-      "community": 16,
+      "community": 143,
       "norm_label": "getsourcelabel()"
     },
     {
@@ -3186,7 +3186,7 @@
       "source_location": "L132",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_detailcard",
-      "community": 16,
+      "community": 143,
       "norm_label": "detailcard()"
     },
     {
@@ -3196,7 +3196,7 @@
       "source_location": "L156",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_bookingdetailpanel",
-      "community": 16,
+      "community": 143,
       "norm_label": "bookingdetailpanel()"
     },
     {
@@ -4106,7 +4106,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_layout",
-      "community": 4,
+      "community": 33,
       "norm_label": "layout.tsx"
     },
     {
@@ -4126,7 +4126,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_loading",
-      "community": 133,
+      "community": 143,
       "norm_label": "loading.tsx"
     },
     {
@@ -4136,7 +4136,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "app_dashboard_loading_dashboardloading",
-      "community": 133,
+      "community": 143,
       "norm_label": "dashboardloading()"
     },
     {
@@ -4196,7 +4196,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_payments_outstanding_outstanding_client",
-      "community": 90,
+      "community": 140,
       "norm_label": "outstanding-client.tsx"
     },
     {
@@ -4206,7 +4206,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "app_dashboard_payments_outstanding_outstanding_client_outstandingrow",
-      "community": 90,
+      "community": 140,
       "norm_label": "outstandingrow"
     },
     {
@@ -4216,7 +4216,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "app_dashboard_payments_outstanding_outstanding_client_fmt",
-      "community": 90,
+      "community": 140,
       "norm_label": "fmt()"
     },
     {
@@ -4226,7 +4226,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "app_dashboard_payments_outstanding_outstanding_client_outstandingclient",
-      "community": 90,
+      "community": 140,
       "norm_label": "outstandingclient()"
     },
     {
@@ -4236,7 +4236,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_payments_outstanding_page",
-      "community": 90,
+      "community": 140,
       "norm_label": "page.tsx"
     },
     {
@@ -4246,7 +4246,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_dashboard_payments_outstanding_page_outstandingpage",
-      "community": 90,
+      "community": 140,
       "norm_label": "outstandingpage()"
     },
     {
@@ -4256,7 +4256,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_payments_transactions_page",
-      "community": 89,
+      "community": 6,
       "norm_label": "page.tsx"
     },
     {
@@ -4266,7 +4266,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_dashboard_payments_transactions_page_paymenttransactionspage",
-      "community": 89,
+      "community": 6,
       "norm_label": "paymenttransactionspage()"
     },
     {
@@ -4276,7 +4276,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_payments_transactions_transactions_client",
-      "community": 89,
+      "community": 140,
       "norm_label": "transactions-client.tsx"
     },
     {
@@ -4286,7 +4286,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "app_dashboard_payments_transactions_transactions_client_paymentrow",
-      "community": 89,
+      "community": 140,
       "norm_label": "paymentrow"
     },
     {
@@ -4296,7 +4296,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "app_dashboard_payments_transactions_transactions_client_method_labels",
-      "community": 89,
+      "community": 140,
       "norm_label": "method_labels"
     },
     {
@@ -4306,7 +4306,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "app_dashboard_payments_transactions_transactions_client_status_colors",
-      "community": 89,
+      "community": 140,
       "norm_label": "status_colors"
     },
     {
@@ -4316,7 +4316,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "app_dashboard_payments_transactions_transactions_client_fmt",
-      "community": 89,
+      "community": 140,
       "norm_label": "fmt()"
     },
     {
@@ -4326,7 +4326,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "app_dashboard_payments_transactions_transactions_client_exportcsv",
-      "community": 89,
+      "community": 140,
       "norm_label": "exportcsv()"
     },
     {
@@ -4336,7 +4336,7 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "app_dashboard_payments_transactions_transactions_client_transactionsclient",
-      "community": 89,
+      "community": 140,
       "norm_label": "transactionsclient()"
     },
     {
@@ -4673,7 +4673,7 @@
       "label": "slugify()",
       "file_type": "code",
       "source_file": "app/dashboard/rooms/_components/room-type-form.tsx",
-      "source_location": "L58",
+      "source_location": "L60",
       "_origin": "ast",
       "id": "app_dashboard_rooms_components_room_type_form_slugify",
       "community": 2,
@@ -4683,7 +4683,7 @@
       "label": "DEFAULT_VALUES",
       "file_type": "code",
       "source_file": "app/dashboard/rooms/_components/room-type-form.tsx",
-      "source_location": "L69",
+      "source_location": "L71",
       "_origin": "ast",
       "id": "app_dashboard_rooms_components_room_type_form_default_values",
       "community": 2,
@@ -4693,7 +4693,7 @@
       "label": "RoomTypeForm()",
       "file_type": "code",
       "source_file": "app/dashboard/rooms/_components/room-type-form.tsx",
-      "source_location": "L86",
+      "source_location": "L88",
       "_origin": "ast",
       "id": "app_dashboard_rooms_components_room_type_form_roomtypeform",
       "community": 2,
@@ -4703,7 +4703,7 @@
       "label": "PhotosCard()",
       "file_type": "code",
       "source_file": "app/dashboard/rooms/_components/room-type-form.tsx",
-      "source_location": "L451",
+      "source_location": "L463",
       "_origin": "ast",
       "id": "app_dashboard_rooms_components_room_type_form_photoscard",
       "community": 74,
@@ -4716,7 +4716,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_page",
-      "community": 88,
+      "community": 90,
       "norm_label": "page.tsx"
     },
     {
@@ -4726,7 +4726,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_page_roomsdirectorypage",
-      "community": 88,
+      "community": 90,
       "norm_label": "roomsdirectorypage()"
     },
     {
@@ -4736,7 +4736,7 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_page_nohotelstate",
-      "community": 88,
+      "community": 90,
       "norm_label": "nohotelstate()"
     },
     {
@@ -4796,7 +4796,7 @@
       "source_location": "L106",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_rooms_directory_client_roomsdirectory",
-      "community": 88,
+      "community": 90,
       "norm_label": "roomsdirectory()"
     },
     {
@@ -4816,7 +4816,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "app_dashboard_rooms_types_id_page_editroomtypepage",
-      "community": 33,
+      "community": 2,
       "norm_label": "editroomtypepage()"
     },
     {
@@ -4836,7 +4836,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "app_dashboard_rooms_types_new_page_newroomtypepage",
-      "community": 33,
+      "community": 2,
       "norm_label": "newroomtypepage()"
     },
     {
@@ -4853,7 +4853,7 @@
       "label": "RoomTypesPage()",
       "file_type": "code",
       "source_file": "app/dashboard/rooms/types/page.tsx",
-      "source_location": "L10",
+      "source_location": "L8",
       "_origin": "ast",
       "id": "app_dashboard_rooms_types_page_roomtypespage",
       "community": 6,
@@ -4863,11 +4863,41 @@
       "label": "NoHotelState()",
       "file_type": "code",
       "source_file": "app/dashboard/rooms/types/page.tsx",
-      "source_location": "L108",
+      "source_location": "L86",
       "_origin": "ast",
       "id": "app_dashboard_rooms_types_page_nohotelstate",
       "community": 6,
       "norm_label": "nohotelstate()"
+    },
+    {
+      "label": "room-types-client.tsx",
+      "file_type": "code",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_dashboard_rooms_types_room_types_client",
+      "community": 28,
+      "norm_label": "room-types-client.tsx"
+    },
+    {
+      "label": "RoomTypesClientProps",
+      "file_type": "code",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L14",
+      "_origin": "ast",
+      "id": "app_dashboard_rooms_types_room_types_client_roomtypesclientprops",
+      "community": 28,
+      "norm_label": "roomtypesclientprops"
+    },
+    {
+      "label": "RoomTypesClient()",
+      "file_type": "code",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L20",
+      "_origin": "ast",
+      "id": "app_dashboard_rooms_types_room_types_client_roomtypesclient",
+      "community": 6,
+      "norm_label": "roomtypesclient()"
     },
     {
       "label": "room-types-table.tsx",
@@ -4876,7 +4906,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_rooms_types_room_types_table",
-      "community": 32,
+      "community": 176,
       "norm_label": "room-types-table.tsx"
     },
     {
@@ -4886,7 +4916,7 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "app_dashboard_rooms_types_room_types_table_roomtyperow",
-      "community": 32,
+      "community": 28,
       "norm_label": "roomtyperow"
     },
     {
@@ -4896,7 +4926,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "app_dashboard_rooms_types_room_types_table_roomtypestableprops",
-      "community": 32,
+      "community": 176,
       "norm_label": "roomtypestableprops"
     },
     {
@@ -4906,7 +4936,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "app_dashboard_rooms_types_room_types_table_formatcurrency",
-      "community": 32,
+      "community": 176,
       "norm_label": "formatcurrency()"
     },
     {
@@ -4916,7 +4946,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "app_dashboard_rooms_types_room_types_table_getcolumns",
-      "community": 32,
+      "community": 176,
       "norm_label": "getcolumns()"
     },
     {
@@ -5006,7 +5036,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_settings_audit_log_page",
-      "community": 1,
+      "community": 6,
       "norm_label": "page.tsx"
     },
     {
@@ -5016,7 +5046,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "app_dashboard_settings_audit_log_page_auditlogpage",
-      "community": 1,
+      "community": 6,
       "norm_label": "auditlogpage()"
     },
     {
@@ -5196,7 +5226,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "app_dashboard_settings_notifications_page_notificationsettingspage",
-      "community": 60,
+      "community": 89,
       "norm_label": "notificationsettingspage()"
     },
     {
@@ -5236,7 +5266,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "app_dashboard_settings_notifications_templates_client_eventcard",
-      "community": 60,
+      "community": 100,
       "norm_label": "eventcard()"
     },
     {
@@ -5356,7 +5386,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_staff_page",
-      "community": 91,
+      "community": 6,
       "norm_label": "page.tsx"
     },
     {
@@ -5376,7 +5406,7 @@
       "source_location": "L102",
       "_origin": "ast",
       "id": "app_dashboard_staff_page_noaccessstate",
-      "community": 91,
+      "community": 6,
       "norm_label": "noaccessstate()"
     },
     {
@@ -5386,7 +5416,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_page",
-      "community": 28,
+      "community": 91,
       "norm_label": "page.tsx"
     },
     {
@@ -5406,7 +5436,7 @@
       "source_location": "L100",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_page_noaccessstate",
-      "community": 28,
+      "community": 91,
       "norm_label": "noaccessstate()"
     },
     {
@@ -5416,7 +5446,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_pending_client",
-      "community": 28,
+      "community": 202,
       "norm_label": "pending-client.tsx"
     },
     {
@@ -5426,7 +5456,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_pending_client_pendingstaffrow",
-      "community": 28,
+      "community": 202,
       "norm_label": "pendingstaffrow"
     },
     {
@@ -5436,7 +5466,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_pending_client_pendingstaffclientprops",
-      "community": 28,
+      "community": 202,
       "norm_label": "pendingstaffclientprops"
     },
     {
@@ -5446,7 +5476,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_pending_client_formatdate",
-      "community": 28,
+      "community": 202,
       "norm_label": "formatdate()"
     },
     {
@@ -5456,7 +5486,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_pending_client_getinitials",
-      "community": 28,
+      "community": 202,
       "norm_label": "getinitials()"
     },
     {
@@ -5466,7 +5496,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_pending_client_pendingstaffclient",
-      "community": 28,
+      "community": 202,
       "norm_label": "pendingstaffclient()"
     },
     {
@@ -5476,7 +5506,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_staff_staff_client",
-      "community": 7,
+      "community": 28,
       "norm_label": "staff-client.tsx"
     },
     {
@@ -5486,7 +5516,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "app_dashboard_staff_staff_client_staffrow",
-      "community": 7,
+      "community": 28,
       "norm_label": "staffrow"
     },
     {
@@ -5496,7 +5526,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "app_dashboard_staff_staff_client_staffclientprops",
-      "community": 7,
+      "community": 28,
       "norm_label": "staffclientprops"
     },
     {
@@ -5506,7 +5536,7 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "app_dashboard_staff_staff_client_formatdate",
-      "community": 7,
+      "community": 28,
       "norm_label": "formatdate()"
     },
     {
@@ -5516,7 +5546,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "app_dashboard_staff_staff_client_getinitials",
-      "community": 7,
+      "community": 28,
       "norm_label": "getinitials()"
     },
     {
@@ -5526,7 +5556,7 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "app_dashboard_staff_staff_client_role_config",
-      "community": 7,
+      "community": 28,
       "norm_label": "role_config"
     },
     {
@@ -5536,7 +5566,7 @@
       "source_location": "L132",
       "_origin": "ast",
       "id": "app_dashboard_staff_staff_client_role_options",
-      "community": 7,
+      "community": 28,
       "norm_label": "role_options"
     },
     {
@@ -5546,7 +5576,7 @@
       "source_location": "L141",
       "_origin": "ast",
       "id": "app_dashboard_staff_staff_client_staffclient",
-      "community": 7,
+      "community": 28,
       "norm_label": "staffclient()"
     },
     {
@@ -5696,7 +5726,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_page",
-      "community": 137,
+      "community": 91,
       "norm_label": "page.tsx"
     },
     {
@@ -5706,7 +5736,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "app_page_home",
-      "community": 137,
+      "community": 91,
       "norm_label": "home()"
     },
     {
@@ -5896,7 +5926,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_components_platform_header",
-      "community": 176,
+      "community": 4,
       "norm_label": "platform-header.tsx"
     },
     {
@@ -5906,7 +5936,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_components_platform_header_route_titles",
-      "community": 176,
+      "community": 4,
       "norm_label": "route_titles"
     },
     {
@@ -5946,7 +5976,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_components_platform_sidebar_platformadmin",
-      "community": 176,
+      "community": 4,
       "norm_label": "platformadmin"
     },
     {
@@ -5976,7 +6006,7 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_components_platform_sidebar_getrolelabel",
-      "community": 4,
+      "community": 8,
       "norm_label": "getrolelabel()"
     },
     {
@@ -5986,7 +6016,7 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_components_platform_sidebar_getrolebadgeclass",
-      "community": 4,
+      "community": 8,
       "norm_label": "getrolebadgeclass()"
     },
     {
@@ -5996,7 +6026,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_components_platform_sidebar_platformsidebar",
-      "community": 4,
+      "community": 8,
       "norm_label": "platformsidebar()"
     },
     {
@@ -6226,7 +6256,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "app_platform_forgot_password_components_forgot_password_form_forgotpasswordform",
-      "community": 170,
+      "community": 100,
       "norm_label": "forgotpasswordform()"
     },
     {
@@ -6236,7 +6266,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_platform_forgot_password_page",
-      "community": 170,
+      "community": 100,
       "norm_label": "page.tsx"
     },
     {
@@ -6246,7 +6276,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "app_platform_forgot_password_page_metadata",
-      "community": 170,
+      "community": 100,
       "norm_label": "metadata"
     },
     {
@@ -6256,7 +6286,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "app_platform_forgot_password_page_forgotpasswordpage",
-      "community": 170,
+      "community": 100,
       "norm_label": "forgotpasswordpage()"
     },
     {
@@ -6326,7 +6356,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "app_platform_update_password_components_update_password_form_updatepasswordform",
-      "community": 101,
+      "community": 100,
       "norm_label": "updatepasswordform()"
     },
     {
@@ -6336,7 +6366,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_platform_update_password_page",
-      "community": 101,
+      "community": 100,
       "norm_label": "page.tsx"
     },
     {
@@ -6346,7 +6376,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "app_platform_update_password_page_metadata",
-      "community": 101,
+      "community": 100,
       "norm_label": "metadata"
     },
     {
@@ -6356,7 +6386,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "app_platform_update_password_page_updatepasswordpage",
-      "community": 101,
+      "community": 100,
       "norm_label": "updatepasswordpage()"
     },
     {
@@ -7026,7 +7056,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_bookingrow",
-      "community": 88,
+      "community": 6,
       "norm_label": "bookingrow"
     },
     {
@@ -7476,7 +7506,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_hero",
-      "community": 137,
+      "community": 91,
       "norm_label": "hero.tsx"
     },
     {
@@ -7486,7 +7516,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "components_hero_hero",
-      "community": 137,
+      "community": 91,
       "norm_label": "hero()"
     },
     {
@@ -7676,7 +7706,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_layout_app_header",
-      "community": 176,
+      "community": 202,
       "norm_label": "app-header.tsx"
     },
     {
@@ -7686,7 +7716,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "components_layout_app_header_appheaderprops",
-      "community": 176,
+      "community": 202,
       "norm_label": "appheaderprops"
     },
     {
@@ -7716,7 +7746,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "components_layout_app_sidebar_overlay_getrolelabel",
-      "community": 4,
+      "community": 8,
       "norm_label": "getrolelabel()"
     },
     {
@@ -7726,7 +7756,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "components_layout_app_sidebar_overlay_getrolebadgeclass",
-      "community": 4,
+      "community": 8,
       "norm_label": "getrolebadgeclass()"
     },
     {
@@ -7776,7 +7806,7 @@
       "source_location": "L133",
       "_origin": "ast",
       "id": "components_layout_app_sidebar_overlay_collapsiblenavitem",
-      "community": 33,
+      "community": 8,
       "norm_label": "collapsiblenavitem()"
     },
     {
@@ -7796,7 +7826,7 @@
       "source_location": "L220",
       "_origin": "ast",
       "id": "components_layout_app_sidebar_overlay_appsidebar",
-      "community": 4,
+      "community": 8,
       "norm_label": "appsidebar()"
     },
     {
@@ -7806,7 +7836,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_providers",
-      "community": 165,
+      "community": 94,
       "norm_label": "providers.tsx"
     },
     {
@@ -7816,7 +7846,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "components_providers_makequeryclient",
-      "community": 165,
+      "community": 94,
       "norm_label": "makequeryclient()"
     },
     {
@@ -7826,7 +7856,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "components_providers_getqueryclient",
-      "community": 165,
+      "community": 94,
       "norm_label": "getqueryclient()"
     },
     {
@@ -7836,7 +7866,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "components_providers_providers",
-      "community": 165,
+      "community": 94,
       "norm_label": "providers()"
     },
     {
@@ -7946,7 +7976,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_avatar",
-      "community": 7,
+      "community": 202,
       "norm_label": "avatar.tsx"
     },
     {
@@ -7956,7 +7986,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "components_ui_avatar_avatar",
-      "community": 7,
+      "community": 202,
       "norm_label": "avatar()"
     },
     {
@@ -7966,7 +7996,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "components_ui_avatar_avatarimage",
-      "community": 7,
+      "community": 202,
       "norm_label": "avatarimage()"
     },
     {
@@ -7976,7 +8006,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "components_ui_avatar_avatarfallback",
-      "community": 7,
+      "community": 202,
       "norm_label": "avatarfallback()"
     },
     {
@@ -7986,7 +8016,7 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "components_ui_avatar_avatarbadge",
-      "community": 7,
+      "community": 202,
       "norm_label": "avatarbadge()"
     },
     {
@@ -7996,7 +8026,7 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "components_ui_avatar_avatargroup",
-      "community": 274,
+      "community": 202,
       "norm_label": "avatargroup()"
     },
     {
@@ -8006,7 +8036,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "components_ui_avatar_avatargroupcount",
-      "community": 274,
+      "community": 202,
       "norm_label": "avatargroupcount()"
     },
     {
@@ -8016,7 +8046,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_badge",
-      "community": 16,
+      "community": 32,
       "norm_label": "badge.tsx"
     },
     {
@@ -8026,7 +8056,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "components_ui_badge_badgevariants",
-      "community": 16,
+      "community": 32,
       "norm_label": "badgevariants"
     },
     {
@@ -8036,7 +8066,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "components_ui_badge_badge",
-      "community": 16,
+      "community": 32,
       "norm_label": "badge()"
     },
     {
@@ -8096,7 +8126,7 @@
       "source_location": "L182",
       "_origin": "ast",
       "id": "components_ui_calendar_calendardaybutton",
-      "community": 33,
+      "community": 100,
       "norm_label": "calendardaybutton()"
     },
     {
@@ -8336,7 +8366,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "components_ui_dialog_dialogoverlay",
-      "community": 274,
+      "community": 28,
       "norm_label": "dialogoverlay()"
     },
     {
@@ -8366,7 +8396,7 @@
       "source_location": "L93",
       "_origin": "ast",
       "id": "components_ui_dialog_dialogfooter",
-      "community": 28,
+      "community": 202,
       "norm_label": "dialogfooter()"
     },
     {
@@ -8736,7 +8766,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_notification_icon",
-      "community": 96,
+      "community": 202,
       "norm_label": "notification-icon.tsx"
     },
     {
@@ -8746,7 +8776,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "components_ui_notification_icon_notificationiconhandle",
-      "community": 96,
+      "community": 202,
       "norm_label": "notificationiconhandle"
     },
     {
@@ -8756,7 +8786,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "components_ui_notification_icon_notificationiconprops",
-      "community": 96,
+      "community": 202,
       "norm_label": "notificationiconprops"
     },
     {
@@ -8766,7 +8796,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "components_ui_notification_icon_bellvariants",
-      "community": 96,
+      "community": 202,
       "norm_label": "bellvariants"
     },
     {
@@ -8776,7 +8806,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "components_ui_notification_icon_clappervariants",
-      "community": 96,
+      "community": 202,
       "norm_label": "clappervariants"
     },
     {
@@ -8786,7 +8816,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "components_ui_notification_icon_notificationicon",
-      "community": 96,
+      "community": 202,
       "norm_label": "notificationicon"
     },
     {
@@ -9036,7 +9066,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_sidebar",
-      "community": 8,
+      "community": 7,
       "norm_label": "sidebar.tsx"
     },
     {
@@ -9046,7 +9076,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarcontextprops",
-      "community": 8,
+      "community": 7,
       "norm_label": "sidebarcontextprops"
     },
     {
@@ -9056,7 +9086,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarcontext",
-      "community": 8,
+      "community": 7,
       "norm_label": "sidebarcontext"
     },
     {
@@ -9066,7 +9096,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "components_ui_sidebar_usesidebar",
-      "community": 4,
+      "community": 8,
       "norm_label": "usesidebar()"
     },
     {
@@ -9076,7 +9106,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarprovider",
-      "community": 4,
+      "community": 33,
       "norm_label": "sidebarprovider()"
     },
     {
@@ -9086,7 +9116,7 @@
       "source_location": "L152",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebar",
-      "community": 4,
+      "community": 33,
       "norm_label": "sidebar()"
     },
     {
@@ -9126,7 +9156,7 @@
       "source_location": "L309",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarinput",
-      "community": 8,
+      "community": 7,
       "norm_label": "sidebarinput()"
     },
     {
@@ -9186,7 +9216,7 @@
       "source_location": "L384",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebargrouplabel",
-      "community": 8,
+      "community": 7,
       "norm_label": "sidebargrouplabel()"
     },
     {
@@ -9196,7 +9226,7 @@
       "source_location": "L408",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebargroupaction",
-      "community": 8,
+      "community": 7,
       "norm_label": "sidebargroupaction()"
     },
     {
@@ -9236,7 +9266,7 @@
       "source_location": "L468",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarmenubuttonvariants",
-      "community": 8,
+      "community": 7,
       "norm_label": "sidebarmenubuttonvariants"
     },
     {
@@ -9256,7 +9286,7 @@
       "source_location": "L544",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarmenuaction",
-      "community": 8,
+      "community": 7,
       "norm_label": "sidebarmenuaction()"
     },
     {
@@ -9266,7 +9296,7 @@
       "source_location": "L574",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarmenubadge",
-      "community": 8,
+      "community": 7,
       "norm_label": "sidebarmenubadge()"
     },
     {
@@ -9276,7 +9306,7 @@
       "source_location": "L591",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarmenuskeleton",
-      "community": 33,
+      "community": 7,
       "norm_label": "sidebarmenuskeleton()"
     },
     {
@@ -9296,7 +9326,7 @@
       "source_location": "L643",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarmenusubitem",
-      "community": 8,
+      "community": 7,
       "norm_label": "sidebarmenusubitem()"
     },
     {
@@ -9316,7 +9346,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_skeleton",
-      "community": 133,
+      "community": 143,
       "norm_label": "skeleton.tsx"
     },
     {
@@ -9326,7 +9356,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "components_ui_skeleton_skeleton",
-      "community": 133,
+      "community": 143,
       "norm_label": "skeleton()"
     },
     {
@@ -9396,7 +9426,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_table",
-      "community": 32,
+      "community": 176,
       "norm_label": "table.tsx"
     },
     {
@@ -9406,7 +9436,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "components_ui_table_table",
-      "community": 32,
+      "community": 176,
       "norm_label": "table()"
     },
     {
@@ -9416,7 +9446,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "components_ui_table_tableheader",
-      "community": 32,
+      "community": 176,
       "norm_label": "tableheader()"
     },
     {
@@ -9426,7 +9456,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "components_ui_table_tablebody",
-      "community": 32,
+      "community": 176,
       "norm_label": "tablebody()"
     },
     {
@@ -9436,7 +9466,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "components_ui_table_tablefooter",
-      "community": 32,
+      "community": 176,
       "norm_label": "tablefooter()"
     },
     {
@@ -9446,7 +9476,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "components_ui_table_tablerow",
-      "community": 32,
+      "community": 176,
       "norm_label": "tablerow()"
     },
     {
@@ -9456,7 +9486,7 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "components_ui_table_tablehead",
-      "community": 32,
+      "community": 176,
       "norm_label": "tablehead()"
     },
     {
@@ -9466,7 +9496,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "components_ui_table_tablecell",
-      "community": 32,
+      "community": 176,
       "norm_label": "tablecell()"
     },
     {
@@ -9476,7 +9506,7 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "components_ui_table_tablecaption",
-      "community": 32,
+      "community": 176,
       "norm_label": "tablecaption()"
     },
     {
@@ -9486,7 +9516,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_tabs",
-      "community": 16,
+      "community": 143,
       "norm_label": "tabs.tsx"
     },
     {
@@ -9496,7 +9526,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "components_ui_tabs_tabs",
-      "community": 16,
+      "community": 143,
       "norm_label": "tabs()"
     },
     {
@@ -9506,7 +9536,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "components_ui_tabs_tabslistvariants",
-      "community": 16,
+      "community": 143,
       "norm_label": "tabslistvariants"
     },
     {
@@ -9516,7 +9546,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "components_ui_tabs_tabslist",
-      "community": 16,
+      "community": 143,
       "norm_label": "tabslist()"
     },
     {
@@ -9526,7 +9556,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "components_ui_tabs_tabstrigger",
-      "community": 16,
+      "community": 143,
       "norm_label": "tabstrigger()"
     },
     {
@@ -9536,7 +9566,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "components_ui_tabs_tabscontent",
-      "community": 16,
+      "community": 143,
       "norm_label": "tabscontent()"
     },
     {
@@ -9566,7 +9596,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_tooltip",
-      "community": 8,
+      "community": 7,
       "norm_label": "tooltip.tsx"
     },
     {
@@ -9576,7 +9606,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "components_ui_tooltip_tooltipprovider",
-      "community": 8,
+      "community": 7,
       "norm_label": "tooltipprovider()"
     },
     {
@@ -9586,7 +9616,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "components_ui_tooltip_tooltip",
-      "community": 8,
+      "community": 7,
       "norm_label": "tooltip()"
     },
     {
@@ -9596,7 +9626,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "components_ui_tooltip_tooltiptrigger",
-      "community": 8,
+      "community": 7,
       "norm_label": "tooltiptrigger()"
     },
     {
@@ -9606,7 +9636,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "components_ui_tooltip_tooltipcontent",
-      "community": 8,
+      "community": 7,
       "norm_label": "tooltipcontent()"
     },
     {
@@ -9976,7 +10006,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_audit",
-      "community": 16,
+      "community": 65,
       "norm_label": "audit.ts"
     },
     {
@@ -9986,7 +10016,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "lib_audit_auditaction",
-      "community": 16,
+      "community": 65,
       "norm_label": "auditaction"
     },
     {
@@ -9996,7 +10026,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "lib_audit_auditentry",
-      "community": 16,
+      "community": 65,
       "norm_label": "auditentry"
     },
     {
@@ -10006,7 +10036,7 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "lib_audit_writeauditlog",
-      "community": 16,
+      "community": 65,
       "norm_label": "writeauditlog()"
     },
     {
@@ -10436,7 +10466,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_notifications_resend",
-      "community": 94,
+      "community": 1,
       "norm_label": "resend.ts"
     },
     {
@@ -10446,7 +10476,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "lib_notifications_resend_getresend",
-      "community": 94,
+      "community": 1,
       "norm_label": "getresend()"
     },
     {
@@ -10456,7 +10486,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "lib_notifications_resend_getfromaddress",
-      "community": 94,
+      "community": 1,
       "norm_label": "getfromaddress()"
     },
     {
@@ -10466,7 +10496,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "lib_notifications_resend_resendemailparams",
-      "community": 94,
+      "community": 1,
       "norm_label": "resendemailparams"
     },
     {
@@ -10476,7 +10506,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "lib_notifications_resend_resendsendresult",
-      "community": 94,
+      "community": 1,
       "norm_label": "resendsendresult"
     },
     {
@@ -10486,7 +10516,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "lib_notifications_resend_sendemailviaresend",
-      "community": 94,
+      "community": 1,
       "norm_label": "sendemailviaresend()"
     },
     {
@@ -10746,7 +10776,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_query_keys",
-      "community": 133,
+      "community": 22,
       "norm_label": "query-keys.ts"
     },
     {
@@ -10756,7 +10786,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_query_keys_qk",
-      "community": 133,
+      "community": 22,
       "norm_label": "qk"
     },
     {
@@ -10876,7 +10906,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_supabase_server",
-      "community": 88,
+      "community": 6,
       "norm_label": "server.ts"
     },
     {
@@ -11286,7 +11316,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "package_dependencies_react",
-      "community": 33,
+      "community": 100,
       "norm_label": "react"
     },
     {
@@ -11326,7 +11356,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "package_dependencies_resend",
-      "community": 94,
+      "community": 1,
       "norm_label": "resend"
     },
     {
@@ -13536,7 +13566,7 @@
       "source_location": "L1316",
       "_origin": "ast",
       "id": "hotelos_pro_prd_v5_12_guest_facing_booking_application",
-      "community": 18,
+      "community": 96,
       "norm_label": "12 guest-facing booking application"
     },
     {
@@ -13546,7 +13576,7 @@
       "source_location": "L1318",
       "_origin": "ast",
       "id": "hotelos_pro_prd_v5_12_1_tenant_resolution",
-      "community": 18,
+      "community": 96,
       "norm_label": "12.1 tenant resolution"
     },
     {
@@ -13556,7 +13586,7 @@
       "source_location": "L1336",
       "_origin": "ast",
       "id": "hotelos_pro_prd_v5_12_2_guest_pages",
-      "community": 18,
+      "community": 96,
       "norm_label": "12.2 guest pages"
     },
     {
@@ -19433,6 +19463,17 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "app_actions_rooms",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "app/dashboard/rooms/types/room-types-table.tsx",
       "source_location": "L49",
       "weight": 1.0,
@@ -19756,6 +19797,17 @@
       "source_location": "L7",
       "weight": 1.0,
       "source": "app_dashboard_rooms_types_new_page",
+      "target": "app_actions_rooms_createroomtype",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
       "target": "app_actions_rooms_createroomtype",
       "confidence_score": 1.0
     },
@@ -21073,7 +21125,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/rooms/_components/room-type-form.tsx",
-      "source_location": "L479",
+      "source_location": "L491",
       "weight": 1.0,
       "source": "app_dashboard_rooms_components_room_type_form_photoscard",
       "target": "app_actions_upload_saveroomimages"
@@ -29529,7 +29581,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/rooms/_components/room-type-form.tsx",
-      "source_location": "L69",
+      "source_location": "L71",
       "weight": 1.0,
       "source": "app_dashboard_rooms_components_room_type_form",
       "target": "app_dashboard_rooms_components_room_type_form_default_values",
@@ -29539,7 +29591,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/rooms/_components/room-type-form.tsx",
-      "source_location": "L451",
+      "source_location": "L463",
       "weight": 1.0,
       "source": "app_dashboard_rooms_components_room_type_form",
       "target": "app_dashboard_rooms_components_room_type_form_photoscard",
@@ -29549,7 +29601,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/rooms/_components/room-type-form.tsx",
-      "source_location": "L86",
+      "source_location": "L88",
       "weight": 1.0,
       "source": "app_dashboard_rooms_components_room_type_form",
       "target": "app_dashboard_rooms_components_room_type_form_roomtypeform",
@@ -29579,7 +29631,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/rooms/_components/room-type-form.tsx",
-      "source_location": "L58",
+      "source_location": "L60",
       "weight": 1.0,
       "source": "app_dashboard_rooms_components_room_type_form",
       "target": "app_dashboard_rooms_components_room_type_form_slugify",
@@ -29806,6 +29858,17 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "app_dashboard_rooms_components_room_type_form",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
@@ -29828,6 +29891,17 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "app_dashboard_rooms_components_room_type_form_roomtypeformvalues",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "references",
       "context": "field",
       "confidence": "EXTRACTED",
@@ -29843,7 +29917,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/rooms/_components/room-type-form.tsx",
-      "source_location": "L114",
+      "source_location": "L118",
       "weight": 1.0,
       "source": "app_dashboard_rooms_components_room_type_form_roomtypeform",
       "target": "app_dashboard_rooms_components_room_type_form_slugify",
@@ -29855,7 +29929,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/rooms/_components/room-type-form.tsx",
-      "source_location": "L200",
+      "source_location": "L206",
       "weight": 1.0,
       "source": "app_dashboard_rooms_components_room_type_form_roomtypeform",
       "target": "lib_utils_cn"
@@ -29866,7 +29940,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/rooms/_components/room-type-form.tsx",
-      "source_location": "L100",
+      "source_location": "L104",
       "weight": 1.0,
       "source": "app_dashboard_rooms_components_room_type_form_roomtypeform",
       "target": "package_dependencies_react"
@@ -29890,6 +29964,17 @@
       "source_location": "L6",
       "weight": 1.0,
       "source": "app_dashboard_rooms_types_new_page",
+      "target": "app_dashboard_rooms_components_room_type_form_roomtypeform",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
       "target": "app_dashboard_rooms_components_room_type_form_roomtypeform",
       "confidence_score": 1.0
     },
@@ -30647,7 +30732,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/rooms/types/page.tsx",
-      "source_location": "L108",
+      "source_location": "L86",
       "weight": 1.0,
       "source": "app_dashboard_rooms_types_page",
       "target": "app_dashboard_rooms_types_page_nohotelstate",
@@ -30657,7 +30742,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/rooms/types/page.tsx",
-      "source_location": "L10",
+      "source_location": "L8",
       "weight": 1.0,
       "source": "app_dashboard_rooms_types_page",
       "target": "app_dashboard_rooms_types_page_roomtypespage",
@@ -30668,10 +30753,10 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/rooms/types/page.tsx",
-      "source_location": "L5",
+      "source_location": "L4",
       "weight": 1.0,
       "source": "app_dashboard_rooms_types_page",
-      "target": "app_dashboard_rooms_types_room_types_table",
+      "target": "app_dashboard_rooms_types_room_types_client",
       "confidence_score": 1.0
     },
     {
@@ -30679,32 +30764,10 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/rooms/types/page.tsx",
-      "source_location": "L5",
+      "source_location": "L4",
       "weight": 1.0,
       "source": "app_dashboard_rooms_types_page",
-      "target": "app_dashboard_rooms_types_room_types_table_roomtypestable",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "app/dashboard/rooms/types/page.tsx",
-      "source_location": "L6",
-      "weight": 1.0,
-      "source": "app_dashboard_rooms_types_page",
-      "target": "components_ui_button",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "app/dashboard/rooms/types/page.tsx",
-      "source_location": "L6",
-      "weight": 1.0,
-      "source": "app_dashboard_rooms_types_page",
-      "target": "components_ui_button_button",
+      "target": "app_dashboard_rooms_types_room_types_client_roomtypesclient",
       "confidence_score": 1.0
     },
     {
@@ -30735,10 +30798,195 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/rooms/types/page.tsx",
-      "source_location": "L17",
+      "source_location": "L15",
       "weight": 1.0,
       "source": "app_dashboard_rooms_types_page_roomtypespage",
       "target": "lib_supabase_server_createclient"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "app_dashboard_rooms_types_room_types_client_roomtypesclient",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "app_dashboard_rooms_types_room_types_client_roomtypesclientprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "app_dashboard_rooms_types_room_types_table",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "app_dashboard_rooms_types_room_types_table_roomtyperow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "app_dashboard_rooms_types_room_types_table_roomtypestable",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "components_ui_button",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "components_ui_button_button",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "components_ui_dialog",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "components_ui_dialog_dialog",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "components_ui_dialog_dialogcontent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "components_ui_dialog_dialogdescription",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "components_ui_dialog_dialogheader",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "components_ui_dialog_dialogtitle",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "lib_amenities",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client",
+      "target": "lib_amenities_amenities_list",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client_roomtypesclientprops",
+      "target": "app_dashboard_rooms_types_room_types_table_roomtyperow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/dashboard/rooms/types/room-types-client.tsx",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "app_dashboard_rooms_types_room_types_client_roomtypesclient",
+      "target": "package_dependencies_react"
     },
     {
       "relation": "contains",
