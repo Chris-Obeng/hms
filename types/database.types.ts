@@ -403,7 +403,7 @@ export type Database = {
       }
       daily_rate_overrides: {
         Row: {
-          id: string
+          id: number
           hotel_id: string
           room_type_id: string
           date: string
@@ -412,7 +412,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          id?: string
+          id?: number
           hotel_id: string
           room_type_id: string
           date: string
@@ -421,7 +421,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          id?: string
+          id?: number
           hotel_id?: string
           room_type_id?: string
           date?: string
@@ -438,11 +438,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "daily_rate_overrides_room_type_id_fkey"
-            columns: ["room_type_id"]
+            foreignKeyName: "daily_rate_overrides_room_type_fk"
+            columns: ["room_type_id", "hotel_id"]
             isOneToOne: false
             referencedRelation: "room_types"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "hotel_id"]
           }
         ]
       }
@@ -1029,7 +1029,8 @@ export type Database = {
       }
       seasonal_rate_overrides: {
         Row: {
-          id: string
+          id: number
+          hotel_id: string
           seasonal_rate_id: string
           room_type_id: string
           base_price: number
@@ -1038,7 +1039,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          id?: string
+          id?: number
+          hotel_id: string
           seasonal_rate_id: string
           room_type_id: string
           base_price: number
@@ -1047,7 +1049,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          id?: string
+          id?: number
+          hotel_id?: string
           seasonal_rate_id?: string
           room_type_id?: string
           base_price?: number
@@ -1057,18 +1060,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "seasonal_rate_overrides_seasonal_rate_id_fkey"
-            columns: ["seasonal_rate_id"]
+            foreignKeyName: "seasonal_rate_overrides_seasonal_rate_fk"
+            columns: ["seasonal_rate_id", "hotel_id"]
             isOneToOne: false
             referencedRelation: "seasonal_rates"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "hotel_id"]
           },
           {
-            foreignKeyName: "seasonal_rate_overrides_room_type_id_fkey"
-            columns: ["room_type_id"]
+            foreignKeyName: "seasonal_rate_overrides_room_type_fk"
+            columns: ["room_type_id", "hotel_id"]
             isOneToOne: false
             referencedRelation: "room_types"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "hotel_id"]
           }
         ]
       }

@@ -27,6 +27,12 @@ const DailyOverrideSchema = z.object({
 
 const BulkDailyOverrideSchema = z.array(DailyOverrideSchema);
 
+const DailyOverrideDeleteSchema = z.object({
+  roomTypeId: z.string().uuid("Invalid room type ID"),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
+});
+const BulkDailyOverrideDeleteSchema = z.array(DailyOverrideDeleteSchema).min(1).max(500);
+
 // Helper function to check if a date is a weekend (Friday or Saturday night)
 function isWeekend(dateStr: string): boolean {
   const date = new Date(dateStr + "T12:00:00");
@@ -78,7 +84,7 @@ export async function createSeasonalRate(name: string, startDate: string, endDat
 
     if (error) throw error;
 
-    revalidatePath("/dashboard/pricing");
+    revalidatePath("/dashboard/rooms/pricing");
     return { success: true, data };
   } catch (err) {
     return toActionError(err);
@@ -140,7 +146,7 @@ export async function updateSeasonalRate(id: string, name: string, startDate: st
 
     if (error) throw error;
 
-    revalidatePath("/dashboard/pricing");
+    revalidatePath("/dashboard/rooms/pricing");
     return { success: true, data };
   } catch (err) {
     return toActionError(err);
@@ -173,7 +179,7 @@ export async function deleteSeasonalRate(id: string) {
 
     if (error) throw error;
 
-    revalidatePath("/dashboard/pricing");
+    revalidatePath("/dashboard/rooms/pricing");
     return { success: true };
   } catch (err) {
     return toActionError(err);
@@ -221,6 +227,7 @@ export async function upsertSeasonalRateOverride(
       .from("seasonal_rate_overrides")
       .upsert(
         {
+          hotel_id: hotelId,
           seasonal_rate_id: seasonalRateId,
           room_type_id: roomTypeId,
           base_price: basePrice,
@@ -233,7 +240,7 @@ export async function upsertSeasonalRateOverride(
 
     if (error) throw error;
 
-    revalidatePath("/dashboard/pricing");
+    revalidatePath("/dashboard/rooms/pricing");
     return { success: true, data };
   } catch (err) {
     return toActionError(err);
@@ -279,7 +286,7 @@ export async function upsertDailyRateOverride(roomTypeId: string, date: string, 
 
     if (error) throw error;
 
-    revalidatePath("/dashboard/pricing");
+    revalidatePath("/dashboard/rooms/pricing");
     return { success: true, data };
   } catch (err) {
     return toActionError(err);
@@ -303,7 +310,7 @@ export async function deleteDailyRateOverride(roomTypeId: string, date: string) 
 
     if (error) throw error;
 
-    revalidatePath("/dashboard/pricing");
+    revalidatePath("/dashboard/rooms/pricing");
     return { success: true };
   } catch (err) {
     return toActionError(err);
@@ -347,7 +354,7 @@ export async function bulkUpsertDailyRateOverrides(
 
     if (error) throw error;
 
-    revalidatePath("/dashboard/pricing");
+    revalidatePath("/dashboard/rooms/pricing");
     return { success: true, data };
   } catch (err) {
     return toActionError(err);
@@ -367,9 +374,11 @@ export async function bulkDeleteDailyRateOverrides(
       return { success: true };
     }
 
+    const parsed = BulkDailyOverrideDeleteSchema.parse(overrides);
+
     let query = supabase.from("daily_rate_overrides").delete().eq("hotel_id", hotelId);
 
-    const filterStrings = overrides.map(
+    const filterStrings = parsed.map(
       (o) => `and(room_type_id.eq.${o.roomTypeId},date.eq.${o.date})`
     );
     query = query.or(filterStrings.join(","));
@@ -377,7 +386,7 @@ export async function bulkDeleteDailyRateOverrides(
     const { error } = await query;
     if (error) throw error;
 
-    revalidatePath("/dashboard/pricing");
+    revalidatePath("/dashboard/rooms/pricing");
     return { success: true };
   } catch (err) {
     return toActionError(err);
