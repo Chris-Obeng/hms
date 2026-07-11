@@ -8,18 +8,18 @@
 .cal-wrap {
   --cal-bg:        var(--background);
   --cal-surface:   var(--card);
-  --cal-border:    #E2E8F0;
-  --cal-border-h:  #CBD5E1;
-  --cal-grid:      #F1F5F9;
-  --cal-text:      #1E293B;
-  --cal-muted:     #64748B;
-  --cal-today-bg:  rgba(219, 234, 254, 0.2);
-  --cal-today-highlight: #EFF6FF;
-  --cal-today-line:#1D4ED8;
-  --cal-weekend:   rgba(0, 0, 0, 0.012);
-  --cal-header:    #F8FAFC;
-  --cal-accent:    #1D4ED8;
-  --cal-radius:    4px;
+  --cal-border:    var(--border);
+  --cal-border-h:  var(--border);
+  --cal-grid:      color-mix(in oklch, var(--border) 60%, transparent);
+  --cal-text:      var(--foreground);
+  --cal-muted:     var(--muted-foreground);
+  --cal-today-bg:  color-mix(in oklch, var(--primary) 8%, transparent);
+  --cal-today-highlight: color-mix(in oklch, var(--primary) 4%, transparent);
+  --cal-today-line: var(--primary);
+  --cal-weekend:   color-mix(in oklch, var(--foreground) 1.5%, transparent);
+  --cal-header:    color-mix(in oklch, var(--muted) 40%, var(--card));
+  --cal-accent:    var(--primary);
+  --cal-radius:    6px;
   --cal-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --cal-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --cal-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -105,7 +105,7 @@
 }
 
 .cal-wrap .scheduler_default_rowheader.cal-section-row {
-  background: #F4F6F8 !important;
+  background: color-mix(in oklch, var(--muted) 40%, var(--card)) !important;
   border-top: 1px solid var(--cal-border-h) !important;
   border-bottom: 1px solid var(--cal-border-h) !important;
 }
@@ -208,7 +208,7 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #475569;
+  color: var(--cal-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -276,7 +276,7 @@
   font-size: 10px;
   font-weight: 400;
   text-transform: uppercase;
-  color: #94A3B8;
+  color: var(--cal-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -1,9 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { Building2, DoorOpen, Plus } from "lucide-react";
-import Link from "next/link";
-import { RoomTypesTable } from "./room-types-table";
-import { Button } from "@/components/ui/button";
+import { Building2 } from "lucide-react";
+import { RoomTypesClient } from "./room-types-client";
 
 export const dynamic = "force-dynamic";
 
@@ -74,34 +72,14 @@ export default async function RoomTypesPage() {
     };
   });
 
-  const totalRoomTypes = roomTypeList.length;
   const totalRooms = rooms?.length || 0;
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-page-title text-foreground">
-            Room Types
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {totalRoomTypes} room type{totalRoomTypes !== 1 ? "s" : ""} · {totalRooms} total room{totalRooms !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <Link href="/dashboard/rooms/types/new">
-          <Button
-            size="sm"
-            className="h-9 text-sm rounded-xl bg-foreground text-background hover:bg-foreground/90"
-          >
-            <Plus className="size-3.5 mr-1.5" />
-            Add Room Type
-          </Button>
-        </Link>
-      </div>
-
-      <RoomTypesTable data={roomTypeList} currency={hotel?.currency || "GHS"} />
-    </div>
+    <RoomTypesClient
+      data={roomTypeList}
+      currency={hotel?.currency || "GHS"}
+      totalRooms={totalRooms}
+    />
   );
 }
 

@@ -264,12 +264,7 @@ export function AppSidebar({ hotelName }: { hotelName?: string }) {
               <p className="text-sm font-semibold text-sidebar-foreground truncate leading-tight">
                 {hotelName ?? "Hotel"}
               </p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
-                <span className="text-caption text-sidebar-foreground/50 font-medium">
-                  Online
-                </span>
-              </div>
+
             </div>
           </div>
 

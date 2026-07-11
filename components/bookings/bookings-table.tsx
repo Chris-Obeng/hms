@@ -318,85 +318,87 @@ function getColumns(
       cell: ({ row }) => {
         const booking = row.original;
         return (
-          <DropdownMenu>
-            <DropdownMenuTrigger className="inline-flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
-              <MoreHorizontal className="size-4" />
-              <span className="sr-only">Actions</span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuLabel className="font-normal text-xs text-muted-foreground">
-                {booking.reference}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => onViewDetails(booking.id)}
-              >
-                <Eye className="size-3.5 mr-2" />
-                View Details
-              </DropdownMenuItem>
-              {booking.status === "confirmed" && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="inline-flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
+                <MoreHorizontal className="size-4" />
+                <span className="sr-only">Actions</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuLabel className="font-normal text-xs text-muted-foreground">
+                  {booking.reference}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={async () => {
-                    const result = await updateBookingStatus(booking.id, "checked_in");
-                    if (result.success) {
-                      toast.success(`${booking.guestName} checked in`);
-                    } else {
-                      toast.error(result.error || "Check-in failed");
-                    }
-                  }}
+                  onClick={() => onViewDetails(booking.id)}
                 >
-                  <LogIn className="size-3.5 mr-2 text-emerald-500" />
-                  Check In
+                  <Eye className="size-3.5 mr-2" />
+                  View Details
                 </DropdownMenuItem>
-              )}
-              {booking.status === "checked_in" && (
-                <DropdownMenuItem
-                  onClick={async () => {
-                    const result = await updateBookingStatus(booking.id, "checked_out");
-                    if (result.success) {
-                      toast.success(`${booking.guestName} checked out`);
-                    } else {
-                      toast.error(result.error || "Check-out failed");
-                    }
-                  }}
-                >
-                  <LogOut className="size-3.5 mr-2 text-amber-500" />
-                  Check Out
-                </DropdownMenuItem>
-              )}
-              {(booking.status === "confirmed" || booking.status === "checked_in") && (
-                <DropdownMenuItem
-                  onClick={async () => {
-                    const result = await updateBookingStatus(booking.id, "cancelled");
-                    if (result.success) {
-                      toast.success("Booking cancelled");
-                    } else {
-                      toast.error(result.error || "Cancel failed");
-                    }
-                  }}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <XCircle className="size-3.5 mr-2" />
-                  Cancel
-                </DropdownMenuItem>
-              )}
-              {booking.status === "cancelled" && (
-                <DropdownMenuItem
-                  onClick={async () => {
-                    const result = await updateBookingStatus(booking.id, "confirmed");
-                    if (result.success) {
-                      toast.success("Booking reinstated");
-                    } else {
-                      toast.error(result.error || "Reinstate failed");
-                    }
-                  }}
-                >
-                  <RotateCcw className="size-3.5 mr-2" />
-                  Reinstate
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                {booking.status === "confirmed" && (
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      const result = await updateBookingStatus(booking.id, "checked_in");
+                      if (result.success) {
+                        toast.success(`${booking.guestName} checked in`);
+                      } else {
+                        toast.error(result.error || "Check-in failed");
+                      }
+                    }}
+                  >
+                    <LogIn className="size-3.5 mr-2 text-emerald-500" />
+                    Check In
+                  </DropdownMenuItem>
+                )}
+                {booking.status === "checked_in" && (
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      const result = await updateBookingStatus(booking.id, "checked_out");
+                      if (result.success) {
+                        toast.success(`${booking.guestName} checked out`);
+                      } else {
+                        toast.error(result.error || "Check-out failed");
+                      }
+                    }}
+                  >
+                    <LogOut className="size-3.5 mr-2 text-amber-500" />
+                    Check Out
+                  </DropdownMenuItem>
+                )}
+                {(booking.status === "confirmed" || booking.status === "checked_in") && (
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      const result = await updateBookingStatus(booking.id, "cancelled");
+                      if (result.success) {
+                        toast.success("Booking cancelled");
+                      } else {
+                        toast.error(result.error || "Cancel failed");
+                      }
+                    }}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <XCircle className="size-3.5 mr-2" />
+                    Cancel
+                  </DropdownMenuItem>
+                )}
+                {booking.status === "cancelled" && (
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      const result = await updateBookingStatus(booking.id, "confirmed");
+                      if (result.success) {
+                        toast.success("Booking reinstated");
+                      } else {
+                        toast.error(result.error || "Reinstate failed");
+                      }
+                    }}
+                  >
+                    <RotateCcw className="size-3.5 mr-2" />
+                    Reinstate
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         );
       },
     },
@@ -985,6 +987,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
                   <TableRow
                     key={row.id}
                     className="group min-h-[44px] hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => handleViewDetails(row.original.id)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className="py-3">

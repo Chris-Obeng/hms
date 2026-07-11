@@ -315,8 +315,8 @@
     "semantic_hash": "d990b6f1d93a016c6b865a53aaad1815"
   },
   "app/dashboard/calendar/calendar-client.tsx": {
-    "mtime": 1783633024.837909,
-    "ast_hash": "295aaee40de08865e493c78cf05d7fb0",
+    "mtime": 1783715950.768345,
+    "ast_hash": "52e2a130ff375613c1ca33eac4692348",
     "semantic_hash": ""
   },
   "app/dashboard/calendar/page.tsx": {
@@ -410,9 +410,9 @@
     "semantic_hash": "006cc7dc04a48534632c0d5a43f4e600"
   },
   "app/dashboard/rooms/_components/room-type-form.tsx": {
-    "mtime": 1783090140.15761,
-    "ast_hash": "52221c8187cfb11c213c2f301dd90c9b",
-    "semantic_hash": "52221c8187cfb11c213c2f301dd90c9b"
+    "mtime": 1783716808.436778,
+    "ast_hash": "0d171cb615bbde57d15fd040d9b74a20",
+    "semantic_hash": ""
   },
   "app/dashboard/rooms/directory/page.tsx": {
     "mtime": 1783090140.159943,
@@ -420,8 +420,8 @@
     "semantic_hash": "321e7c5fcc57ab361d3d0e5b92ce2712"
   },
   "app/dashboard/rooms/directory/rooms-directory-client.tsx": {
-    "mtime": 1783712669.1982923,
-    "ast_hash": "8f4a1bccc1a9008ac38f720170232724",
+    "mtime": 1783714443.2817025,
+    "ast_hash": "82a376afe1ebfe25108558ef0c6ee0f8",
     "semantic_hash": ""
   },
   "app/dashboard/rooms/types/[id]/page.tsx": {
@@ -435,9 +435,9 @@
     "semantic_hash": "e8470af1725dc10882cece65100cd5ea"
   },
   "app/dashboard/rooms/types/page.tsx": {
-    "mtime": 1783090140.1735709,
-    "ast_hash": "360cb27e026193c1736aaf4e2a77591f",
-    "semantic_hash": "360cb27e026193c1736aaf4e2a77591f"
+    "mtime": 1783716913.4621577,
+    "ast_hash": "2d309a7eebda98ec4f48cce60196b465",
+    "semantic_hash": ""
   },
   "app/dashboard/rooms/types/room-types-table.tsx": {
     "mtime": 1783636739.6677907,
@@ -700,8 +700,8 @@
     "semantic_hash": ""
   },
   "components/bookings/bookings-table.tsx": {
-    "mtime": 1783634602.8754554,
-    "ast_hash": "3b17affc5a1281c9bc1c57d714b1af93",
+    "mtime": 1783714904.7342916,
+    "ast_hash": "cf7a31aec2fe9c0b7f14d6d9b5956e32",
     "semantic_hash": ""
   },
   "components/bookings/new-booking-sheet.tsx": {
@@ -740,13 +740,13 @@
     "semantic_hash": "b79da9ab422a9e329a129c6d863ae9b9"
   },
   "components/layout/app-header.tsx": {
-    "mtime": 1783636390.2593348,
-    "ast_hash": "179ea3bda9db06db8a884fd1f980cd7f",
+    "mtime": 1783726824.828238,
+    "ast_hash": "59315dafd1b786afedccf71dbcdbb8ba",
     "semantic_hash": ""
   },
   "components/layout/app-sidebar-overlay.tsx": {
-    "mtime": 1783636973.811762,
-    "ast_hash": "b2d4fe3d1886ee13474f779716fc71fe",
+    "mtime": 1783725711.1184886,
+    "ast_hash": "95f684df77b245d8c1c02e81171b8e54",
     "semantic_hash": ""
   },
   "components/theme-provider.tsx": {
@@ -1377,6 +1377,26 @@
   "public/icons/icon-512x512.png": {
     "mtime": 1783467521.052,
     "ast_hash": "459fbbc8511b30885d350831d1b3e87e",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260710080000_update_guest_stays_statistics.sql": {
+    "mtime": 1783726611.3253534,
+    "ast_hash": "35bad775daa458ae389440098a0b147d",
+    "semantic_hash": ""
+  },
+  "app/actions/notifications.ts": {
+    "mtime": 1783726686.559659,
+    "ast_hash": "bbb6044811ac313886bcc25ea09efb3e",
+    "semantic_hash": ""
+  },
+  "app/dashboard/rooms/types/room-types-client.tsx": {
+    "mtime": 1783724502.0038278,
+    "ast_hash": "0496669ad23c8b2f5f8dab434c8ea3d3",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260710090000_optimize_guest_stays_trigger.sql": {
+    "mtime": 1783726620.938699,
+    "ast_hash": "bfa666d49c2148c38da75e8806709a40",
     "semantic_hash": ""
   }
 }
