@@ -330,6 +330,16 @@ export function CalendarClient({
     return () => document.removeEventListener("click", close);
   }, []);
 
+  // DayPilot doesn't auto-detect flex container size on first mount.
+  // Calling update() after layout resolves forces grid cell recalculation,
+  // fixing the blank right-panel issue when rendered inside overflow:hidden flex containers.
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => {
+      schedulerRef.current?.control?.update();
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const goToPrev = React.useCallback(
     () => setStartDate((previous) => subDays(previous, days)),
     [days],
@@ -462,6 +472,35 @@ export function CalendarClient({
         return;
       }
 
+      // Optimistic update setup
+      const queryKey = qk.calendar(orgId || "", hotelId, dateStr, days);
+      const previousData = queryClient.getQueryData<CalendarData>(queryKey);
+      const targetRoom = rooms.find((r) => r.id === newRoomId);
+
+      if (previousData) {
+        const updatedBookings = previousData.bookings.map((b) => {
+          if (b.id === eventData.bookingId) {
+            return {
+              ...b,
+              roomId: newRoomId || b.roomId,
+              roomNumber: targetRoom ? targetRoom.roomNumber : b.roomNumber,
+              checkIn: newCheckIn,
+              checkOut: newCheckOut,
+              nights: Math.round(
+                (new Date(newCheckOut).getTime() - new Date(newCheckIn).getTime()) /
+                  (1000 * 60 * 60 * 24),
+              ) || 1,
+            };
+          }
+          return b;
+        });
+
+        queryClient.setQueryData<CalendarData>(queryKey, {
+          ...previousData,
+          bookings: updatedBookings,
+        });
+      }
+
       const toastId = toast.loading(
         mode === "move" ? "Checking room..." : "Updating dates...",
       );
@@ -475,12 +514,7 @@ export function CalendarClient({
           );
           if (!availability.available) {
             const conflict = availability.conflicts[0];
-            toast.dismiss(toastId);
-            toast.error(
-              `Conflict with ${conflict.guestName || conflict.reference}`,
-            );
-            fetchCalendarData(startDate, days);
-            return;
+            throw new Error(`Conflict with ${conflict.guestName || conflict.reference}`);
           }
         }
 
@@ -489,20 +523,25 @@ export function CalendarClient({
           checkIn: newCheckIn,
           checkOut: newCheckOut,
         });
+
         toast.dismiss(toastId);
         if (result.success) {
           toast.success(mode === "move" ? "Booking moved" : "Dates updated");
         } else {
-          toast.error(result.error || "Update failed");
+          throw new Error(result.error || "Update failed");
         }
-      } catch {
+      } catch (err: any) {
         toast.dismiss(toastId);
-        toast.error("Update failed");
+        // Rollback
+        if (previousData) {
+          queryClient.setQueryData<CalendarData>(queryKey, previousData);
+        }
+        toast.error(err.message || "Update failed");
       } finally {
         fetchCalendarData(startDate, days);
       }
     },
-    [bookings, canEdit, days, fetchCalendarData, startDate],
+    [bookings, canEdit, days, fetchCalendarData, startDate, orgId, hotelId, dateStr, queryClient, rooms],
   );
 
   const handleAssignBooking = React.useCallback(
@@ -617,12 +656,16 @@ export function CalendarClient({
 
   const bookingsRef = React.useRef(bookings);
   const roomsRef = React.useRef(rooms);
+  const filteredEventsRef = React.useRef(filteredEvents);
   React.useEffect(() => {
     bookingsRef.current = bookings;
   }, [bookings]);
   React.useEffect(() => {
     roomsRef.current = rooms;
   }, [rooms]);
+  React.useEffect(() => {
+    filteredEventsRef.current = filteredEvents;
+  }, [filteredEvents]);
 
   const schedulerConfig = React.useMemo(() => {
     const cellWidth = 48; // Fixed 48px per spec
@@ -648,11 +691,84 @@ export function CalendarClient({
       eventBarHidden: true,
       durationBarVisible: false,
       floatingEvents: true,
-      floatingTimeHeaders: true,
-      progressiveRowRendering: true,
-      dynamicEventRendering: "Progressive" as const,
+      floatingTimeHeaders: false,
       headerHeight: 56,
       timeHeaders: [{ groupBy: "Day" as const, format: "ddd d" }],
+      onEventMoving: (args: any) => {
+        const startStr = args.start.toString("yyyy-MM-dd");
+        const endStr = args.end.toString("yyyy-MM-dd");
+        const resourceId = args.resource;
+        const eventId = args.e.id();
+
+        // 1. Prevent placement in type headers
+        if (resourceId.startsWith("section-")) {
+          args.allowed = false;
+          args.right.html = "Invalid Room Row";
+          return;
+        }
+
+        // 2. Prevent dragging to start in the past unless walk-in/manual/checked-in
+        const todayStr = format(new Date(), "yyyy-MM-dd");
+        if (startStr < todayStr) {
+          const booking = bookingsRef.current.find(b => `booking-${b.id}` === eventId);
+          const isAllowedPast = booking && (booking.source === "walk_in" || booking.source === "manual" || booking.status === "checked_in");
+          if (!isAllowedPast) {
+            args.allowed = false;
+            args.right.html = "Cannot start in the past";
+            return;
+          }
+        }
+
+        // 3. Room type compatibility
+        const booking = bookingsRef.current.find(b => `booking-${b.id}` === eventId);
+        const targetRoom = roomsRef.current.find(r => r.id === resourceId);
+        if (booking && targetRoom && booking.roomTypeId !== targetRoom.roomTypeId) {
+          args.allowed = false;
+          args.right.html = "Room type mismatch";
+          return;
+        }
+
+        // 4. Overlap checks
+        const hasOverlap = filteredEventsRef.current.some(evt => {
+          if (evt.id === eventId) return false;
+          if (evt.resource !== resourceId) return false;
+          return evt.start < endStr && evt.end > startStr;
+        });
+
+        if (hasOverlap) {
+          args.allowed = false;
+          args.right.html = "Room occupied / blocked";
+        }
+      },
+      onEventResizing: (args: any) => {
+        const startStr = args.start.toString("yyyy-MM-dd");
+        const endStr = args.end.toString("yyyy-MM-dd");
+        const resourceId = args.e.resource();
+        const eventId = args.e.id();
+
+        // Prevent resizing to start in the past unless allowed
+        const todayStr = format(new Date(), "yyyy-MM-dd");
+        if (startStr < todayStr) {
+          const booking = bookingsRef.current.find(b => `booking-${b.id}` === eventId);
+          const isAllowedPast = booking && (booking.source === "walk_in" || booking.source === "manual" || booking.status === "checked_in");
+          if (!isAllowedPast) {
+            args.allowed = false;
+            args.right.html = "Cannot start in the past";
+            return;
+          }
+        }
+
+        const hasOverlap = filteredEventsRef.current.some(evt => {
+          if (evt.id === eventId) return false;
+          if (evt.resource !== resourceId) return false;
+          return evt.start < endStr && evt.end > startStr;
+        });
+
+        if (hasOverlap) {
+          args.allowed = false;
+          args.right.html = "Overlap conflict";
+        }
+      },
       onBeforeCellRender: (args: any) => {
         const date = args.cell.start.toString("yyyy-MM-dd");
         const weekday = args.cell.start.toString("ddd");
@@ -690,7 +806,8 @@ export function CalendarClient({
         else if (occupancy > 0) dotClass = "red";
 
         const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        const dayIndex = args.header.start.getDay() || 0;
+        // getDayOfWeek() is the correct DayPilotDate API (not native Date.getDay())
+        const dayIndex = args.header.start.getDayOfWeek();
 
         args.header.html = `<div class="cal-day-hdr${today ? " is-today" : ""}">
           <span class="cal-day-dow">${dayNames[dayIndex] || "Sun"}</span>

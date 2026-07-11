@@ -249,10 +249,12 @@
   flex-shrink: 0;
 }
 
-.cal-room-dot.available { background: #16a34a; }
-.cal-room-dot.cleaning { background: #d97706; }
-.cal-room-dot.occupied { background: #dc2626; }
-.cal-room-dot.blocked { background: #6b7280; }
+.cal-room-dot.status-available { background: #16a34a; }
+.cal-room-dot.status-occupied { background: #dc2626; }
+.cal-room-dot.status-checkout_pending { background: #ea580c; }
+.cal-room-dot.status-cleaning { background: #0891b2; }
+.cal-room-dot.status-maintenance { background: #d97706; }
+.cal-room-dot.status-out_of_service { background: #64748b; }
 
 .cal-room-info {
   display: flex;
