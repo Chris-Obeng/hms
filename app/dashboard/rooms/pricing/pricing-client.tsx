@@ -1056,7 +1056,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                                 <div onClick={(e) => e.stopPropagation()}>
                                   <Popover open={isEditing} onOpenChange={(open) => !open && setEditingCell(null)}>
                                     <PopoverTrigger render={
-                                      <div className="absolute inset-0" />
+                                      <button className="absolute inset-0 w-full h-full border-0 bg-transparent p-0 cursor-pointer outline-none" />
                                     } />
                                     <PopoverContent className="w-64 p-3 shadow-xl border-border/80" side="top" align="center" style={{ zIndex: 100 }}>
                                       <div className="space-y-3">
