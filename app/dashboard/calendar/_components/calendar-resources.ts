@@ -103,14 +103,8 @@ function buildRoomRowHtml(
   status: string,
   _statusInfo: { color: string; label: string }
 ): string {
-  // Map status to CSS class
-  let statusClass = "available";
-  if (status === "occupied" || status === "checked_in") statusClass = "occupied";
-  else if (status === "cleaning" || status === "checkout_pending") statusClass = "cleaning";
-  else if (status === "maintenance" || status === "out_of_service") statusClass = "blocked";
-  
   return `<div class="cal-room-hdr">
-    <span class="cal-room-dot ${statusClass}"></span>
+    <span class="cal-room-dot status-${status}"></span>
     <div class="cal-room-info">
       <span class="cal-room-num">${escapeHtml(roomNumber)}</span>
       <span class="cal-room-status">${_statusInfo.label}</span>
