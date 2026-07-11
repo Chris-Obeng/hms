@@ -27,9 +27,9 @@ export default async function HotelLandingPage({ params }: Props) {
       <header className="fixed top-0 inset-x-0 z-40 flex items-center justify-between px-5 md:px-10 h-14 bg-transparent backdrop-blur-sm border-b border-white/10">
         <div className="flex items-center gap-2.5">
           {hotel.logo_url && <Image src={hotel.logo_url} alt={hotel.name} width={32} height={32} className="rounded-md object-cover" />}
-          <span className="booking-heading text-[17px] text-white drop-shadow-sm">{hotel.name}</span>
+          <span className="booking-heading text-[17px] text-primary-foreground drop-shadow-sm">{hotel.name}</span>
         </div>
-        <Link href={`/${slug}/book`} className="h-8 px-4 rounded-full bg-white text-[#1C1917] text-sm font-medium hover:bg-white/90 transition-colors">Book Now</Link>
+        <Link href={`/${slug}/book`} className="h-8 px-4 rounded-full bg-card text-foreground text-sm font-medium hover:bg-card/90 transition-colors">Book Now</Link>
       </header>
       <section className="relative h-[85vh] min-h-[520px] flex flex-col items-center justify-center">
         {hotel.cover_image_url
@@ -37,19 +37,19 @@ export default async function HotelLandingPage({ params }: Props) {
           : <div className="absolute inset-0 bg-gradient-to-br from-stone-800 to-stone-950" />}
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/60" />
         <div className="relative z-10 text-center px-5 max-w-3xl">
-          <p className="booking-heading-italic text-white/80 text-lg md:text-xl mb-3">Welcome to</p>
-          <h1 className="booking-heading text-white text-5xl md:text-7xl mb-5">{hotel.name}</h1>
-          {hotel.address && <p className="text-white/70 text-sm mb-10">{hotel.city ?? hotel.address}</p>}
+          <p className="booking-heading-italic text-primary-foreground/80 text-lg md:text-xl mb-3">Welcome to</p>
+          <h1 className="booking-heading text-primary-foreground text-5xl md:text-7xl mb-5">{hotel.name}</h1>
+          {hotel.address && <p className="text-primary-foreground/70 text-sm mb-10">{hotel.city ?? hotel.address}</p>}
           <DateSearchBar slug={slug} />
         </div>
       </section>
       <section className="max-w-6xl mx-auto px-5 md:px-10 py-20">
         <div className="flex items-end justify-between mb-10">
           <div>
-            <h2 className="booking-heading text-4xl text-[#1C1917]">Our Rooms</h2>
-            <p className="text-[#78716C] mt-1.5 text-sm">Book direct for the best available rate</p>
+            <h2 className="booking-heading text-4xl text-foreground">Our Rooms</h2>
+            <p className="text-muted-foreground mt-1.5 text-sm">Book direct for the best available rate</p>
           </div>
-          <Link href={`/${slug}/rooms`} className="text-sm text-[#78716C] hover:text-[#1C1917] underline underline-offset-2 transition-colors hidden sm:block">View all rooms</Link>
+          <Link href={`/${slug}/rooms`} className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors hidden sm:block">View all rooms</Link>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {(roomTypes ?? []).map((rt) => (
@@ -60,17 +60,17 @@ export default async function HotelLandingPage({ params }: Props) {
         </div>
       </section>
       {hotel.description && (
-        <section className="border-t border-[#E7E5E4] bg-[#F5F4F2]">
+        <section className="border-t border-border bg-secondary">
           <div className="max-w-3xl mx-auto px-5 md:px-10 py-16">
             <h2 className="booking-heading text-3xl mb-5">About {hotel.name}</h2>
-            <p className="text-[#44403C] leading-relaxed whitespace-pre-wrap">{hotel.description}</p>
+            <p className="text-foreground leading-relaxed whitespace-pre-wrap">{hotel.description}</p>
           </div>
         </section>
       )}
-      <footer className="border-t border-[#E7E5E4] bg-[#1C1917] text-white/60">
+      <footer className="border-t border-border bg-primary text-primary-foreground/60">
         <div className="max-w-6xl mx-auto px-5 md:px-10 py-10 flex flex-col sm:flex-row gap-6 justify-between text-sm">
           <div className="space-y-1">
-            <p className="text-white font-medium">{hotel.name}</p>
+            <p className="text-primary-foreground font-medium">{hotel.name}</p>
             {hotel.address && <p>{hotel.address}{hotel.city ? `, ${hotel.city}` : ""}</p>}
             {hotel.phone && <p>{hotel.phone}</p>}
             {hotel.email && <p>{hotel.email}</p>}

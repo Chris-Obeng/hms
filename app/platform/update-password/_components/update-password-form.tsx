@@ -43,15 +43,15 @@ export function UpdatePasswordForm() {
   }
 
   return (
-    <Card className="border-white/10 bg-white/5">
+    <Card className="border-border bg-card">
       <CardHeader>
-        <CardTitle className="text-xl text-white">New password</CardTitle>
-        <CardDescription className="text-white/50">Choose a strong password</CardDescription>
+        <CardTitle className="text-xl text-foreground">New password</CardTitle>
+        <CardDescription className="text-foreground/50">Choose a strong password</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="grid gap-1.5">
-            <label htmlFor="password" className="text-xs font-medium text-white/70">
+            <label htmlFor="password" className="text-xs font-medium text-foreground/70">
               New password
             </label>
             <Input
@@ -61,11 +61,11 @@ export function UpdatePasswordForm() {
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="bg-white/10 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-white/30 h-10"
+              className="bg-secondary border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-ring h-10"
             />
           </div>
           <div className="grid gap-1.5">
-            <label htmlFor="confirm" className="text-xs font-medium text-white/70">
+            <label htmlFor="confirm" className="text-xs font-medium text-foreground/70">
               Confirm password
             </label>
             <Input
@@ -74,7 +74,7 @@ export function UpdatePasswordForm() {
               required
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              className="bg-white/10 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-white/30 h-10"
+              className="bg-secondary border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-ring h-10"
             />
           </div>
           {error && (
@@ -85,7 +85,7 @@ export function UpdatePasswordForm() {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full h-10 bg-white text-[#1C1917] hover:bg-white/90 font-semibold"
+            className="w-full h-10 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
           >
             {loading ? <><Loader2 className="size-4 mr-2 animate-spin" />Saving…</> : "Save new password"}
           </Button>

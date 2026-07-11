@@ -57,17 +57,17 @@ export function PlatformLoginForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="border-white/10 bg-white/5 text-white shadow-2xl">
+      <Card className="border-border bg-card text-foreground shadow-2xl">
         <CardHeader className="pb-4">
-          <CardTitle className="text-xl text-white">Sign in</CardTitle>
-          <CardDescription className="text-white/50">
+          <CardTitle className="text-xl text-foreground">Sign in</CardTitle>
+          <CardDescription className="text-foreground/50">
             Internal access only — authorised HotelOS team
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="flex flex-col gap-5">
             <div className="grid gap-1.5">
-              <label htmlFor="email" className="text-xs font-medium text-white/70">
+              <label htmlFor="email" className="text-xs font-medium text-foreground/70">
                 Email address
               </label>
               <Input
@@ -78,18 +78,18 @@ export function PlatformLoginForm({
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-white/10 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-white/30 h-10"
+                className="bg-secondary border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-ring h-10"
               />
             </div>
 
             <div className="grid gap-1.5">
               <div className="flex items-center justify-between">
-                <label htmlFor="password" className="text-xs font-medium text-white/70">
+                <label htmlFor="password" className="text-xs font-medium text-foreground/70">
                   Password
                 </label>
                 <Link
                   href="/platform/forgot-password"
-                  className="text-xs text-white/40 hover:text-white/70 underline-offset-2 hover:underline transition-colors"
+                  className="text-xs text-muted-foreground hover:text-foreground/70 underline-offset-2 hover:underline transition-colors"
                 >
                   Forgot password?
                 </Link>
@@ -101,7 +101,7 @@ export function PlatformLoginForm({
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-white/10 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-white/30 h-10"
+                className="bg-secondary border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-ring h-10"
               />
             </div>
 
@@ -114,7 +114,7 @@ export function PlatformLoginForm({
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-10 bg-white text-[#1C1917] hover:bg-white/90 font-semibold"
+              className="w-full h-10 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
             >
               {loading ? (
                 <>
