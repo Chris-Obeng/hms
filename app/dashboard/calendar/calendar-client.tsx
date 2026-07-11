@@ -45,6 +45,7 @@ import { buildEvents, type CalendarEvent } from "./_components/calendar-events";
 import { buildResources } from "./_components/calendar-resources";
 import {
   CALENDAR_LEGEND,
+  isManualLikeSource,
   ROW_HEADER_WIDTH,
   ROW_HEIGHT,
   VIEW_PRESETS,
@@ -656,6 +657,7 @@ export function CalendarClient({
 
   const bookingsRef = React.useRef(bookings);
   const roomsRef = React.useRef(rooms);
+  const eventsRef = React.useRef(events);
   const filteredEventsRef = React.useRef(filteredEvents);
   React.useEffect(() => {
     bookingsRef.current = bookings;
@@ -663,6 +665,9 @@ export function CalendarClient({
   React.useEffect(() => {
     roomsRef.current = rooms;
   }, [rooms]);
+  React.useEffect(() => {
+    eventsRef.current = events;
+  }, [events]);
   React.useEffect(() => {
     filteredEventsRef.current = filteredEvents;
   }, [filteredEvents]);
@@ -707,11 +712,11 @@ export function CalendarClient({
           return;
         }
 
-        // 2. Prevent dragging to start in the past unless walk-in/manual/checked-in
+        // 2. Prevent dragging to start in the past unless walk-in/manual/phone or checked-in
         const todayStr = format(new Date(), "yyyy-MM-dd");
         if (startStr < todayStr) {
           const booking = bookingsRef.current.find(b => `booking-${b.id}` === eventId);
-          const isAllowedPast = booking && (booking.source === "walk_in" || booking.source === "manual" || booking.status === "checked_in");
+          const isAllowedPast = booking && (isManualLikeSource(booking.source) || booking.status === "checked_in");
           if (!isAllowedPast) {
             args.allowed = false;
             args.right.html = "Cannot start in the past";
@@ -728,8 +733,8 @@ export function CalendarClient({
           return;
         }
 
-        // 4. Overlap checks
-        const hasOverlap = filteredEventsRef.current.some(evt => {
+        // 4. Overlap checks against the UNFILTERED events array
+        const hasOverlap = eventsRef.current.some(evt => {
           if (evt.id === eventId) return false;
           if (evt.resource !== resourceId) return false;
           return evt.start < endStr && evt.end > startStr;
@@ -746,11 +751,11 @@ export function CalendarClient({
         const resourceId = args.e.resource();
         const eventId = args.e.id();
 
-        // Prevent resizing to start in the past unless allowed
+        // Prevent resizing to start in the past unless allowed (walk-in/manual/phone or checked-in)
         const todayStr = format(new Date(), "yyyy-MM-dd");
         if (startStr < todayStr) {
           const booking = bookingsRef.current.find(b => `booking-${b.id}` === eventId);
-          const isAllowedPast = booking && (booking.source === "walk_in" || booking.source === "manual" || booking.status === "checked_in");
+          const isAllowedPast = booking && (isManualLikeSource(booking.source) || booking.status === "checked_in");
           if (!isAllowedPast) {
             args.allowed = false;
             args.right.html = "Cannot start in the past";
@@ -758,7 +763,8 @@ export function CalendarClient({
           }
         }
 
-        const hasOverlap = filteredEventsRef.current.some(evt => {
+        // Overlap checks against the UNFILTERED events array
+        const hasOverlap = eventsRef.current.some(evt => {
           if (evt.id === eventId) return false;
           if (evt.resource !== resourceId) return false;
           return evt.start < endStr && evt.end > startStr;

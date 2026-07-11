@@ -4,6 +4,10 @@ function escapeHtml(str: string): string {
   return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
+export function isManualLikeSource(source: string | null | undefined): boolean {
+  return source === "manual" || source === "phone" || source === "walk_in";
+}
+
 export function getBookingBarColor(
   status: string,
   source: string | null
