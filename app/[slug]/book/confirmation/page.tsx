@@ -62,17 +62,17 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
   const calendarUrl = `/api/booking/${slug}/calendar?reference=${reference}`;
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] flex flex-col items-center justify-center px-4 py-16">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-16">
       <div className="w-full max-w-md text-center space-y-6">
         <div className="flex justify-center">
           <CheckCircle2 className="size-14 text-emerald-600" strokeWidth={1.5} />
         </div>
 
         <div>
-          <p className="booking-heading-italic text-[#78716C] text-base mb-1">
+          <p className="booking-heading-italic text-muted-foreground text-base mb-1">
             Booking confirmed
           </p>
-          <h1 className="booking-heading text-4xl text-[#1C1917]">
+          <h1 className="booking-heading text-4xl text-foreground">
             Thank you, {guestName.split(" ")[0]}!
           </h1>
         </div>
@@ -83,23 +83,23 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
         )}
 
         {/* Reference */}
-        <div className="bg-white rounded-2xl border border-[#E7E5E4] p-6 space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#A8A29E]">
+        <div className="bg-card rounded-2xl border border-border p-6 space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Booking Reference
           </p>
           <div className="flex items-center justify-center gap-3">
-            <span className="font-mono text-2xl font-bold text-[#1C1917] tracking-wider">
+            <span className="font-mono text-2xl font-bold text-foreground tracking-wider">
               {booking.reference}
             </span>
             <CopyButton text={booking.reference} />
           </div>
-          <p className="text-xs text-[#78716C]">
+          <p className="text-xs text-muted-foreground">
             A confirmation has been sent to your email and phone.
           </p>
         </div>
 
         {/* Stay details */}
-        <div className="bg-white rounded-2xl border border-[#E7E5E4] p-5 text-sm space-y-2.5">
+        <div className="bg-card rounded-2xl border border-border p-5 text-sm space-y-2.5">
           <Row label="Room" value={roomName} />
           <Row
             label="Check-in"
@@ -130,15 +130,15 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
         <a
           href={calendarUrl}
           download={`booking-${reference}.ics`}
-          className="flex items-center justify-center gap-2 w-full h-11 rounded-2xl border border-[#E7E5E4] bg-white text-[#44403C] text-sm font-medium hover:bg-[#F5F4F2] transition-colors"
+          className="flex items-center justify-center gap-2 w-full h-11 rounded-2xl border border-border bg-card text-foreground text-sm font-medium hover:bg-secondary transition-colors"
         >
-          <CalendarPlus className="size-4 text-[#78716C]" />
+          <CalendarPlus className="size-4 text-muted-foreground" />
           Add to Calendar
         </a>
 
         <Link
           href={`/${slug}`}
-          className="inline-block text-sm text-[#A8A29E] hover:text-[#1C1917] underline underline-offset-2 transition-colors"
+          className="inline-block text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
         >
           Back to {hotel.name}
         </Link>
@@ -158,8 +158,8 @@ function Row({
 }) {
   return (
     <div className="flex justify-between gap-4">
-      <span className="text-[#A8A29E]">{label}</span>
-      <span className={`text-right ${bold ? "font-bold text-[#1C1917]" : "text-[#44403C]"}`}>
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`text-right ${bold ? "font-bold text-foreground" : "text-foreground"}`}>
         {value}
       </span>
     </div>

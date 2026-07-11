@@ -9,4 +9,6 @@ export const qk = {
   pendingStaff: (orgId: string) => ['pendingStaff', orgId] as const,
   notifications: (orgId: string, hotelId: string) => ['notifications', orgId, hotelId] as const,
   payments: (orgId: string, hotelId: string) => ['payments', orgId, hotelId] as const,
+  pricingSeasons: (orgId: string, hotelId: string) => ['pricing', 'seasons', orgId, hotelId] as const,
+  pricingResolved: (orgId: string, hotelId: string, roomTypeIds: string[], startDate: string, endDate: string) => ['pricing', 'resolved', orgId, hotelId, roomTypeIds, startDate, endDate] as const,
 };

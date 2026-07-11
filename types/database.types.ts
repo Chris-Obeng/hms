@@ -401,6 +401,51 @@ export type Database = {
           },
         ]
       }
+      daily_rate_overrides: {
+        Row: {
+          id: string
+          hotel_id: string
+          room_type_id: string
+          date: string
+          price: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          room_type_id: string
+          date: string
+          price: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          room_type_id?: string
+          date?: string
+          price?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_rate_overrides_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_rate_overrides_room_type_id_fkey"
+            columns: ["room_type_id"]
+            isOneToOne: false
+            referencedRelation: "room_types"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       guests: {
         Row: {
           created_at: string | null
@@ -943,6 +988,89 @@ export type Database = {
           token?: string
         }
         Relationships: []
+      }
+      seasonal_rates: {
+        Row: {
+          id: string
+          hotel_id: string
+          name: string
+          start_date: string
+          end_date: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          name: string
+          start_date: string
+          end_date: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          name?: string
+          start_date?: string
+          end_date?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seasonal_rates_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      seasonal_rate_overrides: {
+        Row: {
+          id: string
+          seasonal_rate_id: string
+          room_type_id: string
+          base_price: number
+          weekend_price: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          seasonal_rate_id: string
+          room_type_id: string
+          base_price: number
+          weekend_price?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          seasonal_rate_id?: string
+          room_type_id?: string
+          base_price?: number
+          weekend_price?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seasonal_rate_overrides_seasonal_rate_id_fkey"
+            columns: ["seasonal_rate_id"]
+            isOneToOne: false
+            referencedRelation: "seasonal_rates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seasonal_rate_overrides_room_type_id_fkey"
+            columns: ["room_type_id"]
+            isOneToOne: false
+            referencedRelation: "room_types"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       staff_profiles: {
         Row: {

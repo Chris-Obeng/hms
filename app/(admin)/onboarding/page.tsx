@@ -359,7 +359,7 @@ export default function OnboardingPage() {
 
         {/* Step indicator bar */}
         <div
-          className="px-6 sm:px-10 py-5 border-b bg-white"
+          className="px-6 sm:px-10 py-5 border-b bg-card"
           style={{ borderColor: "var(--onboarding-border)", backgroundColor: "var(--onboarding-card-bg)" }}
         >
           <StepIndicator currentStep={step} totalSteps={3} />

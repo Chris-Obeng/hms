@@ -20,6 +20,7 @@ import {
   LayoutDashboard,
   BookOpen,
   ChevronDown,
+  DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -109,6 +110,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Room Types", url: "/dashboard/rooms/types", icon: DoorOpen },
       { title: "Directory", url: "/dashboard/rooms/directory", icon: BedDouble },
+      { title: "Pricing", url: "/dashboard/rooms/pricing", icon: DollarSign },
     ],
   },
   {
