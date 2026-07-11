@@ -122,6 +122,11 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
   const [singlePriceInput, setSinglePriceInput] = useState("");
   const [isBulkEditing, setIsBulkEditing] = useState(false);
 
+  // Popover open states for date pickers
+  const [startPopoverOpen, setStartPopoverOpen] = useState(false);
+  const [endPopoverOpen, setEndPopoverOpen] = useState(false);
+  const [rangePopoverOpen, setRangePopoverOpen] = useState(false);
+
   // Generate 30 columns for date grid
   const dateColumns = useMemo(() => {
     const list: string[] = [];
@@ -470,22 +475,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
       const first = selectedCells[0];
       const newSelection = getCellRange(first.roomTypeId, first.date, roomTypeId, date);
       setSelectedCells(newSelection);
-      return;
-    }
-
-    // Toggle single selection
-    const isSelected = selectedCells.some((c) => c.roomTypeId === roomTypeId && c.date === date);
-    if (isSelected && selectedCells.length === 1) {
-      clearSelection();
-    } else {
-      setSelectedCells([{ roomTypeId, date }]);
-      
-      // Prefill single input editing
-      const cellData = resolvedRateMap.get(`${roomTypeId}_${date}`);
-      if (cellData) {
-        setSinglePriceInput(String(cellData.price));
-      }
-      setEditingCell({ roomTypeId, date });
+      setEditingCell(null);
     }
   };
 
@@ -525,9 +515,11 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
   // Drag selection handlers
   const handleCellMouseDown = (roomTypeId: string, date: string, e: React.MouseEvent) => {
     if (e.button !== 0) return; // Left click only
-    if (e.shiftKey) return; // Allow Shift-click to handle via onClick
+    if (e.shiftKey) return;
 
     setDragStartCell({ roomTypeId, date });
+    
+    // Select the single cell immediately for responsive visuals
     setSelectedCells([{ roomTypeId, date }]);
     
     // Auto fill single edit
@@ -539,9 +531,27 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
     if (!dragStartCell) return;
     const range = getCellRange(dragStartCell.roomTypeId, dragStartCell.date, roomTypeId, date);
     setSelectedCells(range);
+    
+    // Clear editing cell if dragging to multiple cells
+    if (range.length > 1) {
+      setEditingCell(null);
+    }
   };
 
-  const handleCellMouseUp = () => {
+  const handleCellMouseUp = (roomTypeId: string, date: string, e: React.MouseEvent) => {
+    if (!dragStartCell) return;
+
+    const isSingleClick = dragStartCell.roomTypeId === roomTypeId && dragStartCell.date === date;
+    if (isSingleClick) {
+      // Establish single selection and open popup
+      setSelectedCells([{ roomTypeId, date }]);
+      const cellData = resolvedRateMap.get(`${roomTypeId}_${date}`);
+      setSinglePriceInput(cellData ? String(cellData.price) : "");
+      setEditingCell({ roomTypeId, date });
+    } else {
+      // Range drag finished
+      setEditingCell(null);
+    }
     setDragStartCell(null);
   };
 
@@ -694,7 +704,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Start Date</label>
-                      <Popover>
+                      <Popover open={startPopoverOpen} onOpenChange={setStartPopoverOpen}>
                         <PopoverTrigger render={
                           <Button variant="outline" className="w-full justify-start text-left font-normal border-input/60 hover:bg-accent/40">
                             <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
@@ -705,7 +715,10 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                           <Calendar
                             mode="single"
                             selected={seasonStart}
-                            onSelect={setSeasonStart}
+                            onSelect={(d) => {
+                              setSeasonStart(d);
+                              setStartPopoverOpen(false);
+                            }}
                           />
                         </PopoverContent>
                       </Popover>
@@ -713,7 +726,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
 
                     <div className="space-y-1">
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">End Date</label>
-                      <Popover>
+                      <Popover open={endPopoverOpen} onOpenChange={setEndPopoverOpen}>
                         <PopoverTrigger render={
                           <Button variant="outline" className="w-full justify-start text-left font-normal border-input/60 hover:bg-accent/40">
                             <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
@@ -724,7 +737,10 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                           <Calendar
                             mode="single"
                             selected={seasonEnd}
-                            onSelect={setSeasonEnd}
+                            onSelect={(d) => {
+                              setSeasonEnd(d);
+                              setEndPopoverOpen(false);
+                            }}
                           />
                         </PopoverContent>
                       </Popover>
@@ -793,7 +809,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                 <ChevronLeft className="size-4" />
               </Button>
               
-              <Popover>
+              <Popover open={rangePopoverOpen} onOpenChange={setRangePopoverOpen}>
                 <PopoverTrigger render={
                   <Button variant="outline" className="font-semibold border-input/60 hover:bg-accent/40 min-w-[240px] justify-start">
                     <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
@@ -810,6 +826,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                         const end = addDays(d, 29).toISOString().split("T")[0];
                         setDateRange(start, end);
                         clearSelection();
+                        setRangePopoverOpen(false);
                       }
                     }}
                   />
@@ -1006,7 +1023,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                               onKeyDown={(e) => handleKeyDown(e, rt.id, dateStr)}
                               onMouseDown={(e) => handleCellMouseDown(rt.id, dateStr, e)}
                               onMouseEnter={() => handleCellMouseEnter(rt.id, dateStr)}
-                              onMouseUp={handleCellMouseUp}
+                              onMouseUp={(e) => handleCellMouseUp(rt.id, dateStr, e)}
                               onClick={(e) => handleCellClick(rt.id, dateStr, e)}
                               className={cn(
                                 "relative px-3 py-3.5 text-center align-middle border-r border-border/40 cursor-pointer select-none transition-all focus:outline-none focus:ring-1 focus:ring-primary/80",
