@@ -693,15 +693,46 @@ export function CalendarClient({
   }, [filteredEvents]);
 
   const schedulerConfig = React.useMemo(() => {
-    const cellWidth = 48; // Fixed 48px per spec
+    let cellWidth = 72;
+    let rowHeight = 46;
+    let eventHeight = 38;
+
+    switch (viewPreset) {
+      case "Day":
+        cellWidth = 320;
+        rowHeight = 52;
+        eventHeight = 44;
+        break;
+      case "3 Day":
+        cellWidth = 180;
+        rowHeight = 50;
+        eventHeight = 42;
+        break;
+      case "Week":
+        cellWidth = 120;
+        rowHeight = 48;
+        eventHeight = 40;
+        break;
+      case "2 Wks":
+        cellWidth = 84;
+        rowHeight = 46;
+        eventHeight = 38;
+        break;
+      case "Month":
+        cellWidth = 54;
+        rowHeight = 42;
+        eventHeight = 34;
+        break;
+    }
+
     return {
       startDate: format(startDate, "yyyy-MM-dd"),
       days,
       scale: "Day" as const,
       cellWidth,
-      rowHeight: ROW_HEIGHT,
+      rowHeight,
       rowHeaderWidth: ROW_HEADER_WIDTH,
-      eventHeight: ROW_HEIGHT - 6,
+      eventHeight,
       height: "100%",
       heightSpec: "Parent100Pct" as const,
       eventMoveHandling: canEdit ? ("Update" as const) : ("Disabled" as const),
@@ -825,12 +856,6 @@ export function CalendarClient({
           totalRooms > 0 ? Math.round((occupied / totalRooms) * 100) : 0;
         const today = date === format(new Date(), "yyyy-MM-dd");
 
-        // Color-coded dot: green ≥70%, amber 40–69%, red <40%, gray 0%
-        let dotClass = "gray";
-        if (occupancy >= 70) dotClass = "green";
-        else if (occupancy >= 40) dotClass = "amber";
-        else if (occupancy > 0) dotClass = "red";
-
         const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
         // getDayOfWeek() is the correct DayPilotDate API (not native Date.getDay())
         const dayIndex = args.header.start.getDayOfWeek();
@@ -839,7 +864,6 @@ export function CalendarClient({
           <span class="cal-day-dow">${dayNames[dayIndex] || "Sun"}</span>
           <span class="cal-day-num">${args.header.start.toString("d")}</span>
           <div class="cal-day-occ-wrap">
-            <span class="cal-day-occ-dot ${dotClass}"></span>
             <span class="cal-day-occ">${occupancy}%</span>
           </div>
         </div>`;
@@ -850,7 +874,7 @@ export function CalendarClient({
           };
       },
     };
-  }, [canEdit, days, startDate]);
+  }, [canEdit, days, startDate, viewPreset]);
 
   const filteredCount = roomTypeFilters.filter(
     (filter) => filter.visible,
