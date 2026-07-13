@@ -315,8 +315,8 @@
     "semantic_hash": "d990b6f1d93a016c6b865a53aaad1815"
   },
   "app/dashboard/calendar/calendar-client.tsx": {
-    "mtime": 1783909720.0545015,
-    "ast_hash": "dc9ac2eb0726445e4c4bb7f1d5df0f63",
+    "mtime": 1783913306.430997,
+    "ast_hash": "af25fb366a0c3c4bf4cc7f8ad76f175e",
     "semantic_hash": ""
   },
   "app/dashboard/calendar/page.tsx": {

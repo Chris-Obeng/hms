@@ -1,11 +1,11 @@
 # Graph Report - hms  (2026-07-13)
 
 ## Corpus Check
-- 280 files · ~179,409 words
+- 280 files · ~179,408 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1575 nodes · 3670 edges · 119 communities (96 shown, 23 thin omitted)
+- 1575 nodes · 3670 edges · 117 communities (94 shown, 23 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 2 edges (avg confidence: 0.68)
 - Token cost: 0 input · 0 output
 
@@ -112,13 +112,11 @@
 - actions.ts
 - PlatformLoginForm
 - stats-bar.tsx
-- layout.tsx
 - page.tsx
 - page.tsx
 - page.tsx
 - page.tsx
 - page.tsx
-- 12 Guest-Facing Booking Application
 - reports-client.tsx
 - layout.tsx
 - createPlatformClient
@@ -157,7 +155,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (119 total, 23 thin omitted)
+## Communities (117 total, 23 thin omitted)
 
 ### Community 1 - "arkesel.ts"
 Cohesion: 0.11
@@ -228,8 +226,8 @@ Cohesion: 0.10
 Nodes (19): compilerOptions, allowJs, esModuleInterop, incremental, isolatedModules, jsx, lib, module (+11 more)
 
 ### Community 18 - "HotelOS Pro"
-Cohesion: 0.11
-Nodes (18): 10 Platform Admin, 17 Availability Color Coding, 21 Reports, 24 Performance Requirements, 28 Open Source Licenses, 29 MVP Acceptance Criteria, 30 Post-MVP Features Backlog, 6 Technology Stack (+10 more)
+Cohesion: 0.09
+Nodes (21): 10 Platform Admin, 12.1 Tenant Resolution, 12.2 Guest Pages, 12 Guest-Facing Booking Application, 17 Availability Color Coding, 1 Executive Summary, 21 Reports, 24 Performance Requirements (+13 more)
 
 ### Community 19 - "8 Database Schema"
 Cohesion: 0.12
@@ -432,8 +430,8 @@ Cohesion: 0.23
 Nodes (14): CalendarAvailabilityBlock, buildEvents(), CalendarEvent, escapeHtml(), titleCase(), CALENDAR_LEGEND, escapeHtml(), getBookingBarColor() (+6 more)
 
 ### Community 82 - "admin.ts"
-Cohesion: 0.13
-Nodes (9): STATUS_MAP, HotelsTable(), FILTERS, FilterTab(), Props, PlatformDashboard(), StatCard(), StatCardProps (+1 more)
+Cohesion: 0.10
+Nodes (12): STATUS_MAP, HotelsTable(), FILTERS, FilterTab(), Props, PlatformDashboard(), StatCard(), StatCardProps (+4 more)
 
 ### Community 88 - "database.types.ts"
 Cohesion: 0.27
@@ -465,7 +463,7 @@ Nodes (5): GET(), GET(), PlatformDashboardLayout(), PlatformLayout(), createPlat
 
 ### Community 95 - "availability-matrix-client.tsx"
 Cohesion: 0.67
-Nodes (3): 1 Executive Summary, Core Problems Solved, Why Ghana
+Nodes (3): 6 Technology Stack, Shadcn UI — Component Choices Explained, Why DayPilot Lite for the Timeline Calendar
 
 ### Community 97 - "card.tsx"
 Cohesion: 0.14
@@ -482,14 +480,6 @@ Nodes (15): assignBookingToRoom(), CalendarData, checkRoomAvailability(), moveBo
 ### Community 101 - "stats-bar.tsx"
 Cohesion: 0.33
 Nodes (5): HousekeepingData, HousekeepingClientProps, HK_COLUMNS, HousekeepingStatsBarProps, StatChip()
-
-### Community 102 - "layout.tsx"
-Cohesion: 0.33
-Nodes (3): cormorant, dmSans, Props
-
-### Community 108 - "12 Guest-Facing Booking Application"
-Cohesion: 0.67
-Nodes (3): 12.1 Tenant Resolution, 12.2 Guest Pages, 12 Guest-Facing Booking Application
 
 ### Community 143 - "reports-client.tsx"
 Cohesion: 0.14

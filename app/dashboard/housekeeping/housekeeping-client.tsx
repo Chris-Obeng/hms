@@ -12,6 +12,7 @@ import {
   ChevronDown,
   X,
   Check,
+  Loader2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -299,7 +300,7 @@ export function HousekeepingClient({
   hotelId,
 }: HousekeepingClientProps) {
   const queryClient = useQueryClient();
-  const { orgId } = useAuth();
+  const { orgId, isLoaded } = useAuth();
 
   // ── View / filter state ──────────────────────────────────────
   const [dateTab, setDateTab] = React.useState<DateTab>("today");
@@ -337,14 +338,19 @@ export function HousekeepingClient({
   }, [dateTab, customDate]);
 
   // ── Query ────────────────────────────────────────────────────
-  const { data = initialData, isFetching, refetch } = useQuery({
+  const { data, error, isError, isFetching, refetch } = useQuery({
     queryKey: [...qk.housekeeping(orgId ?? "", hotelId), reportDate],
-    queryFn: () => getHousekeepingData(reportDate),
-    select: (res) => (res.success ? res.data : initialData),
-    enabled: !!orgId,
+    queryFn: async () => {
+      const res = await getHousekeepingData(reportDate);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    enabled: isLoaded && !!orgId,
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
+
+  const activeData = data || (reportDate === initialData.reportDate ? initialData : null);
 
   // ── Realtime subscription ────────────────────────────────────
   React.useEffect(() => {
@@ -368,8 +374,11 @@ export function HousekeepingClient({
 
   // ── Mutation: cleaning status ────────────────────────────────
   const statusMutation = useMutation({
-    mutationFn: ({ roomId, status }: { roomId: string; status: CleaningStatus }) =>
-      updateCleaningStatus(roomId, status),
+    mutationFn: async ({ roomId, status }: { roomId: string; status: CleaningStatus }) => {
+      const res = await updateCleaningStatus(roomId, status);
+      if (!res.success) throw new Error(res.error);
+      return res;
+    },
     onMutate: async ({ roomId, status }) => {
       const qKey = [...qk.housekeeping(orgId ?? "", hotelId), reportDate];
       await queryClient.cancelQueries({ queryKey: qKey });
@@ -385,11 +394,13 @@ export function HousekeepingClient({
       });
       return { prev, qKey };
     },
-    onError: (_err, _vars, ctx: any) => {
+    onError: (err: any, _vars, ctx: any) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.qKey, ctx.prev);
-      toast.error("Failed to update cleaning status");
+      toast.error(err instanceof Error ? err.message : "Failed to update cleaning status");
     },
-    onSuccess: () => toast.success("Cleaning status updated"),
+    onSuccess: (res) => {
+      if (res?.success) toast.success("Cleaning status updated");
+    },
     onSettled: (_data, _err, _vars, ctx: any) => {
       if (ctx?.qKey) queryClient.invalidateQueries({ queryKey: ctx.qKey });
     },
@@ -397,8 +408,11 @@ export function HousekeepingClient({
 
   // ── Mutation: note ───────────────────────────────────────────
   const noteMutation = useMutation({
-    mutationFn: ({ roomId, note }: { roomId: string; note: string }) =>
-      updateRoomNote(roomId, note),
+    mutationFn: async ({ roomId, note }: { roomId: string; note: string }) => {
+      const res = await updateRoomNote(roomId, note);
+      if (!res.success) throw new Error(res.error);
+      return res;
+    },
     onMutate: async ({ roomId, note }) => {
       const qKey = [...qk.housekeeping(orgId ?? "", hotelId), reportDate];
       await queryClient.cancelQueries({ queryKey: qKey });
@@ -414,11 +428,13 @@ export function HousekeepingClient({
       });
       return { prev, qKey };
     },
-    onError: (_err, _vars, ctx: any) => {
+    onError: (err: any, _vars, ctx: any) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.qKey, ctx.prev);
-      toast.error("Failed to save note");
+      toast.error(err instanceof Error ? err.message : "Failed to save note");
     },
-    onSuccess: () => toast.success("Note saved"),
+    onSuccess: (res) => {
+      if (res?.success) toast.success("Note saved");
+    },
     onSettled: (_data, _err, _vars, ctx: any) => {
       if (ctx?.qKey) queryClient.invalidateQueries({ queryKey: ctx.qKey });
     },
@@ -438,13 +454,14 @@ export function HousekeepingClient({
 
   // ── Filtered + sorted rooms ──────────────────────────────────
   const filteredRooms = React.useMemo(() => {
-    let rooms = data.rooms;
+    if (!activeData) return [];
+    let rooms = activeData.rooms;
     if (occupancyFilter !== "all")
       rooms = rooms.filter((r) => r.occupancyStatus === occupancyFilter);
     if (cleaningFilter !== "all")
       rooms = rooms.filter((r) => r.cleaningStatus === cleaningFilter);
     return sortRooms(rooms, sortKey, sortDir);
-  }, [data.rooms, occupancyFilter, cleaningFilter, sortKey, sortDir]);
+  }, [activeData, occupancyFilter, cleaningFilter, sortKey, sortDir]);
 
   const pendingRoomIds = React.useMemo(() => {
     const ids = new Set<string>();
@@ -454,6 +471,37 @@ export function HousekeepingClient({
       ids.add(noteMutation.variables.roomId);
     return ids;
   }, [statusMutation.isPending, statusMutation.variables, noteMutation.isPending, noteMutation.variables]);
+
+  // ── Loading & error states ────────────────────────────────────
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isError && !activeData) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center border border-border/40 rounded-xl bg-destructive/5 max-w-xl mx-auto my-10 px-6">
+        <h3 className="text-lg font-semibold text-destructive mb-2">Failed to load housekeeping</h3>
+        <p className="text-sm text-muted-foreground mb-6">
+          {error instanceof Error ? error.message : "An unexpected error occurred."}
+        </p>
+        <Button onClick={() => refetch()}>Try Again</Button>
+      </div>
+    );
+  }
+
+  if (isFetching && !activeData) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!activeData) return null;
 
   // ── Print handler ─────────────────────────────────────────────
   function handlePrint() {
@@ -558,13 +606,13 @@ export function HousekeepingClient({
       {/* ── Last updated timestamp ─────────────────────────── */}
       <p className="text-xs text-muted-foreground print:text-[11px]">
         Room status last updated:{" "}
-        <span className="font-medium">{formatLastUpdated(data.lastUpdated)}</span>
+        <span className="font-medium">{formatLastUpdated(activeData.lastUpdated)}</span>
       </p>
 
       {/* ── Table ──────────────────────────────────────────── */}
       <HousekeepingTable
         rooms={filteredRooms}
-        reportDate={data.reportDate}
+        reportDate={activeData.reportDate}
         sortKey={sortKey}
         sortDir={sortDir}
         onSort={handleSort}

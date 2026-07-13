@@ -181,7 +181,14 @@ export async function getHousekeepingData(
     >();
 
     // Track arriving guests separately to avoid mixing with departing guest names
-    const arrivingRooms = new Map<string, string | null>();
+    const arrivingRooms = new Map<
+      string,
+      {
+        guestName: string | null;
+        adults: number;
+        children: number;
+      }
+    >();
     const departingRooms = new Set<string>();
 
     for (const b of dateBookings || []) {
@@ -191,7 +198,11 @@ export async function getHousekeepingData(
       const isDeparture = b.check_out === reportDate && b.status === "checked_in";
 
       if (isArrival) {
-        arrivingRooms.set(b.room_id, (b.guests as any)?.full_name || null);
+        arrivingRooms.set(b.room_id, {
+          guestName: (b.guests as any)?.full_name || null,
+          adults: b.adults ?? 0,
+          children: b.children ?? 0,
+        });
       }
       if (isDeparture) {
         departingRooms.add(b.room_id);
@@ -217,7 +228,8 @@ export async function getHousekeepingData(
 
     const mappedRooms: HousekeepingRoom[] = (rooms || []).map((r) => {
       const booking = bookingByRoom.get(r.id);
-      const hasArrivalToday = arrivingRooms.has(r.id);
+      const arrival = arrivingRooms.get(r.id);
+      const hasArrivalToday = !!arrival;
       const hasDepartureToday = departingRooms.has(r.id);
 
       const occupancyStatus = deriveOccupancyStatus(
@@ -230,10 +242,18 @@ export async function getHousekeepingData(
 
       // Guest name: prefer arriving guest; fallback to current occupant
       const guestName = hasArrivalToday
-        ? (arrivingRooms.get(r.id) ?? null)
+        ? (arrival?.guestName ?? null)
         : booking?.status === "checked_in"
         ? (booking?.guestName ?? null)
         : null;
+
+      // Adults & children: if hasArrivalToday is true, prefer the arriving booking's counts
+      const adults = hasArrivalToday
+        ? (arrival?.adults ?? 0)
+        : booking?.adults ?? 0;
+      const children = hasArrivalToday
+        ? (arrival?.children ?? 0)
+        : booking?.children ?? 0;
 
       return {
         id: r.id,
@@ -245,8 +265,8 @@ export async function getHousekeepingData(
         occupancyStatus,
         isActive: r.is_active || false,
         notes: r.notes,
-        adults: booking?.adults ?? 0,
-        children: booking?.children ?? 0,
+        adults,
+        children,
         infants: 0,
         hasArrivalToday,
         hasDepartureToday,

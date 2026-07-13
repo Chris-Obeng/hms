@@ -494,25 +494,25 @@ html.pwa-standalone [data-slot="app-header"] {
     margin: 15mm 12mm;
   }
 
-  /* Hide everything by default */
-  body > * {
-    display: none !important;
+  /* Hide all content by default using visibility to avoid browser :has() issues */
+  body {
+    visibility: hidden !important;
   }
 
-  /* Then show only the housekeeping content area */
-  /* Walk up: body > next > ... We target the nearest containing block */
-  body *:has(#hk-print-root) {
-    display: block !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-
+  /* Show only the housekeeping content area */
   #hk-print-root {
+    visibility: visible !important;
     display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
     width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #hk-print-root * {
+    visibility: visible !important;
   }
 
   /* Hide interactive elements within the report */
