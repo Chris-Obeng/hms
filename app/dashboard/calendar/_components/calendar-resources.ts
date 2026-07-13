@@ -86,14 +86,12 @@ export function buildResources(
 
 function buildSectionHeaderHtml(
   name: string,
-  count: number,
-  availableCount: number,
+  _count: number,
+  _availableCount: number,
   _unavailableCount: number
 ): string {
   return `<div class="cal-section-hdr">
-    <span class="cal-section-dot"></span>
     <span class="cal-section-name">${escapeHtml(name)}</span>
-    <span class="cal-section-meta"><span class="cal-section-avail">${availableCount} open</span> · ${count} rooms</span>
   </div>`;
 }
 
@@ -103,11 +101,10 @@ function buildRoomRowHtml(
   status: string,
   _statusInfo: { color: string; label: string }
 ): string {
+  void status;
   return `<div class="cal-room-hdr">
-    <span class="cal-room-dot status-${status}"></span>
     <div class="cal-room-info">
       <span class="cal-room-num">${escapeHtml(roomNumber)}</span>
-      <span class="cal-room-status">${_statusInfo.label}</span>
     </div>
     ${floor ? `<span class="cal-room-floor">Floor ${escapeHtml(floor)}</span>` : ""}
   </div>`;

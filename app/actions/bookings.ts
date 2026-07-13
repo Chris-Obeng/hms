@@ -22,10 +22,12 @@ const NewBookingSchema = z.object({
   checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid check-out date"),
   adults: z.coerce.number().int().min(1).max(20).default(1),
   children: z.coerce.number().int().min(0).max(10).default(0),
-  roomRate: z.coerce.number().min(0),
-  subtotal: z.coerce.number().min(0),
-  taxAmount: z.coerce.number().min(0).default(0),
-  totalAmount: z.coerce.number().min(0),
+  // Pricing is always recomputed server-side from overrides + hotel tax settings.
+  // These fields are accepted for backwards compatibility but are ignored.
+  roomRate: z.coerce.number().min(0).optional(),
+  subtotal: z.coerce.number().min(0).optional(),
+  taxAmount: z.coerce.number().min(0).optional(),
+  totalAmount: z.coerce.number().min(0).optional(),
   estimatedArrival: z.string().optional().or(z.literal("")),
   specialRequests: z.string().max(1000).optional().or(z.literal("")),
   source: z.enum(["direct", "manual", "phone", "walk_in"]),
@@ -142,8 +144,33 @@ export async function createBooking(
       }
     }
 
+    // ── Server-side pricing recomputation ─────────────────────────────
+    // NEVER trust client-sent roomRate/subtotal/totalAmount.
+    // Always recompute from override tables + hotel tax settings.
     const checkInStr = format(checkIn, "yyyy-MM-dd");
     const checkOutStr = format(checkOut, "yyyy-MM-dd");
+
+    const { resolvePublicNightlyTotal } = await import("@/lib/pricing/resolve-public-price");
+    const resolved = await resolvePublicNightlyTotal(
+      hotelId,
+      data.roomTypeId,
+      checkInStr,
+      checkOutStr
+    );
+
+    const taxEnabled = ctx.hotel.settings.tax_enabled === true;
+    const taxPercentage =
+      taxEnabled && typeof ctx.hotel.settings.tax_percentage === "number"
+        ? ctx.hotel.settings.tax_percentage
+        : 0;
+    const computedSubtotal = resolved.subtotal;
+    const computedTaxAmount =
+      taxPercentage > 0
+        ? Math.round(computedSubtotal * (taxPercentage / 100) * 100) / 100
+        : 0;
+    const computedTotal = Math.round((computedSubtotal + computedTaxAmount) * 100) / 100;
+    // Average nightly rate stored as room_rate (used for reporting, not pricing)
+    const computedRoomRate = resolved.avgNightlyRate;
 
     // Room assignment availability check
     if (data.roomId) {
@@ -213,10 +240,10 @@ export async function createBooking(
         check_out: checkOutStr,
         adults: data.adults,
         children: data.children,
-        room_rate: data.roomRate,
-        subtotal: data.subtotal,
-        tax_amount: data.taxAmount,
-        total_amount: data.totalAmount,
+        room_rate: computedRoomRate,
+        subtotal: computedSubtotal,
+        tax_amount: computedTaxAmount,
+        total_amount: computedTotal,
         estimated_arrival: data.estimatedArrival || null,
         special_requests: data.specialRequests || null,
         source: data.source,

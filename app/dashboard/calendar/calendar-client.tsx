@@ -7,10 +7,12 @@ import dynamic from "next/dynamic";
 import { addDays, format, parseISO, subDays } from "date-fns";
 import {
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Plus,
   Search,
+  Settings,
   SlidersHorizontal,
   X,
 } from "lucide-react";
@@ -146,6 +148,17 @@ export function CalendarClient({
   const [sourceFilters, setSourceFilters] = React.useState<string[]>([]);
   const [showFilters, setShowFilters] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [showSearch, setShowSearch] = React.useState(false);
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+  const [rangePopoverOpen, setRangePopoverOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (showSearch) {
+      // Small delay to allow the input to mount/expand before focusing
+      const t = setTimeout(() => searchInputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [showSearch]);
 
   const [selectedBookingId, setSelectedBookingId] = React.useState<
     string | null
@@ -341,14 +354,21 @@ export function CalendarClient({
     return () => window.clearTimeout(timer);
   }, []);
 
-  const goToPrev = React.useCallback(
-    () => setStartDate((previous) => subDays(previous, days)),
-    [days],
-  );
-  const goToNext = React.useCallback(
-    () => setStartDate((previous) => addDays(previous, days)),
-    [days],
-  );
+  const goToPrev = React.useCallback(() => {
+    setStartDate((previous) => {
+      const next = subDays(previous, days);
+      schedulerRef.current?.control?.scrollTo(format(next, "yyyy-MM-dd"));
+      return next;
+    });
+  }, [days]);
+
+  const goToNext = React.useCallback(() => {
+    setStartDate((previous) => {
+      const next = addDays(previous, days);
+      schedulerRef.current?.control?.scrollTo(format(next, "yyyy-MM-dd"));
+      return next;
+    });
+  }, [days]);
   const goToToday = React.useCallback(() => {
     const today = new Date();
     setStartDate(today);
@@ -845,148 +865,180 @@ export function CalendarClient({
   return (
     <div className="cal-wrap flex flex-col h-[calc(100vh-3rem)] bg-background overflow-hidden min-h-0">
       {/* ── Desktop Toolbar ── */}
-      <div className="hidden md:flex items-center gap-2 px-3 py-2 border-b border-border bg-background sticky top-12 z-30 min-h-[44px]">
-        {/* Date nav */}
-        <div className="flex items-center rounded-lg border border-border overflow-hidden shadow-sm">
-          <button
-            onClick={goToPrev}
-            title="Previous period (Shift + ←)"
-            className="h-9 w-9 flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-          <Popover>
-            <PopoverTrigger className="h-9 px-4 text-xs font-semibold text-foreground hover:bg-muted transition-colors flex items-center gap-2 border-x border-border min-w-[180px] justify-center">
-              <CalendarDays className="size-3.5 text-muted-foreground" />
-              {format(startDate, "MMM d")}–
-              {format(addDays(startDate, days - 1), "d, yyyy")}
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={startDate}
-                onSelect={(d) => d && setStartDate(d)}
-              />
-            </PopoverContent>
-          </Popover>
-          <button
-            onClick={goToNext}
-            title="Next period (Shift + →)"
-            className="h-9 w-9 flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-          >
-            <ChevronRight className="size-4" />
-          </button>
-        </div>
+      <div className="hidden md:flex items-center gap-1.5 px-3 border-b border-border bg-background sticky top-0 z-30 h-11">
 
+        {/* ── Left group: navigation ── */}
+
+        {/* Prev */}
+        <button
+          onClick={goToPrev}
+          title="Previous period"
+          className="h-8 w-8 rounded-md flex items-center justify-center border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        >
+          <ChevronLeft className="size-3.5" />
+        </button>
+
+        {/* Date range picker */}
+        <Popover open={rangePopoverOpen} onOpenChange={setRangePopoverOpen}>
+          <PopoverTrigger
+            render={
+              <button className="h-8 px-3 rounded-md border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors flex items-center gap-1.5 min-w-[148px] justify-center" />
+            }
+          >
+            <CalendarDays className="size-3.5 text-muted-foreground" />
+            <span>{format(startDate, "MMMM yyyy")}</span>
+            <ChevronDown className="size-3 text-muted-foreground" />
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={startDate}
+              onSelect={(d) => {
+                if (d) {
+                  setStartDate(d);
+                  setTimeout(() => setRangePopoverOpen(false), 0);
+                }
+              }}
+            />
+          </PopoverContent>
+        </Popover>
+
+        {/* Next */}
+        <button
+          onClick={goToNext}
+          title="Next period"
+          className="h-8 w-8 rounded-md flex items-center justify-center border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        >
+          <ChevronRight className="size-3.5" />
+        </button>
+
+        {/* View preset dropdown */}
+        <Popover>
+          <PopoverTrigger
+            render={
+              <button className="h-8 px-3 rounded-md border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors flex items-center gap-1 min-w-[60px] justify-center" />
+            }
+          >
+            <span>{viewPreset}</span>
+            <ChevronDown className="size-3 text-muted-foreground" />
+          </PopoverTrigger>
+          <PopoverContent className="w-36 p-1" align="start">
+            {VIEW_PRESETS.map((p) => (
+              <button
+                key={p.label}
+                onClick={() => setViewPreset(p.label)}
+                className={cn(
+                  "w-full text-left px-3 py-1.5 text-xs rounded-md transition-colors",
+                  viewPreset === p.label
+                    ? "bg-primary/10 text-primary font-semibold"
+                    : "text-foreground hover:bg-muted"
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
+
+        {/* Today */}
         <button
           onClick={goToToday}
-          title="Jump to today (T)"
-          className="h-9 px-4 rounded-lg text-xs font-semibold text-muted-foreground border border-border hover:text-foreground hover:bg-muted transition-colors shadow-sm"
+          title="Jump to today"
+          className="h-8 px-3 rounded-md border border-border text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         >
           Today
         </button>
 
-        <div className="cal-toolbar-divider" />
+        {/* ── Spacer ── */}
+        <div className="flex-1" />
 
-        {/* View presets - segmented control style per spec */}
-        <div className="flex items-center rounded-md border border-border overflow-hidden">
-          {VIEW_PRESETS.map((p) => (
-            <button
-              key={p.label}
-              onClick={() => setViewPreset(p.label)}
-              title={`View ${p.days} day${p.days > 1 ? "s" : ""}`}
-              className={cn(
-                "h-9 px-4 text-xs font-semibold transition-all border-r border-border last:border-r-0",
-                viewPreset === p.label
-                  ? "bg-primary text-primary-foreground font-bold"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-              )}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        {/* ── Right group ── */}
 
-        <div className="cal-toolbar-divider" />
-
-        {/* Search bar per spec */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search guest name or reference..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-44 rounded-md border border-border bg-background pl-10 pr-9 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/50"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="size-3.5" />
-            </button>
+        {/* Search — icon that expands inline */}
+        <div className={cn(
+          "flex items-center rounded-md border border-border transition-all duration-200 overflow-hidden bg-background",
+          showSearch ? "w-52" : "w-8"
+        )}>
+          <button
+            onClick={() => {
+              if (showSearch && searchQuery) { setSearchQuery(""); setShowSearch(false); }
+              else setShowSearch((v) => !v);
+            }}
+            title="Search"
+            className="h-8 w-8 shrink-0 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showSearch && searchQuery
+              ? <X className="size-3.5" />
+              : <Search className="size-3.5" />
+            }
+          </button>
+          {showSearch && (
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Escape") { setSearchQuery(""); setShowSearch(false); } }}
+              placeholder="Guest or reference…"
+              className="flex-1 h-8 pr-2 text-xs bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+            />
           )}
         </div>
 
-        {/* Filter with active count badge */}
+        {/* Filters */}
         <button
           onClick={() => setShowFilters(true)}
-          title="Filter bookings"
-          className="h-9 px-4 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-2 shadow-sm"
+          title="Filters"
+          className={cn(
+            "h-8 w-8 rounded-md flex items-center justify-center border transition-colors relative",
+            activeFilterCount > 0
+              ? "border-primary/40 bg-primary/5 text-primary"
+              : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
         >
           <SlidersHorizontal className="size-3.5" />
-          Filters
           {activeFilterCount > 0 && (
-            <span className="size-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center shadow-sm">
+            <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center leading-none">
               {activeFilterCount}
             </span>
           )}
         </button>
 
-        <div className="flex-1" />
-
-        {/* Legend - now more prominent */}
-        <div className="hidden xl:flex items-center gap-4 px-3 py-1.5 rounded-lg bg-muted/50 border border-border">
-          {CALENDAR_LEGEND.slice(0, 4).map((item) => (
-            <div key={item.label} className="flex items-center gap-2">
-              <span
-                className="size-2.5 rounded-sm flex-shrink-0 shadow-sm"
-                style={{ background: item.color }}
-              />
-              <span className="text-[10px] font-medium text-foreground">
-                {item.label}
-              </span>
-            </div>
-          ))}
-        </div>
-
+        {/* Block room */}
         {canBlock && (
           <button
-            onClick={() => {
-              setBlockPrefillRoomId(undefined);
-              setBlockRoomOpen(true);
-            }}
-            title="Block a room from bookings"
-            className="h-9 px-4 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-sm"
+            onClick={() => { setBlockPrefillRoomId(undefined); setBlockRoomOpen(true); }}
+            title="Block room"
+            className="h-8 w-8 rounded-md flex items-center justify-center border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
-            Block Room
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" className="size-3.5">
+              <rect x="1" y="1" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+              <line x1="3.5" y1="7.5" x2="11.5" y2="7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
           </button>
         )}
 
-        {/* Primary action - brand primary per spec */}
-        <Button
-          onClick={() => {
-            setNewBookingPrefill(null);
-            setNewBookingOpen(true);
-          }}
-          title="Create new booking (N)"
-          className="h-9 px-5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/95 transition-all flex items-center gap-2 shadow-sm"
+        {/* Settings */}
+        <button
+          title="Calendar settings"
+          className="h-8 w-8 rounded-md flex items-center justify-center border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         >
-          <Plus className="size-4" />+ New Booking
-        </Button>
-      </div>
+          <Settings className="size-3.5" />
+        </button>
 
+        <div className="w-px h-5 bg-border mx-0.5" />
+
+        {/* New Reservation — primary CTA, right-most */}
+        <button
+          onClick={() => { setNewBookingPrefill(null); setNewBookingOpen(true); }}
+          title="Create new reservation (N)"
+          className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors flex items-center gap-1.5"
+        >
+          <Plus className="size-3.5" />
+          New Reservation
+        </button>
+
+      </div>
       {/* Active filter chips */}
       {activeFilterCount > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 px-4 py-2 border-b border-border bg-background">

@@ -81,31 +81,22 @@ export function AppHeader({
   }, []);
 
   const bellRef = React.useRef<NotificationIconHandle>(null);
+  const chimeAudioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      chimeAudioRef.current = new Audio("/audio/chime.mp3");
+      chimeAudioRef.current.volume = 0.5;
+    }
+  }, []);
 
   const playChime = React.useCallback(() => {
-    if (typeof window === "undefined") return;
+    if (!chimeAudioRef.current) return;
     try {
-      const AudioContext = window.AudioContext || (window as Window & { webkitAudioContext?: typeof window.AudioContext }).webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
-      
-      const playTone = (time: number, freq: number, dur: number) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, time);
-        gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.2, time + 0.04);
-        gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(time);
-        osc.stop(time + dur);
-      };
-
-      const now = ctx.currentTime;
-      playTone(now, 1046.50, 0.6); // C6
-      playTone(now + 0.12, 1318.51, 1.0); // E6
+      chimeAudioRef.current.currentTime = 0;
+      chimeAudioRef.current.play().catch((err) => {
+        console.warn("Chime play blocked by browser autoplay policy:", err);
+      });
     } catch (e) {
       console.error("Chime play error:", e);
     }
@@ -178,7 +169,8 @@ export function AppHeader({
     let active = true;
 
     let channel: any = null;
-    const supabase = createClient();
+    let supabase: any = null;
+    let authInterval: NodeJS.Timeout | null = null;
 
     async function initRealtime() {
       await fetchNotifications();
@@ -187,68 +179,91 @@ export function AppHeader({
       try {
         const token = await getToken({ template: "supabase" });
         if (!active) return;
-        if (token) {
-          supabase.realtime.setAuth(token);
+
+        supabase = createClient(token || undefined);
+
+        async function updateRealtimeAuth() {
+          try {
+            const newToken = await getToken({ template: "supabase" });
+            if (!active) return;
+            if (newToken && supabase) {
+              supabase.realtime.setAuth(newToken);
+            }
+          } catch (e) {
+            console.error("Realtime authentication/refresh failed:", e);
+          }
         }
-      } catch (e) {
-        console.error("Realtime authentication failed:", e);
-      }
 
-      if (!active) return;
+        // Keep token fresh (expires in 60s, refresh every 45s)
+        authInterval = setInterval(updateRealtimeAuth, 45000);
 
-      channel = supabase
-        .channel(`hotel:${hId}:notifications`)
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "notifications", filter: `hotel_id=eq.${hId}` },
-          (payload: any) => {
-            // Animate bell icon
-            bellRef.current?.startAnimation();
+        channel = supabase
+          .channel(`hotel:${hId}:notifications`)
+          .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "notifications", filter: `hotel_id=eq.${hId}` },
+            (payload: any) => {
+              console.log("Realtime: Received notification insert:", payload);
+              
+              // Animate bell icon
+              bellRef.current?.startAnimation();
 
-            // Play sound if enabled in settings
-            const soundEnabled = localStorage.getItem("hotelos_sound_enabled") !== "false";
-            if (soundEnabled) {
-              playChime();
-            }
-
-            // Browser notification alert if enabled
-            const browserAlerts = localStorage.getItem("hotelos_browser_notifications_enabled") === "true";
-            if (browserAlerts && Notification.permission === "granted") {
-              try {
-                new Notification(payload.new.title || "New Notification", {
-                  body: payload.new.message || "",
-                  icon: "/icons/icon-192x192.png",
-                });
-              } catch (e) {
-                console.error("Failed to show browser notification:", e);
+              // Play sound if enabled in settings
+              const soundEnabled = localStorage.getItem("hotelos_sound_enabled") !== "false";
+              if (soundEnabled) {
+                playChime();
               }
-            }
 
-            setLiveNotificationCount((prev) => prev + 1);
-            fetchNotifications();
-          },
-        )
-        .on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "notifications", filter: `hotel_id=eq.${hId}` },
-          async () => {
-            const { count } = await supabase
-              .from("notifications")
-              .select("*", { count: "exact", head: true })
-              .eq("hotel_id", hId)
-              .eq("is_read", false);
-            setLiveNotificationCount(count ?? 0);
-            fetchNotifications();
-          },
-        )
-        .subscribe();
+              // Browser notification alert if enabled
+              const browserAlerts = localStorage.getItem("hotelos_browser_notifications_enabled") === "true";
+              if (browserAlerts && Notification.permission === "granted") {
+                try {
+                  new Notification(payload.new.title || "New Notification", {
+                    body: payload.new.message || "",
+                    icon: "/icons/icon-192x192.png",
+                  });
+                } catch (e) {
+                  console.error("Failed to show browser notification:", e);
+                }
+              }
+
+              setLiveNotificationCount((prev) => prev + 1);
+              fetchNotifications();
+            },
+          )
+          .on(
+            "postgres_changes",
+            { event: "UPDATE", schema: "public", table: "notifications", filter: `hotel_id=eq.${hId}` },
+            async () => {
+              const { count } = await supabase
+                .from("notifications")
+                .select("*", { count: "exact", head: true })
+                .eq("hotel_id", hId)
+                .eq("is_read", false);
+              setLiveNotificationCount(count ?? 0);
+              fetchNotifications();
+            },
+          )
+          .subscribe((status: string, err?: any) => {
+            console.log(`Realtime: Subscription status for notifications: ${status}`, err || "");
+            if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+              console.warn("Realtime: Subscription error, attempting refresh...");
+              updateRealtimeAuth();
+            }
+          });
+      } catch (err) {
+        console.error("Failed to initialize realtime connection:", err);
+      }
     }
 
     initRealtime();
 
     return () => {
       active = false;
-      if (channel) {
+      if (authInterval) {
+        clearInterval(authInterval);
+      }
+      if (channel && supabase) {
         supabase.removeChannel(channel);
       }
     };

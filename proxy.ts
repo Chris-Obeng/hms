@@ -86,9 +86,9 @@ async function updatePlatformSession(request: NextRequest): Promise<NextResponse
   return response;
 }
 
-// ── Main middleware ───────────────────────────────────────────────
+// ── Main proxy ───────────────────────────────────────────────────
 
-export const proxy = clerkMiddleware(async (auth, req) => {
+export default clerkMiddleware(async (auth, req) => {
   const { pathname } = req.nextUrl;
 
   // Platform admin: handled entirely by Supabase Auth (no Clerk involvement)

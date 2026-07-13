@@ -30,8 +30,38 @@ export function BookingWizard({ slug,hotel,roomTypes,initialRoomTypeId,initialCh
   const [paymentPref,setPaymentPref]=React.useState<"pay_now"|"pay_at_checkin">(hotel.paymentPolicy==="pay_later_only"?"pay_at_checkin":"pay_now");
   const [submitting,setSubmitting]=React.useState(false);
   const [section,setSection]=React.useState<1|2|3>(1);
+  // Override-resolved prices keyed by room type id
+  const [resolvedPrices,setResolvedPrices]=React.useState<Record<string,{displayPrice:number;subtotal:number}>>({});
+  const [priceLoading,setPriceLoading]=React.useState(false);
+
+  // Re-fetch resolved prices whenever dates change and are valid
+  React.useEffect(()=>{
+    if(!checkIn||!checkOut||checkOut<=checkIn)return;
+    let cancelled=false;
+    setPriceLoading(true);
+    fetch(`/api/booking/${slug}/availability?check_in=${checkIn}&check_out=${checkOut}`)
+      .then(r=>r.ok?r.json():null)
+      .then((json)=>{
+        if(cancelled||!json?.rooms)return;
+        const map:Record<string,{displayPrice:number;subtotal:number}>={};
+        for(const room of json.rooms){
+          map[room.id]={
+            displayPrice:room.displayPrice??room.basePrice,
+            subtotal:room.subtotal??null,
+          };
+        }
+        setResolvedPrices(map);
+      })
+      .catch(()=>{})
+      .finally(()=>{ if(!cancelled) setPriceLoading(false); });
+    return()=>{ cancelled=true; };
+  },[checkIn,checkOut,slug]);
+
   const nights=checkIn&&checkOut?Math.max(1,Math.ceil((new Date(checkOut).getTime()-new Date(checkIn).getTime())/86400000)):1;
-  const total=selectedRoom?selectedRoom.basePrice*nights:0;
+  // Use resolved subtotal when available, fall back to basePrice * nights
+  const resolvedSelected=selectedRoom?resolvedPrices[selectedRoom.id]:null;
+  const displayNightRate=resolvedSelected?.displayPrice??selectedRoom?.basePrice??0;
+  const total=resolvedSelected?.subtotal??((selectedRoom?.basePrice??0)*nights);
   const fmt=(n:number)=>`${hotel.currency} ${n.toLocaleString()}`;
   const s1=!!selectedRoom&&checkIn&&checkOut&&checkOut>checkIn;
   const s2=guestName.trim().length>1&&guestEmail.includes("@")&&guestPhone.length>=7;
@@ -64,7 +94,7 @@ export function BookingWizard({ slug,hotel,roomTypes,initialRoomTypeId,initialCh
                 <label className="block"><span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Check-in</span><input type="date" value={checkIn} min={today} onChange={(e)=>{setCheckIn(e.target.value);if(e.target.value>=checkOut){const d=new Date(e.target.value);d.setDate(d.getDate()+1);setCheckOut(d.toISOString().split("T")[0]);}}} className="mt-1 w-full h-10 px-3 rounded-xl border border-border bg-card text-sm outline-none focus:border-primary transition-colors" /></label>
                 <label className="block"><span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Check-out</span><input type="date" value={checkOut} min={checkIn} onChange={(e)=>setCheckOut(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-xl border border-border bg-card text-sm outline-none focus:border-primary transition-colors" /></label>
               </div>
-              <div><span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground block mb-2">Select Room</span><div className="space-y-2">{roomTypes.map(rt=><RoomOpt key={rt.id} room={rt} selected={selectedRoom?.id===rt.id} currency={hotel.currency} onSelect={()=>setSelectedRoom(rt)} onPhotos={(e)=>{e.stopPropagation();setGalleryRoom(rt);}} />)}</div></div>
+              <div><span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground block mb-2">Select Room</span><div className="space-y-2">{roomTypes.map(rt=><RoomOpt key={rt.id} room={rt} selected={selectedRoom?.id===rt.id} currency={hotel.currency} displayPrice={resolvedPrices[rt.id]?.displayPrice??rt.basePrice} priceLoading={priceLoading} onSelect={()=>setSelectedRoom(rt)} onPhotos={(e)=>{e.stopPropagation();setGalleryRoom(rt);}} />)}</div></div>
               <Next disabled={!s1} onClick={()=>setSection(2)} label="Continue to guest details" />
             </div>
           </Sec>
@@ -80,7 +110,7 @@ export function BookingWizard({ slug,hotel,roomTypes,initialRoomTypeId,initialCh
           </Sec>
           <Sec num={3} title="Confirm & Pay" complete={false} active={section===3} onEdit={()=>{}} summary={undefined}>
             <div className="rounded-xl bg-secondary border border-border p-4 space-y-2 mb-4">
-              <div className="flex justify-between text-sm"><span className="text-muted-foreground">{selectedRoom?.name}</span><span className="font-medium">{selectedRoom?fmt(selectedRoom.basePrice):""}/night</span></div>
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">{selectedRoom?.name}</span><span className="font-medium">{selectedRoom?fmt(displayNightRate):""}/night</span></div>
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">{checkIn} to {checkOut} ({nights} night{nights!==1?"s":""})</span></div>
               <div className="flex justify-between text-sm pt-1 border-t border-border"><span className="font-semibold text-foreground">Total</span><span className="font-bold text-lg text-foreground">{fmt(total)}</span></div>
             </div>
@@ -98,9 +128,9 @@ export function BookingWizard({ slug,hotel,roomTypes,initialRoomTypeId,initialCh
   );
 }
 
-function RoomOpt({room,selected,currency,onSelect,onPhotos}:{room:RoomType;selected:boolean;currency:string;onSelect:()=>void;onPhotos:(e:React.MouseEvent)=>void;}) {
+function RoomOpt({room,selected,currency,displayPrice,priceLoading,onSelect,onPhotos}:{room:RoomType;selected:boolean;currency:string;displayPrice:number;priceLoading:boolean;onSelect:()=>void;onPhotos:(e:React.MouseEvent)=>void;}) {
   const img=room.images[0]?.url??null;
-  return <button type="button" onClick={onSelect} className={`w-full text-left rounded-xl border p-3 transition-all ${selected?"border-primary bg-primary/5":"border-border bg-card hover:border-primary"}`}><div className="flex items-start gap-3"><div className="relative shrink-0 w-16 h-14 rounded-lg overflow-hidden bg-secondary">{img?<Image src={img} alt={room.name} fill className="object-cover" sizes="64px" />:<div className="absolute inset-0 flex items-center justify-center"><span className="text-lg font-bold text-[#D4C8BE]">{room.name.split(" ").map((w:string)=>w[0]).join("").slice(0,2).toUpperCase()}</span></div>}{room.images.length>1&&<button type="button" onClick={onPhotos} className="absolute bottom-0.5 right-0.5 bg-black/60 text-primary-foreground rounded px-1 py-0.5 text-[8px] flex items-center gap-0.5 hover:bg-black/80"><Images className="size-2" />{room.images.length}</button>}</div><div className="flex-1 min-w-0"><div className="flex items-start justify-between gap-2"><p className="text-sm font-medium text-foreground">{room.name}</p><div className="text-right shrink-0"><p className="text-sm font-semibold text-foreground">{currency} {room.basePrice.toLocaleString()}</p><p className="text-[10px] text-muted-foreground">/night</p></div></div>{room.bedConfiguration&&<p className="text-xs text-muted-foreground mt-0.5">{room.bedConfiguration}</p>}{selected&&room.shortDescription&&<p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{room.shortDescription}</p>}{room.amenities.length>0&&<div className="flex flex-wrap gap-1 mt-1.5">{room.amenities.slice(0,3).map((a:Amenity)=><span key={a.label} className="text-[9px] text-muted-foreground bg-secondary border border-border px-1.5 py-0.5 rounded-full">{a.label}</span>)}{room.amenities.length>3&&<span className="text-[9px] text-muted-foreground">+{room.amenities.length-3}</span>}</div>}</div></div></button>;
+  return <button type="button" onClick={onSelect} className={`w-full text-left rounded-xl border p-3 transition-all ${selected?"border-primary bg-primary/5":"border-border bg-card hover:border-primary"}`}><div className="flex items-start gap-3"><div className="relative shrink-0 w-16 h-14 rounded-lg overflow-hidden bg-secondary">{img?<Image src={img} alt={room.name} fill className="object-cover" sizes="64px" />:<div className="absolute inset-0 flex items-center justify-center"><span className="text-lg font-bold text-[#D4C8BE]">{room.name.split(" ").map((w:string)=>w[0]).join("").slice(0,2).toUpperCase()}</span></div>}{room.images.length>1&&<button type="button" onClick={onPhotos} className="absolute bottom-0.5 right-0.5 bg-black/60 text-primary-foreground rounded px-1 py-0.5 text-[8px] flex items-center gap-0.5 hover:bg-black/80"><Images className="size-2" />{room.images.length}</button>}</div><div className="flex-1 min-w-0"><div className="flex items-start justify-between gap-2"><p className="text-sm font-medium text-foreground">{room.name}</p><div className="text-right shrink-0"><p className={`text-sm font-semibold text-foreground ${priceLoading?"opacity-40":""}`}>{currency} {displayPrice.toLocaleString()}</p><p className="text-[10px] text-muted-foreground">/night</p></div></div>{room.bedConfiguration&&<p className="text-xs text-muted-foreground mt-0.5">{room.bedConfiguration}</p>}{selected&&room.shortDescription&&<p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{room.shortDescription}</p>}{room.amenities.length>0&&<div className="flex flex-wrap gap-1 mt-1.5">{room.amenities.slice(0,3).map((a:Amenity)=><span key={a.label} className="text-[9px] text-muted-foreground bg-secondary border border-border px-1.5 py-0.5 rounded-full">{a.label}</span>)}{room.amenities.length>3&&<span className="text-[9px] text-muted-foreground">+{room.amenities.length-3}</span>}</div>}</div></div></button>;
 }
 
 function Sec({num,title,complete,active,onEdit,summary,children}:{num:number;title:string;complete:boolean;active:boolean;onEdit:()=>void;summary?:string;children:React.ReactNode;}) {

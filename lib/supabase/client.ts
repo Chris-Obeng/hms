@@ -20,20 +20,21 @@ declare global {
  * Browser-side Supabase client. Subject to Row Level Security.
  * Automatically injects Clerk's Supabase JWT token if available.
  */
-export function createClient() {
+export function createClient(token?: string) {
   return createBrowserClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
       global: {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         fetch: async (url, options = {}) => {
           const headers = new Headers(options.headers);
 
           if (typeof window !== "undefined" && window.Clerk?.session) {
             try {
-              const token = await window.Clerk.session.getToken({ template: "supabase" });
-              if (token) {
-                headers.set("Authorization", `Bearer ${token}`);
+              const activeToken = token || await window.Clerk.session.getToken({ template: "supabase" });
+              if (activeToken) {
+                headers.set("Authorization", `Bearer ${activeToken}`);
               }
             } catch (e) {
               console.error("Clerk token injection failed:", e);

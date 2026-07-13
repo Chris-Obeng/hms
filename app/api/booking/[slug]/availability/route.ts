@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase/admin";
+import { resolvePublicRoomPrices } from "@/lib/pricing/resolve-public-price";
 
 export async function GET(
   req: NextRequest,
@@ -60,7 +61,7 @@ export async function GET(
     });
   }
 
-  // If no dates, return rooms with pricing only (no availability)
+  // If no dates, return rooms with base pricing only (no availability, no override lookup)
   if (!checkIn || !checkOut) {
     return NextResponse.json({
       hotel: buildHotelShape(hotel, settings),
@@ -74,6 +75,9 @@ export async function GET(
         maxChildren: rt.max_children,
         basePrice: rt.base_price,
         weekendPrice: rt.weekend_price,
+        // displayPrice = base price when no dates selected
+        displayPrice: rt.base_price,
+        subtotal: null,
         amenities: rt.amenities ?? [],
         images: rt.images ?? [],
         available: null,
@@ -82,24 +86,30 @@ export async function GET(
     });
   }
 
-  // Fetch availability for each room type using the DB function
-  const availabilityResults = await Promise.all(
-    roomTypes.map(async (rt) => {
-      const { data } = await supabase.rpc("room_type_available_count", {
-        p_room_type_id: rt.id,
-        p_check_in: checkIn,
-        p_check_out: checkOut,
-      });
-      return { id: rt.id, count: data ?? 0 };
-    })
-  );
+  // Fetch availability + override-resolved prices in parallel
+  const roomTypeIds = roomTypes.map((rt) => rt.id);
+  const [availabilityResults, resolvedPrices] = await Promise.all([
+    Promise.all(
+      roomTypes.map(async (rt) => {
+        const { data } = await supabase.rpc("room_type_available_count", {
+          p_room_type_id: rt.id,
+          p_check_in: checkIn,
+          p_check_out: checkOut,
+        });
+        return { id: rt.id, count: data ?? 0 };
+      })
+    ),
+    resolvePublicRoomPrices(hotel.id, roomTypeIds, checkIn, checkOut),
+  ]);
 
   const availabilityMap = new Map(availabilityResults.map((r) => [r.id, r.count]));
+  const priceMap = new Map(resolvedPrices.map((p) => [p.roomTypeId, p]));
 
   return NextResponse.json({
     hotel: buildHotelShape(hotel, settings),
     rooms: roomTypes.map((rt) => {
       const count = availabilityMap.get(rt.id) ?? 0;
+      const resolved = priceMap.get(rt.id);
       return {
         id: rt.id,
         name: rt.name,
@@ -110,6 +120,9 @@ export async function GET(
         maxChildren: rt.max_children,
         basePrice: rt.base_price,
         weekendPrice: rt.weekend_price,
+        // Override-resolved prices for the selected dates
+        displayPrice: resolved?.displayPrice ?? rt.base_price,
+        subtotal: resolved?.subtotal ?? null,
         amenities: rt.amenities ?? [],
         images: rt.images ?? [],
         available: count > 0,

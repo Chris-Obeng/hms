@@ -4,6 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { DateSearchBar } from "./_components/date-search-bar";
 import { RoomCard } from "./_components/room-card";
+import {
+  resolvePublicRoomPrices,
+  getDefaultBookingDates,
+} from "@/lib/pricing/resolve-public-price";
 
 export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ slug: string }> };
@@ -21,6 +25,16 @@ export default async function HotelLandingPage({ params }: Props) {
     .select("id,name,short_description,base_price,images,amenities,sort_order")
     .eq("hotel_id", hotel.id).eq("is_active", true)
     .order("sort_order", { ascending: true }).order("name", { ascending: true }).limit(6);
+
+  // Resolve override-aware prices for tonight → tomorrow so seasonal / daily
+  // overrides are always visible on the landing page without requiring date input.
+  // This is the industry standard (Booking.com, Hotels.com etc).
+  const { checkIn: defaultCheckIn, checkOut: defaultCheckOut } = getDefaultBookingDates();
+  const ids = (roomTypes ?? []).map((rt) => rt.id);
+  const resolvedPrices = ids.length
+    ? await resolvePublicRoomPrices(hotel.id, ids, defaultCheckIn, defaultCheckOut)
+    : [];
+  const priceMap = new Map(resolvedPrices.map((p) => [p.roomTypeId, p]));
 
   return (
     <div className="min-h-screen">
@@ -52,11 +66,24 @@ export default async function HotelLandingPage({ params }: Props) {
           <Link href={`/${slug}/rooms`} className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors hidden sm:block">View all rooms</Link>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {(roomTypes ?? []).map((rt) => (
-            <RoomCard key={rt.id} slug={slug} id={rt.id} name={rt.name} shortDescription={rt.short_description} basePrice={rt.base_price} currency={hotel.currency ?? "GHS"}
-              images={(Array.isArray(rt.images) ? rt.images : []) as { url: string; caption: string }[]}
-              amenities={(Array.isArray(rt.amenities) ? rt.amenities : []) as { icon: string; label: string }[]} />
-          ))}
+          {(roomTypes ?? []).map((rt) => {
+            const resolved = priceMap.get(rt.id);
+            return (
+              <RoomCard
+                key={rt.id}
+                slug={slug}
+                id={rt.id}
+                name={rt.name}
+                shortDescription={rt.short_description}
+                basePrice={resolved?.displayPrice ?? rt.base_price}
+                currency={hotel.currency ?? "GHS"}
+                images={(Array.isArray(rt.images) ? rt.images : []) as { url: string; caption: string }[]}
+                amenities={(Array.isArray(rt.amenities) ? rt.amenities : []) as { icon: string; label: string }[]}
+                // No user-selected dates on the landing page — show "from" label
+                datesSelected={false}
+              />
+            );
+          })}
         </div>
       </section>
       {hotel.description && (
