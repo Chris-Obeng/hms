@@ -30,8 +30,10 @@ export function BookingWizard({ slug,hotel,roomTypes,initialRoomTypeId,initialCh
   const [paymentPref,setPaymentPref]=React.useState<"pay_now"|"pay_at_checkin">(hotel.paymentPolicy==="pay_later_only"?"pay_at_checkin":"pay_now");
   const [submitting,setSubmitting]=React.useState(false);
   const [section,setSection]=React.useState<1|2|3>(1);
-  // Override-resolved prices keyed by room type id
-  const [resolvedPrices,setResolvedPrices]=React.useState<Record<string,{displayPrice:number;subtotal:number}>>({});
+  // Override-resolved prices keyed by room type id.
+  // subtotal is null when dates haven't been selected / availability not yet fetched.
+  type ResolvedPrice = { displayPrice: number; subtotal: number | null };
+  const [resolvedPrices,setResolvedPrices]=React.useState<Record<string,ResolvedPrice>>({});
   const [priceLoading,setPriceLoading]=React.useState(false);
 
   // Re-fetch resolved prices whenever dates change and are valid
@@ -43,11 +45,11 @@ export function BookingWizard({ slug,hotel,roomTypes,initialRoomTypeId,initialCh
       .then(r=>r.ok?r.json():null)
       .then((json)=>{
         if(cancelled||!json?.rooms)return;
-        const map:Record<string,{displayPrice:number;subtotal:number}>={};
+        const map:Record<string,ResolvedPrice>={};
         for(const room of json.rooms){
           map[room.id]={
             displayPrice:room.displayPrice??room.basePrice,
-            subtotal:room.subtotal??null,
+            subtotal:typeof room.subtotal==="number"?room.subtotal:null,
           };
         }
         setResolvedPrices(map);

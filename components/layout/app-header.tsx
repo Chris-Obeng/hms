@@ -177,10 +177,10 @@ export function AppHeader({
       if (!active) return;
 
       try {
-        const token = await getToken({ template: "supabase" });
-        if (!active) return;
-
-        supabase = createClient(token || undefined);
+        // createClient() always fetches a fresh Clerk token per request —
+        // no need to pass a token here. Realtime auth is still kept fresh
+        // separately via supabase.realtime.setAuth() on a 45s interval.
+        supabase = createClient();
 
         async function updateRealtimeAuth() {
           try {
