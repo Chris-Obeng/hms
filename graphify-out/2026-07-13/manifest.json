@@ -115,9 +115,9 @@
     "semantic_hash": "9ad4557830f41f9956b8fd6a1b731e0e"
   },
   "app/actions/housekeeping.ts": {
-    "mtime": 1783090139.9018307,
-    "ast_hash": "d27512d5d193507e488cd3d5422c4191",
-    "semantic_hash": "d27512d5d193507e488cd3d5422c4191"
+    "mtime": 1783911670.3363402,
+    "ast_hash": "364ad1ebae38f9c9b191173f41bd8a09",
+    "semantic_hash": ""
   },
   "app/actions/integrations.ts": {
     "mtime": 1783090139.9052527,
@@ -300,8 +300,8 @@
     "semantic_hash": ""
   },
   "app/dashboard/calendar/_components/calendar-resources.ts": {
-    "mtime": 1783909745.7721436,
-    "ast_hash": "0ed6d767bf88f5064e88de34f8fab801",
+    "mtime": 1783910053.0983355,
+    "ast_hash": "3bd80755dc7ffc1e443b493267dc180a",
     "semantic_hash": ""
   },
   "app/dashboard/calendar/_components/unassigned-tray.tsx": {
@@ -340,14 +340,14 @@
     "semantic_hash": "72f32aed2e7d07e173deb96578b50de6"
   },
   "app/dashboard/housekeeping/housekeeping-client.tsx": {
-    "mtime": 1783763401.223356,
-    "ast_hash": "a1862065856fe1308da650ded9d8c3ba",
+    "mtime": 1783912894.7336783,
+    "ast_hash": "a10146676fd341f4339ef348234c0b60",
     "semantic_hash": ""
   },
   "app/dashboard/housekeeping/page.tsx": {
-    "mtime": 1782494107.8454702,
-    "ast_hash": "e884c13d6e0d2e51e339af812a57cd09",
-    "semantic_hash": "e884c13d6e0d2e51e339af812a57cd09"
+    "mtime": 1783911961.097735,
+    "ast_hash": "f75a12341d700fedf029235fcceb7e2b",
+    "semantic_hash": ""
   },
   "app/dashboard/layout.tsx": {
     "mtime": 1783763401.2253706,
@@ -725,23 +725,23 @@
     "semantic_hash": "543466850bfc290a2d0c5f69dec55c10"
   },
   "components/housekeeping/kanban-board.tsx": {
-    "mtime": 1783090140.4199333,
-    "ast_hash": "205f677cf68e385536eae828a60a891f",
-    "semantic_hash": "205f677cf68e385536eae828a60a891f"
+    "mtime": 1783912012.2362132,
+    "ast_hash": "9b6cbfbd9c750ae681a39714dedf94d6",
+    "semantic_hash": ""
   },
   "components/housekeeping/room-card.tsx": {
-    "mtime": 1783779514.1251805,
-    "ast_hash": "8dd89ba1be39c505f406214423794994",
-    "semantic_hash": "8dd89ba1be39c505f406214423794994"
+    "mtime": 1783912056.2024462,
+    "ast_hash": "92ebca508d6a5274f752292ee37c6d37",
+    "semantic_hash": ""
   },
   "components/housekeeping/stats-bar.tsx": {
-    "mtime": 1783779514.1261797,
-    "ast_hash": "b79da9ab422a9e329a129c6d863ae9b9",
-    "semantic_hash": "b79da9ab422a9e329a129c6d863ae9b9"
+    "mtime": 1783911983.2053986,
+    "ast_hash": "09632f4e73715844016c037af4235b32",
+    "semantic_hash": ""
   },
   "components/layout/app-header.tsx": {
-    "mtime": 1783908070.269639,
-    "ast_hash": "5cbaf70d14a14f965e524774ceb9b652",
+    "mtime": 1783913205.7220528,
+    "ast_hash": "1939a9975ef04748ec7e11d8e1332a53",
     "semantic_hash": ""
   },
   "components/layout/app-sidebar-overlay.tsx": {
@@ -900,9 +900,9 @@
     "semantic_hash": "2d495fb4c446a3be19a1394f57733142"
   },
   "lib/audit.ts": {
-    "mtime": 1783090140.4683585,
-    "ast_hash": "1af3350fbf4aba8c423945338e8c770f",
-    "semantic_hash": "1af3350fbf4aba8c423945338e8c770f"
+    "mtime": 1783913272.5780013,
+    "ast_hash": "2cb643e61c2cce45e7dc27509cedf80d",
+    "semantic_hash": ""
   },
   "lib/auth.ts": {
     "mtime": 1783090140.4703193,
@@ -1432,6 +1432,11 @@
   "lib/pricing/resolve-public-price.ts": {
     "mtime": 1783908070.3830192,
     "ast_hash": "b615bc47956ea18f12c462413464fe57",
+    "semantic_hash": ""
+  },
+  "components/housekeeping/housekeeping-table-row.tsx": {
+    "mtime": 1783912855.8447104,
+    "ast_hash": "e64a19e457d9af00d2d78f7671eee952",
     "semantic_hash": ""
   }
 }

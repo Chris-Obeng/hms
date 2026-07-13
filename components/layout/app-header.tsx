@@ -509,7 +509,7 @@ export function AppHeader({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 gap-2 rounded-lg pl-1.5 pr-2 hover:bg-muted/60"
+                    className="h-8 w-8 rounded-lg p-0 hover:bg-muted/60 flex items-center justify-center"
                   />
                 }
               >
@@ -519,10 +519,6 @@ export function AppHeader({
                     {(user.firstName?.[0] || "U") + (user.lastName?.[0] || "")}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium text-foreground hidden md:inline max-w-[100px] truncate">
-                  {user.firstName || "User"}
-                </span>
-                <ChevronDown className="size-3 text-muted-foreground/50 hidden md:inline" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="font-normal">

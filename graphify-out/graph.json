@@ -336,7 +336,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_admin_suspended_page",
-      "community": 6,
+      "community": 3,
       "norm_label": "page.tsx"
     },
     {
@@ -346,7 +346,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_admin_suspended_page_suspendedpage",
-      "community": 6,
+      "community": 3,
       "norm_label": "suspendedpage()"
     },
     {
@@ -376,7 +376,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_slug_components_room_card",
-      "community": 183,
+      "community": 7,
       "norm_label": "room-card.tsx"
     },
     {
@@ -386,7 +386,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "app_slug_components_room_card_p",
-      "community": 183,
+      "community": 7,
       "norm_label": "p"
     },
     {
@@ -396,7 +396,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "app_slug_components_room_card_roomcard",
-      "community": 183,
+      "community": 7,
       "norm_label": "roomcard()"
     },
     {
@@ -826,7 +826,7 @@
       "source_location": "L406",
       "_origin": "ast",
       "id": "app_actions_bookings_detail_getcurrentuserrole",
-      "community": 16,
+      "community": 3,
       "norm_label": "getcurrentuserrole()"
     },
     {
@@ -836,7 +836,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_actions_bookings",
-      "community": 23,
+      "community": 16,
       "norm_label": "bookings.ts"
     },
     {
@@ -846,7 +846,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "app_actions_bookings_newbookingschema",
-      "community": 23,
+      "community": 4,
       "norm_label": "newbookingschema"
     },
     {
@@ -866,7 +866,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "app_actions_bookings_allowed_transitions",
-      "community": 23,
+      "community": 16,
       "norm_label": "allowed_transitions"
     },
     {
@@ -876,7 +876,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "app_actions_bookings_manager_only_statuses",
-      "community": 23,
+      "community": 16,
       "norm_label": "manager_only_statuses"
     },
     {
@@ -886,7 +886,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "app_actions_bookings_createbookingresult",
-      "community": 23,
+      "community": 16,
       "norm_label": "createbookingresult"
     },
     {
@@ -896,7 +896,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "app_actions_bookings_createbooking",
-      "community": 23,
+      "community": 4,
       "norm_label": "createbooking()"
     },
     {
@@ -906,7 +906,7 @@
       "source_location": "L289",
       "_origin": "ast",
       "id": "app_actions_bookings_updatebookingstatus",
-      "community": 23,
+      "community": 16,
       "norm_label": "updatebookingstatus()"
     },
     {
@@ -1020,10 +1020,30 @@
       "norm_label": "gethotelscopedclient()"
     },
     {
+      "label": "RoomOccupancyStatus",
+      "file_type": "code",
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L39",
+      "_origin": "ast",
+      "id": "app_actions_housekeeping_roomoccupancystatus",
+      "community": 29,
+      "norm_label": "roomoccupancystatus"
+    },
+    {
+      "label": "CleaningStatus",
+      "file_type": "code",
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L47",
+      "_origin": "ast",
+      "id": "app_actions_housekeeping_cleaningstatus",
+      "community": 29,
+      "norm_label": "cleaningstatus"
+    },
+    {
       "label": "HousekeepingRoom",
       "file_type": "code",
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L34",
+      "source_location": "L55",
       "_origin": "ast",
       "id": "app_actions_housekeeping_housekeepingroom",
       "community": 27,
@@ -1033,37 +1053,77 @@
       "label": "HousekeepingData",
       "file_type": "code",
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L49",
+      "source_location": "L81",
       "_origin": "ast",
       "id": "app_actions_housekeeping_housekeepingdata",
-      "community": 27,
+      "community": 101,
       "norm_label": "housekeepingdata"
+    },
+    {
+      "label": "deriveOccupancyStatus()",
+      "file_type": "code",
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L103",
+      "_origin": "ast",
+      "id": "app_actions_housekeeping_deriveoccupancystatus",
+      "community": 13,
+      "norm_label": "deriveoccupancystatus()"
     },
     {
       "label": "getHousekeepingData()",
       "file_type": "code",
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L67",
+      "source_location": "L130",
       "_origin": "ast",
       "id": "app_actions_housekeeping_gethousekeepingdata",
       "community": 13,
       "norm_label": "gethousekeepingdata()"
     },
     {
+      "label": "VALID_CLEANING_STATUSES",
+      "file_type": "code",
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L291",
+      "_origin": "ast",
+      "id": "app_actions_housekeeping_valid_cleaning_statuses",
+      "community": 13,
+      "norm_label": "valid_cleaning_statuses"
+    },
+    {
+      "label": "updateCleaningStatus()",
+      "file_type": "code",
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L300",
+      "_origin": "ast",
+      "id": "app_actions_housekeeping_updatecleaningstatus",
+      "community": 13,
+      "norm_label": "updatecleaningstatus()"
+    },
+    {
       "label": "updateHousekeepingStatus()",
       "file_type": "code",
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L185",
+      "source_location": "L351",
       "_origin": "ast",
       "id": "app_actions_housekeeping_updatehousekeepingstatus",
       "community": 13,
       "norm_label": "updatehousekeepingstatus()"
     },
     {
+      "label": "updateRoomNote()",
+      "file_type": "code",
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L360",
+      "_origin": "ast",
+      "id": "app_actions_housekeeping_updateroomnote",
+      "community": 13,
+      "norm_label": "updateroomnote()"
+    },
+    {
       "label": "bulkUpdateHousekeepingStatus()",
       "file_type": "code",
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L241",
+      "source_location": "L410",
       "_origin": "ast",
       "id": "app_actions_housekeeping_bulkupdatehousekeepingstatus",
       "community": 13,
@@ -1176,7 +1236,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_actions_invitations_createshareableinvite",
-      "community": 38,
+      "community": 176,
       "norm_label": "createshareableinvite()"
     },
     {
@@ -1236,7 +1296,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_actions_notifications",
-      "community": 6,
+      "community": 53,
       "norm_label": "notifications.ts"
     },
     {
@@ -1246,7 +1306,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "app_actions_notifications_notificationitem",
-      "community": 32,
+      "community": 53,
       "norm_label": "notificationitem"
     },
     {
@@ -1256,7 +1316,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "app_actions_notifications_fetchnotificationsaction",
-      "community": 6,
+      "community": 53,
       "norm_label": "fetchnotificationsaction()"
     },
     {
@@ -1266,7 +1326,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "app_actions_notifications_markallreadaction",
-      "community": 6,
+      "community": 53,
       "norm_label": "markallreadaction()"
     },
     {
@@ -1276,7 +1336,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "app_actions_notifications_marksinglereadaction",
-      "community": 6,
+      "community": 53,
       "norm_label": "marksinglereadaction()"
     },
     {
@@ -1336,7 +1396,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_actions_paystack",
-      "community": 36,
+      "community": 5,
       "norm_label": "paystack.ts"
     },
     {
@@ -1346,7 +1406,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "app_actions_paystack_getsuperadminhotel",
-      "community": 36,
+      "community": 5,
       "norm_label": "getsuperadminhotel()"
     },
     {
@@ -1356,7 +1416,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "app_actions_paystack_fetchpaystackbanks",
-      "community": 36,
+      "community": 5,
       "norm_label": "fetchpaystackbanks()"
     },
     {
@@ -1366,7 +1426,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "app_actions_paystack_verifybankaccount",
-      "community": 36,
+      "community": 5,
       "norm_label": "verifybankaccount()"
     },
     {
@@ -1376,7 +1436,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "app_actions_paystack_savepaystackbankaccount",
-      "community": 36,
+      "community": 5,
       "norm_label": "savepaystackbankaccount()"
     },
     {
@@ -1386,7 +1446,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "app_actions_paystack_paymentpolicy",
-      "community": 36,
+      "community": 5,
       "norm_label": "paymentpolicy"
     },
     {
@@ -1396,7 +1456,7 @@
       "source_location": "L112",
       "_origin": "ast",
       "id": "app_actions_paystack_updatepaymentpolicy",
-      "community": 36,
+      "community": 5,
       "norm_label": "updatepaymentpolicy()"
     },
     {
@@ -1406,7 +1466,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "app_actions_paystack_getpaymentssettings",
-      "community": 36,
+      "community": 5,
       "norm_label": "getpaymentssettings()"
     },
     {
@@ -1576,7 +1636,7 @@
       "source_location": "L398",
       "_origin": "ast",
       "id": "app_actions_pricing_staffresolvedpricing",
-      "community": 4,
+      "community": 23,
       "norm_label": "staffresolvedpricing"
     },
     {
@@ -1586,7 +1646,7 @@
       "source_location": "L422",
       "_origin": "ast",
       "id": "app_actions_pricing_getresolvedratesforbooking",
-      "community": 6,
+      "community": 23,
       "norm_label": "getresolvedratesforbooking()"
     },
     {
@@ -1666,7 +1726,7 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "app_actions_rooms_roominput",
-      "community": 28,
+      "community": 3,
       "norm_label": "roominput"
     },
     {
@@ -1676,7 +1736,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "app_actions_rooms_availabilityblockinput",
-      "community": 28,
+      "community": 3,
       "norm_label": "availabilityblockinput"
     },
     {
@@ -1836,7 +1896,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_actions_search",
-      "community": 6,
+      "community": 53,
       "norm_label": "search.ts"
     },
     {
@@ -1846,7 +1906,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "app_actions_search_searchresult",
-      "community": 274,
+      "community": 53,
       "norm_label": "searchresult"
     },
     {
@@ -1856,7 +1916,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "app_actions_search_searchglobal",
-      "community": 6,
+      "community": 274,
       "norm_label": "searchglobal()"
     },
     {
@@ -2056,7 +2116,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_actions_upload",
-      "community": 65,
+      "community": 97,
       "norm_label": "upload.ts"
     },
     {
@@ -2066,7 +2126,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_actions_upload_gethotelid",
-      "community": 65,
+      "community": 97,
       "norm_label": "gethotelid()"
     },
     {
@@ -2076,7 +2136,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "app_actions_upload_savehotelimageurl",
-      "community": 65,
+      "community": 97,
       "norm_label": "savehotelimageurl()"
     },
     {
@@ -2086,7 +2146,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "app_actions_upload_saveroomimages",
-      "community": 65,
+      "community": 97,
       "norm_label": "saveroomimages()"
     },
     {
@@ -2096,7 +2156,7 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "app_actions_upload_deletestoragefile",
-      "community": 65,
+      "community": 97,
       "norm_label": "deletestoragefile()"
     },
     {
@@ -2216,7 +2276,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_api_booking_slug_payments_verify_route",
-      "community": 36,
+      "community": 5,
       "norm_label": "route.ts"
     },
     {
@@ -2226,7 +2286,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "app_api_booking_slug_payments_verify_route_get",
-      "community": 36,
+      "community": 5,
       "norm_label": "get()"
     },
     {
@@ -2266,7 +2326,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_api_webhooks_beds24_route",
-      "community": 74,
+      "community": 25,
       "norm_label": "route.ts"
     },
     {
@@ -2276,7 +2336,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "app_api_webhooks_beds24_route_post",
-      "community": 74,
+      "community": 25,
       "norm_label": "post()"
     },
     {
@@ -2286,7 +2346,7 @@
       "source_location": "L284",
       "_origin": "ast",
       "id": "app_api_webhooks_beds24_route_logsync",
-      "community": 74,
+      "community": 25,
       "norm_label": "logsync()"
     },
     {
@@ -2306,7 +2366,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "app_api_webhooks_clerk_route_post",
-      "community": 36,
+      "community": 5,
       "norm_label": "post()"
     },
     {
@@ -2326,7 +2386,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "app_api_webhooks_paystack_route_post",
-      "community": 36,
+      "community": 5,
       "norm_label": "post()"
     },
     {
@@ -2346,7 +2406,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "app_dashboard_components_activity_list_activitybooking",
-      "community": 22,
+      "community": 90,
       "norm_label": "activitybooking"
     },
     {
@@ -2586,7 +2646,7 @@
       "source_location": "L240",
       "_origin": "ast",
       "id": "app_dashboard_components_activity_tabs_buildactivitytabs",
-      "community": 22,
+      "community": 90,
       "norm_label": "buildactivitytabs()"
     },
     {
@@ -2646,7 +2706,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "app_dashboard_components_global_search_globalsearch",
-      "community": 100,
+      "community": 274,
       "norm_label": "globalsearch()"
     },
     {
@@ -2676,7 +2736,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "app_dashboard_components_occupancy_card_occupancydonut",
-      "community": 100,
+      "community": 8,
       "norm_label": "occupancydonut()"
     },
     {
@@ -2686,7 +2746,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "app_dashboard_components_occupancy_card_occupancycard",
-      "community": 22,
+      "community": 90,
       "norm_label": "occupancycard()"
     },
     {
@@ -3236,7 +3296,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_bookings_page",
-      "community": 6,
+      "community": 16,
       "norm_label": "page.tsx"
     },
     {
@@ -3246,7 +3306,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_dashboard_bookings_page_bookingspage",
-      "community": 6,
+      "community": 16,
       "norm_label": "bookingspage()"
     },
     {
@@ -3256,7 +3316,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "app_dashboard_bookings_page_nobookingsstate",
-      "community": 6,
+      "community": 16,
       "norm_label": "nobookingsstate()"
     },
     {
@@ -3266,7 +3326,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_block_room_sheet",
-      "community": 16,
+      "community": 23,
       "norm_label": "block-room-sheet.tsx"
     },
     {
@@ -3276,7 +3336,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_block_room_sheet_blockroomsheetprops",
-      "community": 99,
+      "community": 23,
       "norm_label": "blockroomsheetprops"
     },
     {
@@ -3286,7 +3346,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_block_room_sheet_blockroomsheet",
-      "community": 100,
+      "community": 33,
       "norm_label": "blockroomsheet()"
     },
     {
@@ -3296,7 +3356,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel",
-      "community": 16,
+      "community": 91,
       "norm_label": "booking-detail-panel.tsx"
     },
     {
@@ -3306,7 +3366,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_fullbooking",
-      "community": 16,
+      "community": 91,
       "norm_label": "fullbooking"
     },
     {
@@ -3316,7 +3376,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_bookingdetailpanelprops",
-      "community": 99,
+      "community": 92,
       "norm_label": "bookingdetailpanelprops"
     },
     {
@@ -3326,7 +3386,7 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_formatcurrency",
-      "community": 16,
+      "community": 91,
       "norm_label": "formatcurrency()"
     },
     {
@@ -3336,7 +3396,7 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_formatdatefull",
-      "community": 16,
+      "community": 91,
       "norm_label": "formatdatefull()"
     },
     {
@@ -3346,7 +3406,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_getnights",
-      "community": 16,
+      "community": 91,
       "norm_label": "getnights()"
     },
     {
@@ -3356,7 +3416,7 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_getstatusvariant",
-      "community": 16,
+      "community": 91,
       "norm_label": "getstatusvariant()"
     },
     {
@@ -3366,7 +3426,7 @@
       "source_location": "L107",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_getstatuslabel",
-      "community": 16,
+      "community": 91,
       "norm_label": "getstatuslabel()"
     },
     {
@@ -3376,7 +3436,7 @@
       "source_location": "L119",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_getsourcelabel",
-      "community": 16,
+      "community": 91,
       "norm_label": "getsourcelabel()"
     },
     {
@@ -3386,7 +3446,7 @@
       "source_location": "L132",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_detailcard",
-      "community": 16,
+      "community": 91,
       "norm_label": "detailcard()"
     },
     {
@@ -3396,7 +3456,7 @@
       "source_location": "L156",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_booking_detail_panel_bookingdetailpanel",
-      "community": 16,
+      "community": 91,
       "norm_label": "bookingdetailpanel()"
     },
     {
@@ -3406,7 +3466,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_events",
-      "community": 99,
+      "community": 74,
       "norm_label": "calendar-events.ts"
     },
     {
@@ -3416,7 +3476,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_events_calendarevent",
-      "community": 99,
+      "community": 74,
       "norm_label": "calendarevent"
     },
     {
@@ -3426,7 +3486,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_events_buildevents",
-      "community": 99,
+      "community": 74,
       "norm_label": "buildevents()"
     },
     {
@@ -3436,7 +3496,7 @@
       "source_location": "L119",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_events_titlecase",
-      "community": 99,
+      "community": 74,
       "norm_label": "titlecase()"
     },
     {
@@ -3446,7 +3506,7 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_events_escapehtml",
-      "community": 99,
+      "community": 74,
       "norm_label": "escapehtml()"
     },
     {
@@ -3456,7 +3516,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_helpers",
-      "community": 99,
+      "community": 74,
       "norm_label": "calendar-helpers.ts"
     },
     {
@@ -3466,7 +3526,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_helpers_escapehtml",
-      "community": 99,
+      "community": 74,
       "norm_label": "escapehtml()"
     },
     {
@@ -3486,7 +3546,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_helpers_getbookingbarcolor",
-      "community": 99,
+      "community": 74,
       "norm_label": "getbookingbarcolor()"
     },
     {
@@ -3496,7 +3556,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_helpers_getroomstatuscolor",
-      "community": 99,
+      "community": 98,
       "norm_label": "getroomstatuscolor()"
     },
     {
@@ -3506,7 +3566,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_helpers_getstatuscssclass",
-      "community": 99,
+      "community": 74,
       "norm_label": "getstatuscssclass()"
     },
     {
@@ -3516,7 +3576,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_helpers_geteventtext",
-      "community": 99,
+      "community": 74,
       "norm_label": "geteventtext()"
     },
     {
@@ -3526,7 +3586,7 @@
       "source_location": "L104",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_helpers_geteventhtml",
-      "community": 99,
+      "community": 74,
       "norm_label": "geteventhtml()"
     },
     {
@@ -3536,7 +3596,7 @@
       "source_location": "L147",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_helpers_getsourceshortlabel",
-      "community": 99,
+      "community": 74,
       "norm_label": "getsourceshortlabel()"
     },
     {
@@ -3556,7 +3616,7 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_helpers_viewpreset",
-      "community": 99,
+      "community": 74,
       "norm_label": "viewpreset"
     },
     {
@@ -3566,7 +3626,7 @@
       "source_location": "L177",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_helpers_legenditem",
-      "community": 99,
+      "community": 74,
       "norm_label": "legenditem"
     },
     {
@@ -3576,7 +3636,7 @@
       "source_location": "L183",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_helpers_calendar_legend",
-      "community": 99,
+      "community": 74,
       "norm_label": "calendar_legend"
     },
     {
@@ -3586,7 +3646,7 @@
       "source_location": "L192",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_helpers_block_reasons",
-      "community": 99,
+      "community": 23,
       "norm_label": "block_reasons"
     },
     {
@@ -3596,7 +3656,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_resources",
-      "community": 99,
+      "community": 98,
       "norm_label": "calendar-resources.ts"
     },
     {
@@ -3606,7 +3666,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_resources_calendarresource",
-      "community": 99,
+      "community": 98,
       "norm_label": "calendarresource"
     },
     {
@@ -3616,7 +3676,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_resources_buildresources",
-      "community": 99,
+      "community": 98,
       "norm_label": "buildresources()"
     },
     {
@@ -3626,7 +3686,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_resources_buildsectionheaderhtml",
-      "community": 99,
+      "community": 98,
       "norm_label": "buildsectionheaderhtml()"
     },
     {
@@ -3636,7 +3696,7 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_resources_buildroomrowhtml",
-      "community": 99,
+      "community": 98,
       "norm_label": "buildroomrowhtml()"
     },
     {
@@ -3646,7 +3706,7 @@
       "source_location": "L114",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_resources_escapehtml",
-      "community": 99,
+      "community": 98,
       "norm_label": "escapehtml()"
     },
     {
@@ -3656,7 +3716,7 @@
       "source_location": "L122",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_calendar_resources_getroomtypeidforresource",
-      "community": 99,
+      "community": 98,
       "norm_label": "getroomtypeidforresource()"
     },
     {
@@ -3666,7 +3726,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_unassigned_tray",
-      "community": 99,
+      "community": 92,
       "norm_label": "unassigned-tray.tsx"
     },
     {
@@ -3676,7 +3736,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_unassigned_tray_unassignedtrayprops",
-      "community": 99,
+      "community": 92,
       "norm_label": "unassignedtrayprops"
     },
     {
@@ -3686,7 +3746,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_unassigned_tray_getstatuscolor",
-      "community": 99,
+      "community": 92,
       "norm_label": "getstatuscolor()"
     },
     {
@@ -3696,7 +3756,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_unassigned_tray_getnights",
-      "community": 99,
+      "community": 92,
       "norm_label": "getnights()"
     },
     {
@@ -3706,7 +3766,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_unassigned_tray_isdue",
-      "community": 99,
+      "community": 92,
       "norm_label": "isdue()"
     },
     {
@@ -3716,7 +3776,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "app_dashboard_calendar_components_unassigned_tray_unassignedtray",
-      "community": 99,
+      "community": 92,
       "norm_label": "unassignedtray()"
     },
     {
@@ -3726,7 +3786,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions",
-      "community": 99,
+      "community": 33,
       "norm_label": "actions.ts"
     },
     {
@@ -3736,7 +3796,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_gethotelscopedclient",
-      "community": 99,
+      "community": 33,
       "norm_label": "gethotelscopedclient()"
     },
     {
@@ -3746,7 +3806,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_staffrole",
-      "community": 99,
+      "community": 33,
       "norm_label": "staffrole"
     },
     {
@@ -3756,7 +3816,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_staffroleinfo",
-      "community": 99,
+      "community": 33,
       "norm_label": "staffroleinfo"
     },
     {
@@ -3766,7 +3826,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_getcurrentstaffrole",
-      "community": 99,
+      "community": 33,
       "norm_label": "getcurrentstaffrole()"
     },
     {
@@ -3776,7 +3836,7 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_calendarroom",
-      "community": 99,
+      "community": 23,
       "norm_label": "calendarroom"
     },
     {
@@ -3786,7 +3846,7 @@
       "source_location": "L85",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_calendarbooking",
-      "community": 99,
+      "community": 92,
       "norm_label": "calendarbooking"
     },
     {
@@ -3796,7 +3856,7 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_calendaravailabilityblock",
-      "community": 99,
+      "community": 74,
       "norm_label": "calendaravailabilityblock"
     },
     {
@@ -3816,7 +3876,7 @@
       "source_location": "L129",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_getcalendardata",
-      "community": 99,
+      "community": 33,
       "norm_label": "getcalendardata()"
     },
     {
@@ -3826,7 +3886,7 @@
       "source_location": "L268",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_availabilityconflict",
-      "community": 99,
+      "community": 33,
       "norm_label": "availabilityconflict"
     },
     {
@@ -3836,7 +3896,7 @@
       "source_location": "L277",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_availabilitycheckresult",
-      "community": 99,
+      "community": 33,
       "norm_label": "availabilitycheckresult"
     },
     {
@@ -3856,7 +3916,7 @@
       "source_location": "L341",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_assignresult",
-      "community": 99,
+      "community": 33,
       "norm_label": "assignresult"
     },
     {
@@ -3876,7 +3936,7 @@
       "source_location": "L436",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_movebookingresult",
-      "community": 99,
+      "community": 33,
       "norm_label": "movebookingresult"
     },
     {
@@ -3896,7 +3956,7 @@
       "source_location": "L548",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_unassignresult",
-      "community": 99,
+      "community": 33,
       "norm_label": "unassignresult"
     },
     {
@@ -3906,7 +3966,7 @@
       "source_location": "L555",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_unassignbooking",
-      "community": 99,
+      "community": 33,
       "norm_label": "unassignbooking()"
     },
     {
@@ -3916,7 +3976,7 @@
       "source_location": "L582",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_createavailabilityblock",
-      "community": 99,
+      "community": 33,
       "norm_label": "createavailabilityblock()"
     },
     {
@@ -3926,7 +3986,7 @@
       "source_location": "L623",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_deleteavailabilityblock",
-      "community": 99,
+      "community": 33,
       "norm_label": "deleteavailabilityblock()"
     },
     {
@@ -3936,7 +3996,7 @@
       "source_location": "L654",
       "_origin": "ast",
       "id": "app_dashboard_calendar_actions_getbookingbyid",
-      "community": 99,
+      "community": 33,
       "norm_label": "getbookingbyid()"
     },
     {
@@ -3953,7 +4013,7 @@
       "label": "DayPilotScheduler",
       "file_type": "code",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L61",
+      "source_location": "L60",
       "_origin": "ast",
       "id": "app_dashboard_calendar_calendar_client_daypilotscheduler",
       "community": 99,
@@ -3963,7 +4023,7 @@
       "label": "CalendarClientProps",
       "file_type": "code",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L69",
+      "source_location": "L68",
       "_origin": "ast",
       "id": "app_dashboard_calendar_calendar_client_calendarclientprops",
       "community": 99,
@@ -3973,7 +4033,7 @@
       "label": "RoomTypeFilter",
       "file_type": "code",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L79",
+      "source_location": "L78",
       "_origin": "ast",
       "id": "app_dashboard_calendar_calendar_client_roomtypefilter",
       "community": 99,
@@ -3983,7 +4043,7 @@
       "label": "STATUS_OPTIONS",
       "file_type": "code",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L85",
+      "source_location": "L84",
       "_origin": "ast",
       "id": "app_dashboard_calendar_calendar_client_status_options",
       "community": 99,
@@ -3993,7 +4053,7 @@
       "label": "SOURCE_OPTIONS",
       "file_type": "code",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L86",
+      "source_location": "L85",
       "_origin": "ast",
       "id": "app_dashboard_calendar_calendar_client_source_options",
       "community": 99,
@@ -4003,7 +4063,7 @@
       "label": "getDateRangeKey()",
       "file_type": "code",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L94",
+      "source_location": "L93",
       "_origin": "ast",
       "id": "app_dashboard_calendar_calendar_client_getdaterangekey",
       "community": 99,
@@ -4013,7 +4073,7 @@
       "label": "CalendarClient()",
       "file_type": "code",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L98",
+      "source_location": "L97",
       "_origin": "ast",
       "id": "app_dashboard_calendar_calendar_client_calendarclient",
       "community": 99,
@@ -4023,7 +4083,7 @@
       "label": "ActiveFilterChips()",
       "file_type": "code",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L1446",
+      "source_location": "L1445",
       "_origin": "ast",
       "id": "app_dashboard_calendar_calendar_client_activefilterchips",
       "community": 99,
@@ -4033,7 +4093,7 @@
       "label": "Chip()",
       "file_type": "code",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L1505",
+      "source_location": "L1504",
       "_origin": "ast",
       "id": "app_dashboard_calendar_calendar_client_chip",
       "community": 99,
@@ -4043,7 +4103,7 @@
       "label": "FilterPanel()",
       "file_type": "code",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L1517",
+      "source_location": "L1516",
       "_origin": "ast",
       "id": "app_dashboard_calendar_calendar_client_filterpanel",
       "community": 99,
@@ -4053,7 +4113,7 @@
       "label": "FilterGroup()",
       "file_type": "code",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L1598",
+      "source_location": "L1597",
       "_origin": "ast",
       "id": "app_dashboard_calendar_calendar_client_filtergroup",
       "community": 99,
@@ -4063,7 +4123,7 @@
       "label": "FilterToggle()",
       "file_type": "code",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L1615",
+      "source_location": "L1614",
       "_origin": "ast",
       "id": "app_dashboard_calendar_calendar_client_filtertoggle",
       "community": 99,
@@ -4073,7 +4133,7 @@
       "label": "MenuButton()",
       "file_type": "code",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L1652",
+      "source_location": "L1651",
       "_origin": "ast",
       "id": "app_dashboard_calendar_calendar_client_menubutton",
       "community": 99,
@@ -4086,7 +4146,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_calendar_page",
-      "community": 99,
+      "community": 33,
       "norm_label": "page.tsx"
     },
     {
@@ -4096,7 +4156,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_dashboard_calendar_page_metadata",
-      "community": 99,
+      "community": 33,
       "norm_label": "metadata"
     },
     {
@@ -4106,7 +4166,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "app_dashboard_calendar_page_calendarpage",
-      "community": 99,
+      "community": 33,
       "norm_label": "calendarpage()"
     },
     {
@@ -4116,7 +4176,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "app_dashboard_calendar_page_nocalendarstate",
-      "community": 99,
+      "community": 33,
       "norm_label": "nocalendarstate()"
     },
     {
@@ -4156,7 +4216,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_dashboard_client",
-      "community": 22,
+      "community": 90,
       "norm_label": "dashboard-client.tsx"
     },
     {
@@ -4166,7 +4226,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "app_dashboard_dashboard_client_dashboardclientprops",
-      "community": 22,
+      "community": 90,
       "norm_label": "dashboardclientprops"
     },
     {
@@ -4176,7 +4236,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "app_dashboard_dashboard_client_defaultemptystats",
-      "community": 22,
+      "community": 90,
       "norm_label": "defaultemptystats"
     },
     {
@@ -4186,7 +4246,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "app_dashboard_dashboard_client_fetchdashboardclientdata",
-      "community": 22,
+      "community": 90,
       "norm_label": "fetchdashboardclientdata()"
     },
     {
@@ -4196,7 +4256,7 @@
       "source_location": "L226",
       "_origin": "ast",
       "id": "app_dashboard_dashboard_client_dashboardclient",
-      "community": 22,
+      "community": 90,
       "norm_label": "dashboardclient()"
     },
     {
@@ -4206,7 +4266,7 @@
       "source_location": "L625",
       "_origin": "ast",
       "id": "app_dashboard_dashboard_client_dashboardskeleton",
-      "community": 22,
+      "community": 90,
       "norm_label": "dashboardskeleton()"
     },
     {
@@ -4236,38 +4296,198 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_housekeeping_housekeeping_client",
-      "community": 27,
+      "community": 38,
       "norm_label": "housekeeping-client.tsx"
+    },
+    {
+      "label": "DateTab",
+      "file_type": "code",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L41",
+      "_origin": "ast",
+      "id": "app_dashboard_housekeeping_housekeeping_client_datetab",
+      "community": 38,
+      "norm_label": "datetab"
+    },
+    {
+      "label": "SortKey",
+      "file_type": "code",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L42",
+      "_origin": "ast",
+      "id": "app_dashboard_housekeeping_housekeeping_client_sortkey",
+      "community": 38,
+      "norm_label": "sortkey"
     },
     {
       "label": "HousekeepingClientProps",
       "file_type": "code",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L31",
+      "source_location": "L49",
       "_origin": "ast",
       "id": "app_dashboard_housekeeping_housekeeping_client_housekeepingclientprops",
-      "community": 27,
+      "community": 101,
       "norm_label": "housekeepingclientprops"
     },
     {
-      "label": "fetchHousekeepingClientData()",
+      "label": "OCCUPANCY_FILTER_OPTIONS",
       "file_type": "code",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L38",
+      "source_location": "L56",
       "_origin": "ast",
-      "id": "app_dashboard_housekeeping_housekeeping_client_fetchhousekeepingclientdata",
-      "community": 27,
-      "norm_label": "fetchhousekeepingclientdata()"
+      "id": "app_dashboard_housekeeping_housekeeping_client_occupancy_filter_options",
+      "community": 38,
+      "norm_label": "occupancy_filter_options"
+    },
+    {
+      "label": "CLEANING_FILTER_OPTIONS",
+      "file_type": "code",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L65",
+      "_origin": "ast",
+      "id": "app_dashboard_housekeeping_housekeeping_client_cleaning_filter_options",
+      "community": 38,
+      "norm_label": "cleaning_filter_options"
+    },
+    {
+      "label": "todayISO()",
+      "file_type": "code",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L77",
+      "_origin": "ast",
+      "id": "app_dashboard_housekeeping_housekeeping_client_todayiso",
+      "community": 38,
+      "norm_label": "todayiso()"
+    },
+    {
+      "label": "tomorrowISO()",
+      "file_type": "code",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L81",
+      "_origin": "ast",
+      "id": "app_dashboard_housekeeping_housekeeping_client_tomorrowiso",
+      "community": 38,
+      "norm_label": "tomorrowiso()"
+    },
+    {
+      "label": "formatReportDate()",
+      "file_type": "code",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L85",
+      "_origin": "ast",
+      "id": "app_dashboard_housekeeping_housekeeping_client_formatreportdate",
+      "community": 38,
+      "norm_label": "formatreportdate()"
+    },
+    {
+      "label": "formatLastUpdated()",
+      "file_type": "code",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L89",
+      "_origin": "ast",
+      "id": "app_dashboard_housekeeping_housekeeping_client_formatlastupdated",
+      "community": 38,
+      "norm_label": "formatlastupdated()"
+    },
+    {
+      "label": "sortRooms()",
+      "file_type": "code",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L95",
+      "_origin": "ast",
+      "id": "app_dashboard_housekeeping_housekeeping_client_sortrooms",
+      "community": 38,
+      "norm_label": "sortrooms()"
+    },
+    {
+      "label": "FilterSelectProps",
+      "file_type": "code",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L131",
+      "_origin": "ast",
+      "id": "app_dashboard_housekeeping_housekeeping_client_filterselectprops",
+      "community": 38,
+      "norm_label": "filterselectprops"
+    },
+    {
+      "label": "FilterSelect()",
+      "file_type": "code",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L138",
+      "_origin": "ast",
+      "id": "app_dashboard_housekeeping_housekeeping_client_filterselect",
+      "community": 38,
+      "norm_label": "filterselect()"
+    },
+    {
+      "label": "DatePickerPopoverProps",
+      "file_type": "code",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L227",
+      "_origin": "ast",
+      "id": "app_dashboard_housekeeping_housekeeping_client_datepickerpopoverprops",
+      "community": 38,
+      "norm_label": "datepickerpopoverprops"
+    },
+    {
+      "label": "DatePickerPopover()",
+      "file_type": "code",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L233",
+      "_origin": "ast",
+      "id": "app_dashboard_housekeeping_housekeeping_client_datepickerpopover",
+      "community": 38,
+      "norm_label": "datepickerpopover()"
     },
     {
       "label": "HousekeepingClient()",
       "file_type": "code",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L137",
+      "source_location": "L297",
       "_origin": "ast",
       "id": "app_dashboard_housekeeping_housekeeping_client_housekeepingclient",
-      "community": 27,
+      "community": 38,
       "norm_label": "housekeepingclient()"
+    },
+    {
+      "label": "DateTabButtonProps",
+      "file_type": "code",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L592",
+      "_origin": "ast",
+      "id": "app_dashboard_housekeeping_housekeeping_client_datetabbuttonprops",
+      "community": 38,
+      "norm_label": "datetabbuttonprops"
+    },
+    {
+      "label": "DateTabButton()",
+      "file_type": "code",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L599",
+      "_origin": "ast",
+      "id": "app_dashboard_housekeeping_housekeeping_client_datetabbutton",
+      "community": 38,
+      "norm_label": "datetabbutton()"
+    },
+    {
+      "label": "HousekeepingTableProps",
+      "file_type": "code",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L622",
+      "_origin": "ast",
+      "id": "app_dashboard_housekeeping_housekeeping_client_housekeepingtableprops",
+      "community": 29,
+      "norm_label": "housekeepingtableprops"
+    },
+    {
+      "label": "HousekeepingTable()",
+      "file_type": "code",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L633",
+      "_origin": "ast",
+      "id": "app_dashboard_housekeeping_housekeeping_client_housekeepingtable",
+      "community": 38,
+      "norm_label": "housekeepingtable()"
     },
     {
       "label": "page.tsx",
@@ -4290,20 +4510,20 @@
       "norm_label": "housekeepingpage()"
     },
     {
-      "label": "NoAccessState()",
+      "label": "AccessDeniedState()",
       "file_type": "code",
       "source_file": "app/dashboard/housekeeping/page.tsx",
-      "source_location": "L31",
+      "source_location": "L40",
       "_origin": "ast",
-      "id": "app_dashboard_housekeeping_page_noaccessstate",
+      "id": "app_dashboard_housekeeping_page_accessdeniedstate",
       "community": 13,
-      "norm_label": "noaccessstate()"
+      "norm_label": "accessdeniedstate()"
     },
     {
       "label": "ErrorState()",
       "file_type": "code",
       "source_file": "app/dashboard/housekeeping/page.tsx",
-      "source_location": "L45",
+      "source_location": "L54",
       "_origin": "ast",
       "id": "app_dashboard_housekeeping_page_errorstate",
       "community": 13,
@@ -4316,7 +4536,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_layout",
-      "community": 33,
+      "community": 8,
       "norm_label": "layout.tsx"
     },
     {
@@ -4326,7 +4546,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "app_dashboard_layout_dashboardlayout",
-      "community": 33,
+      "community": 3,
       "norm_label": "dashboardlayout()"
     },
     {
@@ -4336,7 +4556,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_loading",
-      "community": 16,
+      "community": 22,
       "norm_label": "loading.tsx"
     },
     {
@@ -4346,7 +4566,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "app_dashboard_loading_dashboardloading",
-      "community": 16,
+      "community": 22,
       "norm_label": "dashboardloading()"
     },
     {
@@ -4356,7 +4576,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_not_found",
-      "community": 91,
+      "community": 88,
       "norm_label": "not-found.tsx"
     },
     {
@@ -4366,7 +4586,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "app_dashboard_not_found_dashboardnotfound",
-      "community": 91,
+      "community": 88,
       "norm_label": "dashboardnotfound()"
     },
     {
@@ -4466,7 +4686,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_payments_transactions_page",
-      "community": 6,
+      "community": 3,
       "norm_label": "page.tsx"
     },
     {
@@ -4476,7 +4696,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_dashboard_payments_transactions_page_paymenttransactionspage",
-      "community": 6,
+      "community": 3,
       "norm_label": "paymenttransactionspage()"
     },
     {
@@ -4916,7 +5136,7 @@
       "source_location": "L463",
       "_origin": "ast",
       "id": "app_dashboard_rooms_components_room_type_form_photoscard",
-      "community": 65,
+      "community": 97,
       "norm_label": "photoscard()"
     },
     {
@@ -4926,7 +5146,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_page",
-      "community": 6,
+      "community": 105,
       "norm_label": "page.tsx"
     },
     {
@@ -4936,7 +5156,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_page_roomsdirectorypage",
-      "community": 6,
+      "community": 105,
       "norm_label": "roomsdirectorypage()"
     },
     {
@@ -4946,7 +5166,7 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_page_nohotelstate",
-      "community": 6,
+      "community": 105,
       "norm_label": "nohotelstate()"
     },
     {
@@ -4956,7 +5176,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_rooms_directory_client",
-      "community": 28,
+      "community": 176,
       "norm_label": "rooms-directory-client.tsx"
     },
     {
@@ -4966,7 +5186,7 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_rooms_directory_client_roomrow",
-      "community": 28,
+      "community": 176,
       "norm_label": "roomrow"
     },
     {
@@ -4976,7 +5196,7 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_rooms_directory_client_roomsdirectoryprops",
-      "community": 28,
+      "community": 176,
       "norm_label": "roomsdirectoryprops"
     },
     {
@@ -4986,7 +5206,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_rooms_directory_client_status_config",
-      "community": 28,
+      "community": 176,
       "norm_label": "status_config"
     },
     {
@@ -4996,7 +5216,7 @@
       "source_location": "L95",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_rooms_directory_client_status_transitions",
-      "community": 28,
+      "community": 176,
       "norm_label": "status_transitions"
     },
     {
@@ -5006,7 +5226,7 @@
       "source_location": "L106",
       "_origin": "ast",
       "id": "app_dashboard_rooms_directory_rooms_directory_client_roomsdirectory",
-      "community": 6,
+      "community": 105,
       "norm_label": "roomsdirectory()"
     },
     {
@@ -5016,7 +5236,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_rooms_pricing_page",
-      "community": 6,
+      "community": 106,
       "norm_label": "page.tsx"
     },
     {
@@ -5026,7 +5246,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_dashboard_rooms_pricing_page_pricingpage",
-      "community": 6,
+      "community": 106,
       "norm_label": "pricingpage()"
     },
     {
@@ -5036,7 +5256,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "app_dashboard_rooms_pricing_page_nohotelstate",
-      "community": 6,
+      "community": 106,
       "norm_label": "nohotelstate()"
     },
     {
@@ -5046,7 +5266,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_rooms_pricing_pricing_client",
-      "community": 16,
+      "community": 4,
       "norm_label": "pricing-client.tsx"
     },
     {
@@ -5056,7 +5276,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "app_dashboard_rooms_pricing_pricing_client_pricingclientprops",
-      "community": 16,
+      "community": 4,
       "norm_label": "pricingclientprops"
     },
     {
@@ -5106,7 +5326,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "app_dashboard_rooms_types_id_page_editroomtypepage",
-      "community": 100,
+      "community": 8,
       "norm_label": "editroomtypepage()"
     },
     {
@@ -5136,7 +5356,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_rooms_types_page",
-      "community": 103,
+      "community": 28,
       "norm_label": "page.tsx"
     },
     {
@@ -5146,7 +5366,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_dashboard_rooms_types_page_roomtypespage",
-      "community": 103,
+      "community": 28,
       "norm_label": "roomtypespage()"
     },
     {
@@ -5156,7 +5376,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "app_dashboard_rooms_types_page_nohotelstate",
-      "community": 103,
+      "community": 28,
       "norm_label": "nohotelstate()"
     },
     {
@@ -5186,7 +5406,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "app_dashboard_rooms_types_room_types_client_roomtypesclient",
-      "community": 103,
+      "community": 28,
       "norm_label": "roomtypesclient()"
     },
     {
@@ -5246,7 +5466,7 @@
       "source_location": "L230",
       "_origin": "ast",
       "id": "app_dashboard_rooms_types_room_types_table_roomtypestable",
-      "community": 176,
+      "community": 3,
       "norm_label": "roomtypestable()"
     },
     {
@@ -5256,7 +5476,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_settings_audit_log_audit_log_client",
-      "community": 88,
+      "community": 5,
       "norm_label": "audit-log-client.tsx"
     },
     {
@@ -5266,7 +5486,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "app_dashboard_settings_audit_log_audit_log_client_auditentry",
-      "community": 88,
+      "community": 5,
       "norm_label": "auditentry"
     },
     {
@@ -5276,7 +5496,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "app_dashboard_settings_audit_log_audit_log_client_action_colors",
-      "community": 88,
+      "community": 5,
       "norm_label": "action_colors"
     },
     {
@@ -5286,7 +5506,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "app_dashboard_settings_audit_log_audit_log_client_actionbadge",
-      "community": 88,
+      "community": 5,
       "norm_label": "actionbadge()"
     },
     {
@@ -5296,7 +5516,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "app_dashboard_settings_audit_log_audit_log_client_formattime",
-      "community": 36,
+      "community": 5,
       "norm_label": "formattime()"
     },
     {
@@ -5306,7 +5526,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "app_dashboard_settings_audit_log_audit_log_client_statesnippet",
-      "community": 36,
+      "community": 5,
       "norm_label": "statesnippet()"
     },
     {
@@ -5316,7 +5536,7 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "app_dashboard_settings_audit_log_audit_log_client_auditlogclient",
-      "community": 36,
+      "community": 5,
       "norm_label": "auditlogclient()"
     },
     {
@@ -5326,7 +5546,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_settings_audit_log_page",
-      "community": 6,
+      "community": 5,
       "norm_label": "page.tsx"
     },
     {
@@ -5336,7 +5556,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "app_dashboard_settings_audit_log_page_auditlogpage",
-      "community": 6,
+      "community": 5,
       "norm_label": "auditlogpage()"
     },
     {
@@ -5346,7 +5566,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_settings_hotel_booking_page_card",
-      "community": 65,
+      "community": 103,
       "norm_label": "booking-page-card.tsx"
     },
     {
@@ -5356,7 +5576,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "app_dashboard_settings_hotel_booking_page_card_bookingpagecard",
-      "community": 65,
+      "community": 103,
       "norm_label": "bookingpagecard()"
     },
     {
@@ -5406,7 +5626,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_settings_hotel_page",
-      "community": 65,
+      "community": 103,
       "norm_label": "page.tsx"
     },
     {
@@ -5416,7 +5636,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "app_dashboard_settings_hotel_page_hotelsettingspage",
-      "community": 65,
+      "community": 103,
       "norm_label": "hotelsettingspage()"
     },
     {
@@ -5426,7 +5646,7 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "app_dashboard_settings_hotel_page_noaccessstate",
-      "community": 65,
+      "community": 103,
       "norm_label": "noaccessstate()"
     },
     {
@@ -5556,7 +5776,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "app_dashboard_settings_notifications_templates_client_eventcard",
-      "community": 100,
+      "community": 8,
       "norm_label": "eventcard()"
     },
     {
@@ -5636,7 +5856,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_settings_payments_payments_client",
-      "community": 36,
+      "community": 65,
       "norm_label": "payments-client.tsx"
     },
     {
@@ -5646,7 +5866,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "app_dashboard_settings_payments_payments_client_policy_options",
-      "community": 36,
+      "community": 65,
       "norm_label": "policy_options"
     },
     {
@@ -5656,7 +5876,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "app_dashboard_settings_payments_payments_client_props",
-      "community": 36,
+      "community": 65,
       "norm_label": "props"
     },
     {
@@ -5666,7 +5886,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "app_dashboard_settings_payments_payments_client_paymentssettingsclient",
-      "community": 36,
+      "community": 5,
       "norm_label": "paymentssettingsclient()"
     },
     {
@@ -5676,7 +5896,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_staff_page",
-      "community": 6,
+      "community": 107,
       "norm_label": "page.tsx"
     },
     {
@@ -5686,7 +5906,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "app_dashboard_staff_page_staffpage",
-      "community": 6,
+      "community": 107,
       "norm_label": "staffpage()"
     },
     {
@@ -5696,7 +5916,7 @@
       "source_location": "L102",
       "_origin": "ast",
       "id": "app_dashboard_staff_page_noaccessstate",
-      "community": 6,
+      "community": 107,
       "norm_label": "noaccessstate()"
     },
     {
@@ -5706,7 +5926,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_page",
-      "community": 6,
+      "community": 32,
       "norm_label": "page.tsx"
     },
     {
@@ -5716,7 +5936,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_page_pendingstaffpage",
-      "community": 6,
+      "community": 32,
       "norm_label": "pendingstaffpage()"
     },
     {
@@ -5726,7 +5946,7 @@
       "source_location": "L100",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_page_noaccessstate",
-      "community": 6,
+      "community": 32,
       "norm_label": "noaccessstate()"
     },
     {
@@ -5736,7 +5956,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_pending_client",
-      "community": 20,
+      "community": 32,
       "norm_label": "pending-client.tsx"
     },
     {
@@ -5746,7 +5966,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_pending_client_pendingstaffrow",
-      "community": 20,
+      "community": 32,
       "norm_label": "pendingstaffrow"
     },
     {
@@ -5756,7 +5976,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_pending_client_pendingstaffclientprops",
-      "community": 20,
+      "community": 32,
       "norm_label": "pendingstaffclientprops"
     },
     {
@@ -5766,7 +5986,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_pending_client_formatdate",
-      "community": 20,
+      "community": 32,
       "norm_label": "formatdate()"
     },
     {
@@ -5776,7 +5996,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_pending_client_getinitials",
-      "community": 20,
+      "community": 32,
       "norm_label": "getinitials()"
     },
     {
@@ -5786,7 +6006,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "app_dashboard_staff_pending_pending_client_pendingstaffclient",
-      "community": 20,
+      "community": 32,
       "norm_label": "pendingstaffclient()"
     },
     {
@@ -5796,7 +6016,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_staff_staff_client",
-      "community": 38,
+      "community": 176,
       "norm_label": "staff-client.tsx"
     },
     {
@@ -5806,7 +6026,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "app_dashboard_staff_staff_client_staffrow",
-      "community": 38,
+      "community": 176,
       "norm_label": "staffrow"
     },
     {
@@ -5816,7 +6036,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "app_dashboard_staff_staff_client_staffclientprops",
-      "community": 38,
+      "community": 176,
       "norm_label": "staffclientprops"
     },
     {
@@ -5826,7 +6046,7 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "app_dashboard_staff_staff_client_formatdate",
-      "community": 38,
+      "community": 176,
       "norm_label": "formatdate()"
     },
     {
@@ -5836,7 +6056,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "app_dashboard_staff_staff_client_getinitials",
-      "community": 38,
+      "community": 176,
       "norm_label": "getinitials()"
     },
     {
@@ -5846,7 +6066,7 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "app_dashboard_staff_staff_client_role_config",
-      "community": 38,
+      "community": 176,
       "norm_label": "role_config"
     },
     {
@@ -5856,7 +6076,7 @@
       "source_location": "L132",
       "_origin": "ast",
       "id": "app_dashboard_staff_staff_client_role_options",
-      "community": 38,
+      "community": 176,
       "norm_label": "role_options"
     },
     {
@@ -5866,7 +6086,7 @@
       "source_location": "L141",
       "_origin": "ast",
       "id": "app_dashboard_staff_staff_client_staffclient",
-      "community": 38,
+      "community": 176,
       "norm_label": "staffclient()"
     },
     {
@@ -5996,7 +6216,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_offline_page",
-      "community": 91,
+      "community": 88,
       "norm_label": "page.tsx"
     },
     {
@@ -6006,7 +6226,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_offline_page_offlinepage",
-      "community": 91,
+      "community": 88,
       "norm_label": "offlinepage()"
     },
     {
@@ -6206,7 +6426,7 @@
       "source_location": "L242",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_components_hotels_table_hotelstable",
-      "community": 90,
+      "community": 82,
       "norm_label": "hotelstable()"
     },
     {
@@ -6216,7 +6436,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_components_platform_header",
-      "community": 32,
+      "community": 176,
       "norm_label": "platform-header.tsx"
     },
     {
@@ -6226,7 +6446,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_components_platform_header_route_titles",
-      "community": 32,
+      "community": 176,
       "norm_label": "route_titles"
     },
     {
@@ -6236,7 +6456,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_components_platform_header_getpagetitle",
-      "community": 32,
+      "community": 176,
       "norm_label": "getpagetitle()"
     },
     {
@@ -6246,7 +6466,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_components_platform_header_platformheader",
-      "community": 32,
+      "community": 176,
       "norm_label": "platformheader()"
     },
     {
@@ -6266,7 +6486,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_components_platform_sidebar_platformadmin",
-      "community": 32,
+      "community": 176,
       "norm_label": "platformadmin"
     },
     {
@@ -6346,7 +6566,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_hotels_page",
-      "community": 90,
+      "community": 82,
       "norm_label": "page.tsx"
     },
     {
@@ -6356,7 +6576,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_hotels_page_filters",
-      "community": 90,
+      "community": 82,
       "norm_label": "filters"
     },
     {
@@ -6366,7 +6586,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_hotels_page_filtertab",
-      "community": 90,
+      "community": 82,
       "norm_label": "filtertab()"
     },
     {
@@ -6376,7 +6596,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_hotels_page_props",
-      "community": 90,
+      "community": 82,
       "norm_label": "props"
     },
     {
@@ -6386,7 +6606,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_hotels_page_platformhotelspage",
-      "community": 90,
+      "community": 82,
       "norm_label": "platformhotelspage()"
     },
     {
@@ -6396,7 +6616,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_layout",
-      "community": 5,
+      "community": 8,
       "norm_label": "layout.tsx"
     },
     {
@@ -6416,7 +6636,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_page",
-      "community": 90,
+      "community": 82,
       "norm_label": "page.tsx"
     },
     {
@@ -6426,7 +6646,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_page_platformdashboard",
-      "community": 90,
+      "community": 82,
       "norm_label": "platformdashboard()"
     },
     {
@@ -6436,7 +6656,7 @@
       "source_location": "L147",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_page_statcardprops",
-      "community": 90,
+      "community": 82,
       "norm_label": "statcardprops"
     },
     {
@@ -6446,7 +6666,7 @@
       "source_location": "L155",
       "_origin": "ast",
       "id": "app_platform_protected_dashboard_page_statcard",
-      "community": 90,
+      "community": 82,
       "norm_label": "statcard()"
     },
     {
@@ -6646,7 +6866,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "app_platform_update_password_components_update_password_form_updatepasswordform",
-      "community": 105,
+      "community": 171,
       "norm_label": "updatepasswordform()"
     },
     {
@@ -6656,7 +6876,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_platform_update_password_page",
-      "community": 105,
+      "community": 171,
       "norm_label": "page.tsx"
     },
     {
@@ -6666,7 +6886,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "app_platform_update_password_page_metadata",
-      "community": 105,
+      "community": 171,
       "norm_label": "metadata"
     },
     {
@@ -6676,7 +6896,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "app_platform_update_password_page_updatepasswordpage",
-      "community": 105,
+      "community": 171,
       "norm_label": "updatepasswordpage()"
     },
     {
@@ -6976,7 +7196,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "components_booking_room_gallery_galleryimage",
-      "community": 183,
+      "community": 7,
       "norm_label": "galleryimage"
     },
     {
@@ -7336,7 +7556,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_bookings_bookings_table",
-      "community": 29,
+      "community": 16,
       "norm_label": "bookings-table.tsx"
     },
     {
@@ -7346,7 +7566,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_bookingrow",
-      "community": 6,
+      "community": 16,
       "norm_label": "bookingrow"
     },
     {
@@ -7356,7 +7576,7 @@
       "source_location": "L84",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_bookingstableprops",
-      "community": 29,
+      "community": 16,
       "norm_label": "bookingstableprops"
     },
     {
@@ -7366,7 +7586,7 @@
       "source_location": "L93",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_formatcurrency",
-      "community": 29,
+      "community": 16,
       "norm_label": "formatcurrency()"
     },
     {
@@ -7376,7 +7596,7 @@
       "source_location": "L102",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_getstatusvariant",
-      "community": 29,
+      "community": 16,
       "norm_label": "getstatusvariant()"
     },
     {
@@ -7386,7 +7606,7 @@
       "source_location": "L122",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_getstatuslabel",
-      "community": 29,
+      "community": 16,
       "norm_label": "getstatuslabel()"
     },
     {
@@ -7396,7 +7616,7 @@
       "source_location": "L134",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_getpaymentvariant",
-      "community": 29,
+      "community": 16,
       "norm_label": "getpaymentvariant()"
     },
     {
@@ -7406,7 +7626,7 @@
       "source_location": "L151",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_getpaymentlabel",
-      "community": 29,
+      "community": 16,
       "norm_label": "getpaymentlabel()"
     },
     {
@@ -7416,7 +7636,7 @@
       "source_location": "L161",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_source_badges",
-      "community": 29,
+      "community": 16,
       "norm_label": "source_badges"
     },
     {
@@ -7426,7 +7646,7 @@
       "source_location": "L169",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_formatdate",
-      "community": 29,
+      "community": 16,
       "norm_label": "formatdate()"
     },
     {
@@ -7436,7 +7656,7 @@
       "source_location": "L179",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_getcolumns",
-      "community": 29,
+      "community": 16,
       "norm_label": "getcolumns()"
     },
     {
@@ -7446,7 +7666,7 @@
       "source_location": "L410",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_reservationcard",
-      "community": 29,
+      "community": 16,
       "norm_label": "reservationcard()"
     },
     {
@@ -7456,7 +7676,7 @@
       "source_location": "L504",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_status_options",
-      "community": 29,
+      "community": 16,
       "norm_label": "status_options"
     },
     {
@@ -7466,7 +7686,7 @@
       "source_location": "L513",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_payment_options",
-      "community": 29,
+      "community": 16,
       "norm_label": "payment_options"
     },
     {
@@ -7476,7 +7696,7 @@
       "source_location": "L520",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_source_options",
-      "community": 29,
+      "community": 16,
       "norm_label": "source_options"
     },
     {
@@ -7486,7 +7706,7 @@
       "source_location": "L530",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_exporttocsv",
-      "community": 29,
+      "community": 16,
       "norm_label": "exporttocsv()"
     },
     {
@@ -7496,7 +7716,7 @@
       "source_location": "L585",
       "_origin": "ast",
       "id": "components_bookings_bookings_table_bookingstable",
-      "community": 29,
+      "community": 16,
       "norm_label": "bookingstable()"
     },
     {
@@ -7506,7 +7726,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_bookings_new_booking_sheet",
-      "community": 16,
+      "community": 23,
       "norm_label": "new-booking-sheet.tsx"
     },
     {
@@ -7516,7 +7736,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "components_bookings_new_booking_sheet_roomtypeoption",
-      "community": 16,
+      "community": 23,
       "norm_label": "roomtypeoption"
     },
     {
@@ -7526,7 +7746,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "components_bookings_new_booking_sheet_newbookingsheetprops",
-      "community": 16,
+      "community": 23,
       "norm_label": "newbookingsheetprops"
     },
     {
@@ -7536,7 +7756,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "components_bookings_new_booking_sheet_formatcurrency",
-      "community": 100,
+      "community": 23,
       "norm_label": "formatcurrency()"
     },
     {
@@ -7546,7 +7766,7 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "components_bookings_new_booking_sheet_source_options",
-      "community": 16,
+      "community": 23,
       "norm_label": "source_options"
     },
     {
@@ -7556,7 +7776,7 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "components_bookings_new_booking_sheet_newbookingsheet",
-      "community": 100,
+      "community": 23,
       "norm_label": "newbookingsheet()"
     },
     {
@@ -7810,6 +8030,216 @@
       "norm_label": "hero()"
     },
     {
+      "label": "housekeeping-table-row.tsx",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row",
+      "community": 29,
+      "norm_label": "housekeeping-table-row.tsx"
+    },
+    {
+      "label": "CleaningStatusOption",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L14",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_cleaningstatusoption",
+      "community": 29,
+      "norm_label": "cleaningstatusoption"
+    },
+    {
+      "label": "CLEANING_STATUS_OPTIONS",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L23",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_cleaning_status_options",
+      "community": 29,
+      "norm_label": "cleaning_status_options"
+    },
+    {
+      "label": "getCleaningStatusOption()",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L74",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_getcleaningstatusoption",
+      "community": 29,
+      "norm_label": "getcleaningstatusoption()"
+    },
+    {
+      "label": "OCCUPANCY_LABELS",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L85",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_occupancy_labels",
+      "community": 29,
+      "norm_label": "occupancy_labels"
+    },
+    {
+      "label": "getOccupancyLabel()",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L93",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_getoccupancylabel",
+      "community": 38,
+      "norm_label": "getoccupancylabel()"
+    },
+    {
+      "label": "AdultIcon()",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L99",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_adulticon",
+      "community": 29,
+      "norm_label": "adulticon()"
+    },
+    {
+      "label": "ChildIcon()",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L103",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_childicon",
+      "community": 29,
+      "norm_label": "childicon()"
+    },
+    {
+      "label": "InfantIcon()",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L107",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_infanticon",
+      "community": 29,
+      "norm_label": "infanticon()"
+    },
+    {
+      "label": "CleaningStatusDropdownProps",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L113",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_cleaningstatusdropdownprops",
+      "community": 29,
+      "norm_label": "cleaningstatusdropdownprops"
+    },
+    {
+      "label": "CleaningStatusDropdown()",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L120",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_cleaningstatusdropdown",
+      "community": 29,
+      "norm_label": "cleaningstatusdropdown()"
+    },
+    {
+      "label": "InlineNoteEditorProps",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L233",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_inlinenoteeditorprops",
+      "community": 29,
+      "norm_label": "inlinenoteeditorprops"
+    },
+    {
+      "label": "InlineNoteEditor()",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L240",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_inlinenoteeditor",
+      "community": 29,
+      "norm_label": "inlinenoteeditor()"
+    },
+    {
+      "label": "HousekeepingTableRowProps",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L370",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_housekeepingtablerowprops",
+      "community": 29,
+      "norm_label": "housekeepingtablerowprops"
+    },
+    {
+      "label": "HousekeepingTableRow()",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L378",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_housekeepingtablerow",
+      "community": 38,
+      "norm_label": "housekeepingtablerow()"
+    },
+    {
+      "label": "GuestCountPillProps",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L475",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_guestcountpillprops",
+      "community": 29,
+      "norm_label": "guestcountpillprops"
+    },
+    {
+      "label": "GuestCountPill()",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L481",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_guestcountpill",
+      "community": 29,
+      "norm_label": "guestcountpill()"
+    },
+    {
+      "label": "SortDirection",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L496",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_sortdirection",
+      "community": 29,
+      "norm_label": "sortdirection"
+    },
+    {
+      "label": "SortableHeaderProps",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L498",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_sortableheaderprops",
+      "community": 29,
+      "norm_label": "sortableheaderprops"
+    },
+    {
+      "label": "SortableHeader()",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L507",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_sortableheader",
+      "community": 29,
+      "norm_label": "sortableheader()"
+    },
+    {
+      "label": "SortIcon()",
+      "file_type": "code",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L546",
+      "_origin": "ast",
+      "id": "components_housekeeping_housekeeping_table_row_sorticon",
+      "community": 29,
+      "norm_label": "sorticon()"
+    },
+    {
       "label": "kanban-board.tsx",
       "file_type": "code",
       "source_file": "components/housekeeping/kanban-board.tsx",
@@ -7833,7 +8263,7 @@
       "label": "HousekeepingBoardProps",
       "file_type": "code",
       "source_file": "components/housekeeping/kanban-board.tsx",
-      "source_location": "L21",
+      "source_location": "L22",
       "_origin": "ast",
       "id": "components_housekeeping_kanban_board_housekeepingboardprops",
       "community": 27,
@@ -7843,7 +8273,7 @@
       "label": "HousekeepingBoard()",
       "file_type": "code",
       "source_file": "components/housekeeping/kanban-board.tsx",
-      "source_location": "L29",
+      "source_location": "L30",
       "_origin": "ast",
       "id": "components_housekeeping_kanban_board_housekeepingboard",
       "community": 27,
@@ -7853,31 +8283,21 @@
       "label": "sortRooms()",
       "file_type": "code",
       "source_file": "components/housekeeping/kanban-board.tsx",
-      "source_location": "L120",
+      "source_location": "L141",
       "_origin": "ast",
       "id": "components_housekeeping_kanban_board_sortrooms",
       "community": 27,
       "norm_label": "sortrooms()"
     },
     {
-      "label": "BedDoubleIcon()",
+      "label": "BedIcon()",
       "file_type": "code",
       "source_file": "components/housekeeping/kanban-board.tsx",
-      "source_location": "L138",
+      "source_location": "L155",
       "_origin": "ast",
-      "id": "components_housekeeping_kanban_board_beddoubleicon",
+      "id": "components_housekeeping_kanban_board_bedicon",
       "community": 27,
-      "norm_label": "beddoubleicon()"
-    },
-    {
-      "label": "EmptyIcon()",
-      "file_type": "code",
-      "source_file": "components/housekeeping/kanban-board.tsx",
-      "source_location": "L156",
-      "_origin": "ast",
-      "id": "components_housekeeping_kanban_board_emptyicon",
-      "community": 27,
-      "norm_label": "emptyicon()"
+      "norm_label": "bedicon()"
     },
     {
       "label": "room-card.tsx",
@@ -7890,20 +8310,20 @@
       "norm_label": "room-card.tsx"
     },
     {
-      "label": "ROOM_STATUS_CONFIG",
+      "label": "CLEANING_STATUS_CONFIG",
       "file_type": "code",
       "source_file": "components/housekeeping/room-card.tsx",
       "source_location": "L22",
       "_origin": "ast",
-      "id": "components_housekeeping_room_card_room_status_config",
+      "id": "components_housekeeping_room_card_cleaning_status_config",
       "community": 27,
-      "norm_label": "room_status_config"
+      "norm_label": "cleaning_status_config"
     },
     {
       "label": "RoomCardProps",
       "file_type": "code",
       "source_file": "components/housekeeping/room-card.tsx",
-      "source_location": "L72",
+      "source_location": "L78",
       "_origin": "ast",
       "id": "components_housekeeping_room_card_roomcardprops",
       "community": 27,
@@ -7913,7 +8333,7 @@
       "label": "RoomCard()",
       "file_type": "code",
       "source_file": "components/housekeeping/room-card.tsx",
-      "source_location": "L80",
+      "source_location": "L86",
       "_origin": "ast",
       "id": "components_housekeeping_room_card_roomcard",
       "community": 27,
@@ -7923,7 +8343,7 @@
       "label": "ActionConfig",
       "file_type": "code",
       "source_file": "components/housekeeping/room-card.tsx",
-      "source_location": "L207",
+      "source_location": "L228",
       "_origin": "ast",
       "id": "components_housekeeping_room_card_actionconfig",
       "community": 27,
@@ -7933,7 +8353,7 @@
       "label": "getQuickActions()",
       "file_type": "code",
       "source_file": "components/housekeeping/room-card.tsx",
-      "source_location": "L214",
+      "source_location": "L235",
       "_origin": "ast",
       "id": "components_housekeeping_room_card_getquickactions",
       "community": 27,
@@ -7946,7 +8366,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_housekeeping_stats_bar",
-      "community": 27,
+      "community": 101,
       "norm_label": "stats-bar.tsx"
     },
     {
@@ -7956,7 +8376,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "components_housekeeping_stats_bar_hk_columns",
-      "community": 27,
+      "community": 101,
       "norm_label": "hk_columns"
     },
     {
@@ -7966,7 +8386,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "components_housekeeping_stats_bar_housekeepingstatsbarprops",
-      "community": 27,
+      "community": 101,
       "norm_label": "housekeepingstatsbarprops"
     },
     {
@@ -7976,17 +8396,17 @@
       "source_location": "L70",
       "_origin": "ast",
       "id": "components_housekeeping_stats_bar_housekeepingstatsbar",
-      "community": 27,
+      "community": 101,
       "norm_label": "housekeepingstatsbar()"
     },
     {
       "label": "StatChip()",
       "file_type": "code",
       "source_file": "components/housekeeping/stats-bar.tsx",
-      "source_location": "L141",
+      "source_location": "L145",
       "_origin": "ast",
       "id": "components_housekeeping_stats_bar_statchip",
-      "community": 27,
+      "community": 101,
       "norm_label": "statchip()"
     },
     {
@@ -8016,7 +8436,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "components_layout_app_header_appheader",
-      "community": 100,
+      "community": 53,
       "norm_label": "appheader()"
     },
     {
@@ -8096,7 +8516,7 @@
       "source_location": "L135",
       "_origin": "ast",
       "id": "components_layout_app_sidebar_overlay_collapsiblenavitem",
-      "community": 100,
+      "community": 8,
       "norm_label": "collapsiblenavitem()"
     },
     {
@@ -8166,7 +8586,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_pwa_dashboard_pwa_shell",
-      "community": 33,
+      "community": 28,
       "norm_label": "dashboard-pwa-shell.tsx"
     },
     {
@@ -8176,7 +8596,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "components_pwa_dashboard_pwa_shell_dashboardpwashell",
-      "community": 33,
+      "community": 28,
       "norm_label": "dashboardpwashell()"
     },
     {
@@ -8186,7 +8606,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_pwa_offline_indicator",
-      "community": 33,
+      "community": 28,
       "norm_label": "offline-indicator.tsx"
     },
     {
@@ -8196,7 +8616,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "components_pwa_offline_indicator_offlineindicator",
-      "community": 33,
+      "community": 28,
       "norm_label": "offlineindicator()"
     },
     {
@@ -8216,7 +8636,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "components_pwa_pwa_install_prompt_wasdismissedrecently",
-      "community": 33,
+      "community": 28,
       "norm_label": "wasdismissedrecently()"
     },
     {
@@ -8226,7 +8646,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "components_pwa_pwa_install_prompt_pwainstallprompt",
-      "community": 33,
+      "community": 28,
       "norm_label": "pwainstallprompt()"
     },
     {
@@ -8266,7 +8686,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_avatar",
-      "community": 38,
+      "community": 32,
       "norm_label": "avatar.tsx"
     },
     {
@@ -8276,7 +8696,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "components_ui_avatar_avatar",
-      "community": 38,
+      "community": 32,
       "norm_label": "avatar()"
     },
     {
@@ -8286,7 +8706,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "components_ui_avatar_avatarimage",
-      "community": 38,
+      "community": 32,
       "norm_label": "avatarimage()"
     },
     {
@@ -8296,7 +8716,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "components_ui_avatar_avatarfallback",
-      "community": 38,
+      "community": 32,
       "norm_label": "avatarfallback()"
     },
     {
@@ -8306,7 +8726,7 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "components_ui_avatar_avatarbadge",
-      "community": 38,
+      "community": 32,
       "norm_label": "avatarbadge()"
     },
     {
@@ -8316,7 +8736,7 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "components_ui_avatar_avatargroup",
-      "community": 38,
+      "community": 32,
       "norm_label": "avatargroup()"
     },
     {
@@ -8326,7 +8746,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "components_ui_avatar_avatargroupcount",
-      "community": 38,
+      "community": 32,
       "norm_label": "avatargroupcount()"
     },
     {
@@ -8336,7 +8756,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_badge",
-      "community": 16,
+      "community": 176,
       "norm_label": "badge.tsx"
     },
     {
@@ -8346,7 +8766,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "components_ui_badge_badgevariants",
-      "community": 16,
+      "community": 176,
       "norm_label": "badgevariants"
     },
     {
@@ -8356,7 +8776,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "components_ui_badge_badge",
-      "community": 16,
+      "community": 176,
       "norm_label": "badge()"
     },
     {
@@ -8376,7 +8796,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "components_ui_button_buttonvariants",
-      "community": 91,
+      "community": 88,
       "norm_label": "buttonvariants"
     },
     {
@@ -8396,7 +8816,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_calendar",
-      "community": 16,
+      "community": 23,
       "norm_label": "calendar.tsx"
     },
     {
@@ -8406,7 +8826,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "components_ui_calendar_calendar",
-      "community": 16,
+      "community": 23,
       "norm_label": "calendar()"
     },
     {
@@ -8416,7 +8836,7 @@
       "source_location": "L182",
       "_origin": "ast",
       "id": "components_ui_calendar_calendardaybutton",
-      "community": 91,
+      "community": 23,
       "norm_label": "calendardaybutton()"
     },
     {
@@ -8716,7 +9136,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_dropdown_menu",
-      "community": 32,
+      "community": 176,
       "norm_label": "dropdown-menu.tsx"
     },
     {
@@ -8726,7 +9146,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "components_ui_dropdown_menu_dropdownmenu",
-      "community": 32,
+      "community": 176,
       "norm_label": "dropdownmenu()"
     },
     {
@@ -8736,7 +9156,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "components_ui_dropdown_menu_dropdownmenutrigger",
-      "community": 32,
+      "community": 176,
       "norm_label": "dropdownmenutrigger()"
     },
     {
@@ -8746,7 +9166,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "components_ui_dropdown_menu_dropdownmenugroup",
-      "community": 32,
+      "community": 176,
       "norm_label": "dropdownmenugroup()"
     },
     {
@@ -8756,7 +9176,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "components_ui_dropdown_menu_dropdownmenuportal",
-      "community": 32,
+      "community": 176,
       "norm_label": "dropdownmenuportal()"
     },
     {
@@ -8766,7 +9186,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "components_ui_dropdown_menu_dropdownmenuradiogroup",
-      "community": 32,
+      "community": 176,
       "norm_label": "dropdownmenuradiogroup()"
     },
     {
@@ -8776,7 +9196,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "components_ui_dropdown_menu_dropdownmenucontent",
-      "community": 32,
+      "community": 176,
       "norm_label": "dropdownmenucontent()"
     },
     {
@@ -8786,7 +9206,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "components_ui_dropdown_menu_dropdownmenuitem",
-      "community": 32,
+      "community": 176,
       "norm_label": "dropdownmenuitem()"
     },
     {
@@ -8796,7 +9216,7 @@
       "source_location": "L74",
       "_origin": "ast",
       "id": "components_ui_dropdown_menu_dropdownmenucheckboxitem",
-      "community": 32,
+      "community": 176,
       "norm_label": "dropdownmenucheckboxitem()"
     },
     {
@@ -8806,7 +9226,7 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "components_ui_dropdown_menu_dropdownmenuradioitem",
-      "community": 32,
+      "community": 176,
       "norm_label": "dropdownmenuradioitem()"
     },
     {
@@ -8816,7 +9236,7 @@
       "source_location": "L122",
       "_origin": "ast",
       "id": "components_ui_dropdown_menu_dropdownmenulabel",
-      "community": 32,
+      "community": 176,
       "norm_label": "dropdownmenulabel()"
     },
     {
@@ -8826,7 +9246,7 @@
       "source_location": "L135",
       "_origin": "ast",
       "id": "components_ui_dropdown_menu_dropdownmenuseparator",
-      "community": 32,
+      "community": 176,
       "norm_label": "dropdownmenuseparator()"
     },
     {
@@ -8836,7 +9256,7 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "components_ui_dropdown_menu_dropdownmenushortcut",
-      "community": 32,
+      "community": 176,
       "norm_label": "dropdownmenushortcut()"
     },
     {
@@ -8966,7 +9386,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_input",
-      "community": 171,
+      "community": 65,
       "norm_label": "input.tsx"
     },
     {
@@ -8976,7 +9396,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "components_ui_input_input",
-      "community": 171,
+      "community": 65,
       "norm_label": "input()"
     },
     {
@@ -8986,7 +9406,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_menu_icon",
-      "community": 92,
+      "community": 32,
       "norm_label": "menu-icon.tsx"
     },
     {
@@ -8996,7 +9416,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "components_ui_menu_icon_menuiconhandle",
-      "community": 92,
+      "community": 32,
       "norm_label": "menuiconhandle"
     },
     {
@@ -9006,7 +9426,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "components_ui_menu_icon_menuiconprops",
-      "community": 92,
+      "community": 32,
       "norm_label": "menuiconprops"
     },
     {
@@ -9016,7 +9436,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "components_ui_menu_icon_topvariants",
-      "community": 92,
+      "community": 32,
       "norm_label": "topvariants"
     },
     {
@@ -9026,7 +9446,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "components_ui_menu_icon_middlevariants",
-      "community": 92,
+      "community": 32,
       "norm_label": "middlevariants"
     },
     {
@@ -9036,7 +9456,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "components_ui_menu_icon_bottomvariants",
-      "community": 92,
+      "community": 32,
       "norm_label": "bottomvariants"
     },
     {
@@ -9046,7 +9466,7 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "components_ui_menu_icon_menuicon",
-      "community": 92,
+      "community": 32,
       "norm_label": "menuicon"
     },
     {
@@ -9226,7 +9646,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_separator",
-      "community": 16,
+      "community": 2,
       "norm_label": "separator.tsx"
     },
     {
@@ -9236,7 +9656,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "components_ui_separator_separator",
-      "community": 16,
+      "community": 2,
       "norm_label": "separator()"
     },
     {
@@ -9246,7 +9666,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_sheet",
-      "community": 16,
+      "community": 23,
       "norm_label": "sheet.tsx"
     },
     {
@@ -9256,7 +9676,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "components_ui_sheet_sheet",
-      "community": 16,
+      "community": 23,
       "norm_label": "sheet()"
     },
     {
@@ -9266,7 +9686,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "components_ui_sheet_sheettrigger",
-      "community": 16,
+      "community": 23,
       "norm_label": "sheettrigger()"
     },
     {
@@ -9276,7 +9696,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "components_ui_sheet_sheetclose",
-      "community": 16,
+      "community": 23,
       "norm_label": "sheetclose()"
     },
     {
@@ -9286,7 +9706,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "components_ui_sheet_sheetportal",
-      "community": 16,
+      "community": 23,
       "norm_label": "sheetportal()"
     },
     {
@@ -9296,7 +9716,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "components_ui_sheet_sheetoverlay",
-      "community": 274,
+      "community": 23,
       "norm_label": "sheetoverlay()"
     },
     {
@@ -9306,7 +9726,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "components_ui_sheet_sheetcontent",
-      "community": 16,
+      "community": 23,
       "norm_label": "sheetcontent()"
     },
     {
@@ -9316,7 +9736,7 @@
       "source_location": "L83",
       "_origin": "ast",
       "id": "components_ui_sheet_sheetheader",
-      "community": 16,
+      "community": 23,
       "norm_label": "sheetheader()"
     },
     {
@@ -9326,7 +9746,7 @@
       "source_location": "L93",
       "_origin": "ast",
       "id": "components_ui_sheet_sheetfooter",
-      "community": 16,
+      "community": 23,
       "norm_label": "sheetfooter()"
     },
     {
@@ -9336,7 +9756,7 @@
       "source_location": "L103",
       "_origin": "ast",
       "id": "components_ui_sheet_sheettitle",
-      "community": 16,
+      "community": 23,
       "norm_label": "sheettitle()"
     },
     {
@@ -9346,7 +9766,7 @@
       "source_location": "L116",
       "_origin": "ast",
       "id": "components_ui_sheet_sheetdescription",
-      "community": 16,
+      "community": 23,
       "norm_label": "sheetdescription()"
     },
     {
@@ -9356,7 +9776,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_sidebar",
-      "community": 5,
+      "community": 8,
       "norm_label": "sidebar.tsx"
     },
     {
@@ -9366,7 +9786,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarcontextprops",
-      "community": 5,
+      "community": 8,
       "norm_label": "sidebarcontextprops"
     },
     {
@@ -9376,7 +9796,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarcontext",
-      "community": 5,
+      "community": 8,
       "norm_label": "sidebarcontext"
     },
     {
@@ -9386,7 +9806,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "components_ui_sidebar_usesidebar",
-      "community": 5,
+      "community": 8,
       "norm_label": "usesidebar()"
     },
     {
@@ -9396,7 +9816,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarprovider",
-      "community": 100,
+      "community": 8,
       "norm_label": "sidebarprovider()"
     },
     {
@@ -9406,7 +9826,7 @@
       "source_location": "L152",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebar",
-      "community": 5,
+      "community": 8,
       "norm_label": "sidebar()"
     },
     {
@@ -9416,7 +9836,7 @@
       "source_location": "L245",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebartrigger",
-      "community": 5,
+      "community": 8,
       "norm_label": "sidebartrigger()"
     },
     {
@@ -9426,7 +9846,7 @@
       "source_location": "L271",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarrail",
-      "community": 5,
+      "community": 8,
       "norm_label": "sidebarrail()"
     },
     {
@@ -9436,7 +9856,7 @@
       "source_location": "L296",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarinset",
-      "community": 5,
+      "community": 8,
       "norm_label": "sidebarinset()"
     },
     {
@@ -9446,7 +9866,7 @@
       "source_location": "L309",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarinput",
-      "community": 5,
+      "community": 8,
       "norm_label": "sidebarinput()"
     },
     {
@@ -9516,7 +9936,7 @@
       "source_location": "L408",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebargroupaction",
-      "community": 5,
+      "community": 8,
       "norm_label": "sidebargroupaction()"
     },
     {
@@ -9556,7 +9976,7 @@
       "source_location": "L468",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarmenubuttonvariants",
-      "community": 5,
+      "community": 8,
       "norm_label": "sidebarmenubuttonvariants"
     },
     {
@@ -9566,7 +9986,7 @@
       "source_location": "L490",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarmenubutton",
-      "community": 5,
+      "community": 8,
       "norm_label": "sidebarmenubutton()"
     },
     {
@@ -9576,7 +9996,7 @@
       "source_location": "L544",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarmenuaction",
-      "community": 5,
+      "community": 8,
       "norm_label": "sidebarmenuaction()"
     },
     {
@@ -9586,7 +10006,7 @@
       "source_location": "L574",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarmenubadge",
-      "community": 5,
+      "community": 8,
       "norm_label": "sidebarmenubadge()"
     },
     {
@@ -9596,7 +10016,7 @@
       "source_location": "L591",
       "_origin": "ast",
       "id": "components_ui_sidebar_sidebarmenuskeleton",
-      "community": 100,
+      "community": 8,
       "norm_label": "sidebarmenuskeleton()"
     },
     {
@@ -9636,7 +10056,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_skeleton",
-      "community": 16,
+      "community": 22,
       "norm_label": "skeleton.tsx"
     },
     {
@@ -9646,7 +10066,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "components_ui_skeleton_skeleton",
-      "community": 16,
+      "community": 22,
       "norm_label": "skeleton()"
     },
     {
@@ -9676,7 +10096,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_switch",
-      "community": 2,
+      "community": 65,
       "norm_label": "switch.tsx"
     },
     {
@@ -9686,7 +10106,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "components_ui_switch_switchvariants",
-      "community": 2,
+      "community": 65,
       "norm_label": "switchvariants"
     },
     {
@@ -9696,7 +10116,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "components_ui_switch_thumbvariants",
-      "community": 2,
+      "community": 65,
       "norm_label": "thumbvariants"
     },
     {
@@ -9706,7 +10126,7 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "components_ui_switch_switch",
-      "community": 2,
+      "community": 65,
       "norm_label": "switch()"
     },
     {
@@ -9866,7 +10286,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_textarea",
-      "community": 16,
+      "community": 274,
       "norm_label": "textarea.tsx"
     },
     {
@@ -9876,7 +10296,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "components_ui_textarea_textarea",
-      "community": 16,
+      "community": 274,
       "norm_label": "textarea()"
     },
     {
@@ -9886,7 +10306,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_ui_tooltip",
-      "community": 5,
+      "community": 8,
       "norm_label": "tooltip.tsx"
     },
     {
@@ -9896,7 +10316,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "components_ui_tooltip_tooltipprovider",
-      "community": 5,
+      "community": 165,
       "norm_label": "tooltipprovider()"
     },
     {
@@ -9906,7 +10326,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "components_ui_tooltip_tooltip",
-      "community": 5,
+      "community": 8,
       "norm_label": "tooltip()"
     },
     {
@@ -9916,7 +10336,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "components_ui_tooltip_tooltiptrigger",
-      "community": 5,
+      "community": 8,
       "norm_label": "tooltiptrigger()"
     },
     {
@@ -9926,7 +10346,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "components_ui_tooltip_tooltipcontent",
-      "community": 5,
+      "community": 8,
       "norm_label": "tooltipcontent()"
     },
     {
@@ -9956,7 +10376,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_use_mobile",
-      "community": 100,
+      "community": 22,
       "norm_label": "use-mobile.ts"
     },
     {
@@ -9966,7 +10386,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "hooks_use_mobile_useismobile",
-      "community": 100,
+      "community": 22,
       "norm_label": "useismobile()"
     },
     {
@@ -9976,7 +10396,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "hooks_use_pwa_install",
-      "community": 33,
+      "community": 28,
       "norm_label": "use-pwa-install.ts"
     },
     {
@@ -9986,7 +10406,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "hooks_use_pwa_install_beforeinstallpromptevent",
-      "community": 33,
+      "community": 28,
       "norm_label": "beforeinstallpromptevent"
     },
     {
@@ -9996,7 +10416,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "hooks_use_pwa_install_windoweventmap",
-      "community": 33,
+      "community": 28,
       "norm_label": "windoweventmap"
     },
     {
@@ -10006,7 +10426,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "hooks_use_pwa_install_usepwainstall",
-      "community": 33,
+      "community": 28,
       "norm_label": "usepwainstall()"
     },
     {
@@ -10313,7 +10733,7 @@
       "label": "AuditEntry",
       "file_type": "code",
       "source_file": "lib/audit.ts",
-      "source_location": "L37",
+      "source_location": "L38",
       "_origin": "ast",
       "id": "lib_audit_auditentry",
       "community": 20,
@@ -10323,7 +10743,7 @@
       "label": "writeAuditLog()",
       "file_type": "code",
       "source_file": "lib/audit.ts",
-      "source_location": "L53",
+      "source_location": "L54",
       "_origin": "ast",
       "id": "lib_audit_writeauditlog",
       "community": 20,
@@ -10396,7 +10816,7 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "lib_auth_requireauth",
-      "community": 6,
+      "community": 53,
       "norm_label": "requireauth()"
     },
     {
@@ -10556,7 +10976,7 @@
       "source_location": "L263",
       "_origin": "ast",
       "id": "lib_beds24_beds24bookingwebhookpayload",
-      "community": 74,
+      "community": 25,
       "norm_label": "beds24bookingwebhookpayload"
     },
     {
@@ -10956,7 +11376,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_paystack",
-      "community": 36,
+      "community": 5,
       "norm_label": "paystack.ts"
     },
     {
@@ -10966,7 +11386,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "lib_paystack_paystackfetch",
-      "community": 36,
+      "community": 5,
       "norm_label": "paystackfetch()"
     },
     {
@@ -10976,7 +11396,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "lib_paystack_paystackbank",
-      "community": 36,
+      "community": 5,
       "norm_label": "paystackbank"
     },
     {
@@ -10986,7 +11406,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "lib_paystack_getpaystackbanks",
-      "community": 36,
+      "community": 5,
       "norm_label": "getpaystackbanks()"
     },
     {
@@ -10996,7 +11416,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "lib_paystack_resolveaccount",
-      "community": 36,
+      "community": 5,
       "norm_label": "resolveaccount()"
     },
     {
@@ -11006,7 +11426,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "lib_paystack_subaccountcreateinput",
-      "community": 36,
+      "community": 5,
       "norm_label": "subaccountcreateinput"
     },
     {
@@ -11016,7 +11436,7 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "lib_paystack_createsubaccount",
-      "community": 36,
+      "community": 5,
       "norm_label": "createsubaccount()"
     },
     {
@@ -11026,7 +11446,7 @@
       "source_location": "L70",
       "_origin": "ast",
       "id": "lib_paystack_updatesubaccount",
-      "community": 36,
+      "community": 5,
       "norm_label": "updatesubaccount()"
     },
     {
@@ -11036,7 +11456,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "lib_paystack_transactioninitinput",
-      "community": 36,
+      "community": 5,
       "norm_label": "transactioninitinput"
     },
     {
@@ -11056,7 +11476,7 @@
       "source_location": "L107",
       "_origin": "ast",
       "id": "lib_paystack_verifytransaction",
-      "community": 36,
+      "community": 5,
       "norm_label": "verifytransaction()"
     },
     {
@@ -11146,7 +11566,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_query_keys",
-      "community": 22,
+      "community": 90,
       "norm_label": "query-keys.ts"
     },
     {
@@ -11156,7 +11576,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_query_keys_qk",
-      "community": 22,
+      "community": 90,
       "norm_label": "qk"
     },
     {
@@ -11206,7 +11626,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_store_pricing_store",
-      "community": 16,
+      "community": 4,
       "norm_label": "pricing-store.ts"
     },
     {
@@ -11216,7 +11636,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "lib_store_pricing_store_selectedcell",
-      "community": 16,
+      "community": 4,
       "norm_label": "selectedcell"
     },
     {
@@ -11226,7 +11646,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "lib_store_pricing_store_pricinguistate",
-      "community": 16,
+      "community": 4,
       "norm_label": "pricinguistate"
     },
     {
@@ -11236,7 +11656,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "lib_store_pricing_store_usepricingstore",
-      "community": 16,
+      "community": 4,
       "norm_label": "usepricingstore"
     },
     {
@@ -11326,7 +11746,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "lib_supabase_server_createclient",
-      "community": 6,
+      "community": 3,
       "norm_label": "createclient()"
     },
     {
@@ -11336,7 +11756,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_utils",
-      "community": 16,
+      "community": 32,
       "norm_label": "utils.ts"
     },
     {
@@ -11346,7 +11766,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "lib_utils_cn",
-      "community": 274,
+      "community": 8,
       "norm_label": "cn()"
     },
     {
@@ -11726,7 +12146,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "package_dependencies_react",
-      "community": 100,
+      "community": 8,
       "norm_label": "react"
     },
     {
@@ -12326,7 +12746,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "types_database_types",
-      "community": 74,
+      "community": 6,
       "norm_label": "database.types.ts"
     },
     {
@@ -12336,7 +12756,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "types_database_types_json",
-      "community": 36,
+      "community": 5,
       "norm_label": "json"
     },
     {
@@ -12346,7 +12766,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "types_database_types_database",
-      "community": 74,
+      "community": 6,
       "norm_label": "database"
     },
     {
@@ -12356,7 +12776,7 @@
       "source_location": "L1203",
       "_origin": "ast",
       "id": "types_database_types_databasewithoutinternals",
-      "community": 74,
+      "community": 6,
       "norm_label": "databasewithoutinternals"
     },
     {
@@ -12366,7 +12786,7 @@
       "source_location": "L1205",
       "_origin": "ast",
       "id": "types_database_types_defaultschema",
-      "community": 74,
+      "community": 6,
       "norm_label": "defaultschema"
     },
     {
@@ -12376,7 +12796,7 @@
       "source_location": "L1207",
       "_origin": "ast",
       "id": "types_database_types_tables",
-      "community": 74,
+      "community": 6,
       "norm_label": "tables"
     },
     {
@@ -12386,7 +12806,7 @@
       "source_location": "L1236",
       "_origin": "ast",
       "id": "types_database_types_tablesinsert",
-      "community": 74,
+      "community": 6,
       "norm_label": "tablesinsert"
     },
     {
@@ -12396,7 +12816,7 @@
       "source_location": "L1261",
       "_origin": "ast",
       "id": "types_database_types_tablesupdate",
-      "community": 74,
+      "community": 6,
       "norm_label": "tablesupdate"
     },
     {
@@ -12406,7 +12826,7 @@
       "source_location": "L1286",
       "_origin": "ast",
       "id": "types_database_types_enums",
-      "community": 74,
+      "community": 6,
       "norm_label": "enums"
     },
     {
@@ -12416,7 +12836,7 @@
       "source_location": "L1303",
       "_origin": "ast",
       "id": "types_database_types_compositetypes",
-      "community": 74,
+      "community": 6,
       "norm_label": "compositetypes"
     },
     {
@@ -12426,7 +12846,7 @@
       "source_location": "L1320",
       "_origin": "ast",
       "id": "types_database_types_constants",
-      "community": 74,
+      "community": 6,
       "norm_label": "constants"
     },
     {
@@ -13246,7 +13666,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "hotelos_pro_prd_v5_1_executive_summary",
-      "community": 95,
+      "community": 18,
       "norm_label": "1 executive summary"
     },
     {
@@ -13256,7 +13676,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "hotelos_pro_prd_v5_core_problems_solved",
-      "community": 95,
+      "community": 18,
       "norm_label": "core problems solved"
     },
     {
@@ -13266,7 +13686,7 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "hotelos_pro_prd_v5_why_ghana",
-      "community": 95,
+      "community": 18,
       "norm_label": "why ghana"
     },
     {
@@ -13436,7 +13856,7 @@
       "source_location": "L221",
       "_origin": "ast",
       "id": "hotelos_pro_prd_v5_6_technology_stack",
-      "community": 18,
+      "community": 95,
       "norm_label": "6 technology stack"
     },
     {
@@ -13446,7 +13866,7 @@
       "source_location": "L245",
       "_origin": "ast",
       "id": "hotelos_pro_prd_v5_why_daypilot_lite_for_the_timeline_calendar",
-      "community": 18,
+      "community": 95,
       "norm_label": "why daypilot lite for the timeline calendar"
     },
     {
@@ -13456,7 +13876,7 @@
       "source_location": "L284",
       "_origin": "ast",
       "id": "hotelos_pro_prd_v5_shadcn_ui_component_choices_explained",
-      "community": 18,
+      "community": 95,
       "norm_label": "shadcn ui \u2014 component choices explained"
     },
     {
@@ -17606,7 +18026,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L633",
+      "source_location": "L632",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_calendarclient",
       "target": "app_actions_bookings_updatebookingstatus"
@@ -17915,10 +18335,30 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L241",
+      "source_location": "L410",
       "weight": 1.0,
       "source": "app_actions_housekeeping",
       "target": "app_actions_housekeeping_bulkupdatehousekeepingstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L47",
+      "weight": 1.0,
+      "source": "app_actions_housekeeping",
+      "target": "app_actions_housekeeping_cleaningstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L103",
+      "weight": 1.0,
+      "source": "app_actions_housekeeping",
+      "target": "app_actions_housekeeping_deriveoccupancystatus",
       "confidence_score": 1.0
     },
     {
@@ -17935,7 +18375,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L67",
+      "source_location": "L130",
       "weight": 1.0,
       "source": "app_actions_housekeeping",
       "target": "app_actions_housekeeping_gethousekeepingdata",
@@ -17945,7 +18385,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L49",
+      "source_location": "L81",
       "weight": 1.0,
       "source": "app_actions_housekeeping",
       "target": "app_actions_housekeeping_housekeepingdata",
@@ -17955,7 +18395,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L34",
+      "source_location": "L55",
       "weight": 1.0,
       "source": "app_actions_housekeeping",
       "target": "app_actions_housekeeping_housekeepingroom",
@@ -17965,10 +18405,50 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L185",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "app_actions_housekeeping",
+      "target": "app_actions_housekeeping_roomoccupancystatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L300",
+      "weight": 1.0,
+      "source": "app_actions_housekeeping",
+      "target": "app_actions_housekeeping_updatecleaningstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L351",
       "weight": 1.0,
       "source": "app_actions_housekeeping",
       "target": "app_actions_housekeeping_updatehousekeepingstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L360",
+      "weight": 1.0,
+      "source": "app_actions_housekeeping",
+      "target": "app_actions_housekeeping_updateroomnote",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L291",
+      "weight": 1.0,
+      "source": "app_actions_housekeeping",
+      "target": "app_actions_housekeeping_valid_cleaning_statuses",
       "confidence_score": 1.0
     },
     {
@@ -18064,7 +18544,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L21",
+      "source_location": "L32",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
       "target": "app_actions_housekeeping",
@@ -18078,6 +18558,17 @@
       "source_location": "L5",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_page",
+      "target": "app_actions_housekeeping",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
       "target": "app_actions_housekeeping",
       "confidence_score": 1.0
     },
@@ -18119,7 +18610,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L245",
+      "source_location": "L414",
       "weight": 1.0,
       "source": "app_actions_housekeeping_bulkupdatehousekeepingstatus",
       "target": "app_actions_housekeeping_gethotelscopedclient",
@@ -18130,7 +18621,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L17",
+      "source_location": "L18",
       "weight": 1.0,
       "source": "app_actions_housekeeping_gethotelscopedclient",
       "target": "lib_auth_requireauth",
@@ -18141,7 +18632,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L16",
+      "source_location": "L17",
       "weight": 1.0,
       "source": "app_actions_housekeeping_gethotelscopedclient",
       "target": "lib_auth_requireminrole",
@@ -18152,7 +18643,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L19",
+      "source_location": "L20",
       "weight": 1.0,
       "source": "app_actions_housekeeping_gethotelscopedclient",
       "target": "lib_supabase_server_createclient",
@@ -18163,7 +18654,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L72",
+      "source_location": "L134",
       "weight": 1.0,
       "source": "app_actions_housekeeping_gethousekeepingdata",
       "target": "app_actions_housekeeping_gethotelscopedclient",
@@ -18174,9 +18665,20 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L190",
+      "source_location": "L305",
       "weight": 1.0,
-      "source": "app_actions_housekeeping_updatehousekeepingstatus",
+      "source": "app_actions_housekeeping_updatecleaningstatus",
+      "target": "app_actions_housekeeping_gethotelscopedclient",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L365",
+      "weight": 1.0,
+      "source": "app_actions_housekeeping_updateroomnote",
       "target": "app_actions_housekeeping_gethotelscopedclient",
       "confidence_score": 1.0
     },
@@ -18185,9 +18687,119 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L21",
+      "source_location": "L26",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_actions_housekeeping_roomoccupancystatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "app_actions_housekeeping_roomoccupancystatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_actions_housekeeping_cleaningstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L628",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingtableprops",
+      "target": "app_actions_housekeeping_cleaningstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "app_actions_housekeeping_cleaningstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L114",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row_cleaningstatusdropdownprops",
+      "target": "app_actions_housekeeping_cleaningstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row_cleaningstatusoption",
+      "target": "app_actions_housekeeping_cleaningstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/room-card.tsx",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "components_housekeeping_room_card",
+      "target": "app_actions_housekeeping_cleaningstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_actions_housekeeping_housekeepingroom",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L623",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingtableprops",
+      "target": "app_actions_housekeeping_housekeepingroom",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
       "target": "app_actions_housekeeping_housekeepingroom",
       "confidence_score": 1.0
     },
@@ -18207,7 +18819,7 @@
       "context": "field",
       "confidence": "EXTRACTED",
       "source_file": "components/housekeeping/kanban-board.tsx",
-      "source_location": "L22",
+      "source_location": "L23",
       "weight": 1.0,
       "source": "components_housekeeping_kanban_board_housekeepingboardprops",
       "target": "app_actions_housekeeping_housekeepingroom",
@@ -18229,7 +18841,7 @@
       "context": "field",
       "confidence": "EXTRACTED",
       "source_file": "components/housekeeping/room-card.tsx",
-      "source_location": "L73",
+      "source_location": "L79",
       "weight": 1.0,
       "source": "components_housekeeping_room_card_roomcardprops",
       "target": "app_actions_housekeeping_housekeepingroom",
@@ -18240,7 +18852,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L21",
+      "source_location": "L26",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
       "target": "app_actions_housekeeping_housekeepingdata",
@@ -18251,7 +18863,7 @@
       "context": "field",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L32",
+      "source_location": "L50",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingclientprops",
       "target": "app_actions_housekeeping_housekeepingdata",
@@ -18283,12 +18895,45 @@
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L223",
+      "weight": 1.0,
+      "source": "app_actions_housekeeping_gethousekeepingdata",
+      "target": "app_actions_housekeeping_deriveoccupancystatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L179",
+      "source_location": "L285",
       "weight": 1.0,
       "source": "app_actions_housekeeping_gethousekeepingdata",
       "target": "lib_auth_toactionerror"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L32",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_actions_housekeeping_gethousekeepingdata",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L342",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingclient",
+      "target": "app_actions_housekeeping_gethousekeepingdata"
     },
     {
       "relation": "imports",
@@ -18307,10 +18952,32 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/housekeeping/page.tsx",
-      "source_location": "L22",
+      "source_location": "L27",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_page_housekeepingpage",
       "target": "app_actions_housekeeping_gethousekeepingdata"
+    },
+    {
+      "relation": "references",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L420",
+      "weight": 1.0,
+      "source": "app_actions_housekeeping_bulkupdatehousekeepingstatus",
+      "target": "app_actions_housekeeping_valid_cleaning_statuses"
+    },
+    {
+      "relation": "references",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L310",
+      "weight": 1.0,
+      "source": "app_actions_housekeeping_updatecleaningstatus",
+      "target": "app_actions_housekeeping_valid_cleaning_statuses"
     },
     {
       "relation": "calls",
@@ -18318,9 +18985,9 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L221",
+      "source_location": "L331",
       "weight": 1.0,
-      "source": "app_actions_housekeeping_updatehousekeepingstatus",
+      "source": "app_actions_housekeeping_updatecleaningstatus",
       "target": "lib_audit_writeauditlog"
     },
     {
@@ -18329,10 +18996,43 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L235",
+      "source_location": "L345",
+      "weight": 1.0,
+      "source": "app_actions_housekeeping_updatecleaningstatus",
+      "target": "lib_auth_toactionerror"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L355",
       "weight": 1.0,
       "source": "app_actions_housekeeping_updatehousekeepingstatus",
-      "target": "lib_auth_toactionerror"
+      "target": "app_actions_housekeeping_updatecleaningstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L32",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_actions_housekeeping_updatecleaningstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L372",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingclient",
+      "target": "app_actions_housekeeping_updatecleaningstatus"
     },
     {
       "relation": "calls",
@@ -18340,7 +19040,51 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L284",
+      "source_location": "L390",
+      "weight": 1.0,
+      "source": "app_actions_housekeeping_updateroomnote",
+      "target": "lib_audit_writeauditlog"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L404",
+      "weight": 1.0,
+      "source": "app_actions_housekeeping_updateroomnote",
+      "target": "lib_auth_toactionerror"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L32",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_actions_housekeeping_updateroomnote",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L401",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingclient",
+      "target": "app_actions_housekeeping_updateroomnote"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/actions/housekeeping.ts",
+      "source_location": "L443",
       "weight": 1.0,
       "source": "app_actions_housekeeping_bulkupdatehousekeepingstatus",
       "target": "lib_audit_writeauditlog"
@@ -18351,7 +19095,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/actions/housekeeping.ts",
-      "source_location": "L301",
+      "source_location": "L460",
       "weight": 1.0,
       "source": "app_actions_housekeeping_bulkupdatehousekeepingstatus",
       "target": "lib_auth_toactionerror"
@@ -24940,7 +25684,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L606",
+      "source_location": "L605",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_calendarclient",
       "target": "app_dashboard_actions_checkinbooking"
@@ -25017,7 +25761,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L619",
+      "source_location": "L618",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_calendarclient",
       "target": "app_dashboard_actions_checkoutbooking"
@@ -26214,7 +26958,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L57",
+      "source_location": "L56",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_components_block_room_sheet",
@@ -26465,7 +27209,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L57",
+      "source_location": "L56",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_components_block_room_sheet_blockroomsheet",
@@ -26509,7 +27253,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L56",
+      "source_location": "L55",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_components_booking_detail_panel",
@@ -26961,7 +27705,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L56",
+      "source_location": "L55",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_components_booking_detail_panel_bookingdetailpanel",
@@ -27156,7 +27900,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L218",
+      "source_location": "L217",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_calendarclient",
       "target": "app_dashboard_calendar_components_calendar_events_buildevents"
@@ -27407,7 +28151,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L770",
+      "source_location": "L769",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_calendarclient",
       "target": "app_dashboard_calendar_components_calendar_helpers_ismanuallikesource"
@@ -27473,7 +28217,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L113",
+      "source_location": "L112",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_calendarclient",
       "target": "app_dashboard_calendar_components_calendar_helpers_view_presets"
@@ -27610,7 +28354,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L214",
+      "source_location": "L213",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_calendarclient",
       "target": "app_dashboard_calendar_components_calendar_resources_buildresources"
@@ -27664,7 +28408,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L58",
+      "source_location": "L57",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_components_unassigned_tray",
@@ -27857,7 +28601,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L58",
+      "source_location": "L57",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_components_unassigned_tray_unassignedtray",
@@ -28342,7 +29086,7 @@
       "context": "field",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L70",
+      "source_location": "L69",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_calendarclientprops",
       "target": "app_dashboard_calendar_actions_calendardata",
@@ -28365,7 +29109,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L127",
+      "source_location": "L126",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_calendarclient",
       "target": "app_dashboard_calendar_actions_getcalendardata"
@@ -28431,7 +29175,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L530",
+      "source_location": "L529",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_calendarclient",
       "target": "app_dashboard_calendar_actions_checkroomavailability"
@@ -28453,7 +29197,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L592",
+      "source_location": "L591",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_calendarclient",
       "target": "app_dashboard_calendar_actions_assignbookingtoroom"
@@ -28475,7 +29219,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L542",
+      "source_location": "L541",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_calendarclient",
       "target": "app_dashboard_calendar_actions_movebooking"
@@ -28484,7 +29228,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L1446",
+      "source_location": "L1445",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_calendar_client_activefilterchips",
@@ -28494,7 +29238,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L98",
+      "source_location": "L97",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_calendar_client_calendarclient",
@@ -28504,7 +29248,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L69",
+      "source_location": "L68",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_calendar_client_calendarclientprops",
@@ -28514,7 +29258,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L1505",
+      "source_location": "L1504",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_calendar_client_chip",
@@ -28524,7 +29268,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L61",
+      "source_location": "L60",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_calendar_client_daypilotscheduler",
@@ -28534,7 +29278,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L1598",
+      "source_location": "L1597",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_calendar_client_filtergroup",
@@ -28544,7 +29288,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L1517",
+      "source_location": "L1516",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_calendar_client_filterpanel",
@@ -28554,7 +29298,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L1615",
+      "source_location": "L1614",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_calendar_client_filtertoggle",
@@ -28564,7 +29308,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L94",
+      "source_location": "L93",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_calendar_client_getdaterangekey",
@@ -28574,7 +29318,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L1652",
+      "source_location": "L1651",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_calendar_client_menubutton",
@@ -28584,7 +29328,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L79",
+      "source_location": "L78",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_calendar_client_roomtypefilter",
@@ -28594,7 +29338,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L86",
+      "source_location": "L85",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_calendar_client_source_options",
@@ -28604,7 +29348,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L85",
+      "source_location": "L84",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client",
       "target": "app_dashboard_calendar_calendar_client_status_options",
@@ -28824,7 +29568,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L190",
+      "source_location": "L189",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_calendarclient",
       "target": "app_dashboard_calendar_calendar_client_getdaterangekey",
@@ -28836,7 +29580,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L291",
+      "source_location": "L290",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_calendarclient",
       "target": "lib_supabase_client_createclient"
@@ -28847,7 +29591,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L954",
+      "source_location": "L953",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_calendarclient",
       "target": "lib_utils_cn"
@@ -28858,7 +29602,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L108",
+      "source_location": "L107",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_calendarclient",
       "target": "package_dependencies_react"
@@ -28880,7 +29624,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L1627",
+      "source_location": "L1626",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_filtertoggle",
       "target": "lib_utils_cn"
@@ -28891,7 +29635,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/calendar/calendar-client.tsx",
-      "source_location": "L1664",
+      "source_location": "L1663",
       "weight": 1.0,
       "source": "app_dashboard_calendar_calendar_client_menubutton",
       "target": "lib_utils_cn"
@@ -29318,17 +30062,107 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L38",
+      "source_location": "L65",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
-      "target": "app_dashboard_housekeeping_housekeeping_client_fetchhousekeepingclientdata",
+      "target": "app_dashboard_housekeeping_housekeeping_client_cleaning_filter_options",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L137",
+      "source_location": "L233",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_dashboard_housekeeping_housekeeping_client_datepickerpopover",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L227",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_dashboard_housekeeping_housekeeping_client_datepickerpopoverprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L41",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_dashboard_housekeeping_housekeeping_client_datetab",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L599",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_dashboard_housekeeping_housekeeping_client_datetabbutton",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L592",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_dashboard_housekeeping_housekeeping_client_datetabbuttonprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L138",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_dashboard_housekeeping_housekeeping_client_filterselect",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L131",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_dashboard_housekeeping_housekeeping_client_filterselectprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L89",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_dashboard_housekeeping_housekeeping_client_formatlastupdated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L85",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_dashboard_housekeeping_housekeeping_client_formatreportdate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L297",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
       "target": "app_dashboard_housekeeping_housekeeping_client_housekeepingclient",
@@ -29338,21 +30172,91 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L31",
+      "source_location": "L49",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
       "target": "app_dashboard_housekeeping_housekeeping_client_housekeepingclientprops",
       "confidence_score": 1.0
     },
     {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L633",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_dashboard_housekeeping_housekeeping_client_housekeepingtable",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L622",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_dashboard_housekeeping_housekeeping_client_housekeepingtableprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_dashboard_housekeeping_housekeeping_client_occupancy_filter_options",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L42",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_dashboard_housekeeping_housekeeping_client_sortkey",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L95",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_dashboard_housekeeping_housekeeping_client_sortrooms",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L77",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_dashboard_housekeeping_housekeeping_client_todayiso",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L81",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "app_dashboard_housekeeping_housekeeping_client_tomorrowiso",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L19",
+      "source_location": "L37",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
-      "target": "components_housekeeping_kanban_board",
+      "target": "components_housekeeping_housekeeping_table_row",
       "confidence_score": 1.0
     },
     {
@@ -29360,21 +30264,10 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L19",
+      "source_location": "L21",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
-      "target": "components_housekeeping_kanban_board_housekeepingboard",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L20",
-      "weight": 1.0,
-      "source": "app_dashboard_housekeeping_housekeeping_client",
-      "target": "components_housekeeping_stats_bar",
+      "target": "components_housekeeping_housekeeping_table_row_getoccupancylabel",
       "confidence_score": 1.0
     },
     {
@@ -29382,10 +30275,32 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L20",
+      "source_location": "L21",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
-      "target": "components_housekeeping_stats_bar_housekeepingstatsbar",
+      "target": "components_housekeeping_housekeeping_table_row_housekeepingtablerow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L21",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "components_housekeeping_housekeeping_table_row_sortableheader",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L37",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client",
+      "target": "components_housekeeping_housekeeping_table_row_sortdirection",
       "confidence_score": 1.0
     },
     {
@@ -29393,7 +30308,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L17",
+      "source_location": "L18",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
       "target": "components_ui_button",
@@ -29404,7 +30319,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L17",
+      "source_location": "L18",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
       "target": "components_ui_button_button",
@@ -29415,51 +30330,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L18",
-      "weight": 1.0,
-      "source": "app_dashboard_housekeeping_housekeeping_client",
-      "target": "components_ui_input",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L18",
-      "weight": 1.0,
-      "source": "app_dashboard_housekeeping_housekeeping_client",
-      "target": "components_ui_input_input",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L26",
-      "weight": 1.0,
-      "source": "app_dashboard_housekeeping_housekeeping_client",
-      "target": "lib_audit",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L26",
-      "weight": 1.0,
-      "source": "app_dashboard_housekeeping_housekeeping_client",
-      "target": "lib_audit_writeauditlog",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L27",
+      "source_location": "L20",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
       "target": "lib_query_keys",
@@ -29470,7 +30341,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L27",
+      "source_location": "L20",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
       "target": "lib_query_keys_qk",
@@ -29481,7 +30352,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L25",
+      "source_location": "L19",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
       "target": "lib_supabase_client",
@@ -29492,7 +30363,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L25",
+      "source_location": "L19",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
       "target": "lib_supabase_client_createclient",
@@ -29503,7 +30374,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L16",
+      "source_location": "L17",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
       "target": "lib_utils",
@@ -29514,7 +30385,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L16",
+      "source_location": "L17",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client",
       "target": "lib_utils_cn",
@@ -29532,14 +30403,80 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L306",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingclient",
+      "target": "app_dashboard_housekeeping_housekeeping_client_todayiso",
+      "confidence_score": 0.5
+    },
+    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L171",
+      "source_location": "L335",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingclient",
-      "target": "app_dashboard_housekeeping_housekeeping_client_fetchhousekeepingclientdata",
+      "target": "app_dashboard_housekeeping_housekeeping_client_tomorrowiso",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L498",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingclient",
+      "target": "app_dashboard_housekeeping_housekeeping_client_formatreportdate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L671",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingtable",
+      "target": "app_dashboard_housekeeping_housekeeping_client_formatreportdate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L561",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingclient",
+      "target": "app_dashboard_housekeeping_housekeeping_client_formatlastupdated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L446",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingclient",
+      "target": "app_dashboard_housekeeping_housekeeping_client_sortrooms",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L115",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client_sortrooms",
+      "target": "components_housekeeping_housekeeping_table_row_getoccupancylabel",
       "confidence_score": 1.0
     },
     {
@@ -29548,10 +30485,21 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L224",
+      "source_location": "L174",
       "weight": 1.0,
-      "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingclient",
-      "target": "lib_audit_writeauditlog"
+      "source": "app_dashboard_housekeeping_housekeeping_client_filterselect",
+      "target": "lib_utils_cn"
+    },
+    {
+      "relation": "references",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L144",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client_filterselect",
+      "target": "package_dependencies_react"
     },
     {
       "relation": "calls",
@@ -29559,7 +30507,29 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L149",
+      "source_location": "L256",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client_datepickerpopover",
+      "target": "lib_utils_cn"
+    },
+    {
+      "relation": "references",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L234",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client_datepickerpopover",
+      "target": "package_dependencies_react"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L352",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingclient",
       "target": "lib_supabase_client_createclient"
@@ -29570,7 +30540,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L337",
+      "source_location": "L544",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingclient",
       "target": "lib_utils_cn"
@@ -29581,7 +30551,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
-      "source_location": "L141",
+      "source_location": "L305",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingclient",
       "target": "package_dependencies_react"
@@ -29598,10 +30568,42 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L604",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client_datetabbutton",
+      "target": "lib_utils_cn"
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/housekeeping-client.tsx",
+      "source_location": "L626",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_housekeeping_client_housekeepingtableprops",
+      "target": "components_housekeeping_housekeeping_table_row_sortdirection",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/housekeeping/page.tsx",
-      "source_location": "L45",
+      "source_location": "L40",
+      "weight": 1.0,
+      "source": "app_dashboard_housekeeping_page",
+      "target": "app_dashboard_housekeeping_page_accessdeniedstate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/housekeeping/page.tsx",
+      "source_location": "L54",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_page",
       "target": "app_dashboard_housekeeping_page_errorstate",
@@ -29615,16 +30617,6 @@
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_page",
       "target": "app_dashboard_housekeeping_page_housekeepingpage",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "app/dashboard/housekeeping/page.tsx",
-      "source_location": "L31",
-      "weight": 1.0,
-      "source": "app_dashboard_housekeeping_page",
-      "target": "app_dashboard_housekeeping_page_noaccessstate",
       "confidence_score": 1.0
     },
     {
@@ -29655,7 +30647,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/housekeeping/page.tsx",
-      "source_location": "L15",
+      "source_location": "L16",
       "weight": 1.0,
       "source": "app_dashboard_housekeeping_page_housekeepingpage",
       "target": "lib_supabase_server_createclient"
@@ -42087,11 +43079,343 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L99",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_adulticon",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L103",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_childicon",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_cleaning_status_options",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L120",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_cleaningstatusdropdown",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L113",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_cleaningstatusdropdownprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_cleaningstatusoption",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L74",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_getcleaningstatusoption",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L93",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_getoccupancylabel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L481",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_guestcountpill",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L475",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_guestcountpillprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L378",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_housekeepingtablerow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L370",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_housekeepingtablerowprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L107",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_infanticon",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L240",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_inlinenoteeditor",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L233",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_inlinenoteeditorprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L85",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_occupancy_labels",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L507",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_sortableheader",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L498",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_sortableheaderprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L496",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_sortdirection",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L546",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "components_housekeeping_housekeeping_table_row_sorticon",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "lib_utils",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row",
+      "target": "lib_utils_cn",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L78",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row_getcleaningstatusoption",
+      "target": "components_housekeeping_housekeeping_table_row_cleaning_status_options"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L128",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row_cleaningstatusdropdown",
+      "target": "components_housekeeping_housekeeping_table_row_getcleaningstatusoption",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L385",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row_housekeepingtablerow",
+      "target": "components_housekeeping_housekeeping_table_row_getoccupancylabel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L161",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row_cleaningstatusdropdown",
+      "target": "lib_utils_cn"
+    },
+    {
+      "relation": "references",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L126",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row_cleaningstatusdropdown",
+      "target": "package_dependencies_react"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L290",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row_inlinenoteeditor",
+      "target": "lib_utils_cn"
+    },
+    {
+      "relation": "references",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L246",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row_inlinenoteeditor",
+      "target": "package_dependencies_react"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L390",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row_housekeepingtablerow",
+      "target": "lib_utils_cn"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L520",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row_sortableheader",
+      "target": "lib_utils_cn"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/housekeeping/housekeeping-table-row.tsx",
+      "source_location": "L554",
+      "weight": 1.0,
+      "source": "components_housekeeping_housekeeping_table_row_sorticon",
+      "target": "lib_utils_cn"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "components/housekeeping/kanban-board.tsx",
-      "source_location": "L138",
+      "source_location": "L155",
       "weight": 1.0,
       "source": "components_housekeeping_kanban_board",
-      "target": "components_housekeeping_kanban_board_beddoubleicon",
+      "target": "components_housekeeping_kanban_board_bedicon",
       "confidence_score": 1.0
     },
     {
@@ -42108,17 +43432,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/housekeeping/kanban-board.tsx",
-      "source_location": "L156",
-      "weight": 1.0,
-      "source": "components_housekeeping_kanban_board",
-      "target": "components_housekeeping_kanban_board_emptyicon",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "components/housekeeping/kanban-board.tsx",
-      "source_location": "L29",
+      "source_location": "L30",
       "weight": 1.0,
       "source": "components_housekeeping_kanban_board",
       "target": "components_housekeeping_kanban_board_housekeepingboard",
@@ -42128,7 +43442,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/housekeeping/kanban-board.tsx",
-      "source_location": "L21",
+      "source_location": "L22",
       "weight": 1.0,
       "source": "components_housekeeping_kanban_board",
       "target": "components_housekeeping_kanban_board_housekeepingboardprops",
@@ -42138,7 +43452,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/housekeeping/kanban-board.tsx",
-      "source_location": "L120",
+      "source_location": "L141",
       "weight": 1.0,
       "source": "components_housekeeping_kanban_board",
       "target": "components_housekeeping_kanban_board_sortrooms",
@@ -42215,7 +43529,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "components/housekeeping/kanban-board.tsx",
-      "source_location": "L51",
+      "source_location": "L55",
       "weight": 1.0,
       "source": "components_housekeeping_kanban_board_housekeepingboard",
       "target": "components_housekeeping_kanban_board_sortrooms",
@@ -42227,7 +43541,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/housekeeping/kanban-board.tsx",
-      "source_location": "L60",
+      "source_location": "L64",
       "weight": 1.0,
       "source": "components_housekeeping_kanban_board_housekeepingboard",
       "target": "lib_utils_cn"
@@ -42236,7 +43550,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/housekeeping/room-card.tsx",
-      "source_location": "L207",
+      "source_location": "L228",
       "weight": 1.0,
       "source": "components_housekeeping_room_card",
       "target": "components_housekeeping_room_card_actionconfig",
@@ -42246,7 +43560,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/housekeeping/room-card.tsx",
-      "source_location": "L214",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "components_housekeeping_room_card",
+      "target": "components_housekeeping_room_card_cleaning_status_config",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/housekeeping/room-card.tsx",
+      "source_location": "L235",
       "weight": 1.0,
       "source": "components_housekeeping_room_card",
       "target": "components_housekeeping_room_card_getquickactions",
@@ -42256,17 +43580,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/housekeeping/room-card.tsx",
-      "source_location": "L22",
-      "weight": 1.0,
-      "source": "components_housekeeping_room_card",
-      "target": "components_housekeeping_room_card_room_status_config",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "components/housekeeping/room-card.tsx",
-      "source_location": "L80",
+      "source_location": "L86",
       "weight": 1.0,
       "source": "components_housekeeping_room_card",
       "target": "components_housekeeping_room_card_roomcard",
@@ -42276,7 +43590,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/housekeeping/room-card.tsx",
-      "source_location": "L72",
+      "source_location": "L78",
       "weight": 1.0,
       "source": "components_housekeeping_room_card",
       "target": "components_housekeeping_room_card_roomcardprops",
@@ -42331,7 +43645,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "components/housekeeping/room-card.tsx",
-      "source_location": "L86",
+      "source_location": "L96",
       "weight": 1.0,
       "source": "components_housekeeping_room_card_roomcard",
       "target": "components_housekeeping_room_card_getquickactions",
@@ -42343,7 +43657,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/housekeeping/room-card.tsx",
-      "source_location": "L91",
+      "source_location": "L101",
       "weight": 1.0,
       "source": "components_housekeeping_room_card_roomcard",
       "target": "lib_utils_cn"
@@ -42382,7 +43696,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/housekeeping/stats-bar.tsx",
-      "source_location": "L141",
+      "source_location": "L145",
       "weight": 1.0,
       "source": "components_housekeeping_stats_bar",
       "target": "components_housekeeping_stats_bar_statchip",
@@ -42416,7 +43730,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/housekeeping/stats-bar.tsx",
-      "source_location": "L158",
+      "source_location": "L162",
       "weight": 1.0,
       "source": "components_housekeeping_stats_bar_statchip",
       "target": "lib_utils_cn"
@@ -48339,7 +49653,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/audit.ts",
-      "source_location": "L37",
+      "source_location": "L38",
       "weight": 1.0,
       "source": "lib_audit",
       "target": "lib_audit_auditentry",
@@ -48349,7 +49663,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/audit.ts",
-      "source_location": "L53",
+      "source_location": "L54",
       "weight": 1.0,
       "source": "lib_audit",
       "target": "lib_audit_writeauditlog",
@@ -53527,5 +54841,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "58bae59e4bae642c051740ceb4a56db70790a1b2"
+  "built_at_commit": "dff5e591bd92446459ba4a8d0ab5c537a3a34b1d"
 }

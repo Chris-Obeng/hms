@@ -49,7 +49,6 @@ import {
   CALENDAR_LEGEND,
   isManualLikeSource,
   ROW_HEADER_WIDTH,
-  ROW_HEIGHT,
   VIEW_PRESETS,
   type ViewPreset,
 } from "./_components/calendar-helpers";

@@ -1,413 +1,737 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
+import { format, addDays, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import {
-  Search,
+  Printer,
   RefreshCw,
-  LayoutGrid,
-  List,
+  CalendarDays,
+  ChevronDown,
   X,
+  Check,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { HousekeepingBoard } from "@/components/housekeeping/kanban-board";
-import { HousekeepingStatsBar } from "@/components/housekeeping/stats-bar";
-import {
-  type HousekeepingData,
-  type HousekeepingRoom,
-} from "@/app/actions/housekeeping";
 import { createClient } from "@/lib/supabase/client";
-import { writeAuditLog } from "@/lib/audit";
 import { qk } from "@/lib/query-keys";
+import {
+  SortableHeader,
+  HousekeepingTableRow,
+  getOccupancyLabel,
+} from "@/components/housekeeping/housekeeping-table-row";
+import type {
+  HousekeepingData,
+  HousekeepingRoom,
+  CleaningStatus,
+  RoomOccupancyStatus,
+} from "@/app/actions/housekeeping";
+import {
+  updateCleaningStatus,
+  updateRoomNote,
+  getHousekeepingData,
+} from "@/app/actions/housekeeping";
+import type { SortDirection } from "@/components/housekeeping/housekeeping-table-row";
 
-// ── Props ──────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────
+
+type DateTab = "today" | "tomorrow" | "custom";
+type SortKey =
+  | "roomNumber"
+  | "roomTypeName"
+  | "occupancyStatus"
+  | "cleaningStatus"
+  | null;
 
 interface HousekeepingClientProps {
   initialData: HousekeepingData;
   hotelId: string;
 }
 
-// ── Client-Side Fetcher ────────────────────────────────────────────
+// ── Occupancy status filter options ──────────────────────────────
 
-async function fetchHousekeepingClientData(supabase: any, hotelId: string): Promise<HousekeepingData> {
-  const today = new Date().toISOString().split("T")[0];
+const OCCUPANCY_FILTER_OPTIONS: { value: RoomOccupancyStatus | "all"; label: string }[] = [
+  { value: "all", label: "All room statuses" },
+  { value: "occupied", label: "Occupied" },
+  { value: "check_in_only", label: "Check-in only" },
+  { value: "check_out_only", label: "Check-out only" },
+  { value: "check_in_out", label: "Check-in/out" },
+  { value: "unoccupied", label: "Unoccupied" },
+];
 
-  const { data: rooms, error: roomsError } = await supabase
-    .from("rooms")
-    .select(`
-      id, room_number, floor, status, is_active, notes,
-      room_types!inner(id, name)
-    `)
-    .eq("hotel_id", hotelId)
-    .eq("is_active", true)
-    .order("room_number", { ascending: true });
+const CLEANING_FILTER_OPTIONS: { value: CleaningStatus | "all"; label: string }[] = [
+  { value: "all", label: "All cleaning statuses" },
+  { value: "available", label: "Clean" },
+  { value: "checkout_pending", label: "Dirty" },
+  { value: "cleaning", label: "Cleaning" },
+  { value: "occupied", label: "Occupied" },
+  { value: "maintenance", label: "Maintenance" },
+  { value: "out_of_service", label: "Out of Service" },
+];
 
-  if (roomsError) throw roomsError;
+// ── Date helpers ──────────────────────────────────────────────────
 
-  const { data: todayBookings, error: bookingsError } = await supabase
-    .from("bookings")
-    .select(`
-      id, room_id, check_in, check_out, status,
-      guests(full_name)
-    `)
-    .eq("hotel_id", hotelId)
-    .in("status", ["confirmed", "checked_in"])
-    .lte("check_in", today);
+function todayISO(): string {
+  return new Date().toISOString().split("T")[0];
+}
 
-  if (bookingsError) throw bookingsError;
+function tomorrowISO(): string {
+  return addDays(new Date(), 1).toISOString().split("T")[0];
+}
 
-  const STATUS_PRIORITY: Record<string, number> = {
-    checked_in: 2,
-    confirmed: 1,
-  };
-  const bookingByRoom = new Map<string, { guestName: string | null; checkIn: string; checkOut: string; status: string | null }>();
-  const arrivingTodayRooms = new Map<string, string | null>();
+function formatReportDate(isoDate: string): string {
+  return format(parseISO(isoDate), "MMM d, yyyy");
+}
 
-  for (const b of todayBookings || []) {
-    if (b.room_id) {
-      if (b.status === "confirmed" && b.check_in === today) {
-        arrivingTodayRooms.set(b.room_id, (b.guests as any)?.full_name || null);
-      }
-      const existing = bookingByRoom.get(b.room_id);
-      const newPriority = STATUS_PRIORITY[b.status || ""] || 0;
-      const existingPriority = existing ? STATUS_PRIORITY[existing.status || ""] || 0 : 0;
-      if (!existing || newPriority >= existingPriority) {
-        bookingByRoom.set(b.room_id, {
-          guestName: (b.guests as any)?.full_name || null,
-          checkIn: b.check_in,
-          checkOut: b.check_out,
-          status: b.status,
-        });
-      }
+function formatLastUpdated(isoTimestamp: string): string {
+  return format(parseISO(isoTimestamp), "MMMM d, yyyy h:mm a");
+}
+
+// ── Sort helper ───────────────────────────────────────────────────
+
+function sortRooms(
+  rooms: HousekeepingRoom[],
+  key: SortKey,
+  direction: SortDirection
+): HousekeepingRoom[] {
+  if (!key || !direction) return rooms;
+  return [...rooms].sort((a, b) => {
+    let aVal = "";
+    let bVal = "";
+    switch (key) {
+      case "roomNumber":
+        // Natural numeric sort
+        return direction === "asc"
+          ? a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true })
+          : b.roomNumber.localeCompare(a.roomNumber, undefined, { numeric: true });
+      case "roomTypeName":
+        aVal = a.roomTypeName;
+        bVal = b.roomTypeName;
+        break;
+      case "occupancyStatus":
+        aVal = getOccupancyLabel(a.occupancyStatus);
+        bVal = getOccupancyLabel(b.occupancyStatus);
+        break;
+      case "cleaningStatus":
+        aVal = a.cleaningStatus;
+        bVal = b.cleaningStatus;
+        break;
+    }
+    const cmp = aVal.localeCompare(bVal);
+    return direction === "asc" ? cmp : -cmp;
+  });
+}
+
+
+// ── Filter Select Dropdown ────────────────────────────────────────
+
+interface FilterSelectProps<T extends string> {
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+}
+
+function FilterSelect<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: FilterSelectProps<T>) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  const current = options.find((o) => o.value === value);
+
+  React.useEffect(() => {
+    if (!open) return;
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [open]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`${label}: ${current?.label}`}
+        className={cn(
+          "flex h-9 w-52 items-center justify-between gap-2 rounded-lg border border-input",
+          "bg-background px-3 text-sm text-foreground shadow-xs",
+          "hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "transition-colors duration-100",
+          "print:hidden"
+        )}
+      >
+        <span className={cn(value === "all" ? "text-muted-foreground" : "text-foreground")}>
+          {value === "all" ? "Select" : current?.label}
+        </span>
+        <ChevronDown
+          className={cn("size-3.5 text-muted-foreground transition-transform duration-150", open && "rotate-180")}
+          aria-hidden="true"
+        />
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          aria-label={label}
+          className={cn(
+            "absolute left-0 top-full z-50 mt-1 w-52 rounded-lg border border-border/60",
+            "bg-popover shadow-lg py-1",
+            "animate-in fade-in-0 zoom-in-95 duration-100"
+          )}
+        >
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              role="option"
+              aria-selected={opt.value === value}
+              type="button"
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+              className={cn(
+                "flex w-full items-center justify-between gap-2 px-3 py-2 text-sm",
+                "hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none",
+                "transition-colors duration-100",
+                opt.value === value ? "text-foreground font-medium" : "text-muted-foreground"
+              )}
+            >
+              {opt.label}
+              {opt.value === value && <Check className="size-3.5 text-foreground shrink-0" aria-hidden="true" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Date Picker Popover ───────────────────────────────────────────
+
+interface DatePickerPopoverProps {
+  value: string;
+  onSelect: (date: string) => void;
+  onClose: () => void;
+}
+
+function DatePickerPopover({ value, onSelect, onClose }: DatePickerPopoverProps) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [inputVal, setInputVal] = React.useState(value);
+
+  React.useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [onClose]);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(inputVal)) {
+      onSelect(inputVal);
+      onClose();
     }
   }
 
-  const mappedRooms: HousekeepingRoom[] = (rooms || []).map((r: any) => {
-    const booking = bookingByRoom.get(r.id);
-    return {
-      id: r.id,
-      roomNumber: r.room_number,
-      floor: r.floor,
-      roomTypeId: (r.room_types as any).id,
-      roomTypeName: (r.room_types as any).name,
-      status: r.status || "available",
-      isActive: r.is_active || false,
-      notes: r.notes,
-      hasArrivalToday: arrivingTodayRooms.has(r.id),
-      hasDepartureToday: booking?.checkOut === today && booking?.status === "checked_in",
-      isVip: false,
-      guestName: arrivingTodayRooms.has(r.id)
-        ? (arrivingTodayRooms.get(r.id) ?? null)
-        : booking?.status === "checked_in"
-          ? (booking?.guestName ?? null)
-          : null,
-    };
-  });
-
-  const stats = {
-    dirty: mappedRooms.filter((r) => r.status === "checkout_pending").length,
-    cleaning: mappedRooms.filter((r) => r.status === "cleaning").length,
-    inspected: 0,
-    ready: mappedRooms.filter((r) => r.status === "available").length,
-    occupied: mappedRooms.filter((r) => r.status === "occupied").length,
-    maintenance: mappedRooms.filter((r) => r.status === "maintenance").length,
-    outOfService: mappedRooms.filter((r) => r.status === "out_of_service").length,
-    totalRooms: mappedRooms.length,
-  };
-
-  const todayDepartures = mappedRooms.filter((r) => r.hasDepartureToday).length;
-  const todayArrivals = mappedRooms.filter((r) => r.hasArrivalToday).length;
-
-  return {
-    rooms: mappedRooms,
-    stats,
-    todayDepartures,
-    todayArrivals,
-  };
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        "absolute left-0 top-full z-50 mt-1 rounded-xl border border-border/60",
+        "bg-popover shadow-lg p-4 w-64",
+        "animate-in fade-in-0 zoom-in-95 duration-100"
+      )}
+    >
+      <p className="text-xs font-semibold text-foreground mb-2">Select date</p>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <input
+          type="date"
+          value={inputVal}
+          onChange={(e) => setInputVal(e.target.value)}
+          className={cn(
+            "h-9 w-full rounded-lg border border-input bg-background px-3 text-sm",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          )}
+          autoFocus
+        />
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            className="flex-1 rounded-lg bg-foreground py-1.5 text-xs font-medium text-background hover:bg-foreground/90 transition-colors"
+          >
+            Apply
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-lg border border-border py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  );
 }
 
-// ── Component ──────────────────────────────────────────────────────
 
-export function HousekeepingClient({ initialData, hotelId }: HousekeepingClientProps) {
+// ── Main Component ────────────────────────────────────────────────
+
+export function HousekeepingClient({
+  initialData,
+  hotelId,
+}: HousekeepingClientProps) {
   const queryClient = useQueryClient();
-  const { orgId, userId } = useAuth();
-  
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [viewMode, setViewMode] = React.useState<"board" | "compact">("board");
+  const { orgId } = useAuth();
 
-  // Query staff profile for audit logging
-  const { data: staffProfile } = useQuery({
-    queryKey: qk.staffProfile(orgId || "", userId || ""),
-    queryFn: async () => {
-      if (!orgId || !userId) return null;
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("staff_profiles")
-        .select("id, full_name")
-        .eq("clerk_user_id", userId)
-        .eq("clerk_org_id", orgId)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!orgId && !!userId,
-  });
+  // ── View / filter state ──────────────────────────────────────
+  const [dateTab, setDateTab] = React.useState<DateTab>("today");
+  const [customDate, setCustomDate] = React.useState<string>(todayISO);
+  const [showDatePicker, setShowDatePicker] = React.useState(false);
+  const dateBtnRef = React.useRef<HTMLDivElement>(null);
 
-  // Main housekeeping query
-  const {
-    data = initialData,
-    isLoading: loading,
-    refetch: fetchData
-  } = useQuery({
-    queryKey: qk.housekeeping(orgId || "", hotelId),
-    queryFn: () => {
-      const supabase = createClient();
-      return fetchHousekeepingClientData(supabase, hotelId);
-    },
+  const [occupancyFilter, setOccupancyFilter] = React.useState<
+    RoomOccupancyStatus | "all"
+  >("all");
+  const [cleaningFilter, setCleaningFilter] = React.useState<
+    CleaningStatus | "all"
+  >("all");
+
+  // ── Sort state ───────────────────────────────────────────────
+  const [sortKey, setSortKey] = React.useState<SortKey>("roomNumber");
+  const [sortDir, setSortDir] = React.useState<SortDirection>("asc");
+
+  function handleSort(key: string) {
+    const k = key as SortKey;
+    if (sortKey === k) {
+      setSortDir((d) => (d === "asc" ? "desc" : d === "desc" ? null : "asc"));
+      if (sortDir === "desc") setSortKey(null);
+    } else {
+      setSortKey(k);
+      setSortDir("asc");
+    }
+  }
+
+  // ── Derive active report date ────────────────────────────────
+  const reportDate = React.useMemo(() => {
+    if (dateTab === "today") return todayISO();
+    if (dateTab === "tomorrow") return tomorrowISO();
+    return customDate;
+  }, [dateTab, customDate]);
+
+  // ── Query ────────────────────────────────────────────────────
+  const { data = initialData, isFetching, refetch } = useQuery({
+    queryKey: [...qk.housekeeping(orgId ?? "", hotelId), reportDate],
+    queryFn: () => getHousekeepingData(reportDate),
+    select: (res) => (res.success ? res.data : initialData),
     enabled: !!orgId,
-    refetchInterval: 60000, // 60s auto-refresh
+    refetchInterval: 60_000,
+    staleTime: 30_000,
   });
 
-  // Realtime subscription — refresh on any room or booking change for this hotel
+  // ── Realtime subscription ────────────────────────────────────
   React.useEffect(() => {
     if (!orgId) return;
     const supabase = createClient();
     const channel = supabase
-      .channel(`hotel:${hotelId}:housekeeping`)
+      .channel(`hk:${hotelId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "rooms", filter: `hotel_id=eq.${hotelId}` },
-        () => {
-          queryClient.invalidateQueries({ queryKey: qk.housekeeping(orgId, hotelId) });
-        },
+        () => queryClient.invalidateQueries({ queryKey: [...qk.housekeeping(orgId, hotelId), reportDate] })
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
-        () => {
-          queryClient.invalidateQueries({ queryKey: qk.housekeeping(orgId, hotelId) });
-        },
+        () => queryClient.invalidateQueries({ queryKey: [...qk.housekeeping(orgId, hotelId), reportDate] })
       )
       .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [hotelId, orgId, queryClient]);
+    return () => { supabase.removeChannel(channel); };
+  }, [hotelId, orgId, reportDate, queryClient]);
 
-  // Mutation for updating status
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ roomId, newStatus }: { roomId: string; newStatus: string }) => {
-      const supabase = createClient();
-      
-      const { data: before, error: selectError } = await supabase
-        .from("rooms")
-        .select("room_number, status")
-        .eq("id", roomId)
-        .single();
-
-      if (selectError) throw selectError;
-
-      const { error: updateError } = await supabase
-        .from("rooms")
-        .update({ status: newStatus })
-        .eq("id", roomId);
-
-      if (updateError) throw updateError;
-
-      if (staffProfile) {
-        await writeAuditLog(supabase, {
-          hotelId,
-          staffId: staffProfile.id,
-          staffName: staffProfile.full_name,
-          action: "room.status_changed",
-          entityType: "room",
-          entityId: roomId,
-          beforeState: { room_number: before?.room_number, status: before?.status },
-          afterState: { room_number: before?.room_number, status: newStatus },
-        });
-      }
-
-      return { roomId, newStatus };
-    },
-    onMutate: async ({ roomId, newStatus }) => {
-      const queryKey = qk.housekeeping(orgId || "", hotelId);
-      await queryClient.cancelQueries({ queryKey });
-      const previousData = queryClient.getQueryData(queryKey);
-
-      queryClient.setQueryData(queryKey, (old: any) => {
+  // ── Mutation: cleaning status ────────────────────────────────
+  const statusMutation = useMutation({
+    mutationFn: ({ roomId, status }: { roomId: string; status: CleaningStatus }) =>
+      updateCleaningStatus(roomId, status),
+    onMutate: async ({ roomId, status }) => {
+      const qKey = [...qk.housekeeping(orgId ?? "", hotelId), reportDate];
+      await queryClient.cancelQueries({ queryKey: qKey });
+      const prev = queryClient.getQueryData(qKey);
+      queryClient.setQueryData(qKey, (old: HousekeepingData | undefined) => {
         if (!old) return old;
         return {
           ...old,
-          rooms: old.rooms.map((r: any) =>
-            r.id === roomId ? { ...r, status: newStatus } : r
+          rooms: old.rooms.map((r) =>
+            r.id === roomId ? { ...r, cleaningStatus: status } : r
           ),
         };
       });
-
-      return { previousData };
+      return { prev, qKey };
     },
-    onError: (err, variables, context: any) => {
-      const queryKey = qk.housekeeping(orgId || "", hotelId);
-      if (context?.previousData) {
-        queryClient.setQueryData(queryKey, context.previousData);
-      }
-      toast.error(err instanceof Error ? err.message : "Failed to update status");
+    onError: (_err, _vars, ctx: any) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.qKey, ctx.prev);
+      toast.error("Failed to update cleaning status");
     },
-    onSuccess: () => {
-      toast.success("Room status updated");
+    onSuccess: () => toast.success("Cleaning status updated"),
+    onSettled: (_data, _err, _vars, ctx: any) => {
+      if (ctx?.qKey) queryClient.invalidateQueries({ queryKey: ctx.qKey });
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: qk.housekeeping(orgId || "", hotelId) });
-    }
   });
 
-  const handleStatusChange = React.useCallback(
-    (roomId: string, newStatus: string) => {
-      updateStatusMutation.mutate({ roomId, newStatus });
+  // ── Mutation: note ───────────────────────────────────────────
+  const noteMutation = useMutation({
+    mutationFn: ({ roomId, note }: { roomId: string; note: string }) =>
+      updateRoomNote(roomId, note),
+    onMutate: async ({ roomId, note }) => {
+      const qKey = [...qk.housekeeping(orgId ?? "", hotelId), reportDate];
+      await queryClient.cancelQueries({ queryKey: qKey });
+      const prev = queryClient.getQueryData(qKey);
+      queryClient.setQueryData(qKey, (old: HousekeepingData | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          rooms: old.rooms.map((r) =>
+            r.id === roomId ? { ...r, notes: note || null } : r
+          ),
+        };
+      });
+      return { prev, qKey };
     },
-    [updateStatusMutation]
+    onError: (_err, _vars, ctx: any) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.qKey, ctx.prev);
+      toast.error("Failed to save note");
+    },
+    onSuccess: () => toast.success("Note saved"),
+    onSettled: (_data, _err, _vars, ctx: any) => {
+      if (ctx?.qKey) queryClient.invalidateQueries({ queryKey: ctx.qKey });
+    },
+  });
+
+  // ── Handlers ─────────────────────────────────────────────────
+  const handleStatusChange = React.useCallback(
+    (roomId: string, status: CleaningStatus) =>
+      statusMutation.mutate({ roomId, status }),
+    [statusMutation]
   );
 
-  // ── Filtering ─────────────────────────────────────────────────
+  const handleNoteChange = React.useCallback(
+    (roomId: string, note: string) => noteMutation.mutate({ roomId, note }),
+    [noteMutation]
+  );
 
+  // ── Filtered + sorted rooms ──────────────────────────────────
   const filteredRooms = React.useMemo(() => {
-    if (!searchQuery.trim()) return data.rooms;
-    const q = searchQuery.toLowerCase();
-    return data.rooms.filter(
-      (r) =>
-        r.roomNumber.toLowerCase().includes(q) ||
-        r.roomTypeName.toLowerCase().includes(q) ||
-        (r.floor || "").toLowerCase().includes(q) ||
-        (r.guestName || "").toLowerCase().includes(q) ||
-        (r.status || "").toLowerCase().includes(q)
-    );
-  }, [data.rooms, searchQuery]);
+    let rooms = data.rooms;
+    if (occupancyFilter !== "all")
+      rooms = rooms.filter((r) => r.occupancyStatus === occupancyFilter);
+    if (cleaningFilter !== "all")
+      rooms = rooms.filter((r) => r.cleaningStatus === cleaningFilter);
+    return sortRooms(rooms, sortKey, sortDir);
+  }, [data.rooms, occupancyFilter, cleaningFilter, sortKey, sortDir]);
 
-  // ── Derived Stats (recalculated after optimistic updates) ──────
+  const pendingRoomIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    if (statusMutation.isPending && statusMutation.variables?.roomId)
+      ids.add(statusMutation.variables.roomId);
+    if (noteMutation.isPending && noteMutation.variables?.roomId)
+      ids.add(noteMutation.variables.roomId);
+    return ids;
+  }, [statusMutation.isPending, statusMutation.variables, noteMutation.isPending, noteMutation.variables]);
 
-  const liveStats = React.useMemo(() => {
-    const rooms = data.rooms;
-    return {
-      dirty: rooms.filter((r) => r.status === "checkout_pending").length,
-      cleaning: rooms.filter((r) => r.status === "cleaning").length,
-      inspected: 0,
-      ready: rooms.filter((r) => r.status === "available").length,
-      occupied: rooms.filter((r) => r.status === "occupied").length,
-      maintenance: rooms.filter((r) => r.status === "maintenance").length,
-      outOfService: rooms.filter((r) => r.status === "out_of_service").length,
-      totalRooms: rooms.length,
-    };
-  }, [data.rooms]);
+  // ── Print handler ─────────────────────────────────────────────
+  function handlePrint() {
+    // Brief delay ensures any pending React state is flushed before print dialog opens
+    setTimeout(() => window.print(), 50);
+  }
 
-  const liveDepartures = React.useMemo(
-    () => data.rooms.filter((r) => r.hasDepartureToday).length,
-    [data.rooms]
-  );
-
-  const liveArrivals = React.useMemo(
-    () => data.rooms.filter((r) => r.hasArrivalToday).length,
-    [data.rooms]
-  );
-
-  // ── Render ─────────────────────────────────────────────────────
-
+  // ── Render ────────────────────────────────────────────────────
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-page-title text-foreground">Housekeeping</h1>
-          <p className="text-body text-muted-foreground mt-1">
-            {format(new Date(), "EEEE, MMMM d, yyyy")}
-            <span className="mx-1.5 text-muted-foreground/30">·</span>
-            {data.stats.totalRooms} rooms
-          </p>
+    <div id="hk-print-root" className="space-y-6">
+      {/* ── Page header ────────────────────────────────────── */}
+      <div>
+        <h1 className="text-page-title text-foreground">Housekeeping</h1>
+      </div>
+
+      {/* ── Date tab selector ──────────────────────────────── */}
+      <div className="print:hidden">
+        <p className="text-xs font-medium text-muted-foreground mb-2">
+          View report for
+        </p>
+        <div className="relative flex items-center gap-0" ref={dateBtnRef}>
+          <DateTabButton
+            active={dateTab === "today"}
+            onClick={() => { setDateTab("today"); setShowDatePicker(false); }}
+          >
+            Today
+          </DateTabButton>
+          <DateTabButton
+            active={dateTab === "tomorrow"}
+            onClick={() => { setDateTab("tomorrow"); setShowDatePicker(false); }}
+          >
+            Tomorrow
+          </DateTabButton>
+          <DateTabButton
+            active={dateTab === "custom"}
+            onClick={() => {
+              setDateTab("custom");
+              setShowDatePicker(true);
+            }}
+            icon={<CalendarDays className="size-3.5" aria-hidden="true" />}
+          >
+            {dateTab === "custom" ? formatReportDate(customDate) : "Select dates"}
+          </DateTabButton>
+
+          {showDatePicker && dateTab === "custom" && (
+            <DatePickerPopover
+              value={customDate}
+              onSelect={(d) => { setCustomDate(d); setShowDatePicker(false); }}
+              onClose={() => setShowDatePicker(false)}
+            />
+          )}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {/* View toggles — size-9 for 36px tap target */}
+      </div>
+
+      {/* ── Filters row ────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-end gap-4 print:hidden">
+        <div className="flex flex-col sm:flex-row gap-4 flex-1">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-foreground">Room status</label>
+            <FilterSelect
+              label="Room status"
+              value={occupancyFilter}
+              options={OCCUPANCY_FILTER_OPTIONS}
+              onChange={setOccupancyFilter}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-foreground">Cleaning status</label>
+            <FilterSelect
+              label="Cleaning status"
+              value={cleaningFilter}
+              options={CLEANING_FILTER_OPTIONS}
+              onChange={setCleaningFilter}
+            />
+          </div>
+        </div>
+
+        {/* Right: print + refresh */}
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
           <Button
             variant="ghost"
             size="icon-sm"
-            className={cn(
-              "size-9 rounded-lg",
-              viewMode === "board" && "bg-muted text-foreground"
-            )}
-            onClick={() => setViewMode("board")}
-            aria-label="Board view"
-            aria-pressed={viewMode === "board"}
+            className="size-9 rounded-lg"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            aria-label="Refresh"
           >
-            <LayoutGrid className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className={cn(
-              "size-9 rounded-lg",
-              viewMode === "compact" && "bg-muted text-foreground"
-            )}
-            onClick={() => setViewMode("compact")}
-            aria-label="Compact view"
-            aria-pressed={viewMode === "compact"}
-          >
-            <List className="size-4" />
+            <RefreshCw className={cn("size-4", isFetching && "animate-spin")} aria-hidden="true" />
           </Button>
           <Button
             variant="outline"
-            size="icon-sm"
-            className="size-9 rounded-lg"
-            onClick={() => fetchData()}
-            disabled={loading}
-            aria-label="Refresh housekeeping data"
+            size="sm"
+            onClick={handlePrint}
+            className="gap-1.5 h-9 text-xs font-medium rounded-lg"
           >
-            <RefreshCw className={cn("size-4", loading && "animate-spin")} />
+            <Printer className="size-3.5" aria-hidden="true" />
+            Print report
           </Button>
         </div>
       </div>
 
-      {/* Stats Bar */}
-      <HousekeepingStatsBar
-        stats={liveStats}
-        todayDepartures={liveDepartures}
-        todayArrivals={liveArrivals}
+      {/* ── Last updated timestamp ─────────────────────────── */}
+      <p className="text-xs text-muted-foreground print:text-[11px]">
+        Room status last updated:{" "}
+        <span className="font-medium">{formatLastUpdated(data.lastUpdated)}</span>
+      </p>
+
+      {/* ── Table ──────────────────────────────────────────── */}
+      <HousekeepingTable
+        rooms={filteredRooms}
+        reportDate={data.reportDate}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onSort={handleSort}
+        onStatusChange={handleStatusChange}
+        onNoteChange={handleNoteChange}
+        pendingRoomIds={pendingRoomIds}
       />
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/60 pointer-events-none" />
-        <Input
-          placeholder="Search room number, type, guest..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-9 pl-9 pr-9 text-sm rounded-xl border-border/60"
-        />
-        {searchQuery && (
-          <button
-            onClick={() => setSearchQuery("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="size-3" />
-          </button>
-        )}
+      {/* ── Print footer ───────────────────────────────────── */}
+      <p className="hidden print:block text-[11px] text-muted-foreground mt-6 border-t border-border/40 pt-3">
+        * Number of adults, children and infants (shown left to right) staying this night.
+      </p>
+
+      {/* ── Screen footer note ─────────────────────────────── */}
+      <p className="text-xs text-muted-foreground print:hidden">
+        * Number of adults, children and infants (shown from left to right) staying this night.
+      </p>
+    </div>
+  );
+}
+
+
+// ── Date Tab Button ───────────────────────────────────────────────
+
+interface DateTabButtonProps {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  icon?: React.ReactNode;
+}
+
+function DateTabButton({ active, onClick, children, icon }: DateTabButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1.5 border px-4 py-2 text-sm font-medium",
+        "transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        // Mimic Little Hotelier pill-tab style
+        "first:rounded-l-lg last:rounded-r-lg -ml-px first:ml-0",
+        active
+          ? "relative z-10 bg-foreground text-background border-foreground"
+          : "bg-background text-muted-foreground border-border hover:text-foreground hover:bg-muted/40"
+      )}
+    >
+      {icon}
+      {children}
+    </button>
+  );
+}
+
+// ── Housekeeping Table ────────────────────────────────────────────
+
+interface HousekeepingTableProps {
+  rooms: HousekeepingRoom[];
+  reportDate: string;
+  sortKey: SortKey;
+  sortDir: SortDirection;
+  onSort: (key: string) => void;
+  onStatusChange: (roomId: string, status: CleaningStatus) => void;
+  onNoteChange: (roomId: string, note: string) => void;
+  pendingRoomIds: Set<string>;
+}
+
+function HousekeepingTable({
+  rooms,
+  reportDate,
+  sortKey,
+  sortDir,
+  onSort,
+  onStatusChange,
+  onNoteChange,
+  pendingRoomIds,
+}: HousekeepingTableProps) {
+  if (rooms.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center border border-border/40 rounded-xl bg-muted/10">
+        <svg
+          className="size-10 text-muted-foreground/25 mb-3"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205 3 1m1.5.5-1.5-.5M6.75 7.364V3h-3v18m3-13.636 10.5-3.819"
+          />
+        </svg>
+        <p className="text-sm font-medium text-muted-foreground">No rooms match the current filters</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">Try adjusting the room or cleaning status filters.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-border/40 overflow-hidden print:border-0 print:rounded-none">
+      {/* Report date heading — visible on both screen and print */}
+      <div className="px-4 pt-4 pb-2 print:pt-0 print:px-0">
+        <h2 className="text-2xl font-light text-foreground tracking-tight print:text-xl">
+          {formatReportDate(reportDate)}
+        </h2>
       </div>
 
-      {/* Kanban Board */}
-      <div className="-mx-4 sm:mx-0">
-        {loading && (
-          <div className="flex items-center justify-center py-8">
-            <RefreshCw className="size-4 animate-spin text-muted-foreground" />
-          </div>
-        )}
-        <HousekeepingBoard
-          rooms={filteredRooms}
-          onStatusChange={handleStatusChange}
-          compact={viewMode === "compact"}
-        />
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-border/40 bg-muted/20 print:bg-transparent">
+              <SortableHeader
+                label="Room number"
+                sortKey="roomNumber"
+                currentSortKey={sortKey}
+                direction={sortKey === "roomNumber" ? sortDir : null}
+                onSort={onSort}
+              />
+              <SortableHeader
+                label="Room type"
+                sortKey="roomTypeName"
+                currentSortKey={sortKey}
+                direction={sortKey === "roomTypeName" ? sortDir : null}
+                onSort={onSort}
+              />
+              <SortableHeader
+                label="Room status"
+                sortKey="occupancyStatus"
+                currentSortKey={sortKey}
+                direction={sortKey === "occupancyStatus" ? sortDir : null}
+                onSort={onSort}
+              />
+              {/* Guests header — not sortable, has asterisk footnote */}
+              <th
+                scope="col"
+                className="px-4 py-3 text-left text-xs font-semibold text-foreground whitespace-nowrap"
+              >
+                Guests*
+              </th>
+              <th
+                scope="col"
+                className="px-4 py-3 text-left text-xs font-semibold text-foreground"
+              >
+                Room notes
+              </th>
+              <SortableHeader
+                label="Cleaning status"
+                sortKey="cleaningStatus"
+                currentSortKey={sortKey}
+                direction={sortKey === "cleaningStatus" ? sortDir : null}
+                onSort={onSort}
+              />
+            </tr>
+          </thead>
+          <tbody>
+            {rooms.map((room) => (
+              <HousekeepingTableRow
+                key={room.id}
+                room={room}
+                onStatusChange={onStatusChange}
+                onNoteChange={onNoteChange}
+                isPendingStatus={pendingRoomIds.has(room.id)}
+                isPendingNote={pendingRoomIds.has(room.id)}
+              />
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
