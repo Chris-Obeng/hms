@@ -78,8 +78,7 @@ export function HousekeepingStatsBar({
       : 0;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 bg-muted/30 p-2 rounded-2xl border border-border/35">
-      {/* Stat chips */}
+    <div className="flex flex-wrap items-center gap-2 bg-muted/30 p-2 rounded-2xl border border-border/35 print:bg-transparent print:border-0 print:p-0 print:rounded-none">
       <StatChip
         label="Dirty"
         count={stats.dirty}
@@ -123,15 +122,20 @@ export function HousekeepingStatsBar({
 
       <span className="mx-2 h-5 w-px bg-border/40 hidden md:inline-block" />
 
-      {/* Arrivals / Departures */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground ml-1.5 py-1 md:py-0">
-        <span className="font-semibold text-emerald-600 dark:text-emerald-400">{todayArrivals}</span>
+        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+          {todayArrivals}
+        </span>
         <span className="font-medium">arrivals</span>
         <span className="text-muted-foreground/30">·</span>
-        <span className="font-semibold text-amber-600 dark:text-amber-400">{todayDepartures}</span>
+        <span className="font-semibold text-amber-600 dark:text-amber-400">
+          {todayDepartures}
+        </span>
         <span className="font-medium">departures</span>
         <span className="text-muted-foreground/30">·</span>
-        <span className="font-semibold text-blue-600 dark:text-blue-400">{occupancyRate}%</span>
+        <span className="font-semibold text-blue-600 dark:text-blue-400">
+          {occupancyRate}%
+        </span>
         <span className="font-medium">occ.</span>
       </div>
     </div>
@@ -156,7 +160,8 @@ function StatChip({
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-2 rounded-xl border px-3 py-1 text-xs font-semibold backdrop-blur-xs transition-all duration-150 hover:bg-background/80",
+        "inline-flex items-center gap-2 rounded-xl border px-3 py-1 text-xs font-semibold",
+        "backdrop-blur-xs transition-all duration-150 hover:bg-background/80",
         bg,
         borderColor,
         textColor
@@ -164,10 +169,9 @@ function StatChip({
     >
       <span className={cn("size-2 rounded-full", color)} />
       <span>{label}</span>
-      <span className="font-bold bg-background/50 dark:bg-background/10 px-1.5 py-0.25 rounded-md text-[10px] min-w-4 text-center border border-border/10">
+      <span className="font-bold bg-background/50 dark:bg-background/10 px-1.5 rounded-md text-[10px] min-w-4 text-center border border-border/10">
         {count}
       </span>
     </div>
   );
 }
-

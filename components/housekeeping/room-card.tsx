@@ -15,13 +15,19 @@ import {
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import type { HousekeepingRoom } from "@/app/actions/housekeeping";
+import type { HousekeepingRoom, CleaningStatus } from "@/app/actions/housekeeping";
 
-// ── Status Config ───────────────────────────────────────────────────
+// ── Status Config ────────────────────────────────────────────────────
 
-const ROOM_STATUS_CONFIG: Record<
-  string,
-  { label: string; dotColor: string; bgColor: string; borderColor: string; hoverBorderColor: string }
+const CLEANING_STATUS_CONFIG: Record<
+  CleaningStatus,
+  {
+    label: string;
+    dotColor: string;
+    bgColor: string;
+    borderColor: string;
+    hoverBorderColor: string;
+  }
 > = {
   checkout_pending: {
     label: "Dirty",
@@ -38,7 +44,7 @@ const ROOM_STATUS_CONFIG: Record<
     hoverBorderColor: "hover:border-amber-200 dark:hover:border-amber-800/50",
   },
   available: {
-    label: "Ready",
+    label: "Clean",
     dotColor: "bg-emerald-500",
     bgColor: "bg-emerald-50/40 dark:bg-emerald-950/10",
     borderColor: "border-emerald-100 dark:border-emerald-900/30",
@@ -67,7 +73,7 @@ const ROOM_STATUS_CONFIG: Record<
   },
 };
 
-// ── Props ───────────────────────────────────────────────────────────
+// ── Props ────────────────────────────────────────────────────────────
 
 interface RoomCardProps {
   room: HousekeepingRoom;
@@ -75,21 +81,26 @@ interface RoomCardProps {
   compact?: boolean;
 }
 
-// ── Component ──────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────
 
-export function RoomCard({ room, onStatusChange, compact = false }: RoomCardProps) {
-  const config = ROOM_STATUS_CONFIG[room.status] || ROOM_STATUS_CONFIG.available;
+export function RoomCard({
+  room,
+  onStatusChange,
+  compact = false,
+}: RoomCardProps) {
+  const config =
+    CLEANING_STATUS_CONFIG[room.cleaningStatus] ??
+    CLEANING_STATUS_CONFIG.available;
   const hasArrival = room.hasArrivalToday;
   const hasDeparture = room.hasDepartureToday;
-
-  // Determine quick actions based on current status
-  const quickActions = getQuickActions(room.status);
+  const quickActions = getQuickActions(room.cleaningStatus);
 
   if (compact) {
     return (
       <div
         className={cn(
-          "flex items-center gap-2 rounded-xl border px-3 py-2 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs cursor-pointer bg-card/65",
+          "flex items-center gap-2 rounded-xl border px-3 py-2",
+          "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs cursor-pointer bg-card/65",
           config.borderColor,
           config.hoverBorderColor
         )}
@@ -101,8 +112,12 @@ export function RoomCard({ room, onStatusChange, compact = false }: RoomCardProp
         <span className="text-[10px] text-muted-foreground truncate flex-1">
           {room.roomTypeName}
         </span>
-        {hasArrival && <LogIn className="size-3 text-emerald-500 shrink-0" />}
-        {hasDeparture && <LogOut className="size-3 text-amber-500 shrink-0" />}
+        {hasArrival && (
+          <LogIn className="size-3 text-emerald-500 shrink-0" aria-hidden="true" />
+        )}
+        {hasDeparture && (
+          <LogOut className="size-3 text-amber-500 shrink-0" aria-hidden="true" />
+        )}
       </div>
     );
   }
@@ -110,13 +125,14 @@ export function RoomCard({ room, onStatusChange, compact = false }: RoomCardProp
   return (
     <div
       className={cn(
-        "rounded-2xl border p-3.5 space-y-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm group cursor-pointer bg-card",
+        "rounded-2xl border p-3.5 space-y-3",
+        "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm cursor-pointer bg-card",
         config.borderColor,
         config.hoverBorderColor,
         config.bgColor
       )}
     >
-      {/* Room Header */}
+      {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className={cn("size-2 shrink-0 rounded-full", config.dotColor)} />
@@ -131,7 +147,10 @@ export function RoomCard({ room, onStatusChange, compact = false }: RoomCardProp
           </Badge>
         </div>
         {room.isVip && (
-          <Star className="size-3.5 text-amber-500 fill-amber-500 shrink-0" />
+          <Star
+            className="size-3.5 text-amber-500 fill-amber-500 shrink-0"
+            aria-hidden="true"
+          />
         )}
       </div>
 
@@ -142,31 +161,31 @@ export function RoomCard({ room, onStatusChange, compact = false }: RoomCardProp
         </p>
       )}
 
-      {/* Status Tags */}
+      {/* Arrival / departure tags */}
       {(hasArrival || hasDeparture || room.guestName) && (
         <div className="flex flex-wrap items-center gap-1.5">
           {hasArrival && (
-            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 dark:bg-emerald-500/5 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-              <LogIn className="size-3" />
+            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+              <LogIn className="size-3" aria-hidden="true" />
               Arriving
             </span>
           )}
           {hasDeparture && (
-            <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 dark:bg-amber-500/5 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
-              <LogOut className="size-3" />
+            <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+              <LogOut className="size-3" aria-hidden="true" />
               Departing
             </span>
           )}
           {room.guestName && (
-            <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 dark:bg-blue-500/5 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:text-blue-400 truncate max-w-[140px]">
-              <Users className="size-3" />
+            <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:text-blue-400 truncate max-w-[140px]">
+              <Users className="size-3 shrink-0" aria-hidden="true" />
               {room.guestName}
             </span>
           )}
         </div>
       )}
 
-      {/* Quick Actions */}
+      {/* Quick actions */}
       {quickActions.length > 0 && (
         <div className="flex flex-col gap-1 pt-1.5">
           {quickActions.map((action) => {
@@ -174,17 +193,19 @@ export function RoomCard({ room, onStatusChange, compact = false }: RoomCardProp
             return (
               <button
                 key={action.status}
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onStatusChange(room.id, action.status);
                 }}
                 className={cn(
-                  "flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all duration-150",
-                  "bg-background/80 hover:bg-background border border-border/40 hover:border-border active:scale-[0.98]",
+                  "flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold",
+                  "bg-background/80 hover:bg-background border border-border/40 hover:border-border",
+                  "active:scale-[0.98] transition-all duration-150",
                   action.color
                 )}
               >
-                <ActionIcon className="size-3" />
+                <ActionIcon className="size-3" aria-hidden="true" />
                 {action.label}
               </button>
             );
@@ -202,44 +223,88 @@ export function RoomCard({ room, onStatusChange, compact = false }: RoomCardProp
   );
 }
 
-// ── Quick Actions Helper ───────────────────────────────────────────
+// ── Quick Actions ─────────────────────────────────────────────────────
 
 interface ActionConfig {
-  status: string;
+  status: CleaningStatus;
   label: string;
   color: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
-function getQuickActions(status: string): ActionConfig[] {
+function getQuickActions(status: CleaningStatus): ActionConfig[] {
   switch (status) {
     case "checkout_pending":
       return [
-        { status: "cleaning", label: "Start Cleaning", color: "text-amber-600 dark:text-amber-400", icon: Play },
-        { status: "maintenance", label: "Report Issue", color: "text-zinc-600 dark:text-zinc-400", icon: Wrench },
+        {
+          status: "cleaning",
+          label: "Start Cleaning",
+          color: "text-amber-600 dark:text-amber-400",
+          icon: Play,
+        },
+        {
+          status: "maintenance",
+          label: "Report Issue",
+          color: "text-zinc-600 dark:text-zinc-400",
+          icon: Wrench,
+        },
       ];
     case "cleaning":
       return [
-        { status: "available", label: "Mark Clean & Ready", color: "text-emerald-600 dark:text-emerald-400", icon: Check },
-        { status: "maintenance", label: "Report Issue", color: "text-zinc-600 dark:text-zinc-400", icon: Wrench },
+        {
+          status: "available",
+          label: "Mark Clean & Ready",
+          color: "text-emerald-600 dark:text-emerald-400",
+          icon: Check,
+        },
+        {
+          status: "maintenance",
+          label: "Report Issue",
+          color: "text-zinc-600 dark:text-zinc-400",
+          icon: Wrench,
+        },
       ];
     case "available":
       return [
-        { status: "occupied", label: "Mark Occupied", color: "text-blue-600 dark:text-blue-400", icon: UserCheck },
-        { status: "maintenance", label: "Maintenance", color: "text-zinc-600 dark:text-zinc-400", icon: Wrench },
+        {
+          status: "occupied",
+          label: "Mark Occupied",
+          color: "text-blue-600 dark:text-blue-400",
+          icon: UserCheck,
+        },
+        {
+          status: "maintenance",
+          label: "Maintenance",
+          color: "text-zinc-600 dark:text-zinc-400",
+          icon: Wrench,
+        },
       ];
     case "occupied":
       return [
-        { status: "checkout_pending", label: "Check-out Prep", color: "text-orange-600 dark:text-orange-400", icon: ClipboardList },
-        { status: "maintenance", label: "Report Issue", color: "text-zinc-600 dark:text-zinc-400", icon: Wrench },
+        {
+          status: "checkout_pending",
+          label: "Check-out Prep",
+          color: "text-orange-600 dark:text-orange-400",
+          icon: ClipboardList,
+        },
+        {
+          status: "maintenance",
+          label: "Report Issue",
+          color: "text-zinc-600 dark:text-zinc-400",
+          icon: Wrench,
+        },
       ];
     case "maintenance":
     case "out_of_service":
       return [
-        { status: "available", label: "Mark Available", color: "text-emerald-600 dark:text-emerald-400", icon: Check },
+        {
+          status: "available",
+          label: "Mark Available",
+          color: "text-emerald-600 dark:text-emerald-400",
+          icon: Check,
+        },
       ];
     default:
       return [];
   }
 }
-
