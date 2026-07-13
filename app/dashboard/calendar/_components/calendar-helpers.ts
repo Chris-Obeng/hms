@@ -112,9 +112,6 @@ export function getEventHtml(
 ): string {
   const name = guestName || "Guest";
   const n = nights || totalDays;
-  const compact = totalDays <= 2;
-  const truncate = (s: string, max: number) =>
-    s.length > max ? `${s.slice(0, max - 1)}…` : s;
 
   // Status badge text
   let statusText = "";
@@ -131,19 +128,18 @@ export function getEventHtml(
   const sourceLabel = getSourceShortLabel(source);
   // Always show source label for confirmed/pending to reinforce legend
   const showSource = sourceLabel && status !== "checked_out" && status !== "cancelled";
-  const guestPart = escapeHtml(truncate(name, compact ? 14 : 20));
+  const guestPart = escapeHtml(name);
   const sourcePart = showSource ? `<span class="cal-evt-source">${sourceLabel}</span>` : "";
   const statusPart = statusText ? `<span class="cal-evt-status-pill">${statusText}</span>` : "";
   const nightsPart = `<span class="cal-evt-nights">${n}n</span>`;
 
-  return `<div class="cal-evt ${compact ? 'compact' : ''}" style="background:${bgColor}">
+  return `<div class="cal-evt" style="background:${bgColor}">
     <div class="cal-evt-stripe" style="background:${stripeColorDarker}"></div>
     <div class="cal-evt-bar">
       <span class="cal-evt-name">${guestPart}</span>
       ${sourcePart}
-      ${!compact ? nightsPart : ''}
+      ${nightsPart}
       ${statusPart}
-
     </div>
   </div>`;
 }

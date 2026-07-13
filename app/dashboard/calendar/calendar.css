@@ -311,9 +311,11 @@
 
 /* Event card layout - the new booking bar design */
 .cal-evt {
+  container-type: inline-size;
+  container-name: event-card;
   display: flex;
   height: 100%;
-  min-height: 34px;
+  width: 100%;
   overflow: hidden;
   border-radius: var(--cal-radius);
   position: relative;
@@ -389,18 +391,52 @@
   flex-shrink: 0;
 }
 
-/* compact (1-2 day) events */
-.cal-evt.compact {
-  min-height: 30px;
+/* Container Queries for responsive details */
+@container event-card (max-width: 180px) {
+  .cal-evt-status-pill {
+    display: none;
+  }
 }
 
-.cal-evt.compact .cal-evt-bar {
-  padding: 0 6px;
-  gap: 4px;
+@container event-card (max-width: 130px) {
+  .cal-evt-source {
+    display: none;
+  }
+  .cal-evt-bar {
+    padding: 0 6px;
+    gap: 4px;
+  }
+  .cal-evt-name {
+    font-size: 12px;
+  }
 }
 
-.cal-evt.compact .cal-evt-name {
-  font-size: 12px;
+@container event-card (max-width: 80px) {
+  .cal-evt-nights {
+    display: none;
+  }
+  .cal-evt-bar {
+    padding: 0 4px;
+  }
+  .cal-evt-name {
+    font-size: 11px;
+  }
+}
+
+@container event-card (max-width: 48px) {
+  .cal-evt-name {
+    display: none;
+  }
+}
+
+.cal-room-floor {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--cal-muted);
+  background: color-mix(in oklch, var(--muted) 25%, var(--card));
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
 /* Block events */

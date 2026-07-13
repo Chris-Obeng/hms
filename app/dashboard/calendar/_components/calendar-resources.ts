@@ -99,9 +99,10 @@ function buildRoomRowHtml(
   roomNumber: string,
   floor: string | null,
   status: string,
-  _statusInfo: { color: string; label: string }
+  statusInfo: { color: string; label: string }
 ): string {
   void status;
+  void statusInfo;
   return `<div class="cal-room-hdr">
     <div class="cal-room-info">
       <span class="cal-room-num">${escapeHtml(roomNumber)}</span>
