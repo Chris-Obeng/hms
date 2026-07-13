@@ -18,7 +18,14 @@ declare global {
 
 /**
  * Browser-side Supabase client. Subject to Row Level Security.
- * Automatically injects Clerk's Supabase JWT token if available.
+ *
+ * Always fetches a fresh Clerk JWT for every REST request so tokens
+ * never go stale. The optional `token` parameter is intentionally
+ * NOT used inside the fetch wrapper — passing a pinned token into the
+ * closure would cause REST calls to fail once the token expires (~60s).
+ *
+ * Realtime auth is handled separately via `supabase.realtime.setAuth()`
+ * on a 45-second refresh interval (see AppHeader).
  */
 export function createClient() {
   return createBrowserClient<Database>(
@@ -31,12 +38,16 @@ export function createClient() {
 
           if (typeof window !== "undefined" && window.Clerk?.session) {
             try {
-              const token = await window.Clerk.session.getToken({ template: "supabase" });
-              if (token) {
-                headers.set("Authorization", `Bearer ${token}`);
+              // Always request a fresh token — Clerk caches and auto-refreshes
+              // internally so this is fast and never uses an expired JWT.
+              const freshToken = await window.Clerk.session.getToken({
+                template: "supabase",
+              });
+              if (freshToken) {
+                headers.set("Authorization", `Bearer ${freshToken}`);
               }
             } catch (e) {
-              console.error("Clerk token injection failed:", e);
+              console.error("[supabase/client] Clerk token injection failed:", e);
             }
           }
 

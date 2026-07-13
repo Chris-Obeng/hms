@@ -717,7 +717,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                             selected={seasonStart}
                             onSelect={(d) => {
                               setSeasonStart(d);
-                              setStartPopoverOpen(false);
+                              setTimeout(() => setStartPopoverOpen(false), 0);
                             }}
                           />
                         </PopoverContent>
@@ -739,7 +739,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                             selected={seasonEnd}
                             onSelect={(d) => {
                               setSeasonEnd(d);
-                              setEndPopoverOpen(false);
+                              setTimeout(() => setEndPopoverOpen(false), 0);
                             }}
                           />
                         </PopoverContent>
@@ -826,7 +826,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                         const end = addDays(d, 29).toISOString().split("T")[0];
                         setDateRange(start, end);
                         clearSelection();
-                        setRangePopoverOpen(false);
+                        setTimeout(() => setRangePopoverOpen(false), 0);
                       }
                     }}
                   />

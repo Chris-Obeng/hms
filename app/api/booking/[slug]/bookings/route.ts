@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { initializeTransaction } from "@/lib/paystack";
 import { z } from "zod";
+import { resolvePublicNightlyTotal } from "@/lib/pricing/resolve-public-price";
 
 const Schema = z.object({
   room_type_id: z.string().uuid(),
@@ -95,25 +96,19 @@ export async function POST(
       return NextResponse.json({ error: "No rooms available for these dates." }, { status: 409 });
     }
 
-    // Calculate pricing — use weekend_price (if set) for Fri/Sat nights
+    // Calculate pricing using override-aware resolver
+    // (daily_rate_overrides > seasonal_rate_overrides > base/weekend price)
     const checkInDate = new Date(data.check_in);
     const checkOutDate = new Date(data.check_out);
     const nights = Math.ceil(
       (checkOutDate.getTime() - checkInDate.getTime()) / 86400000
     );
-    let subtotal = 0;
-    for (let i = 0; i < nights; i++) {
-      const night = new Date(checkInDate);
-      night.setUTCDate(night.getUTCDate() + i);
-      const dow = night.getUTCDay(); // 0 = Sun, 5 = Fri, 6 = Sat
-      const isWeekendNight = dow === 5 || dow === 6;
-      const nightRate =
-        isWeekendNight && roomType.weekend_price != null
-          ? roomType.weekend_price
-          : roomType.base_price;
-      subtotal += nightRate;
-    }
-    const rate = nights > 0 ? subtotal / nights : roomType.base_price;
+    const { subtotal, avgNightlyRate: rate } = await resolvePublicNightlyTotal(
+      hotel.id,
+      data.room_type_id,
+      data.check_in,
+      data.check_out
+    );
     const taxEnabled = (hotel.settings as Record<string, unknown>)?.tax_enabled === true;
     const taxPercentage = typeof (hotel.settings as Record<string, unknown>)?.tax_percentage === "number"
       ? ((hotel.settings as Record<string, unknown>).tax_percentage as number)

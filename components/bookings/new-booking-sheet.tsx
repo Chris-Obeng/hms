@@ -30,6 +30,7 @@ import { Separator } from "@/components/ui/separator";
 import { Calendar } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
 import { createBooking, type NewBookingInput } from "@/app/actions/bookings";
+import { getResolvedRatesForBooking, type StaffResolvedPricing } from "@/app/actions/pricing";
 import { cn } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -139,10 +140,51 @@ export function NewBookingSheet({
     (rt): rt is RoomTypeOption => rt.id === selectedRoomTypeId && "base_price" in rt
   ) as RoomTypeOption | undefined;
 
-  const roomRate = selectedRoomType?.base_price || 0;
-  const subtotal = roomRate * nights;
-  const taxAmount = Math.round(subtotal * 0.1 * 100) / 100; // 10% tax
-  const totalAmount = subtotal + taxAmount;
+  // ── Override-aware pricing ─────────────────────────────────────
+  // Fetches live pricing from the server action whenever room + dates change.
+  // Falls back to base_price * nights only while loading or before selection.
+  const [resolvedPricing, setResolvedPricing] = React.useState<StaffResolvedPricing | null>(null);
+  const [pricingLoading, setPricingLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkIn = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : null;
+    const checkOut = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : null;
+
+    if (!selectedRoomTypeId || !checkIn || !checkOut || nights <= 0) {
+      setResolvedPricing(null);
+      return;
+    }
+
+    let cancelled = false;
+    setPricingLoading(true);
+
+    getResolvedRatesForBooking(selectedRoomTypeId, checkIn, checkOut)
+      .then((result) => {
+        if (cancelled) return;
+        if (result.success) {
+          setResolvedPricing(result.data);
+        } else {
+          // Server action failed — clear so fallback is used
+          setResolvedPricing(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setResolvedPricing(null);
+      })
+      .finally(() => {
+        if (!cancelled) setPricingLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [selectedRoomTypeId, dateRange?.from, dateRange?.to, nights]);
+
+  // Pricing values — use resolved data when available, fall back to base
+  const fallbackRate = selectedRoomType?.base_price ?? 0;
+  const roomRate = resolvedPricing?.avgNightlyRate ?? fallbackRate;
+  const subtotal = resolvedPricing?.subtotal ?? fallbackRate * nights;
+  const taxRate = resolvedPricing?.taxRate ?? 0;
+  const taxAmount = resolvedPricing?.taxAmount ?? 0;
+  const totalAmount = resolvedPricing?.totalAmount ?? subtotal;
 
   // ── Reset form ─────────────────────────────────────────────────
   function resetForm() {
@@ -160,6 +202,7 @@ export function NewBookingSheet({
     setInternalNotes("");
     setPaymentPreference("pay_at_checkin");
     setErrors({});
+    setResolvedPricing(null);
   }
 
   function handleClose(open: boolean) {
@@ -545,18 +588,55 @@ export function NewBookingSheet({
                   <span className="text-sm font-medium text-foreground">{nights}</span>
                 </div>
                 <Separator className="opacity-40" />
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Room rate</span>
-                  <span className="text-sm text-foreground">{formatCurrency(roomRate, currency)}</span>
-                </div>
+
+                {/* Per-night breakdown — shown when overrides exist */}
+                {pricingLoading ? (
+                  <div className="flex items-center gap-2 py-1">
+                    <span className="size-3 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+                    <span className="text-xs text-muted-foreground">Fetching rates…</span>
+                  </div>
+                ) : resolvedPricing && resolvedPricing.nightlyRates.some((n) => n.source !== "base") ? (
+                  <div className="space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground">Nightly rates</span>
+                    {resolvedPricing.nightlyRates.map((n) => (
+                      <div key={n.date} className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">{n.date}</span>
+                        <div className="flex items-center gap-1.5">
+                          {n.source !== "base" && (
+                            <span className={cn(
+                              "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+                              n.source === "daily"
+                                ? "bg-blue-500/10 text-blue-600"
+                                : "bg-amber-500/10 text-amber-600"
+                            )}>
+                              {n.source === "daily" ? "Daily" : (n.seasonName ?? "Season")}
+                            </span>
+                          )}
+                          <span className="text-xs font-medium text-foreground">
+                            {formatCurrency(n.price, currency)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                    <Separator className="opacity-40 mt-1" />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Room rate</span>
+                    <span className="text-sm text-foreground">{formatCurrency(roomRate, currency)}/night</span>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">Subtotal</span>
                   <span className="text-sm text-foreground">{formatCurrency(subtotal, currency)}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Tax (10%)</span>
-                  <span className="text-sm text-foreground">{formatCurrency(taxAmount, currency)}</span>
-                </div>
+                {taxRate > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Tax ({taxRate}%)</span>
+                    <span className="text-sm text-foreground">{formatCurrency(taxAmount, currency)}</span>
+                  </div>
+                )}
                 <Separator className="opacity-40" />
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-foreground">Total</span>

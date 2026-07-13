@@ -4,9 +4,28 @@ import Image from "next/image";
 import Link from "next/link";
 import { RoomGallery, type GalleryImage } from "@/components/booking/room-gallery";
 
-interface P { slug:string;id:string;name:string;shortDescription:string|null;basePrice:number;currency:string;images:GalleryImage[];amenities?:{icon:string;label:string}[];checkIn?:string;checkOut?:string;availableCount?:number|null; }
+interface P {
+  slug: string;
+  id: string;
+  name: string;
+  shortDescription: string | null;
+  basePrice: number;
+  currency: string;
+  images: GalleryImage[];
+  amenities?: { icon: string; label: string }[];
+  checkIn?: string;
+  checkOut?: string;
+  availableCount?: number | null;
+  /**
+   * True when the guest explicitly selected dates (URL has check_in/check_out).
+   * False/undefined = default window or no dates → show "from" label.
+   * Industry standard: show "from X/night" when browsing without dates,
+   * show exact "X/night" when specific dates are selected.
+   */
+  datesSelected?: boolean;
+}
 
-export function RoomCard({ slug,id,name,shortDescription,basePrice,currency,images,amenities,checkIn,checkOut,availableCount }: P) {
+export function RoomCard({ slug,id,name,shortDescription,basePrice,currency,images,amenities,checkIn,checkOut,availableCount,datesSelected }: P) {
   const [galleryOpen, setGalleryOpen] = React.useState(false);
   const bookHref = checkIn && checkOut ? `/${slug}/book?room_type_id=${id}&check_in=${checkIn}&check_out=${checkOut}` : `/${slug}/book?room_type_id=${id}`;
   const firstImage = images[0]?.url ?? null;
@@ -43,8 +62,13 @@ export function RoomCard({ slug,id,name,shortDescription,basePrice,currency,imag
           )}
           <div className="flex items-end justify-between mt-4">
             <div>
-              <span className="text-xs text-muted-foreground">from</span>
-              <p className="text-xl font-semibold text-foreground">{currency} {basePrice.toLocaleString()}<span className="text-sm font-normal text-muted-foreground">/night</span></p>
+              {!datesSelected && (
+                <span className="text-xs text-muted-foreground">from</span>
+              )}
+              <p className="text-xl font-semibold text-foreground">
+                {currency} {basePrice.toLocaleString()}
+                <span className="text-sm font-normal text-muted-foreground">/night</span>
+              </p>
             </div>
             {!isSoldOut
               ? <Link href={bookHref} className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">Book</Link>

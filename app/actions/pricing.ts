@@ -393,6 +393,106 @@ export async function bulkDeleteDailyRateOverrides(
   }
 }
 
+// ── Staff: Resolve rates for a booking (authenticated) ──────────
+
+export interface StaffResolvedPricing {
+  roomTypeId: string;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+  /** Per-night breakdown with override source */
+  nightlyRates: { date: string; price: number; source: "daily" | "seasonal" | "base"; seasonName?: string }[];
+  /** Sum of all nightly rates */
+  subtotal: number;
+  /** Average nightly rate (subtotal / nights) — use as room_rate in bookings */
+  avgNightlyRate: number;
+  /** Tax amount based on hotel's configured tax rate */
+  taxAmount: number;
+  /** Tax rate (0–100) from hotel settings */
+  taxRate: number;
+  /** subtotal + taxAmount */
+  totalAmount: number;
+}
+
+/**
+ * Resolve override-aware pricing for a staff booking.
+ * Authenticated — uses createClient (respects RLS) + requireAuth to confirm
+ * the room type belongs to the staff member's hotel.
+ */
+export async function getResolvedRatesForBooking(
+  roomTypeId: string,
+  checkIn: string,
+  checkOut: string
+): Promise<{ success: true; data: StaffResolvedPricing } | { success: false; error: string }> {
+  try {
+    const ctx = await requireAuth();
+    const hotelId = ctx.hotelId;
+    const supabase = await createClient();
+
+    // Verify room type belongs to this hotel
+    const { data: roomType, error: rtErr } = await supabase
+      .from("room_types")
+      .select("id")
+      .eq("id", roomTypeId)
+      .eq("hotel_id", hotelId)
+      .single();
+
+    if (rtErr || !roomType) {
+      return { success: false, error: "Room type not found" };
+    }
+
+    // Validate dates
+    const ciDate = new Date(checkIn);
+    const coDate = new Date(checkOut);
+    if (isNaN(ciDate.getTime()) || isNaN(coDate.getTime()) || coDate <= ciDate) {
+      return { success: false, error: "Invalid date range" };
+    }
+
+    const nights = Math.ceil((coDate.getTime() - ciDate.getTime()) / 86400000);
+
+    // Use the public resolver (supabaseAdmin) — same logic, consistent results
+    const { resolvePublicNightlyTotal } = await import("@/lib/pricing/resolve-public-price");
+    const resolved = await resolvePublicNightlyTotal(hotelId, roomTypeId, checkIn, checkOut);
+
+    // Read tax settings from hotel configuration
+    const taxEnabled = ctx.hotel.settings.tax_enabled === true;
+    const taxRate = taxEnabled
+      ? typeof ctx.hotel.settings.tax_percentage === "number"
+        ? ctx.hotel.settings.tax_percentage
+        : 0
+      : 0;
+
+    const taxAmount = taxRate > 0
+      ? Math.round(resolved.subtotal * (taxRate / 100) * 100) / 100
+      : 0;
+
+    const totalAmount = Math.round((resolved.subtotal + taxAmount) * 100) / 100;
+
+    return {
+      success: true,
+      data: {
+        roomTypeId,
+        checkIn,
+        checkOut,
+        nights,
+        nightlyRates: resolved.nights.map((n) => ({
+          date: n.date,
+          price: n.price,
+          source: n.source,
+          seasonName: n.seasonName,
+        })),
+        subtotal: resolved.subtotal,
+        avgNightlyRate: resolved.avgNightlyRate,
+        taxAmount,
+        taxRate,
+        totalAmount,
+      },
+    };
+  } catch (err) {
+    return toActionError(err);
+  }
+}
+
 // ── Rate Resolution Engine ───────────────────────────────────────────
 
 export interface ResolvedPriceCell {
