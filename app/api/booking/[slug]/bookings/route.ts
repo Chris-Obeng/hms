@@ -103,7 +103,7 @@ export async function POST(
     const nights = Math.ceil(
       (checkOutDate.getTime() - checkInDate.getTime()) / 86400000
     );
-    const { subtotal, nightlyRate: rate } = await resolvePublicNightlyTotal(
+    const { subtotal, avgNightlyRate: rate } = await resolvePublicNightlyTotal(
       hotel.id,
       data.room_type_id,
       data.check_in,
