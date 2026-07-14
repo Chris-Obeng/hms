@@ -38,10 +38,10 @@ interface PricingUIState {
 }
 
 export const usePricingStore = create<PricingUIState>((set) => {
-  // Initialize with today and 29 days ahead
+  // Initialize with today and 89 days ahead (90-day industry-standard window)
   const today = new Date();
   const start = today.toISOString().split("T")[0];
-  const end = new Date(today.setDate(today.getDate() + 29)).toISOString().split("T")[0];
+  const end = new Date(today.setDate(today.getDate() + 89)).toISOString().split("T")[0];
 
   return {
     activeTab: "calendar",

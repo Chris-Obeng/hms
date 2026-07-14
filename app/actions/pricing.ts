@@ -25,12 +25,13 @@ const DailyOverrideSchema = z.object({
   price: z.coerce.number().min(0.01, "Price must be greater than 0"),
 });
 
-const BulkDailyOverrideSchema = z.array(DailyOverrideSchema);
+const BulkDailyOverrideSchema = z.array(DailyOverrideSchema).min(1).max(500);
 
 const DailyOverrideDeleteSchema = z.object({
   roomTypeId: z.string().uuid("Invalid room type ID"),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
 });
+// min(1) is enforced here — callers must NOT early-return before this parse
 const BulkDailyOverrideDeleteSchema = z.array(DailyOverrideDeleteSchema).min(1).max(500);
 
 // Helper function to check if a date is a weekend (Friday or Saturday night)
@@ -148,6 +149,74 @@ export async function updateSeasonalRate(id: string, name: string, startDate: st
 
     revalidatePath("/dashboard/rooms/pricing");
     return { success: true, data };
+  } catch (err) {
+    return toActionError(err);
+  }
+}
+
+export async function duplicateSeasonalRate(id: string) {
+  try {
+    const ctx = await requireMinRole("manager", "duplicate seasonal rates");
+    const hotelId = ctx.hotelId;
+
+    const supabase = await createClient();
+
+    // Fetch source season + its overrides
+    const { data: source, error: fetchErr } = await supabase
+      .from("seasonal_rates")
+      .select(`
+        name, start_date, end_date,
+        overrides:seasonal_rate_overrides (
+          room_type_id, base_price, weekend_price
+        )
+      `)
+      .eq("id", id)
+      .eq("hotel_id", hotelId)
+      .single();
+
+    if (fetchErr || !source) {
+      return { success: false, error: "Season not found or access denied" };
+    }
+
+    // Insert new season with "Copy of" prefix
+    const { data: newSeason, error: insertErr } = await supabase
+      .from("seasonal_rates")
+      .insert({
+        hotel_id: hotelId,
+        name: `Copy of ${source.name}`,
+        start_date: source.start_date,
+        end_date: source.end_date,
+      })
+      .select()
+      .single();
+
+    if (insertErr) {
+      // Likely an overlap — return friendly message
+      if (insertErr.code === "23P01" || insertErr.message?.includes("overlap")) {
+        return { success: false, error: "Cannot duplicate: date range overlaps an existing season. Adjust the source season dates first." };
+      }
+      throw insertErr;
+    }
+
+    // Copy overrides if any
+    if (source.overrides && source.overrides.length > 0) {
+      const overrideRows = source.overrides.map((ov: any) => ({
+        hotel_id: hotelId,
+        seasonal_rate_id: newSeason.id,
+        room_type_id: ov.room_type_id,
+        base_price: ov.base_price,
+        weekend_price: ov.weekend_price ?? null,
+      }));
+
+      const { error: ovErr } = await supabase
+        .from("seasonal_rate_overrides")
+        .insert(overrideRows);
+
+      if (ovErr) throw ovErr;
+    }
+
+    revalidatePath("/dashboard/rooms/pricing");
+    return { success: true, data: newSeason };
   } catch (err) {
     return toActionError(err);
   }
@@ -370,10 +439,7 @@ export async function bulkDeleteDailyRateOverrides(
 
     const supabase = await createClient();
 
-    if (overrides.length === 0) {
-      return { success: true };
-    }
-
+    // Parse first — Zod .min(1) will throw if array is empty
     const parsed = BulkDailyOverrideDeleteSchema.parse(overrides);
 
     let query = supabase.from("daily_rate_overrides").delete().eq("hotel_id", hotelId);
@@ -556,43 +622,100 @@ export async function getResolvedRates(
 
     const resolvedCells: ResolvedPriceCell[] = [];
 
-    // Loop through dates
-    const start = new Date(startDate + "T12:00:00");
-    const end = new Date(endDate + "T12:00:00");
+    // ── Build lookup Maps for O(1) access ─────────────────────────
+    // Map: "roomTypeId" → roomType row
+    const roomTypeMap = new Map(roomTypes.map((r) => [r.id, r]));
 
-    const dateList: string[] = [];
-    const current = new Date(start);
-    while (current <= end) {
-      dateList.push(current.toISOString().split("T")[0]);
-      current.setDate(current.getDate() + 1);
+    // Map: "roomTypeId_date" → daily override price
+    const dailyOverrideMap = new Map(
+      dailyOverrides.map((d) => [`${d.room_type_id}_${d.date}`, d.price])
+    );
+
+    // ── Detect overlapping seasons (data integrity warning) ────────
+    // Overlap is blocked on create/update but may exist in migrated data.
+    // Tie-break: season with the latest start_date wins (most specific).
+    // Warn once per overlap pair so callers can surface it in logs.
+    const sortedSeasons = [...seasons].sort((a, b) =>
+      b.start_date.localeCompare(a.start_date)
+    );
+
+    // Detect and log overlapping season pairs
+    for (let i = 0; i < sortedSeasons.length; i++) {
+      for (let j = i + 1; j < sortedSeasons.length; j++) {
+        const a = sortedSeasons[i];
+        const b = sortedSeasons[j];
+        if (a.start_date <= b.end_date && a.end_date >= b.start_date) {
+          console.warn(
+            `[pricing] Overlapping seasons detected: "${a.name}" (${a.start_date}–${a.end_date}) ` +
+            `overlaps "${b.name}" (${b.start_date}–${b.end_date}). ` +
+            `"${a.name}" wins (latest start_date).`
+          );
+        }
+      }
     }
 
+    // Map: "date" → winning season (latest start_date wins on overlap)
+    // Pre-build this map for every date in the range so inner loop is O(1).
+    const dateList: string[] = [];
+    {
+      const current = new Date(startDate + "T12:00:00");
+      const end = new Date(endDate + "T12:00:00");
+      while (current <= end) {
+        dateList.push(current.toISOString().split("T")[0]);
+        current.setDate(current.getDate() + 1);
+      }
+    }
+
+    // For each date, pick the first season in sortedSeasons that covers it
+    // (sortedSeasons is already sorted latest-start first → tie-break applied)
+    const dateSeason = new Map<string, typeof sortedSeasons[number]>();
+    for (const dateStr of dateList) {
+      const win = sortedSeasons.find(
+        (s) => s.start_date <= dateStr && s.end_date >= dateStr
+      );
+      if (win) dateSeason.set(dateStr, win);
+    }
+
+    // Map: "seasonId_roomTypeId" → override { base_price, weekend_price }
+    const seasonOverrideMap = new Map<
+      string,
+      { base_price: number; weekend_price: number | null }
+    >();
+    for (const season of seasons) {
+      for (const ov of season.overrides ?? []) {
+        seasonOverrideMap.set(`${season.id}_${ov.room_type_id}`, {
+          base_price: Number(ov.base_price),
+          weekend_price: ov.weekend_price != null ? Number(ov.weekend_price) : null,
+        });
+      }
+    }
+
+    // ── Resolve each cell ──────────────────────────────────────────
     for (const roomTypeId of roomTypeIds) {
-      const roomType = roomTypes.find((r) => r.id === roomTypeId);
+      const roomType = roomTypeMap.get(roomTypeId);
       if (!roomType) continue;
 
       for (const dateStr of dateList) {
         const weekend = isWeekend(dateStr);
 
-        // 1. Check daily overrides
-        const dailyOverride = dailyOverrides.find(
-          (d) => d.room_type_id === roomTypeId && d.date === dateStr
-        );
-
-        if (dailyOverride) {
+        // 1. Daily override
+        const dailyPrice = dailyOverrideMap.get(`${roomTypeId}_${dateStr}`);
+        if (dailyPrice !== undefined) {
           resolvedCells.push({
             roomTypeId,
             date: dateStr,
-            price: Number(dailyOverride.price),
+            price: Number(dailyPrice),
             source: "daily",
             isWeekend: weekend,
           });
           continue;
         }
 
-        // 2. Check seasonal rates (at most one should cover)
-        const season = seasons.find((s) => s.start_date <= dateStr && s.end_date >= dateStr);
-        const seasonalOverride = season?.overrides?.find((o) => o.room_type_id === roomTypeId);
+        // 2. Seasonal rate (tie-broken: latest start_date wins)
+        const season = dateSeason.get(dateStr);
+        const seasonalOverride = season
+          ? seasonOverrideMap.get(`${season.id}_${roomTypeId}`)
+          : undefined;
 
         if (season && seasonalOverride) {
           const price = weekend
@@ -602,7 +725,7 @@ export async function getResolvedRates(
           resolvedCells.push({
             roomTypeId,
             date: dateStr,
-            price: Number(price),
+            price,
             source: "seasonal",
             seasonName: season.name,
             isWeekend: weekend,
@@ -610,15 +733,34 @@ export async function getResolvedRates(
           continue;
         }
 
-        // 3. Fallback to base pricing
+        // 3. Season active but no override configured for this room type
+        // Still falls through to base price — but tag source so the UI
+        // can render a "season active / unconfigured" visual cue.
+        if (season && !seasonalOverride) {
+          const price = weekend
+            ? (Number(roomType.weekend_price) || Number(roomType.base_price))
+            : Number(roomType.base_price);
+
+          resolvedCells.push({
+            roomTypeId,
+            date: dateStr,
+            price,
+            source: "base",
+            seasonName: season.name,        // non-null = season active, no override
+            isWeekend: weekend,
+          });
+          continue;
+        }
+
+        // 4. Fallback — base / weekend price
         const price = weekend
-          ? (roomType.weekend_price ?? roomType.base_price)
-          : roomType.base_price;
+          ? (Number(roomType.weekend_price) || Number(roomType.base_price))
+          : Number(roomType.base_price);
 
         resolvedCells.push({
           roomTypeId,
           date: dateStr,
-          price: Number(price),
+          price,
           source: "base",
           isWeekend: weekend,
         });
@@ -626,6 +768,96 @@ export async function getResolvedRates(
     }
 
     return { success: true as const, data: resolvedCells };
+  } catch (err) {
+    return toActionError(err);
+  }
+}
+
+// ── Occupancy by Date ────────────────────────────────────────────────────────
+// Returns occupied room count and total rooms per date for the rate calendar.
+
+export interface OccupancyCell {
+  date: string;
+  /** Number of rooms occupied (checked_in / confirmed bookings covering this night) */
+  occupied: number;
+  /** Total active rooms in the hotel */
+  total: number;
+  /** 0–100 */
+  pct: number;
+}
+
+export async function getOccupancyByDate(
+  startDate: string,
+  endDate: string
+): Promise<{ success: true; data: OccupancyCell[] } | { success: false; error: string }> {
+  try {
+    const ctx = await requireAuth();
+    const hotelId = ctx.hotelId;
+    const supabase = await createClient();
+
+    // Total active rooms
+    const { count: totalRooms, error: totalErr } = await supabase
+      .from("rooms")
+      .select("id", { count: "exact", head: true })
+      .eq("hotel_id", hotelId)
+      .eq("is_active", true);
+
+    if (totalErr) throw totalErr;
+    const total = totalRooms ?? 0;
+
+    if (total === 0) {
+      return { success: true, data: [] };
+    }
+
+    // Fetch bookings that overlap the date range and are active
+    const { data: bookings, error: bookErr } = await supabase
+      .from("bookings")
+      .select("check_in, check_out")
+      .eq("hotel_id", hotelId)
+      .in("status", ["confirmed", "checked_in"])
+      .lt("check_in", endDate)   // starts before range end
+      .gt("check_out", startDate); // ends after range start
+
+    if (bookErr) throw bookErr;
+
+    // Build date list
+    const dateList: string[] = [];
+    const cur = new Date(startDate + "T12:00:00");
+    const end = new Date(endDate + "T12:00:00");
+    while (cur <= end) {
+      dateList.push(cur.toISOString().split("T")[0]);
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    // Count overlapping bookings per night
+    const occupancyMap = new Map<string, number>(dateList.map((d) => [d, 0]));
+
+    for (const booking of bookings ?? []) {
+      const ci = new Date(booking.check_in + "T12:00:00");
+      const co = new Date(booking.check_out + "T12:00:00");
+      const night = new Date(ci);
+      while (night < co) {
+        const dateStr = night.toISOString().split("T")[0];
+        if (occupancyMap.has(dateStr)) {
+          occupancyMap.set(dateStr, (occupancyMap.get(dateStr) ?? 0) + 1);
+        }
+        night.setDate(night.getDate() + 1);
+      }
+    }
+
+    const data: OccupancyCell[] = dateList.map((date) => {
+      const occupied = occupancyMap.get(date) ?? 0;
+      // Cap at total (overbooking edge-case in data)
+      const capped = Math.min(occupied, total);
+      return {
+        date,
+        occupied: capped,
+        total,
+        pct: total > 0 ? Math.round((capped / total) * 100) : 0,
+      };
+    });
+
+    return { success: true, data };
   } catch (err) {
     return toActionError(err);
   }

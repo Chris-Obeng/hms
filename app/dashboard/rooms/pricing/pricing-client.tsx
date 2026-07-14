@@ -9,6 +9,7 @@ import {
   Plus,
   Trash2,
   Edit2,
+  Copy,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
@@ -48,13 +49,16 @@ import {
   createSeasonalRate,
   updateSeasonalRate,
   deleteSeasonalRate,
+  duplicateSeasonalRate,
   upsertSeasonalRateOverride,
   upsertDailyRateOverride,
   deleteDailyRateOverride,
   bulkUpsertDailyRateOverrides,
   bulkDeleteDailyRateOverrides,
   getResolvedRates,
+  getOccupancyByDate,
   ResolvedPriceCell,
+  OccupancyCell,
 } from "@/app/actions/pricing";
 
 interface PricingClientProps {
@@ -127,40 +131,49 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
   const [endPopoverOpen, setEndPopoverOpen] = useState(false);
   const [rangePopoverOpen, setRangePopoverOpen] = useState(false);
 
-  // Generate 30 columns for date grid
+  // Generate date columns dynamically based on the current range
   const dateColumns = useMemo(() => {
     const list: string[] = [];
     const start = new Date(startDateStr + "T12:00:00");
-    for (let i = 0; i < 30; i++) {
-      const d = addDays(start, i);
-      list.push(d.toISOString().split("T")[0]);
+    const end = new Date(endDateStr + "T12:00:00");
+    const cur = new Date(start);
+    while (cur <= end) {
+      list.push(cur.toISOString().split("T")[0]);
+      cur.setDate(cur.getDate() + 1);
     }
     return list;
-  }, [startDateStr]);
+  }, [startDateStr, endDateStr]);
 
-  // Adjust dates viewport
-  const handlePrev30Days = () => {
+  // How many days are in the current window
+  const windowDays = dateColumns.length;
+
+  // Adjust dates viewport — jump by the current window size
+  const handlePrevWindow = () => {
     const currentStart = new Date(startDateStr + "T12:00:00");
-    const newStart = subDays(currentStart, 30).toISOString().split("T")[0];
+    const newStart = subDays(currentStart, windowDays).toISOString().split("T")[0];
     const newEnd = subDays(currentStart, 1).toISOString().split("T")[0];
     setDateRange(newStart, newEnd);
     clearSelection();
   };
 
-  const handleNext30Days = () => {
+  const handleNextWindow = () => {
     const currentStart = new Date(startDateStr + "T12:00:00");
-    const newStart = addDays(currentStart, 30).toISOString().split("T")[0];
-    const newEnd = addDays(currentStart, 59).toISOString().split("T")[0];
+    const newStart = addDays(currentStart, windowDays).toISOString().split("T")[0];
+    const newEnd = addDays(currentStart, windowDays * 2 - 1).toISOString().split("T")[0];
     setDateRange(newStart, newEnd);
     clearSelection();
   };
 
-  const handleDateReset = () => {
+  const handleSetWindow = (days: number) => {
     const today = new Date();
     const start = today.toISOString().split("T")[0];
-    const end = addDays(today, 29).toISOString().split("T")[0];
+    const end = addDays(today, days - 1).toISOString().split("T")[0];
     setDateRange(start, end);
     clearSelection();
+  };
+
+  const handleDateReset = () => {
+    handleSetWindow(90);
   };
 
   // ── Queries ────────────────────────────────────────────────────────
@@ -211,6 +224,27 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
     });
     return map;
   }, [resolvedRates]);
+
+  // Fetch occupancy per date for the calendar header row
+  const { data: occupancyCells = [] } = useQuery({
+    queryKey: qk.pricingOccupancy(orgId, hotelId, startDateStr, endDateStr),
+    queryFn: async () => {
+      const res = await getOccupancyByDate(startDateStr, endDateStr);
+      if (!res.success) return [] as OccupancyCell[];
+      return res.data;
+    },
+    staleTime: 60_000, // 1 min — occupancy changes less frequently than rates
+  });
+
+  const occupancyMap = useMemo(() => {
+    const map = new Map<string, OccupancyCell>();
+    occupancyCells.forEach((c) => map.set(c.date, c));
+    return map;
+  }, [occupancyCells]);
+
+  // "Apply to all room types" shortcut state (used in Configure Rates sheet)
+  const [applyAllBase, setApplyAllBase] = useState("");
+  const [applyAllWeekend, setApplyAllWeekend] = useState("");
 
   // Client-side overlap validation helper
   const clientOverlapSeason = useMemo(() => {
@@ -292,18 +326,58 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
     },
   });
 
+  // Duplicate Season
+  const duplicateSeasonMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await duplicateSeasonalRate(id);
+      if (!res.success) {
+        throw new Error((res as any).error || "Failed to duplicate season");
+      }
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Season duplicated — update the name and dates as needed.");
+      queryClient.invalidateQueries({ queryKey: qk.pricingSeasons(orgId, hotelId) });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to duplicate season");
+    },
+  });
+
   // Upsert Seasonal Overrides
   const saveSeasonalOverridesMutation = useMutation({
     mutationFn: async () => {
       if (!selectedSeasonForOverrides) return;
       const seasonId = selectedSeasonForOverrides.id;
 
-      // Promise run upserts for each room type price specified
-      const upsertPromises = Object.entries(seasonalOverrides).map(async ([roomTypeId, prices]) => {
+      // Separate valid entries from skipped ones before hitting the server
+      const toSave: { roomTypeId: string; base: number; weekend: number | null; name: string }[] = [];
+      const skipped: string[] = [];
+
+      Object.entries(seasonalOverrides).forEach(([roomTypeId, prices]) => {
         const base = parseFloat(prices.basePrice);
         const weekend = prices.weekendPrice ? parseFloat(prices.weekendPrice) : null;
-        if (isNaN(base) || base <= 0) return;
-        
+
+        if (!prices.basePrice.trim()) {
+          // Blank — user intentionally left empty, silently skip (no override)
+          return;
+        }
+        if (isNaN(base) || base <= 0) {
+          const rt = roomTypes.find((r) => r.id === roomTypeId);
+          skipped.push(rt?.name ?? roomTypeId);
+          return;
+        }
+
+        toSave.push({ roomTypeId, base, weekend, name: roomTypes.find((r) => r.id === roomTypeId)?.name ?? roomTypeId });
+      });
+
+      if (skipped.length > 0) {
+        toast.warning(`Skipped invalid prices for: ${skipped.join(", ")}. Fix and save again.`);
+      }
+
+      if (toSave.length === 0) return;
+
+      const upsertPromises = toSave.map(async ({ roomTypeId, base, weekend }) => {
         const res = await upsertSeasonalRateOverride(seasonId, roomTypeId, base, weekend);
         if (!res.success) throw new Error(res.error);
       });
@@ -453,6 +527,8 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
 
   const handleOpenOverrides = (season: any) => {
     setSelectedSeasonForOverrides(season);
+    setApplyAllBase("");
+    setApplyAllWeekend("");
     
     // Prefill form
     const overridesMap: Record<string, { basePrice: string; weekendPrice: string }> = {};
@@ -656,6 +732,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
   const isCalendarView = activeTab === "calendar";
 
   return (
+    <TooltipProvider>
     <div className="space-y-6">
       {/* ── Page Header ─────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -805,7 +882,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
           {/* Controls Bar */}
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-card p-4 rounded-xl border border-border/50 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="icon" onClick={handlePrev30Days} className="border-input/60 hover:bg-accent/40">
+              <Button variant="outline" size="icon" onClick={handlePrevWindow} className="border-input/60 hover:bg-accent/40">
                 <ChevronLeft className="size-4" />
               </Button>
               
@@ -823,7 +900,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                     onSelect={(d) => {
                       if (d) {
                         const start = d.toISOString().split("T")[0];
-                        const end = addDays(d, 29).toISOString().split("T")[0];
+                        const end = addDays(d, windowDays - 1).toISOString().split("T")[0];
                         setDateRange(start, end);
                         clearSelection();
                         setTimeout(() => setRangePopoverOpen(false), 0);
@@ -833,13 +910,30 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                 </PopoverContent>
               </Popover>
 
-              <Button variant="outline" size="icon" onClick={handleNext30Days} className="border-input/60 hover:bg-accent/40">
+              <Button variant="outline" size="icon" onClick={handleNextWindow} className="border-input/60 hover:bg-accent/40">
                 <ChevronRight className="size-4" />
               </Button>
 
-              <Button variant="outline" onClick={handleDateReset} className="font-medium border-input/60 hover:bg-accent/40 text-xs py-1 h-9">
-                Today
-              </Button>
+              {/* Quick-range buttons — industry standard: 30 / 60 / 90 */}
+              <div className="flex items-center gap-1 ml-1 border-l border-border/60 pl-3">
+                {([30, 60, 90] as const).map((d) => (
+                  <Button
+                    key={d}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSetWindow(d)}
+                    className={cn(
+                      "h-8 px-2.5 text-xs font-semibold border-input/60 hover:bg-accent/40",
+                      windowDays === d && "bg-primary/10 text-primary border-primary/30"
+                    )}
+                  >
+                    {d}d
+                  </Button>
+                ))}
+                <Button variant="outline" onClick={handleDateReset} className="font-medium border-input/60 hover:bg-accent/40 text-xs py-1 h-8 ml-1">
+                  Today
+                </Button>
+              </div>
             </div>
 
             {/* Legend & Quick Actions */}
@@ -851,6 +945,12 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
               <div className="flex items-center gap-2">
                 <span className="inline-block size-3 rounded bg-emerald-500/15 border border-emerald-500/20" />
                 <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Seasonal Rate</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-block size-3 rounded bg-amber-500/10 border border-amber-500/20 relative">
+                  <span className="absolute top-0.5 right-0.5 size-1 rounded-full bg-amber-500" />
+                </span>
+                <span className="text-amber-700 dark:text-amber-400 font-semibold">Season / No Rate Set</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="inline-block size-3 rounded bg-violet-500/20 border border-violet-500/40 relative">
@@ -996,6 +1096,60 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                     </tr>
                   </thead>
                   <tbody>
+                    {/* ── Occupancy Row ── pinned above room types, industry standard */}
+                    {occupancyCells.length > 0 && (
+                      <tr className="border-b-2 border-border/60 bg-muted/20">
+                        <td className="sticky left-0 z-10 bg-muted/30 border-r border-border/80 px-4 py-2 font-bold text-foreground align-middle">
+                          <div className="text-xs font-bold text-foreground">Occupancy</div>
+                          <div className="text-[10px] text-muted-foreground font-normal mt-0.5">rooms sold / total</div>
+                        </td>
+                        {dateColumns.map((dateStr) => {
+                          const occ = occupancyMap.get(dateStr);
+                          const pct = occ?.pct ?? 0;
+                          const isWe = isWeekend(dateStr);
+                          // Color bands: <40% low (muted), 40-70% medium (blue), >70% high (amber→red)
+                          const barColor =
+                            pct >= 90 ? "bg-red-500" :
+                            pct >= 70 ? "bg-amber-500" :
+                            pct >= 40 ? "bg-blue-500" :
+                            "bg-muted-foreground/30";
+                          const textColor =
+                            pct >= 90 ? "text-red-600 dark:text-red-400 font-bold" :
+                            pct >= 70 ? "text-amber-600 dark:text-amber-400 font-semibold" :
+                            pct >= 40 ? "text-blue-600 dark:text-blue-400 font-semibold" :
+                            "text-muted-foreground";
+                          return (
+                            <td
+                              key={dateStr}
+                              className={cn(
+                                "px-2 py-2 text-center align-middle border-r border-border/40",
+                                isWe && "bg-muted-foreground/[0.015]"
+                              )}
+                            >
+                              {occ ? (
+                                <div className="flex flex-col items-center gap-0.5">
+                                  <span className={cn("text-[10px] tabular-nums", textColor)}>
+                                    {pct}%
+                                  </span>
+                                  {/* Mini bar */}
+                                  <div className="w-full h-1 rounded-full bg-border/60 overflow-hidden">
+                                    <div
+                                      className={cn("h-full rounded-full transition-all", barColor)}
+                                      style={{ width: `${pct}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[9px] text-muted-foreground/60 tabular-nums">
+                                    {occ.occupied}/{occ.total}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground/40">—</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    )}
                     {roomTypes.map((rt) => (
                       <tr key={rt.id} className="border-b border-border/40 hover:bg-accent/5 transition-colors">
                         <td className="sticky left-0 z-10 bg-card border-r border-border/80 px-4 py-3 font-semibold text-foreground align-middle shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
@@ -1014,6 +1168,8 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                             (c) => c.roomTypeId === rt.id && c.date === dateStr
                           );
                           const isEditing = editingCell?.roomTypeId === rt.id && editingCell?.date === dateStr;
+                          // Season is active for this date but no rate override configured for this room type
+                          const isSeasonUnconfigured = cell?.source === "base" && !!cell?.seasonName;
 
                           return (
                             <td
@@ -1030,7 +1186,8 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                                 isWe && "bg-muted-foreground/[0.015] shadow-[inset_0_0_0_999px_rgba(0,0,0,0.01)]",
                                 isSelected && "ring-2 ring-primary border-primary z-10 shadow-sm",
                                 !isSelected && cell?.source === "seasonal" && "bg-emerald-500/5 text-emerald-800 dark:text-emerald-400",
-                                !isSelected && cell?.source === "daily" && "bg-violet-500/5 text-violet-800 dark:text-violet-400 font-medium"
+                                !isSelected && cell?.source === "daily" && "bg-violet-500/5 text-violet-800 dark:text-violet-400 font-medium",
+                                !isSelected && isSeasonUnconfigured && "bg-amber-500/5"
                               )}
                             >
                               {/* Price */}
@@ -1049,6 +1206,18 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                               
                               {cell?.source === "seasonal" && (
                                 <span className="absolute top-1 right-1 size-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-in zoom-in duration-300" />
+                              )}
+
+                              {/* Amber dot: season active but this room type has no rate configured */}
+                              {isSeasonUnconfigured && (
+                                <Tooltip>
+                                  <TooltipTrigger render={
+                                    <span className="absolute top-1 right-1 size-1.5 rounded-full bg-amber-500 dark:bg-amber-400 animate-in zoom-in duration-300 cursor-help" />
+                                  } />
+                                  <TooltipContent side="top" className="text-xs max-w-[180px]">
+                                    Season "{cell?.seasonName}" is active but no rate is configured for this room type. Using base price.
+                                  </TooltipContent>
+                                </Tooltip>
                               )}
 
                               {/* Single Cell Edit Inline Popover */}
@@ -1143,6 +1312,147 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                 </Button>
               </div>
             ) : (
+              <div className="space-y-5">
+                {/* ── Season Timeline / Gantt View ─────────────────────────── */}
+                {(() => {
+                  // Build a 12-month window from today for the Gantt
+                  const ganttStart = new Date();
+                  ganttStart.setDate(1); // first of current month
+                  const ganttStartStr = ganttStart.toISOString().split("T")[0];
+                  const ganttEnd = new Date(ganttStart);
+                  ganttEnd.setFullYear(ganttEnd.getFullYear() + 1);
+                  ganttEnd.setDate(ganttEnd.getDate() - 1);
+                  const ganttEndStr = ganttEnd.toISOString().split("T")[0];
+                  const ganttTotalMs = ganttEnd.getTime() - ganttStart.getTime();
+
+                  // Month tick marks
+                  const months: { label: string; pct: number }[] = [];
+                  const m = new Date(ganttStart);
+                  while (m <= ganttEnd) {
+                    const pct = ((m.getTime() - ganttStart.getTime()) / ganttTotalMs) * 100;
+                    months.push({ label: format(m, "MMM yy"), pct });
+                    m.setMonth(m.getMonth() + 1);
+                  }
+
+                  // Palette of distinct colors for seasons
+                  const palette = [
+                    "bg-blue-500/80",
+                    "bg-emerald-500/80",
+                    "bg-violet-500/80",
+                    "bg-amber-500/80",
+                    "bg-rose-500/80",
+                    "bg-cyan-500/80",
+                    "bg-indigo-500/80",
+                    "bg-orange-500/80",
+                  ];
+
+                  const today = new Date().toISOString().split("T")[0];
+                  const todayPct = Math.max(0, Math.min(100,
+                    ((new Date(today).getTime() - ganttStart.getTime()) / ganttTotalMs) * 100
+                  ));
+
+                  return (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-foreground">Season Timeline</span>
+                        <span className="text-[10px] text-muted-foreground">12-month view · {format(ganttStart, "MMM yyyy")} – {format(ganttEnd, "MMM yyyy")}</span>
+                      </div>
+
+                      {/* Gantt chart */}
+                      <div className="relative bg-muted/30 rounded-lg border border-border/50 overflow-hidden" style={{ height: `${Math.max(48, seasons.length * 28 + 28)}px` }}>
+                        {/* Month grid lines */}
+                        {months.map((mo, i) => (
+                          <div
+                            key={i}
+                            className="absolute top-0 bottom-0 border-l border-border/40"
+                            style={{ left: `${mo.pct}%` }}
+                          >
+                            <span className="absolute top-1 left-1 text-[9px] text-muted-foreground/60 whitespace-nowrap font-medium select-none">
+                              {mo.label}
+                            </span>
+                          </div>
+                        ))}
+
+                        {/* Today marker */}
+                        <div
+                          className="absolute top-0 bottom-0 w-px bg-primary/60 z-10"
+                          style={{ left: `${todayPct}%` }}
+                        >
+                          <span className="absolute -top-0 left-1 text-[9px] text-primary font-bold whitespace-nowrap select-none">Today</span>
+                        </div>
+
+                        {/* Season bars */}
+                        {seasons.map((season, idx) => {
+                          const startMs = Math.max(new Date(season.start_date).getTime(), ganttStart.getTime());
+                          const endMs = Math.min(new Date(season.end_date).getTime(), ganttEnd.getTime());
+                          if (startMs > endMs) return null; // outside window
+
+                          const leftPct = ((startMs - ganttStart.getTime()) / ganttTotalMs) * 100;
+                          const widthPct = ((endMs - startMs) / ganttTotalMs) * 100;
+                          const top = 20 + idx * 28;
+                          const color = palette[idx % palette.length];
+                          const isActive = season.start_date <= today && season.end_date >= today;
+
+                          return (
+                            <Tooltip key={season.id}>
+                              <TooltipTrigger render={
+                                <div
+                                  className={cn(
+                                    "absolute h-5 rounded-md flex items-center px-2 cursor-pointer transition-opacity hover:opacity-90",
+                                    color,
+                                    isActive && "ring-2 ring-white/40 ring-offset-1"
+                                  )}
+                                  style={{ left: `${leftPct}%`, width: `max(${widthPct}%, 4px)`, top: `${top}px` }}
+                                >
+                                  <span className="text-[10px] text-white font-semibold truncate select-none leading-none">
+                                    {widthPct > 4 ? season.name : ""}
+                                  </span>
+                                </div>
+                              } />
+                              <TooltipContent side="top" className="text-xs">
+                                <div className="font-bold">{season.name}</div>
+                                <div className="text-muted-foreground">{season.start_date} &ndash; {season.end_date}</div>
+                                {isActive && <div className="text-emerald-400 font-semibold">Active now</div>}
+                              </TooltipContent>
+                            </Tooltip>
+                          );
+                        })}
+                      </div>
+
+                      {/* Gap detection — highlight uncovered stretches */}
+                      {(() => {
+                        const covered = seasons
+                          .map((s) => ({ start: s.start_date, end: s.end_date }))
+                          .sort((a, b) => a.start.localeCompare(b.start));
+                        const gaps: { from: string; to: string }[] = [];
+                        for (let i = 0; i + 1 < covered.length; i++) {
+                          const gapStart = new Date(covered[i].end + "T12:00:00");
+                          gapStart.setDate(gapStart.getDate() + 1);
+                          const gapEnd = new Date(covered[i + 1].start + "T12:00:00");
+                          gapEnd.setDate(gapEnd.getDate() - 1);
+                          if (gapStart <= gapEnd) {
+                            gaps.push({
+                              from: gapStart.toISOString().split("T")[0],
+                              to: gapEnd.toISOString().split("T")[0],
+                            });
+                          }
+                        }
+                        if (gaps.length === 0) return null;
+                        return (
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {gaps.map((g, i) => (
+                              <div key={i} className="flex items-center gap-1.5 text-[10px] bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 rounded-md px-2 py-0.5">
+                                <AlertTriangle className="size-3 shrink-0" />
+                                Gap: {g.from} &ndash; {g.to} &mdash; no seasonal rate
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  );
+                })()}
+
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -1194,6 +1504,21 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                                 <Edit2 className="size-3.5 text-muted-foreground" />
                               </Button>
 
+                              <Tooltip>
+                                <TooltipTrigger render={
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => duplicateSeasonMutation.mutate(season.id)}
+                                    disabled={duplicateSeasonMutation.isPending}
+                                    className="size-8 hover:bg-accent/40"
+                                  >
+                                    <Copy className="size-3.5 text-muted-foreground" />
+                                  </Button>
+                                } />
+                                <TooltipContent side="top" className="text-xs">Duplicate season</TooltipContent>
+                              </Tooltip>
+
                               <Popover>
                                 <PopoverTrigger render={
                                   <Button
@@ -1233,6 +1558,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                   </TableBody>
                 </Table>
               </div>
+              </div>
             )}
           </div>
         </TabsContent>
@@ -1249,6 +1575,99 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
           </SheetHeader>
 
           <div className="space-y-5 py-6">
+            {/* ── Apply to All Room Types shortcut ── industry standard ── */}
+            {roomTypes.length > 1 && (
+              <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl space-y-3">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="size-3.5 text-primary" />
+                  <span className="text-xs font-bold text-foreground">Apply to all room types</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">Fills all fields below</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Base Price ({currency})</label>
+                    <div className="flex gap-1.5">
+                      <Input
+                        type="number"
+                        placeholder="e.g. 150"
+                        value={applyAllBase}
+                        onChange={(e) => setApplyAllBase(e.target.value)}
+                        className="h-8 text-sm border-input/60 focus:ring-1 focus:ring-primary"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && applyAllBase) {
+                            setSeasonalOverrides((prev) => {
+                              const next = { ...prev };
+                              roomTypes.forEach((rt) => {
+                                next[rt.id] = { ...next[rt.id], basePrice: applyAllBase };
+                              });
+                              return next;
+                            });
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!applyAllBase.trim()}
+                        onClick={() => {
+                          setSeasonalOverrides((prev) => {
+                            const next = { ...prev };
+                            roomTypes.forEach((rt) => {
+                              next[rt.id] = { ...(next[rt.id] ?? { basePrice: "", weekendPrice: "" }), basePrice: applyAllBase };
+                            });
+                            return next;
+                          });
+                        }}
+                        className="h-8 px-2.5 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10 shrink-0"
+                      >
+                        Apply
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Weekend Price ({currency})</label>
+                    <div className="flex gap-1.5">
+                      <Input
+                        type="number"
+                        placeholder="Optional"
+                        value={applyAllWeekend}
+                        onChange={(e) => setApplyAllWeekend(e.target.value)}
+                        className="h-8 text-sm border-input/60 focus:ring-1 focus:ring-primary"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && applyAllWeekend) {
+                            setSeasonalOverrides((prev) => {
+                              const next = { ...prev };
+                              roomTypes.forEach((rt) => {
+                                next[rt.id] = { ...next[rt.id], weekendPrice: applyAllWeekend };
+                              });
+                              return next;
+                            });
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!applyAllWeekend.trim()}
+                        onClick={() => {
+                          setSeasonalOverrides((prev) => {
+                            const next = { ...prev };
+                            roomTypes.forEach((rt) => {
+                              next[rt.id] = { ...(next[rt.id] ?? { basePrice: "", weekendPrice: "" }), weekendPrice: applyAllWeekend };
+                            });
+                            return next;
+                          });
+                        }}
+                        className="h-8 px-2.5 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10 shrink-0"
+                      >
+                        Apply
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {roomTypes.map((rt) => {
               const values = seasonalOverrides[rt.id] || { basePrice: "", weekendPrice: "" };
               
@@ -1311,5 +1730,6 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
         </SheetContent>
       </Sheet>
     </div>
+    </TooltipProvider>
   );
 }
