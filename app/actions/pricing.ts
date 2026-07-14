@@ -807,6 +807,15 @@ export async function getOccupancyByDate(
   endDate: string
 ): Promise<{ success: true; data: OccupancyCell[] } | { success: false; error: string }> {
   try {
+    // Validate date format and ordering
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRe.test(startDate) || !dateRe.test(endDate)) {
+      return { success: false, error: "Invalid date format — expected YYYY-MM-DD" };
+    }
+    if (startDate > endDate) {
+      return { success: false, error: "startDate must be <= endDate" };
+    }
+
     const ctx = await requireAuth();
     const hotelId = ctx.hotelId;
     const supabase = await createClient();
@@ -825,18 +834,21 @@ export async function getOccupancyByDate(
       return { success: true, data: [] };
     }
 
-    // Fetch bookings that overlap the date range and are active
+    // Fetch bookings that overlap the inclusive [startDate, endDate] range.
+    // A booking overlaps when:  check_in <= endDate  AND  check_out > startDate
+    // Using .lte for check_in so bookings whose check_in == endDate are included
+    // (the last date in the calendar grid must count those guests as occupied).
     const { data: bookings, error: bookErr } = await supabase
       .from("bookings")
       .select("check_in, check_out")
       .eq("hotel_id", hotelId)
       .in("status", ["confirmed", "checked_in"])
-      .lt("check_in", endDate)   // starts before range end
-      .gt("check_out", startDate); // ends after range start
+      .lte("check_in", endDate)   // starts on or before range end (inclusive)
+      .gt("check_out", startDate); // checks out after range start
 
     if (bookErr) throw bookErr;
 
-    // Build date list
+    // Build inclusive date list: startDate … endDate
     const dateList: string[] = [];
     const cur = new Date(startDate + "T12:00:00");
     const end = new Date(endDate + "T12:00:00");
