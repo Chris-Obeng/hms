@@ -178,22 +178,38 @@ export async function duplicateSeasonalRate(id: string) {
       return { success: false, error: "Season not found or access denied" };
     }
 
-    // Insert new season with "Copy of" prefix
+    // Auto-shift the copied range to start the day after the source end_date,
+    // preserving the same duration. This avoids the no_overlapping_seasons
+    // exclusion constraint (daterange '[]' — both endpoints inclusive).
+    const sourceStart = new Date(source.start_date + "T12:00:00");
+    const sourceEnd   = new Date(source.end_date   + "T12:00:00");
+    const durationMs  = sourceEnd.getTime() - sourceStart.getTime();
+
+    const newStart = new Date(sourceEnd);
+    newStart.setDate(newStart.getDate() + 1); // day after source ends
+    const newEnd = new Date(newStart.getTime() + durationMs);
+
+    const newStartStr = newStart.toISOString().split("T")[0];
+    const newEndStr   = newEnd.toISOString().split("T")[0];
+
+    // Insert new season with "Copy of" prefix and shifted dates
     const { data: newSeason, error: insertErr } = await supabase
       .from("seasonal_rates")
       .insert({
         hotel_id: hotelId,
         name: `Copy of ${source.name}`,
-        start_date: source.start_date,
-        end_date: source.end_date,
+        start_date: newStartStr,
+        end_date: newEndStr,
       })
       .select()
       .single();
 
     if (insertErr) {
-      // Likely an overlap — return friendly message
       if (insertErr.code === "23P01" || insertErr.message?.includes("overlap")) {
-        return { success: false, error: "Cannot duplicate: date range overlaps an existing season. Adjust the source season dates first." };
+        return {
+          success: false,
+          error: `Cannot duplicate: the auto-shifted range (${newStartStr} – ${newEndStr}) still overlaps an existing season. Please adjust your seasons to leave a gap first.`,
+        };
       }
       throw insertErr;
     }

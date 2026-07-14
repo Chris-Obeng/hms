@@ -13,6 +13,10 @@ RETURNS text
 LANGUAGE plpgsql
 VOLATILE
 SECURITY DEFINER
+-- Pin search_path to prevent search_path-injection privilege escalation.
+-- Empty string forces all unqualified names to fail; only pg_catalog is
+-- implicitly searched. All table references below are schema-qualified.
+SET search_path = ''
 AS $$
 DECLARE
   v_ref text;
@@ -33,3 +37,10 @@ BEGIN
   RETURN v_ref;
 END;
 $$;
+
+-- Revoke broad EXECUTE grants added by default; only service_role should call
+-- this function (it is invoked from server-side trigger / RPC, never directly
+-- by anon or authenticated JWT callers).
+REVOKE EXECUTE ON FUNCTION public.generate_booking_reference(uuid, text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.generate_booking_reference(uuid, text) FROM anon, authenticated;
+GRANT  EXECUTE ON FUNCTION public.generate_booking_reference(uuid, text) TO service_role;
