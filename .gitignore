@@ -48,5 +48,9 @@ next-env.d.ts
 # build artifacts / temp
 dev-output.log
 supabase/.temp/
+
 # heroui-agents-md
+
+# local tool caches (graphify knowledge graph, heroui docs)
+graphify-out/
 .heroui-docs/
