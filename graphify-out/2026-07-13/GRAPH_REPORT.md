@@ -1,16 +1,16 @@
 # Graph Report - hms  (2026-07-13)
 
 ## Corpus Check
-- 280 files · ~179,408 words
+- 299 files · ~195,053 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1575 nodes · 3670 edges · 117 communities (94 shown, 23 thin omitted)
+- 1682 nodes · 3780 edges · 125 communities (102 shown, 23 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 2 edges (avg confidence: 0.68)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `dff5e591`
+- Built from commit: `2a8d11c7`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -112,12 +112,17 @@
 - actions.ts
 - PlatformLoginForm
 - stats-bar.tsx
+- layout.tsx
 - page.tsx
 - page.tsx
 - page.tsx
 - page.tsx
 - page.tsx
-- reports-client.tsx
+- 12 Guest-Facing Booking Application
+- 1 Executive Summary
+- graphify reference: GitHub clone and cross-repo merge
+- graphify reference: transcribe video and audio
+- extraction-spec.md
 - layout.tsx
 - createPlatformClient
 - hotels-table.tsx
@@ -141,8 +146,6 @@
 10. `supabaseAdmin` - 25 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `DeactivatedPage()` --calls--> `createClient()`  [EXTRACTED]
-  app/(admin)/deactivated/page.tsx → lib/supabase/server.ts
 - `getPendingStaffCount()` --calls--> `createClient()`  [EXTRACTED]
   app/actions/staff.ts → lib/supabase/server.ts
 - `Th()` --calls--> `cn()`  [EXTRACTED]
@@ -151,43 +154,45 @@
   app/dashboard/_components/activity-list.tsx → lib/utils.ts
 - `Tier1Card()` --calls--> `cn()`  [EXTRACTED]
   app/dashboard/_components/activity-tabs.tsx → lib/utils.ts
+- `Tier2Card()` --calls--> `cn()`  [EXTRACTED]
+  app/dashboard/_components/activity-tabs.tsx → lib/utils.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (117 total, 23 thin omitted)
+## Communities (125 total, 23 thin omitted)
 
 ### Community 1 - "arkesel.ts"
-Cohesion: 0.11
-Nodes (43): ArkeselSmsRecipientResult, ArkeselSmsResponse, BookingNotifyData, getMasterApiKey(), HotelNotifyConfig, normalizePhone(), notifyBookingCancelled(), notifyBookingConfirmed() (+35 more)
+Cohesion: 0.06
+Nodes (68): getNotificationTemplates(), getSuperAdmin(), saveNotificationTemplates(), updateNotificationPrefs(), EVENT_TYPES, NotificationSettingsPage(), NotificationTemplatesClient(), TemplatesState (+60 more)
 
 ### Community 2 - "room-type-form.tsx"
-Cohesion: 0.19
-Nodes (17): getNotificationTemplates(), getSuperAdmin(), saveNotificationTemplates(), updateNotificationPrefs(), EVENT_TYPES, NotificationSettingsPage(), NotificationTemplatesClient(), TemplatesState (+9 more)
+Cohesion: 0.08
+Nodes (24): For /graphify add and --watch, For /graphify query, For the commit hook and native CLAUDE.md integration, For --update and --cluster-only, /graphify, Honesty Rules, Interpreter guard for subcommands, Part A - Structural extraction for code files (+16 more)
 
 ### Community 3 - "rooms.ts"
-Cohesion: 0.15
-Nodes (27): getCurrentUserRole(), AvailabilityBlockInput, AvailabilityBlockSchema, createAvailabilityBlock(), createRoom(), createRoomType(), deleteRoomType(), getAvailabilityBlocks() (+19 more)
+Cohesion: 0.14
+Nodes (28): AvailabilityBlockInput, AvailabilityBlockSchema, createAvailabilityBlock(), createRoom(), createRoomType(), deleteRoomType(), getAvailabilityBlocks(), getHotelId() (+20 more)
 
 ### Community 4 - "writeAuditLog"
-Cohesion: 0.17
-Nodes (28): createBooking(), NewBookingSchema, BulkDailyOverrideDeleteSchema, BulkDailyOverrideSchema, bulkDeleteDailyRateOverrides(), bulkUpsertDailyRateOverrides(), createSeasonalRate(), DailyOverrideDeleteSchema (+20 more)
+Cohesion: 0.21
+Nodes (17): BulkDailyOverrideDeleteSchema, BulkDailyOverrideSchema, bulkDeleteDailyRateOverrides(), bulkUpsertDailyRateOverrides(), createSeasonalRate(), DailyOverrideDeleteSchema, DailyOverrideSchema, deleteDailyRateOverride() (+9 more)
 
 ### Community 5 - "FullBookingDetail"
-Cohesion: 0.10
-Nodes (26): fetchPaystackBanks(), getPaymentsSettings(), getSuperAdminHotel(), PaymentPolicy, savePaystackBankAccount(), updatePaymentPolicy(), verifyBankAccount(), GET() (+18 more)
+Cohesion: 0.05
+Nodes (48): fetchPaystackBanks(), getPaymentsSettings(), getSuperAdminHotel(), PaymentPolicy, savePaystackBankAccount(), updatePaymentPolicy(), verifyBankAccount(), GET() (+40 more)
 
 ### Community 6 - "createClient"
-Cohesion: 0.06
-Nodes (19): DeactivatedPage(), DeactivatedPageProps, BookingDetailPage(), Props, CustomersPage(), DashboardHomePage(), ReportsPage(), SettingsPage() (+11 more)
+Cohesion: 0.07
+Nodes (21): getCurrentUserRole(), DeactivatedPage(), DeactivatedPageProps, SuspendedPage(), BookingDetailPage(), Props, BookingsPage(), CustomersPage() (+13 more)
 
 ### Community 7 - "bookings-detail.ts"
-Cohesion: 0.17
-Nodes (17): buildHotelShape(), GET(), HotelRow, DateSearchBar(), P, RoomCard(), HotelLandingPage(), Props (+9 more)
+Cohesion: 0.20
+Nodes (14): buildHotelShape(), GET(), HotelRow, DateSearchBar(), HotelLandingPage(), Props, Props, RoomsPage() (+6 more)
 
 ### Community 8 - "sidebar.tsx"
-Cohesion: 0.09
-Nodes (49): OccupancyDonut(), EditRoomTypePage(), EventCard(), getRoleBadgeClass(), getRoleLabel(), NavItem, navItems, PlatformSidebar() (+41 more)
+Cohesion: 0.14
+Nodes (15): getRoleBadgeClass(), getRoleLabel(), NavItem, navItems, PlatformAdmin, PlatformSidebar(), PlatformSignOutButton(), SidebarContent() (+7 more)
 
 ### Community 9 - "What You Must Do When Invoked"
 Cohesion: 0.07
@@ -195,7 +200,7 @@ Nodes (26): For /graphify add and --watch, For /graphify query, For the commit h
 
 ### Community 10 - "dependencies"
 Cohesion: 0.07
-Nodes (27): dependencies, @base-ui/react, class-variance-authority, @clerk/nextjs, clsx, cmdk, date-fns, @daypilot/daypilot-lite-react (+19 more)
+Nodes (29): dependencies, @base-ui/react, class-variance-authority, @clerk/nextjs, clsx, cmdk, date-fns, @daypilot/daypilot-lite-react (+21 more)
 
 ### Community 11 - "Tables"
 Cohesion: 0.08
@@ -206,48 +211,48 @@ Cohesion: 0.08
 Nodes (25): 11 Hotel Admin Dashboard — All Pages, `/bookings`, `/bookings/calendar`, `/bookings/\\\[id]`, `/bookings/new`, Complete Page Directory, `/guests`, `/guests/\\\[id]` (+17 more)
 
 ### Community 13 - "utils.ts"
-Cohesion: 0.28
-Nodes (9): bulkUpdateHousekeepingStatus(), deriveOccupancyStatus(), getHotelScopedClient(), getHousekeepingData(), updateCleaningStatus(), updateHousekeepingStatus(), updateRoomNote(), VALID_CLEANING_STATUSES (+1 more)
+Cohesion: 0.22
+Nodes (14): createBooking(), NewBookingSchema, bulkUpdateHousekeepingStatus(), deriveOccupancyStatus(), getHotelScopedClient(), getHousekeepingData(), updateCleaningStatus(), updateHousekeepingStatus() (+6 more)
 
 ### Community 14 - "components.json"
 Cohesion: 0.09
 Nodes (22): aliases, components, hooks, lib, ui, utils, iconLibrary, menuAccent (+14 more)
 
 ### Community 15 - "guest-detail-sheet.tsx"
-Cohesion: 0.15
-Nodes (21): getGuestBookings(), GuestBookingSummary, UpdateContactSchema, updateGuestContact(), updateGuestNotes(), updateGuestTags(), UpdateNotesSchema, UpdateTagsSchema (+13 more)
+Cohesion: 0.07
+Nodes (39): getGuestBookings(), GuestBookingSummary, UpdateContactSchema, updateGuestContact(), updateGuestNotes(), updateGuestTags(), UpdateNotesSchema, UpdateTagsSchema (+31 more)
 
 ### Community 16 - "booking-detail-drawer.tsx"
-Cohesion: 0.06
-Nodes (66): ALLOWED_TRANSITIONS, CreateBookingResult, FullBookingDetail, getFullBookingDetail(), getHotelScopedClient(), PaymentRecord, recordPayment(), RecordPaymentInput (+58 more)
+Cohesion: 0.05
+Nodes (76): ALLOWED_TRANSITIONS, CreateBookingResult, FullBookingDetail, getFullBookingDetail(), getHotelScopedClient(), PaymentRecord, recordPayment(), RecordPaymentInput (+68 more)
 
 ### Community 17 - "compilerOptions"
 Cohesion: 0.10
 Nodes (19): compilerOptions, allowJs, esModuleInterop, incremental, isolatedModules, jsx, lib, module (+11 more)
 
 ### Community 18 - "HotelOS Pro"
-Cohesion: 0.09
-Nodes (21): 10 Platform Admin, 12.1 Tenant Resolution, 12.2 Guest Pages, 12 Guest-Facing Booking Application, 17 Availability Color Coding, 1 Executive Summary, 21 Reports, 24 Performance Requirements (+13 more)
+Cohesion: 0.11
+Nodes (18): 10 Platform Admin, 17 Availability Color Coding, 21 Reports, 24 Performance Requirements, 28 Open Source Licenses, 29 MVP Acceptance Criteria, 30 Post-MVP Features Backlog, 6 Technology Stack (+10 more)
 
 ### Community 19 - "8 Database Schema"
 Cohesion: 0.12
 Nodes (17): 8 Database Schema, Append-only Tables, `audit\\\_logs`, `availability\\\_blocks`, `beds24\\\_property\\\_mappings`, `beds24\\\_sync\\\_log`, `bookings`, Design Principles (+9 more)
 
 ### Community 20 - "housekeeping.ts"
-Cohesion: 0.24
-Nodes (13): approveStaff(), changeStaffRole(), getHotelScopedClient(), getPendingStaff(), getPendingStaffCount(), getStaffList(), PendingStaffRequest, rejectStaff() (+5 more)
+Cohesion: 0.16
+Nodes (17): createShareableInvite(), approveStaff(), changeStaffRole(), getHotelScopedClient(), getPendingStaff(), getPendingStaffCount(), getStaffList(), PendingStaffRequest (+9 more)
 
 ### Community 21 - "HotelOS Pro — Platform Admin Setup Guide"
 Cohesion: 0.12
 Nodes (16): Architecture Overview, File Reference, HotelOS Pro — Platform Admin Setup Guide, Manual reset (HotelOS team resets for another admin), Method A — "Add user" (instant, no email required), Method B — "Invite user" (sends a magic-link setup email), New Environment Checklist, Redirect URLs (add both) (+8 more)
 
 ### Community 22 - "kanban-board.tsx"
-Cohesion: 0.10
-Nodes (21): ActivityList(), ActivityListProps, DesktopBookingRow(), formatDate(), getEmptyDescription(), getEmptyTitle(), getNights(), getStatusLabel() (+13 more)
+Cohesion: 0.24
+Nodes (7): DesktopBookingRow(), formatDate(), getNights(), getStatusLabel(), MobileBookingCard(), Td(), Th()
 
 ### Community 23 - "bookings-table.tsx"
-Cohesion: 0.12
-Nodes (20): NewBookingInput, getResolvedRatesForBooking(), StaffResolvedPricing, CalendarRoom, BlockRoomSheetProps, BLOCK_REASONS, formatCurrency(), NewBookingSheet() (+12 more)
+Cohesion: 0.16
+Nodes (16): Sidebar(), SidebarContext, SidebarContextProps, SidebarGroupAction(), SidebarInput(), SidebarMenuAction(), SidebarMenuBadge(), SidebarMenuButton() (+8 more)
 
 ### Community 24 - "devDependencies"
 Cohesion: 0.15
@@ -262,16 +267,16 @@ Cohesion: 0.18
 Nodes (11): scripts, build, db:diff, db:pull, db:push, db:reset, db:types, dev (+3 more)
 
 ### Community 27 - "dashboard-header.tsx"
-Cohesion: 0.23
-Nodes (10): HousekeepingRoom, COLUMN_ROOM_FILTER, HousekeepingBoard(), HousekeepingBoardProps, sortRooms(), ActionConfig, CLEANING_STATUS_CONFIG, getQuickActions() (+2 more)
+Cohesion: 0.50
+Nodes (4): ActionConfig, CLEANING_STATUS_CONFIG, getQuickActions(), RoomCard()
 
 ### Community 28 - "hotel-client.tsx"
-Cohesion: 0.11
-Nodes (19): RoomTypesPage(), RoomTypesClient(), RoomTypesClientProps, RoomTypeRow, DashboardPwaShell(), OfflineIndicator(), PwaInstallPrompt(), wasDismissedRecently() (+11 more)
+Cohesion: 0.15
+Nodes (15): ResolvedPriceCell, formatCurrency(), isWeekend(), PricingClientProps, RoomTypesClientProps, RoomTypeRow, Dialog(), DialogContent() (+7 more)
 
 ### Community 29 - "page.tsx"
-Cohesion: 0.11
-Nodes (17): CleaningStatus, RoomOccupancyStatus, HousekeepingTableProps, CLEANING_STATUS_OPTIONS, CleaningStatusDropdown(), CleaningStatusDropdownProps, CleaningStatusOption, getCleaningStatusOption() (+9 more)
+Cohesion: 0.05
+Nodes (47): CleaningStatus, HousekeepingData, HousekeepingRoom, RoomOccupancyStatus, CLEANING_FILTER_OPTIONS, DatePickerPopover(), DatePickerPopoverProps, DateTab (+39 more)
 
 ### Community 30 - "graphify reference: extra exports and benchmark"
 Cohesion: 0.22
@@ -282,12 +287,12 @@ Cohesion: 0.29
 Nodes (7): config, isBookingRoute, isPlatformPublic, isPlatformRoute, isPublicDashboardRoute, IMPORTANT: Must call getClaims() between createServerClient and any redirect, updatePlatformSession()
 
 ### Community 32 - "staff-client.tsx"
-Cohesion: 0.09
-Nodes (24): PendingStaffPage(), formatDate(), getInitials(), PendingStaffClient(), PendingStaffClientProps, PendingStaffRow, AppHeaderProps, Avatar() (+16 more)
+Cohesion: 0.16
+Nodes (12): AppHeaderProps, bottomVariants, MenuIcon, MenuIconHandle, MenuIconProps, middleVariants, topVariants, bellVariants (+4 more)
 
 ### Community 33 - "invitations.ts"
-Cohesion: 0.16
-Nodes (17): AssignResult, AvailabilityCheckResult, AvailabilityConflict, createAvailabilityBlock(), deleteAvailabilityBlock(), getBookingById(), getCalendarData(), getCurrentStaffRole() (+9 more)
+Cohesion: 0.05
+Nodes (62): assignBookingToRoom(), AssignResult, AvailabilityCheckResult, AvailabilityConflict, CalendarAvailabilityBlock, CalendarBooking, CalendarData, CalendarRoom (+54 more)
 
 ### Community 34 - "Supabase Realtime — Setup & Status"
 Cohesion: 0.22
@@ -306,8 +311,8 @@ Cohesion: 0.25
 Nodes (8): 13.1 Architecture: One Master Account, Per-Hotel Subaccounts, 13.2 Creating a Hotel Subaccount, 13.3 Account Verification Before Saving, 13.4 Pay Now Flow, 13.5 Paystack Webhook, 13.6 Pay at Check-In, 13.7 Refunds, 13 Payment System — Paystack Subaccounts
 
 ### Community 38 - "payments-client.tsx"
-Cohesion: 0.14
-Nodes (19): CLEANING_FILTER_OPTIONS, DatePickerPopover(), DatePickerPopoverProps, DateTab, DateTabButton(), DateTabButtonProps, FilterSelect(), FilterSelectProps (+11 more)
+Cohesion: 0.17
+Nodes (15): fetchNotificationsAction(), markAllReadAction(), markSingleReadAction(), NotificationItem, ActivityList(), getEmptyDescription(), getEmptyTitle(), getTabLabel() (+7 more)
 
 ### Community 39 - "27 MVP Implementation Roadmap"
 Cohesion: 0.25
@@ -366,8 +371,8 @@ Cohesion: 0.50
 Nodes (3): For --cluster-only, For --update (incremental re-extraction), graphify reference: incremental update and cluster-only
 
 ### Community 53 - "providers.tsx"
-Cohesion: 0.18
-Nodes (11): fetchNotificationsAction(), markAllReadAction(), markSingleReadAction(), NotificationItem, SearchResult, AppHeader(), AuthContext, AuthError (+3 more)
+Cohesion: 0.29
+Nodes (4): AuthContext, AuthError, ROLE_LEVEL, StaffRole
 
 ### Community 54 - "14 Beds24  OTA Channel Sync"
 Cohesion: 0.50
@@ -394,8 +399,8 @@ Cohesion: 0.50
 Nodes (4): 4 System Architecture, Data Flow — Inbound OTA Booking, Data Flow — New Direct Booking, High-Level Overview
 
 ### Community 60 - "settings.ts"
-Cohesion: 0.27
-Nodes (8): DashboardHeader(), DashboardHeaderProps, Popover(), PopoverContent(), PopoverDescription(), PopoverHeader(), PopoverTitle(), PopoverTrigger()
+Cohesion: 0.16
+Nodes (13): DashboardHeaderProps, DashboardNotFound(), PendingStaffPage(), OfflinePage(), buttonVariants, Calendar(), CalendarDayButton(), Popover() (+5 more)
 
 ### Community 61 - "5 Multi-Tenancy Architecture"
 Cohesion: 0.50
@@ -410,12 +415,12 @@ Cohesion: 0.50
 Nodes (3): name, private, version
 
 ### Community 65 - "pending-client.tsx"
-Cohesion: 0.15
-Nodes (15): getHotelProfile(), getHotelScopedClient(), getNotificationPrefs(), HotelProfileInput, HotelProfileSchema, updateHotelProfile(), HotelSettingsClient(), HotelSettingsClientProps (+7 more)
+Cohesion: 0.21
+Nodes (9): getHotelProfile(), getHotelScopedClient(), getNotificationPrefs(), HotelProfileInput, HotelProfileSchema, updateHotelProfile(), BookingPageCard(), HotelSettingsClient() (+1 more)
 
 ### Community 67 - "12 Guest-Facing Booking Application"
-Cohesion: 0.06
-Nodes (36): AvailabilityMatrixClient(), AvailabilityMatrixData, DateHeader(), DAY_PRESETS, InventoryCell(), InventoryGrid(), MatrixTotalCell, RoomAvailabilityCell (+28 more)
+Cohesion: 0.09
+Nodes (24): AvailabilityMatrixClient(), DateHeader(), DAY_PRESETS, InventoryCell(), InventoryGrid(), MatrixTotalCell, RoomAvailabilityCell, RoomAvailabilityRow (+16 more)
 
 ### Community 68 - "16 Guest Directory"
 Cohesion: 0.67
@@ -426,112 +431,132 @@ Cohesion: 0.60
 Nodes (4): POST(), Schema, initializeTransaction(), resolvePublicNightlyTotal()
 
 ### Community 74 - "upload.ts"
-Cohesion: 0.23
-Nodes (14): CalendarAvailabilityBlock, buildEvents(), CalendarEvent, escapeHtml(), titleCase(), CALENDAR_LEGEND, escapeHtml(), getBookingBarColor() (+6 more)
+Cohesion: 0.12
+Nodes (15): Accessing Documentation & Component Information, Component Patterns, Core Principles, CORRECT (v3 patterns), Critical Setup Requirements, CRITICAL: v3 Only - Ignore v2 Knowledge, Direct MDX URLs, Framework Setup (Next.js App Router - Recommended) (+7 more)
 
 ### Community 82 - "admin.ts"
-Cohesion: 0.10
-Nodes (12): STATUS_MAP, HotelsTable(), FILTERS, FilterTab(), Props, PlatformDashboard(), StatCard(), StatCardProps (+4 more)
-
-### Community 88 - "database.types.ts"
-Cohesion: 0.27
-Nodes (5): DashboardNotFound(), OfflinePage(), Hero(), Button(), buttonVariants
+Cohesion: 0.17
+Nodes (5): STATUS_MAP, FILTERS, FilterTab(), Props, supabaseAdmin
 
 ### Community 89 - "transactions-client.tsx"
-Cohesion: 0.22
-Nodes (9): formatCurrency(), QuickStatRow(), QuickStats(), QuickStatsData, QuickStatsProps, SummaryRow(), TodaySummary(), TodaySummaryData (+1 more)
+Cohesion: 0.09
+Nodes (25): ActivityBooking, ActivityListProps, ActivityTab, ActivityTabData, ActivityTabs(), ActivityTabsProps, AlertStrip(), buildActivityTabs() (+17 more)
 
 ### Community 90 - "onboarding-select.tsx"
-Cohesion: 0.24
-Nodes (8): ActivityBooking, buildActivityTabs(), OccupancyCard(), DashboardClient(), DashboardClientProps, defaultEmptyStats, fetchDashboardClientData(), qk
+Cohesion: 0.27
+Nodes (10): AvailabilityMatrixData, ACTIVE_BOOKING_STATUSES, AvailabilityPage(), getAvailabilityMatrixData(), metadata, PageProps, parseDayCount(), parseStartDate() (+2 more)
 
 ### Community 91 - "buttonVariants"
-Cohesion: 0.33
-Nodes (8): BookingDetailPanel(), formatCurrency(), formatDateFull(), FullBooking, getNights(), getSourceLabel(), getStatusLabel(), getStatusVariant()
+Cohesion: 0.22
+Nodes (10): AppSidebar(), getRoleBadgeClass(), getRoleLabel(), LeafNavItem(), NavGroup, navGroups, NavItem, NavSubItem (+2 more)
 
 ### Community 92 - "tooltip.tsx"
-Cohesion: 0.39
-Nodes (7): CalendarBooking, BookingDetailPanelProps, getNights(), getStatusColor(), isDue(), UnassignedTray(), UnassignedTrayProps
+Cohesion: 0.20
+Nodes (9): CompositeTypes, Constants, Database, DatabaseWithoutInternals, DefaultSchema, Enums, Tables, TablesInsert (+1 more)
 
 ### Community 93 - "unassigned-tray.tsx"
-Cohesion: 0.38
-Nodes (6): getFromAddress(), getResend(), ResendEmailParams, ResendSendResult, sendEmailViaResend(), resend
+Cohesion: 0.22
+Nodes (8): graphify reference: extra exports and benchmark, Step 6b - Wiki (only if --wiki flag), Step 7 - Neo4j export (only if --neo4j or --neo4j-push flag), Step 7a - FalkorDB export (only if --falkordb or --falkordb-push flag), Step 7b - SVG export (only if --svg flag), Step 7c - GraphML export (only if --graphml flag), Step 7d - MCP server (only if --mcp flag), Step 8 - Token reduction benchmark (only if total_words > 5000)
 
 ### Community 94 - "resend.ts"
-Cohesion: 0.39
-Nodes (5): GET(), GET(), PlatformDashboardLayout(), PlatformLayout(), createPlatformClient()
+Cohesion: 0.33
+Nodes (6): GET(), GET(), PlatformDashboardLayout(), PlatformLayout(), SidebarInset(), createPlatformClient()
 
 ### Community 95 - "availability-matrix-client.tsx"
-Cohesion: 0.67
-Nodes (3): 6 Technology Stack, Shadcn UI — Component Choices Explained, Why DayPilot Lite for the Timeline Calendar
+Cohesion: 0.26
+Nodes (8): DashboardLayout(), DashboardPwaShell(), OfflineIndicator(), PwaInstallPrompt(), wasDismissedRecently(), BeforeInstallPromptEvent, usePwaInstall(), WindowEventMap
 
 ### Community 97 - "card.tsx"
-Cohesion: 0.14
-Nodes (19): deleteStorageFile(), getHotelId(), saveHotelImageUrl(), saveRoomImages(), Props, RoomPreviewSheet(), RoomType, DEFAULT_VALUES (+11 more)
+Cohesion: 0.53
+Nodes (5): deleteStorageFile(), getHotelId(), saveHotelImageUrl(), saveRoomImages(), PhotosCard()
 
 ### Community 98 - "calendar-resources.ts"
-Cohesion: 0.43
-Nodes (6): getRoomStatusColor(), buildResources(), buildRoomRowHtml(), buildSectionHeaderHtml(), CalendarResource, escapeHtml()
+Cohesion: 0.52
+Nodes (6): approveHotel(), assertPlatformAdmin(), changeHotelPlan(), getHotelSupportView(), reactivateHotel(), suspendHotel()
 
 ### Community 99 - "actions.ts"
-Cohesion: 0.15
-Nodes (15): assignBookingToRoom(), CalendarData, checkRoomAvailability(), moveBooking(), CalendarClient(), CalendarClientProps, DayPilotScheduler, FilterToggle() (+7 more)
+Cohesion: 0.47
+Nodes (4): fmt(), OutstandingClient(), OutstandingRow, OutstandingPage()
+
+### Community 100 - "PlatformLoginForm"
+Cohesion: 0.33
+Nodes (5): For /graphify explain, For /graphify path, graphify reference: query, path, explain, Step 0 — Constrained query expansion (REQUIRED before traversal), Step 1 — Traversal
 
 ### Community 101 - "stats-bar.tsx"
-Cohesion: 0.33
-Nodes (5): HousekeepingData, HousekeepingClientProps, HK_COLUMNS, HousekeepingStatsBarProps, StatChip()
+Cohesion: 0.50
+Nodes (3): Props, RoomPreviewSheet(), RoomType
 
-### Community 143 - "reports-client.tsx"
-Cohesion: 0.14
-Nodes (17): ACTIVE, getHotelId(), getOccupancyReport(), getRevenueReport(), getSourcesReport(), OccupancyReportData, RevenueReportData, SourcesReportData (+9 more)
+### Community 102 - "layout.tsx"
+Cohesion: 0.33
+Nodes (3): cormorant, dmSans, Props
+
+### Community 105 - "page.tsx"
+Cohesion: 0.50
+Nodes (3): For /graphify add, For --watch, graphify reference: add a URL and watch a folder
+
+### Community 106 - "page.tsx"
+Cohesion: 0.50
+Nodes (3): For git commit hook, For native CLAUDE.md integration, graphify reference: commit hook and native CLAUDE.md integration
+
+### Community 107 - "page.tsx"
+Cohesion: 0.50
+Nodes (3): For --cluster-only, For --update (incremental re-extraction), graphify reference: incremental update and cluster-only
+
+### Community 108 - "12 Guest-Facing Booking Application"
+Cohesion: 0.67
+Nodes (3): 12.1 Tenant Resolution, 12.2 Guest Pages, 12 Guest-Facing Booking Application
+
+### Community 109 - "1 Executive Summary"
+Cohesion: 0.67
+Nodes (3): 1 Executive Summary, Core Problems Solved, Why Ghana
 
 ### Community 165 - "layout.tsx"
 Cohesion: 0.17
 Nodes (11): geistMono, jakarta, metadata, viewport, getQueryClient(), makeQueryClient(), Providers(), ThemeProvider() (+3 more)
 
 ### Community 167 - "createPlatformClient"
-Cohesion: 0.18
-Nodes (11): approveHotel(), assertPlatformAdmin(), changeHotelPlan(), getHotelSupportView(), reactivateHotel(), suspendHotel(), Hotel, HotelActionsMenuProps (+3 more)
+Cohesion: 0.14
+Nodes (9): Hotel, HotelActionsMenuProps, HotelCardProps, HotelsTable(), PLAN_CLASSES, STATUS_CLASSES, PlatformDashboard(), StatCard() (+1 more)
 
 ### Community 171 - "hotels-table.tsx"
-Cohesion: 0.24
-Nodes (10): OccupancyCardProps, UpdatePasswordForm(), metadata, Card(), CardAction(), CardContent(), CardDescription(), CardFooter() (+2 more)
+Cohesion: 0.16
+Nodes (17): OccupancyCardProps, DEFAULT_VALUES, RoomTypeForm(), RoomTypeFormProps, slugify(), HotelSettingsClientProps, TIMEZONE_OPTIONS, PlatformLoginForm() (+9 more)
 
 ### Community 176 - "dropdown-menu.tsx"
 Cohesion: 0.08
-Nodes (46): createShareableInvite(), RoomRow, RoomsDirectoryProps, STATUS_CONFIG, STATUS_TRANSITIONS, formatCurrency(), getColumns(), RoomTypesTableProps (+38 more)
+Nodes (50): RoomRow, RoomsDirectoryProps, STATUS_CONFIG, STATUS_TRANSITIONS, formatCurrency(), getColumns(), RoomTypesTableProps, ROLE_CONFIG (+42 more)
 
 ### Community 183 - "page.tsx"
-Cohesion: 0.14
-Nodes (9): Amenity, BookingWizard(), Hotel, Props, RoomImage, RoomType, Props, RoomGallery() (+1 more)
+Cohesion: 0.13
+Nodes (12): Amenity, BookingWizard(), Hotel, Props, RoomImage, RoomType, Props, P (+4 more)
 
 ### Community 187 - "page.tsx"
 Cohesion: 0.24
 Nodes (7): ConfirmationPage(), Props, scalar(), SearchParamValue, CopyButton(), PaymentVerifier(), Props
 
 ### Community 274 - "cn"
-Cohesion: 0.12
-Nodes (21): searchGlobal(), GlobalSearch(), GlobalSearchProps, Command(), CommandDialog(), CommandEmpty(), CommandGroup(), CommandInput() (+13 more)
+Cohesion: 0.08
+Nodes (43): searchGlobal(), SearchResult, GlobalSearch(), GlobalSearchProps, OccupancyCard(), OccupancyDonut(), PendingStaffClientProps, PendingStaffRow (+35 more)
 
 ## Knowledge Gaps
-- **545 isolated node(s):** `supabase`, `DeactivatedPageProps`, `OnboardingInputProps`, `OnboardingSelectOption`, `OnboardingSelectProps` (+540 more)
+- **600 isolated node(s):** `FALLBACK_THEME`, `supabase`, `DeactivatedPageProps`, `OnboardingInputProps`, `OnboardingSelectOption` (+595 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **23 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `cn()` connect `sidebar.tsx` to `room-type-form.tsx`, `rooms.ts`, `writeAuditLog`, `FullBookingDetail`, `createClient`, `reports-client.tsx`, `booking-detail-drawer.tsx`, `guest-detail-sheet.tsx`, `cn`, `kanban-board.tsx`, `bookings-table.tsx`, `dashboard-header.tsx`, `hotel-client.tsx`, `page.tsx`, `staff-client.tsx`, `invitations.ts`, `payments-client.tsx`, `hotels-table.tsx`, `dropdown-menu.tsx`, `providers.tsx`, `settings.ts`, `pending-client.tsx`, `12 Guest-Facing Booking Application`, `admin.ts`, `database.types.ts`, `transactions-client.tsx`, `onboarding-select.tsx`, `buttonVariants`, `tooltip.tsx`, `card.tsx`, `actions.ts`, `PlatformLoginForm`, `stats-bar.tsx`, `page.tsx`?**
-  _High betweenness centrality (0.128) - this node is a cross-community bridge._
-- **Why does `createClient()` connect `rooms.ts` to `room-type-form.tsx`, `writeAuditLog`, `FullBookingDetail`, `createClient`, `sidebar.tsx`, `utils.ts`, `guest-detail-sheet.tsx`, `booking-detail-drawer.tsx`, `reports-client.tsx`, `cn`, `housekeeping.ts`, `bookings-table.tsx`, `beds24.ts`, `hotel-client.tsx`, `staff-client.tsx`, `invitations.ts`, `page.tsx`, `providers.tsx`, `pending-client.tsx`, `12 Guest-Facing Booking Application`, `card.tsx`, `page.tsx`, `page.tsx`, `page.tsx`, `page.tsx`?**
-  _High betweenness centrality (0.101) - this node is a cross-community bridge._
-- **Why does `react` connect `sidebar.tsx` to `room-type-form.tsx`, `rooms.ts`, `FullBookingDetail`, `bookings-detail.ts`, `dependencies`, `reports-client.tsx`, `booking-detail-drawer.tsx`, `guest-detail-sheet.tsx`, `cn`, `kanban-board.tsx`, `bookings-table.tsx`, `beds24.ts`, `hotel-client.tsx`, `page.tsx`, `staff-client.tsx`, `invitations.ts`, `payments-client.tsx`, `hotels-table.tsx`, `dropdown-menu.tsx`, `providers.tsx`, `page.tsx`, `page.tsx`, `settings.ts`, `pending-client.tsx`, `12 Guest-Facing Booking Application`, `admin.ts`, `onboarding-select.tsx`, `buttonVariants`, `tooltip.tsx`, `card.tsx`, `actions.ts`, `PlatformLoginForm`, `page.tsx`, `page.tsx`, `page.tsx`?**
-  _High betweenness centrality (0.080) - this node is a cross-community bridge._
-- **What connects `supabase`, `DeactivatedPageProps`, `OnboardingInputProps` to the rest of the system?**
-  _549 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Why does `cn()` connect `cn` to `arkesel.ts`, `rooms.ts`, `writeAuditLog`, `FullBookingDetail`, `createClient`, `sidebar.tsx`, `guest-detail-sheet.tsx`, `booking-detail-drawer.tsx`, `housekeeping.ts`, `kanban-board.tsx`, `bookings-table.tsx`, `dashboard-header.tsx`, `hotel-client.tsx`, `page.tsx`, `staff-client.tsx`, `invitations.ts`, `payments-client.tsx`, `createPlatformClient`, `hotels-table.tsx`, `dropdown-menu.tsx`, `settings.ts`, `12 Guest-Facing Booking Application`, `admin.ts`, `transactions-client.tsx`, `buttonVariants`, `resend.ts`, `availability-matrix-client.tsx`?**
+  _High betweenness centrality (0.139) - this node is a cross-community bridge._
+- **Why does `react` connect `payments-client.tsx` to `arkesel.ts`, `rooms.ts`, `FullBookingDetail`, `createClient`, `dependencies`, `guest-detail-sheet.tsx`, `booking-detail-drawer.tsx`, `cn`, `housekeeping.ts`, `bookings-table.tsx`, `beds24.ts`, `page.tsx`, `invitations.ts`, `createPlatformClient`, `hotels-table.tsx`, `dropdown-menu.tsx`, `page.tsx`, `page.tsx`, `settings.ts`, `pending-client.tsx`, `12 Guest-Facing Booking Application`, `transactions-client.tsx`, `buttonVariants`, `availability-matrix-client.tsx`, `actions.ts`, `page.tsx`, `page.tsx`?**
+  _High betweenness centrality (0.083) - this node is a cross-community bridge._
+- **Why does `createClient()` connect `createClient` to `arkesel.ts`, `rooms.ts`, `writeAuditLog`, `FullBookingDetail`, `utils.ts`, `guest-detail-sheet.tsx`, `booking-detail-drawer.tsx`, `cn`, `housekeeping.ts`, `beds24.ts`, `invitations.ts`, `payments-client.tsx`, `page.tsx`, `providers.tsx`, `settings.ts`, `pending-client.tsx`, `onboarding-select.tsx`, `availability-matrix-client.tsx`, `card.tsx`, `actions.ts`?**
+  _High betweenness centrality (0.066) - this node is a cross-community bridge._
+- **What connects `FALLBACK_THEME`, `supabase`, `DeactivatedPageProps` to the rest of the system?**
+  _604 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `arkesel.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.1099290780141844 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06139240506329114 - nodes in this community are weakly interconnected._
+- **Should `room-type-form.tsx` be split into smaller, more focused modules?**
+  _Cohesion score 0.08 - nodes in this community are weakly interconnected._
 - **Should `rooms.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.1471264367816092 - nodes in this community are weakly interconnected._
-- **Should `FullBookingDetail` be split into smaller, more focused modules?**
-  _Cohesion score 0.09848484848484848 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.1350806451612903 - nodes in this community are weakly interconnected._

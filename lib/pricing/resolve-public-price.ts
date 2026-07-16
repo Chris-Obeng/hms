@@ -127,37 +127,74 @@ export async function resolvePublicRoomPrices(
   const seasons = seasonsRes.data ?? [];
   const dailyOverrides = dailyRes.data ?? [];
 
+  // ── Build lookup Maps for O(1) resolution ───────────────────────
+  // Map: "roomTypeId" → room type row
+  const roomTypeMap = new Map(roomTypes.map((r) => [r.id, r]));
+
+  // Map: "roomTypeId_date" → daily override price
+  const dailyOverrideMap = new Map(
+    dailyOverrides.map((d) => [`${d.room_type_id}_${d.date}`, Number(d.price)])
+  );
+
+  // ── Overlap tie-breaking: latest start_date wins ─────────────────
+  const sortedSeasons = [...seasons].sort((a, b) =>
+    b.start_date.localeCompare(a.start_date)
+  );
+
+  // Warn on overlapping season pairs (data integrity, migrated data)
+  for (let i = 0; i < sortedSeasons.length; i++) {
+    for (let j = i + 1; j < sortedSeasons.length; j++) {
+      const a = sortedSeasons[i];
+      const b = sortedSeasons[j];
+      if (a.start_date <= b.end_date && a.end_date >= b.start_date) {
+        console.warn(
+          `[pricing/public] Overlapping seasons: "${a.name}" (${a.start_date}–${a.end_date}) ` +
+          `overlaps "${b.name}" (${b.start_date}–${b.end_date}). ` +
+          `"${a.name}" wins (latest start_date).`
+        );
+      }
+    }
+  }
+
+  // Map: "seasonId_roomTypeId" → override
+  const seasonOverrideMap = new Map<
+    string,
+    { base_price: number; weekend_price: number | null }
+  >();
+  for (const s of seasons) {
+    for (const ov of (s.overrides as { room_type_id: string; base_price: number; weekend_price: number | null }[] ?? [])) {
+      seasonOverrideMap.set(`${s.id}_${ov.room_type_id}`, {
+        base_price: Number(ov.base_price),
+        weekend_price: ov.weekend_price != null ? Number(ov.weekend_price) : null,
+      });
+    }
+  }
+
   return roomTypeIds.map((rtId) => {
-    const rt = roomTypes.find((r) => r.id === rtId);
+    const rt = roomTypeMap.get(rtId);
 
     const resolvedNights: ResolvedNight[] = nightDates.map((date) => {
       const weekend = isWeekendNight(date);
 
       // Priority 1 — daily override
-      const daily = dailyOverrides.find(
-        (d) => d.room_type_id === rtId && d.date === date
-      );
-      if (daily) {
-        return { date, price: Number(daily.price), source: "daily" as const };
+      const dailyPrice = dailyOverrideMap.get(`${rtId}_${date}`);
+      if (dailyPrice !== undefined) {
+        return { date, price: dailyPrice, source: "daily" as const };
       }
 
-      // Priority 2 — seasonal override
-      const season = seasons.find(
+      // Priority 2 — seasonal override (latest-start wins on overlap)
+      const season = sortedSeasons.find(
         (s) => s.start_date <= date && s.end_date >= date
       );
-      const seasonOverride = season?.overrides?.find(
-        (o: { room_type_id: string }) => o.room_type_id === rtId
-      );
+      const seasonOverride = season
+        ? seasonOverrideMap.get(`${season.id}_${rtId}`)
+        : undefined;
+
       if (season && seasonOverride) {
         const price = weekend
-          ? (Number(seasonOverride.weekend_price) || Number(seasonOverride.base_price))
-          : Number(seasonOverride.base_price);
-        return {
-          date,
-          price,
-          source: "seasonal" as const,
-          seasonName: season.name,
-        };
+          ? (seasonOverride.weekend_price ?? seasonOverride.base_price)
+          : seasonOverride.base_price;
+        return { date, price, source: "seasonal" as const, seasonName: season.name };
       }
 
       // Priority 3 — base / weekend price
