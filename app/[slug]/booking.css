@@ -9,6 +9,8 @@
   display: block;
   min-height: 100dvh;
   overflow-x: clip;
+  color-scheme: light;
+
   /* Guest accent tokens — deep stone primary, warm amber highlight */
   --bk-bg: #fafaf8;
   --bk-surface: #ffffff;
@@ -26,6 +28,52 @@
   --bk-radius-lg: 1.25rem;
   --bk-shadow: 0 1px 2px rgb(28 25 23 / 0.04), 0 8px 24px rgb(28 25 23 / 0.04);
   --bk-shadow-lg: 0 4px 6px rgb(28 25 23 / 0.03), 0 16px 40px rgb(28 25 23 / 0.08);
+
+  /*
+   * Force HeroUI light form tokens on guest pages.
+   * html.dark otherwise makes labels/placeholders/inputs unreadable.
+   */
+  --white: oklch(100% 0 0);
+  --snow: oklch(0.9911 0 0);
+  --eclipse: oklch(0.2103 0.0059 285.89);
+  --foreground: var(--eclipse);
+  --muted: oklch(0.5517 0.0138 285.94);
+  --default: oklch(94% 0.001 286.375);
+  --default-foreground: var(--eclipse);
+  --default-hover: oklch(92% 0.001 286.375);
+  --field-background: var(--white);
+  --field-foreground: var(--eclipse);
+  --field-placeholder: oklch(0.55 0.01 286);
+  --field-border: oklch(0.88 0.004 286);
+  --overlay: var(--white);
+  --overlay-foreground: var(--eclipse);
+  --border: oklch(90% 0.004 286.32);
+  --separator: oklch(92% 0.004 286.32);
+  --accent: oklch(0.6204 0.195 253.83);
+  --accent-foreground: var(--snow);
+  --accent-hover: color-mix(in oklab, var(--accent) 90%, var(--foreground) 10%);
+  --accent-soft: color-mix(in oklab, var(--accent) 15%, transparent);
+  --accent-soft-foreground: color-mix(
+    in oklab,
+    var(--accent) 70%,
+    var(--foreground) 30%
+  );
+  --accent-soft-hover: color-mix(in oklab, var(--accent) 20%, transparent);
+
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-default: var(--default);
+  --color-default-foreground: var(--default-foreground);
+  --color-field: var(--field-background);
+  --color-field-foreground: var(--field-foreground);
+  --color-field-placeholder: var(--field-placeholder);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-foreground: var(--accent-soft-foreground);
+  --color-overlay: var(--overlay);
+  --color-overlay-foreground: var(--overlay-foreground);
+  --color-border: var(--border);
 }
 
 /* Keyboard skip link — offscreen until focused */
@@ -80,10 +128,11 @@
 }
 
 .booking-header-hero {
+  /* Keep gradient tight to bar height — avoid tall wash over hero */
   background: linear-gradient(
     to bottom,
-    rgb(0 0 0 / 0.38) 0%,
-    rgb(0 0 0 / 0.12) 70%,
+    rgb(0 0 0 / 0.42) 0%,
+    rgb(0 0 0 / 0.18) 85%,
     transparent 100%
   );
   border-bottom: 1px solid transparent;
@@ -175,11 +224,61 @@
   background: #92400e !important;
 }
 
-/* Form field shell inside booking */
+/* Form field shell inside booking — readable labels, values, placeholders */
+.booking-field {
+  color: var(--bk-ink);
+}
+
+.booking-field [data-slot="label"],
+.booking-field label {
+  color: var(--bk-ink);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
 .booking-field input,
 .booking-field textarea,
-.booking-field [data-slot="input"] {
+.booking-field [data-slot="input"],
+.booking-field .input {
   border-radius: 0.75rem;
+  color: var(--bk-ink) !important;
+  background: #ffffff !important;
+  border: 1px solid var(--bk-line) !important;
+  box-shadow: none;
+}
+
+.booking-field input::placeholder,
+.booking-field textarea::placeholder,
+.booking-field .input::placeholder {
+  color: var(--bk-muted) !important;
+  opacity: 1;
+}
+
+.booking-field input:focus,
+.booking-field textarea:focus,
+.booking-field .input:focus-visible {
+  border-color: var(--bk-ink) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(28 25 23 / 0.08);
+}
+
+/* Nationality select trigger — match field contrast */
+.booking-field-select {
+  color: var(--bk-ink);
+}
+
+.booking-field-select [data-slot="label"],
+.booking-field-select label {
+  color: var(--bk-ink);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.booking-field-select .select__trigger,
+.booking-field-select [class*="trigger"] {
+  color: var(--bk-ink);
+  background: #ffffff;
+  border-color: var(--bk-line);
 }
 
 /* Step connector line */
@@ -322,11 +421,68 @@
 .booking-popover-panel {
   width: min(20rem, calc(100vw - 1.5rem));
   max-width: calc(100vw - 1.5rem);
+  /* Same isolation as calendar: stay readable over dark html theme */
+  color-scheme: light;
+  background: #ffffff;
+  color: oklch(0.2103 0.0059 285.89);
+  --foreground: oklch(0.2103 0.0059 285.89);
+  --muted: oklch(0.5517 0.0138 285.94);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
 }
 
 .booking-calendar-panel {
   width: min(20.5rem, calc(100vw - 1.25rem));
   max-width: calc(100vw - 1.25rem);
+  /* Always light surface — guest hero can sit under dark html theme */
+  color-scheme: light;
+  background: #ffffff;
+  color: oklch(0.2103 0.0059 285.89);
+  border-radius: 1rem;
+  box-shadow:
+    0 1px 2px rgb(15 23 42 / 0.06),
+    0 12px 32px rgb(15 23 42 / 0.12);
+
+  /*
+   * Isolate HeroUI light calendar tokens so dark mode on <html>
+   * does not wash out day numbers / selection on a white popover.
+   * Values match @heroui/styles default light theme.
+   */
+  --white: oklch(100% 0 0);
+  --snow: oklch(0.9911 0 0);
+  --eclipse: oklch(0.2103 0.0059 285.89);
+  --background: oklch(0.9702 0 0);
+  --foreground: var(--eclipse);
+  --overlay: var(--white);
+  --overlay-foreground: var(--foreground);
+  --muted: oklch(0.5517 0.0138 285.94);
+  --default: oklch(94% 0.001 286.375);
+  --default-foreground: var(--eclipse);
+  /* HeroUI accent blue — selection start/end + range track */
+  --accent: oklch(0.6204 0.195 253.83);
+  --accent-foreground: var(--snow);
+  --accent-hover: color-mix(in oklab, var(--accent) 90%, var(--foreground) 10%);
+  --accent-soft: color-mix(in oklab, var(--accent) 15%, transparent);
+  --accent-soft-foreground: color-mix(
+    in oklab,
+    var(--accent) 70%,
+    var(--foreground) 30%
+  );
+  --accent-soft-hover: color-mix(in oklab, var(--accent) 20%, transparent);
+  --border: oklch(90% 0.004 286.32);
+  --focus: var(--accent);
+
+  /* Tailwind / @theme bridges used by HeroUI utility classes */
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-default: var(--default);
+  --color-default-foreground: var(--default-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-foreground: var(--accent-soft-foreground);
+  --color-accent-soft-hover: var(--accent-soft-hover);
 }
 
 /* Full-bleed sticky header padding on notched phones */
@@ -342,146 +498,38 @@
   }
 }
 
-/* Guest date-range calendar — high contrast + clear blue selection */
+/* Guest date-range calendar — HeroUI structure; tokens from panel above */
 .booking-range-calendar {
-  --bk-cal-blue: #2563eb;
-  --bk-cal-blue-hover: #1d4ed8;
-  --bk-cal-blue-soft: #dbeafe;
-  --bk-cal-blue-soft-hover: #bfdbfe;
-  --bk-cal-ink: #0f172a;
-  --bk-cal-muted: #475569;
   width: 100%;
   max-width: 100%;
+  color: var(--foreground);
 }
 
-/* Day cells fill available width on small screens */
 .booking-range-calendar .range-calendar__grid {
   width: 100%;
 }
 
-.booking-range-calendar .range-calendar__cell-button {
-  min-width: 2.25rem;
-  min-height: 2.25rem;
-}
-
+/* Extra safety: day numbers + weekdays stay readable */
 .booking-range-calendar .range-calendar__heading {
-  color: var(--bk-cal-ink);
-  font-weight: 600;
-  font-size: 0.875rem;
+  color: var(--foreground);
 }
 
-.booking-range-calendar .range-calendar__nav-button {
-  color: var(--bk-cal-ink);
-}
-
-.booking-range-calendar .range-calendar__nav-button:hover,
-.booking-range-calendar .range-calendar__nav-button[data-hovered="true"] {
-  background: var(--bk-cal-blue-soft);
-  color: var(--bk-cal-blue);
-}
-
-/* Weekday labels — was faint text-muted */
 .booking-range-calendar .range-calendar__header-cell {
-  color: var(--bk-cal-muted);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  color: var(--muted);
   opacity: 1;
 }
 
-/* Day numbers */
-.booking-range-calendar .range-calendar__cell .range-calendar__cell-button {
-  color: var(--bk-cal-ink);
-  font-weight: 500;
-}
-
-/* Today (not selected) */
-.booking-range-calendar .range-calendar__cell[data-today="true"] .range-calendar__cell-button {
-  background: transparent;
-  color: var(--bk-cal-blue);
-  box-shadow: inset 0 0 0 1.5px var(--bk-cal-blue);
-  font-weight: 700;
-}
-
-/* Range middle track */
-.booking-range-calendar
-  .range-calendar__cell[data-selected="true"]:not([data-outside-month="true"]) {
-  background: var(--bk-cal-blue-soft);
+.booking-range-calendar .range-calendar__cell-button {
+  color: var(--foreground);
 }
 
 .booking-range-calendar
-  .range-calendar__cell[data-selected="true"]:not(
-    [data-selection-start="true"],
-    [data-selection-end="true"]
-  )
-  .range-calendar__cell-button {
-  color: var(--bk-cal-blue-hover);
-  font-weight: 600;
-  background: transparent;
-}
-
-/* Start / end caps — solid blue */
-.booking-range-calendar
-  .range-calendar__cell[data-selection-start="true"]:not([data-outside-month="true"])
+  .range-calendar__cell[data-selection-start="true"]
   .range-calendar__cell-button,
 .booking-range-calendar
-  .range-calendar__cell[data-selection-end="true"]:not([data-outside-month="true"])
+  .range-calendar__cell[data-selection-end="true"]
   .range-calendar__cell-button {
-  background: var(--bk-cal-blue) !important;
-  color: #ffffff !important;
-  font-weight: 700;
-  box-shadow: 0 1px 3px rgb(37 99 235 / 0.35);
-}
-
-.booking-range-calendar
-  .range-calendar__cell[data-selection-start="true"]:active
-  .range-calendar__cell-button,
-.booking-range-calendar
-  .range-calendar__cell[data-selection-end="true"]:active
-  .range-calendar__cell-button,
-.booking-range-calendar
-  .range-calendar__cell[data-selection-start="true"][data-pressed="true"]
-  .range-calendar__cell-button,
-.booking-range-calendar
-  .range-calendar__cell[data-selection-end="true"][data-pressed="true"]
-  .range-calendar__cell-button {
-  background: var(--bk-cal-blue-hover) !important;
-}
-
-/* Hover unselected days */
-@media (hover: hover) {
-  .booking-range-calendar
-    .range-calendar__cell:hover:not([data-selected="true"])
-    .range-calendar__cell-button,
-  .booking-range-calendar
-    .range-calendar__cell[data-hovered="true"]:not([data-selected="true"])
-    .range-calendar__cell-button {
-    background: var(--bk-cal-blue-soft-hover);
-    color: var(--bk-cal-blue-hover);
-  }
-
-  .booking-range-calendar
-    .range-calendar__cell[data-today="true"]:hover:not([data-selected="true"])
-    .range-calendar__cell-button,
-  .booking-range-calendar
-    .range-calendar__cell[data-today="true"][data-hovered="true"]:not([data-selected="true"])
-    .range-calendar__cell-button {
-    background: var(--bk-cal-blue-soft);
-    color: var(--bk-cal-blue);
-  }
-}
-
-/* Outside month / disabled stay quiet but readable */
-.booking-range-calendar .range-calendar__cell[data-outside-month="true"] {
-  color: #94a3b8;
-  opacity: 0.55;
-}
-
-.booking-range-calendar
-  .range-calendar__cell[data-disabled="true"]:not([data-outside-month="true"])
-  .range-calendar__cell-button {
-  color: #94a3b8;
+  color: var(--accent-foreground);
 }
 
 /* Comfortable tap targets on coarse pointers */

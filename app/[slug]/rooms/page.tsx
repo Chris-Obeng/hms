@@ -194,17 +194,17 @@ export default async function RoomsPage({ params, searchParams }: Props) {
         Skip to rooms
       </a>
 
-      <header className="booking-header sticky top-0 z-40 booking-safe-x py-2.5 sm:py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 pt-[max(0.625rem,env(safe-area-inset-top))]">
+      <header className="booking-header sticky top-0 z-40 booking-safe-x py-1.5 sm:py-2 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5 pt-[max(0.375rem,env(safe-area-inset-top))]">
         <Link
           href={`/${slug}`}
-          className="booking-heading text-base sm:text-lg text-[var(--bk-ink)] shrink-0 hover:opacity-80 transition-opacity truncate max-w-full sm:max-w-[12rem] md:max-w-none"
+          className="booking-heading text-sm sm:text-base text-[var(--bk-ink)] shrink-0 hover:opacity-80 transition-opacity truncate max-w-full sm:max-w-[12rem] md:max-w-none"
         >
           {hotel.name}
         </Link>
         <div className="flex-1 max-w-2xl w-full min-w-0">
           <Suspense
             fallback={
-              <div className="h-11 sm:h-[52px] rounded-xl bg-[var(--bk-surface-soft)] border border-[var(--bk-line)] animate-pulse" />
+              <div className="h-10 sm:h-11 rounded-xl bg-[var(--bk-surface-soft)] border border-[var(--bk-line)] animate-pulse" />
             }
           >
             <DateSearchBar slug={slug} variant="compact" />

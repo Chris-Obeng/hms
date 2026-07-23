@@ -68,7 +68,7 @@ export default async function HotelLandingPage({ params }: Props) {
       />
 
       {/* Hero */}
-      <section className="relative min-h-[100svh] sm:min-h-[100dvh] max-h-[920px] flex flex-col items-center justify-center pt-[calc(4rem+env(safe-area-inset-top))] sm:pt-[calc(4.5rem+env(safe-area-inset-top))] pb-10 sm:pb-16">
+      <section className="relative min-h-[100svh] sm:min-h-[100dvh] max-h-[920px] flex flex-col items-center justify-center pt-[calc(3.25rem+env(safe-area-inset-top))] sm:pt-[calc(3.5rem+env(safe-area-inset-top))] pb-10 sm:pb-16">
         {hotel.cover_image_url ? (
           <Image
             src={hotel.cover_image_url}

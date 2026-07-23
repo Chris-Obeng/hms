@@ -97,11 +97,25 @@ export function BookingWizard({
   const todayStr = new Date().toISOString().split("T")[0];
   const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split("T")[0];
 
+  /** Build international dial code from world-countries idd (e.g. GH → +233). */
+  const dialCodeFromIdd = React.useCallback(
+    (idd?: { root?: string; suffixes?: string[] } | null) => {
+      const root = idd?.root ?? "";
+      if (!root) return "";
+      const suffixes = idd?.suffixes ?? [];
+      // Single suffix completes country code (+2 + 33 → +233). Many suffixes = root is code (+1).
+      if (suffixes.length === 1) return `${root}${suffixes[0]}`;
+      return root;
+    },
+    []
+  );
+
   const countryList = React.useMemo(() => {
     const list = countries.map((c) => ({
       code: c.cca2,
       name: c.name.common,
       flag: c.flag,
+      dialCode: dialCodeFromIdd(c.idd),
     }));
     list.sort((a, b) => {
       if (a.name === "Ghana") return -1;
@@ -111,7 +125,10 @@ export function BookingWizard({
       return a.name.localeCompare(b.name);
     });
     return list;
-  }, []);
+  }, [dialCodeFromIdd]);
+
+  const defaultDial =
+    countryList.find((c) => c.name === "Ghana")?.dialCode ?? "+233";
 
   const [checkIn, setCheckIn] = React.useState(initialCheckIn ?? todayStr);
   const [checkOut, setCheckOut] = React.useState(initialCheckOut ?? tomorrowStr);
@@ -124,7 +141,7 @@ export function BookingWizard({
   const [galleryRoom, setGalleryRoom] = React.useState<RoomType | null>(null);
   const [guestName, setGuestName] = React.useState("");
   const [guestEmail, setGuestEmail] = React.useState("");
-  const [guestPhone, setGuestPhone] = React.useState("");
+  const [guestPhone, setGuestPhone] = React.useState(`${defaultDial} `);
   const [nationality, setNationality] = React.useState("Ghana");
   const [showExtras, setShowExtras] = React.useState(false);
   const [specialRequests, setSpecialRequests] = React.useState("");
@@ -217,6 +234,46 @@ export function BookingWizard({
   const step2Valid = nameOk && emailOk && phoneOk;
 
   const selectedCountryObj = countryList.find((c) => c.name === nationality);
+  const selectedDialCode = selectedCountryObj?.dialCode || defaultDial;
+
+  /** When nationality changes, swap dial prefix if phone empty or only held a prior dial code. */
+  const handleNationalityChange = React.useCallback(
+    (countryName: string) => {
+      const next = countryList.find((c) => c.name === countryName);
+      const nextDial = next?.dialCode || defaultDial;
+      setNationality(countryName);
+      setGuestPhone((prev) => {
+        const trimmed = prev.trim();
+        if (!trimmed) return `${nextDial} `;
+        // Dial-only (e.g. "+233" or "+233 ")
+        if (/^\+\d{1,4}\s*$/.test(trimmed)) return `${nextDial} `;
+
+        // Longest-prefix match so +233 wins over +2
+        const sortedDials = countryList
+          .map((c) => c.dialCode)
+          .filter((d): d is string => !!d)
+          .sort((a, b) => b.length - a.length);
+        const prevDial = sortedDials.find(
+          (d) => trimmed === d || trimmed.startsWith(`${d} `) || trimmed.startsWith(d)
+        );
+        if (prevDial) {
+          const rest = trimmed.slice(prevDial.length).replace(/^\s*/, "");
+          return rest ? `${nextDial} ${rest}` : `${nextDial} `;
+        }
+        return prev;
+      });
+    },
+    [countryList, defaultDial]
+  );
+
+  const phonePlaceholder = React.useMemo(() => {
+    // Ghana-style sample for +233; generic otherwise
+    if (selectedDialCode === "+233") return "+233 24 123 4567";
+    if (selectedDialCode === "+234") return "+234 801 234 5678";
+    if (selectedDialCode === "+1") return "+1 555 123 4567";
+    if (selectedDialCode === "+44") return "+44 7700 900123";
+    return `${selectedDialCode} …`;
+  }, [selectedDialCode]);
 
   const sortedRooms = React.useMemo(() => {
     return [...roomTypes].sort((a, b) => {
@@ -277,13 +334,13 @@ export function BookingWizard({
     <>
       <div className="min-h-[100dvh] flex flex-col">
         {/* Header */}
-        <header className="booking-header sticky top-0 z-40 booking-safe-x h-14 pt-[env(safe-area-inset-top)] flex items-center justify-between gap-3">
+        <header className="booking-header sticky top-0 z-40 booking-safe-x h-12 pt-[env(safe-area-inset-top)] flex items-center justify-between gap-3">
           <Link
             href={`/${slug}`}
             className="flex items-center gap-2 min-w-0 group touch-manipulation"
           >
             <ArrowLeft className="size-4 text-[var(--bk-muted)] group-hover:text-[var(--bk-ink)] transition-colors shrink-0" />
-            <span className="booking-heading text-base sm:text-lg text-[var(--bk-ink)] truncate">
+            <span className="booking-heading text-sm sm:text-base text-[var(--bk-ink)] truncate">
               {hotel.name}
             </span>
           </Link>
@@ -527,54 +584,84 @@ export function BookingWizard({
                   className="booking-field w-full"
                 >
                   <Label>Phone</Label>
-                  <Input placeholder="+233 24 123 4567" className="h-11" />
+                  <Input
+                    placeholder={phonePlaceholder}
+                    className="h-11"
+                    inputMode="tel"
+                  />
                   {touched.phone && !phoneOk && (
                     <p className="text-xs text-[var(--bk-danger)] mt-1">
                       Enter a valid phone number
                     </p>
                   )}
+                  {selectedDialCode && (
+                    <p className="text-[11px] text-[var(--bk-muted)] mt-1">
+                      Country code {selectedDialCode}
+                      {selectedCountryObj
+                        ? ` · ${selectedCountryObj.name}`
+                        : ""}
+                    </p>
+                  )}
                 </TextField>
 
-                <div className="space-y-1.5">
+                <div className="booking-field-select space-y-1.5">
                   <Label>Nationality</Label>
                   <Select
                     aria-label="Nationality"
                     placeholder="Select country"
                     value={nationality || null}
                     onChange={(value) => {
-                      if (value) setNationality(value as string);
+                      if (value) handleNationalityChange(String(value));
                     }}
                     className="w-full"
                   >
-                    <Select.Trigger className="h-11 w-full rounded-xl border border-[var(--bk-line)] bg-white px-3.5 text-sm flex items-center justify-between">
+                    <Select.Trigger className="h-11 w-full rounded-xl border border-[var(--bk-line)] bg-white px-3.5 text-sm text-[var(--bk-ink)] flex items-center justify-between">
                       <Select.Value>
                         {({ defaultChildren, isPlaceholder }) => {
                           if (isPlaceholder || !selectedCountryObj) {
-                            return defaultChildren;
+                            return (
+                              <span className="text-[var(--bk-muted)]">
+                                {defaultChildren}
+                              </span>
+                            );
                           }
                           return (
-                            <span className="flex items-center gap-2 truncate">
-                              <span aria-hidden>{selectedCountryObj.flag}</span>
-                              {selectedCountryObj.name}
+                            <span className="flex items-center gap-2 truncate text-[var(--bk-ink)]">
+                              <span aria-hidden className="text-base leading-none">
+                                {selectedCountryObj.flag}
+                              </span>
+                              <span className="truncate">
+                                {selectedCountryObj.name}
+                              </span>
+                              {selectedCountryObj.dialCode ? (
+                                <span className="text-[var(--bk-muted)] shrink-0">
+                                  {selectedCountryObj.dialCode}
+                                </span>
+                              ) : null}
                             </span>
                           );
                         }}
                       </Select.Value>
                       <Select.Indicator />
                     </Select.Trigger>
-                    <Select.Popover className="p-1 max-h-64 overflow-y-auto bg-white border border-[var(--bk-line)] rounded-xl shadow-lg z-50">
+                    <Select.Popover className="p-1 max-h-64 overflow-y-auto bg-white border border-[var(--bk-line)] rounded-xl shadow-lg z-50 text-[var(--bk-ink)]">
                       <ListBox>
                         {countryList.map((c) => (
                           <ListBox.Item
                             key={c.name}
                             id={c.name}
-                            textValue={`${c.flag} ${c.name}`}
-                            className="text-sm px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bk-surface-soft)] flex items-center gap-2"
+                            textValue={`${c.flag} ${c.name} ${c.dialCode}`}
+                            className="text-sm px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bk-surface-soft)] flex items-center gap-2 text-[var(--bk-ink)]"
                           >
                             <span className="text-base leading-none" aria-hidden>
                               {c.flag}
                             </span>
-                            <span>{c.name}</span>
+                            <span className="flex-1 truncate">{c.name}</span>
+                            {c.dialCode ? (
+                              <span className="text-xs text-[var(--bk-muted)] shrink-0">
+                                {c.dialCode}
+                              </span>
+                            ) : null}
                             <ListBox.ItemIndicator />
                           </ListBox.Item>
                         ))}

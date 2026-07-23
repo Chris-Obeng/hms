@@ -27,14 +27,19 @@ export function GuestPickerPopover({
 }: GuestPickerPopoverProps) {
   const [open, setOpen] = React.useState(false);
 
+  // Always show rooms (even default 1) — hotel OTA pattern (Booking.com, Expedia).
+  // Children stay optional: omit when 0 to keep the default line short.
   const summaryText = React.useMemo(() => {
-    const adultLabel = `${adults} ${adults === 1 ? "Adult" : "Adults"}`;
-    const childLabel =
-      childrenCount > 0
-        ? `, ${childrenCount} ${childrenCount === 1 ? "Child" : "Children"}`
-        : "";
-    const roomLabel = rooms > 1 ? ` · ${rooms} Rooms` : "";
-    return `${adultLabel}${childLabel}${roomLabel}`;
+    const parts = [
+      `${adults} ${adults === 1 ? "Adult" : "Adults"}`,
+    ];
+    if (childrenCount > 0) {
+      parts.push(
+        `${childrenCount} ${childrenCount === 1 ? "Child" : "Children"}`
+      );
+    }
+    parts.push(`${rooms} ${rooms === 1 ? "Room" : "Rooms"}`);
+    return parts.join(" · ");
   }, [adults, childrenCount, rooms]);
 
   return (

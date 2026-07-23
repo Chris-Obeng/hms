@@ -50,21 +50,21 @@ export function BookingSiteHeader({
         solid ? "booking-header" : "booking-header-hero",
       ].join(" ")}
     >
-      <div className="booking-safe-x mx-auto flex h-14 sm:h-16 max-w-6xl items-center justify-between gap-3">
+      <div className="booking-safe-x mx-auto flex h-12 max-w-6xl items-center justify-between gap-2 sm:gap-3">
         {/* Brand */}
         <Link
           href={`/${slug}`}
-          className="group flex min-w-0 max-w-[min(70%,18rem)] items-center gap-2.5 sm:max-w-none touch-manipulation"
+          className="group flex min-w-0 max-w-[min(70%,18rem)] items-center gap-2 sm:max-w-none touch-manipulation"
           aria-label={`${hotelName} home`}
         >
           {logoUrl ? (
             <Image
               src={logoUrl}
               alt=""
-              width={36}
-              height={36}
+              width={32}
+              height={32}
               className={[
-                "size-8 sm:size-9 shrink-0 rounded-lg object-cover",
+                "size-7 sm:size-8 shrink-0 rounded-lg object-cover",
                 "ring-1 transition-[box-shadow,ring-color]",
                 solid
                   ? "ring-[var(--bk-line)] shadow-sm"
@@ -75,8 +75,8 @@ export function BookingSiteHeader({
             <span
               aria-hidden
               className={[
-                "flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-lg",
-                "booking-heading text-sm sm:text-base font-semibold",
+                "flex size-7 sm:size-8 shrink-0 items-center justify-center rounded-lg",
+                "booking-heading text-sm font-semibold",
                 solid
                   ? "bg-[var(--bk-ink)] text-[#fafaf8]"
                   : "bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-sm",
@@ -87,7 +87,7 @@ export function BookingSiteHeader({
           )}
           <span
             className={[
-              "booking-heading truncate text-[15px] sm:text-lg transition-colors",
+              "booking-heading truncate text-sm sm:text-[15px] transition-colors",
               solid ? "text-[var(--bk-ink)]" : "text-white drop-shadow-sm",
             ].join(" ")}
           >
@@ -96,7 +96,7 @@ export function BookingSiteHeader({
         </Link>
 
         {/* Actions */}
-        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5">
           <nav
             aria-label="Hotel"
             className="hidden items-center gap-0.5 sm:flex"
@@ -104,7 +104,7 @@ export function BookingSiteHeader({
             <Link
               href={`/${slug}/rooms`}
               className={[
-                "rounded-lg px-3 py-2 text-sm font-medium transition-colors touch-manipulation",
+                "rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors touch-manipulation",
                 solid
                   ? "text-[var(--bk-ink-soft)] hover:bg-[var(--bk-surface-soft)] hover:text-[var(--bk-ink)]"
                   : "text-white/80 hover:bg-white/10 hover:text-white",
@@ -116,7 +116,7 @@ export function BookingSiteHeader({
               <a
                 href={`tel:${phone}`}
                 className={[
-                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors touch-manipulation",
+                  "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors touch-manipulation",
                   solid
                     ? "text-[var(--bk-ink-soft)] hover:bg-[var(--bk-surface-soft)] hover:text-[var(--bk-ink)]"
                     : "text-white/80 hover:bg-white/10 hover:text-white",
@@ -134,7 +134,7 @@ export function BookingSiteHeader({
               href={`tel:${phone}`}
               aria-label={`Call ${hotelName}`}
               className={[
-                "inline-flex size-10 items-center justify-center rounded-full sm:hidden touch-manipulation transition-colors",
+                "inline-flex size-8 items-center justify-center rounded-full sm:hidden touch-manipulation transition-colors",
                 solid
                   ? "text-[var(--bk-ink-soft)] hover:bg-[var(--bk-surface-soft)]"
                   : "text-white/90 hover:bg-white/10",
@@ -150,7 +150,7 @@ export function BookingSiteHeader({
             aria-label={`Book a stay at ${hotelName}`}
             onPress={() => router.push(`/${slug}/book`)}
             className={[
-              "h-10 min-h-10 sm:h-9 sm:min-h-9 px-4 sm:px-5 rounded-full text-sm font-semibold",
+              "h-8 min-h-8 px-3.5 sm:px-4 rounded-full text-sm font-semibold",
               "touch-manipulation shadow-none",
               solid
                 ? "booking-cta"

@@ -76,10 +76,10 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
         Skip to confirmation
       </a>
 
-      <header className="booking-header sticky top-0 z-40 booking-safe-x h-14 pt-[env(safe-area-inset-top)] flex items-center">
+      <header className="booking-header sticky top-0 z-40 booking-safe-x h-12 pt-[env(safe-area-inset-top)] flex items-center">
         <Link
           href={`/${slug}`}
-          className="booking-heading text-base sm:text-lg text-[var(--bk-ink)] hover:opacity-80 transition-opacity truncate"
+          className="booking-heading text-sm sm:text-base text-[var(--bk-ink)] hover:opacity-80 transition-opacity truncate"
         >
           {hotel.name}
         </Link>

@@ -89,7 +89,7 @@ export function DateSearchBar({ slug, variant = "hero" }: DateSearchBarProps) {
 
   const shellClass =
     variant === "compact"
-      ? "grid grid-cols-1 sm:grid-cols-[1.3fr_1fr_auto] gap-1.5 items-stretch sm:items-center bg-white rounded-xl p-1.5 border border-[var(--bk-line)] shadow-[var(--bk-shadow)] w-full min-w-0"
+      ? "grid grid-cols-1 sm:grid-cols-[1.3fr_1fr_auto] gap-1 items-stretch sm:items-center bg-white rounded-xl p-1 border border-[var(--bk-line)] shadow-[var(--bk-shadow)] w-full min-w-0"
       : "grid grid-cols-1 sm:grid-cols-[1.3fr_1fr_auto] gap-2 items-stretch sm:items-center bg-white/95 backdrop-blur-xl rounded-2xl p-2 shadow-[var(--bk-shadow-lg)] border border-white/40 w-full max-w-4xl mx-auto min-w-0";
 
   return (
@@ -116,7 +116,7 @@ export function DateSearchBar({ slug, variant = "hero" }: DateSearchBarProps) {
           onRoomsChange={setRooms}
           className={
             variant === "compact"
-              ? "h-11 rounded-lg shadow-none"
+              ? "h-10 rounded-lg shadow-none"
               : undefined
           }
         />
@@ -127,7 +127,7 @@ export function DateSearchBar({ slug, variant = "hero" }: DateSearchBarProps) {
         variant="primary"
         size="lg"
         className={`booking-cta rounded-xl text-sm shrink-0 flex items-center justify-center gap-2 whitespace-nowrap w-full sm:w-auto ${
-          variant === "compact" ? "h-11 px-4" : "h-12 sm:h-[52px] px-5"
+          variant === "compact" ? "h-10 px-3.5" : "h-12 sm:h-[52px] px-5"
         }`}
       >
         <Search className="size-4 shrink-0" strokeWidth={2} />

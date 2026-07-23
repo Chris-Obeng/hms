@@ -89,7 +89,7 @@ export function BookingDateRangePicker({
           variant === "hero" &&
             "h-[52px] px-3 sm:px-3.5 rounded-xl bg-background/90 border border-border/80 hover:border-primary shadow-xs hover:shadow-sm text-left",
           variant === "compact" &&
-            "h-11 sm:h-10 px-2.5 sm:px-3 rounded-lg border border-border/60 bg-card hover:bg-accent/40 text-xs font-medium",
+            "h-10 px-2.5 sm:px-3 rounded-lg border border-border/60 bg-card hover:bg-accent/40 text-xs font-medium",
           variant === "card" &&
             "h-[52px] px-3.5 rounded-xl bg-background/90 border border-border/80 hover:border-primary shadow-xs text-left",
           className
@@ -128,7 +128,10 @@ export function BookingDateRangePicker({
         placement="bottom"
         className="p-0 w-auto border-border/60 max-w-[calc(100vw-1rem)]"
       >
-        <Popover.Dialog className="outline-none p-3 sm:p-3.5 bg-white rounded-2xl shadow-xl booking-calendar-panel">
+        <Popover.Dialog
+          className="outline-none p-3 sm:p-3.5 booking-calendar-panel light"
+          data-theme="light"
+        >
           <RangeCalendar
             aria-label="Select stay dates"
             className="booking-range-calendar w-full"
@@ -137,18 +140,16 @@ export function BookingDateRangePicker({
             onChange={handleRangeChange}
             firstDayOfWeek="mon"
           >
-            <RangeCalendar.Header className="pb-2">
-              <RangeCalendar.Heading className="text-slate-900 font-semibold" />
-              <RangeCalendar.NavButton slot="previous" className="text-slate-800" />
-              <RangeCalendar.NavButton slot="next" className="text-slate-800" />
+            <RangeCalendar.Header>
+              <RangeCalendar.Heading />
+              <RangeCalendar.NavButton slot="previous" />
+              <RangeCalendar.NavButton slot="next" />
             </RangeCalendar.Header>
 
             <RangeCalendar.Grid>
               <RangeCalendar.GridHeader>
                 {(day) => (
-                  <RangeCalendar.HeaderCell className="text-slate-600 font-bold uppercase tracking-wide">
-                    {day}
-                  </RangeCalendar.HeaderCell>
+                  <RangeCalendar.HeaderCell>{day}</RangeCalendar.HeaderCell>
                 )}
               </RangeCalendar.GridHeader>
               <RangeCalendar.GridBody>
