@@ -2,20 +2,31 @@
 
 import * as React from "react";
 import { format, addDays, subDays, isToday } from "date-fns";
-import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Button, Calendar, Popover } from "@heroui/react";
+import { today, getLocalTimeZone, CalendarDate } from "@internationalized/date";
+
+// ── helpers ────────────────────────────────────────────────────
+
+/** Convert JS Date → @internationalized/date CalendarDate */
+function toCalendarDate(date: Date): CalendarDate {
+  return new CalendarDate(date.getFullYear(), date.getMonth() + 1, date.getDate());
+}
+
+/** Convert CalendarDate → JS Date */
+function fromCalendarDate(cv: CalendarDate): Date {
+  return new Date(cv.year, cv.month - 1, cv.day);
+}
+
+// ── Props ──────────────────────────────────────────────────────
 
 interface DashboardHeaderProps {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
 }
+
+// ── Component ──────────────────────────────────────────────────
 
 export function DashboardHeader({
   selectedDate,
@@ -23,7 +34,6 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const [calendarOpen, setCalendarOpen] = React.useState(false);
 
-  const dateStr = format(selectedDate, "EEEE, MMMM d, yyyy");
   const isTodayDate = isToday(selectedDate);
 
   const goToPrevDay = React.useCallback(() => {
@@ -36,71 +46,99 @@ export function DashboardHeader({
 
   const goToToday = React.useCallback(() => {
     onDateChange(new Date());
+    setCalendarOpen(false);
   }, [onDateChange]);
 
+  const calendarValue = toCalendarDate(selectedDate);
+
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
-        <h1 className="text-page-title text-foreground">
-          Dashboard
-        </h1>
-        <p className="text-body text-muted-foreground mt-1">{dateStr}</p>
-      </div>
+    <div className="flex items-center justify-center gap-1">
+      {/* Date navigation */}
+      <div className="flex items-center rounded-lg border border-border/40 bg-background">
+        {/* Prev day */}
+        <Button
+          variant="ghost"
+          size="sm"
+          isIconOnly
+          onPress={goToPrevDay}
+          aria-label="Previous day"
+          className="size-8"
+        >
+          <ChevronLeft className="size-4" />
+        </Button>
 
-      <div className="flex items-center gap-2">
-        {/* Date navigation — size-10 (40px) for tablet tap targets */}
-        <div className="flex items-center rounded-xl border border-border/40 bg-background p-0.5 shadow-sm">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="size-10 rounded-lg hover:bg-accent"
-            onClick={goToPrevDay}
-            aria-label="Previous day"
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-
-          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <PopoverTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "h-10 px-3 text-sm font-semibold rounded-lg hover:bg-accent",
-                    isTodayDate && "text-primary",
-                  )}
-                  aria-label="Open date picker"
-                />
-              }
+        {/* Date picker trigger */}
+        <Popover isOpen={calendarOpen} onOpenChange={setCalendarOpen}>
+          <Popover.Trigger>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Open date picker"
+              className={cn(
+                "h-8 px-3 text-xs font-semibold",
+                isTodayDate && "text-primary",
+              )}
             >
-              <CalendarDays className="size-3.5 mr-1.5" />
               {isTodayDate ? "Today" : format(selectedDate, "MMM d")}
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="center">
+            </Button>
+          </Popover.Trigger>
+          <Popover.Content placement="bottom" className="p-0 w-auto border-border/60">
+            <Popover.Dialog className="outline-none p-3">
+              {/* Jump-to-today shortcut */}
+              {!isTodayDate && (
+                <div className="mb-2 flex justify-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onPress={goToToday}
+                    className="text-xs text-primary"
+                  >
+                    Jump to today
+                  </Button>
+                </div>
+              )}
+              {/* HeroUI Calendar */}
               <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => {
+                aria-label="Select date"
+                value={calendarValue}
+                onChange={(date) => {
                   if (date) {
-                    onDateChange(date);
+                    onDateChange(fromCalendarDate(date as CalendarDate));
                     setCalendarOpen(false);
                   }
                 }}
-              />
-            </PopoverContent>
-          </Popover>
+              >
+                <Calendar.Header className="pb-2">
+                  <Calendar.NavButton slot="previous" />
+                  <Calendar.Heading />
+                  <Calendar.NavButton slot="next" />
+                </Calendar.Header>
+                <Calendar.Grid>
+                  <Calendar.GridHeader>
+                    {(day) => (
+                      <Calendar.HeaderCell>{day}</Calendar.HeaderCell>
+                    )}
+                  </Calendar.GridHeader>
+                  <Calendar.GridBody>
+                    {(date) => <Calendar.Cell date={date} />}
+                  </Calendar.GridBody>
+                </Calendar.Grid>
+              </Calendar>
+            </Popover.Dialog>
+          </Popover.Content>
+        </Popover>
 
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="size-10 rounded-lg hover:bg-accent"
-            onClick={goToNextDay}
-            aria-label="Next day"
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
+        {/* Next day */}
+        <Button
+          variant="ghost"
+          size="sm"
+          isIconOnly
+          onPress={goToNextDay}
+          aria-label="Next day"
+          className="size-8"
+        >
+          <ChevronRight className="size-4" />
+        </Button>
       </div>
     </div>
   );

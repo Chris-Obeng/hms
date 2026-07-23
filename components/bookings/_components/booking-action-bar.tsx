@@ -16,9 +16,11 @@ import { Button } from "@/components/ui/button";
 import { checkInBooking, checkOutBooking } from "@/app/dashboard/actions";
 import { updateBookingStatus } from "@/app/actions/bookings";
 import type { FullBookingDetail } from "./booking-detail-types";
+import { BookingFolioPrintButton } from "./booking-folio-print";
 
 interface BookingActionBarProps {
   booking: FullBookingDetail;
+  currency?: string;
   actionLoading: string | null;
   onAction: (action: string, actionFn: () => Promise<any>) => void;
   onOpenPaymentForm: () => void;
@@ -26,6 +28,7 @@ interface BookingActionBarProps {
 
 export function BookingActionBar({
   booking,
+  currency = "GHS",
   actionLoading,
   onAction,
   onOpenPaymentForm,
@@ -92,38 +95,27 @@ export function BookingActionBar({
           Record Payment
         </Button>
       )}
-      {!booking.room && (
+
+      {/* Print Guest Folio Invoice */}
+      <BookingFolioPrintButton booking={booking} currency={currency} />
+
+      {(booking.status === "confirmed" || booking.status === "pending") && (
         <Button
           size="sm"
-          variant="outline"
-          className="rounded-lg text-xs h-8 border-border/60"
-          onClick={() => {
-            toast.info("Room assignment via calendar", {
-              description: "Use the calendar view to assign a room to this booking.",
-            });
-          }}
-        >
-          <BedDouble className="size-3 mr-1 shrink-0" />
-          Assign Room
-        </Button>
-      )}
-      {(booking.status === "confirmed" || booking.status === "checked_in") && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="rounded-lg text-xs h-8 text-destructive border-destructive/30 hover:bg-destructive/5 shrink-0"
+          variant="ghost"
+          className="rounded-lg text-xs h-8 text-destructive hover:bg-destructive/10 ml-auto"
           onClick={handleCancel}
           disabled={actionLoading === "cancel"}
         >
           <XCircle className="size-3 mr-1 shrink-0" />
-          {actionLoading === "cancel" ? "Cancelling..." : "Cancel"}
+          {actionLoading === "cancel" ? "Cancelling..." : "Cancel Booking"}
         </Button>
       )}
       {booking.status === "cancelled" && (
         <Button
           size="sm"
           variant="outline"
-          className="rounded-lg text-xs h-8 shrink-0"
+          className="rounded-lg text-xs h-8 border-border/60 ml-auto"
           onClick={handleReinstate}
           disabled={actionLoading === "reinstate"}
         >

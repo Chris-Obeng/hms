@@ -32,7 +32,7 @@ import { useAuth } from "@clerk/nextjs";
 import { qk } from "@/lib/query-keys";
 import { checkInBooking, checkOutBooking } from "@/app/dashboard/actions";
 import { updateBookingStatus } from "@/app/actions/bookings";
-import { NewBookingSheet } from "@/components/bookings/new-booking-sheet";
+import { NewBookingModal } from "@/components/bookings/new-booking-modal";
 import {
   assignBookingToRoom,
   checkRoomAvailability,
@@ -1410,7 +1410,7 @@ export function CalendarClient({
         prefillRoomId={blockPrefillRoomId}
         onSuccess={() => fetchCalendarData(startDate, days)}
       />
-      <NewBookingSheet
+      <NewBookingModal
         open={newBookingOpen}
         onOpenChange={(open) => {
           setNewBookingOpen(open);

@@ -54,7 +54,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { NewBookingSheet } from "@/components/bookings/new-booking-sheet";
+import { NewBookingModal } from "@/components/bookings/new-booking-modal";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import { updateBookingStatus } from "@/app/actions/bookings";
 import { createClient } from "@/lib/supabase/client";
@@ -1059,8 +1059,8 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
       </Card>
       )}
 
-      {/* New Reservation Sheet */}
-      <NewBookingSheet
+      {/* New Reservation Modal */}
+      <NewBookingModal
         open={newBookingOpen}
         onOpenChange={(open) => {
           setNewBookingOpen(open);

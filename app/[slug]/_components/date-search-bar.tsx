@@ -1,32 +1,141 @@
-﻿"use client";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+"use client";
 
-export function DateSearchBar({ slug }: { slug: string }) {
+import * as React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { BookingDateRangePicker } from "@/components/booking/booking-date-range-picker";
+import { GuestPickerPopover } from "@/components/booking/guest-picker-popover";
+import { Button } from "@heroui/react";
+import { Search } from "lucide-react";
+
+function todayISO() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function tomorrowISO() {
+  return new Date(Date.now() + 86400000).toISOString().split("T")[0];
+}
+
+function parsePositiveInt(value: string | null, fallback: number, max = 20) {
+  if (!value) return fallback;
+  const n = Number.parseInt(value, 10);
+  if (!Number.isFinite(n) || n < 0) return fallback;
+  return Math.min(n, max);
+}
+
+interface DateSearchBarProps {
+  slug: string;
+  /** Visual density — hero sits over imagery; compact fits sticky chrome */
+  variant?: "hero" | "compact";
+}
+
+export function DateSearchBar({ slug, variant = "hero" }: DateSearchBarProps) {
   const router = useRouter();
-  const today = new Date().toISOString().split("T")[0];
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
-  const [checkIn, setCheckIn] = useState(today);
-  const [checkOut, setCheckOut] = useState(tomorrow);
+  const searchParams = useSearchParams();
 
-  function handleSearch(e: React.FormEvent) {
+  const initialCheckIn = searchParams.get("check_in");
+  const initialCheckOut = searchParams.get("check_out");
+  const initialAdults = searchParams.get("adults");
+  const initialChildren = searchParams.get("children");
+  const initialRooms = searchParams.get("rooms");
+
+  const [checkIn, setCheckIn] = React.useState(
+    initialCheckIn && /^\d{4}-\d{2}-\d{2}$/.test(initialCheckIn)
+      ? initialCheckIn
+      : todayISO()
+  );
+  const [checkOut, setCheckOut] = React.useState(
+    initialCheckOut &&
+      /^\d{4}-\d{2}-\d{2}$/.test(initialCheckOut) &&
+      initialCheckOut > (initialCheckIn ?? "")
+      ? initialCheckOut
+      : tomorrowISO()
+  );
+  const [adults, setAdults] = React.useState(
+    Math.max(1, parsePositiveInt(initialAdults, 1, 10))
+  );
+  const [childrenCount, setChildrenCount] = React.useState(
+    parsePositiveInt(initialChildren, 0, 10)
+  );
+  const [rooms, setRooms] = React.useState(
+    Math.max(1, parsePositiveInt(initialRooms, 1, 5))
+  );
+
+  // Keep form in sync when URL changes (e.g. browser back / clear dates)
+  React.useEffect(() => {
+    const ci = searchParams.get("check_in");
+    const co = searchParams.get("check_out");
+    if (ci && /^\d{4}-\d{2}-\d{2}$/.test(ci)) setCheckIn(ci);
+    if (co && /^\d{4}-\d{2}-\d{2}$/.test(co) && (!ci || co > ci)) setCheckOut(co);
+    const a = searchParams.get("adults");
+    const c = searchParams.get("children");
+    const r = searchParams.get("rooms");
+    if (a) setAdults(Math.max(1, parsePositiveInt(a, 1, 10)));
+    if (c) setChildrenCount(parsePositiveInt(c, 0, 10));
+    if (r) setRooms(Math.max(1, parsePositiveInt(r, 1, 5)));
+  }, [searchParams]);
+
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    router.push(`/${slug}/rooms?check_in=${checkIn}&check_out=${checkOut}`);
-  }
+    if (!checkIn || !checkOut || checkOut <= checkIn) return;
+    const params = new URLSearchParams({
+      check_in: checkIn,
+      check_out: checkOut,
+      adults: String(adults),
+      children: String(childrenCount),
+      rooms: String(rooms),
+    });
+    router.push(`/${slug}/rooms?${params.toString()}`);
+  };
+
+  const shellClass =
+    variant === "compact"
+      ? "grid grid-cols-1 sm:grid-cols-[1.3fr_1fr_auto] gap-1.5 items-stretch sm:items-center bg-white rounded-xl p-1.5 border border-[var(--bk-line)] shadow-[var(--bk-shadow)] w-full min-w-0"
+      : "grid grid-cols-1 sm:grid-cols-[1.3fr_1fr_auto] gap-2 items-stretch sm:items-center bg-white/95 backdrop-blur-xl rounded-2xl p-2 shadow-[var(--bk-shadow-lg)] border border-white/40 w-full max-w-4xl mx-auto min-w-0";
 
   return (
-    <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2 sm:gap-0 bg-card/95 backdrop-blur rounded-2xl p-2 shadow-2xl w-full max-w-lg mx-auto">
-      <div className="flex flex-1 divide-x divide-[#E7E5E4]">
-        <div className="flex-1 px-4 py-2">
-          <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-0.5">Check-in</label>
-          <input type="date" value={checkIn} min={today} onChange={(e) => { setCheckIn(e.target.value); if (e.target.value >= checkOut) { const n = new Date(e.target.value); n.setDate(n.getDate() + 1); setCheckOut(n.toISOString().split("T")[0]); } }} className="w-full text-sm font-medium text-foreground bg-transparent outline-none cursor-pointer" required />
-        </div>
-        <div className="flex-1 px-4 py-2">
-          <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-0.5">Check-out</label>
-          <input type="date" value={checkOut} min={checkIn} onChange={(e) => setCheckOut(e.target.value)} className="w-full text-sm font-medium text-foreground bg-transparent outline-none cursor-pointer" required />
-        </div>
+    <form onSubmit={handleSearch} className={shellClass} role="search">
+      <div className="w-full min-w-0">
+        <BookingDateRangePicker
+          checkIn={checkIn}
+          checkOut={checkOut}
+          onDatesChange={(start, end) => {
+            setCheckIn(start);
+            setCheckOut(end);
+          }}
+          variant={variant === "compact" ? "compact" : "hero"}
+        />
       </div>
-      <button type="submit" className="sm:ml-2 h-12 px-6 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors whitespace-nowrap">Check Availability</button>
+
+      <div className="w-full min-w-0">
+        <GuestPickerPopover
+          adults={adults}
+          childrenCount={childrenCount}
+          rooms={rooms}
+          onAdultsChange={setAdults}
+          onChildrenChange={setChildrenCount}
+          onRoomsChange={setRooms}
+          className={
+            variant === "compact"
+              ? "h-11 rounded-lg shadow-none"
+              : undefined
+          }
+        />
+      </div>
+
+      <Button
+        type="submit"
+        variant="primary"
+        size="lg"
+        className={`booking-cta rounded-xl text-sm shrink-0 flex items-center justify-center gap-2 whitespace-nowrap w-full sm:w-auto ${
+          variant === "compact" ? "h-11 px-4" : "h-12 sm:h-[52px] px-5"
+        }`}
+      >
+        <Search className="size-4 shrink-0" strokeWidth={2} />
+        <span className="sm:hidden">
+          {variant === "compact" ? "Search" : "Check availability"}
+        </span>
+        <span className="hidden sm:inline">Search</span>
+      </Button>
     </form>
   );
 }

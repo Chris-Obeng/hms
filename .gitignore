@@ -54,3 +54,7 @@ supabase/.temp/
 # local tool caches (graphify knowledge graph, heroui docs)
 graphify-out/
 .heroui-docs/
+.freebuff/
+
+# Windows artifacts
+nul

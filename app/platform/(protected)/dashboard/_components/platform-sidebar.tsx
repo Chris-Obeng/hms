@@ -3,7 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, LayoutDashboard, Settings, X } from "lucide-react";
+import { Building2, LayoutDashboard, Settings, Link2, X } from "lucide-react";
+import { Button, Avatar, Chip } from "@heroui/react";
 import { cn } from "@/lib/utils";
 import {
   SidebarHeader,
@@ -48,6 +49,12 @@ const navItems: NavItem[] = [
     title: "Hotels",
     href: "/platform/dashboard/hotels",
     icon: Building2,
+    exact: false,
+  },
+  {
+    title: "Integrations",
+    href: "/platform/dashboard/integrations",
+    icon: Link2,
     exact: false,
   },
   {
@@ -126,16 +133,18 @@ export function PlatformSidebar({ admin }: { admin: PlatformAdmin | null }) {
             </div>
           </div>
 
-          {/* Close button — mobile only */}
+          {/* Close button — mobile only, using HeroUI Button */}
           {isMobile && (
-            <button
-              type="button"
-              onClick={() => setOpenMobile(false)}
+            <Button
+              isIconOnly
+              size="sm"
+              variant="light"
+              onPress={() => setOpenMobile(false)}
               aria-label="Close navigation"
-              className="size-8 rounded-lg flex items-center justify-center text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors shrink-0"
+              className="shrink-0"
             >
               <X className="size-4" />
-            </button>
+            </Button>
           )}
         </div>
       </SidebarHeader>
@@ -177,24 +186,27 @@ export function PlatformSidebar({ admin }: { admin: PlatformAdmin | null }) {
 
         {/* Admin identity */}
         <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg group-data-[collapsible=icon]:justify-center">
-          {/* Avatar */}
-          <div className="size-8 rounded-lg bg-sidebar-accent flex items-center justify-center shrink-0 text-xs font-semibold text-sidebar-foreground ring-1 ring-sidebar-border/30">
-            {initials}
-          </div>
+          {/* Avatar using HeroUI */}
+          <Avatar
+            size="sm"
+            fallback={initials}
+            className="shrink-0"
+            color="secondary"
+          />
 
           {/* Identity — hidden when icon-collapsed */}
           <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
             <p className="text-xs font-semibold text-sidebar-foreground truncate leading-tight">
               {admin?.full_name ?? admin?.email ?? "Admin"}
             </p>
-            <span
-              className={cn(
-                "inline-block mt-0.5 px-1.5 py-0.5 rounded-md border text-[10px] font-medium leading-none",
-                roleBadgeClass
-              )}
+            <Chip
+              size="sm"
+              variant="soft"
+              color={admin?.role === "super_admin" ? "secondary" : "default"}
+              className="mt-0.5"
             >
-              {roleLabel}
-            </span>
+              <span className="text-[10px] font-medium">{roleLabel}</span>
+            </Chip>
           </div>
         </div>
 

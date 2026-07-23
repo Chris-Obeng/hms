@@ -70,11 +70,11 @@ export function RoomGallery({
     : `${base}/book?room_type_id=${roomTypeId}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#0F0E0C]">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0F0E0C] pt-[env(safe-area-inset-top)]">
       <div className="flex items-center justify-between px-4 py-3 shrink-0">
         <button
           onClick={onClose}
-          className="size-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+          className="size-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors touch-manipulation"
           aria-label="Close gallery"
         >
           <X className="size-4 text-white" />
@@ -82,15 +82,15 @@ export function RoomGallery({
         <span className="text-white/60 text-sm tabular-nums">
           {current + 1} / {images.length}
         </span>
-        <div className="size-8" />
+        <div className="size-10" />
       </div>
 
       <div
-        className="flex-1 relative flex items-center justify-center px-4 select-none"
+        className="flex-1 relative flex items-center justify-center px-2 sm:px-4 select-none min-h-0"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        <div className="relative w-full h-full max-h-[60vh]">
+        <div className="relative w-full h-full max-h-[50svh] sm:max-h-[60vh]">
           <Image
             src={images[current].url}
             alt={images[current].caption || `${roomName} — photo ${current + 1}`}
@@ -103,7 +103,7 @@ export function RoomGallery({
         {current > 0 && (
           <button
             onClick={() => setCurrent((c) => c - 1)}
-            className="absolute left-2 size-10 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center transition-colors"
+            className="absolute left-2 size-11 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center transition-colors touch-manipulation"
             aria-label="Previous photo"
           >
             <ChevronLeft className="size-5 text-white" />
@@ -112,7 +112,7 @@ export function RoomGallery({
         {current < images.length - 1 && (
           <button
             onClick={() => setCurrent((c) => c + 1)}
-            className="absolute right-2 size-10 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center transition-colors"
+            className="absolute right-2 size-11 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center transition-colors touch-manipulation"
             aria-label="Next photo"
           >
             <ChevronRight className="size-5 text-white" />
@@ -127,12 +127,12 @@ export function RoomGallery({
       )}
 
       {images.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto px-4 py-3 shrink-0 scrollbar-none">
+        <div className="flex gap-2 overflow-x-auto px-4 py-2.5 shrink-0 scrollbar-none">
           {images.map((img, i) => (
             <button
               key={img.url}
               onClick={() => setCurrent(i)}
-              className={`relative shrink-0 size-12 rounded-md overflow-hidden transition-all ${
+              className={`relative shrink-0 size-12 rounded-md overflow-hidden transition-all touch-manipulation ${
                 i === current ? "ring-2 ring-white opacity-100" : "opacity-50 hover:opacity-75"
               }`}
             >
@@ -142,20 +142,20 @@ export function RoomGallery({
         </div>
       )}
 
-      <div className="shrink-0 border-t border-white/10 bg-[#1A1917] px-4 py-4">
+      <div className="shrink-0 border-t border-white/10 bg-[#1A1917] px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="max-w-lg mx-auto">
-          <div className="flex items-start justify-between gap-4 mb-3">
-            <div>
-              <h2 className="text-white font-semibold text-lg leading-tight" style={{ fontFamily: "Georgia, serif" }}>
+          <div className="flex items-start justify-between gap-3 sm:gap-4 mb-3">
+            <div className="min-w-0">
+              <h2 className="text-white font-semibold text-base sm:text-lg leading-tight" style={{ fontFamily: "Georgia, serif" }}>
                 {roomName}
               </h2>
               {shortDescription && (
-                <p className="text-white/50 text-xs mt-0.5 line-clamp-1">{shortDescription}</p>
+                <p className="text-white/50 text-xs mt-0.5 line-clamp-2 sm:line-clamp-1">{shortDescription}</p>
               )}
             </div>
             <div className="text-right shrink-0">
               <p className="text-white/40 text-[10px]">from</p>
-              <p className="text-white font-semibold">
+              <p className="text-white font-semibold text-sm sm:text-base">
                 {currency} {basePrice.toLocaleString()}
                 <span className="text-white/40 text-xs font-normal">/night</span>
               </p>
@@ -163,7 +163,7 @@ export function RoomGallery({
           </div>
           {amenities && amenities.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-3">
-              {amenities.slice(0, 5).map((a) => (
+              {amenities.slice(0, 4).map((a) => (
                 <span
                   key={a.label}
                   className="text-[10px] text-white/60 bg-white/10 border border-white/10 px-2 py-0.5 rounded-full"
@@ -171,15 +171,15 @@ export function RoomGallery({
                   {a.label}
                 </span>
               ))}
-              {amenities.length > 5 && (
-                <span className="text-[10px] text-white/40 px-1">+{amenities.length - 5}</span>
+              {amenities.length > 4 && (
+                <span className="text-[10px] text-white/40 px-1">+{amenities.length - 4}</span>
               )}
             </div>
           )}
           <Link
             href={bookHref}
             onClick={onClose}
-            className="block w-full h-11 rounded-xl bg-white text-[#1C1917] text-sm font-semibold hover:bg-white/90 transition-colors flex items-center justify-center"
+            className="w-full h-12 rounded-xl bg-white text-[#1C1917] text-sm font-semibold hover:bg-white/90 transition-colors flex items-center justify-center touch-manipulation"
           >
             Book this room
           </Link>

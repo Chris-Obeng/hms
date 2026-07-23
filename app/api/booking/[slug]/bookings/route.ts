@@ -13,6 +13,7 @@ const Schema = z.object({
   guest_name: z.string().min(1).max(120),
   guest_email: z.string().email(),
   guest_phone: z.string().min(7).max(20),
+  nationality: z.string().max(80).optional(),
   payment_preference: z.enum(["pay_now", "pay_at_checkin"]),
   special_requests: z.string().max(500).optional(),
   estimated_arrival: z.string().optional(),
@@ -25,7 +26,6 @@ export async function POST(
   try {
     const { slug } = await params;
 
-    // Reject anything that isn't a safe slug/domain before querying
     if (!/^[a-z0-9.-]+$/i.test(slug)) {
       return NextResponse.json({ error: "Hotel not found" }, { status: 404 });
     }
@@ -37,9 +37,6 @@ export async function POST(
     }
     const data = parsed.data;
 
-    // Resolve hotel — use separate eq() calls, never .or() with interpolated slug.
-    // PostgREST .or("slug.eq.${slug},...") is vulnerable to filter injection:
-    // a slug like "foo,status.eq.suspended" becomes two distinct filter clauses.
     let hotelQuery = await supabaseAdmin
       .from("hotels")
       .select("id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, cancellation_policy, phone, address, beds24_api_key, beds24_property_id")
@@ -59,7 +56,6 @@ export async function POST(
     const hotel = hotelQuery.data;
     if (!hotel) return NextResponse.json({ error: "Hotel not found" }, { status: 404 });
 
-    // Enforce payment policy
     const policy = ((hotel.settings as Record<string, unknown>)?.payment_policy as string) ?? "choice";
     if (policy === "pay_now_only" && data.payment_preference === "pay_at_checkin") {
       return NextResponse.json({ error: "This hotel requires payment to confirm your booking." }, { status: 400 });
@@ -71,12 +67,10 @@ export async function POST(
       return NextResponse.json({ error: "Online payment is not available for this hotel." }, { status: 400 });
     }
 
-    // Validate dates
     if (data.check_out <= data.check_in) {
       return NextResponse.json({ error: "Check-out must be after check-in." }, { status: 400 });
     }
 
-    // Check room type exists and is active
     const { data: roomType } = await supabaseAdmin
       .from("room_types")
       .select("id, name, base_price, weekend_price")
@@ -86,7 +80,6 @@ export async function POST(
       .single();
     if (!roomType) return NextResponse.json({ error: "Room type not available." }, { status: 400 });
 
-    // Re-check availability (fast-path; DB exclusion constraint is the final guard)
     const { data: availCount } = await supabaseAdmin.rpc("room_type_available_count", {
       p_room_type_id: data.room_type_id,
       p_check_in: data.check_in,
@@ -96,8 +89,6 @@ export async function POST(
       return NextResponse.json({ error: "No rooms available for these dates." }, { status: 409 });
     }
 
-    // Calculate pricing using override-aware resolver
-    // (daily_rate_overrides > seasonal_rate_overrides > base/weekend price)
     const checkInDate = new Date(data.check_in);
     const checkOutDate = new Date(data.check_out);
     const nights = Math.ceil(
@@ -116,7 +107,7 @@ export async function POST(
     const taxAmount = taxEnabled ? Math.round(subtotal * (taxPercentage / 100) * 100) / 100 : 0;
     const total = subtotal + taxAmount;
 
-    // Find or create guest
+    // Find or create guest with nationality support
     let guestId: string;
     const { data: existingGuest } = await supabaseAdmin
       .from("guests")
@@ -127,10 +118,22 @@ export async function POST(
 
     if (existingGuest) {
       guestId = existingGuest.id;
+      if (data.nationality) {
+        await supabaseAdmin
+          .from("guests")
+          .update({ nationality: data.nationality })
+          .eq("id", guestId);
+      }
     } else {
       const { data: newGuest, error: guestErr } = await supabaseAdmin
         .from("guests")
-        .insert({ hotel_id: hotel.id, full_name: data.guest_name, email: data.guest_email, phone: data.guest_phone })
+        .insert({
+          hotel_id: hotel.id,
+          full_name: data.guest_name,
+          email: data.guest_email,
+          phone: data.guest_phone,
+          nationality: data.nationality || null,
+        })
         .select("id")
         .single();
       if (guestErr || !newGuest) {
@@ -140,8 +143,6 @@ export async function POST(
       guestId = newGuest.id;
     }
 
-    // Derive a 2-3 char uppercase prefix from the hotel slug.
-    // 'golden-palm' → 'GP', 'sunrise-hotel' → 'SH', 'accra-grand-hotel' → 'AGH' (capped at 3)
     const slugPrefix = slug
       .split("-")
       .map((word: string) => word[0] ?? "")
@@ -149,7 +150,6 @@ export async function POST(
       .toUpperCase()
       .slice(0, 3) || "BK";
 
-    // Generate booking reference atomically (race-safe DB counter)
     const { data: refData, error: refErr } = await supabaseAdmin.rpc(
       "generate_booking_reference",
       { p_hotel_id: hotel.id, p_prefix: slugPrefix }
@@ -160,7 +160,6 @@ export async function POST(
     }
     const reference = typeof refData === "string" ? refData : `${slugPrefix}-${Date.now()}`;
 
-    // For pay_now: booking starts as pending until payment confirmed
     const status = data.payment_preference === "pay_now" ? "pending" : "confirmed";
     const paymentStatus = "unpaid";
 
@@ -173,7 +172,6 @@ export async function POST(
         room_type_id: data.room_type_id,
         check_in: data.check_in,
         check_out: data.check_out,
-        // `nights` is GENERATED ALWAYS AS (check_out - check_in) STORED — never insert explicitly
         adults: data.adults,
         children: data.children,
         room_rate: rate,
@@ -193,8 +191,6 @@ export async function POST(
       .single();
 
     if (bookingErr || !booking) {
-      // Postgres exclusion-constraint violation (23P01) means a concurrent booking
-      // grabbed the last room between our availability check and this insert.
       if ((bookingErr as { code?: string } | null)?.code === "23P01") {
         return NextResponse.json({ error: "No rooms available for these dates." }, { status: 409 });
       }
@@ -202,7 +198,6 @@ export async function POST(
       return NextResponse.json({ error: "Failed to create booking." }, { status: 500 });
     }
 
-    // Insert admin notification
     await supabaseAdmin.from("notifications").insert({
       hotel_id: hotel.id,
       type: "new_booking",
@@ -212,10 +207,8 @@ export async function POST(
       is_read: false,
     });
 
-    // Beds24 outbound availability push (Growth/Pro plans with Beds24 configured)
     if (hotel.beds24_api_key && hotel.beds24_property_id) {
       const { pushAvailability, bookingToAvailabilityRange } = await import("@/lib/beds24");
-      // Find Beds24 room mapping for this room type
       const { data: mapping } = await supabaseAdmin
         .from("beds24_property_mappings")
         .select("beds24_room_id")
@@ -232,7 +225,6 @@ export async function POST(
       }
     }
 
-    // Pay Later: done — send booking confirmation (channel routed: GH SMS or Resend email)
     if (data.payment_preference === "pay_at_checkin") {
       const { sendBookingConfirmation } = await import(
         "@/lib/notifications/send-booking-confirmation"
@@ -264,8 +256,6 @@ export async function POST(
       });
 
       if (!result.success) {
-        // Log failure but do not block the booking response — the booking
-        // itself succeeded. The notification_logs table records the failure.
         console.error("[booking/create] Notification send failed", {
           bookingId: booking.id,
           channel: result.channel,
@@ -276,18 +266,13 @@ export async function POST(
       return NextResponse.json({ bookingId: booking.id, reference: booking.reference });
     }
 
-    // Pay Now: initialize Paystack transaction
     const origin = req.headers.get("origin") ?? req.nextUrl.origin;
-    // Use 'bref' (booking reference) — NOT 'reference', because Paystack appends
-    // its own '?reference=<payRef>&trxref=<payRef>' to the callback URL.
-    // Two 'reference' params would make Next.js give searchParams.reference an
-    // array, breaking the DB lookup on the confirmation page.
     const callbackUrl = `${origin}/${slug}/book/confirmation?bref=${booking.reference}`;
     const payRef = `${booking.reference}-${Date.now()}`;
 
     const txn = await initializeTransaction({
       email: data.guest_email,
-      amount: Math.round(total * 100), // pesewas
+      amount: Math.round(total * 100),
       currency: hotel.currency ?? "GHS",
       reference: payRef,
       callback_url: callbackUrl,

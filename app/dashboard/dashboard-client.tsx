@@ -5,20 +5,18 @@ import { format, startOfDay, endOfDay } from "date-fns";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
+import { RotateCw } from "lucide-react";
 
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
+import { Skeleton, Button } from "@heroui/react";
 import { DashboardHeader } from "./_components/dashboard-header";
+import { DateCard } from "./_components/date-card";
+import { OccupancyCard } from "./_components/occupancy-card";
 import { ActivityTabs, buildActivityTabs, type ActivityTab } from "./_components/activity-tabs";
 import { ActivityList, type ActivityBooking } from "./_components/activity-list";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
-import { OccupancyCard } from "./_components/occupancy-card";
-import { QuickStats, TodaySummary } from "./_components/quick-stats";
 import { createClient } from "@/lib/supabase/client";
 import { writeAuditLog } from "@/lib/audit";
 import { qk } from "@/lib/query-keys";
-
-// ── Props ──────────────────────────────────────────────────────
 
 interface DashboardClientProps {
   hotelId: string;
@@ -37,8 +35,6 @@ const defaultEmptyStats = {
   cancellations: 0,
   overbookings: 0,
 };
-
-// ── Client-Side Fetcher ────────────────────────────────────────
 
 async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr: string): Promise<any> {
   const dayStr = dateStr;
@@ -160,7 +156,7 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
   const arrivalsList = (arrivalsRes.data || []).map(mapBooking);
   const departuresList = (departuresRes.data || []).map(mapBooking);
   const inHouseList = (inHouseBookingsRes.data || []).map(mapBooking);
-  
+
   const seen = new Set<string>();
   const uniqueBookings = [...arrivalsList, ...departuresList].filter((b) => {
     if (seen.has(b.id)) return false;
@@ -221,24 +217,20 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
   };
 }
 
-// ── Main Component ─────────────────────────────────────────────
-
-export function DashboardClient({ hotelId, hotelName, currency }: DashboardClientProps) {
+export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
   const queryClient = useQueryClient();
   const { orgId, userId } = useAuth();
-  
+
   const [selectedDate, setSelectedDate] = React.useState(new Date());
   const [activeTab, setActiveTab] = React.useState<ActivityTab>("arrivals");
   const [selectedBookingId, setSelectedBookingId] = React.useState<string | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
 
-  // Check-in/out loading states
   const [checkingIn, setCheckingIn] = React.useState<Set<string>>(new Set());
   const [checkingOut, setCheckingOut] = React.useState<Set<string>>(new Set());
 
   const dateParamStr = format(selectedDate, "yyyy-MM-dd");
 
-  // Query staff profile for audit logging
   const { data: staffProfile } = useQuery({
     queryKey: qk.staffProfile(orgId || "", userId || ""),
     queryFn: async () => {
@@ -256,12 +248,12 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
     enabled: !!orgId && !!userId,
   });
 
-  // Main dashboard data query
   const {
     data,
     isLoading: loading,
     error: queryError,
-    refetch
+    refetch,
+    isRefetching
   } = useQuery({
     queryKey: qk.dashboard(orgId || "", hotelId, dateParamStr),
     queryFn: () => {
@@ -269,12 +261,11 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
       return fetchDashboardClientData(supabase, hotelId, dateParamStr);
     },
     enabled: !!orgId,
-    refetchInterval: 60000, // Auto-refresh every 60s
+    refetchInterval: 60000,
   });
 
   const error = queryError ? (queryError instanceof Error ? queryError.message : "Failed to load dashboard data") : null;
 
-  // Realtime subscription — refresh on any booking change for this hotel
   React.useEffect(() => {
     if (!orgId) return;
     const supabase = createClient();
@@ -293,29 +284,24 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
     };
   }, [hotelId, orgId, queryClient]);
 
-  // Re-fetch helper (called by detail drawer changes)
   const handleBookingChanged = React.useCallback(() => {
     if (orgId) {
       queryClient.invalidateQueries({ queryKey: qk.dashboard(orgId, hotelId, dateParamStr) });
     }
   }, [queryClient, orgId, hotelId, dateParamStr]);
 
-  // Date change handler
   const handleDateChange = React.useCallback((date: Date) => {
     setSelectedDate(date);
   }, []);
 
-  // View booking details
   const handleViewDetails = React.useCallback((booking: ActivityBooking) => {
     setSelectedBookingId(booking.id);
     setDetailOpen(true);
   }, []);
 
-  // Mutation for check-in with optimistic UI
   const checkInMutation = useMutation({
     mutationFn: async (bookingId: string) => {
       const supabase = createClient();
-      
       const { data: booking, error: findError } = await supabase
         .from("bookings")
         .select("id, reference, status, room_id")
@@ -334,11 +320,10 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
       if (updateError) throw updateError;
 
       if (booking.room_id) {
-        const { error: roomError } = await supabase
+        await supabase
           .from("rooms")
           .update({ status: "occupied" })
           .eq("id", booking.room_id);
-        if (roomError) throw roomError;
       }
 
       if (staffProfile) {
@@ -352,12 +337,10 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
           afterState: { reference: booking.reference, status: "checked_in" },
         });
       }
-      
       return booking;
     },
     onMutate: async (bookingId) => {
       setCheckingIn((prev) => new Set(prev).add(bookingId));
-      
       const queryKey = qk.dashboard(orgId || "", hotelId, dateParamStr);
       await queryClient.cancelQueries({ queryKey });
       const previousData = queryClient.getQueryData(queryKey);
@@ -400,11 +383,9 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
     }
   });
 
-  // Mutation for check-out with optimistic UI
   const checkOutMutation = useMutation({
     mutationFn: async (bookingId: string) => {
       const supabase = createClient();
-      
       const { data: booking, error: findError } = await supabase
         .from("bookings")
         .select("id, reference, status, room_id")
@@ -423,11 +404,10 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
       if (updateError) throw updateError;
 
       if (booking.room_id) {
-        const { error: roomError } = await supabase
+        await supabase
           .from("rooms")
           .update({ status: "cleaning" })
           .eq("id", booking.room_id);
-        if (roomError) throw roomError;
       }
 
       if (staffProfile) {
@@ -441,12 +421,10 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
           afterState: { reference: booking.reference, status: "checked_out" },
         });
       }
-      
       return booking;
     },
     onMutate: async (bookingId) => {
       setCheckingOut((prev) => new Set(prev).add(bookingId));
-
       const queryKey = qk.dashboard(orgId || "", hotelId, dateParamStr);
       await queryClient.cancelQueries({ queryKey });
       const previousData = queryClient.getQueryData(queryKey);
@@ -497,11 +475,8 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
     checkOutMutation.mutate(bookingId);
   }, [checkOutMutation]);
 
-  // ── Derived state (must be BEFORE early returns to avoid hook ordering violations) ──
   const tabs = data ? buildActivityTabs(data.stats) : buildActivityTabs(defaultEmptyStats);
-  const dateStr = format(selectedDate, "EEEE, MMMM d, yyyy");
 
-  // Filter bookings by active tab (unconditional hook call)
   const filteredBookings = React.useMemo(() => {
     if (!data) return [];
     switch (activeTab) {
@@ -528,48 +503,70 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
     }
   }, [data?.bookings, activeTab, selectedDate]);
 
-  // ── Loading State ────────────────────────────────────────────
   if (loading && !data) {
     return <DashboardSkeleton />;
   }
 
-  // ── Error State ──────────────────────────────────────────────
   if (error && !data) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
-        <div className="size-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
-          <svg className="size-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-          </svg>
-        </div>
         <h2 className="text-lg font-semibold text-foreground">Failed to load dashboard</h2>
         <p className="text-sm text-muted-foreground mt-1 max-w-sm">{error}</p>
-        <Button variant="outline" size="sm" className="mt-4 rounded-lg" onClick={() => refetch()}>
+        <Button variant="outline" size="sm" className="mt-4" onPress={() => refetch()}>
           Try again
         </Button>
       </div>
     );
   }
 
-  // ── Null state ────────────────────────────────────────────────
   if (!data) return null;
 
   return (
-    <div className="space-y-6 md:space-y-8">
-      {/* Page Header with Date Nav */}
-      <DashboardHeader selectedDate={selectedDate} onDateChange={handleDateChange} />
+    <div className="space-y-6 max-w-[1600px] mx-auto">
+      {/* Cloudbeds Header Row */}
+      <div className="flex items-center justify-between pb-2">
+        <h1 className="text-3xl font-bold text-foreground tracking-tight">Dashboard</h1>
+        
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            isIconOnly
+            onPress={() => refetch()}
+            aria-label="Refresh data"
+            className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+          >
+            <RotateCw className={`size-4 ${isRefetching ? "animate-spin" : ""}`} />
+          </Button>
 
-      {/* Activity Tabs Scoreboard */}
-      <ActivityTabs
-        tabs={tabs}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
+          <DashboardHeader selectedDate={selectedDate} onDateChange={handleDateChange} />
+        </div>
+      </div>
 
-      {/* Main Content: Two-column layout */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 md:gap-8">
-        {/* Left: Activity List (3 cols) */}
-        <div className="xl:col-span-3 space-y-6">
+      {/* Cloudbeds Main 2-Column Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-[270px_1fr] gap-6 items-start">
+        {/* Left Column: Date Widget + Occupancy Widget */}
+        <div className="space-y-6">
+          <DateCard selectedDate={selectedDate} onDateChange={handleDateChange} />
+          
+          <OccupancyCard
+            occupancyPercent={data.occupancy.percent}
+            availableUnits={data.occupancy.availableRooms}
+            bookedUnits={data.occupancy.occupiedRooms}
+            outOfService={data.occupancy.outOfService}
+            blockedDates={data.occupancy.blocked}
+            totalRooms={data.occupancy.totalRooms}
+          />
+        </div>
+
+        {/* Right Column: Activity Card Container */}
+        <div className="rounded-xl border border-border/50 bg-card shadow-xs overflow-hidden">
+          <ActivityTabs
+            tabs={tabs}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+          />
+
           <ActivityList
             bookings={filteredBookings}
             activeTab={activeTab}
@@ -583,25 +580,6 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
             }}
             onViewDetails={handleViewDetails}
           />
-        </div>
-
-        {/* Right Panel: Occupancy + Quick Stats + Summary (1 col) */}
-        <div className="space-y-5">
-          {/* Occupancy Card */}
-          <OccupancyCard
-            occupancyPercent={data.occupancy.percent}
-            availableUnits={data.occupancy.availableRooms}
-            bookedUnits={data.occupancy.occupiedRooms}
-            outOfService={data.occupancy.outOfService}
-            blockedDates={data.occupancy.blocked}
-            totalRooms={data.occupancy.totalRooms}
-          />
-
-          {/* Quick Stats */}
-          <QuickStats data={data.quickStats} currency={currency} />
-
-          {/* Today's Summary */}
-          <TodaySummary data={{ arrivals: data.stats.arrivals, departures: data.stats.departures, inHouse: data.stats.inHouse }} />
         </div>
       </div>
 
@@ -620,41 +598,22 @@ export function DashboardClient({ hotelId, hotelName, currency }: DashboardClien
   );
 }
 
-// ── Loading Skeleton ───────────────────────────────────────────
-
 function DashboardSkeleton() {
   return (
-    <div className="space-y-6 md:space-y-8">
-      {/* Header */}
+    <div className="space-y-6 max-w-[1600px] mx-auto">
       <div className="flex items-center justify-between">
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-40 rounded-lg" />
-          <Skeleton className="h-4 w-64 rounded-lg" />
-        </div>
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-10 w-52 rounded-xl" />
-        </div>
+        <Skeleton className="h-9 w-44 rounded-lg" />
+        <Skeleton className="h-9 w-48 rounded-lg" />
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2.5">
-        {Array.from({ length: 7 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 flex-1 rounded-xl" />
-        ))}
-      </div>
-
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 md:gap-8">
-        <div className="xl:col-span-3 space-y-4">
-          <Skeleton className="h-8 w-48 rounded-lg" />
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full rounded-xl" />
-          ))}
-        </div>
-        <div className="space-y-5">
+      <div className="grid grid-cols-1 lg:grid-cols-[270px_1fr] gap-6">
+        <div className="space-y-6">
+          <Skeleton className="h-32 w-full rounded-xl" />
           <Skeleton className="h-80 w-full rounded-xl" />
-          <Skeleton className="h-56 w-full rounded-xl" />
-          <Skeleton className="h-40 w-full rounded-xl" />
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-[400px] w-full rounded-xl" />
         </div>
       </div>
     </div>

@@ -1,37 +1,26 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import {
-  Search,
   Moon,
-  Users,
-  Sparkles,
+  User,
+  Snowflake,
   ChevronRight,
-  MoreHorizontal,
+  ChevronDown,
+  MoreVertical,
   FileText,
   CreditCard,
-  Eye,
-  Edit,
-  XCircle,
-  BedDouble,
+  MessageSquare,
+  Search,
+  ArrowUpDown,
+  Calendar as CalendarIcon,
+  Lock,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Button, Dropdown, Skeleton } from "@heroui/react";
 import { ActivityTab } from "./activity-tabs";
-
-// ── Types ──────────────────────────────────────────────────────
 
 export interface ActivityBooking {
   id: string;
@@ -63,54 +52,20 @@ interface ActivityListProps {
   onViewDetails?: (booking: ActivityBooking) => void;
 }
 
-// ── Helpers ─────────────────────────────────────────────────────
-
-function formatCurrency(amount: number, currency = "GHS"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
-function getStatusVariant(status: string): "default" | "secondary" | "outline" | "destructive" | "ghost" {
-  switch (status) {
-    case "confirmed": return "default";
-    case "checked_in": return "secondary";
-    case "checked_out": return "outline";
-    case "cancelled":
-    case "no_show": return "destructive";
-    default: return "outline";
-  }
-}
-
-function getStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    confirmed: "Confirmed",
-    checked_in: "Checked In",
-    checked_out: "Checked Out",
-    cancelled: "Cancelled",
-    no_show: "No Show",
-    pending: "Pending",
-  };
-  return labels[status] || status;
-}
-
 function formatDate(dateStr: string): string {
-  // Parse date string safely to avoid timezone shifts
   const parts = dateStr.split("-").map(Number);
-  const d = new Date(parts[0], parts[1] - 1, parts[2]);
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  if (parts.length < 3) return dateStr;
+  const mm = String(parts[1]).padStart(2, "0");
+  const dd = String(parts[2]).padStart(2, "0");
+  const yyyy = parts[0];
+  return `${mm}/${dd}/${yyyy}`;
 }
 
 function getNights(checkIn: string, checkOut: string, nights?: number | null): number {
   if (nights) return nights;
   const diff = new Date(checkOut).getTime() - new Date(checkIn).getTime();
-  return Math.round(diff / (1000 * 60 * 60 * 24));
+  return Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)));
 }
-
-// ── Main Component ─────────────────────────────────────────────
 
 export function ActivityList({
   bookings,
@@ -123,108 +78,91 @@ export function ActivityList({
 }: ActivityListProps) {
   const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [showAll, setShowAll] = React.useState(false);
+  const [searchOpen, setSearchOpen] = React.useState(false);
 
-  // Filter by search
-  const filtered = React.useMemo(() => {
-    if (!searchQuery.trim()) return bookings;
-    const q = searchQuery.toLowerCase();
-    return bookings.filter(
-      (b) =>
-        b.guestName.toLowerCase().includes(q) ||
-        b.reference.toLowerCase().includes(q) ||
-        (b.roomNumber && b.roomNumber.toLowerCase().includes(q))
-    );
+  const filteredBookings = React.useMemo(() => {
+    let list = bookings;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
+        (b) =>
+          b.guestName.toLowerCase().includes(q) ||
+          b.reference.toLowerCase().includes(q) ||
+          (b.roomNumber && b.roomNumber.toLowerCase().includes(q)) ||
+          (b.roomType && b.roomType.toLowerCase().includes(q))
+      );
+    }
+    return list;
   }, [bookings, searchQuery]);
 
-  // Filter by "remaining" vs "all"
-  const displayBookings = React.useMemo(() => {
-    if (showAll) return filtered;
-    // For arrivals, show only unchecked-in (confirmed status)
-    // For departures, show only not yet checked-out (confirmed, checked_in)
-    if (activeTab === "arrivals") {
-      return filtered.filter((b) => b.status === "confirmed");
-    }
-    if (activeTab === "departures") {
-      return filtered.filter((b) => b.status !== "checked_out");
-    }
-    return filtered;
-  }, [filtered, showAll, activeTab]);
-
-  const label = getTabLabel(activeTab);
-
-  // ── Loading State ────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 px-1">
-          <Skeleton className="h-8 w-48 rounded-lg" />
-          <Skeleton className="h-8 w-24 rounded-lg ml-auto" />
-        </div>
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-16 w-full rounded-xl" />
-        ))}
+      <div className="p-6 space-y-3">
+        <Skeleton className="h-10 w-full rounded-xl" />
+        <Skeleton className="h-16 w-full rounded-xl" />
+        <Skeleton className="h-16 w-full rounded-xl" />
+        <Skeleton className="h-16 w-full rounded-xl" />
       </div>
     );
   }
 
-  // ── Empty State ──────────────────────────────────────────────
-  if (displayBookings.length === 0) {
-    return (
-      <div className="space-y-3">
-        <SearchBar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-        />
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="size-12 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-            <BedDouble className="size-5 text-muted-foreground/30" />
-          </div>
-          <h3 className="text-sm font-medium text-foreground">
-            {searchQuery ? "No matching results" : getEmptyTitle(activeTab)}
-          </h3>
-          <p className="text-xs text-muted-foreground/70 mt-1 max-w-[260px]">
-            {searchQuery
-              ? "Try adjusting your search term."
-              : getEmptyDescription(activeTab)}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Render ───────────────────────────────────────────────────
   return (
-    <div className="space-y-3">
-      {/* Search + Toggle */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/50" />
-          <Input
-            placeholder={`Search ${label.toLowerCase()}...`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 pl-8 text-sm rounded-lg"
-          />
+    <div className="space-y-0">
+      {/* Activity Card Top Bar */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border/40">
+        <h2 className="text-lg font-bold text-foreground">Activity</h2>
+        <div className="flex items-center gap-2">
+          {searchOpen ? (
+            <input
+              type="text"
+              placeholder="Filter activity..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoFocus
+              onBlur={() => {
+                if (!searchQuery) setSearchOpen(false);
+              }}
+              className="h-8 px-3 rounded-lg border border-border/60 text-xs bg-background outline-none focus:ring-1 focus:ring-primary w-48"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+              title="Search activity"
+            >
+              <Search className="size-4" />
+            </button>
+          )}
+
+          <Dropdown>
+            <Dropdown.Trigger
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer outline-none"
+              aria-label="Options"
+            >
+              <MoreVertical className="size-4" />
+            </Dropdown.Trigger>
+            <Dropdown.Popover placement="bottom end">
+              <Dropdown.Menu className="w-40">
+                <Dropdown.Item key="export">Export List</Dropdown.Item>
+                <Dropdown.Item key="refresh">Refresh Table</Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 text-xs text-muted-foreground rounded-lg"
-          onClick={() => setShowAll(!showAll)}
-        >
-          {showAll ? `All (${displayBookings.length})` : "Remaining"}
-        </Button>
       </div>
 
-      {/* Mobile: Card list */}
-      {isMobile ? (
-        <div className="space-y-2">
-          {displayBookings.map((booking) => (
-            <MobileBookingCard
-              key={booking.id}
-              booking={booking}
-              currency={currency}
+      {/* Empty State */}
+      {filteredBookings.length === 0 ? (
+        <div className="py-16 text-center text-muted-foreground text-sm">
+          No records found for this view.
+        </div>
+      ) : isMobile ? (
+        <div className="p-4 space-y-3">
+          {filteredBookings.map((b) => (
+            <MobileBookingRow
+              key={b.id}
+              booking={b}
               onCheckIn={onCheckIn}
               onCheckOut={onCheckOut}
               onViewDetails={onViewDetails}
@@ -232,24 +170,32 @@ export function ActivityList({
           ))}
         </div>
       ) : (
-        /* Desktop: Table */
-        <div className="rounded-xl border border-border/60 overflow-hidden">
-          <table className="w-full">
+        /* Desktop Table matching Cloudbeds */
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-border/40 bg-muted/20">
-                <Th>Guest</Th>
-                <Th>Accommodation</Th>
-                <Th>Stay</Th>
-                <Th>Status</Th>
-                <Th className="w-12">Actions</Th>
+              <tr className="border-b border-border/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70 bg-muted/10">
+                <th className="py-3 px-6">
+                  <div className="flex items-center gap-1.5 cursor-pointer hover:text-foreground">
+                    <span>Guest</span>
+                    <ArrowUpDown className="size-3 text-muted-foreground/50" />
+                  </div>
+                </th>
+                <th className="py-3 px-4">
+                  <div className="flex items-center gap-1.5 cursor-pointer hover:text-foreground">
+                    <span>Accommodation</span>
+                    <ArrowUpDown className="size-3 text-muted-foreground/50" />
+                  </div>
+                </th>
+                <th className="py-3 px-4">Stay</th>
+                <th className="py-3 px-6">Status</th>
               </tr>
             </thead>
-            <tbody>
-              {displayBookings.map((booking) => (
+            <tbody className="divide-y divide-border/30 text-sm">
+              {filteredBookings.map((b) => (
                 <DesktopBookingRow
-                  key={booking.id}
-                  booking={booking}
-                  currency={currency}
+                  key={b.id}
+                  booking={b}
                   onCheckIn={onCheckIn}
                   onCheckOut={onCheckOut}
                   onViewDetails={onViewDetails}
@@ -263,407 +209,246 @@ export function ActivityList({
   );
 }
 
-// ── Sub-Components ─────────────────────────────────────────────
-
-function Th({
-  className,
-  children,
-}: {
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <th
-      className={cn(
-        "px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70",
-        className
-      )}
-    >
-      {children}
-    </th>
-  );
-}
-
-function Td({
-  className,
-  children,
-}: {
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <td className={cn("px-4 py-3 text-sm", className)}>{children}</td>
-  );
-}
-
 function DesktopBookingRow({
   booking,
-  currency,
   onCheckIn,
   onCheckOut,
   onViewDetails,
 }: {
   booking: ActivityBooking;
-  currency: string;
   onCheckIn?: (id: string) => void;
   onCheckOut?: (id: string) => void;
-  onViewDetails?: (booking: ActivityBooking) => void;
+  onViewDetails?: (b: ActivityBooking) => void;
 }) {
   const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
+  const totalGuests = (booking.adults || 1) + (booking.children || 0);
+
+  // Generate room code prefix like Cloudbeds e.g. QUE(2) or KIN(15)
+  const roomCode = booking.roomType
+    ? booking.roomType.substring(0, 3).toUpperCase()
+    : "RM";
+  const roomNumStr = booking.roomNumber ? `(${booking.roomNumber})` : "";
+  const roomLabel = booking.roomType
+    ? `${roomCode}${roomNumStr} - ${booking.roomType}`
+    : "Unassigned Room";
 
   return (
     <tr
-      className="border-b border-border/30 hover:bg-muted/20 transition-colors cursor-pointer"
       onClick={() => onViewDetails?.(booking)}
+      className="hover:bg-muted/20 transition-colors cursor-pointer group"
     >
       {/* Guest */}
-      <Td>
+      <td className="py-3.5 px-6 align-top">
         <div className="flex flex-col">
-          <span className="font-medium text-foreground text-sm">
-            {booking.guestName}
-          </span>
-          <span className="text-[11px] text-muted-foreground/60 font-mono">
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-foreground text-sm">
+              {booking.guestName}
+            </span>
+            <Lock className="size-3 text-muted-foreground/50 shrink-0" />
+            <Users className="size-3 text-muted-foreground/50 shrink-0" />
+          </div>
+          <span className="text-[11px] font-mono text-muted-foreground/60 mt-0.5">
             {booking.reference}
           </span>
-          {booking.guestPhone && (
-            <span className="text-[11px] text-muted-foreground/50">
-              {booking.guestPhone}
-            </span>
-          )}
         </div>
-      </Td>
+      </td>
 
       {/* Accommodation */}
-      <Td>
-        <div className="flex items-center gap-2">
-          <div className="flex flex-col">
-            <span className="text-sm text-foreground">
-              {booking.roomNumber ? (
-                <>
-                  <span className="font-medium">{booking.roomNumber}</span>
-                  {booking.roomType && (
-                    <span className="text-muted-foreground">
-                      {" "}– {booking.roomType}
-                    </span>
-                  )}
-                </>
-              ) : (
-                <span className="text-muted-foreground italic">
-                  Unassigned
-                </span>
-              )}
-            </span>
+      <td className="py-3.5 px-4 align-top">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-1 text-sm font-medium text-foreground">
+            <span>{roomLabel}</span>
+            <ChevronRight className="size-3.5 text-muted-foreground/40 shrink-0" />
           </div>
-          <ChevronRight className="size-3 text-muted-foreground/30 shrink-0" />
+          <button
+            type="button"
+            className="p-1 rounded text-muted-foreground/50 hover:text-foreground transition-colors shrink-0"
+            title="Room notes"
+          >
+            <CalendarIcon className="size-3.5" />
+          </button>
         </div>
-      </Td>
+      </td>
 
       {/* Stay */}
-      <Td>
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-1.5 text-sm text-foreground">
-            <span>{formatDate(booking.checkIn)}</span>
-            <span className="text-muted-foreground/40">→</span>
-            <span>{formatDate(booking.checkOut)}</span>
+      <td className="py-3.5 px-4 align-top">
+        <div className="flex flex-col gap-1">
+          <div className="text-xs font-medium text-foreground font-mono">
+            {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
           </div>
-          <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground/60">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
             <span className="flex items-center gap-1">
+              <span className="font-semibold text-foreground">{nights}</span>
               <Moon className="size-3" />
-              {nights} {nights === 1 ? "night" : "nights"}
             </span>
             <span className="flex items-center gap-1">
-              <Users className="size-3" />
-              {booking.adults || 0}{booking.children ? `+${booking.children}` : ""}
+              <span className="font-semibold text-foreground">{totalGuests}</span>
+              <User className="size-3" />
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="font-semibold text-foreground">0</span>
+              <Snowflake className="size-3" />
             </span>
           </div>
         </div>
-      </Td>
+      </td>
 
-      {/* Status / Action button */}
-      <Td>
-        <div className="flex items-center gap-2">
-          {booking.status === "confirmed" && onCheckIn && (
-            <Button
-              size="xs"
-              className="rounded-lg text-xs h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={(e: React.MouseEvent) => {
-                e.stopPropagation();
-                onCheckIn(booking.id);
-              }}
-            >
-              Check In
-            </Button>
-          )}
-          {booking.status === "checked_in" && onCheckOut && (
-            <Button
-              size="xs"
-              className="rounded-lg text-xs h-7 px-3 bg-amber-600 hover:bg-amber-700 text-white"
-              onClick={(e: React.MouseEvent) => {
-                e.stopPropagation();
-                onCheckOut(booking.id);
-              }}
-            >
-              Check Out
-            </Button>
-          )}
-          {booking.status === "checked_in" && !onCheckOut && (
-            <Badge variant="secondary" className="text-[10px] px-2">
-              Checked In
-            </Badge>
-          )}
-          {booking.status === "checked_out" && (
-            <Badge variant="outline" className="text-[10px] px-2">
-              Checked Out
-            </Badge>
-          )}
-          {booking.status === "cancelled" && (
-            <Badge variant="destructive" className="text-[10px] px-2">
-              Cancelled
-            </Badge>
-          )}
-          {!["confirmed", "checked_in", "checked_out", "cancelled"].includes(booking.status) && (
-            <Badge variant="outline" className="text-[10px] px-2">
-              {getStatusLabel(booking.status)}
-            </Badge>
-          )}
-          {booking.roomDirty && (
-            <Badge variant="outline" className="text-[10px] px-1.5 text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
-              Dirty
-            </Badge>
-          )}
-        </div>
-      </Td>
-
-      {/* Actions */}
-      <Td className="text-right">
-        <DropdownMenu>              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="size-7 rounded-lg"
-                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                  />
-                }
+      {/* Status & Actions */}
+      <td className="py-3.5 px-6 align-top">
+        <div className="flex items-center justify-between gap-3">
+          {/* Main Check-In / Check-Out split button matching Cloudbeds */}
+          {booking.status === "confirmed" && onCheckIn ? (
+            <div className="inline-flex rounded-lg overflow-hidden border border-blue-600 bg-blue-600 text-white text-xs font-semibold shadow-xs">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCheckIn(booking.id);
+                }}
+                className="px-3 py-1.5 hover:bg-blue-700 transition-colors"
               >
-                <MoreHorizontal className="size-3.5" />
-              </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem
-              onClick={(e: React.MouseEvent) => {
+                Check-in
+              </button>
+              <div className="w-[1px] bg-blue-700" />
+              <Dropdown>
+                <Dropdown.Trigger
+                  onClick={(e) => e.stopPropagation()}
+                  className="px-1.5 py-1.5 hover:bg-blue-700 transition-colors cursor-pointer outline-none"
+                  aria-label="Check-in options"
+                >
+                  <ChevronDown className="size-3.5" />
+                </Dropdown.Trigger>
+                <Dropdown.Popover placement="bottom end">
+                  <Dropdown.Menu className="w-36 text-xs">
+                    <Dropdown.Item key="cancel">Cancel Booking</Dropdown.Item>
+                    <Dropdown.Item key="noshow">Mark No-Show</Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown.Popover>
+              </Dropdown>
+            </div>
+          ) : booking.status === "checked_in" && onCheckOut ? (
+            <div className="inline-flex rounded-lg overflow-hidden border border-amber-600 bg-amber-600 text-white text-xs font-semibold shadow-xs">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCheckOut(booking.id);
+                }}
+                className="px-3 py-1.5 hover:bg-amber-700 transition-colors"
+              >
+                Check-out
+              </button>
+              <div className="w-[1px] bg-amber-700" />
+              <Dropdown>
+                <Dropdown.Trigger
+                  onClick={(e) => e.stopPropagation()}
+                  className="px-1.5 py-1.5 hover:bg-amber-700 transition-colors cursor-pointer outline-none"
+                  aria-label="Check-out options"
+                >
+                  <ChevronDown className="size-3.5" />
+                </Dropdown.Trigger>
+                <Dropdown.Popover placement="bottom end">
+                  <Dropdown.Menu className="w-36 text-xs">
+                    <Dropdown.Item key="extend">Extend Stay</Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown.Popover>
+              </Dropdown>
+            </div>
+          ) : (
+            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground capitalize">
+              {booking.status.replace("_", " ")}
+            </span>
+          )}
+
+          {/* Icon strip next to button */}
+          <div className="flex items-center gap-1.5 text-muted-foreground/60">
+            <button
+              type="button"
+              onClick={(e) => {
                 e.stopPropagation();
                 onViewDetails?.(booking);
               }}
+              title="Folio / Details"
+              className="p-1 hover:text-foreground transition-colors"
             >
-              <Eye className="size-3.5" />
-              View Details
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <FileText className="size-3.5" />
-              Notes
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <CreditCard className="size-3.5" />
-              Folio / Billing
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Edit className="size-3.5" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive">
-              <XCircle className="size-3.5" />
-              Cancel
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </Td>
+              <FileText className="size-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={(e) => e.stopPropagation()}
+              title="Payment"
+              className="p-1 hover:text-foreground transition-colors"
+            >
+              <CreditCard className="size-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={(e) => e.stopPropagation()}
+              title="Message guest"
+              className="p-1 hover:text-foreground transition-colors"
+            >
+              <MessageSquare className="size-4" />
+            </button>
+
+            <Dropdown>
+              <Dropdown.Trigger
+                onClick={(e) => e.stopPropagation()}
+                className="p-1 hover:text-foreground transition-colors cursor-pointer outline-none"
+                aria-label="More actions"
+              >
+                <MoreVertical className="size-4" />
+              </Dropdown.Trigger>
+              <Dropdown.Popover placement="bottom end">
+                <Dropdown.Menu className="w-40 text-xs">
+                  <Dropdown.Item key="details">View Details</Dropdown.Item>
+                  <Dropdown.Item key="edit">Edit Reservation</Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+          </div>
+        </div>
+      </td>
     </tr>
   );
 }
 
-function MobileBookingCard({
+function MobileBookingRow({
   booking,
-  currency,
   onCheckIn,
   onCheckOut,
   onViewDetails,
 }: {
   booking: ActivityBooking;
-  currency: string;
   onCheckIn?: (id: string) => void;
   onCheckOut?: (id: string) => void;
-  onViewDetails?: (booking: ActivityBooking) => void;
+  onViewDetails?: (b: ActivityBooking) => void;
 }) {
-  const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
-
   return (
     <div
-      className="rounded-xl border border-border/50 bg-card p-3 space-y-2.5 active:bg-muted/20 transition-colors cursor-pointer"
       onClick={() => onViewDetails?.(booking)}
+      className="p-3 rounded-xl border border-border/50 bg-card space-y-2 cursor-pointer"
     >
-      {/* Guest + Status */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-foreground truncate">
-            {booking.guestName}
-          </p>
-          <p className="text-[11px] text-muted-foreground/60 font-mono">
-            {booking.reference}
-          </p>
-        </div>
+      <div className="flex items-center justify-between">
+        <span className="font-bold text-foreground text-sm">{booking.guestName}</span>
+        <span className="text-xs font-mono text-muted-foreground">{booking.reference}</span>
+      </div>
+      <div className="text-xs text-muted-foreground">
+        {booking.roomType || "Unassigned"} • {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
+      </div>
+      <div className="flex items-center justify-between pt-1">
         {booking.status === "confirmed" && onCheckIn && (
-          <Button
-            size="xs"
-            className="rounded-lg text-xs h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              onCheckIn(booking.id);
-            }}
-          >
-            Check In
+          <Button size="sm" className="bg-blue-600 text-white text-xs h-7" onPress={() => onCheckIn(booking.id)}>
+            Check-in
           </Button>
         )}
-        {booking.status === "checked_in" && (
-          <Badge variant="secondary" className="text-[10px] shrink-0">
-            Checked In
-          </Badge>
+        {booking.status === "checked_in" && onCheckOut && (
+          <Button size="sm" className="bg-amber-600 text-white text-xs h-7" onPress={() => onCheckOut(booking.id)}>
+            Check-out
+          </Button>
         )}
       </div>
-
-      {/* Room + Dates */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>
-          {booking.roomNumber ? (
-            <>
-              <span className="font-medium text-foreground">Rm {booking.roomNumber}</span>
-              {booking.roomType && <span> · {booking.roomType}</span>}
-            </>
-          ) : (
-            <span className="italic">Unassigned</span>
-          )}
-        </span>
-        <span className="tabular-nums">
-          {nights} {nights === 1 ? "night" : "nights"}
-        </span>
-      </div>
-
-      {/* Dates */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground/70">
-        <div className="flex items-center gap-1">
-          <span className="font-medium text-foreground">{formatDate(booking.checkIn)}</span>
-          <span className="text-muted-foreground/40">→</span>
-          <span className="font-medium text-foreground">{formatDate(booking.checkOut)}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Users className="size-3" />
-          {booking.adults || 0}{booking.children ? `+${booking.children}` : ""}
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-1 pt-0.5">
-        <Button
-          variant="ghost"
-          size="xs"
-          className="h-7 text-xs rounded-lg text-muted-foreground"
-          onClick={(e) => {
-            e.stopPropagation();
-            onViewDetails?.(booking);
-          }}
-        >
-          Details
-        </Button>
-        <Button
-          variant="ghost"
-          size="xs"
-          className="h-7 text-xs rounded-lg text-muted-foreground"
-          onClick={(e) => e.stopPropagation()}
-        >
-          Notes
-        </Button>
-        <div className="ml-auto">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="size-7 rounded-lg"
-                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                />
-              }
-            >
-              <MoreHorizontal className="size-3.5" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem>Edit</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">Cancel</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
     </div>
   );
-}
-
-function SearchBar({
-  searchQuery,
-  onSearchChange,
-}: {
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
-}) {
-  return (
-    <div className="relative max-w-xs">
-      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/50" />
-      <Input
-        placeholder="Search by guest name..."
-        value={searchQuery}
-        onChange={(e) => onSearchChange(e.target.value)}
-        className="h-8 pl-8 text-sm rounded-lg"
-      />
-    </div>
-  );
-}
-
-// ── Helpers ─────────────────────────────────────────────────────
-
-function getTabLabel(tab: ActivityTab): string {
-  const labels: Record<ActivityTab, string> = {
-    arrivals: "Arrivals",
-    departures: "Departures",
-    in_house: "In-house",
-    stayovers: "Stayovers",
-    bookings: "Bookings",
-    cancellations: "Cancellations",
-    overbookings: "Overbookings",
-  };
-  return labels[tab] || "Bookings";
-}
-
-function getEmptyTitle(tab: ActivityTab): string {
-  const titles: Record<ActivityTab, string> = {
-    arrivals: "No arrivals today",
-    departures: "No departures today",
-    in_house: "No guests in-house",
-    stayovers: "No stayovers",
-    bookings: "No new bookings",
-    cancellations: "No cancellations",
-    overbookings: "No overbookings",
-  };
-  return titles[tab] || "No results";
-}
-
-function getEmptyDescription(tab: ActivityTab): string {
-  const descriptions: Record<ActivityTab, string> = {
-    arrivals: "Enjoy the quiet — no guests are scheduled to arrive today.",
-    departures: "All guests are staying on — no departures scheduled.",
-    in_house: "The property is currently empty. New arrivals will appear here.",
-    stayovers: "No guests continuing their stay from previous days.",
-    bookings: "New reservations made today will appear here.",
-    cancellations: "No reservations have been cancelled today.",
-    overbookings: "All good — no overbookings to flag.",
-  };
-  return descriptions[tab] || "";
 }

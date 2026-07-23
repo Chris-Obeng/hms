@@ -95,7 +95,7 @@ export default async function DashboardLayout({
               : undefined
           }
         />
-        <main className="native-scroll flex-1 pt-[calc(3rem+env(safe-area-inset-top))] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-6 md:pb-[calc(1.5rem+env(safe-area-inset-bottom))] lg:px-8 lg:pb-[calc(2rem+env(safe-area-inset-bottom))] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-muted/30 via-background to-background">
+        <main className="native-scroll flex-1 pt-14 px-4 pb-4 md:px-6 md:pb-6 lg:px-8 lg:pb-8 bg-background">
           <DashboardPwaShell>{children}</DashboardPwaShell>
         </main>
       </div>

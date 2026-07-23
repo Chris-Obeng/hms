@@ -2,25 +2,25 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useUser, useOrganization } from "@clerk/nextjs";
+import { usePathname, useRouter } from "next/navigation";
+import { useUser, useOrganization, useClerk } from "@clerk/nextjs";
 import {
   CalendarDays,
   Users,
   DoorOpen,
   BedDouble,
   LifeBuoy,
-  X,
-  Building2,
   Sparkles,
   Receipt,
   BarChart3,
   Settings,
   Shield,
+  Moon,
   LayoutDashboard,
   BookOpen,
   ChevronDown,
   DollarSign,
+  ChevronsUpDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -31,19 +31,23 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
+import type { Selection } from "@heroui/react";
+import {
+  Accordion,
+  Avatar,
+  Chip,
+  CloseButton,
+  ListBox,
+  Separator,
+  ScrollShadow,
+  Tooltip,
+} from "@heroui/react";
 
-// ── Role display helpers ───────────────────────────────────────
+// ── Role helpers ───────────────────────────────────────────────
 
 function getRoleLabel(role: string | undefined | null): string {
-  const roleMap: Record<string, string> = {
+  const map: Record<string, string> = {
     super_admin: "Super Admin",
     admin: "Admin",
     front_desk: "Front Desk",
@@ -51,24 +55,25 @@ function getRoleLabel(role: string | undefined | null): string {
     receptionist: "Front Desk",
     manager: "Manager",
   };
-  return role ? (roleMap[role] ?? role) : "Staff";
+  return role ? (map[role] ?? role) : "Staff";
 }
 
-function getRoleBadgeClass(role: string | undefined | null): string {
+function getRoleChipColor(
+  role: string | undefined | null
+): "accent" | "success" | "default" | "warning" | "danger" {
   switch (role) {
     case "super_admin":
-      return "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-800";
     case "admin":
     case "manager":
-      return "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800";
+      return "accent";
     case "housekeeping":
-      return "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800";
+      return "success";
     default:
-      return "bg-muted/60 text-muted-foreground border-border/60";
+      return "default";
   }
 }
 
-// ── Navigation structure ───────────────────────────────────────
+// ── Nav structure ──────────────────────────────────────────────
 
 interface NavSubItem {
   title: string;
@@ -117,6 +122,7 @@ const navGroups: NavGroup[] = [
     title: "Operations",
     items: [
       { title: "Housekeeping", url: "/dashboard/housekeeping", icon: Sparkles },
+      { title: "Night Audit", url: "/dashboard/night-audit", icon: Moon },
       { title: "Billing", url: "/dashboard/billing", icon: Receipt },
       { title: "Staff", url: "/dashboard/staff", icon: Shield },
     ],
@@ -130,105 +136,210 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-// ── Collapsible Nav Item (parent with sub-items) ───────────────
+const LIST_ITEM_CLASS =
+  "rounded-md px-2.5 py-2 text-sm outline-hidden transition-[color,background-color] duration-150 ring-sidebar-ring ring-inset focus-visible:ring-2 data-[hovered=true]:bg-sidebar-foreground/10 data-[hovered=true]:text-sidebar-foreground data-[selected=true]:bg-sidebar-foreground/10 data-[selected=true]:font-medium data-[selected=true]:text-sidebar-foreground";
 
-function CollapsibleNavItem({
+interface ProcessedGroup extends NavGroup {
+  leafItems: NavItem[];
+  accordionItems: NavItem[];
+}
+
+const processedGroups: ProcessedGroup[] = navGroups.map((g) => ({
+  ...g,
+  leafItems: g.items.filter((i) => !i.subItems),
+  accordionItems: g.items.filter((i) => i.subItems),
+}));
+
+// ── Accordion nav item ─────────────────────────────────────────
+
+function AccordionNavItem({
   item,
   pathname,
   onNavClick,
+  collapsed,
 }: {
   item: NavItem;
   pathname: string;
   onNavClick: () => void;
+  collapsed: boolean;
 }) {
   const anySubActive = item.subItems?.some((s) => pathname === s.url) ?? false;
-  const [expanded, setExpanded] = React.useState(anySubActive);
+  const defaultExpanded = anySubActive
+    ? new Set<string>([item.title])
+    : new Set<string>();
 
-  React.useEffect(() => {
-    if (anySubActive) setExpanded(true);
-  }, [anySubActive]);
+  if (collapsed) {
+    return (
+      <Tooltip delay={500} closeDelay={0}>
+        <Tooltip.Trigger>
+          <button
+            type="button"
+            aria-label={item.title}
+            className={cn(
+              "flex size-8 items-center justify-center rounded-lg",
+              "text-sidebar-foreground/70 outline-hidden transition-[color,background-color] duration-150",
+              "ring-sidebar-ring focus-visible:ring-2",
+              "hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground",
+              anySubActive && "bg-sidebar-foreground/10 text-sidebar-foreground font-medium"
+            )}
+          >
+            <item.icon className="size-4 shrink-0" />
+          </button>
+        </Tooltip.Trigger>
+        <Tooltip.Content placement="right" showArrow className="text-xs font-medium">
+          {item.title}
+        </Tooltip.Content>
+      </Tooltip>
+    );
+  }
 
   return (
-    <div>
-      <SidebarMenuButton
-        isActive={anySubActive}
-        tooltip={item.title}
-        onClick={() => setExpanded((p) => !p)}
-        className={cn(
-          "group-data-[collapsible=icon]:justify-center"
-        )}
-      >
-        <item.icon className="size-4 shrink-0" />
-        <span className="flex-1 truncate">{item.title}</span>
-        <ChevronDown
-          className={cn(
-            "size-3 shrink-0 text-sidebar-foreground/40 transition-transform duration-150",
-            expanded ? "rotate-0" : "-rotate-90",
-            "group-data-[collapsible=icon]:hidden"
-          )}
-        />
-      </SidebarMenuButton>
-
-      {expanded && (
-        <SidebarMenuSub>
-          {item.subItems!.map((sub) => {
-            const subActive = pathname === sub.url;
-            return (
-              <SidebarMenuSubItem key={sub.url}>
-                <SidebarMenuSubButton
-                  isActive={subActive}
-                  render={<Link href={sub.url} onClick={onNavClick} />}
-                >
-                  <span>{sub.title}</span>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-            );
-          })}
-        </SidebarMenuSub>
-      )}
-    </div>
+    <Accordion
+      defaultExpandedKeys={defaultExpanded}
+      hideSeparator
+      className="w-full bg-transparent"
+    >
+      <Accordion.Item id={item.title} className="border-0">
+        <Accordion.Heading>
+          <Accordion.Trigger
+            className={cn(
+              "flex w-full items-center gap-2 overflow-hidden rounded-md px-2.5 py-2 text-left text-sm",
+              "outline-hidden transition-[width,height,padding,color,background-color,transform] duration-150",
+              "ring-sidebar-ring ring-inset focus-visible:ring-2",
+              anySubActive
+                ? "bg-sidebar-foreground/10 font-medium text-sidebar-foreground"
+                : "text-sidebar-foreground/80 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground",
+              "active:scale-[0.98]",
+              "[&_svg]:size-4 [&_svg]:shrink-0"
+            )}
+          >
+            <item.icon className="size-4 shrink-0" />
+            <span className="flex-1 truncate">{item.title}</span>
+            <Accordion.Indicator className="text-sidebar-foreground/40">
+              <ChevronDown className="size-3 transition-transform duration-150" />
+            </Accordion.Indicator>
+          </Accordion.Trigger>
+        </Accordion.Heading>
+        <Accordion.Panel>
+          <Accordion.Body>
+            <div className="ml-3 flex flex-col gap-0.5 border-l border-sidebar-border px-2.5">
+              {item.subItems!.map((sub) => {
+                const subActive = pathname === sub.url;
+                return (
+                  <Link
+                    key={sub.url}
+                    href={sub.url}
+                    onClick={onNavClick}
+                    className={cn(
+                      "flex h-7 items-center gap-2 rounded-md px-2 text-sm",
+                      "outline-hidden transition-[color,background-color] duration-150",
+                      "ring-sidebar-ring ring-inset focus-visible:ring-2",
+                      subActive
+                        ? "bg-sidebar-foreground/10 font-medium text-sidebar-foreground"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-foreground/8 hover:text-sidebar-foreground"
+                    )}
+                  >
+                    <span className="truncate">{sub.title}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </Accordion.Body>
+        </Accordion.Panel>
+      </Accordion.Item>
+    </Accordion>
   );
 }
 
-// ── Leaf Nav Item (direct link) ───────────────────────────────
+// ── User card (shown in sidebar footer) ────────────────────────
+// Clicking opens Clerk's default UserProfile modal
 
-function LeafNavItem({
-  item,
-  pathname,
-  onNavClick,
+function SidebarUserCard({
+  user,
+  userInitials,
+  roleLabel,
+  roleChipColor,
+  isCollapsed,
+  openUserProfile,
 }: {
-  item: NavItem;
-  pathname: string;
-  onNavClick: () => void;
+  user: ReturnType<typeof useUser>["user"];
+  userInitials: string;
+  roleLabel: string;
+  roleChipColor: "accent" | "success" | "default" | "warning" | "danger";
+  isCollapsed: boolean;
+  openUserProfile: () => void;
 }) {
-  const isActive = pathname === item.url;
+  if (isCollapsed) {
+    return (
+      <Tooltip delay={500} closeDelay={0}>
+        <Tooltip.Trigger>
+          <button
+            type="button"
+            aria-label="Open user profile"
+            onClick={openUserProfile}
+            className="flex items-center justify-center outline-hidden border-0 bg-transparent cursor-pointer rounded-lg hover:bg-sidebar-foreground/10 transition-colors p-1"
+          >
+            <SidebarAvatar user={user} userInitials={userInitials} size="sm" />
+          </button>
+        </Tooltip.Trigger>
+        <Tooltip.Content placement="right" showArrow className="text-xs font-medium">
+          {user?.fullName ?? "Account"} — Manage profile
+        </Tooltip.Content>
+      </Tooltip>
+    );
+  }
+
   return (
-    <SidebarMenuButton
-      isActive={isActive}
-      tooltip={item.title}
-      render={<Link href={item.url} onClick={onNavClick} />}
+    <button
+      type="button"
+      aria-label="Open user profile"
+      onClick={openUserProfile}
       className={cn(
-        "group-data-[collapsible=icon]:justify-center"
+        "w-full flex items-center gap-2.5 px-2 py-2 rounded-lg border-0 bg-transparent",
+        "cursor-pointer outline-hidden",
+        "transition-[background-color] duration-150",
+        "hover:bg-sidebar-foreground/10",
+        "active:bg-sidebar-foreground/10"
       )}
     >
-      <item.icon className="size-4 shrink-0" />
-      <span className="truncate">{item.title}</span>
-    </SidebarMenuButton>
+      <SidebarAvatar user={user} userInitials={userInitials} size="sm" />
+      <div className="min-w-0 flex-1 text-left">
+        <p className="text-xs font-semibold text-sidebar-foreground truncate leading-tight">
+          {user?.fullName ?? "Staff Member"}
+        </p>
+        <Chip
+          size="sm"
+          variant="soft"
+          color={roleChipColor}
+          className="mt-0.5 h-[18px] px-1.5 text-[10px] font-medium leading-none"
+        >
+          {roleLabel}
+        </Chip>
+      </div>
+      <ChevronsUpDown className="size-3.5 shrink-0 text-sidebar-foreground/40" />
+    </button>
   );
 }
 
 // ── AppSidebar ─────────────────────────────────────────────────
 
 export function AppSidebar({ hotelName }: { hotelName?: string }) {
+  const router = useRouter();
   const pathname = usePathname();
   const { user } = useUser();
   const { membership } = useOrganization();
-  const { isMobile, setOpenMobile, setOpen } = useSidebar();
+  const { isMobile, setOpenMobile, setOpen, state } = useSidebar();
+  const { openUserProfile, openOrganizationProfile } = useClerk();
+
+  const isCollapsed = !isMobile && state === "collapsed";
+  const selectedKeys = React.useMemo(() => new Set([pathname]), [pathname]);
 
   const prevPathname = React.useRef(pathname);
-  // Close sidebar on every navigation (overlay on desktop, Sheet on mobile)
+  const lastNavRef = React.useRef<string | null>(null);
+
   React.useEffect(() => {
     if (prevPathname.current !== pathname) {
+      lastNavRef.current = pathname;
       setOpen(false);
       setOpenMobile(false);
       prevPathname.current = pathname;
@@ -236,140 +347,274 @@ export function AppSidebar({ hotelName }: { hotelName?: string }) {
   }, [pathname, setOpen, setOpenMobile]);
 
   const handleNavClick = React.useCallback(() => {
-    if (isMobile) {
-      setOpenMobile(false);
-    } else {
-      setOpen(false);
-    }
+    if (isMobile) setOpenMobile(false);
+    else setOpen(false);
   }, [isMobile, setOpen, setOpenMobile]);
+
+  const navigateTo = React.useCallback(
+    (url: string) => {
+      if (url === lastNavRef.current) return;
+      lastNavRef.current = url;
+      router.push(url);
+      handleNavClick();
+    },
+    [router, handleNavClick]
+  );
+
+  const handleSelectionChange = React.useCallback(
+    (keys: Selection) => {
+      if (keys === "all") return;
+      const key = [...keys][0] as string | undefined;
+      if (key) navigateTo(key);
+    },
+    [navigateTo]
+  );
 
   const clerkRole = membership?.role ?? null;
   const role = clerkRole?.replace(/^org:/, "") ?? null;
   const roleLabel = getRoleLabel(role);
-  const roleBadgeClass = getRoleBadgeClass(role);
+  const roleChipColor = getRoleChipColor(role);
 
-  const userInitials = [user?.firstName?.[0], user?.lastName?.[0]]
-    .filter(Boolean)
-    .join("")
-    .toUpperCase() || "U";
+  const userInitials =
+    ([user?.firstName?.[0], user?.lastName?.[0]])
+      .filter(Boolean)
+      .join("")
+      .toUpperCase() || "U";
 
   return (
     <>
       {/* ── Header ─────────────────────────────────────────── */}
       <SidebarHeader className="px-3 py-3.5 border-b border-sidebar-border/50">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="size-8 rounded-lg bg-sidebar-accent flex items-center justify-center shrink-0 ring-1 ring-sidebar-border/40">
-              <Building2 className="size-3.5 text-sidebar-foreground/70" />
-            </div>
-            <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-              <p className="text-sm font-semibold text-sidebar-foreground truncate leading-tight">
-                {hotelName ?? "Hotel"}
-              </p>
-
-            </div>
-          </div>
-
-          {/* Close button — always visible on overlay (desktop + mobile) */}
           <button
             type="button"
-            onClick={() => {
+            onClick={() => openOrganizationProfile?.()}
+            title="Manage Hotel & Organization Settings"
+            className="flex items-center gap-2.5 min-w-0 text-left group cursor-pointer outline-none rounded-lg p-0.5"
+          >
+            <div className="size-8 rounded-lg bg-sidebar-accent flex items-center justify-center shrink-0 ring-1 ring-sidebar-border/40 group-hover:bg-sidebar-foreground/10 transition-colors">
+              <LayoutDashboard className="size-3.5 text-sidebar-foreground/70" />
+            </div>
+            <div
+              className={cn(
+                "min-w-0 transition-[opacity,width] duration-200",
+                isCollapsed && "hidden"
+              )}
+            >
+              <p className="text-sm font-semibold text-sidebar-foreground truncate leading-tight group-hover:text-sidebar-foreground/80">
+                {hotelName ?? "Hotel"}
+              </p>
+              <p className="text-[10px] text-sidebar-foreground/40 truncate leading-tight mt-0.5">
+                HotelOS Pro
+              </p>
+            </div>
+          </button>
+          <CloseButton
+            onPress={() => {
               setOpen(false);
               setOpenMobile(false);
             }}
             aria-label="Close navigation"
-            className="size-8 rounded-lg flex items-center justify-center text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors shrink-0"
-          >
-            <X className="size-4" />
-          </button>
+            className={cn(
+              "shrink-0 text-sidebar-foreground/40 hover:text-sidebar-foreground",
+              "data-[hovered=true]:text-sidebar-foreground data-[hovered=true]:bg-sidebar-foreground/10",
+              "transition-[color,background-color] duration-150",
+              isCollapsed && "hidden"
+            )}
+          />
         </div>
       </SidebarHeader>
 
       {/* ── Navigation ─────────────────────────────────────── */}
-      <SidebarContent className="px-2 py-2">
-        {navGroups.map((group) => (
-          <SidebarGroup key={group.title}>
-            <SidebarGroupLabel className="px-2 text-label font-semibold uppercase tracking-widest text-sidebar-foreground/50">
-              {group.title}
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {group.items.map((item) => (
-                  <SidebarMenuItem key={item.url}>
-                    {item.subItems ? (
-                      <CollapsibleNavItem
-                        item={item}
-                        pathname={pathname}
-                        onNavClick={handleNavClick}
-                      />
-                    ) : (
-                      <LeafNavItem
-                        item={item}
-                        pathname={pathname}
-                        onNavClick={handleNavClick}
-                      />
-                    )}
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+      <SidebarContent className={cn("px-2 py-2", isCollapsed && "px-1")}>
+        <ScrollShadow
+          orientation="vertical"
+          size={20}
+          className="h-full"
+          style={{
+            // Override heroui-background so the fade gradient matches
+            // the sidebar background instead of the page background
+            "--heroui-background": "hsl(var(--sidebar))",
+          } as React.CSSProperties}
+        >
+          {isCollapsed ? (
+            /* Collapsed: icon-only buttons with tooltips */
+            <div className="flex flex-col items-center gap-1">
+              {processedGroups.flatMap((group) =>
+                group.items.map((item) =>
+                  item.subItems ? (
+                    <AccordionNavItem
+                      key={item.url}
+                      item={item}
+                      pathname={pathname}
+                      onNavClick={handleNavClick}
+                      collapsed
+                    />
+                  ) : (
+                    <Tooltip key={item.url} delay={500} closeDelay={0}>
+                      <Tooltip.Trigger>
+                        <button
+                          type="button"
+                          aria-label={item.title}
+                          onClick={() => navigateTo(item.url)}
+                          className={cn(
+                            "flex size-8 items-center justify-center rounded-lg",
+                            "text-sidebar-foreground/70 outline-hidden transition-[color,background-color] duration-150",
+                            "ring-sidebar-ring focus-visible:ring-2",
+                            "hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground",
+                            pathname === item.url &&
+                              "bg-sidebar-foreground/10 text-sidebar-foreground font-medium"
+                          )}
+                        >
+                          <item.icon className="size-4 shrink-0" />
+                        </button>
+                      </Tooltip.Trigger>
+                      <Tooltip.Content
+                        placement="right"
+                        showArrow
+                        className="text-xs font-medium"
+                      >
+                        {item.title}
+                      </Tooltip.Content>
+                    </Tooltip>
+                  )
+                )
+              )}
+            </div>
+          ) : (
+            /* Expanded: HeroUI ListBox per group */
+            processedGroups.map((group) => (
+              <SidebarGroup key={group.title}>
+                <SidebarGroupLabel className="px-2 text-label font-semibold uppercase tracking-widest text-sidebar-foreground/50">
+                  {group.title}
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  {group.leafItems.length > 0 && (
+                    <ListBox
+                      selectionMode="single"
+                      selectedKeys={selectedKeys}
+                      onSelectionChange={handleSelectionChange}
+                      className="w-full bg-transparent"
+                      aria-label={group.title}
+                    >
+                      {group.leafItems.map((item) => (
+                        <ListBox.Item
+                          key={item.url}
+                          id={item.url}
+                          textValue={item.title}
+                          className={LIST_ITEM_CLASS}
+                        >
+                          <item.icon className="size-4 shrink-0" />
+                          <span className="flex-1 truncate text-sm">{item.title}</span>
+                        </ListBox.Item>
+                      ))}
+                    </ListBox>
+                  )}
+                  {group.accordionItems.map((item) => (
+                    <AccordionNavItem
+                      key={item.url}
+                      item={item}
+                      pathname={pathname}
+                      onNavClick={handleNavClick}
+                      collapsed={false}
+                    />
+                  ))}
+                </SidebarGroupContent>
+              </SidebarGroup>
+            ))
+          )}
+        </ScrollShadow>
       </SidebarContent>
 
       {/* ── Footer ─────────────────────────────────────────── */}
-      <SidebarFooter className="border-t border-sidebar-border/50 p-3">
-        <SidebarMenu>
-          {/* Help & Support — always visible */}
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              tooltip="Help & Support"
-              render={
-                <Link
-                  href="/support"
-                  onClick={handleNavClick}
-                />
-              }
-              className="group-data-[collapsible=icon]:justify-center"
+      <SidebarFooter className="border-t border-sidebar-border/50 p-3 gap-1">
+        {/* Help & Support link */}
+        {isCollapsed ? (
+          <Tooltip delay={500} closeDelay={0}>
+            <Tooltip.Trigger>
+              <button
+                type="button"
+                aria-label="Help & Support"
+                onClick={() => navigateTo("/support")}
+                className={cn(
+                  "flex size-8 items-center justify-center rounded-lg mx-auto",
+                  "text-sidebar-foreground/70 outline-hidden transition-[color,background-color] duration-150",
+                  "ring-sidebar-ring focus-visible:ring-2",
+                  "hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground",
+                  pathname === "/support" &&
+                    "bg-sidebar-foreground/10 text-sidebar-foreground font-medium"
+                )}
+              >
+                <LifeBuoy className="size-4 shrink-0" />
+              </button>
+            </Tooltip.Trigger>
+            <Tooltip.Content placement="right" showArrow className="text-xs font-medium">
+              Help & Support
+            </Tooltip.Content>
+          </Tooltip>
+        ) : (
+          <ListBox
+            selectionMode="single"
+            selectedKeys={selectedKeys}
+            onSelectionChange={handleSelectionChange}
+            className="w-full bg-transparent"
+            aria-label="Help & Support"
+          >
+            <ListBox.Item
+              id="/support"
+              textValue="Help & Support"
+              className={LIST_ITEM_CLASS}
             >
               <LifeBuoy className="size-4 shrink-0" />
-              <span className="truncate">Help & Support</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+              <span className="flex-1 truncate text-sm">Help & Support</span>
+            </ListBox.Item>
+          </ListBox>
+        )}
 
-        <SidebarSeparator className="my-2" />
+        <Separator className="bg-sidebar-border/50" />
 
-        {/* User identity */}
-        <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg group-data-[collapsible=icon]:justify-center">
-          <div className="size-8 rounded-lg bg-sidebar-accent flex items-center justify-center shrink-0 text-xs font-semibold text-sidebar-foreground ring-1 ring-sidebar-border/30 shrink-0">
-            {user?.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={user.imageUrl}
-                alt={user.fullName ?? "User avatar"}
-                className="size-8 rounded-lg object-cover"
-              />
-            ) : (
-              userInitials
-            )}
-          </div>
-
-          <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-            <p className="text-xs font-semibold text-sidebar-foreground truncate leading-tight">
-              {user?.fullName ?? "Staff Member"}
-            </p>
-            <span
-              className={cn(
-                "inline-block mt-0.5 px-1.5 py-0.5 rounded-md border text-caption font-medium leading-none",
-                roleBadgeClass
-              )}
-            >
-              {roleLabel}
-            </span>
-          </div>
-        </div>
+        {/* User card — clicks open Clerk's default UserProfile modal */}
+        <SidebarUserCard
+          user={user}
+          userInitials={userInitials}
+          roleLabel={roleLabel}
+          roleChipColor={roleChipColor}
+          isCollapsed={isCollapsed}
+          openUserProfile={openUserProfile}
+        />
       </SidebarFooter>
     </>
+  );
+}
+
+// ── Avatar helper ──────────────────────────────────────────────
+
+function SidebarAvatar({
+  user,
+  userInitials,
+  size = "sm",
+}: {
+  user: { imageUrl?: string | null; fullName?: string | null } | undefined | null;
+  userInitials?: string;
+  size?: "sm" | "md" | "lg";
+}) {
+  if (user?.imageUrl) {
+    return (
+      <Avatar size={size} className="rounded-lg shrink-0">
+        <Avatar.Image
+          src={user.imageUrl}
+          alt={user.fullName ?? "User avatar"}
+          className="rounded-lg"
+        />
+        <Avatar.Fallback className="rounded-lg bg-sidebar-accent text-sidebar-foreground text-xs font-semibold">
+          {userInitials ?? "U"}
+        </Avatar.Fallback>
+      </Avatar>
+    );
+  }
+  return (
+    <div className="size-8 rounded-lg bg-sidebar-accent flex items-center justify-center shrink-0 text-xs font-semibold text-sidebar-foreground ring-1 ring-sidebar-border/30">
+      {userInitials ?? "U"}
+    </div>
   );
 }

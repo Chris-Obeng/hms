@@ -175,6 +175,7 @@ export function BookingDetailDrawer({
             {/* ═══ Action Bar ═══ */}
             <BookingActionBar
               booking={booking}
+              currency={currency}
               actionLoading={actionLoading}
               onAction={handleAction}
               onOpenPaymentForm={() => {

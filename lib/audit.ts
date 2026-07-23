@@ -33,7 +33,9 @@ export type AuditAction =
   | "room.block_created"
   | "room.block_deleted"
   | "room.status_changed"
-  | "room.note_updated";
+  | "room.note_updated"
+  // Night Audit
+  | "night_audit.completed";
 
 export interface AuditEntry {
   hotelId: string;

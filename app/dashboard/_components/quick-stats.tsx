@@ -8,9 +8,8 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, Badge } from "@heroui/react";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 
 // ── Helpers ────────────────────────────────────────────────────
 
@@ -103,14 +102,14 @@ function SummaryRow({
 
 export function QuickStats({ data, currency }: QuickStatsProps) {
   return (
-    <Card className="card-default">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-section">Today&apos;s Revenue</CardTitle>
-        <CardDescription className="text-caption mt-0.5">
+    <Card variant="default" className="shadow-sm border-0">
+      <Card.Header>
+        <Card.Title>Today&apos;s Revenue</Card.Title>
+        <Card.Description>
           Financial summary for today
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+        </Card.Description>
+      </Card.Header>
+      <Card.Content className="space-y-4">
         <QuickStatRow
           label="ADR"
           value={formatCurrency(data.adr, currency)}
@@ -138,7 +137,7 @@ export function QuickStats({ data, currency }: QuickStatsProps) {
           icon={CreditCard}
           color="text-amber-500"
         />
-      </CardContent>
+      </Card.Content>
     </Card>
   );
 }
@@ -147,15 +146,15 @@ export function QuickStats({ data, currency }: QuickStatsProps) {
 
 export function TodaySummary({ data }: TodaySummaryProps) {
   return (
-    <Card className="card-default">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-section">Today&apos;s Summary</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-1">
+    <Card variant="default" className="shadow-sm border-0">
+      <Card.Header>
+        <Card.Title>Today&apos;s Summary</Card.Title>
+      </Card.Header>
+      <Card.Content className="space-y-1">
         <SummaryRow icon={LogIn} label="Arrivals" value={data.arrivals} color="text-emerald-500" />
         <SummaryRow icon={LogOut} label="Departures" value={data.departures} color="text-amber-500" />
         <SummaryRow icon={CreditCard} label="In-house" value={data.inHouse} color="text-blue-500" />
-      </CardContent>
+      </Card.Content>
     </Card>
   );
 }

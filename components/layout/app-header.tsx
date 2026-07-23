@@ -3,16 +3,16 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useUser, useAuth } from "@clerk/nextjs";
-import { useTheme } from "next-themes";
+import { useUser, useAuth, useClerk } from "@clerk/nextjs";
+import { useTheme } from "@/components/theme-provider";
 import {
   Plus,
-  LogOut,
-  Settings,
   Building2,
   Sun,
   Moon,
   Bell,
+  Search,
+  Menu,
   CalendarDays,
   DollarSign,
   AlertTriangle,
@@ -21,14 +21,10 @@ import {
 import {
   Avatar,
   Button,
-  Dropdown,
   Kbd,
-  Label,
   Popover,
-  Separator,
   useOverlayState,
 } from "@heroui/react";
-import { MenuIcon } from "@/components/ui/menu-icon";
 import {
   NotificationIcon,
   type NotificationIconHandle,
@@ -107,7 +103,8 @@ export function AppHeader({
 }: AppHeaderProps) {
   const router = useRouter();
   const { user, isLoaded } = useUser();
-  const { signOut, getToken } = useAuth();
+  const { getToken } = useAuth();
+  const { openUserProfile, openOrganizationProfile } = useClerk();
   const { toggleSidebar } = useSidebar();
 
 
@@ -329,11 +326,9 @@ export function AppHeader({
       <header
         data-slot="app-header"
         className={cn(
-          "fixed left-0 right-0 top-0 z-30 flex items-center gap-2",
-          "h-[calc(3rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)]",
-          "border-b border-border/60 bg-background/85 backdrop-blur-xl supports-backdrop-filter:bg-background/70",
+          "fixed left-0 right-0 top-0 z-30 flex items-center justify-between gap-2",
+          "h-14 border-b border-border/60 bg-background/85 backdrop-blur-xl supports-backdrop-filter:bg-background/70",
           "px-3 md:px-4 lg:px-6",
-          "native-chrome",
         )}
       >
         {/* ── Left ─────────────────────────────────────────── */}
@@ -345,14 +340,16 @@ export function AppHeader({
             isIconOnly
             onPress={toggleSidebar}
             aria-label="Toggle sidebar"
-            className="size-8 shrink-0 rounded-lg hover:bg-muted/60"
+            className="size-8 shrink-0 rounded-lg text-muted-foreground transition-all duration-200 hover:bg-muted/60 hover:text-foreground active:scale-[0.98]"
           >
-            <MenuIcon size={16} />
+            <Menu className="size-5" />
           </Button>
 
-          <Link
-            href="/dashboard"
-            className="group flex min-w-0 items-center gap-2"
+          <button
+            type="button"
+            onClick={() => openOrganizationProfile?.()}
+            title="Manage Hotel & Organization Settings"
+            className="group flex min-w-0 items-center gap-2 text-left cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded-lg p-0.5"
           >
             {hotelLogoUrl ? (
               <img
@@ -361,14 +358,14 @@ export function AppHeader({
                 className="size-7 shrink-0 rounded-lg object-cover"
               />
             ) : (
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-foreground/5 ring-1 ring-border">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-foreground/5 ring-1 ring-border group-hover:bg-foreground/10 transition-colors">
                 <Building2 className="size-3.5 text-muted-foreground" />
               </span>
             )}
             <span className="hidden truncate text-sm font-semibold text-foreground transition-colors group-hover:text-foreground/80 sm:inline">
               {hotelName || "Dashboard"}
             </span>
-          </Link>
+          </button>
         </div>
 
         {/* ── Center: search trigger ────────────────────────── */}
@@ -381,22 +378,10 @@ export function AppHeader({
             className={cn(
               "flex h-8 w-full max-w-sm items-center gap-2 rounded-lg px-3 text-left",
               "border border-border/50 bg-muted/30 text-sm text-muted-foreground/70",
-              "transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+              "transition-all duration-200 hover:bg-muted/50 hover:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
             )}
           >
-            <svg
-              aria-hidden="true"
-              className="size-3.5 shrink-0 text-muted-foreground/50"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
-            >
-              <circle cx={11} cy={11} r={8} />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
+            <Search className="size-3.5 shrink-0 text-muted-foreground/50" />
             <span className="flex-1 truncate text-muted-foreground/60">
               Search guests, bookings, rooms…
             </span>
@@ -417,21 +402,9 @@ export function AppHeader({
             isIconOnly
             onPress={searchState.open}
             aria-label="Open search"
-            className="size-8 rounded-lg text-muted-foreground hover:bg-muted/60 md:hidden"
+            className="size-8 rounded-lg text-muted-foreground transition-all duration-200 hover:bg-muted/60 active:scale-[0.97] md:hidden"
           >
-            <svg
-              aria-hidden="true"
-              className="size-4"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
-            >
-              <circle cx={11} cy={11} r={8} />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
+            <Search className="size-4" />
           </Button>
 
           {/* New Booking */}
@@ -570,11 +543,14 @@ export function AppHeader({
             </Popover.Content>
           </Popover>
 
-          {/* ── User menu — HeroUI Dropdown ───────────────────── */}
+
+          {/* ── User avatar — opens Clerk's default UserProfile modal ── */}
           {isLoaded && user && (
-            <Dropdown>
-              <Dropdown.Trigger
-                aria-label="User menu"
+            <div className="hidden md:block">
+              <button
+                type="button"
+                aria-label="Open user profile"
+                onClick={() => openUserProfile()}
                 className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-transparent border-0 shadow-none hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 transition-colors cursor-pointer"
               >
                 <Avatar size="sm" className="size-6 rounded-md">
@@ -587,62 +563,10 @@ export function AppHeader({
                       (user.lastName?.[0] ?? "")}
                   </Avatar.Fallback>
                 </Avatar>
-              </Dropdown.Trigger>
-
-              <Dropdown.Popover placement="bottom end" className="w-56">
-                <Dropdown.Menu
-                  aria-label="User menu"
-                  onAction={(key) => {
-                    if (key === "settings")
-                      router.push("/dashboard/settings");
-                    if (key === "sign-out")
-                      signOut({ redirectUrl: "/" });
-                  }}
-                >
-                  {/* User info header — static, non-interactive */}
-                  <Dropdown.Section>
-                    <Dropdown.Item
-                      id="user-info"
-                      isDisabled
-                      textValue={user.fullName ?? user.firstName ?? "User"}
-                      className="cursor-default opacity-100"
-                    >
-                      <div className="flex flex-col gap-0.5 py-0.5">
-                        <span className="text-sm font-medium text-foreground">
-                          {user.fullName || user.firstName || "User"}
-                        </span>
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {user.primaryEmailAddress?.emailAddress}
-                        </span>
-                      </div>
-                    </Dropdown.Item>
-                  </Dropdown.Section>
-
-                  <Separator />
-
-                  <Dropdown.Section>
-                    <Dropdown.Item id="settings" textValue="Settings">
-                      <Settings className="size-3.5" />
-                      <Label>Settings</Label>
-                    </Dropdown.Item>
-                  </Dropdown.Section>
-
-                  <Separator />
-
-                  <Dropdown.Section>
-                    <Dropdown.Item
-                      id="sign-out"
-                      variant="danger"
-                      textValue="Sign out"
-                    >
-                      <LogOut className="size-3.5" />
-                      <Label>Sign out</Label>
-                    </Dropdown.Item>
-                  </Dropdown.Section>
-                </Dropdown.Menu>
-              </Dropdown.Popover>
-            </Dropdown>
+              </button>
+            </div>
           )}
+
         </div>
       </header>
 

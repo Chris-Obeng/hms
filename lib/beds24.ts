@@ -2,21 +2,95 @@
  * lib/beds24.ts
  * Beds24 API V2 integration.
  *
- * Auth: API V2 uses token-based auth.
- * Header format: "token: {token}"
- * Tokens expire after 24h. Use refresh tokens to get new ones.
- * Long-life tokens never expire (90 days unused = expire).
+ * ── Auth model ────────────────────────────────────────────────────
+ * HotelOS uses ONE master Beds24 account for all hotels.
+ * Each hotel is a separate property under that account.
  *
- * For HotelOS: we store the long-life token in hotels.beds24_api_key.
- * Long-life tokens have read-only access by default.
- * For write access (pushing inventory), a refresh-token-generated token is needed.
- * Store beds24_refresh_token in hotels table for Growth/Pro hotels.
+ * Credentials live in environment variables (never per-hotel DB rows):
+ *   BEDS24_REFRESH_TOKEN  — long-lived, used to generate 24h access tokens
+ *   BEDS24_API_TOKEN      — current 24h access token (seeded at deploy, auto-refreshed)
  *
- * Docs: https://wiki.beds24.com/index.php/Category:API_V2
+ * Per-hotel DB columns:
+ *   hotels.beds24_property_id  — the Beds24 property ID for this hotel
+ *   beds24_property_mappings   — maps HotelOS room_type_id → beds24_room_id
+ *
+ * Token refresh: call getMasterToken() from server actions — it caches the
+ * active token in-process for its remaining lifetime and auto-refreshes when
+ * it expires. No per-request token fetch.
+ *
+ * Rate Limiting: Bed24 enforces 100 credits per rolling 5-minute window.
+ * All API calls are tracked via bed24RateLimiter to prevent exceeding limits.
+ *
+ * Docs:    https://wiki.beds24.com/index.php/Category:API_V2
  * Swagger: https://beds24.com/api/v2/
  */
 
+import { bed24RateLimiter, OPERATION_COSTS } from "./bed24-rate-limiter";
+
 const BEDS24_BASE = "https://beds24.com/api/v2";
+
+// ── Master token cache ────────────────────────────────────────────
+// In-process cache so we don't call the refresh endpoint on every request.
+// Refreshes automatically when the token has less than 5 minutes remaining.
+
+type TokenCache = { token: string; expiresAt: number };
+let _tokenCache: TokenCache | null = null;
+
+/**
+ * Get the current master access token for the HotelOS Beds24 account.
+ * Reads BEDS24_API_TOKEN / BEDS24_REFRESH_TOKEN from env.
+ * Auto-refreshes using the refresh token when the cached token is near expiry.
+ *
+ * Call this from server actions instead of using per-hotel tokens.
+ */
+export async function getMasterToken(): Promise<string> {
+  const now = Date.now();
+  const FIVE_MINUTES = 5 * 60 * 1000;
+
+  // Return cached token if still valid with 5-min buffer
+  if (_tokenCache && _tokenCache.expiresAt - now > FIVE_MINUTES) {
+    return _tokenCache.token;
+  }
+
+  const refreshToken = process.env.BEDS24_REFRESH_TOKEN;
+  const envToken = process.env.BEDS24_API_TOKEN;
+
+  // If we have a refresh token, use it to get a fresh access token
+  if (refreshToken) {
+    const result = await refreshAccessToken(refreshToken);
+    if (result.success) {
+      _tokenCache = {
+        token: result.token,
+        expiresAt: now + result.expiresIn * 1000,
+      };
+      return result.token;
+    }
+    // Fall through to env token if refresh fails
+  }
+
+  // Fall back to the static env token (long-life token or manually set)
+  if (envToken) {
+    // Cache with 23h lifetime (long-life tokens are essentially permanent,
+    // but we re-read env every 23h to pick up manual rotations)
+    _tokenCache = {
+      token: envToken,
+      expiresAt: now + 23 * 60 * 60 * 1000,
+    };
+    return envToken;
+  }
+
+  throw new Error(
+    "Beds24 not configured — set BEDS24_REFRESH_TOKEN and BEDS24_API_TOKEN in environment variables"
+  );
+}
+
+/**
+ * Check whether the master Beds24 credentials are configured in env.
+ * Does NOT make a network call — just checks env vars are present.
+ */
+export function isBeds24Configured(): boolean {
+  return !!(process.env.BEDS24_REFRESH_TOKEN || process.env.BEDS24_API_TOKEN);
+}
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -62,6 +136,9 @@ export async function refreshAccessToken(
   refreshToken: string
 ): Promise<{ success: true; token: string; expiresIn: number } | { success: false; error: string }> {
   try {
+    // Record rate limit (1 credit for token refresh)
+    bed24RateLimiter.recordKnownOperation("TOKEN_REFRESH");
+    
     const res = await fetch(`${BEDS24_BASE}/authentication/token`, {
       method: "GET",
       headers: { accept: "application/json", refreshToken },
@@ -138,6 +215,8 @@ async function beds24Fetch(
  *
  * NOTE: Beds24 recommends caching and batching — avoid calling per-booking in high volume.
  * For MVP (low volume), per-event is fine.
+ * 
+ * Rate Limit: 5 credits per room
  */
 export async function pushAvailability(
   config: Beds24Config,
@@ -145,6 +224,17 @@ export async function pushAvailability(
 ): Promise<Beds24SyncResult> {
   if (!config.token) return { success: false, error: "Beds24 token not configured" };
   if (!blocks.length) return { success: true };
+
+  // Check rate limit (5 credits per room)
+  const cost = blocks.length * OPERATION_COSTS.AVAILABILITY_PUSH_PER_ROOM;
+  if (!bed24RateLimiter.canProceed(cost)) {
+    const status = bed24RateLimiter.getStatus();
+    const resetMinutes = Math.ceil(status.resetsIn / 60000);
+    return {
+      success: false,
+      error: `Rate limit: ${cost} credits needed, ${status.remaining} available. Resets in ${resetMinutes}m.`,
+    };
+  }
 
   const payload = blocks.map((b) => ({
     roomId: Number(b.roomId),
@@ -158,6 +248,9 @@ export async function pushAvailability(
   }));
 
   try {
+    // Record rate limit BEFORE making the request
+    bed24RateLimiter.recordRequest("availability_push", cost);
+    
     const result = await beds24Fetch(config.token, "POST", "/inventory/rooms/calendar", payload);
 
     if (!result.ok) {
@@ -186,11 +279,26 @@ export async function pushAvailability(
 /**
  * Test the Beds24 connection by calling GET /properties.
  * Returns property count if successful.
+ * 
+ * Rate Limit: 2 credits for property fetch
  */
 export async function testBeds24Connection(
   token: string
 ): Promise<{ success: true; propertyCount: number } | { success: false; error: string }> {
   try {
+    // Check rate limit (2 credits for property fetch)
+    if (!bed24RateLimiter.canProceed(OPERATION_COSTS.PROPERTY_FETCH)) {
+      const status = bed24RateLimiter.getStatus();
+      const resetMinutes = Math.ceil(status.resetsIn / 60000);
+      return {
+        success: false,
+        error: `Rate limit: ${OPERATION_COSTS.PROPERTY_FETCH} credits needed, ${status.remaining} available. Resets in ${resetMinutes}m.`,
+      };
+    }
+    
+    // Record rate limit BEFORE making the request
+    bed24RateLimiter.recordKnownOperation("PROPERTY_FETCH");
+    
     const result = await beds24Fetch(token, "GET", "/properties");
 
     if (!result.ok) {

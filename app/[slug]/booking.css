@@ -1,14 +1,53 @@
-/* Booking app — warm editorial palette, distinct from admin dashboard */
+/* Guest booking — warm editorial hospitality palette (distinct from admin) */
 .booking-body {
   font-family: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
   font-size: 15px;
   line-height: 1.65;
-  color: #1C1917;
-  background: #FAFAF8;
+  color: #1c1917;
+  background: #fafaf8;
   -webkit-font-smoothing: antialiased;
-  /* Override root layout body flex */
   display: block;
-  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
+  /* Guest accent tokens — deep stone primary, warm amber highlight */
+  --bk-bg: #fafaf8;
+  --bk-surface: #ffffff;
+  --bk-surface-soft: #f5f4f1;
+  --bk-ink: #1c1917;
+  --bk-ink-soft: #44403c;
+  --bk-muted: #78716c;
+  --bk-line: #e7e5e4;
+  --bk-line-strong: #d6d3d1;
+  --bk-accent: #b45309;
+  --bk-accent-soft: #fef3c7;
+  --bk-success: #047857;
+  --bk-danger: #be123c;
+  --bk-radius: 1rem;
+  --bk-radius-lg: 1.25rem;
+  --bk-shadow: 0 1px 2px rgb(28 25 23 / 0.04), 0 8px 24px rgb(28 25 23 / 0.04);
+  --bk-shadow-lg: 0 4px 6px rgb(28 25 23 / 0.03), 0 16px 40px rgb(28 25 23 / 0.08);
+}
+
+/* Keyboard skip link — offscreen until focused */
+.booking-skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -100px;
+  z-index: 100;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  background: var(--bk-ink);
+  color: #fafaf8;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 150ms ease;
+}
+
+.booking-skip-link:focus {
+  top: 1rem;
+  outline: 2px solid var(--bk-accent);
+  outline-offset: 2px;
 }
 
 .booking-heading {
@@ -16,10 +55,452 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.15;
+  text-wrap: balance;
 }
 
 .booking-heading-italic {
   font-family: var(--font-cormorant), Georgia, serif;
   font-style: italic;
   font-weight: 500;
+  line-height: 1.2;
+}
+
+/* Sticky guest chrome */
+.booking-header {
+  background: rgb(250 250 248 / 0.92);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border-bottom: 1px solid var(--bk-line);
+  box-shadow: 0 1px 0 rgb(28 25 23 / 0.02), 0 8px 24px rgb(28 25 23 / 0.04);
+  transition:
+    background 220ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 220ms cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 220ms cubic-bezier(0.32, 0.72, 0, 1),
+    backdrop-filter 220ms ease;
+}
+
+.booking-header-hero {
+  background: linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0.38) 0%,
+    rgb(0 0 0 / 0.12) 70%,
+    transparent 100%
+  );
+  border-bottom: 1px solid transparent;
+  box-shadow: none;
+  transition:
+    background 220ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 220ms cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Hero header after scroll — reuses solid chrome tokens */
+.booking-header-hero[data-solid="true"] {
+  background: rgb(250 250 248 / 0.94);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border-bottom: 1px solid var(--bk-line);
+  box-shadow: 0 1px 0 rgb(28 25 23 / 0.02), 0 8px 24px rgb(28 25 23 / 0.04);
+}
+
+/* White pill CTA over dark hero imagery */
+.booking-cta-on-hero {
+  background: #ffffff !important;
+  color: var(--bk-ink) !important;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 4px 16px rgb(0 0 0 / 0.12) !important;
+}
+
+.booking-cta-on-hero:hover:not(:disabled) {
+  background: #f5f5f4 !important;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.14) !important;
+}
+
+.booking-cta-on-hero:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.booking-cta-on-hero:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* Surfaces */
+.booking-surface {
+  background: var(--bk-surface);
+  border: 1px solid var(--bk-line);
+  border-radius: var(--bk-radius-lg);
+  box-shadow: var(--bk-shadow);
+}
+
+.booking-surface-soft {
+  background: var(--bk-surface-soft);
+  border: 1px solid var(--bk-line);
+  border-radius: var(--bk-radius);
+}
+
+/* Primary guest CTA */
+.booking-cta {
+  background: var(--bk-ink) !important;
+  color: #fafaf8 !important;
+  border: none !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em;
+  transition: background 200ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 150ms cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 200ms cubic-bezier(0.32, 0.72, 0, 1) !important;
+}
+
+.booking-cta:hover:not(:disabled) {
+  background: #292524 !important;
+  box-shadow: var(--bk-shadow);
+}
+
+.booking-cta:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.booking-cta:disabled {
+  background: #e7e5e4 !important;
+  color: #a8a29e !important;
+  box-shadow: none !important;
+}
+
+/* Accent CTA (pay / confirm) */
+.booking-cta-accent {
+  background: var(--bk-accent) !important;
+  color: #fffbeb !important;
+}
+
+.booking-cta-accent:hover:not(:disabled) {
+  background: #92400e !important;
+}
+
+/* Form field shell inside booking */
+.booking-field input,
+.booking-field textarea,
+.booking-field [data-slot="input"] {
+  border-radius: 0.75rem;
+}
+
+/* Step connector line */
+.booking-step-track {
+  height: 2px;
+  background: var(--bk-line);
+  flex: 1;
+  min-width: 1.5rem;
+}
+
+.booking-step-track[data-done="true"] {
+  background: var(--bk-ink);
+}
+
+/* Room option selection ring */
+.booking-room-option {
+  border: 1.5px solid var(--bk-line);
+  border-radius: var(--bk-radius-lg);
+  background: var(--bk-surface);
+  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.booking-room-option:hover {
+  border-color: var(--bk-line-strong);
+}
+
+.booking-room-option[data-selected="true"] {
+  border-color: var(--bk-ink);
+  background: #fafaf8;
+  box-shadow: inset 0 0 0 1px var(--bk-ink);
+}
+
+.booking-room-option[data-sold-out="true"] {
+  border-style: dashed;
+}
+
+.booking-room-option:focus-visible {
+  outline: 2px solid var(--bk-accent);
+  outline-offset: 2px;
+}
+
+.booking-cta:focus-visible {
+  outline: 2px solid var(--bk-accent);
+  outline-offset: 2px;
+}
+
+/* Payment option cards */
+.booking-pay-option {
+  border: 1.5px solid var(--bk-line);
+  border-radius: var(--bk-radius);
+  background: var(--bk-surface);
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.booking-pay-option:hover {
+  border-color: var(--bk-line-strong);
+}
+
+.booking-pay-option[data-selected="true"] {
+  border-color: var(--bk-ink);
+  background: var(--bk-surface-soft);
+}
+
+/* Tabular prices */
+.booking-price {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Soft selection chip */
+.booking-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  background: var(--bk-surface-soft);
+  color: var(--bk-ink-soft);
+  border: 1px solid var(--bk-line);
+}
+
+/* Trust pill */
+.booking-trust {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--bk-ink-soft);
+  background: var(--bk-surface-soft);
+  border: 1px solid var(--bk-line);
+}
+
+/* Mobile sticky checkout bar */
+.booking-sticky-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  background: rgb(250 250 248 / 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--bk-line);
+  padding: 0.75rem max(1rem, env(safe-area-inset-left))
+    max(0.75rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-right));
+  /* Keep above iOS home indicator + keyboard chrome */
+  box-shadow: 0 -8px 24px rgb(28 25 23 / 0.06);
+}
+
+@media (min-width: 640px) {
+  .booking-sticky-bar {
+    box-shadow: none;
+  }
+}
+
+/* Prevent iOS zoom on focus — inputs need ≥16px */
+.booking-body input,
+.booking-body textarea,
+.booking-body select,
+.booking-field input,
+.booking-field textarea {
+  font-size: 16px;
+}
+
+@media (min-width: 640px) {
+  .booking-body input,
+  .booking-body textarea,
+  .booking-body select,
+  .booking-field input,
+  .booking-field textarea {
+    font-size: 0.875rem;
+  }
+}
+
+/* Popovers / dialogs stay inside viewport on narrow phones */
+.booking-popover-panel {
+  width: min(20rem, calc(100vw - 1.5rem));
+  max-width: calc(100vw - 1.5rem);
+}
+
+.booking-calendar-panel {
+  width: min(20.5rem, calc(100vw - 1.25rem));
+  max-width: calc(100vw - 1.25rem);
+}
+
+/* Full-bleed sticky header padding on notched phones */
+.booking-safe-x {
+  padding-left: max(1.25rem, env(safe-area-inset-left));
+  padding-right: max(1.25rem, env(safe-area-inset-right));
+}
+
+@media (min-width: 768px) {
+  .booking-safe-x {
+    padding-left: max(2.5rem, env(safe-area-inset-left));
+    padding-right: max(2.5rem, env(safe-area-inset-right));
+  }
+}
+
+/* Guest date-range calendar — high contrast + clear blue selection */
+.booking-range-calendar {
+  --bk-cal-blue: #2563eb;
+  --bk-cal-blue-hover: #1d4ed8;
+  --bk-cal-blue-soft: #dbeafe;
+  --bk-cal-blue-soft-hover: #bfdbfe;
+  --bk-cal-ink: #0f172a;
+  --bk-cal-muted: #475569;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Day cells fill available width on small screens */
+.booking-range-calendar .range-calendar__grid {
+  width: 100%;
+}
+
+.booking-range-calendar .range-calendar__cell-button {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+
+.booking-range-calendar .range-calendar__heading {
+  color: var(--bk-cal-ink);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.booking-range-calendar .range-calendar__nav-button {
+  color: var(--bk-cal-ink);
+}
+
+.booking-range-calendar .range-calendar__nav-button:hover,
+.booking-range-calendar .range-calendar__nav-button[data-hovered="true"] {
+  background: var(--bk-cal-blue-soft);
+  color: var(--bk-cal-blue);
+}
+
+/* Weekday labels — was faint text-muted */
+.booking-range-calendar .range-calendar__header-cell {
+  color: var(--bk-cal-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 1;
+}
+
+/* Day numbers */
+.booking-range-calendar .range-calendar__cell .range-calendar__cell-button {
+  color: var(--bk-cal-ink);
+  font-weight: 500;
+}
+
+/* Today (not selected) */
+.booking-range-calendar .range-calendar__cell[data-today="true"] .range-calendar__cell-button {
+  background: transparent;
+  color: var(--bk-cal-blue);
+  box-shadow: inset 0 0 0 1.5px var(--bk-cal-blue);
+  font-weight: 700;
+}
+
+/* Range middle track */
+.booking-range-calendar
+  .range-calendar__cell[data-selected="true"]:not([data-outside-month="true"]) {
+  background: var(--bk-cal-blue-soft);
+}
+
+.booking-range-calendar
+  .range-calendar__cell[data-selected="true"]:not(
+    [data-selection-start="true"],
+    [data-selection-end="true"]
+  )
+  .range-calendar__cell-button {
+  color: var(--bk-cal-blue-hover);
+  font-weight: 600;
+  background: transparent;
+}
+
+/* Start / end caps — solid blue */
+.booking-range-calendar
+  .range-calendar__cell[data-selection-start="true"]:not([data-outside-month="true"])
+  .range-calendar__cell-button,
+.booking-range-calendar
+  .range-calendar__cell[data-selection-end="true"]:not([data-outside-month="true"])
+  .range-calendar__cell-button {
+  background: var(--bk-cal-blue) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgb(37 99 235 / 0.35);
+}
+
+.booking-range-calendar
+  .range-calendar__cell[data-selection-start="true"]:active
+  .range-calendar__cell-button,
+.booking-range-calendar
+  .range-calendar__cell[data-selection-end="true"]:active
+  .range-calendar__cell-button,
+.booking-range-calendar
+  .range-calendar__cell[data-selection-start="true"][data-pressed="true"]
+  .range-calendar__cell-button,
+.booking-range-calendar
+  .range-calendar__cell[data-selection-end="true"][data-pressed="true"]
+  .range-calendar__cell-button {
+  background: var(--bk-cal-blue-hover) !important;
+}
+
+/* Hover unselected days */
+@media (hover: hover) {
+  .booking-range-calendar
+    .range-calendar__cell:hover:not([data-selected="true"])
+    .range-calendar__cell-button,
+  .booking-range-calendar
+    .range-calendar__cell[data-hovered="true"]:not([data-selected="true"])
+    .range-calendar__cell-button {
+    background: var(--bk-cal-blue-soft-hover);
+    color: var(--bk-cal-blue-hover);
+  }
+
+  .booking-range-calendar
+    .range-calendar__cell[data-today="true"]:hover:not([data-selected="true"])
+    .range-calendar__cell-button,
+  .booking-range-calendar
+    .range-calendar__cell[data-today="true"][data-hovered="true"]:not([data-selected="true"])
+    .range-calendar__cell-button {
+    background: var(--bk-cal-blue-soft);
+    color: var(--bk-cal-blue);
+  }
+}
+
+/* Outside month / disabled stay quiet but readable */
+.booking-range-calendar .range-calendar__cell[data-outside-month="true"] {
+  color: #94a3b8;
+  opacity: 0.55;
+}
+
+.booking-range-calendar
+  .range-calendar__cell[data-disabled="true"]:not([data-outside-month="true"])
+  .range-calendar__cell-button {
+  color: #94a3b8;
+}
+
+/* Comfortable tap targets on coarse pointers */
+@media (pointer: coarse) {
+  .booking-cta,
+  .booking-room-option,
+  .booking-pay-option {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .booking-room-option {
+    min-height: 4.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .booking-cta,
+  .booking-room-option,
+  .booking-pay-option {
+    transition: none !important;
+  }
 }
