@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, RefreshCw, ArrowLeft } from "lucide-react";
 import { Card, Button, Alert } from "@heroui/react";
 
@@ -17,6 +18,8 @@ export default function IntegrationsError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const router = useRouter();
+
   React.useEffect(() => {
     // Log error to monitoring service
     console.error("Platform Integrations Error:", error);
@@ -61,18 +64,14 @@ export default function IntegrationsError({
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                color="primary"
-                onPress={reset}
-                startContent={<RefreshCw className="size-4" />}
-              >
+              <Button onPress={reset}>
+                <RefreshCw className="size-4" />
                 Try Again
               </Button>
               
               <Button
-                as={Link}
-                href="/platform/dashboard"
                 variant="outline"
+                onPress={() => router.push("/platform/dashboard")}
               >
                 Back to Dashboard
               </Button>
@@ -110,10 +109,12 @@ export default function IntegrationsError({
             details above.
           </p>
           <Button
-            as={Link}
-            href="mailto:support@hotelosprp.com?subject=Platform Integration Error"
             variant="outline"
             size="sm"
+            onPress={() => {
+              window.location.href =
+                "mailto:support@hotelosprp.com?subject=Platform Integration Error";
+            }}
           >
             Contact Support
           </Button>

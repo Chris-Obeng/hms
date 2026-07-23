@@ -138,7 +138,7 @@ export function PlatformSidebar({ admin }: { admin: PlatformAdmin | null }) {
             <Button
               isIconOnly
               size="sm"
-              variant="light"
+              variant="ghost"
               onPress={() => setOpenMobile(false)}
               aria-label="Close navigation"
               className="shrink-0"
@@ -187,12 +187,9 @@ export function PlatformSidebar({ admin }: { admin: PlatformAdmin | null }) {
         {/* Admin identity */}
         <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg group-data-[collapsible=icon]:justify-center">
           {/* Avatar using HeroUI */}
-          <Avatar
-            size="sm"
-            fallback={initials}
-            className="shrink-0"
-            color="secondary"
-          />
+          <Avatar size="sm" className="shrink-0" color="default">
+            <Avatar.Fallback>{initials}</Avatar.Fallback>
+          </Avatar>
 
           {/* Identity — hidden when icon-collapsed */}
           <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
@@ -202,7 +199,7 @@ export function PlatformSidebar({ admin }: { admin: PlatformAdmin | null }) {
             <Chip
               size="sm"
               variant="soft"
-              color={admin?.role === "super_admin" ? "secondary" : "default"}
+              color={admin?.role === "super_admin" ? "accent" : "default"}
               className="mt-0.5"
             >
               <span className="text-[10px] font-medium">{roleLabel}</span>

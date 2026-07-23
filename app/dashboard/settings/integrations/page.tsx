@@ -99,7 +99,7 @@ export default async function IntegrationsPage() {
   let connectionStatus: "active" | "inactive" | "syncing" = "active";
   if (!bed24Configured) {
     connectionStatus = "inactive";
-  } else if (lastSync) {
+  } else if (lastSync?.processed_at) {
     const lastSyncTime = new Date(lastSync.processed_at).getTime();
     const hoursSinceSync = (Date.now() - lastSyncTime) / (1000 * 60 * 60);
     // If no sync in 2 hours, consider inactive
@@ -113,12 +113,16 @@ export default async function IntegrationsPage() {
         connectionStatus,
         lastSync: lastSync?.processed_at ?? null,
         successRate,
-        recentActivity: (recentLogs ?? []).map((log) => ({
-          id: log.id,
-          timestamp: log.processed_at,
-          message: getActivityMessage(log.event_type, log.status),
-          status: log.status as "success" | "error",
-        })),
+        recentActivity: (recentLogs ?? [])
+          .filter((log) => log.processed_at != null)
+          .map((log) => ({
+            id: log.id,
+            timestamp: log.processed_at as string,
+            message: getActivityMessage(log.event_type, log.status),
+            status: (log.status === "error" ? "error" : "success") as
+              | "success"
+              | "error",
+          })),
       }
     : null;
 

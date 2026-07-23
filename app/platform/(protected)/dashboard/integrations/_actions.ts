@@ -117,8 +117,8 @@ async function logPlatformAction(
       hotel_id: hotelId,
       entity_type: entityType,
       entity_id: entityId,
-      before_state: beforeState,
-      after_state: afterState,
+      before_state: beforeState as import("@/types/database.types").Json | null,
+      after_state: afterState as import("@/types/database.types").Json | null,
     });
   } catch (err) {
     console.error("Failed to log platform admin action:", err);
@@ -508,7 +508,7 @@ export async function createRoomMapping(
       "room_mapping",
       input.roomTypeId,
       null,
-      input
+      { ...input } as Record<string, unknown>
     );
 
     revalidatePath("/platform/dashboard/integrations");

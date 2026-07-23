@@ -123,7 +123,7 @@ export function SimplifiedIntegrationsClient({
         </Card.Header>
         <Card.Content>
           <Accordion>
-            <Accordion.Item value="how-sync-works">
+            <Accordion.Item id="how-sync-works">
               <Accordion.Heading>
                 <Accordion.Trigger>
                   <span className="text-sm font-medium">
@@ -143,7 +143,7 @@ export function SimplifiedIntegrationsClient({
               </Accordion.Panel>
             </Accordion.Item>
 
-            <Accordion.Item value="what-if-error">
+            <Accordion.Item id="what-if-error">
               <Accordion.Heading>
                 <Accordion.Trigger>
                   <span className="text-sm font-medium">
@@ -163,7 +163,7 @@ export function SimplifiedIntegrationsClient({
               </Accordion.Panel>
             </Accordion.Item>
 
-            <Accordion.Item value="setup-new-integration">
+            <Accordion.Item id="setup-new-integration">
               <Accordion.Heading>
                 <Accordion.Trigger>
                   <span className="text-sm font-medium">
@@ -206,13 +206,13 @@ export function SimplifiedIntegrationsClient({
               Our support team is here to help. Reach out anytime.
             </p>
             <Button
-              as={Link}
-              href={`mailto:support@hotelosprp.com?subject=Integration Support - ${encodeURIComponent(hotelName)}`}
-              color="primary"
               size="sm"
               className="mt-3"
-              startContent={<Mail className="size-3.5" />}
+              onPress={() => {
+                window.location.href = `mailto:support@hotelosprp.com?subject=Integration Support - ${encodeURIComponent(hotelName)}`;
+              }}
             >
+              <Mail className="size-3.5" />
               Contact Support
             </Button>
           </div>
@@ -269,7 +269,7 @@ function IntegrationStatusCard({
       bgClass: "bg-muted/30 border-border",
     },
     syncing: {
-      color: "primary" as const,
+      color: "accent" as const,
       icon: RefreshCw,
       bgClass: "bg-primary/5 border-primary/20",
     },
@@ -304,7 +304,7 @@ function IntegrationStatusCard({
 
         {/* Show warning/error messages */}
         {status === "warning" && (
-          <Alert status="warning" size="sm">
+          <Alert status="warning">
             <Alert.Indicator />
             <Alert.Content>
               <Alert.Description>
@@ -315,7 +315,7 @@ function IntegrationStatusCard({
         )}
 
         {status === "error" && (
-          <Alert status="danger" size="sm">
+          <Alert status="danger">
             <Alert.Indicator />
             <Alert.Content>
               <Alert.Description>
@@ -327,7 +327,7 @@ function IntegrationStatusCard({
         )}
 
         {status === "syncing" && (
-          <Alert status="default" size="sm">
+          <Alert status="default">
             <Alert.Indicator>
               <Spinner size="sm" color="current" />
             </Alert.Indicator>
@@ -425,30 +425,25 @@ function IntegrationStatusCard({
       <Card.Footer className="flex flex-wrap items-center justify-between gap-2 pt-2">
         {status !== "not_configured" && metrics?.recentActivity && (
           <Button
-            variant="light"
+            variant="ghost"
             size="sm"
             onPress={onToggle}
-            endContent={
-              isExpanded ? (
-                <ChevronUp className="size-3.5" />
-              ) : (
-                <ChevronDown className="size-3.5" />
-              )
-            }
           >
             {isExpanded ? "Hide" : "View"} Sync Details
+            {isExpanded ? (
+              <ChevronUp className="size-3.5" />
+            ) : (
+              <ChevronDown className="size-3.5" />
+            )}
           </Button>
         )}
 
         <Button
-          as={Link}
-          href="#"
-          variant="light"
+          variant={status === "error" || status === "warning" ? "danger-soft" : "ghost"}
           size="sm"
-          color={status === "error" || status === "warning" ? "danger" : "default"}
           onPress={onContactSupport}
-          startContent={<Mail className="size-3.5" />}
         >
+          <Mail className="size-3.5" />
           {status === "not_configured" ? "Contact Support to Setup" : "Need Help?"}
         </Button>
       </Card.Footer>

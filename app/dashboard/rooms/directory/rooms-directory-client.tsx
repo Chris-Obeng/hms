@@ -23,7 +23,7 @@ import {
   DoorOpen,
 } from "lucide-react";
 import { format } from "date-fns";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
 import {
@@ -280,7 +280,7 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
       if (context?.previousData) {
         queryClient.setQueryData(queryKey, context.previousData);
       }
-      toast.error(err instanceof Error ? err.message : "Failed to update status");
+      toast.danger(err instanceof Error ? err.message : "Failed to update status");
     },
     onSuccess: (res) => {
       const config = STATUS_CONFIG[res.newStatus];
@@ -318,7 +318,7 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
       queryClient.invalidateQueries({ queryKey: qk.rooms(orgId || "", hotelId) });
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Failed to add room");
+      toast.danger(err instanceof Error ? err.message : "Failed to add room");
     }
   });
 
@@ -383,7 +383,7 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
       queryClient.invalidateQueries({ queryKey: qk.rooms(orgId || "", hotelId) });
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Failed to block room");
+      toast.danger(err instanceof Error ? err.message : "Failed to block room");
     }
   });
 

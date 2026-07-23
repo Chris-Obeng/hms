@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { ChevronDown, Mail, MessageSquare } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -220,7 +220,7 @@ export function NotificationTemplatesClient({
     if (result.success) {
       toast.success("Templates saved");
     } else {
-      toast.error(result.error || "Failed to save templates");
+      toast.danger(result.error || "Failed to save templates");
     }
   };
 

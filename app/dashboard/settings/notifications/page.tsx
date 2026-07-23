@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { Bell, BellRing, Speaker, Volume2, ArrowLeft, Loader2, MessageSquareText, Monitor, Smartphone, Info } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -107,10 +107,10 @@ export default function NotificationSettingsPage() {
       } else {
         localStorage.setItem("hotelos_browser_notifications_enabled", "false");
         setBrowserAlertsEnabled(false);
-        toast.error("Notification permission denied");
+        toast.danger("Notification permission denied");
       }
     } else if (Notification.permission === "denied") {
-      toast.error("Alerts are blocked. Please reset site permissions in your browser address bar.");
+      toast.danger("Alerts are blocked. Please reset site permissions in your browser address bar.");
     } else {
       const newVal = !browserAlertsEnabled;
       setBrowserAlertsEnabled(newVal);
@@ -139,7 +139,7 @@ export default function NotificationSettingsPage() {
       oscillator.stop(audioCtx.currentTime + 0.5);
       toast.success("Test sound played");
     } catch {
-      toast.error("Could not play test sound");
+      toast.danger("Could not play test sound");
     }
   };
 
@@ -151,7 +151,7 @@ export default function NotificationSettingsPage() {
     if (result.success) {
       toast.success("Notification preferences saved");
     } else {
-      toast.error(result.error || "Failed to save preferences");
+      toast.danger(result.error || "Failed to save preferences");
     }
   };
 

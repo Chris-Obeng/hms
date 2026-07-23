@@ -16,7 +16,7 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -415,7 +415,7 @@ export function CalendarClient({
   const handleTimeRangeSelected = React.useCallback(
     (args: any) => {
       if (!canEdit) {
-        toast.error("No permission to create bookings");
+        toast.danger("No permission to create bookings");
         return;
       }
       const room = filteredRooms.find(
@@ -471,7 +471,7 @@ export function CalendarClient({
   const handleMoveOrResize = React.useCallback(
     async (args: any, mode: "move" | "resize") => {
       if (!canEdit) {
-        toast.error("No permission to update bookings");
+        toast.danger("No permission to update bookings");
         fetchCalendarData(startDate, days);
         return;
       }
@@ -487,7 +487,7 @@ export function CalendarClient({
       const newCheckOut = format(args.newEnd as Date, "yyyy-MM-dd");
 
       if (newCheckOut <= newCheckIn) {
-        toast.error("Check-out must be after check-in");
+        toast.danger("Check-out must be after check-in");
         fetchCalendarData(startDate, days);
         return;
       }
@@ -521,8 +521,9 @@ export function CalendarClient({
         });
       }
 
-      const toastId = toast.loading(
+      const toastId = toast(
         mode === "move" ? "Checking room..." : "Updating dates...",
+        { isLoading: true, timeout: 0 },
       );
       try {
         if (newRoomId) {
@@ -544,19 +545,19 @@ export function CalendarClient({
           checkOut: newCheckOut,
         });
 
-        toast.dismiss(toastId);
+        toast.close(toastId);
         if (result.success) {
           toast.success(mode === "move" ? "Booking moved" : "Dates updated");
         } else {
           throw new Error(result.error || "Update failed");
         }
       } catch (err: any) {
-        toast.dismiss(toastId);
+        toast.close(toastId);
         // Rollback
         if (previousData) {
           queryClient.setQueryData<CalendarData>(queryKey, previousData);
         }
-        toast.error(err.message || "Update failed");
+        toast.danger(err.message || "Update failed");
       } finally {
         fetchCalendarData(startDate, days);
       }
@@ -567,12 +568,12 @@ export function CalendarClient({
   const handleAssignBooking = React.useCallback(
     async (bookingId: string) => {
       if (!canEdit) {
-        toast.error("No permission to assign bookings");
+        toast.danger("No permission to assign bookings");
         return;
       }
       const booking = bookings.find((item) => item.id === bookingId);
       if (!booking?.roomTypeId) {
-        toast.error("Booking has no room type");
+        toast.danger("Booking has no room type");
         return;
       }
 
@@ -595,7 +596,7 @@ export function CalendarClient({
           return;
         }
       }
-      toast.error("No available room for this booking");
+      toast.danger("No available room for this booking");
     },
     [bookings, canEdit, days, fetchCalendarData, rooms, startDate],
   );
@@ -606,7 +607,7 @@ export function CalendarClient({
       if (result.success) {
         toast.success("Guest checked in");
       } else {
-        toast.error(result.error || "Check-in failed");
+        toast.danger(result.error || "Check-in failed");
       }
       fetchCalendarData(startDate, days);
     },
@@ -619,7 +620,7 @@ export function CalendarClient({
       if (result.success) {
         toast.success("Guest checked out");
       } else {
-        toast.error(result.error || "Check-out failed");
+        toast.danger(result.error || "Check-out failed");
       }
       fetchCalendarData(startDate, days);
     },
@@ -635,7 +636,7 @@ export function CalendarClient({
           status === "confirmed" ? "Booking confirmed" : "Booking cancelled",
         );
       } else {
-        toast.error(result.error || "Update failed");
+        toast.danger(result.error || "Update failed");
       }
       if (status === "cancelled") setDetailPanelOpen(false);
       fetchCalendarData(startDate, days);

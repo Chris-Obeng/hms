@@ -217,11 +217,10 @@ export async function duplicateSeasonalRate(id: string) {
     // Copy overrides if any
     if (source.overrides && source.overrides.length > 0) {
       const overrideRows = source.overrides.map((ov: any) => ({
-        hotel_id: hotelId,
         seasonal_rate_id: newSeason.id,
-        room_type_id: ov.room_type_id,
-        base_price: ov.base_price,
-        weekend_price: ov.weekend_price ?? null,
+        room_type_id: ov.room_type_id as string,
+        base_price: Number(ov.base_price),
+        weekend_price: ov.weekend_price != null ? Number(ov.weekend_price) : null,
       }));
 
       const { error: ovErr } = await supabase
@@ -312,7 +311,6 @@ export async function upsertSeasonalRateOverride(
       .from("seasonal_rate_overrides")
       .upsert(
         {
-          hotel_id: hotelId,
           seasonal_rate_id: seasonalRateId,
           room_type_id: roomTypeId,
           base_price: basePrice,

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, RefreshCw, ArrowLeft, Mail } from "lucide-react";
 import { Card, Button, Alert } from "@heroui/react";
 
@@ -17,6 +18,8 @@ export default function IntegrationsError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const router = useRouter();
+
   React.useEffect(() => {
     // Log error to monitoring service
     console.error("Hotel Integrations Error:", error);
@@ -62,20 +65,19 @@ export default function IntegrationsError({
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                color="primary"
-                onPress={reset}
-                startContent={<RefreshCw className="size-4" />}
-              >
+              <Button onPress={reset}>
+                <RefreshCw className="size-4" />
                 Try Again
               </Button>
               
               <Button
-                as={Link}
-                href="mailto:support@hotelosprp.com?subject=Integration Status Error"
                 variant="outline"
-                startContent={<Mail className="size-4" />}
+                onPress={() => {
+                  window.location.href =
+                    "mailto:support@hotelosprp.com?subject=Integration Status Error";
+                }}
               >
+                <Mail className="size-4" />
                 Contact Support
               </Button>
             </div>
@@ -94,11 +96,10 @@ export default function IntegrationsError({
               Your bookings are safe and accessible
             </p>
             <Button
-              as={Link}
-              href="/dashboard/bookings"
               variant="outline"
               size="sm"
               fullWidth
+              onPress={() => router.push("/dashboard/bookings")}
             >
               Go to Bookings
             </Button>
@@ -114,11 +115,10 @@ export default function IntegrationsError({
               Return to your main dashboard
             </p>
             <Button
-              as={Link}
-              href="/dashboard"
               variant="outline"
               size="sm"
               fullWidth
+              onPress={() => router.push("/dashboard")}
             >
               Go to Dashboard
             </Button>

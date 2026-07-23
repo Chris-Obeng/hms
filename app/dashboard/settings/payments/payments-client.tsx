@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { ArrowLeft, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,7 +90,7 @@ export function PaymentsSettingsClient({ hotelName, hotelEmail, currency, initia
     setSavingPolicy(true);
     const r = await updatePaymentPolicy(p);
     setSavingPolicy(false);
-    if (!r.success) toast.error(r.error ?? "Failed to save policy");
+    if (!r.success) toast.danger(r.error ?? "Failed to save policy");
   }
 
   async function handleVerify() {
@@ -101,7 +101,7 @@ export function PaymentsSettingsClient({ hotelName, hotelEmail, currency, initia
     if (r.success) {
       setVerified(r.accountName);
     } else {
-      toast.error(r.error ?? "Could not verify account");
+      toast.danger(r.error ?? "Could not verify account");
     }
   }
 
@@ -118,7 +118,7 @@ export function PaymentsSettingsClient({ hotelName, hotelEmail, currency, initia
     if (r.success) {
       toast.success("Bank account saved. Guests can now pay online.");
     } else {
-      toast.error(r.error ?? "Failed to save bank account");
+      toast.danger(r.error ?? "Failed to save bank account");
     }
   }
 

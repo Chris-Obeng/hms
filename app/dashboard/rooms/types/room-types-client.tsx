@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { RoomTypesTable, type RoomTypeRow } from "./room-types-table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -58,7 +58,7 @@ export function RoomTypesClient({ data, currency, totalRooms }: RoomTypesClientP
         }
         setErrors(fieldErrors);
       }
-      toast.error(result.error || "Failed to create room type");
+      toast.danger(result.error || "Failed to create room type");
       return { success: false, error: result.error };
     }
   }

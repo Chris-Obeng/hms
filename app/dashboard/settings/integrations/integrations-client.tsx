@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import {
   ArrowLeft,
   RefreshCw,
@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   Layers,
   Activity,
+  KeyRound,
 } from "lucide-react";
 import {
   Card,
@@ -268,7 +269,7 @@ export function IntegrationsClient({
     setSavingB24(true);
     const r = await saveBeds24Config(b24PropertyId.trim());
     setSavingB24(false);
-    r.success ? toast.success("Property ID saved") : toast.error(r.error ?? "Failed to save");
+    r.success ? toast.success("Property ID saved") : toast.danger(r.error ?? "Failed to save");
   }
 
   async function handleTestBeds24() {
@@ -276,9 +277,9 @@ export function IntegrationsClient({
     const r = await testBeds24();
     setTestingB24(false);
     if (r.success) {
-      toast.success(`Connected — ${r.propertyCount} propert${r.propertyCount === 1 ? "y" : "ies"} found`);
+      toast.success("Connected");
     } else {
-      toast.error(`Connection failed: ${r.error}`);
+      toast.danger(`Connection failed: ${r.error}`);
     }
   }
 
@@ -287,10 +288,10 @@ export function IntegrationsClient({
     const r = await forceBeds24Sync();
     setSyncingB24(false);
     if (r.success) {
-      toast.success("message" in r ? r.message : "Sync complete");
+      toast.success("Sync complete");
       await refreshDashboardData();
     } else {
-      toast.error(r.error ?? "Sync failed");
+      toast.danger(r.error ?? "Sync failed");
     }
   }
 
@@ -299,9 +300,9 @@ export function IntegrationsClient({
     const r = await refreshBeds24Token();
     setRefreshingToken(false);
     if (r.success) {
-      toast.success(`Token refreshed — expires in ${Math.round((r.expiresIn ?? 86400) / 3600)}h`);
+      toast.success("Token refreshed");
     } else {
-      toast.error(r.error ?? "Refresh failed");
+      toast.danger(r.error ?? "Refresh failed");
     }
   }
 
@@ -313,16 +314,16 @@ export function IntegrationsClient({
       setNotificationsOn(val);
       toast.success(val ? "Guest notifications enabled" : "Guest notifications disabled");
     } else {
-      toast.error(r.error ?? "Failed to update");
+      toast.danger(r.error ?? "Failed to update");
     }
   }
 
   async function handleTestNotification() {
-    if (!testPhone) { toast.error("Enter a phone number"); return; }
+    if (!testPhone) { toast.danger("Enter a phone number"); return; }
     setTestingNotif(true);
     const r = await testArkeselSms(testPhone, hotelName);
     setTestingNotif(false);
-    r.success ? toast.success("Test SMS sent!") : toast.error(`Failed: ${r.error}`);
+    r.success ? toast.success("Test SMS sent!") : toast.danger(`Failed: ${r.error}`);
   }
 
   async function refreshDashboardData() {

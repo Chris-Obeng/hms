@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { format, addDays, parseISO } from "date-fns";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import {
@@ -396,7 +396,7 @@ export function HousekeepingClient({
     },
     onError: (err: any, _vars, ctx: any) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.qKey, ctx.prev);
-      toast.error(err instanceof Error ? err.message : "Failed to update cleaning status");
+      toast.danger(err instanceof Error ? err.message : "Failed to update cleaning status");
     },
     onSuccess: (res) => {
       if (res?.success) toast.success("Cleaning status updated");
@@ -430,7 +430,7 @@ export function HousekeepingClient({
     },
     onError: (err: any, _vars, ctx: any) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.qKey, ctx.prev);
-      toast.error(err instanceof Error ? err.message : "Failed to save note");
+      toast.danger(err instanceof Error ? err.message : "Failed to save note");
     },
     onSuccess: (res) => {
       if (res?.success) toast.success("Note saved");

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import {
   CheckCircle2,
   XCircle,
@@ -277,7 +277,7 @@ export function HotelsTable({ hotels }: { hotels: Hotel[] }) {
           )
         );
       } else {
-        toast.error(result.error ?? "Action failed");
+        toast.danger(result.error ?? "Action failed");
       }
     } finally {
       setActionLoading(null);
@@ -294,7 +294,7 @@ export function HotelsTable({ hotels }: { hotels: Hotel[] }) {
         prev.map((h) => (h.id === hotel.id ? { ...h, plan } : h))
       );
     } else {
-      toast.error(result.error ?? "Failed to change plan");
+      toast.danger(result.error ?? "Failed to change plan");
     }
   }
 

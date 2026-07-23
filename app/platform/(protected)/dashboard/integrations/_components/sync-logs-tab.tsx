@@ -21,6 +21,8 @@ import {
   Spinner,
   Select,
   Input,
+  Label,
+  ListBox,
 } from "@heroui/react";
 import { toast } from "@heroui/react";
 import type { SyncLog, ChannelStats, SyncLogFilters } from "@/types/platform-integrations";
@@ -100,7 +102,7 @@ export function SyncLogsTab({
       
       toast.success("Sync logs exported successfully");
     } else {
-      toast.error(result.error ?? "Export failed");
+      toast.danger(result.success ? "Export failed" : (result.error ?? "Export failed"));
     }
   }
 
@@ -109,8 +111,8 @@ export function SyncLogsTab({
 
     const filters: SyncLogFilters = {
       hotelId,
-      direction: directionFilter as "inbound" | "outbound" | undefined,
-      status: statusFilter as "success" | "error" | undefined,
+      direction: (directionFilter as "inbound" | "outbound") || undefined,
+      status: (statusFilter as "success" | "error") || undefined,
       eventType: eventTypeFilter || undefined,
       limit: 50,
     };
@@ -122,7 +124,7 @@ export function SyncLogsTab({
       setLogs(result.data ?? []);
       toast.success(`Found ${result.data?.length ?? 0} matching logs`);
     } else {
-      toast.error(result.error);
+      toast.danger(result.error ?? "Filter failed");
     }
   }
 
@@ -193,11 +195,11 @@ export function SyncLogsTab({
                 variant="outline"
                 size="sm"
                 onPress={() => setShowFilters(!showFilters)}
-                startContent={<Filter className="size-3.5" />}
               >
+                <Filter className="size-3.5" />
                 Filters
                 {hasActiveFilters && (
-                  <Chip color="primary" variant="soft" size="sm" className="ml-1">
+                  <Chip color="accent" variant="soft" size="sm" className="ml-1">
                     {[directionFilter, statusFilter, eventTypeFilter].filter(Boolean).length}
                   </Chip>
                 )}
@@ -208,14 +210,12 @@ export function SyncLogsTab({
                 size="sm"
                 isPending={isExporting}
                 onPress={handleExport}
-                startContent={
-                  isExporting ? (
-                    <Spinner size="sm" color="current" />
-                  ) : (
-                    <Download className="size-3.5" />
-                  )
-                }
               >
+                {isExporting ? (
+                  <Spinner size="sm" color="current" />
+                ) : (
+                  <Download className="size-3.5" />
+                )}
                 Export CSV
               </Button>
               
@@ -242,56 +242,68 @@ export function SyncLogsTab({
           <div className="px-4 py-3 border-b border-border bg-muted/30 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Select
-                label="Direction"
                 placeholder="All directions"
-                selectedKeys={directionFilter ? [directionFilter] : []}
-                onSelectionChange={(keys) => {
-                  const selected = Array.from(keys)[0];
-                  setDirectionFilter(selected ? String(selected) : "");
-                }}
-                size="sm"
-                variant="bordered"
+                value={directionFilter || null}
+                onChange={(key) => setDirectionFilter(key ? String(key) : "")}
+                variant="secondary"
               >
-                <Select.Item key="inbound" textValue="Inbound">
-                  Inbound (from Bed24)
-                </Select.Item>
-                <Select.Item key="outbound" textValue="Outbound">
-                  Outbound (to Bed24)
-                </Select.Item>
+                <Label>Direction</Label>
+                <Select.Trigger>
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    <ListBox.Item id="inbound" textValue="Inbound">
+                      Inbound (from Bed24)
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="outbound" textValue="Outbound">
+                      Outbound (to Bed24)
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  </ListBox>
+                </Select.Popover>
               </Select>
 
               <Select
-                label="Status"
                 placeholder="All statuses"
-                selectedKeys={statusFilter ? [statusFilter] : []}
-                onSelectionChange={(keys) => {
-                  const selected = Array.from(keys)[0];
-                  setStatusFilter(selected ? String(selected) : "");
-                }}
-                size="sm"
-                variant="bordered"
+                value={statusFilter || null}
+                onChange={(key) => setStatusFilter(key ? String(key) : "")}
+                variant="secondary"
               >
-                <Select.Item key="success" textValue="Success">
-                  Success
-                </Select.Item>
-                <Select.Item key="error" textValue="Error">
-                  Error
-                </Select.Item>
+                <Label>Status</Label>
+                <Select.Trigger>
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    <ListBox.Item id="success" textValue="Success">
+                      Success
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                    <ListBox.Item id="error" textValue="Error">
+                      Error
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  </ListBox>
+                </Select.Popover>
               </Select>
 
-              <Input
-                label="Event Type"
-                placeholder="e.g. force_sync"
-                value={eventTypeFilter}
-                onChange={(e) => setEventTypeFilter(e.target.value)}
-                size="sm"
-                variant="bordered"
-              />
+              <div className="space-y-1">
+                <Label>Event Type</Label>
+                <Input
+                  placeholder="e.g. force_sync"
+                  value={eventTypeFilter}
+                  onChange={(e) => setEventTypeFilter(e.target.value)}
+                  variant="secondary"
+                />
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
               <Button
-                color="primary"
                 size="sm"
                 onPress={handleApplyFilters}
                 isPending={isRefreshing}
@@ -301,11 +313,11 @@ export function SyncLogsTab({
               
               {hasActiveFilters && (
                 <Button
-                  variant="light"
+                  variant="ghost"
                   size="sm"
                   onPress={handleClearFilters}
-                  startContent={<X className="size-3.5" />}
                 >
+                  <X className="size-3.5" />
                   Clear
                 </Button>
               )}
@@ -319,9 +331,7 @@ export function SyncLogsTab({
             placeholder="Search logs by event, error message, or booking ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            size="sm"
-            variant="bordered"
-            startContent={<Filter className="size-3.5 text-foreground/40" />}
+            variant="secondary"
           />
         </div>
 
@@ -461,7 +471,7 @@ function DirectionBadge({
 }) {
   if (direction === "outbound") {
     return (
-      <Chip color="primary" variant="soft" size="sm">
+      <Chip color="accent" variant="soft" size="sm">
         <span className="flex items-center gap-1">
           <ArrowUpRight className="size-3" />
           Out

@@ -78,7 +78,7 @@ export function PlatformIntegrationsClient({
       if (configRes.success) {
         setBed24Config(configRes.data ?? null);
       } else {
-        toast.error(`Failed to load config: ${configRes.error}`);
+        toast.danger(`Failed to load config: ${configRes.error}`);
       }
 
       if (mappingsRes.success) {
@@ -93,7 +93,7 @@ export function PlatformIntegrationsClient({
         setSyncLogs(logsRes.data ?? []);
       }
     } catch (err) {
-      toast.error("Failed to load hotel data");
+      toast.danger("Failed to load hotel data");
       console.error(err);
     } finally {
       setIsLoadingData(false);
@@ -169,7 +169,7 @@ export function PlatformIntegrationsClient({
       {isLoadingData && (
         <Card>
           <Card.Content className="py-12 flex flex-col items-center justify-center">
-            <Spinner size="lg" color="primary" />
+            <Spinner size="lg" color="accent" />
             <p className="text-sm text-foreground/60 mt-3">
               Loading {selectedHotel?.name ?? "hotel"} data...
             </p>

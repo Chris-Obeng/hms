@@ -30,7 +30,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
 import {
@@ -342,7 +342,7 @@ function getColumns(
                       if (result.success) {
                         toast.success(`${booking.guestName} checked in`);
                       } else {
-                        toast.error(result.error || "Check-in failed");
+                        toast.danger(result.error || "Check-in failed");
                       }
                     }}
                   >
@@ -357,7 +357,7 @@ function getColumns(
                       if (result.success) {
                         toast.success(`${booking.guestName} checked out`);
                       } else {
-                        toast.error(result.error || "Check-out failed");
+                        toast.danger(result.error || "Check-out failed");
                       }
                     }}
                   >
@@ -372,7 +372,7 @@ function getColumns(
                       if (result.success) {
                         toast.success("Booking cancelled");
                       } else {
-                        toast.error(result.error || "Cancel failed");
+                        toast.danger(result.error || "Cancel failed");
                       }
                     }}
                     className="text-destructive focus:text-destructive"
@@ -388,7 +388,7 @@ function getColumns(
                       if (result.success) {
                         toast.success("Booking reinstated");
                       } else {
-                        toast.error(result.error || "Reinstate failed");
+                        toast.danger(result.error || "Reinstate failed");
                       }
                     }}
                   >

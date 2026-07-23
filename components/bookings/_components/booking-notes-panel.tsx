@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { FileText, Edit3, Clock } from "lucide-react";
 
 import { Separator } from "@/components/ui/separator";
@@ -35,7 +35,7 @@ export function BookingNotesPanel({
       toast.success("Notes updated");
       onRefresh();
     } else {
-      toast.error(result.error || "Failed to update notes");
+      toast.danger(result.error || "Failed to update notes");
     }
   };
 

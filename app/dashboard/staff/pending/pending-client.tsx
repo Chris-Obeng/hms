@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { Check, X, Clock, Mail, Shield } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -85,7 +85,7 @@ export function PendingStaffClient({ data }: PendingStaffClientProps) {
       toast.success(`${approveTarget.fullName || "Staff member"} approved as ${approveRole.replace(/_/g, " ")}`);
       router.refresh();
     } else {
-      toast.error(result.error || "Failed to approve");
+      toast.danger(result.error || "Failed to approve");
     }
     setApproveTarget(null);
   };
@@ -102,7 +102,7 @@ export function PendingStaffClient({ data }: PendingStaffClientProps) {
       toast.success(`${rejectTarget.fullName || "Staff member"} rejected`);
       router.refresh();
     } else {
-      toast.error(result.error || "Failed to reject");
+      toast.danger(result.error || "Failed to reject");
     }
     setRejectTarget(null);
   };

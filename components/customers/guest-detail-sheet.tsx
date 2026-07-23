@@ -21,7 +21,7 @@ import {
   ArrowUpRight,
   ChevronRight,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 
 import {
   Sheet,
@@ -254,7 +254,7 @@ export function GuestDetailSheet({
       setEditingNotes(false);
       toast.success("Notes updated");
     } else {
-      toast.error(result.error || "Failed to update notes");
+      toast.danger(result.error || "Failed to update notes");
     }
   }
 
@@ -272,7 +272,7 @@ export function GuestDetailSheet({
       setEditingContact(false);
       toast.success("Contact updated");
     } else {
-      toast.error(result.error || "Failed to update contact");
+      toast.danger(result.error || "Failed to update contact");
     }
   }
 
@@ -290,7 +290,7 @@ export function GuestDetailSheet({
       setNewTagInput("");
       toast.success(`Tag "${trimmed}" added`);
     } else {
-      toast.error(result.error || "Failed to add tag");
+      toast.danger(result.error || "Failed to add tag");
     }
   }
 
@@ -304,7 +304,7 @@ export function GuestDetailSheet({
       setGuest((prev) => ({ ...prev, tags: newTags }));
       toast.success(`Tag "${tag}" removed`);
     } else {
-      toast.error(result.error || "Failed to remove tag");
+      toast.danger(result.error || "Failed to remove tag");
     }
   }
 

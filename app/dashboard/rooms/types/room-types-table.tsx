@@ -23,7 +23,7 @@ import {
   MoreHorizontal,
   Search,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
 import {
@@ -256,7 +256,7 @@ export function RoomTypesTable({ data, currency }: RoomTypesTableProps) {
             );
             toast.success(isActive ? "Room type activated" : "Room type deactivated");
           } else {
-            toast.error(result.error || "Failed to update");
+            toast.danger(result.error || "Failed to update");
           }
         },
         async (id, name) => {
@@ -265,7 +265,7 @@ export function RoomTypesTable({ data, currency }: RoomTypesTableProps) {
             setLocalData((prev) => prev.filter((rt) => rt.id !== id));
             toast.success(`"${name}" deleted`);
           } else {
-            toast.error(result.error || "Failed to delete");
+            toast.danger(result.error || "Failed to delete");
           }
         }
       ),

@@ -29,8 +29,8 @@ export function HotelSelector({
   return (
     <div className="space-y-2">
       <Select
-        selectedKey={value || undefined}
-        onSelectionChange={(key) => {
+        value={value || null}
+        onChange={(key) => {
           if (key) onChange(String(key));
         }}
         isDisabled={isLoading}
@@ -42,11 +42,11 @@ export function HotelSelector({
           <Select.Value>
             {selectedHotel ? (
               <div className="flex items-center gap-2">
-                <Avatar
-                  fallback={<Building2 className="size-3.5" />}
-                  size="sm"
-                  color="secondary"
-                />
+                <Avatar size="sm" color="default">
+                  <Avatar.Fallback>
+                    <Building2 className="size-3.5" />
+                  </Avatar.Fallback>
+                </Avatar>
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{selectedHotel.name}</span>
                   {selectedHotel.beds24Configured && (
@@ -69,11 +69,11 @@ export function HotelSelector({
               <ListBox.Item key={hotel.id} id={hotel.id} textValue={hotel.name}>
                 <div className="flex items-center justify-between w-full gap-3">
                   <div className="flex items-center gap-2 min-w-0">
-                    <Avatar
-                      fallback={<Building2 className="size-3.5" />}
-                      size="sm"
-                      color="secondary"
-                    />
+                    <Avatar size="sm" color="default">
+                      <Avatar.Fallback>
+                        <Building2 className="size-3.5" />
+                      </Avatar.Fallback>
+                    </Avatar>
                     <div className="min-w-0">
                       <p className="font-medium truncate">{hotel.name}</p>
                       <p className="text-xs text-foreground/55 truncate">

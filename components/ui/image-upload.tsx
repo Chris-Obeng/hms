@@ -4,7 +4,7 @@ import * as React from "react";
 import Image from "next/image";
 import { Upload, X, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { cn } from "@/lib/utils";
 
 interface ImageUploadProps {
@@ -32,11 +32,11 @@ export function ImageUpload({
 
   async function handleFile(file: File) {
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
+      toast.danger("Please select an image file");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be under 5 MB");
+      toast.danger("Image must be under 5 MB");
       return;
     }
 
@@ -54,7 +54,7 @@ export function ImageUpload({
       await onUpload(publicUrl);
       toast.success("Image uploaded");
     } catch (err) {
-      toast.error((err as Error).message ?? "Upload failed");
+      toast.danger((err as Error).message ?? "Upload failed");
     } finally {
       setUploading(false);
     }

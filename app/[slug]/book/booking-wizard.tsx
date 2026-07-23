@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import countries from "world-countries";
 import { format, parseISO } from "date-fns";
 import {
@@ -252,7 +252,7 @@ export function BookingWizard({
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error ?? "Reservation failed. Please check your details.");
+        toast.danger(data.error ?? "Reservation failed. Please check your details.");
         return;
       }
       if (data.paymentRequired && data.authorizationUrl) {
@@ -261,7 +261,7 @@ export function BookingWizard({
       }
       router.push(`/${slug}/book/confirmation?reference=${data.reference}`);
     } catch {
-      toast.error("Network error. Please try again.");
+      toast.danger("Network error. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -540,10 +540,9 @@ export function BookingWizard({
                   <Select
                     aria-label="Nationality"
                     placeholder="Select country"
-                    selectedKeys={nationality ? [nationality] : []}
-                    onSelectionChange={(keys) => {
-                      const selectedKey = Array.from(keys)[0] as string;
-                      if (selectedKey) setNationality(selectedKey);
+                    value={nationality || null}
+                    onChange={(value) => {
+                      if (value) setNationality(value as string);
                     }}
                     className="w-full"
                   >

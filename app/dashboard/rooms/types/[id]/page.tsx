@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RoomTypeForm, type RoomTypeFormValues } from "../../_components/room-type-form";
@@ -96,7 +96,7 @@ export default function EditRoomTypePage() {
         }
         setErrors(fieldErrors);
       }
-      toast.error(result.error || "Failed to update room type");
+      toast.danger(result.error || "Failed to update room type");
       return { success: false, error: result.error };
     }
   }

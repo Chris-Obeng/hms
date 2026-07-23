@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -92,7 +92,7 @@ export function HotelSettingsClient({
       toast.success("Hotel profile updated");
       router.refresh();
     } else {
-      toast.error(result.error || "Failed to update hotel profile");
+      toast.danger(result.error || "Failed to update hotel profile");
     }
   };
 

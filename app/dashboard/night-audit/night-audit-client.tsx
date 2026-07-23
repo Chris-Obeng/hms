@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Button, Card, Chip, Modal } from "@heroui/react";
 import { format } from "date-fns";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { NightAuditSummary, executeNightAudit } from "./actions";
 
 interface NightAuditClientProps {
@@ -44,7 +44,7 @@ export function NightAuditClient({ initialSummary }: NightAuditClientProps) {
         setConfirmModalOpen(false);
       }
     } catch (err: any) {
-      toast.error(err.message || "Failed to complete Night Audit");
+      toast.danger(err.message || "Failed to complete Night Audit");
     } finally {
       setIsExecuting(false);
     }

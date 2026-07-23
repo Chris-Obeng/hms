@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { format } from "date-fns";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { CalendarIcon } from "lucide-react";
 import { DateRange } from "react-day-picker";
 
@@ -99,7 +99,7 @@ export function BlockRoomSheet({
       onOpenChange(false);
       if (onSuccess) onSuccess();
     } else {
-      toast.error(result.error || "Failed to block room");
+      toast.danger(result.error || "Failed to block room");
       setLoading(false);
     }
   };

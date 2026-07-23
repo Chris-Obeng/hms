@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { format, startOfDay, endOfDay } from "date-fns";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { RotateCw } from "lucide-react";
@@ -368,7 +368,7 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
       if (context?.previousData) {
         queryClient.setQueryData(queryKey, context.previousData);
       }
-      toast.error(err instanceof Error ? err.message : "Check-in failed");
+      toast.danger(err instanceof Error ? err.message : "Check-in failed");
     },
     onSuccess: () => {
       toast.success("Guest checked in successfully");
@@ -452,7 +452,7 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
       if (context?.previousData) {
         queryClient.setQueryData(queryKey, context.previousData);
       }
-      toast.error(err instanceof Error ? err.message : "Check-out failed");
+      toast.danger(err instanceof Error ? err.message : "Check-out failed");
     },
     onSuccess: () => {
       toast.success("Guest checked out successfully");

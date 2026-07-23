@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { Plus, Wallet, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -72,7 +72,7 @@ export function BookingPaymentsPanel({
       onRefresh();
       if (onBookingChanged) onBookingChanged();
     } else {
-      toast.error(result.error || "Failed to record payment");
+      toast.danger(result.error || "Failed to record payment");
     }
   };
 

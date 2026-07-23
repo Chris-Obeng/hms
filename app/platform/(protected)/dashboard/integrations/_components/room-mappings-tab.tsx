@@ -17,6 +17,7 @@ import {
   Input,
   Select,
   ListBox,
+  Label,
   Alert,
   Spinner,
 } from "@heroui/react";
@@ -80,7 +81,7 @@ export function RoomMappingsTab({
       toast.success(result.message ?? "Room mapping deleted successfully");
       await onRefresh();
     } else {
-      toast.error(result.error);
+      toast.danger(result.error);
     }
   }
 
@@ -123,11 +124,10 @@ export function RoomMappingsTab({
               </p>
             </div>
             <Button
-              color="primary"
               size="sm"
               onPress={handleAdd}
-              startContent={<Plus className="size-3.5" />}
             >
+              <Plus className="size-3.5" />
               Add Mapping
             </Button>
           </div>
@@ -200,7 +200,7 @@ export function RoomMappingsTab({
                         <Table.Cell>
                           <div className="flex items-center gap-1">
                             <Button
-                              variant="light"
+                              variant="ghost"
                               size="sm"
                               isIconOnly
                               onPress={() => handleEdit(mapping)}
@@ -209,10 +209,9 @@ export function RoomMappingsTab({
                               <Pencil className="size-3.5" />
                             </Button>
                             <Button
-                              variant="light"
+                              variant="danger-soft"
                               size="sm"
                               isIconOnly
-                              color="danger"
                               isPending={isDeleting === mapping.id}
                               onPress={() => handleDelete(mapping.id)}
                               aria-label="Delete mapping"
@@ -306,7 +305,7 @@ function MappingModal({
       setRoomTypes(data ?? []);
     } catch (err) {
       console.error("Failed to load room types:", err);
-      toast.error("Failed to load room types");
+      toast.danger("Failed to load room types");
     } finally {
       setIsLoadingRoomTypes(false);
     }
@@ -314,7 +313,7 @@ function MappingModal({
 
   async function handleSubmit() {
     if (!beds24PropertyId.trim() || !beds24RoomId.trim() || !roomTypeId) {
-      toast.error("Please fill in all fields");
+      toast.danger("Please fill in all fields");
       return;
     }
 
@@ -337,7 +336,7 @@ function MappingModal({
       toast.success(result.message ?? "Room mapping saved successfully");
       await onSave();
     } else {
-      toast.error(result.error);
+      toast.danger(result.error);
     }
   }
 
@@ -358,39 +357,47 @@ function MappingModal({
             </p>
 
             {/* Bed24 Property ID */}
-            <Input
-              label="Bed24 Property ID"
-              value={beds24PropertyId}
-              onChange={(e) => setBeds24PropertyId(e.target.value)}
-              placeholder="e.g. 123456"
-              variant="secondary"
-              description="The property ID from Bed24 (should match hotel config)"
-              isRequired
-            />
+            <div className="space-y-1">
+              <Label>Bed24 Property ID</Label>
+              <Input
+                value={beds24PropertyId}
+                onChange={(e) => setBeds24PropertyId(e.target.value)}
+                placeholder="e.g. 123456"
+                variant="secondary"
+                required
+              />
+              <p className="text-xs text-foreground/60">
+                The property ID from Bed24 (should match hotel config)
+              </p>
+            </div>
 
             {/* Bed24 Room ID */}
-            <Input
-              label="Bed24 Room ID"
-              value={beds24RoomId}
-              onChange={(e) => setBeds24RoomId(e.target.value)}
-              placeholder="e.g. 789012"
-              variant="secondary"
-              description="The room ID from Bed24 (found in Bed24 room settings)"
-              isRequired
-            />
+            <div className="space-y-1">
+              <Label>Bed24 Room ID</Label>
+              <Input
+                value={beds24RoomId}
+                onChange={(e) => setBeds24RoomId(e.target.value)}
+                placeholder="e.g. 789012"
+                variant="secondary"
+                required
+              />
+              <p className="text-xs text-foreground/60">
+                The room ID from Bed24 (found in Bed24 room settings)
+              </p>
+            </div>
 
             {/* Room Type Selector */}
             <div className="space-y-2">
               <Select
-                selectedKey={roomTypeId || undefined}
-                onSelectionChange={(key) => {
+                value={roomTypeId || null}
+                onChange={(key) => {
                   if (key) setRoomTypeId(String(key));
                 }}
                 isDisabled={isLoadingRoomTypes || isEditing}
                 variant="secondary"
                 placeholder="Select a room type"
               >
-                <label className="text-sm font-medium">HotelOS Room Type</label>
+                <Label>HotelOS Room Type</Label>
                 <Select.Trigger>
                   <Select.Value />
                   <Select.Indicator />
@@ -431,7 +438,6 @@ function MappingModal({
               Cancel
             </Button>
             <Button
-              color="primary"
               onPress={handleSubmit}
               isPending={isSaving}
               isDisabled={

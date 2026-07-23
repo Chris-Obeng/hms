@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import {
   CalendarDays,
   Calendar as CalendarIcon,
@@ -280,7 +280,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
       resetSeasonForm();
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to create season");
+      toast.danger(err.message || "Failed to create season");
     },
   });
 
@@ -304,7 +304,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
       resetSeasonForm();
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to update season");
+      toast.danger(err.message || "Failed to update season");
     },
   });
 
@@ -322,7 +322,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
       queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), startDateStr, endDateStr) });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to delete season");
+      toast.danger(err.message || "Failed to delete season");
     },
   });
 
@@ -340,7 +340,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
       queryClient.invalidateQueries({ queryKey: qk.pricingSeasons(orgId, hotelId) });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to duplicate season");
+      toast.danger(err.message || "Failed to duplicate season");
     },
   });
 
@@ -391,7 +391,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
       setSeasonDetailOpen(false);
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to save seasonal overrides");
+      toast.danger(err.message || "Failed to save seasonal overrides");
     },
   });
 
@@ -432,7 +432,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
       setEditingCell(null);
     },
     onError: (err: any, variables, context) => {
-      toast.error(err.message || "Failed to update price");
+      toast.danger(err.message || "Failed to update price");
       // Rollback
       if (context?.previousRates) {
         const queryKey = qk.pricingResolved(orgId, hotelId, roomTypes.map((rt) => rt.id), startDateStr, endDateStr);
@@ -459,7 +459,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
       queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), startDateStr, endDateStr) });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to clear override");
+      toast.danger(err.message || "Failed to clear override");
     },
   });
 
@@ -484,7 +484,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
       queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), startDateStr, endDateStr) });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to save bulk prices");
+      toast.danger(err.message || "Failed to save bulk prices");
     },
   });
 
@@ -506,7 +506,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
       queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), startDateStr, endDateStr) });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to clear overrides");
+      toast.danger(err.message || "Failed to clear overrides");
     },
   });
 
@@ -711,7 +711,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
   const handleSaveSingleOverride = (roomTypeId: string, date: string) => {
     const price = parseFloat(singlePriceInput);
     if (isNaN(price) || price <= 0) {
-      toast.error("Please enter a valid price greater than 0");
+      toast.danger("Please enter a valid price greater than 0");
       return;
     }
     saveDailyOverrideMutation.mutate({ roomTypeId, date, price });
@@ -721,7 +721,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
   const handleSaveBulkOverride = () => {
     const price = parseFloat(bulkPriceInput);
     if (isNaN(price) || price <= 0) {
-      toast.error("Please enter a valid price greater than 0");
+      toast.danger("Please enter a valid price greater than 0");
       return;
     }
     bulkSaveDailyOverridesMutation.mutate({ price });

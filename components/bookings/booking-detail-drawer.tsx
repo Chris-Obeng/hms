@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { AlertCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -67,10 +67,10 @@ export function BookingDetailDrawer({
       if (result.success) {
         setBooking(result.booking);
       } else {
-        toast.error(result.error || "Failed to load reservation details");
+        toast.danger(result.error || "Failed to load reservation details");
       }
     } catch {
-      toast.error("Failed to load reservation details");
+      toast.danger("Failed to load reservation details");
     } finally {
       setLoading(false);
     }
@@ -106,10 +106,10 @@ export function BookingDetailDrawer({
         fetchBooking();
         if (onBookingChanged) onBookingChanged();
       } else {
-        toast.error(result.error || `${action} failed`);
+        toast.danger(result.error || `${action} failed`);
       }
     } catch {
-      toast.error(`${action} failed`);
+      toast.danger(`${action} failed`);
     } finally {
       setActionLoading(null);
     }

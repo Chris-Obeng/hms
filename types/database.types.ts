@@ -403,30 +403,30 @@ export type Database = {
       }
       daily_rate_overrides: {
         Row: {
-          id: number
-          hotel_id: string
-          room_type_id: string
-          date: string
-          price: number
           created_at: string
+          date: string
+          hotel_id: string
+          id: string
+          price: number
+          room_type_id: string
           updated_at: string
         }
         Insert: {
-          id?: number
-          hotel_id: string
-          room_type_id: string
-          date: string
-          price: number
           created_at?: string
+          date: string
+          hotel_id: string
+          id?: string
+          price: number
+          room_type_id: string
           updated_at?: string
         }
         Update: {
-          id?: number
-          hotel_id?: string
-          room_type_id?: string
-          date?: string
-          price?: number
           created_at?: string
+          date?: string
+          hotel_id?: string
+          id?: string
+          price?: number
+          room_type_id?: string
           updated_at?: string
         }
         Relationships: [
@@ -438,12 +438,12 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "daily_rate_overrides_room_type_fk"
-            columns: ["room_type_id", "hotel_id"]
+            foreignKeyName: "daily_rate_overrides_room_type_id_fkey"
+            columns: ["room_type_id"]
             isOneToOne: false
             referencedRelation: "room_types"
-            referencedColumns: ["id", "hotel_id"]
-          }
+            referencedColumns: ["id"]
+          },
         ]
       }
       guests: {
@@ -612,52 +612,45 @@ export type Database = {
       }
       notification_logs: {
         Row: {
-          id: string
-          hotel_id: string
           booking_id: string | null
-          event_type: string
           channel: string
-          provider: string
-          recipient: string
-          provider_message_id: string | null
-          status: string
-          error_message: string | null
           created_at: string
+          error_message: string | null
+          event_type: string
+          hotel_id: string
+          id: string
+          provider: string
+          provider_message_id: string | null
+          recipient: string
+          status: string
         }
         Insert: {
-          id?: string
-          hotel_id: string
           booking_id?: string | null
-          event_type: string
           channel: string
-          provider: string
-          recipient: string
-          provider_message_id?: string | null
-          status?: string
-          error_message?: string | null
           created_at?: string
+          error_message?: string | null
+          event_type: string
+          hotel_id: string
+          id?: string
+          provider: string
+          provider_message_id?: string | null
+          recipient: string
+          status?: string
         }
         Update: {
-          id?: string
-          hotel_id?: string
           booking_id?: string | null
-          event_type?: string
           channel?: string
-          provider?: string
-          recipient?: string
-          provider_message_id?: string | null
-          status?: string
-          error_message?: string | null
           created_at?: string
+          error_message?: string | null
+          event_type?: string
+          hotel_id?: string
+          id?: string
+          provider?: string
+          provider_message_id?: string | null
+          recipient?: string
+          status?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "notification_logs_hotel_id_fkey"
-            columns: ["hotel_id"]
-            isOneToOne: false
-            referencedRelation: "hotels"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "notification_logs_booking_id_fkey"
             columns: ["booking_id"]
@@ -665,10 +658,16 @@ export type Database = {
             referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "notification_logs_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
         ]
       }
       notifications: {
-
         Row: {
           booking_id: string | null
           created_at: string | null
@@ -800,6 +799,60 @@ export type Database = {
             columns: ["recorded_by"]
             isOneToOne: false
             referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_admin_audit_logs: {
+        Row: {
+          action: string
+          admin_email: string
+          admin_id: string
+          after_state: Json | null
+          before_state: Json | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          hotel_id: string
+          id: string
+        }
+        Insert: {
+          action: string
+          admin_email: string
+          admin_id: string
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          hotel_id: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          admin_email?: string
+          admin_id?: string
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          hotel_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_admin_audit_logs_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_admin_audit_logs_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
             referencedColumns: ["id"]
           },
         ]
@@ -959,6 +1012,89 @@ export type Database = {
           },
         ]
       }
+      seasonal_rate_overrides: {
+        Row: {
+          base_price: number
+          created_at: string
+          id: string
+          room_type_id: string
+          seasonal_rate_id: string
+          updated_at: string
+          weekend_price: number | null
+        }
+        Insert: {
+          base_price: number
+          created_at?: string
+          id?: string
+          room_type_id: string
+          seasonal_rate_id: string
+          updated_at?: string
+          weekend_price?: number | null
+        }
+        Update: {
+          base_price?: number
+          created_at?: string
+          id?: string
+          room_type_id?: string
+          seasonal_rate_id?: string
+          updated_at?: string
+          weekend_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seasonal_rate_overrides_room_type_id_fkey"
+            columns: ["room_type_id"]
+            isOneToOne: false
+            referencedRelation: "room_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seasonal_rate_overrides_seasonal_rate_id_fkey"
+            columns: ["seasonal_rate_id"]
+            isOneToOne: false
+            referencedRelation: "seasonal_rates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seasonal_rates: {
+        Row: {
+          created_at: string
+          end_date: string
+          hotel_id: string
+          id: string
+          name: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          hotel_id: string
+          id?: string
+          name: string
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          hotel_id?: string
+          id?: string
+          name?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seasonal_rates_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_invitations: {
         Row: {
           clerk_org_id: string
@@ -988,92 +1124,6 @@ export type Database = {
           token?: string
         }
         Relationships: []
-      }
-      seasonal_rates: {
-        Row: {
-          id: string
-          hotel_id: string
-          name: string
-          start_date: string
-          end_date: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          hotel_id: string
-          name: string
-          start_date: string
-          end_date: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          hotel_id?: string
-          name?: string
-          start_date?: string
-          end_date?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "seasonal_rates_hotel_id_fkey"
-            columns: ["hotel_id"]
-            isOneToOne: false
-            referencedRelation: "hotels"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      seasonal_rate_overrides: {
-        Row: {
-          id: number
-          hotel_id: string
-          seasonal_rate_id: string
-          room_type_id: string
-          base_price: number
-          weekend_price: number | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: number
-          hotel_id: string
-          seasonal_rate_id: string
-          room_type_id: string
-          base_price: number
-          weekend_price?: number | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: number
-          hotel_id?: string
-          seasonal_rate_id?: string
-          room_type_id?: string
-          base_price?: number
-          weekend_price?: number | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "seasonal_rate_overrides_seasonal_rate_fk"
-            columns: ["seasonal_rate_id", "hotel_id"]
-            isOneToOne: false
-            referencedRelation: "seasonal_rates"
-            referencedColumns: ["id", "hotel_id"]
-          },
-          {
-            foreignKeyName: "seasonal_rate_overrides_room_type_fk"
-            columns: ["room_type_id", "hotel_id"]
-            isOneToOne: false
-            referencedRelation: "room_types"
-            referencedColumns: ["id", "hotel_id"]
-          }
-        ]
       }
       staff_profiles: {
         Row: {

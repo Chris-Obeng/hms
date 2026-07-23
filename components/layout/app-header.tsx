@@ -40,7 +40,7 @@ import {
   markSingleReadAction,
   type NotificationItem,
 } from "@/app/actions/notifications";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 
 // ── Props ──────────────────────────────────────────────────────
 
@@ -162,7 +162,7 @@ export function AppHeader({
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     const res = await markAllReadAction(hotelId);
     if (!res.success) {
-      toast.error(res.error || "Failed to mark all as read");
+      toast.danger(res.error || "Failed to mark all as read");
       setLiveCount(prevCount);
       setNotifications(prevNotifs);
       fetchNotifications();

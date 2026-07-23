@@ -48,7 +48,7 @@ export function ConnectionTab({ config, stats, onRefresh }: ConnectionTabProps) 
 
   async function handleSave() {
     if (!propertyId.trim()) {
-      toast.error("Property ID cannot be empty");
+      toast.danger("Property ID cannot be empty");
       return;
     }
 
@@ -63,7 +63,7 @@ export function ConnectionTab({ config, stats, onRefresh }: ConnectionTabProps) 
       toast.success(result.message ?? "Property ID saved successfully");
       await onRefresh();
     } else {
-      toast.error(result.error);
+      toast.danger(result.error);
     }
   }
 
@@ -78,9 +78,10 @@ export function ConnectionTab({ config, stats, onRefresh }: ConnectionTabProps) 
         `✓ Connected — ${count} propert${count === 1 ? "y" : "ies"} found`
       );
     } else {
-      toast.error(
-        result.data?.error ?? result.error ?? "Connection test failed"
-      );
+      const errMsg =
+        (result.success ? result.data?.error : result.error) ??
+        "Connection test failed";
+      toast.danger(errMsg);
     }
   }
 
@@ -95,7 +96,9 @@ export function ConnectionTab({ config, stats, onRefresh }: ConnectionTabProps) 
       );
       await onRefresh();
     } else {
-      toast.error(result.error ?? "Sync failed");
+      toast.danger(
+        (result.success ? result.data?.error : result.error) ?? "Sync failed"
+      );
     }
   }
 
@@ -206,10 +209,12 @@ export function ConnectionTab({ config, stats, onRefresh }: ConnectionTabProps) 
               value={propertyId}
               onChange={(e) => setPropertyId(e.target.value)}
               placeholder="e.g. 123456"
-              variant="bordered"
+              variant="secondary"
               className="max-w-xs"
-              description={`Find this ID in ${config.hotelName}'s Beds24 account → Settings → Properties`}
             />
+            <p className="text-xs text-foreground/55">
+              {`Find this ID in ${config.hotelName}'s Beds24 account → Settings → Properties`}
+            </p>
           </div>
 
           {/* Last sync info */}
@@ -239,7 +244,7 @@ export function ConnectionTab({ config, stats, onRefresh }: ConnectionTabProps) 
 
         <Card.Footer className="flex flex-wrap gap-2 pt-2">
           <Button
-            color="primary"
+            variant="primary"
             size="sm"
             isPending={isSaving}
             onPress={handleSave}

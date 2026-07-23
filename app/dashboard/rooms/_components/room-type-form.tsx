@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { ArrowLeft, Plus, X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -130,7 +130,7 @@ export function RoomTypeForm({
       const result = await onSubmit(values);
       // Parent page handles its own success/error toasts with context-specific messages
     } catch {
-      toast.error("An unexpected error occurred");
+      toast.danger("An unexpected error occurred");
     } finally {
       setSubmitting(false);
     }
@@ -491,7 +491,7 @@ function PhotosCard({
                 const r = await saveRoomImages(roomTypeId, images);
                 setSavingImages(false);
                 if (r.success) toast.success("Photos saved");
-                else toast.error(r.error ?? "Failed to save photos");
+                else toast.danger(r.error ?? "Failed to save photos");
               }}
               className="text-xs font-medium text-foreground hover:opacity-70 transition-opacity disabled:opacity-40"
             >

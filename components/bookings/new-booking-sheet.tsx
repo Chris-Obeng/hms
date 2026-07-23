@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { format, parseISO, differenceInDays } from "date-fns";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import {
   CalendarIcon,
   ChevronDown,
@@ -265,7 +265,7 @@ export function NewBookingSheet({
         }
         setErrors(fieldErrors);
       }
-      toast.error(result.error || "Failed to create reservation");
+      toast.danger(result.error || "Failed to create reservation");
     }
   }
 

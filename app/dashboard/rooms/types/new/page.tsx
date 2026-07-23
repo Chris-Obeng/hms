@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { RoomTypeForm, type RoomTypeFormValues } from "../../_components/room-type-form";
 import { createRoomType } from "@/app/actions/rooms";
 import { AMENITIES_LIST } from "@/lib/amenities";
@@ -44,7 +44,7 @@ export default function NewRoomTypePage() {
         }
         setErrors(fieldErrors);
       }
-      toast.error(result.error || "Failed to create room type");
+      toast.danger(result.error || "Failed to create room type");
       return { success: false, error: result.error };
     }
   }

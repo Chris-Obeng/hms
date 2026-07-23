@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { checkInBooking, checkOutBooking } from "@/app/dashboard/actions";
@@ -41,7 +41,7 @@ export function BookingDeepLinkClient({ bookingId, currency }: Props) {
     if (result.success) {
       setBooking(result.booking);
     } else {
-      toast.error(result.error);
+      toast.danger(result.error);
     }
     setLoading(false);
   }
@@ -63,10 +63,10 @@ export function BookingDeepLinkClient({ bookingId, currency }: Props) {
           );
           loadBooking();
         } else {
-          toast.error(result?.error ?? "Action failed");
+          toast.danger(result?.error ?? "Action failed");
         }
       })
-      .catch(() => toast.error("Action failed"))
+      .catch(() => toast.danger("Action failed"))
       .finally(() => setActionLoading(null));
   }
 

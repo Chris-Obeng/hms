@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@heroui/react";
 import { format, parseISO } from "date-fns";
 import {
   Search,
@@ -174,7 +174,7 @@ export function StaffClient({ data, currentUserId, isSuperAdmin }: StaffClientPr
       );
       toast.success(!currentActive ? "Staff member activated" : "Staff member deactivated");
     } else {
-      toast.error(result.error || "Failed to update");
+      toast.danger(result.error || "Failed to update");
     }
   };
 
@@ -189,7 +189,7 @@ export function StaffClient({ data, currentUserId, isSuperAdmin }: StaffClientPr
       );
       toast.success("Role updated");
     } else {
-      toast.error(result.error || "Failed to update role");
+      toast.danger(result.error || "Failed to update role");
     }
   };
 
@@ -202,7 +202,7 @@ export function StaffClient({ data, currentUserId, isSuperAdmin }: StaffClientPr
       setInviteLink(res.url);
       toast.success("Invitation link generated!");
     } else {
-      toast.error(res.error || "Failed to generate link");
+      toast.danger(res.error || "Failed to generate link");
     }
   };
 
