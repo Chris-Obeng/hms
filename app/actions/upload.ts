@@ -18,6 +18,29 @@ async function getHotelId() {
   return hotel.id;
 }
 
+/**
+ * Only accept https URLs pointing at the project's Supabase storage — image URLs
+ * are rendered on public booking pages, so arbitrary strings here would allow
+ * javascript:/data: URLs and off-site content injection.
+ */
+function assertStorageUrl(url: string): void {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) throw new Error("Storage is not configured");
+
+  let parsed: URL;
+  let allowed: URL;
+  try {
+    parsed = new URL(url);
+    allowed = new URL(supabaseUrl);
+  } catch {
+    throw new Error("Invalid image URL");
+  }
+
+  if (parsed.protocol !== "https:" || parsed.host !== allowed.host) {
+    throw new Error("Invalid image URL");
+  }
+}
+
 // ── Hotel branding images (logo / cover) ─────────────────────────
 
 export async function saveHotelImageUrl(
@@ -26,6 +49,7 @@ export async function saveHotelImageUrl(
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
     const hotelId = await getHotelId();
+    assertStorageUrl(url);
     const supabase = await createClient();
     await supabase
       .from("hotels")
@@ -46,6 +70,9 @@ export async function saveRoomImages(
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
     const hotelId = await getHotelId();
+    for (const image of images) {
+      assertStorageUrl(image.url);
+    }
     const supabase = await createClient();
     const { error } = await supabase
       .from("room_types")
@@ -68,7 +95,16 @@ export async function deleteStorageFile(
   path: string
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    await getHotelId(); // auth check
+    const hotelId = await getHotelId();
+
+    // supabaseAdmin bypasses storage RLS — the path must stay inside this
+    // hotel's own prefix, otherwise any staff member could delete another
+    // hotel's assets.
+    const prefix = `hotels/${hotelId}/`;
+    if (!path.startsWith(prefix) || path.includes("..")) {
+      throw new Error("Invalid file path");
+    }
+
     const { error } = await supabaseAdmin.storage.from("hotel-assets").remove([path]);
     if (error) throw error;
     return { success: true };

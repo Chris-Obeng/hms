@@ -11,6 +11,15 @@ export interface SearchResult {
   url: string;
 }
 
+/**
+ * Escapes a user-supplied term for use inside a PostgREST `.or()` filter string.
+ * Commas and parentheses would otherwise be parsed as filter separators, letting
+ * a caller inject arbitrary filters; `%`, `*`, `_` and `\` are LIKE metacharacters.
+ */
+function escapeFilterTerm(term: string): string {
+  return term.replace(/[\\%*_,()"']/g, "");
+}
+
 export async function searchGlobal(
   query: string
 ): Promise<{ success: true; data: SearchResult[] } | { success: false; error: string }> {
@@ -23,6 +32,12 @@ export async function searchGlobal(
       return { success: true, data: [] };
     }
 
+    const safeQ = escapeFilterTerm(q);
+
+    if (!safeQ) {
+      return { success: true, data: [] };
+    }
+
     const hotelId = ctx.hotelId;
     const results: SearchResult[] = [];
 
@@ -31,7 +46,13 @@ export async function searchGlobal(
       .from("guests")
       .select("id, full_name, email, phone")
       .eq("hotel_id", hotelId)
-      .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
+      .or(
+        [
+          `full_name.ilike.%${safeQ}%`,
+          `email.ilike.%${safeQ}%`,
+          `phone.ilike.%${safeQ}%`,
+        ].join(",")
+      )
       .limit(5);
 
     if (guestsError) {
@@ -62,7 +83,7 @@ export async function searchGlobal(
         )
       `)
       .eq("hotel_id", hotelId)
-      .ilike("reference", `%${q}%`)
+      .ilike("reference", `%${safeQ}%`)
       .limit(5);
 
     if (bookingsByRefError) {
@@ -122,7 +143,7 @@ export async function searchGlobal(
       .from("rooms")
       .select("id, room_number, status")
       .eq("hotel_id", hotelId)
-      .ilike("room_number", `%${q}%`)
+      .ilike("room_number", `%${safeQ}%`)
       .limit(5);
 
     if (roomsError) {

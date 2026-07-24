@@ -36,6 +36,7 @@ async function getSuperAdminHotel() {
 
 export async function fetchPaystackBanks() {
   try {
+    await getSuperAdminHotel(); // auth check — this action spends Paystack API quota
     const banks = await getPaystackBanks();
     return { success: true as const, banks };
   } catch (err) {

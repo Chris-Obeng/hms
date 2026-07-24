@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "../../lib/supabase/admin";
 
 const OnboardingSchema = z.object({
@@ -37,6 +38,11 @@ function slugify(text: string) {
 }
 
 export async function createHotelProfile(formData: OnboardingInput) {
+  const { userId } = await auth();
+  if (!userId) {
+    return { error: "Not authenticated." };
+  }
+
   const result = OnboardingSchema.safeParse(formData);
 
   if (!result.success) {
@@ -44,6 +50,30 @@ export async function createHotelProfile(formData: OnboardingInput) {
   }
 
   const data = result.data;
+
+  // The org id comes from the client — verify the caller actually administers it,
+  // otherwise anyone could attach a hotel (and a super_admin staff profile) to
+  // someone else's organization.
+  const client = await clerkClient();
+  const memberships = await client.users.getOrganizationMembershipList({ userId });
+  const membership = memberships.data.find(
+    (m) => m.organization.id === data.clerk_org_id
+  );
+
+  if (!membership || membership.role !== "org:admin") {
+    return { error: "You do not have permission to onboard this organization." };
+  }
+
+  const { data: existingHotel } = await supabaseAdmin
+    .from("hotels")
+    .select("id")
+    .eq("clerk_org_id", data.clerk_org_id)
+    .maybeSingle();
+
+  if (existingHotel) {
+    return { error: "This organization already has a hotel profile." };
+  }
+
   // Make the slug unique by appending a random string to avoid collisions on onboarding
   const slug = slugify(data.name);
 
@@ -75,12 +105,9 @@ export async function createHotelProfile(formData: OnboardingInput) {
   }
 
   // Admin staff_profile upsert
-  const { auth, clerkClient } = await import("@clerk/nextjs/server");
-  const { userId } = await auth();
-  if (userId) {
-    const client = await clerkClient();
+  {
     const clerkUser = await client.users.getUser(userId);
-    
+
     await supabase.from('staff_profiles').upsert({
       clerk_org_id:       data.clerk_org_id,
       clerk_user_id:      userId,
