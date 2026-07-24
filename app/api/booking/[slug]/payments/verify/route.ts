@@ -211,8 +211,11 @@ export async function GET(
       .eq("id", bookingId);
 
     if (bookingUpdateError) {
-      // Payment is stored; only the booking status failed to update. Log so it's
-      // diagnosable — the webhook path will also reconcile the status.
+      // Payment is stored; only the booking status failed to update. Log rather
+      // than 500 (the money is safely recorded). Note: neither this route nor
+      // the webhook re-attempts the status update on retry — both short-circuit
+      // once the payment row exists — so a persistent update failure needs the
+      // logged error for manual reconciliation.
       console.error("[payment/verify] Payment recorded but booking update failed", {
         bookingId,
         reference,

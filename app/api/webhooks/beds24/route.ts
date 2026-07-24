@@ -71,11 +71,22 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 3. Resolve hotel by beds24_property_id ───────────────────
-  const { data: hotel } = await supabaseAdmin
+  // maybeSingle() + explicit error check so a transient DB error isn't
+  // mistaken for "unknown property" and silently acknowledged (dropping the
+  // webhook). A genuine miss returns null → 200; a DB error → 500 for retry.
+  const { data: hotel, error: hotelError } = await supabaseAdmin
     .from("hotels")
     .select("id, name, currency, slug, settings")
     .eq("beds24_property_id", beds24PropertyId)
-    .single();
+    .maybeSingle();
+
+  if (hotelError) {
+    console.error("[beds24:webhook] Hotel lookup failed", {
+      beds24PropertyId,
+      error: hotelError.message,
+    });
+    return NextResponse.json({ error: "Hotel lookup failed" }, { status: 500 });
+  }
 
   if (!hotel) {
     // Unknown property — return 200 so Beds24 doesn't keep retrying

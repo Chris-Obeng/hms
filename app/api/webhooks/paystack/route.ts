@@ -251,15 +251,16 @@ export async function POST(req: NextRequest) {
     .eq("hotel_id", booking.hotel_id);
 
   if (bookingUpdateError) {
-    // Payment is recorded but the booking status is now stale. Surface via 500
-    // so Paystack retries; the idempotency check will short-circuit the payment
-    // insert on the retry while the update is re-attempted.
+    // Log but continue — do NOT return 500 here. The payment row is already
+    // persisted, so a Paystack retry would short-circuit at the idempotency
+    // check above and never reach this update or the guest confirmation below.
+    // Falling through keeps the pre-existing behaviour of still sending the
+    // staff notification and guest confirmation for a captured payment.
     console.error("[paystack-webhook] Payment recorded but booking update failed", {
       bookingId,
       paystackRef,
       error: bookingUpdateError.message,
     });
-    return NextResponse.json({ error: "Failed to update booking" }, { status: 500 });
   }
 
   // ── 9. In-app notification ───────────────────────────────────
