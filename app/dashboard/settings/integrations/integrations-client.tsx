@@ -38,7 +38,7 @@ import {
   getSyncLogs,
   getChannelStats,
 } from "@/app/actions/integrations";
-
+import { formatDateTime24, formatRelativeTime } from "@/lib/format";
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -88,32 +88,6 @@ export interface IntegrationsClientProps {
   initialMappings: RoomMapping[];
 }
 
-
-// ── Helpers ───────────────────────────────────────────────────────
-
-function formatRelative(iso: string | null): string {
-  if (!iso) return "Never";
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}
-
-function formatDateTime(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function eventLabel(eventType: string | null): string {
   switch (eventType) {
     case "force_sync": return "Force Sync";
@@ -124,7 +98,6 @@ function eventLabel(eventType: string | null): string {
     default: return eventType ?? "—";
   }
 }
-
 
 // ── Sub-components ────────────────────────────────────────────────
 
@@ -188,7 +161,6 @@ function DirectionIcon({ direction }: { direction: string | null }) {
   );
 }
 
-
 // ── Stat card ─────────────────────────────────────────────────────
 
 function StatCard({
@@ -229,7 +201,6 @@ function StatCard({
   );
 }
 
-
 // ── Main component ────────────────────────────────────────────────
 
 export function IntegrationsClient({
@@ -261,7 +232,6 @@ export function IntegrationsClient({
   const [testingNotif, setTestingNotif] = React.useState(false);
 
   const isConfigured = !!b24PropertyId.trim() && initialData.beds24Configured;
-
 
   // ── Handlers ─────────────────────────────────────────────────
 
@@ -335,7 +305,6 @@ export function IntegrationsClient({
     setLoadingLogs(false);
   }
 
-
   // ── Render ────────────────────────────────────────────────────
 
   return (
@@ -383,8 +352,8 @@ export function IntegrationsClient({
           />
           <StatCard
             label="Last Outbound"
-            value={formatRelative(stats.lastOutboundSync)}
-            sub={formatDateTime(stats.lastOutboundSync)}
+            value={formatRelativeTime(stats.lastOutboundSync)}
+            sub={formatDateTime24(stats.lastOutboundSync)}
             icon={ArrowUpRight}
             color="default"
           />
@@ -403,7 +372,6 @@ export function IntegrationsClient({
           </Alert.Content>
         </Alert>
       )}
-
 
       {/* ── Tabs ───────────────────────────────────────────────── */}
       <Tabs>
@@ -452,7 +420,6 @@ export function IntegrationsClient({
             </Tabs.Tab>
           </Tabs.List>
         </Tabs.ListContainer>
-
 
         {/* ── TAB: Connection ──────────────────────────────────── */}
         <Tabs.Panel id="connection" className="mt-4">
@@ -531,7 +498,7 @@ export function IntegrationsClient({
               {initialData.lastSyncAt && (
                 <p className="text-xs text-foreground/55 flex items-center gap-1.5">
                   <Clock className="size-3" />
-                  Last successful sync: {formatDateTime(initialData.lastSyncAt)}
+                  Last successful sync: {formatDateTime24(initialData.lastSyncAt)}
                 </p>
               )}
             </Card.Content>
@@ -584,7 +551,6 @@ export function IntegrationsClient({
             </Alert.Content>
           </Alert>
         </Tabs.Panel>
-
 
         {/* ── TAB: Room Mapping ────────────────────────────────── */}
         <Tabs.Panel id="mappings" className="mt-4">
@@ -665,7 +631,6 @@ export function IntegrationsClient({
           </Card>
         </Tabs.Panel>
 
-
         {/* ── TAB: Sync Logs ───────────────────────────────────── */}
         <Tabs.Panel id="logs" className="mt-4">
           <Card>
@@ -732,9 +697,9 @@ export function IntegrationsClient({
                             </Table.Cell>
                             <Table.Cell>
                               <div>
-                                <p className="text-xs font-medium text-foreground">{formatRelative(log.processed_at)}</p>
+                                <p className="text-xs font-medium text-foreground">{formatRelativeTime(log.processed_at)}</p>
                                 <p className="text-[11px] text-foreground/50">
-                                  {formatDateTime(log.processed_at)}
+                                  {formatDateTime24(log.processed_at)}
                                 </p>
                               </div>
                             </Table.Cell>
@@ -793,7 +758,7 @@ export function IntegrationsClient({
                     </pre>
                   )}
                   <p className="text-xs text-foreground/55 mt-2">
-                    {formatDateTime(log.processed_at)}
+                    {formatDateTime24(log.processed_at)}
                     {log.booking_id && ` · Booking: ${log.booking_id}`}
                   </p>
                 </Card.Content>
@@ -801,7 +766,6 @@ export function IntegrationsClient({
             );
           })()}
         </Tabs.Panel>
-
 
         {/* ── TAB: Notifications ───────────────────────────────── */}
         <Tabs.Panel id="notifications" className="mt-4 space-y-4">

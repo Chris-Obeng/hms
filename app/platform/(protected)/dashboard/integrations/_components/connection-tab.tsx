@@ -19,6 +19,7 @@ import {
   testBed24ConnectionForHotel,
   forceSyncForHotel,
 } from "../_actions";
+import { formatDateTime24, formatRelativeTime } from "@/lib/format";
 
 interface ConnectionTabProps {
   config: Bed24Config;
@@ -140,8 +141,8 @@ export function ConnectionTab({ config, stats, onRefresh }: ConnectionTabProps) 
           />
           <StatCard
             label="Last Outbound"
-            value={formatRelative(stats.lastOutboundSync)}
-            sub={formatDateTime(stats.lastOutboundSync)}
+            value={formatRelativeTime(stats.lastOutboundSync)}
+            sub={formatDateTime24(stats.lastOutboundSync)}
             icon={ArrowUpRight}
             color="default"
           />
@@ -222,7 +223,7 @@ export function ConnectionTab({ config, stats, onRefresh }: ConnectionTabProps) 
             <div className="flex items-center gap-1.5 text-xs text-foreground/55">
               <Clock className="size-3" />
               <span>
-                Last successful sync: {formatDateTime(config.lastSyncAt)}
+                Last successful sync: {formatDateTime24(config.lastSyncAt)}
               </span>
             </div>
           )}
@@ -355,27 +356,3 @@ function StatCard({ label, value, sub, icon: Icon, color }: StatCardProps) {
   );
 }
 
-// ── Helpers ───────────────────────────────────────────────────────
-
-function formatRelative(iso: string | null): string {
-  if (!iso) return "Never";
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}
-
-function formatDateTime(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}

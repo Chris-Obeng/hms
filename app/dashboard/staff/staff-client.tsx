@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@heroui/react";
-import { format, parseISO } from "date-fns";
 import {
   Search,
   Shield,
@@ -20,6 +19,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { formatDate, getInitials } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -70,27 +70,6 @@ interface StaffClientProps {
   data: StaffRow[];
   currentUserId: string;
   isSuperAdmin: boolean;
-}
-
-// ── Helpers ────────────────────────────────────────────────────────
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "—";
-  try {
-    return format(parseISO(dateStr), "MMM d, yyyy");
-  } catch {
-    return dateStr;
-  }
-}
-
-function getInitials(name: string | null): string {
-  if (!name) return "?";
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
 }
 
 const ROLE_CONFIG: Record<
@@ -440,14 +419,14 @@ export function StaffClient({ data, currentUserId, isSuperAdmin }: StaffClientPr
                       {/* Granted */}
                       <TableCell>
                         <span className="text-sm text-muted-foreground">
-                          {staff.grantedAt ? formatDate(staff.grantedAt) : "—"}
+                          {formatDate(staff.grantedAt, "MMM d, yyyy")}
                         </span>
                       </TableCell>
 
                       {/* Last Login */}
                       <TableCell>
                         <span className="text-sm text-muted-foreground">
-                          {staff.lastLoginAt ? formatDate(staff.lastLoginAt) : "—"}
+                          {formatDate(staff.lastLoginAt, "MMM d, yyyy")}
                         </span>
                       </TableCell>
 

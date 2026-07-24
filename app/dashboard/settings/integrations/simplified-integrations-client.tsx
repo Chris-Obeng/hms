@@ -24,6 +24,7 @@ import {
   Spinner,
   Surface,
 } from "@heroui/react";
+import { formatDate, formatRelativeTime } from "@/lib/format";
 
 interface IntegrationMetrics {
   connectionStatus: "active" | "inactive" | "syncing";
@@ -371,7 +372,7 @@ function IntegrationStatusCard({
             <MetricCard
               icon={<Clock className="size-4" />}
               label="Last Sync"
-              value={metrics.lastSync ? formatRelative(metrics.lastSync) : "Never"}
+              value={formatRelativeTime(metrics.lastSync)}
               status="info"
             />
             <MetricCard
@@ -409,7 +410,7 @@ function IntegrationStatusCard({
                   <div>
                     <p>{activity.message}</p>
                     <p className="text-[11px] text-foreground/50">
-                      {formatDateTime(activity.timestamp)}
+                      {formatDate(activity.timestamp, "dd MMM, HH:mm")}
                     </p>
                   </div>
                 </div>
@@ -509,24 +510,4 @@ function getBed24StatusLabel(
   if (metrics.connectionStatus === "inactive") return "Disconnected";
   if (metrics.successRate < 80) return "Warning";
   return "Connected";
-}
-
-function formatRelative(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}
-
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }

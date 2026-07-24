@@ -27,6 +27,7 @@ import {
 import { toast } from "@heroui/react";
 import type { SyncLog, ChannelStats, SyncLogFilters } from "@/types/platform-integrations";
 import { getSyncLogsForHotel, exportSyncLogsForHotel } from "../_actions";
+import { formatDateTime24, formatRelativeTime } from "@/lib/format";
 
 interface SyncLogsTabProps {
   hotelId: string;
@@ -383,10 +384,10 @@ export function SyncLogsTab({
                         <Table.Cell>
                           <div>
                             <p className="text-xs font-medium text-foreground">
-                              {formatRelative(log.processedAt)}
+                              {formatRelativeTime(log.processedAt)}
                             </p>
                             <p className="text-[11px] text-foreground/50">
-                              {formatDateTime(log.processedAt)}
+                              {formatDateTime24(log.processedAt)}
                             </p>
                           </div>
                         </Table.Cell>
@@ -451,7 +452,7 @@ export function SyncLogsTab({
               )}
               
               <p className="text-xs text-foreground/55 mt-2">
-                {formatDateTime(log.processedAt)}
+                {formatDateTime24(log.processedAt)}
                 {log.bookingId && ` · Booking: ${log.bookingId}`}
               </p>
             </Card.Content>
@@ -570,25 +571,3 @@ function formatEventType(eventType: string | null): string {
   return eventType ? (map[eventType] ?? eventType) : "—";
 }
 
-function formatRelative(iso: string | null): string {
-  if (!iso) return "Never";
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}
-
-function formatDateTime(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}

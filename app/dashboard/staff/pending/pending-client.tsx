@@ -2,11 +2,11 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { format, parseISO } from "date-fns";
 import { toast } from "@heroui/react";
 import { Check, X, Clock, Mail, Shield } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { formatDate, getInitials } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -34,27 +34,6 @@ export interface PendingStaffRow {
 
 interface PendingStaffClientProps {
   data: PendingStaffRow[];
-}
-
-// ── Helpers ────────────────────────────────────────────────────────
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "—";
-  try {
-    return format(parseISO(dateStr), "MMM d, yyyy 'at' h:mm a");
-  } catch {
-    return dateStr;
-  }
-}
-
-function getInitials(name: string | null): string {
-  if (!name) return "?";
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
 }
 
 // ── Component ──────────────────────────────────────────────────────
@@ -154,7 +133,7 @@ export function PendingStaffClient({ data }: PendingStaffClientProps) {
 
             {/* Meta */}
             <div className="space-y-1 text-xs text-muted-foreground">
-              <p>Registered: {formatDate(staff.createdAt)}</p>
+              <p>Registered: {formatDate(staff.createdAt, "MMM d, yyyy 'at' h:mm a")}</p>
             </div>
 
             {/* Actions */}

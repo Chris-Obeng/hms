@@ -9,10 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { PaymentRow } from "./booking-payment-row";
-import {
-  formatCurrency,
-  type FullBookingDetail,
-} from "./booking-detail-types";
+import { formatCurrency } from "@/lib/format";
+import { type FullBookingDetail } from "./booking-detail-types";
 import { recordPayment } from "@/app/actions/bookings-detail";
 
 interface BookingPaymentsPanelProps {

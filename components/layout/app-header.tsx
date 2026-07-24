@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/notification-icon";
 import { GlobalSearch } from "@/app/dashboard/_components/global-search";
 import { cn } from "@/lib/utils";
+import { formatRelativeTime } from "@/lib/format";
 import { useSidebar } from "@/components/ui/sidebar";
 
 import { createClient } from "@/lib/supabase/client";
@@ -184,17 +185,6 @@ export function AppHeader({
     },
     [router],
   );
-
-  const timeAgo = React.useCallback((iso: string | null): string => {
-    if (!iso) return "";
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60_000);
-    if (mins < 1) return "just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  }, []);
 
   React.useEffect(() => {
     setLiveCount(notificationCount);
@@ -521,7 +511,7 @@ export function AppHeader({
                             {n.message}
                           </p>
                           <p className="mt-1 text-[10px] text-muted-foreground/60">
-                            {timeAgo(n.created_at)}
+                            {formatRelativeTime(n.created_at, { fallback: "", justNow: "just now" })}
                           </p>
                         </div>
                       </button>

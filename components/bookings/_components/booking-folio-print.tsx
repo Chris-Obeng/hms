@@ -3,7 +3,8 @@
 import * as React from "react";
 import { Printer, Download, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, type FullBookingDetail } from "./booking-detail-types";
+import { formatCurrency } from "@/lib/format";
+import { type FullBookingDetail } from "./booking-detail-types";
 import { format, eachDayOfInterval, addDays, parseISO } from "date-fns";
 
 interface BookingFolioPrintProps {

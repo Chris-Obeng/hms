@@ -1,22 +1,9 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getHotelScope } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-
-async function getHotelId() {
-  const { orgId } = await auth();
-  if (!orgId) throw new Error("Not authenticated");
-  const supabase = await createClient();
-  const { data: hotel } = await supabase
-    .from("hotels")
-    .select("id")
-    .eq("clerk_org_id", orgId)
-    .single();
-  if (!hotel) throw new Error("Hotel not found");
-  return hotel.id;
-}
 
 // ── Hotel branding images (logo / cover) ─────────────────────────
 
@@ -25,7 +12,7 @@ export async function saveHotelImageUrl(
   url: string
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const hotelId = await getHotelId();
+    const { hotelId } = await getHotelScope();
     const supabase = await createClient();
     await supabase
       .from("hotels")
@@ -45,7 +32,7 @@ export async function saveRoomImages(
   images: { url: string; caption: string; order: number }[]
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const hotelId = await getHotelId();
+    const { hotelId } = await getHotelScope();
     const supabase = await createClient();
     const { error } = await supabase
       .from("room_types")
@@ -68,7 +55,7 @@ export async function deleteStorageFile(
   path: string
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    await getHotelId(); // auth check
+    await getHotelScope(); // auth check
     const { error } = await supabaseAdmin.storage.from("hotel-assets").remove([path]);
     if (error) throw error;
     return { success: true };

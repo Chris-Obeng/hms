@@ -22,12 +22,8 @@ import {
   type FullBookingDetail,
 } from "@/app/actions/bookings-detail";
 
-import {
-  getStatusVariant,
-  getStatusLabel,
-  STATUS_COLORS,
-  formatDateTime,
-} from "./_components/booking-detail-types";
+import { getStatusVariant, getStatusLabel, STATUS_COLORS } from "@/lib/booking-status";
+import { formatDateTime } from "@/lib/format";
 import { BookingActionBar } from "./_components/booking-action-bar";
 import { BookingOverviewPanel } from "./_components/booking-overview-panel";
 import { BookingPaymentsPanel } from "./_components/booking-payments-panel";
