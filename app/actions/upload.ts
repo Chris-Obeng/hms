@@ -49,7 +49,7 @@ export async function saveHotelImageUrl(
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
     const hotelId = await getHotelId();
-    assertStorageUrl(url);
+    if (url) assertStorageUrl(url); // "" clears the image
     const supabase = await createClient();
     await supabase
       .from("hotels")
