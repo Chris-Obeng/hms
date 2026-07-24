@@ -194,7 +194,7 @@ export default async function RoomsPage({ params, searchParams }: Props) {
         Skip to rooms
       </a>
 
-      <header className="booking-header sticky top-0 z-40 booking-safe-x py-1.5 sm:py-2 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5 pt-[max(0.375rem,env(safe-area-inset-top))]">
+      <header className="booking-header sticky top-0 z-40 booking-safe-x py-1.5 sm:py-2 flex flex-col min-[640px]:flex-row min-[640px]:items-center gap-1.5 sm:gap-2.5 pt-[max(0.375rem,env(safe-area-inset-top))]">
         <Link
           href={`/${slug}`}
           className="booking-heading text-sm sm:text-base text-[var(--bk-ink)] shrink-0 hover:opacity-80 transition-opacity truncate max-w-full sm:max-w-[12rem] md:max-w-none"
@@ -214,10 +214,10 @@ export default async function RoomsPage({ params, searchParams }: Props) {
 
       <main
         id="rooms-main"
-        className="flex-1 max-w-6xl w-full mx-auto booking-safe-x py-8 sm:py-10 md:py-12"
+        className="flex-1 max-w-6xl w-full mx-auto booking-safe-x py-5 sm:py-8 md:py-12 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
       >
-        <div className="mb-6 sm:mb-8">
-          <h1 className="booking-heading text-2xl sm:text-3xl md:text-4xl text-[var(--bk-ink)] text-balance">
+        <div className="mb-4 sm:mb-8">
+          <h1 className="booking-heading text-xl sm:text-3xl md:text-4xl text-[var(--bk-ink)] text-balance">
             {datesSelected ? (
               <>
                 Rooms for{" "}

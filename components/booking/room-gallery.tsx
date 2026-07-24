@@ -42,7 +42,12 @@ export function RoomGallery({
     return () => window.removeEventListener("keydown", handler);
   }, [open, images.length, onClose]);
 
-  React.useEffect(() => { if (open) setCurrent(0); }, [open]);
+  // Reset current slide when gallery opens or closes
+  const [prevOpen, setPrevOpen] = React.useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (open) setCurrent(0);
+  }
 
   React.useEffect(() => {
     if (open) document.body.style.overflow = "hidden";

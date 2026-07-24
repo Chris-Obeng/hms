@@ -46,7 +46,7 @@ export function GuestPickerPopover({
     <Popover isOpen={open} onOpenChange={setOpen}>
       <Popover.Trigger
         className={cn(
-          "flex items-center gap-2.5 h-[52px] px-3 sm:px-3.5 rounded-xl bg-background/90 border border-border/80 hover:border-primary shadow-xs hover:shadow-sm text-left cursor-pointer outline-none transition-all w-full min-w-0",
+          "flex items-center gap-2 sm:gap-2.5 h-12 sm:h-[52px] px-3 sm:px-3.5 rounded-xl bg-background/90 border border-border/80 hover:border-primary shadow-xs hover:shadow-sm text-left cursor-pointer outline-none transition-all w-full min-w-0",
           className
         )}
         aria-label="Select number of guests and rooms"
@@ -58,7 +58,7 @@ export function GuestPickerPopover({
           <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
             Guests & Rooms
           </span>
-          <span className="text-xs font-semibold text-foreground truncate font-mono">
+          <span className="text-xs font-semibold text-foreground truncate">
             {summaryText}
           </span>
         </div>
@@ -66,9 +66,9 @@ export function GuestPickerPopover({
 
       <Popover.Content
         placement="bottom"
-        className="p-0 border-border/60 max-w-[calc(100vw-1rem)]"
+        className="p-0 border-border/60 w-[min(20rem,calc(100vw-1.25rem))]"
       >
-        <Popover.Dialog className="outline-none p-4 bg-card rounded-2xl shadow-xl space-y-2 booking-popover-panel">
+        <Popover.Dialog className="outline-none p-3.5 sm:p-4 bg-card rounded-2xl shadow-xl space-y-2 booking-popover-panel">
           <NumericStepper
             label="Adults"
             description="Age 13 and above"

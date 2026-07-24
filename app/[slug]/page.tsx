@@ -68,7 +68,7 @@ export default async function HotelLandingPage({ params }: Props) {
       />
 
       {/* Hero */}
-      <section className="relative min-h-[100svh] sm:min-h-[100dvh] max-h-[920px] flex flex-col items-center justify-center pt-[calc(3.25rem+env(safe-area-inset-top))] sm:pt-[calc(3.5rem+env(safe-area-inset-top))] pb-10 sm:pb-16">
+      <section className="relative min-h-[100svh] sm:min-h-[100dvh] max-h-[920px] flex flex-col items-center justify-center pt-[calc(3.25rem+env(safe-area-inset-top))] sm:pt-[calc(3.5rem+env(safe-area-inset-top))] pb-8 sm:pb-16 px-0">
         {hotel.cover_image_url ? (
           <Image
             src={hotel.cover_image_url}
@@ -83,23 +83,23 @@ export default async function HotelLandingPage({ params }: Props) {
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/35 to-black/75" />
 
-        <div className="relative z-10 text-center px-4 sm:px-5 w-full max-w-3xl">
-          <p className="booking-heading-italic text-white/75 text-base sm:text-lg md:text-xl mb-1.5 sm:mb-2 pb-0.5">
+        <div className="relative z-10 text-center booking-safe-x w-full max-w-3xl">
+          <p className="booking-heading-italic text-white/75 text-sm sm:text-lg md:text-xl mb-1 sm:mb-2 pb-0.5">
             Welcome to
           </p>
-          <h1 className="booking-heading text-white text-[2.5rem] leading-[1.05] sm:text-5xl md:text-6xl lg:text-7xl mb-3 text-balance px-1">
+          <h1 className="booking-heading text-white text-[2.15rem] leading-[1.08] sm:text-5xl md:text-6xl lg:text-7xl mb-2.5 sm:mb-3 text-balance">
             {hotel.name}
           </h1>
           {locationLabel && (
-            <p className="inline-flex items-center justify-center gap-1.5 text-white/70 text-sm mb-6 sm:mb-8 tracking-wide max-w-full px-2">
+            <p className="inline-flex items-center justify-center gap-1.5 text-white/70 text-xs sm:text-sm mb-5 sm:mb-8 tracking-wide max-w-full">
               <MapPin className="size-3.5 shrink-0 opacity-80" strokeWidth={1.75} />
               <span className="truncate">{locationLabel}</span>
             </p>
           )}
-          {!locationLabel && <div className="mb-6 sm:mb-8" />}
+          {!locationLabel && <div className="mb-5 sm:mb-8" />}
           <Suspense
             fallback={
-              <div className="h-[160px] sm:h-[68px] max-w-4xl mx-auto rounded-2xl bg-white/90 animate-pulse" />
+              <div className="h-[148px] min-[480px]:h-[68px] max-w-4xl mx-auto rounded-2xl bg-white/90 animate-pulse" />
             }
           >
             <DateSearchBar slug={slug} />
@@ -139,20 +139,20 @@ export default async function HotelLandingPage({ params }: Props) {
       {/* Rooms */}
       <section
         id="rooms"
-        className="max-w-6xl mx-auto booking-safe-x py-12 sm:py-16 md:py-20 scroll-mt-4"
+        className="max-w-6xl mx-auto booking-safe-x py-10 sm:py-16 md:py-20 scroll-mt-4 pb-[max(2.5rem,env(safe-area-inset-bottom))]"
       >
-        <div className="flex items-end justify-between gap-4 mb-7 sm:mb-10">
+        <div className="flex items-end justify-between gap-3 sm:gap-4 mb-5 sm:mb-10">
           <div className="min-w-0">
-            <h2 className="booking-heading text-2xl sm:text-3xl md:text-4xl text-[var(--bk-ink)]">
+            <h2 className="booking-heading text-xl sm:text-3xl md:text-4xl text-[var(--bk-ink)]">
               Our rooms
             </h2>
-            <p className="text-[var(--bk-muted)] mt-1.5 text-sm">
+            <p className="text-[var(--bk-muted)] mt-1 text-sm">
               Book direct for the best available rate
             </p>
           </div>
           <Link
             href={`/${slug}/rooms`}
-            className="text-sm font-medium text-[var(--bk-muted)] hover:text-[var(--bk-ink)] underline underline-offset-4 decoration-[var(--bk-line-strong)] transition-colors hidden sm:block shrink-0"
+            className="text-sm font-medium text-[var(--bk-muted)] hover:text-[var(--bk-ink)] underline underline-offset-4 decoration-[var(--bk-line-strong)] transition-colors shrink-0 min-h-9 inline-flex items-center"
           >
             View all
           </Link>

@@ -31,6 +31,10 @@ import { RoomGallery } from "@/components/booking/room-gallery";
 import { BookingDateRangePicker } from "@/components/booking/booking-date-range-picker";
 import { GuestPickerPopover } from "@/components/booking/guest-picker-popover";
 import { NumericStepper } from "@/components/booking/numeric-stepper";
+import {
+  BookingProgress,
+  type BookingStepId,
+} from "@/components/booking/booking-progress";
 
 interface RoomImage {
   url: string;
@@ -94,8 +98,9 @@ export function BookingWizard({
   initialRooms = 1,
 }: Props) {
   const router = useRouter();
-  const todayStr = new Date().toISOString().split("T")[0];
-  const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
+  const tomorrowStr = new Date(today.getTime() + 86400000).toISOString().split("T")[0];
 
   /** Build international dial code from world-countries idd (e.g. GH → +233). */
   const dialCodeFromIdd = React.useCallback(
@@ -149,8 +154,18 @@ export function BookingWizard({
     hotel.paymentPolicy === "pay_later_only" ? "pay_at_checkin" : "pay_now"
   );
   const [submitting, setSubmitting] = React.useState(false);
-  const [section, setSection] = React.useState<1 | 2 | 3>(1);
+  const [section, setSection] = React.useState<BookingStepId>(1);
   const [touched, setTouched] = React.useState({ name: false, email: false, phone: false });
+  const mainRef = React.useRef<HTMLElement>(null);
+
+  const goToSection = React.useCallback((next: BookingStepId) => {
+    setSection(next);
+    // Keep focus/context after step change on mobile (OTA pattern)
+    requestAnimationFrame(() => {
+      mainRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }, []);
 
   type ResolvedPrice = {
     displayPrice: number;
@@ -161,14 +176,24 @@ export function BookingWizard({
     Record<string, ResolvedPrice>
   >({});
   const [priceLoading, setPriceLoading] = React.useState(false);
+  const [lastCheckIn, setLastCheckIn] = React.useState(checkIn);
+  const [lastCheckOut, setLastCheckOut] = React.useState(checkOut);
+  if (lastCheckIn !== checkIn || lastCheckOut !== checkOut) {
+    setLastCheckIn(checkIn);
+    setLastCheckOut(checkOut);
+    if (checkIn && checkOut && checkOut > checkIn) {
+      setPriceLoading(true);
+    }
+  }
 
   React.useEffect(() => {
     if (!checkIn || !checkOut || checkOut <= checkIn) return;
     let cancelled = false;
-    setPriceLoading(true);
-    fetch(`/api/booking/${slug}/availability?check_in=${checkIn}&check_out=${checkOut}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((json) => {
+
+    const fetchAvailability = async () => {
+      try {
+        const r = await fetch(`/api/booking/${slug}/availability?check_in=${checkIn}&check_out=${checkOut}`);
+        const json = r.ok ? await r.json() : null;
         if (cancelled || !json?.rooms) return;
         const map: Record<string, ResolvedPrice> = {};
         for (const room of json.rooms) {
@@ -188,11 +213,13 @@ export function BookingWizard({
           if (count === 0) return null;
           return prev;
         });
-      })
-      .catch(() => {})
-      .finally(() => {
+      } finally {
         if (!cancelled) setPriceLoading(false);
-      });
+      }
+    };
+
+    fetchAvailability();
+
     return () => {
       cancelled = true;
     };
@@ -324,98 +351,71 @@ export function BookingWizard({
     }
   }
 
-  const steps = [
-    { num: 1 as const, label: "Stay" },
-    { num: 2 as const, label: "Guest" },
-    { num: 3 as const, label: "Confirm" },
-  ];
+  const canReachStep = React.useCallback(
+    (step: BookingStepId) =>
+      step === 1 ||
+      (step === 2 && step1Valid) ||
+      (step === 3 && step1Valid && step2Valid),
+    [step1Valid, step2Valid]
+  );
+
+  const isStepComplete = React.useCallback(
+    (step: BookingStepId) => {
+      if (step === 1) return step1Valid && section > 1;
+      if (step === 2) return step2Valid && section > 2;
+      return false;
+    },
+    [step1Valid, step2Valid, section]
+  );
 
   return (
     <>
-      <div className="min-h-[100dvh] flex flex-col">
-        {/* Header */}
-        <header className="booking-header sticky top-0 z-40 booking-safe-x h-12 pt-[env(safe-area-inset-top)] flex items-center justify-between gap-3">
-          <Link
-            href={`/${slug}`}
-            className="flex items-center gap-2 min-w-0 group touch-manipulation"
-          >
-            <ArrowLeft className="size-4 text-[var(--bk-muted)] group-hover:text-[var(--bk-ink)] transition-colors shrink-0" />
-            <span className="booking-heading text-sm sm:text-base text-[var(--bk-ink)] truncate">
-              {hotel.name}
+      <div className="min-h-[100dvh] flex flex-col bg-[var(--bk-bg)]">
+        {/*
+          Sticky chrome stack (industry standard for hotel OTA checkout):
+          1) Brand bar — hotel identity + exit only (never put funnel steps here)
+          2) Progress strip — sticky under brand, always visible while scrolling
+        */}
+        <div className="sticky top-0 z-40">
+          <header className="booking-header booking-safe-x h-12 pt-[env(safe-area-inset-top)] flex items-center justify-between gap-2 sm:gap-3">
+            <Link
+              href={`/${slug}`}
+              className="flex items-center gap-2 min-w-0 group touch-manipulation max-w-[70%]"
+            >
+              <ArrowLeft className="size-4 text-[var(--bk-muted)] group-hover:text-[var(--bk-ink)] transition-colors shrink-0" />
+              <span className="booking-heading text-sm sm:text-base text-[var(--bk-ink)] truncate">
+                {hotel.name}
+              </span>
+            </Link>
+            <div className="booking-trust hidden sm:inline-flex shrink-0">
+              <ShieldCheck className="size-3.5 text-[var(--bk-success)]" strokeWidth={1.75} />
+              Direct booking
+            </div>
+            <span className="sm:hidden text-[10px] font-semibold uppercase tracking-wider text-[var(--bk-muted)] shrink-0">
+              Secure
             </span>
-          </Link>
-          <div className="booking-trust hidden sm:inline-flex">
-            <ShieldCheck className="size-3.5 text-[var(--bk-success)]" strokeWidth={1.75} />
-            Direct booking
-          </div>
-        </header>
+          </header>
 
-        {/* Progress */}
-        <div className="border-b border-[var(--bk-line)] bg-[var(--bk-bg)]">
-          <nav
-            aria-label="Booking progress"
-            className="max-w-2xl mx-auto booking-safe-x py-3 sm:py-4 flex items-center gap-1.5 sm:gap-2"
-          >
-            {steps.map((s, i) => {
-              const done = section > s.num || (s.num < 3 && (s.num === 1 ? step1Valid && section > 1 : step2Valid && section > 2));
-              const active = section === s.num;
-              const reachable =
-                s.num === 1 ||
-                (s.num === 2 && step1Valid) ||
-                (s.num === 3 && step1Valid && step2Valid);
-
-              return (
-                <React.Fragment key={s.num}>
-                  {i > 0 && (
-                    <div
-                      className="booking-step-track"
-                      data-done={section > s.num - 1 ? "true" : "false"}
-                      aria-hidden
-                    />
-                  )}
-                  <button
-                    type="button"
-                    disabled={!reachable}
-                    onClick={() => reachable && setSection(s.num)}
-                    className={`flex items-center gap-1.5 sm:gap-2 shrink-0 rounded-full px-0.5 sm:px-1 py-0.5 transition-opacity touch-manipulation ${
-                      reachable ? "cursor-pointer" : "cursor-not-allowed opacity-40"
-                    }`}
-                    aria-current={active ? "step" : undefined}
-                  >
-                    <span
-                      className={`size-7 sm:size-6 rounded-full text-[11px] font-semibold flex items-center justify-center shrink-0 transition-colors ${
-                        done && !active
-                          ? "bg-[var(--bk-ink)] text-[#fafaf8]"
-                          : active
-                            ? "bg-[var(--bk-ink)] text-[#fafaf8]"
-                            : "bg-[var(--bk-surface-soft)] text-[var(--bk-muted)] border border-[var(--bk-line)]"
-                      }`}
-                    >
-                      {done && !active ? <Check className="size-3.5" strokeWidth={2.5} /> : s.num}
-                    </span>
-                    <span
-                      className={`text-[11px] sm:text-xs font-medium ${
-                        active ? "text-[var(--bk-ink)]" : "text-[var(--bk-muted)]"
-                      }`}
-                    >
-                      {s.label}
-                    </span>
-                  </button>
-                </React.Fragment>
-              );
-            })}
-          </nav>
+          <BookingProgress
+            current={section}
+            canReach={canReachStep}
+            isComplete={isStepComplete}
+            onStepChange={goToSection}
+          />
         </div>
 
         {/* Main */}
-        <main className="flex-1 max-w-2xl w-full mx-auto booking-safe-x py-6 sm:py-8 md:py-10 pb-32">
-          <div className="mb-6 sm:mb-8">
-            <h1 className="booking-heading text-2xl sm:text-3xl md:text-4xl text-[var(--bk-ink)]">
+        <main
+          ref={mainRef}
+          className="flex-1 w-full max-w-2xl mx-auto booking-safe-x pt-5 sm:pt-8 md:pt-10 pb-[calc(6.5rem+env(safe-area-inset-bottom))] sm:pb-12"
+        >
+          <div className="mb-5 sm:mb-8">
+            <h1 className="booking-heading text-[1.65rem] leading-tight sm:text-3xl md:text-4xl text-[var(--bk-ink)] text-balance">
               {section === 1 && "Choose your stay"}
               {section === 2 && "Guest details"}
               {section === 3 && "Review & confirm"}
             </h1>
-            <p className="text-sm text-[var(--bk-muted)] mt-1.5">
+            <p className="text-sm text-[var(--bk-muted)] mt-1.5 max-w-prose">
               {section === 1 && "Select dates and a room to continue."}
               {section === 2 && "We will send your confirmation here."}
               {section === 3 && "Double-check everything before you confirm."}
@@ -425,7 +425,7 @@ export function BookingWizard({
           {/* ── Step 1 ── */}
           {section === 1 && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
                 <BookingDateRangePicker
                   checkIn={checkIn}
                   checkOut={checkOut}
@@ -433,6 +433,7 @@ export function BookingWizard({
                     setCheckIn(start);
                     setCheckOut(end);
                   }}
+                  variant="card"
                 />
                 <GuestPickerPopover
                   adults={adults}
@@ -498,7 +499,7 @@ export function BookingWizard({
                 variant="primary"
                 size="lg"
                 isDisabled={!step1Valid}
-                onPress={() => setSection(2)}
+                onPress={() => goToSection(2)}
                 className={`booking-cta w-full h-12 rounded-xl text-sm touch-manipulation ${
                   selectedRoom ? "hidden sm:inline-flex" : ""
                 }`}
@@ -510,9 +511,9 @@ export function BookingWizard({
 
           {/* ── Step 2 ── */}
           {section === 2 && (
-            <div className="space-y-5">
+            <div className="space-y-4 sm:space-y-5">
               {selectedRoom && (
-                <div className="booking-surface-soft px-4 py-3 flex items-center justify-between gap-3 text-sm">
+                <div className="booking-surface-soft px-3.5 sm:px-4 py-3 flex items-center justify-between gap-3 text-sm">
                   <div className="min-w-0">
                     <p className="font-semibold text-[var(--bk-ink)] truncate">
                       {selectedRoom.name}
@@ -524,8 +525,8 @@ export function BookingWizard({
                   </div>
                   <button
                     type="button"
-                    onClick={() => setSection(1)}
-                    className="text-xs font-semibold text-[var(--bk-accent)] hover:underline shrink-0 cursor-pointer"
+                    onClick={() => goToSection(1)}
+                    className="text-xs font-semibold text-[var(--bk-accent)] hover:underline shrink-0 cursor-pointer min-h-9 px-1"
                   >
                     Change
                   </button>
@@ -721,12 +722,12 @@ export function BookingWizard({
                 )}
               </div>
 
-              <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
+              <div className="hidden sm:flex flex-row gap-3 pt-1">
                 <Button
                   variant="secondary"
                   size="lg"
-                  onPress={() => setSection(1)}
-                  className="w-full sm:w-auto h-12 rounded-xl text-sm font-semibold touch-manipulation"
+                  onPress={() => goToSection(1)}
+                  className="w-auto h-12 rounded-xl text-sm font-semibold touch-manipulation"
                 >
                   Back
                 </Button>
@@ -734,8 +735,8 @@ export function BookingWizard({
                   variant="primary"
                   size="lg"
                   isDisabled={!step2Valid}
-                  onPress={() => setSection(3)}
-                  className="booking-cta flex-1 w-full h-12 rounded-xl text-sm touch-manipulation hidden sm:inline-flex"
+                  onPress={() => goToSection(3)}
+                  className="booking-cta flex-1 h-12 rounded-xl text-sm touch-manipulation"
                 >
                   Continue
                 </Button>
@@ -745,12 +746,12 @@ export function BookingWizard({
 
           {/* ── Step 3 ── */}
           {section === 3 && (
-            <div className="space-y-5">
+            <div className="space-y-4 sm:space-y-5">
               {/* Summary card */}
-              <div className="booking-surface p-5 space-y-4">
+              <div className="booking-surface p-4 sm:p-5 space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="booking-heading text-2xl text-[var(--bk-ink)] leading-tight">
+                    <p className="booking-heading text-xl sm:text-2xl text-[var(--bk-ink)] leading-tight">
                       {selectedRoom?.name}
                     </p>
                     {selectedRoom?.bedConfiguration && (
@@ -761,14 +762,14 @@ export function BookingWizard({
                   </div>
                   <button
                     type="button"
-                    onClick={() => setSection(1)}
-                    className="text-xs font-semibold text-[var(--bk-accent)] hover:underline shrink-0 cursor-pointer"
+                    onClick={() => goToSection(1)}
+                    className="text-xs font-semibold text-[var(--bk-accent)] hover:underline shrink-0 cursor-pointer min-h-9 px-1"
                   >
                     Edit
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3 text-sm">
                   <div className="booking-surface-soft p-3 rounded-xl">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--bk-muted)]">
                       Check-in
@@ -885,13 +886,14 @@ export function BookingWizard({
                 </p>
               )}
 
-              <div className="flex flex-col-reverse sm:flex-row gap-3">
+              {/* Desktop CTAs — mobile uses sticky bar */}
+              <div className="hidden sm:flex flex-row gap-3">
                 <Button
                   variant="secondary"
                   size="lg"
-                  onPress={() => setSection(2)}
+                  onPress={() => goToSection(2)}
                   isDisabled={submitting}
-                  className="w-full sm:w-auto h-12 rounded-xl text-sm font-semibold touch-manipulation"
+                  className="w-auto h-12 rounded-xl text-sm font-semibold touch-manipulation"
                 >
                   Back
                 </Button>
@@ -900,7 +902,7 @@ export function BookingWizard({
                   size="lg"
                   isDisabled={submitting || !step1Valid || !step2Valid}
                   onPress={handleConfirm}
-                  className="booking-cta booking-cta-accent flex-1 w-full h-12 rounded-xl text-sm touch-manipulation"
+                  className="booking-cta booking-cta-accent flex-1 h-12 rounded-xl text-sm touch-manipulation"
                 >
                   {submitting ? (
                     <span className="inline-flex items-center gap-2">
@@ -920,47 +922,94 @@ export function BookingWizard({
           )}
         </main>
 
-        {/* Sticky total bar — mobile only; desktop uses inline CTAs */}
-        {selectedRoom && section < 3 && (
-          <div className="booking-sticky-bar sm:hidden">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-xs text-[var(--bk-muted)] truncate">
-                  {selectedRoom.name}
-                  {nights ? ` · ${nights} night${nights !== 1 ? "s" : ""}` : ""}
+        {/* Sticky checkout bar — mobile (OTA pattern: price + primary CTA always reachable) */}
+        <div className="booking-sticky-bar sm:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              {selectedRoom ? (
+                <>
+                  <p className="text-[11px] text-[var(--bk-muted)] truncate">
+                    {selectedRoom.name}
+                    {nights ? ` · ${nights} night${nights !== 1 ? "s" : ""}` : ""}
+                  </p>
+                  <p className="booking-price text-base font-semibold text-[var(--bk-ink)] tabular-nums">
+                    {fmt(total)}
+                    <span className="text-[11px] font-normal text-[var(--bk-muted)] ml-1">
+                      total
+                    </span>
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-[var(--bk-muted)] leading-snug">
+                  Select a room to continue
                 </p>
-                <p className="booking-price text-base font-semibold text-[var(--bk-ink)]">
-                  {fmt(total)}
-                  <span className="text-xs font-normal text-[var(--bk-muted)] ml-1">
-                    total
-                  </span>
-                </p>
-              </div>
-              {section === 1 && (
-                <Button
-                  variant="primary"
-                  size="md"
-                  isDisabled={!step1Valid}
-                  onPress={() => setSection(2)}
-                  className="booking-cta h-11 min-w-[7.5rem] px-5 rounded-xl text-sm shrink-0 touch-manipulation"
-                >
-                  Continue
-                </Button>
               )}
-              {section === 2 && (
+            </div>
+
+            {section === 1 && (
+              <Button
+                variant="primary"
+                size="md"
+                isDisabled={!step1Valid}
+                onPress={() => goToSection(2)}
+                className="booking-cta h-11 min-w-[7rem] px-4 rounded-xl text-sm shrink-0 touch-manipulation"
+              >
+                Continue
+              </Button>
+            )}
+            {section === 2 && (
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onPress={() => goToSection(1)}
+                  className="h-11 px-3 rounded-xl text-sm touch-manipulation"
+                >
+                  Back
+                </Button>
                 <Button
                   variant="primary"
                   size="md"
                   isDisabled={!step2Valid}
-                  onPress={() => setSection(3)}
-                  className="booking-cta h-11 min-w-[7.5rem] px-5 rounded-xl text-sm shrink-0 touch-manipulation"
+                  onPress={() => goToSection(3)}
+                  className="booking-cta h-11 min-w-[6.5rem] px-4 rounded-xl text-sm touch-manipulation"
                 >
                   Review
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
+            {section === 3 && (
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  isDisabled={submitting}
+                  onPress={() => goToSection(2)}
+                  className="h-11 px-3 rounded-xl text-sm touch-manipulation"
+                >
+                  Back
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
+                  isDisabled={submitting || !step1Valid || !step2Valid}
+                  onPress={handleConfirm}
+                  className="booking-cta booking-cta-accent h-11 min-w-[6.5rem] px-3.5 rounded-xl text-sm touch-manipulation"
+                >
+                  {submitting ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : paymentPref === "pay_now" &&
+                    (hotel.paymentPolicy === "pay_now_only" ||
+                      (hotel.paymentPolicy === "choice" && hotel.hasPaystack)) ? (
+                    "Pay"
+                  ) : (
+                    "Confirm"
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {galleryRoom && (

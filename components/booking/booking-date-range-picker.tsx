@@ -87,11 +87,11 @@ export function BookingDateRangePicker({
         className={cn(
           "flex items-center justify-between gap-2 sm:gap-3 cursor-pointer outline-none transition-all w-full min-w-0",
           variant === "hero" &&
-            "h-[52px] px-3 sm:px-3.5 rounded-xl bg-background/90 border border-border/80 hover:border-primary shadow-xs hover:shadow-sm text-left",
+            "h-12 sm:h-[52px] px-3 sm:px-3.5 rounded-xl bg-background/90 border border-border/80 hover:border-primary shadow-xs hover:shadow-sm text-left",
           variant === "compact" &&
             "h-10 px-2.5 sm:px-3 rounded-lg border border-border/60 bg-card hover:bg-accent/40 text-xs font-medium",
           variant === "card" &&
-            "h-[52px] px-3.5 rounded-xl bg-background/90 border border-border/80 hover:border-primary shadow-xs text-left",
+            "h-12 sm:h-[52px] px-3 sm:px-3.5 rounded-xl bg-background/90 border border-border/80 hover:border-primary shadow-xs text-left",
           className
         )}
         aria-label="Select check-in and check-out dates"

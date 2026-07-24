@@ -108,7 +108,6 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
             <PaymentVerifier
               paymentRef={trxref}
               slug={slug}
-              bookingRef={reference}
             />
           )}
 

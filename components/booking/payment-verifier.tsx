@@ -6,10 +6,9 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 interface Props {
   paymentRef: string;
   slug: string;
-  bookingRef: string;
 }
 
-export function PaymentVerifier({ paymentRef, slug, bookingRef }: Props) {
+export function PaymentVerifier({ paymentRef, slug }: Props) {
   const [status, setStatus] = React.useState<"polling" | "confirmed" | "failed">("polling");
 
   React.useEffect(() => {
