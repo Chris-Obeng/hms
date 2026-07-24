@@ -56,12 +56,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   }
 
-  // Parse metadata — Paystack sends it as stringified JSON or plain object
+  // Parse metadata — Paystack sends it as stringified JSON or plain object.
+  // A malformed metadata string must not throw an unhandled 500; treat it as
+  // "no booking metadata" and acknowledge the event instead.
   const rawMeta = txn.metadata;
-  const metadata: Record<string, unknown> =
-    typeof rawMeta === "string"
-      ? (JSON.parse(rawMeta) as Record<string, unknown>)
-      : ((rawMeta ?? {}) as Record<string, unknown>);
+  let metadata: Record<string, unknown> = {};
+  if (typeof rawMeta === "string") {
+    try {
+      metadata = JSON.parse(rawMeta) as Record<string, unknown>;
+    } catch {
+      console.warn("[paystack-webhook] Failed to parse metadata JSON", { paystackRef });
+    }
+  } else if (rawMeta && typeof rawMeta === "object") {
+    metadata = rawMeta as Record<string, unknown>;
+  }
 
   const bookingId = typeof metadata.booking_id === "string" ? metadata.booking_id : null;
 
@@ -71,11 +79,20 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 3. Idempotency check ─────────────────────────────────────
-  const { data: existing } = await supabaseAdmin
+  const { data: existing, error: existingError } = await supabaseAdmin
     .from("payments")
     .select("id")
     .eq("paystack_reference", paystackRef)
     .maybeSingle();
+
+  if (existingError) {
+    // Don't risk a double-charge on a transient read failure — ask Paystack to retry.
+    console.error("[paystack-webhook] Idempotency lookup failed", {
+      paystackRef,
+      error: existingError.message,
+    });
+    return NextResponse.json({ error: "Idempotency lookup failed" }, { status: 500 });
+  }
 
   if (existing) {
     // Already processed — Paystack retried the webhook
@@ -83,11 +100,20 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 4. Fetch booking ─────────────────────────────────────────
-  const { data: booking } = await supabaseAdmin
+  const { data: booking, error: bookingFetchError } = await supabaseAdmin
     .from("bookings")
     .select("id, hotel_id, total_amount, currency, status")
     .eq("id", bookingId)
-    .single();
+    .maybeSingle();
+
+  if (bookingFetchError) {
+    // Distinguish a DB failure from a genuine "not found" — retry on failure.
+    console.error("[paystack-webhook] Booking lookup failed", {
+      bookingId,
+      error: bookingFetchError.message,
+    });
+    return NextResponse.json({ error: "Booking lookup failed" }, { status: 500 });
+  }
 
   if (!booking) {
     console.warn("[paystack-webhook] Booking not found for booking_id in metadata", { bookingId });
@@ -107,7 +133,7 @@ export async function POST(req: NextRequest) {
       paystackRef,
     });
 
-    await supabaseAdmin.from("notifications").insert({
+    const { error: mismatchNotifyError } = await supabaseAdmin.from("notifications").insert({
       hotel_id: booking.hotel_id,
       type: "payment_failed",
       title: "⚠️ Payment Currency Mismatch",
@@ -115,6 +141,17 @@ export async function POST(req: NextRequest) {
       booking_id: bookingId,
       is_read: false,
     });
+
+    if (mismatchNotifyError) {
+      // This notification is the only manual-review signal — losing it silently
+      // would hide the mismatch. Retry via 500 so the alert is not dropped.
+      console.error("[paystack-webhook] Failed to write currency-mismatch alert", {
+        bookingId,
+        paystackRef,
+        error: mismatchNotifyError.message,
+      });
+      return NextResponse.json({ error: "Failed to write review alert" }, { status: 500 });
+    }
 
     return NextResponse.json({ received: true });
   }
@@ -145,7 +182,7 @@ export async function POST(req: NextRequest) {
       paystackRef,
     });
 
-    await supabaseAdmin.from("notifications").insert({
+    const { error: invalidNotifyError } = await supabaseAdmin.from("notifications").insert({
       hotel_id: booking.hotel_id,
       type: "payment_failed",
       title: "⚠️ Payment Amount Invalid",
@@ -154,13 +191,22 @@ export async function POST(req: NextRequest) {
       is_read: false,
     });
 
+    if (invalidNotifyError) {
+      console.error("[paystack-webhook] Failed to write invalid-amount alert", {
+        bookingId,
+        paystackRef,
+        error: invalidNotifyError.message,
+      });
+      return NextResponse.json({ error: "Failed to write review alert" }, { status: 500 });
+    }
+
     return NextResponse.json({ received: true });
   }
 
   // ── 7. Record payment ────────────────────────────────────────
   const subaccountData = txn.subaccount as Record<string, unknown> | null | undefined;
 
-  await supabaseAdmin.from("payments").insert({
+  const { error: paymentInsertError } = await supabaseAdmin.from("payments").insert({
     hotel_id: booking.hotel_id,
     booking_id: bookingId,
     amount: amountPaid,
@@ -178,11 +224,23 @@ export async function POST(req: NextRequest) {
       : null,
   });
 
+  if (paymentInsertError) {
+    // The money was captured by Paystack — if we fail to persist it, return 500
+    // so Paystack retries the webhook rather than silently dropping the payment.
+    // The idempotency check above prevents a duplicate on the retry.
+    console.error("[paystack-webhook] Failed to record payment", {
+      bookingId,
+      paystackRef,
+      error: paymentInsertError.message,
+    });
+    return NextResponse.json({ error: "Failed to record payment" }, { status: 500 });
+  }
+
   // ── 8. Update booking status ─────────────────────────────────
   const newStatus = isFullPayment || isOverPayment ? "confirmed" : "pending";
   const newPaymentStatus = isFullPayment || isOverPayment ? "paid" : "partial";
 
-  await supabaseAdmin
+  const { error: bookingUpdateError } = await supabaseAdmin
     .from("bookings")
     .update({
       status: newStatus,
@@ -192,8 +250,20 @@ export async function POST(req: NextRequest) {
     .eq("id", bookingId)
     .eq("hotel_id", booking.hotel_id);
 
+  if (bookingUpdateError) {
+    // Payment is recorded but the booking status is now stale. Surface via 500
+    // so Paystack retries; the idempotency check will short-circuit the payment
+    // insert on the retry while the update is re-attempted.
+    console.error("[paystack-webhook] Payment recorded but booking update failed", {
+      bookingId,
+      paystackRef,
+      error: bookingUpdateError.message,
+    });
+    return NextResponse.json({ error: "Failed to update booking" }, { status: 500 });
+  }
+
   // ── 9. In-app notification ───────────────────────────────────
-  await supabaseAdmin.from("notifications").insert({
+  const { error: notifyError } = await supabaseAdmin.from("notifications").insert({
     hotel_id: booking.hotel_id,
     type: "payment_received",
     title: isPartialPayment ? "Partial Payment Received" : "Payment Received",
@@ -203,6 +273,16 @@ export async function POST(req: NextRequest) {
     booking_id: bookingId,
     is_read: false,
   });
+
+  if (notifyError) {
+    // Non-fatal: the payment is safely recorded. Log so a missing staff
+    // notification is diagnosable rather than invisible.
+    console.error("[paystack-webhook] Failed to write staff notification", {
+      bookingId,
+      paystackRef,
+      error: notifyError.message,
+    });
+  }
 
   // ── 10. Guest confirmation notification ──────────────────────
   if (isFullPayment || isOverPayment) {
