@@ -4,6 +4,9 @@ import * as React from "react";
 import { format } from "date-fns";
 import { Download, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
+import { PAYMENT_METHOD_LABELS, getMethodLabel } from "@/lib/booking-status";
+import { downloadCsv, toCsv } from "@/lib/csv";
 import { Button } from "@/components/ui/button";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import { useRouter } from "next/navigation";
@@ -24,11 +27,6 @@ interface PaymentRow {
   guestName: string | null;
 }
 
-const METHOD_LABELS: Record<string, string> = {
-  card: "Card", cash: "Cash", pos: "POS", bank_transfer: "Bank Transfer",
-  mobile_money: "Mobile Money", paystack_link: "Paystack Link", refund: "Refund", other: "Other",
-};
-
 const STATUS_COLORS: Record<string, string> = {
   success: "text-emerald-600 bg-emerald-50",
   pending: "text-amber-600 bg-amber-50",
@@ -36,31 +34,22 @@ const STATUS_COLORS: Record<string, string> = {
   refunded: "text-blue-600 bg-blue-50",
 };
 
-function fmt(amount: number, currency: string) {
-  return `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
 function exportCsv(rows: PaymentRow[]) {
   const headers = ["Date", "Guest", "Booking Ref", "Amount", "Method", "Status", "Paystack Ref", "Notes"];
-  const csv = [
-    headers.join(","),
-    ...rows.map((r) =>
-      [
-        r.paidAt ? format(new Date(r.paidAt), "yyyy-MM-dd HH:mm") : "",
-        `"${r.guestName ?? ""}"`,
-        r.bookingReference ?? "",
-        r.amount,
-        METHOD_LABELS[r.method ?? ""] ?? r.method ?? "",
-        r.status ?? "",
-        r.paystackReference ?? "",
-        `"${r.notes ?? ""}"`,
-      ].join(",")
-    ),
-  ].join("\n");
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-  a.download = `payments-${format(new Date(), "yyyy-MM-dd")}.csv`;
-  a.click();
+  const csv = toCsv(
+    headers,
+    rows.map((r) => [
+      r.paidAt ? format(new Date(r.paidAt), "yyyy-MM-dd HH:mm") : "",
+      r.guestName,
+      r.bookingReference,
+      r.amount,
+      getMethodLabel(r.method),
+      r.status,
+      r.paystackReference,
+      r.notes,
+    ])
+  );
+  downloadCsv(`payments-${format(new Date(), "yyyy-MM-dd")}.csv`, csv);
 }
 
 export function TransactionsClient({ data, currency, hotelId }: { data: PaymentRow[]; currency: string; hotelId: string }) {
@@ -111,7 +100,7 @@ export function TransactionsClient({ data, currency, hotelId }: { data: PaymentR
         <div>
           <h1 className="text-page-title text-foreground">Transactions</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {filtered.length} records · {fmt(totalSuccess, currency)} collected
+            {filtered.length} records · {formatCurrency(totalSuccess, currency)} collected
           </p>
         </div>
         <Button
@@ -144,7 +133,7 @@ export function TransactionsClient({ data, currency, hotelId }: { data: PaymentR
         <select value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)}
           className="h-8 rounded-lg border border-border/60 bg-background px-2.5 text-sm outline-none focus-visible:border-ring">
           <option value="all">All methods</option>
-          {Object.entries(METHOD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          {Object.entries(PAYMENT_METHOD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
       </div>
 
@@ -168,8 +157,8 @@ export function TransactionsClient({ data, currency, hotelId }: { data: PaymentR
                 </td>
                 <td className="px-4 py-3 font-medium truncate max-w-[140px]">{r.guestName ?? "—"}</td>
                 <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{r.bookingReference ?? "—"}</td>
-                <td className="px-4 py-3 font-semibold tabular-nums whitespace-nowrap">{fmt(r.amount, r.currency)}</td>
-                <td className="px-4 py-3 text-muted-foreground">{METHOD_LABELS[r.method ?? ""] ?? r.method ?? "—"}</td>
+                <td className="px-4 py-3 font-semibold tabular-nums whitespace-nowrap">{formatCurrency(r.amount, r.currency)}</td>
+                <td className="px-4 py-3 text-muted-foreground">{getMethodLabel(r.method)}</td>
                 <td className="px-4 py-3">
                   <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", STATUS_COLORS[r.status ?? ""] ?? "text-muted-foreground bg-muted")}>
                     {r.status ?? "—"}

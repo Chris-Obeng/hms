@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrencyCompact, getNights } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { CalendarBooking } from "../actions";
@@ -36,17 +37,6 @@ function getStatusColor(status: string): string {
     default:
       return "text-muted-foreground bg-muted/40 border-border";
   }
-}
-
-function getNights(checkIn: string, checkOut: string, nights?: number | null): number {
-  if (nights) return nights;
-  return Math.max(
-    1,
-    Math.round(
-      (new Date(checkOut).getTime() - new Date(checkIn).getTime()) /
-        (1000 * 60 * 60 * 24)
-    )
-  );
 }
 
 function isDue(checkInStr: string): boolean {
@@ -186,11 +176,7 @@ export function UnassignedTray({
                         {nights}
                       </span>
                       <span className="font-medium">
-                        {new Intl.NumberFormat("en-US", {
-                          style: "currency",
-                          currency,
-                          maximumFractionDigits: 0,
-                        }).format(booking.totalAmount)}
+                        {formatCurrencyCompact(booking.totalAmount, currency)}
                       </span>
                     </div>
                   </button>

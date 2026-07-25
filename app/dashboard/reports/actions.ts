@@ -1,21 +1,7 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
-import { createClient } from "@/lib/supabase/server";
+import { getHotelScope } from "@/lib/auth";
 import { eachDayOfInterval, format, parseISO, startOfWeek } from "date-fns";
-
-async function getHotelId() {
-  const { orgId } = await auth();
-  if (!orgId) throw new Error("Not authenticated");
-  const supabase = await createClient();
-  const { data: hotel } = await supabase
-    .from("hotels")
-    .select("id, currency")
-    .eq("clerk_org_id", orgId)
-    .single();
-  if (!hotel) throw new Error("Hotel not found");
-  return { hotelId: hotel.id, currency: hotel.currency ?? "GHS", supabase };
-}
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -47,7 +33,7 @@ export async function getOccupancyReport(
   startDate: string,
   endDate: string
 ): Promise<OccupancyReportData> {
-  const { hotelId, supabase } = await getHotelId();
+  const { hotelId, supabase } = await getHotelScope();
 
   const [roomsResult, bookingsResult, roomTypesResult] = await Promise.all([
     supabase
@@ -127,7 +113,7 @@ export async function getRevenueReport(
   startDate: string,
   endDate: string
 ): Promise<RevenueReportData> {
-  const { hotelId, supabase } = await getHotelId();
+  const { hotelId, supabase } = await getHotelScope();
 
   const [bookingsResult, outstandingResult] = await Promise.all([
     supabase
@@ -197,7 +183,7 @@ export async function getSourcesReport(
   startDate: string,
   endDate: string
 ): Promise<SourcesReportData> {
-  const { hotelId, supabase } = await getHotelId();
+  const { hotelId, supabase } = await getHotelScope();
 
   const { data: bookings } = await supabase
     .from("bookings")

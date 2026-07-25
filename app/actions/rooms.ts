@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { requireAuth, requireMinRole, toActionError } from "@/lib/auth";
+import { slugify } from "@/lib/utils";
 
 // ── Schemas ──────────────────────────────────────────────────────────
 
@@ -45,17 +46,6 @@ const AvailabilityBlockSchema = z.object({
 export type RoomTypeInput = z.infer<typeof RoomTypeSchema>;
 export type RoomInput = z.infer<typeof RoomSchema>;
 export type AvailabilityBlockInput = z.infer<typeof AvailabilityBlockSchema>;
-
-// ── Slugify ──────────────────────────────────────────────────────────
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .trim();
-}
 
 // ── Auth helpers ─────────────────────────────────────────────────────
 

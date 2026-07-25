@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format, parseISO, differenceInDays } from "date-fns";
+import { differenceInDays } from "date-fns";
 import {
   CalendarDays,
   Mail,
@@ -36,6 +36,8 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { formatCurrency, formatDate, getInitials } from "@/lib/format";
+import { getPaymentVariant, getStatusLabel, getStatusVariant } from "@/lib/booking-status";
 import {
   getGuestBookings,
   updateGuestNotes,
@@ -44,82 +46,6 @@ import {
   type GuestBookingSummary,
 } from "@/app/actions/customers";
 import type { GuestRow } from "@/components/customers/customers-table";
-
-// ── Helpers ────────────────────────────────────────────────────────
-
-function formatCurrency(amount: number, currency = "GHS"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "—";
-  try {
-    return format(parseISO(dateStr), "MMM dd, yyyy");
-  } catch {
-    return dateStr;
-  }
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
-
-function getStatusVariant(
-  status: string
-): "default" | "secondary" | "destructive" | "outline" {
-  switch (status) {
-    case "confirmed":
-      return "default";
-    case "checked_in":
-      return "secondary";
-    case "checked_out":
-      return "outline";
-    case "cancelled":
-    case "no_show":
-      return "destructive";
-    default:
-      return "outline";
-  }
-}
-
-function getStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    confirmed: "Confirmed",
-    checked_in: "Checked In",
-    checked_out: "Checked Out",
-    cancelled: "Cancelled",
-    no_show: "No Show",
-    pending: "Pending",
-  };
-  return labels[status] || status;
-}
-
-function getPaymentVariant(
-  status: string
-): "default" | "secondary" | "destructive" | "outline" {
-  switch (status) {
-    case "paid":
-      return "default";
-    case "partial":
-      return "secondary";
-    case "unpaid":
-      return "outline";
-    case "refunded":
-      return "destructive";
-    default:
-      return "outline";
-  }
-}
 
 const TAG_STYLES: Record<string, { color: string; bg: string }> = {
   vip: { color: "text-amber-600", bg: "bg-amber-500/10" },

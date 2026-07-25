@@ -15,12 +15,8 @@ import { BookingOverviewPanel } from "@/components/bookings/_components/booking-
 import { BookingPaymentsPanel } from "@/components/bookings/_components/booking-payments-panel";
 import { BookingNotesPanel } from "@/components/bookings/_components/booking-notes-panel";
 import { BookingGuestPanel } from "@/components/bookings/_components/booking-guest-panel";
-import {
-  getStatusVariant,
-  getStatusLabel,
-  STATUS_COLORS,
-  formatDateTime,
-} from "@/components/bookings/_components/booking-detail-types";
+import { getStatusVariant, getStatusLabel, STATUS_COLORS } from "@/lib/booking-status";
+import { formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 
 interface Props {

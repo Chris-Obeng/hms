@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format, parseISO, differenceInDays } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { toast } from "@heroui/react";
 import {
   CalendarIcon,
@@ -32,6 +32,7 @@ import type { DateRange } from "react-day-picker";
 import { createBooking, type NewBookingInput } from "@/app/actions/bookings";
 import { getResolvedRatesForBooking, type StaffResolvedPricing } from "@/app/actions/pricing";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -52,16 +53,6 @@ interface NewBookingSheetProps {
   prefillCheckIn?: Date;
   /** Pre-fill check-out date (from calendar click-to-create) */
   prefillCheckOut?: Date;
-}
-
-// ── Helpers ────────────────────────────────────────────────────────
-
-function formatCurrency(amount: number, currency = "GHS"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-  }).format(amount);
 }
 
 const SOURCE_OPTIONS = [

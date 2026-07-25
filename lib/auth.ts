@@ -126,6 +126,59 @@ export async function requireAuth(): Promise<AuthContext> {
   };
 }
 
+export interface HotelScope {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  orgId: string;
+  userId: string | null;
+  hotelId: string;
+  hotel: { id: string; name: string; currency: string };
+  staffId: string | null;
+  staffName: string;
+}
+
+/**
+ * Resolves the hotel of the current org together with a Supabase client.
+ *
+ * Lighter than requireAuth(): it does not require an active staff profile, so
+ * it suits reports/uploads and other org-scoped reads. Throws a plain Error —
+ * callers wrap it in their own try/catch.
+ */
+export async function getHotelScope(): Promise<HotelScope> {
+  const { orgId, userId } = await auth();
+  if (!orgId) throw new Error("Not authenticated");
+
+  const supabase = await createClient();
+
+  const [hotelResult, staffResult] = await Promise.all([
+    supabase
+      .from("hotels")
+      .select("id, name, currency")
+      .eq("clerk_org_id", orgId)
+      .single(),
+    userId
+      ? supabase
+          .from("staff_profiles")
+          .select("id, full_name")
+          .eq("clerk_user_id", userId)
+          .eq("clerk_org_id", orgId)
+          .single()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const hotel = hotelResult.data;
+  if (!hotel) throw new Error("Hotel not found");
+
+  return {
+    supabase,
+    orgId,
+    userId: userId ?? null,
+    hotelId: hotel.id,
+    hotel: { id: hotel.id, name: hotel.name, currency: hotel.currency ?? "GHS" },
+    staffId: staffResult.data?.id ?? null,
+    staffName: staffResult.data?.full_name ?? "System",
+  };
+}
+
 /**
  * Like requireAuth() but also enforces a minimum role level.
  *

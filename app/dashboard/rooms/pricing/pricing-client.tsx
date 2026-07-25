@@ -29,6 +29,7 @@ import { format, addDays, subDays, parseISO, isSameDay } from "date-fns";
 import { qk } from "@/lib/query-keys";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
 import { usePricingStore, SelectedCell } from "@/lib/store/pricing-store";
 
 // UI Components
@@ -72,15 +73,6 @@ interface PricingClientProps {
     base_price: number;
     weekend_price: number | null;
   }[];
-}
-
-function formatCurrency(amount: number, currency = "GHS"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
 }
 
 function isWeekend(dateStr: string): boolean {

@@ -8,6 +8,9 @@ import {
 } from "recharts";
 import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrencyCompact } from "@/lib/format";
+import { SOURCE_LABELS } from "@/lib/booking-status";
+import { downloadRecordsAsCsv } from "@/lib/csv";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,38 +26,6 @@ import {
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-function fmt(amount: number, currency: string) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-function exportCsv(rows: Record<string, unknown>[], filename: string) {
-  if (!rows.length) return;
-  const headers = Object.keys(rows[0]);
-  const csv = [
-    headers.join(","),
-    ...rows.map((r) =>
-      headers.map((h) => `"${String(r[h] ?? "").replace(/"/g, '""')}"`).join(",")
-    ),
-  ].join("\n");
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-const SOURCE_LABELS: Record<string, string> = {
-  direct: "Direct",
-  bookings_com: "Booking.com",
-  manual: "Manual",
-  phone: "Phone",
-  walk_in: "Walk-in",
-};
 
 const CHART_COLORS = ["#2563EB", "#7C3AED", "#0D9488", "#D97706", "#DC2626"];
 
@@ -253,11 +224,11 @@ function RevenueTab({
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 flex-1">
-          <KpiCard label="Total Revenue" value={fmt(data.totalRevenue, currency)} />
-          <KpiCard label="Avg Rate / Night" value={fmt(data.avgNightlyRate, currency)} />
+          <KpiCard label="Total Revenue" value={formatCurrencyCompact(data.totalRevenue, currency)} />
+          <KpiCard label="Avg Rate / Night" value={formatCurrencyCompact(data.avgNightlyRate, currency)} />
           <KpiCard
             label="Outstanding Balance"
-            value={fmt(data.outstandingBalance, currency)}
+            value={formatCurrencyCompact(data.outstandingBalance, currency)}
             sub="across unpaid bookings"
           />
         </div>
@@ -282,13 +253,13 @@ function RevenueTab({
                 tickLine={false}
               />
               <YAxis
-                tickFormatter={(v) => fmt(v, currency)}
+                tickFormatter={(v) => formatCurrencyCompact(v, currency)}
                 tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip
-                formatter={(v) => [fmt(Number(v ?? 0), currency), "Revenue"]}
+                formatter={(v) => [formatCurrencyCompact(Number(v ?? 0), currency), "Revenue"]}
                 contentStyle={{
                   fontSize: 12,
                   border: "1px solid hsl(var(--border))",
@@ -320,7 +291,7 @@ function RevenueTab({
                 <tr key={row.source} className="border-b border-border/30 last:border-0">
                   <td className="px-4 py-2.5 font-medium">{SOURCE_LABELS[row.source] ?? row.source}</td>
                   <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums">{row.count}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums font-medium">{fmt(row.revenue, currency)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums font-medium">{formatCurrencyCompact(row.revenue, currency)}</td>
                 </tr>
               ))}
               {data.bySource.length === 0 && (
@@ -427,7 +398,7 @@ function SourcesTab({
                       </div>
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums">{row.count}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums font-medium">{fmt(row.revenue, currency)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-medium">{formatCurrencyCompact(row.revenue, currency)}</td>
                     <td className="px-4 py-2.5 text-right text-muted-foreground">{row.pct}%</td>
                   </tr>
                 ))}
@@ -497,22 +468,22 @@ export function ReportsClient({ currency, initialStartDate, initialEndDate }: Re
 
   function exportOccupancyCsv() {
     if (!occupancyData) return;
-    exportCsv(occupancyData.dailyOccupancy, `occupancy-${startDate}-${endDate}.csv`);
+    downloadRecordsAsCsv(`occupancy-${startDate}-${endDate}.csv`, occupancyData.dailyOccupancy);
   }
 
   function exportRevenueCsv() {
     if (!revenueData) return;
-    exportCsv(
-      revenueData.bySource.map((r) => ({ source: SOURCE_LABELS[r.source] ?? r.source, bookings: r.count, revenue: r.revenue })),
-      `revenue-${startDate}-${endDate}.csv`
+    downloadRecordsAsCsv(
+      `revenue-${startDate}-${endDate}.csv`,
+      revenueData.bySource.map((r) => ({ source: SOURCE_LABELS[r.source] ?? r.source, bookings: r.count, revenue: r.revenue }))
     );
   }
 
   function exportSourcesCsv() {
     if (!sourcesData) return;
-    exportCsv(
-      sourcesData.bySource.map((r) => ({ source: SOURCE_LABELS[r.source] ?? r.source, count: r.count, revenue: r.revenue, share_pct: r.pct })),
-      `sources-${startDate}-${endDate}.csv`
+    downloadRecordsAsCsv(
+      `sources-${startDate}-${endDate}.csv`,
+      sourcesData.bySource.map((r) => ({ source: SOURCE_LABELS[r.source] ?? r.source, count: r.count, revenue: r.revenue, share_pct: r.pct }))
     );
   }
 

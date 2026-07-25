@@ -4,7 +4,8 @@ import * as React from "react";
 import { Banknote, CreditCard, Smartphone, Landmark, CircleDollarSign } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency, formatDateTime, getMethodLabel } from "./booking-detail-types";
+import { formatCurrency, formatDateTime } from "@/lib/format";
+import { getMethodLabel } from "@/lib/booking-status";
 import type { PaymentRecord } from "./booking-detail-types";
 
 function getMethodIcon(method: string | null) {
