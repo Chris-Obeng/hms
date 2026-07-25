@@ -7,9 +7,12 @@ import { NextResponse } from 'next/server'
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET
 
+  // Fail closed: without the secret we cannot authenticate the payload, and this
+  // handler writes staff_profiles rows (including super_admin roles) with the
+  // service-role client.
   if (!WEBHOOK_SECRET) {
-    console.warn('Please add CLERK_WEBHOOK_SECRET from Clerk Dashboard to .env or .env.local')
-    // We shouldn't throw error in production if it's missing just for this setup, but it's required for signature verification
+    console.error('[webhook] CLERK_WEBHOOK_SECRET is not configured')
+    return new Response('Server misconfiguration', { status: 500 })
   }
 
   // Get the headers
@@ -33,23 +36,21 @@ export async function POST(req: Request) {
     return new Response('Invalid JSON body', { status: 400 })
   }
 
-  if (WEBHOOK_SECRET) {
-    const wh = new Webhook(WEBHOOK_SECRET)
-    try {
-      wh.verify(body, {
-        'svix-id': svix_id,
-        'svix-timestamp': svix_timestamp,
-        'svix-signature': svix_signature,
-      })
-    } catch (err) {
-      console.error('Error verifying webhook:', err)
-      return new Response('Error occured', {
-        status: 400,
-      })
-    }
+  const wh = new Webhook(WEBHOOK_SECRET)
+  let evt: WebhookEvent
+  try {
+    evt = wh.verify(body, {
+      'svix-id': svix_id,
+      'svix-timestamp': svix_timestamp,
+      'svix-signature': svix_signature,
+    }) as WebhookEvent
+  } catch (err) {
+    console.error('Error verifying webhook:', err)
+    return new Response('Error occured', {
+      status: 400,
+    })
   }
 
-  const evt = payload as WebhookEvent
   const eventType = evt.type
 
   if (eventType === 'user.created') {
@@ -94,7 +95,9 @@ export async function POST(req: Request) {
     // Default role mapping
     let role = rawRole === 'org:admin' ? 'super_admin' : 'front_desk'
 
-    // Look up correct role if user joined via invite token
+    // Look up correct role if user joined via invite token.
+    // unsafeMetadata is writable by the user, so the token alone grants nothing:
+    // the invitation must exist, be unexpired, and belong to the org being joined.
     try {
       const clerk = await clerkClient()
       const user = await clerk.users.getUser(clerk_user_id)
@@ -102,10 +105,11 @@ export async function POST(req: Request) {
       if (token) {
         const { data: invite } = await supabaseAdmin
           .from('staff_invitations')
-          .select('role')
+          .select('role, expires_at, clerk_org_id')
           .eq('token', token)
+          .eq('clerk_org_id', clerk_org_id)
           .single()
-        if (invite) {
+        if (invite && new Date(invite.expires_at) > new Date()) {
           role = invite.role as string
         }
       }

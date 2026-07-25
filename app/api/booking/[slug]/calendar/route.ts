@@ -8,7 +8,9 @@ export async function GET(
   const { slug } = await params;
   const reference = req.nextUrl.searchParams.get("reference");
 
-  if (!reference) {
+  // Validate before the value reaches the ICS body and the Content-Disposition
+  // header — unvalidated input there allows header/calendar content injection.
+  if (!reference || !/^[A-Z0-9-]{3,30}$/.test(reference)) {
     return new NextResponse("Missing reference", { status: 400 });
   }
 

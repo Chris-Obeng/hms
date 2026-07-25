@@ -266,8 +266,9 @@ export async function POST(
       return NextResponse.json({ bookingId: booking.id, reference: booking.reference });
     }
 
-    const origin = req.headers.get("origin") ?? req.nextUrl.origin;
-    const callbackUrl = `${origin}/${slug}/book/confirmation?bref=${booking.reference}`;
+    // Derive the callback from the request URL, never from the client-supplied
+    // Origin header — Paystack would otherwise redirect guests to any host.
+    const callbackUrl = `${req.nextUrl.origin}/${slug}/book/confirmation?bref=${booking.reference}`;
     const payRef = `${booking.reference}-${Date.now()}`;
 
     const txn = await initializeTransaction({

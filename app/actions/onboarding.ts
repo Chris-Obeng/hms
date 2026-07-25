@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "../../lib/supabase/admin";
 import { slugify } from "@/lib/utils";
 
@@ -27,6 +28,11 @@ function uniqueSlug(text: string) {
 }
 
 export async function createHotelProfile(formData: OnboardingInput) {
+  const { userId } = await auth();
+  if (!userId) {
+    return { error: "Not authenticated." };
+  }
+
   const result = OnboardingSchema.safeParse(formData);
 
   if (!result.success) {
@@ -34,6 +40,30 @@ export async function createHotelProfile(formData: OnboardingInput) {
   }
 
   const data = result.data;
+
+  // The org id comes from the client — verify the caller actually administers it,
+  // otherwise anyone could attach a hotel (and a super_admin staff profile) to
+  // someone else's organization.
+  const client = await clerkClient();
+  const memberships = await client.users.getOrganizationMembershipList({ userId });
+  const membership = memberships.data.find(
+    (m) => m.organization.id === data.clerk_org_id
+  );
+
+  if (!membership || membership.role !== "org:admin") {
+    return { error: "You do not have permission to onboard this organization." };
+  }
+
+  const { data: existingHotel } = await supabaseAdmin
+    .from("hotels")
+    .select("id")
+    .eq("clerk_org_id", data.clerk_org_id)
+    .maybeSingle();
+
+  if (existingHotel) {
+    return { error: "This organization already has a hotel profile." };
+  }
+
   // Make the slug unique by appending a random string to avoid collisions on onboarding
   const slug = uniqueSlug(data.name);
 
@@ -67,34 +97,26 @@ export async function createHotelProfile(formData: OnboardingInput) {
   // Admin staff_profile upsert — the onboarding user MUST become super_admin,
   // otherwise requireAuth() will reject them and they'll be locked out of the
   // hotel they just created. Surface any failure instead of swallowing it.
-  const { auth, clerkClient } = await import("@clerk/nextjs/server");
-  const { userId } = await auth();
-  if (userId) {
-    try {
-      const client = await clerkClient();
-      const clerkUser = await client.users.getUser(userId);
+  {
+    const clerkUser = await client.users.getUser(userId);
 
-      const { error: staffError } = await supabase.from('staff_profiles').upsert({
-        clerk_org_id:       data.clerk_org_id,
-        clerk_user_id:      userId,
-        email:              clerkUser.emailAddresses?.[0]?.emailAddress ?? null,
-        full_name:          `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim(),
-        avatar_url:         clerkUser.imageUrl ?? null,
-        role:               'super_admin',
-        is_active:          true,
-        granted_at:         new Date().toISOString(),
-        granted_by:         null,
-        notification_prefs: {},
-      }, {
-        onConflict: 'clerk_user_id,clerk_org_id',
-      });
+    const { error: staffError } = await supabase.from('staff_profiles').upsert({
+      clerk_org_id:       data.clerk_org_id,
+      clerk_user_id:      userId,
+      email:              clerkUser.emailAddresses?.[0]?.emailAddress ?? null,
+      full_name:          `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim(),
+      avatar_url:         clerkUser.imageUrl ?? null,
+      role:               'super_admin',
+      is_active:          true,
+      granted_at:         new Date().toISOString(),
+      granted_by:         null,
+      notification_prefs: {},
+    }, {
+      onConflict: 'clerk_user_id,clerk_org_id',
+    });
 
-      if (staffError) {
-        console.error("Admin staff_profile upsert error:", staffError);
-        return { error: "Hotel created, but we couldn't set up your admin access. Please contact support." };
-      }
-    } catch (err) {
-      console.error("Admin staff_profile provisioning failed:", err);
+    if (staffError) {
+      console.error("Admin staff_profile upsert error:", staffError);
       return { error: "Hotel created, but we couldn't set up your admin access. Please contact support." };
     }
   }
