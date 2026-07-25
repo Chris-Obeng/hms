@@ -71,11 +71,22 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 3. Resolve hotel by beds24_property_id ───────────────────
-  const { data: hotel } = await supabaseAdmin
+  // maybeSingle() + explicit error check so a transient DB error isn't
+  // mistaken for "unknown property" and silently acknowledged (dropping the
+  // webhook). A genuine miss returns null → 200; a DB error → 500 for retry.
+  const { data: hotel, error: hotelError } = await supabaseAdmin
     .from("hotels")
     .select("id, name, currency, slug, settings")
     .eq("beds24_property_id", beds24PropertyId)
-    .single();
+    .maybeSingle();
+
+  if (hotelError) {
+    console.error("[beds24:webhook] Hotel lookup failed", {
+      beds24PropertyId,
+      error: hotelError.message,
+    });
+    return NextResponse.json({ error: "Hotel lookup failed" }, { status: 500 });
+  }
 
   if (!hotel) {
     // Unknown property — return 200 so Beds24 doesn't keep retrying
@@ -95,12 +106,22 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (existingBooking) {
-        await supabaseAdmin
+        const { error: cancelError } = await supabaseAdmin
           .from("bookings")
           .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
           .eq("id", existingBooking.id);
 
-        await supabaseAdmin.from("notifications").insert({
+        if (cancelError) {
+          console.error("[beds24:webhook] Failed to cancel booking", {
+            bookingId: existingBooking.id,
+            beds24BookingId,
+            error: cancelError.message,
+          });
+          await logSync(hotel.id, "inbound", "cancellation", beds24BookingId, existingBooking.id, "error", payload as Record<string, unknown>, cancelError.message);
+          return NextResponse.json({ error: "Failed to cancel booking" }, { status: 500 });
+        }
+
+        const { error: cancelNotifyError } = await supabaseAdmin.from("notifications").insert({
           hotel_id: hotel.id,
           type: "booking_cancelled",
           title: "OTA Booking Cancelled",
@@ -108,6 +129,13 @@ export async function POST(req: NextRequest) {
           booking_id: existingBooking.id,
           is_read: false,
         });
+
+        if (cancelNotifyError) {
+          console.error("[beds24:webhook] Failed to write cancellation notification", {
+            bookingId: existingBooking.id,
+            error: cancelNotifyError.message,
+          });
+        }
       }
 
       await logSync(hotel.id, "inbound", "cancellation", beds24BookingId, existingBooking?.id ?? null, "success", payload as Record<string, unknown>);
@@ -161,13 +189,20 @@ export async function POST(req: NextRequest) {
 
     await logSync(hotel.id, "inbound", "new_booking", beds24BookingId, null, "conflict", payload as Record<string, unknown>, conflictMsg);
 
-    await supabaseAdmin.from("notifications").insert({
+    const { error: conflictNotifyError } = await supabaseAdmin.from("notifications").insert({
       hotel_id: hotel.id,
       type: "ota_conflict",
       title: "⚠️ OTA Booking Conflict",
       message: `Beds24 booking ${beds24BookingId} (${firstNight}→${checkoutDate}) conflicts with ${conflict.reference}. Manual resolution required.`,
       is_read: false,
     });
+
+    if (conflictNotifyError) {
+      console.error("[beds24:webhook] Failed to write OTA conflict notification", {
+        beds24BookingId,
+        error: conflictNotifyError.message,
+      });
+    }
 
     // Notify via DB notification — super admin will see it in the dashboard
     // (phone not in staff_profiles schema — SMS skipped, notification is sufficient)
@@ -195,11 +230,21 @@ export async function POST(req: NextRequest) {
   }
 
   if (!guestId) {
-    const { data: newGuest } = await supabaseAdmin
+    const { data: newGuest, error: guestError } = await supabaseAdmin
       .from("guests")
       .insert({ hotel_id: hotel.id, full_name: guestName, email: guestEmail, phone: guestPhone })
       .select("id")
       .single();
+    if (guestError) {
+      // A booking with a null guest_id is a data-quality problem — abort and let
+      // Beds24 retry rather than persisting an orphaned booking.
+      console.error("[beds24:webhook] Failed to create guest", {
+        beds24BookingId,
+        error: guestError.message,
+      });
+      await logSync(hotel.id, "inbound", "new_booking", beds24BookingId, null, "error", payload as Record<string, unknown>, guestError.message);
+      return NextResponse.json({ error: "Failed to create guest" }, { status: 500 });
+    }
     guestId = newGuest?.id ?? null;
   }
 
@@ -261,7 +306,7 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 12. Notify hotel staff ────────────────────────────────────
-  await supabaseAdmin.from("notifications").insert({
+  const { error: newBookingNotifyError } = await supabaseAdmin.from("notifications").insert({
     hotel_id: hotel.id,
     type: "new_booking",
     title: "New Booking.com Booking",
@@ -269,6 +314,13 @@ export async function POST(req: NextRequest) {
     booking_id: newBooking.id,
     is_read: false,
   });
+
+  if (newBookingNotifyError) {
+    console.error("[beds24:webhook] Failed to write new-booking notification", {
+      bookingId: newBooking.id,
+      error: newBookingNotifyError.message,
+    });
+  }
 
   await logSync(hotel.id, "inbound", "new_booking", beds24BookingId, newBooking.id, "success", payload as Record<string, unknown>);
 

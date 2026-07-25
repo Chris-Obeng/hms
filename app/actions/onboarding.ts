@@ -64,27 +64,39 @@ export async function createHotelProfile(formData: OnboardingInput) {
     return { error: error.message || "Failed to create hotel profile." };
   }
 
-  // Admin staff_profile upsert
+  // Admin staff_profile upsert — the onboarding user MUST become super_admin,
+  // otherwise requireAuth() will reject them and they'll be locked out of the
+  // hotel they just created. Surface any failure instead of swallowing it.
   const { auth, clerkClient } = await import("@clerk/nextjs/server");
   const { userId } = await auth();
   if (userId) {
-    const client = await clerkClient();
-    const clerkUser = await client.users.getUser(userId);
-    
-    await supabase.from('staff_profiles').upsert({
-      clerk_org_id:       data.clerk_org_id,
-      clerk_user_id:      userId,
-      email:              clerkUser.emailAddresses?.[0]?.emailAddress ?? null,
-      full_name:          `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim(),
-      avatar_url:         clerkUser.imageUrl ?? null,
-      role:               'super_admin',
-      is_active:          true,
-      granted_at:         new Date().toISOString(),
-      granted_by:         null,
-      notification_prefs: {},
-    }, {
-      onConflict: 'clerk_user_id,clerk_org_id',
-    });
+    try {
+      const client = await clerkClient();
+      const clerkUser = await client.users.getUser(userId);
+
+      const { error: staffError } = await supabase.from('staff_profiles').upsert({
+        clerk_org_id:       data.clerk_org_id,
+        clerk_user_id:      userId,
+        email:              clerkUser.emailAddresses?.[0]?.emailAddress ?? null,
+        full_name:          `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim(),
+        avatar_url:         clerkUser.imageUrl ?? null,
+        role:               'super_admin',
+        is_active:          true,
+        granted_at:         new Date().toISOString(),
+        granted_by:         null,
+        notification_prefs: {},
+      }, {
+        onConflict: 'clerk_user_id,clerk_org_id',
+      });
+
+      if (staffError) {
+        console.error("Admin staff_profile upsert error:", staffError);
+        return { error: "Hotel created, but we couldn't set up your admin access. Please contact support." };
+      }
+    } catch (err) {
+      console.error("Admin staff_profile provisioning failed:", err);
+      return { error: "Hotel created, but we couldn't set up your admin access. Please contact support." };
+    }
   }
 
   return { success: true };
