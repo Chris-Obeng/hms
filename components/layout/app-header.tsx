@@ -210,6 +210,7 @@ export function AppHeader({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let supabase: any = null;
     let authInterval: ReturnType<typeof setInterval> | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let resubscribeAttempts = 0;
 
     async function initRealtime() {
@@ -237,82 +238,94 @@ export function AppHeader({
 
         authInterval = setInterval(refreshRealtimeAuth, 45_000);
 
-        channel = supabase
-          .channel(`hotel:${hId}:notifications`)
-          .on(
-            "postgres_changes",
-            {
-              event: "INSERT",
-              schema: "public",
-              table: "notifications",
-              filter: `hotel_id=eq.${hId}`,
-            },
-            (payload: { new: Record<string, unknown> }) => {
-              console.log("Realtime: notification INSERT", payload);
-              bellRef.current?.startAnimation();
+        function handleStatus(status: string, err?: unknown) {
+          if (status === "SUBSCRIBED") {
+            resubscribeAttempts = 0;
+            return;
+          }
+          if (status !== "CHANNEL_ERROR" && status !== "TIMED_OUT") return;
 
-              const soundEnabled =
-                localStorage.getItem("hotelos_sound_enabled") !== "false";
-              if (soundEnabled) playChime();
+          console.warn(`Realtime notifications: ${status}`, err ?? "");
+          if (!active || resubscribeAttempts >= 5) return;
+          resubscribeAttempts += 1;
 
-              const browserAlerts =
-                localStorage.getItem(
-                  "hotelos_browser_notifications_enabled",
-                ) === "true";
-              if (browserAlerts && Notification.permission === "granted") {
-                try {
-                  new Notification(
-                    String(payload.new.title ?? "New Notification"),
-                    {
-                      body: String(payload.new.message ?? ""),
-                      icon: "/icons/icon-192x192.png",
-                    },
-                  );
-                } catch (e) {
-                  console.error("Browser notification error:", e);
-                }
-              }
-
-              setLiveCount((prev) => prev + 1);
-              fetchNotifications();
-            },
-          )
-          .on(
-            "postgres_changes",
-            {
-              event: "UPDATE",
-              schema: "public",
-              table: "notifications",
-              filter: `hotel_id=eq.${hId}`,
-            },
-            async () => {
-              const { count } = await supabase
-                .from("notifications")
-                .select("*", { count: "exact", head: true })
-                .eq("hotel_id", hId)
-                .eq("is_read", false);
-              setLiveCount(count ?? 0);
-              fetchNotifications();
-            },
-          )
-          .subscribe(async (status: string, err?: unknown) => {
-            if (status === "SUBSCRIBED") {
-              resubscribeAttempts = 0;
-              return;
-            }
-            if (status !== "CHANNEL_ERROR" && status !== "TIMED_OUT") return;
-
-            console.warn(`Realtime notifications: ${status}`, err ?? "");
-            if (resubscribeAttempts >= 5) return;
-            resubscribeAttempts += 1;
-
-            // A refreshed token only takes effect on a new subscription.
+          retryTimer = setTimeout(async () => {
+            // A refreshed token only takes effect on a new subscription, and
+            // subscribe() is a no-op unless the channel is closed — so the
+            // channel is torn down and rebuilt with the same handlers.
             await refreshRealtimeAuth();
-            if (!active || !channel) return;
-            setTimeout(() => {
-              if (active && channel) channel.subscribe();
-            }, resubscribeAttempts * 2_000);
-          });
+            if (!active) return;
+            openChannel();
+          }, resubscribeAttempts * 2_000);
+        }
+
+        function openChannel() {
+          if (channel) supabase.removeChannel(channel);
+          channel = buildChannel().subscribe(handleStatus);
+        }
+
+        function buildChannel() {
+          return supabase
+            .channel(`hotel:${hId}:notifications`)
+            .on(
+              "postgres_changes",
+              {
+                event: "INSERT",
+                schema: "public",
+                table: "notifications",
+                filter: `hotel_id=eq.${hId}`,
+              },
+              (payload: { new: Record<string, unknown> }) => {
+                console.log("Realtime: notification INSERT", payload);
+                bellRef.current?.startAnimation();
+
+                const soundEnabled =
+                  localStorage.getItem("hotelos_sound_enabled") !== "false";
+                if (soundEnabled) playChime();
+
+                const browserAlerts =
+                  localStorage.getItem(
+                    "hotelos_browser_notifications_enabled",
+                  ) === "true";
+                if (browserAlerts && Notification.permission === "granted") {
+                  try {
+                    new Notification(
+                      String(payload.new.title ?? "New Notification"),
+                      {
+                        body: String(payload.new.message ?? ""),
+                        icon: "/icons/icon-192x192.png",
+                      },
+                    );
+                  } catch (e) {
+                    console.error("Browser notification error:", e);
+                  }
+                }
+
+                setLiveCount((prev) => prev + 1);
+                fetchNotifications();
+              },
+            )
+            .on(
+              "postgres_changes",
+              {
+                event: "UPDATE",
+                schema: "public",
+                table: "notifications",
+                filter: `hotel_id=eq.${hId}`,
+              },
+              async () => {
+                const { count } = await supabase
+                  .from("notifications")
+                  .select("*", { count: "exact", head: true })
+                  .eq("hotel_id", hId)
+                  .eq("is_read", false);
+                setLiveCount(count ?? 0);
+                fetchNotifications();
+              },
+            );
+        }
+
+        openChannel();
       } catch (err) {
         console.error("Failed to init realtime:", err);
       }
@@ -322,6 +335,7 @@ export function AppHeader({
     return () => {
       active = false;
       if (authInterval) clearInterval(authInterval);
+      if (retryTimer) clearTimeout(retryTimer);
       if (channel && supabase) supabase.removeChannel(channel);
     };
   }, [hotelId, isLoaded, getToken, playChime, fetchNotifications]);
