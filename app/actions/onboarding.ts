@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "../../lib/supabase/admin";
+import { slugify } from "@/lib/utils";
 
 const OnboardingSchema = z.object({
   name: z.string().min(1, "Hotel name is required"),
@@ -20,21 +21,10 @@ const OnboardingSchema = z.object({
 
 export type OnboardingInput = z.infer<typeof OnboardingSchema>;
 
-function slugify(text: string) {
-  const base = text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")   // strip accents
-    .replace(/[^a-z0-9\s-]/g, "")      // keep alphanumeric + spaces + hyphens
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40);
+function uniqueSlug(text: string) {
   // 4-char base36 suffix ensures uniqueness while keeping slug readable
   const suffix = Math.random().toString(36).slice(2, 6);
-  return `${base}-${suffix}`;
+  return `${slugify(text, 40)}-${suffix}`;
 }
 
 export async function createHotelProfile(formData: OnboardingInput) {
@@ -75,7 +65,7 @@ export async function createHotelProfile(formData: OnboardingInput) {
   }
 
   // Make the slug unique by appending a random string to avoid collisions on onboarding
-  const slug = slugify(data.name);
+  const slug = uniqueSlug(data.name);
 
   const supabase = supabaseAdmin;
 
@@ -104,11 +94,13 @@ export async function createHotelProfile(formData: OnboardingInput) {
     return { error: error.message || "Failed to create hotel profile." };
   }
 
-  // Admin staff_profile upsert
+  // Admin staff_profile upsert — the onboarding user MUST become super_admin,
+  // otherwise requireAuth() will reject them and they'll be locked out of the
+  // hotel they just created. Surface any failure instead of swallowing it.
   {
     const clerkUser = await client.users.getUser(userId);
 
-    await supabase.from('staff_profiles').upsert({
+    const { error: staffError } = await supabase.from('staff_profiles').upsert({
       clerk_org_id:       data.clerk_org_id,
       clerk_user_id:      userId,
       email:              clerkUser.emailAddresses?.[0]?.emailAddress ?? null,
@@ -122,6 +114,11 @@ export async function createHotelProfile(formData: OnboardingInput) {
     }, {
       onConflict: 'clerk_user_id,clerk_org_id',
     });
+
+    if (staffError) {
+      console.error("Admin staff_profile upsert error:", staffError);
+      return { error: "Hotel created, but we couldn't set up your admin access. Please contact support." };
+    }
   }
 
   return { success: true };

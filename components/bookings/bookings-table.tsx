@@ -29,10 +29,18 @@ import {
   SlidersHorizontal,
   XCircle,
 } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { toast } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/format";
+import {
+  SOURCE_BADGES,
+  getPaymentLabel,
+  getStatusLabel,
+  getStatusVariant,
+} from "@/lib/booking-status";
+import { downloadCsv, toCsv } from "@/lib/csv";
 import {
   Table,
   TableBody,
@@ -86,92 +94,6 @@ interface BookingsTableProps {
   roomTypes: { id: string; name: string }[];
   currency: string;
   hotelId?: string;
-}
-
-// ── Helpers ────────────────────────────────────────────────────────
-
-function formatCurrency(amount: number, currency = "GHS"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
-function getStatusVariant(
-  status: string
-): "default" | "secondary" | "destructive" | "outline" | "ghost" {
-  switch (status) {
-    case "confirmed":
-      return "default";
-    case "checked_in":
-      return "secondary";
-    case "checked_out":
-      return "outline";
-    case "cancelled":
-    case "no_show":
-      return "destructive";
-    case "pending":
-      return "ghost";
-    default:
-      return "outline";
-  }
-}
-
-function getStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    confirmed: "Confirmed",
-    checked_in: "Checked In",
-    checked_out: "Checked Out",
-    cancelled: "Cancelled",
-    no_show: "No Show",
-    pending: "Pending",
-  };
-  return labels[status] || status;
-}
-
-function getPaymentVariant(
-  status: string
-): "default" | "secondary" | "destructive" | "outline" {
-  switch (status) {
-    case "paid":
-      return "default";
-    case "partial":
-      return "secondary";
-    case "unpaid":
-      return "outline";
-    case "refunded":
-      return "destructive";
-    default:
-      return "outline";
-  }
-}
-
-function getPaymentLabel(status: string): string {
-  const labels: Record<string, string> = {
-    paid: "Paid",
-    partial: "Partial",
-    unpaid: "Unpaid",
-    refunded: "Refunded",
-  };
-  return labels[status] || status;
-}
-
-const SOURCE_BADGES: Record<string, { label: string; color: string; bg: string }> = {
-  direct: { label: "Direct", color: "text-blue-600", bg: "bg-blue-500/10" },
-  bookings_com: { label: "Booking.com", color: "text-purple-600", bg: "bg-purple-500/10" },
-  manual: { label: "Manual", color: "text-teal-600", bg: "bg-teal-500/10" },
-  phone: { label: "Phone", color: "text-amber-600", bg: "bg-amber-500/10" },
-  walk_in: { label: "Walk-in", color: "text-emerald-600", bg: "bg-emerald-500/10" },
-};
-
-function formatDate(dateStr: string): string {
-  try {
-    return format(parseISO(dateStr), "MMM dd, yyyy");
-  } catch {
-    return dateStr;
-  }
 }
 
 // ── Columns ────────────────────────────────────────────────────────
@@ -481,11 +403,11 @@ function ReservationCard({
       <div className="flex items-center justify-between gap-2">
         <div className="flex flex-col">
           <span className="text-sm font-semibold text-foreground">
-            {new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(row.totalAmount)}
+            {formatCurrency(row.totalAmount, currency, { minimumFractionDigits: 0 })}
           </span>
           {outstanding > 0 && (
             <span className="text-[10px] text-rose-500 font-medium">
-              {new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(outstanding)} outstanding
+              {formatCurrency(outstanding, currency, { minimumFractionDigits: 0 })} outstanding
             </span>
           )}
         </div>
@@ -564,20 +486,7 @@ function exportToCsv(data: BookingRow[], currency: string) {
     (b.outstandingBalance || 0).toString(),
   ]);
 
-  const csvContent = [
-    headers.join(","),
-    ...rows.map((row) =>
-      row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")
-    ),
-  ].join("\n");
-
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `bookings-${format(new Date(), "yyyy-MM-dd")}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadCsv(`bookings-${format(new Date(), "yyyy-MM-dd")}.csv`, toCsv(headers, rows));
 }
 
 // ── Main Component ─────────────────────────────────────────────────

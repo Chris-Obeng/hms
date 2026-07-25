@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, slugify } from "@/lib/utils";
 import { AMENITIES_LIST } from "@/lib/amenities";
 import { RoomImagesUpload, type RoomImage } from "@/components/ui/room-images-upload";
 import { saveRoomImages } from "@/app/actions/upload";
@@ -53,17 +53,6 @@ export interface RoomTypeFormProps {
   errors: Record<string, string>;
   isModal?: boolean;
   onCancel?: () => void;
-}
-
-// ── Slugify ────────────────────────────────────────────────────
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .trim();
 }
 
 // ── Default Values ─────────────────────────────────────────────

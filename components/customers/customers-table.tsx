@@ -23,9 +23,11 @@ import {
   SlidersHorizontal,
   Users,
 } from "lucide-react";
-import { format, parseISO } from "date-fns";
 
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { downloadCsv, toCsv } from "@/lib/csv";
 import {
   Table,
   TableBody,
@@ -61,26 +63,6 @@ export interface GuestRow {
 interface CustomersTableProps {
   data: GuestRow[];
   currency: string;
-}
-
-// ── Helpers ────────────────────────────────────────────────────────
-
-function formatCurrency(amount: number, currency = "GHS"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "—";
-  try {
-    return format(parseISO(dateStr), "MMM dd, yyyy");
-  } catch {
-    return dateStr;
-  }
 }
 
 const TAG_STYLES: Record<string, { color: string; bg: string }> = {
@@ -129,20 +111,7 @@ function exportToCsv(data: GuestRow[]) {
     g.notes || "",
   ]);
 
-  const csvContent = [
-    headers.join(","),
-    ...rows.map((row) =>
-      row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")
-    ),
-  ].join("\n");
-
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `customers-${format(new Date(), "yyyy-MM-dd")}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadCsv(`customers-${format(new Date(), "yyyy-MM-dd")}.csv`, toCsv(headers, rows));
 }
 
 // ── Main Component ─────────────────────────────────────────────────

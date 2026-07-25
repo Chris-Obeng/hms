@@ -13,9 +13,9 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { Button, Card, Chip, Modal } from "@heroui/react";
-import { format } from "date-fns";
 import { toast } from "@heroui/react";
 import { NightAuditSummary, executeNightAudit } from "./actions";
+import { formatCurrencyCompact } from "@/lib/format";
 
 interface NightAuditClientProps {
   initialSummary: NightAuditSummary;
@@ -26,13 +26,6 @@ export function NightAuditClient({ initialSummary }: NightAuditClientProps) {
   const [isExecuting, setIsExecuting] = React.useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = React.useState(false);
   const [auditNotes, setAuditNotes] = React.useState("");
-
-  const formatMoney = (val: number) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: summary.currency,
-      maximumFractionDigits: 0,
-    }).format(val);
 
   const handleRunAudit = async () => {
     try {
@@ -115,7 +108,7 @@ export function NightAuditClient({ initialSummary }: NightAuditClientProps) {
             </div>
           </div>
           <p className="text-2xl font-bold text-foreground mt-2 tabular-nums">
-            {formatMoney(summary.estimatedRoomRevenue)}
+            {formatCurrencyCompact(summary.estimatedRoomRevenue, summary.currency)}
           </p>
           <p className="text-caption text-muted-foreground mt-1">Calculated from in-house stays</p>
         </Card>
@@ -129,7 +122,7 @@ export function NightAuditClient({ initialSummary }: NightAuditClientProps) {
             </div>
           </div>
           <p className="text-2xl font-bold text-foreground mt-2 tabular-nums">
-            {formatMoney(summary.totalPaymentsToday)}
+            {formatCurrencyCompact(summary.totalPaymentsToday, summary.currency)}
           </p>
           <p className="text-caption text-muted-foreground mt-1">Processed payments total</p>
         </Card>
@@ -159,9 +152,9 @@ export function NightAuditClient({ initialSummary }: NightAuditClientProps) {
             </div>
           </div>
           <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-xl font-bold text-foreground tabular-nums">{formatMoney(summary.adrToday)}</span>
+            <span className="text-xl font-bold text-foreground tabular-nums">{formatCurrencyCompact(summary.adrToday, summary.currency)}</span>
             <span className="text-caption text-muted-foreground">/</span>
-            <span className="text-sm font-semibold text-muted-foreground tabular-nums">{formatMoney(summary.revparToday)}</span>
+            <span className="text-sm font-semibold text-muted-foreground tabular-nums">{formatCurrencyCompact(summary.revparToday, summary.currency)}</span>
           </div>
           <p className="text-caption text-muted-foreground mt-1">Avg Daily Rate / RevPAR</p>
         </Card>
@@ -223,8 +216,8 @@ export function NightAuditClient({ initialSummary }: NightAuditClientProps) {
             <Modal.Body className="py-4 space-y-4 text-sm text-foreground">
               <p>
                 Running Night Audit will record daily room revenue of{" "}
-                <span className="font-bold text-foreground">{formatMoney(summary.estimatedRoomRevenue)}</span> and total collected payments of{" "}
-                <span className="font-bold text-foreground">{formatMoney(summary.totalPaymentsToday)}</span> to the immutable audit log.
+                <span className="font-bold text-foreground">{formatCurrencyCompact(summary.estimatedRoomRevenue, summary.currency)}</span> and total collected payments of{" "}
+                <span className="font-bold text-foreground">{formatCurrencyCompact(summary.totalPaymentsToday, summary.currency)}</span> to the immutable audit log.
               </p>
 
               <div>

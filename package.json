@@ -7,6 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "db:types": "supabase gen types typescript --project-id wtgldgyxtpbzjmaygeif --schema public 2>nul > types/database.types.ts",
     "db:push": "supabase db push",
     "db:reset": "supabase db reset",
@@ -56,6 +59,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "3.2.4",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "fallow": "^2.96.0",
@@ -63,6 +67,7 @@
     "shadcn": "^4.11.0",
     "sharp": "^0.35.3",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "3.2.4"
   }
 }

@@ -18,6 +18,7 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDate, getNights } from "@/lib/format";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button, Dropdown, Skeleton } from "@heroui/react";
 import { ActivityTab } from "./activity-tabs";
@@ -50,21 +51,6 @@ interface ActivityListProps {
   onCheckIn?: (bookingId: string) => void;
   onCheckOut?: (bookingId: string) => void;
   onViewDetails?: (booking: ActivityBooking) => void;
-}
-
-function formatDate(dateStr: string): string {
-  const parts = dateStr.split("-").map(Number);
-  if (parts.length < 3) return dateStr;
-  const mm = String(parts[1]).padStart(2, "0");
-  const dd = String(parts[2]).padStart(2, "0");
-  const yyyy = parts[0];
-  return `${mm}/${dd}/${yyyy}`;
-}
-
-function getNights(checkIn: string, checkOut: string, nights?: number | null): number {
-  if (nights) return nights;
-  const diff = new Date(checkOut).getTime() - new Date(checkIn).getTime();
-  return Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)));
 }
 
 export function ActivityList({
@@ -274,7 +260,7 @@ function DesktopBookingRow({
       <td className="py-3.5 px-4 align-top">
         <div className="flex flex-col gap-1">
           <div className="text-xs font-medium text-foreground font-mono">
-            {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
+            {formatDate(booking.checkIn, "MM/dd/yyyy")} - {formatDate(booking.checkOut, "MM/dd/yyyy")}
           </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
             <span className="flex items-center gap-1">
@@ -435,7 +421,7 @@ function MobileBookingRow({
         <span className="text-xs font-mono text-muted-foreground">{booking.reference}</span>
       </div>
       <div className="text-xs text-muted-foreground">
-        {booking.roomType || "Unassigned"} • {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
+        {booking.roomType || "Unassigned"} • {formatDate(booking.checkIn, "MM/dd/yyyy")} - {formatDate(booking.checkOut, "MM/dd/yyyy")}
       </div>
       <div className="flex items-center justify-between pt-1">
         {booking.status === "confirmed" && onCheckIn && (

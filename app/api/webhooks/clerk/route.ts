@@ -28,6 +28,13 @@ export async function POST(req: Request) {
   }
 
   const body = await req.text()
+  let payload: unknown
+  try {
+    payload = JSON.parse(body)
+  } catch (err) {
+    console.error('[webhook] failed to parse Clerk webhook body as JSON:', err)
+    return new Response('Invalid JSON body', { status: 400 })
+  }
 
   const wh = new Webhook(WEBHOOK_SECRET)
   let evt: WebhookEvent
@@ -146,10 +153,14 @@ export async function POST(req: Request) {
     const rawRole = data.role
     const role = rawRole === 'org:admin' ? 'super_admin' : 'front_desk'
 
-    await supabaseAdmin
+    const { error } = await supabaseAdmin
       .from('staff_profiles')
       .update({ role, updated_at: new Date().toISOString() })
       .match({ clerk_user_id, clerk_org_id })
+
+    if (error) {
+      console.error('[webhook] staff_profiles role update failed:', error)
+    }
   }
 
   if (eventType === 'organizationMembership.deleted') {
@@ -157,10 +168,14 @@ export async function POST(req: Request) {
     const clerk_user_id = data.public_user_data.user_id
     const clerk_org_id = data.organization.id
 
-    await supabaseAdmin
+    const { error } = await supabaseAdmin
       .from('staff_profiles')
       .update({ is_active: false, updated_at: new Date().toISOString() })
       .match({ clerk_user_id, clerk_org_id })
+
+    if (error) {
+      console.error('[webhook] staff_profiles deactivation (membership deleted) failed:', error)
+    }
   }
 
   if (eventType === 'user.updated') {
@@ -170,10 +185,14 @@ export async function POST(req: Request) {
     const avatar_url = data.image_url ?? null
     const email = data.email_addresses?.[0]?.email_address ?? null
 
-    await supabaseAdmin
+    const { error } = await supabaseAdmin
       .from('staff_profiles')
       .update({ email, full_name, avatar_url, updated_at: new Date().toISOString() })
       .match({ clerk_user_id })
+
+    if (error) {
+      console.error('[webhook] staff_profiles user.updated sync failed:', error)
+    }
   }
 
   if (eventType === 'user.deleted') {
@@ -181,10 +200,14 @@ export async function POST(req: Request) {
     const clerk_user_id = data.id
 
     if (clerk_user_id) {
-      await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('staff_profiles')
         .update({ is_active: false, updated_at: new Date().toISOString() })
         .match({ clerk_user_id })
+
+      if (error) {
+        console.error('[webhook] staff_profiles deactivation (user deleted) failed:', error)
+      }
     }
   }
 

@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/notification-icon";
 import { GlobalSearch } from "@/app/dashboard/_components/global-search";
 import { cn } from "@/lib/utils";
+import { formatRelativeTime } from "@/lib/format";
 import { useSidebar } from "@/components/ui/sidebar";
 
 import { createClient } from "@/lib/supabase/client";
@@ -185,17 +186,6 @@ export function AppHeader({
     [router],
   );
 
-  const timeAgo = React.useCallback((iso: string | null): string => {
-    if (!iso) return "";
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60_000);
-    if (mins < 1) return "just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  }, []);
-
   React.useEffect(() => {
     setLiveCount(notificationCount);
   }, [notificationCount]);
@@ -210,6 +200,8 @@ export function AppHeader({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let supabase: any = null;
     let authInterval: ReturnType<typeof setInterval> | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let resubscribeAttempts = 0;
 
     async function initRealtime() {
       await fetchNotifications();
@@ -228,72 +220,102 @@ export function AppHeader({
           }
         }
 
+        // The websocket does not go through the REST fetch wrapper that injects
+        // the Clerk JWT, so it must be authenticated before subscribing or RLS
+        // filters out every change until the first interval tick.
+        await refreshRealtimeAuth();
+        if (!active) return;
+
         authInterval = setInterval(refreshRealtimeAuth, 45_000);
 
-        channel = supabase
-          .channel(`hotel:${hId}:notifications`)
-          .on(
-            "postgres_changes",
-            {
-              event: "INSERT",
-              schema: "public",
-              table: "notifications",
-              filter: `hotel_id=eq.${hId}`,
-            },
-            (payload: { new: Record<string, unknown> }) => {
-              console.log("Realtime: notification INSERT", payload);
-              bellRef.current?.startAnimation();
+        function handleStatus(status: string, err?: unknown) {
+          if (status === "SUBSCRIBED") {
+            resubscribeAttempts = 0;
+            return;
+          }
+          if (status !== "CHANNEL_ERROR" && status !== "TIMED_OUT") return;
 
-              const soundEnabled =
-                localStorage.getItem("hotelos_sound_enabled") !== "false";
-              if (soundEnabled) playChime();
+          console.warn(`Realtime notifications: ${status}`, err ?? "");
+          if (!active || resubscribeAttempts >= 5) return;
+          resubscribeAttempts += 1;
 
-              const browserAlerts =
-                localStorage.getItem(
-                  "hotelos_browser_notifications_enabled",
-                ) === "true";
-              if (browserAlerts && Notification.permission === "granted") {
-                try {
-                  new Notification(
-                    String(payload.new.title ?? "New Notification"),
-                    {
-                      body: String(payload.new.message ?? ""),
-                      icon: "/icons/icon-192x192.png",
-                    },
-                  );
-                } catch (e) {
-                  console.error("Browser notification error:", e);
+          retryTimer = setTimeout(async () => {
+            // A refreshed token only takes effect on a new subscription, and
+            // subscribe() is a no-op unless the channel is closed — so the
+            // channel is torn down and rebuilt with the same handlers.
+            await refreshRealtimeAuth();
+            if (!active) return;
+            openChannel();
+          }, resubscribeAttempts * 2_000);
+        }
+
+        function openChannel() {
+          if (channel) supabase.removeChannel(channel);
+          channel = buildChannel().subscribe(handleStatus);
+        }
+
+        function buildChannel() {
+          return supabase
+            .channel(`hotel:${hId}:notifications`)
+            .on(
+              "postgres_changes",
+              {
+                event: "INSERT",
+                schema: "public",
+                table: "notifications",
+                filter: `hotel_id=eq.${hId}`,
+              },
+              (payload: { new: Record<string, unknown> }) => {
+                console.log("Realtime: notification INSERT", payload);
+                bellRef.current?.startAnimation();
+
+                const soundEnabled =
+                  localStorage.getItem("hotelos_sound_enabled") !== "false";
+                if (soundEnabled) playChime();
+
+                const browserAlerts =
+                  localStorage.getItem(
+                    "hotelos_browser_notifications_enabled",
+                  ) === "true";
+                if (browserAlerts && Notification.permission === "granted") {
+                  try {
+                    new Notification(
+                      String(payload.new.title ?? "New Notification"),
+                      {
+                        body: String(payload.new.message ?? ""),
+                        icon: "/icons/icon-192x192.png",
+                      },
+                    );
+                  } catch (e) {
+                    console.error("Browser notification error:", e);
+                  }
                 }
-              }
 
-              setLiveCount((prev) => prev + 1);
-              fetchNotifications();
-            },
-          )
-          .on(
-            "postgres_changes",
-            {
-              event: "UPDATE",
-              schema: "public",
-              table: "notifications",
-              filter: `hotel_id=eq.${hId}`,
-            },
-            async () => {
-              const { count } = await supabase
-                .from("notifications")
-                .select("*", { count: "exact", head: true })
-                .eq("hotel_id", hId)
-                .eq("is_read", false);
-              setLiveCount(count ?? 0);
-              fetchNotifications();
-            },
-          )
-          .subscribe((status: string, err?: unknown) => {
-            console.log(`Realtime notifications: ${status}`, err ?? "");
-            if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-              refreshRealtimeAuth();
-            }
-          });
+                setLiveCount((prev) => prev + 1);
+                fetchNotifications();
+              },
+            )
+            .on(
+              "postgres_changes",
+              {
+                event: "UPDATE",
+                schema: "public",
+                table: "notifications",
+                filter: `hotel_id=eq.${hId}`,
+              },
+              async () => {
+                const { count } = await supabase
+                  .from("notifications")
+                  .select("*", { count: "exact", head: true })
+                  .eq("hotel_id", hId)
+                  .eq("is_read", false);
+                setLiveCount(count ?? 0);
+                fetchNotifications();
+              },
+            );
+        }
+
+        openChannel();
       } catch (err) {
         console.error("Failed to init realtime:", err);
       }
@@ -303,6 +325,7 @@ export function AppHeader({
     return () => {
       active = false;
       if (authInterval) clearInterval(authInterval);
+      if (retryTimer) clearTimeout(retryTimer);
       if (channel && supabase) supabase.removeChannel(channel);
     };
   }, [hotelId, isLoaded, getToken, playChime, fetchNotifications]);
@@ -521,7 +544,7 @@ export function AppHeader({
                             {n.message}
                           </p>
                           <p className="mt-1 text-[10px] text-muted-foreground/60">
-                            {timeAgo(n.created_at)}
+                            {formatRelativeTime(n.created_at, { fallback: "", justNow: "just now" })}
                           </p>
                         </div>
                       </button>

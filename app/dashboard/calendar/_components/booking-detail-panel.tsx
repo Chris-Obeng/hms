@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { format, parseISO } from "date-fns";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -20,6 +19,8 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrency, formatDateFull, getNights } from "@/lib/format";
+import { getSourceLabel, getStatusLabel, getStatusVariant } from "@/lib/booking-status";
 import {
   Sheet,
   SheetContent,
@@ -66,65 +67,6 @@ interface BookingDetailPanelProps {
   onAssign?: (bookingId: string) => void;
   onConfirm?: (bookingId: string) => void;
   onBlockRoom?: (roomId: string) => void;
-}
-
-// ── Helpers ──────────────────────────────────────────────────────
-
-function formatCurrency(amount: number, currency = "GHS"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
-function formatDateFull(dateStr: string): string {
-  const d = parseISO(dateStr);
-  return format(d, "EEE, MMM d, yyyy");
-}
-
-function getNights(checkIn: string, checkOut: string, nights?: number | null): number {
-  if (nights) return nights;
-  return Math.round(
-    (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)
-  );
-}
-
-function getStatusVariant(
-  status: string
-): "default" | "secondary" | "destructive" | "outline" | "ghost" {
-  switch (status) {
-    case "confirmed": return "default";
-    case "checked_in": return "secondary";
-    case "checked_out": return "outline";
-    case "cancelled": case "no_show": return "destructive";
-    case "pending": return "ghost";
-    default: return "outline";
-  }
-}
-
-function getStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    confirmed: "Confirmed",
-    checked_in: "Checked In",
-    checked_out: "Checked Out",
-    cancelled: "Cancelled",
-    no_show: "No Show",
-    pending: "Pending",
-  };
-  return labels[status] || status;
-}
-
-function getSourceLabel(source: string | null): string {
-  const labels: Record<string, string> = {
-    direct: "Direct",
-    bookings_com: "Booking.com",
-    manual: "Manual",
-    phone: "Phone",
-    walk_in: "Walk-in",
-  };
-  return labels[source || ""] || source || "—";
 }
 
 // ── Detail Card ───────────────────────────────────────────────────

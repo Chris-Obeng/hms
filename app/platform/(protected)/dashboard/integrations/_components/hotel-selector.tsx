@@ -4,6 +4,7 @@ import * as React from "react";
 import { Building2 } from "lucide-react";
 import { Select, Label, ListBox, Avatar, Badge } from "@heroui/react";
 import type { HotelOption } from "@/types/platform-integrations";
+import { formatRelativeTime } from "@/lib/format";
 
 interface HotelSelectorProps {
   hotels: HotelOption[];
@@ -124,19 +125,3 @@ export function HotelSelector({
   );
 }
 
-/**
- * Format ISO timestamp as relative time (e.g., "5m ago", "2h ago")
- */
-function formatRelativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const minutes = Math.floor(diff / 60_000);
-  
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}

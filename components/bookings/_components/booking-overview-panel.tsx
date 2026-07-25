@@ -17,13 +17,9 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { DetailCard } from "./booking-detail-card";
-import {
-  formatDateFull,
-  formatDateTime,
-  getNights,
-  getSourceLabel,
-  type FullBookingDetail,
-} from "./booking-detail-types";
+import { formatDateFull, formatDateTime, getNights } from "@/lib/format";
+import { getSourceLabel } from "@/lib/booking-status";
+import { type FullBookingDetail } from "./booking-detail-types";
 
 interface BookingOverviewPanelProps {
   booking: FullBookingDetail;

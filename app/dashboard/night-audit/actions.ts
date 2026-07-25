@@ -1,42 +1,9 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
-import { createClient } from "@/lib/supabase/server";
+import { getHotelScope } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { writeAuditLog } from "@/lib/audit";
-
-async function getHotelScopedClient() {
-  const { orgId, userId } = await auth();
-  if (!orgId) throw new Error("Not authenticated");
-
-  const supabase = await createClient();
-
-  const { data: hotel } = await supabase
-    .from("hotels")
-    .select("id, name, currency")
-    .eq("clerk_org_id", orgId)
-    .single();
-
-  if (!hotel) throw new Error("Hotel not found");
-
-  const { data: staffProfile } = userId
-    ? await supabase
-        .from("staff_profiles")
-        .select("id, full_name, role")
-        .eq("clerk_user_id", userId)
-        .eq("clerk_org_id", orgId)
-        .single()
-    : { data: null };
-
-  return {
-    supabase,
-    hotelId: hotel.id,
-    hotel,
-    staffId: staffProfile?.id ?? null,
-    staffName: staffProfile?.full_name ?? "System",
-  };
-}
 
 export interface NightAuditSummary {
   auditDate: string;
@@ -64,7 +31,7 @@ export interface NightAuditSummary {
 }
 
 export async function getNightAuditData(dateStr?: string): Promise<NightAuditSummary> {
-  const { supabase, hotelId, hotel } = await getHotelScopedClient();
+  const { supabase, hotelId, hotel } = await getHotelScope();
   const targetDate = dateStr ? new Date(dateStr + "T00:00:00") : new Date();
   const dayStr = format(targetDate, "yyyy-MM-dd");
 
@@ -189,7 +156,7 @@ export async function getNightAuditData(dateStr?: string): Promise<NightAuditSum
 }
 
 export async function executeNightAudit(dateStr: string, notes?: string) {
-  const { supabase, hotelId, staffId, staffName } = await getHotelScopedClient();
+  const { supabase, hotelId, staffId, staffName } = await getHotelScope();
 
   const auditSummary = await getNightAuditData(dateStr);
 

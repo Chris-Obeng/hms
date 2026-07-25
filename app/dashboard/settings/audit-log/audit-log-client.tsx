@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { Download, Search } from "lucide-react";
+import { formatDate } from "@/lib/format";
+import { downloadCsv, toCsv } from "@/lib/csv";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -41,13 +43,6 @@ function ActionBadge({ action }: { action: string }) {
   );
 }
 
-function formatTime(iso: string | null) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) +
-    " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-}
-
 function stateSnippet(state: unknown): string {
   if (!state || typeof state !== "object" || Array.isArray(state)) return "";
   const entries = Object.entries(state as Record<string, unknown>).slice(0, 3);
@@ -79,16 +74,10 @@ export function AuditLogClient({ logs }: { logs: AuditEntry[] }) {
       l.staff_name ?? "",
       JSON.stringify(l.after_state ?? {}),
     ]);
-    const csv = [headers, ...rows]
-      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `audit-log-${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(
+      `audit-log-${new Date().toISOString().split("T")[0]}.csv`,
+      toCsv(headers, rows)
+    );
   }
 
   return (
@@ -135,7 +124,7 @@ export function AuditLogClient({ logs }: { logs: AuditEntry[] }) {
                 filtered.map((log) => (
                   <tr key={log.id} className="hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap font-mono text-[10px]">
-                      {formatTime(log.created_at)}
+                      {formatDate(log.created_at, "dd MMM yyyy HH:mm")}
                     </td>
                     <td className="px-4 py-2.5">
                       <ActionBadge action={log.action} />
