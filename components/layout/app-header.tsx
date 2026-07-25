@@ -210,6 +210,7 @@ export function AppHeader({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let supabase: any = null;
     let authInterval: ReturnType<typeof setInterval> | null = null;
+    let resubscribeAttempts = 0;
 
     async function initRealtime() {
       await fetchNotifications();
@@ -227,6 +228,12 @@ export function AppHeader({
             console.error("Realtime auth refresh failed:", e);
           }
         }
+
+        // The websocket does not go through the REST fetch wrapper that injects
+        // the Clerk JWT, so it must be authenticated before subscribing or RLS
+        // filters out every change until the first interval tick.
+        await refreshRealtimeAuth();
+        if (!active) return;
 
         authInterval = setInterval(refreshRealtimeAuth, 45_000);
 
@@ -288,11 +295,23 @@ export function AppHeader({
               fetchNotifications();
             },
           )
-          .subscribe((status: string, err?: unknown) => {
-            console.log(`Realtime notifications: ${status}`, err ?? "");
-            if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-              refreshRealtimeAuth();
+          .subscribe(async (status: string, err?: unknown) => {
+            if (status === "SUBSCRIBED") {
+              resubscribeAttempts = 0;
+              return;
             }
+            if (status !== "CHANNEL_ERROR" && status !== "TIMED_OUT") return;
+
+            console.warn(`Realtime notifications: ${status}`, err ?? "");
+            if (resubscribeAttempts >= 5) return;
+            resubscribeAttempts += 1;
+
+            // A refreshed token only takes effect on a new subscription.
+            await refreshRealtimeAuth();
+            if (!active || !channel) return;
+            setTimeout(() => {
+              if (active && channel) channel.subscribe();
+            }, resubscribeAttempts * 2_000);
           });
       } catch (err) {
         console.error("Failed to init realtime:", err);
