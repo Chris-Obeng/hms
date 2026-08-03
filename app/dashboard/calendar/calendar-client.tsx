@@ -84,7 +84,6 @@ interface RoomTypeFilter {
 const STATUS_OPTIONS = ["pending", "confirmed", "checked_in"] as const;
 const SOURCE_OPTIONS = [
   "direct",
-  "bookings_com",
   "manual",
   "phone",
   "walk_in",
@@ -483,8 +482,10 @@ export function CalendarClient({
         mode === "move"
           ? String(args.newResource || booking?.roomId || "")
           : booking?.roomId || "";
-      const newCheckIn = format(args.newStart as Date, "yyyy-MM-dd");
-      const newCheckOut = format(args.newEnd as Date, "yyyy-MM-dd");
+      // DayPilot.Date is NOT a JS Date — use toString().split("T")[0] to extract
+      // the date string safely, matching the same pattern used in handleTimeRangeSelected.
+      const newCheckIn = args.newStart.toString().split("T")[0] as string;
+      const newCheckOut = args.newEnd.toString().split("T")[0] as string;
 
       if (newCheckOut <= newCheckIn) {
         toast.danger("Check-out must be after check-in");

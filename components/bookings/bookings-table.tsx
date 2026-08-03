@@ -441,7 +441,6 @@ const PAYMENT_OPTIONS = [
 
 const SOURCE_OPTIONS = [
   { value: "direct", label: "Direct" },
-  { value: "bookings_com", label: "Booking.com" },
   { value: "manual", label: "Manual" },
   { value: "phone", label: "Phone" },
   { value: "walk_in", label: "Walk-in" },
@@ -514,6 +513,9 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
   }, [searchParams]);
 
   // Realtime subscription — refresh on any booking change for this hotel
+  const refreshRef = React.useRef(router.refresh.bind(router));
+  React.useEffect(() => { refreshRef.current = router.refresh.bind(router); });
+
   React.useEffect(() => {
     if (!hotelId) return;
     const supabase = createClient();
@@ -522,13 +524,13 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
-        () => router.refresh(),
+        () => refreshRef.current(),
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [hotelId, router]);
+  }, [hotelId]);
 
   const [detailBookingId, setDetailBookingId] = React.useState<string | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);

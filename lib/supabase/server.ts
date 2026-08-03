@@ -29,8 +29,12 @@ export async function createClient() {
     if (getToken) {
       token = await getToken({ template: "supabase" });
     }
-  } catch {
-    // Clerk session unavailable or template not configured — use anon client
+  } catch (e) {
+    // Clerk session unavailable or template not configured — use anon client.
+    // Log a warning in non-production so misconfigurations surface early.
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[supabase/server] Clerk JWT fetch failed (falling back to anon):", e);
+    }
   }
 
   return createServerClient<Database>(

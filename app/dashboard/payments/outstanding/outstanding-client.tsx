@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Eye, AlertCircle } from "lucide-react";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import { useRouter } from "next/navigation";
@@ -34,6 +34,11 @@ export function OutstandingClient({
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
 
+  // Stable refresh ref — avoids adding router to effect deps which could
+  // cause unnecessary subscription churn if router reference changes.
+  const refreshRef = React.useRef(router.refresh.bind(router));
+  React.useEffect(() => { refreshRef.current = router.refresh.bind(router); });
+
   // Realtime subscription — refresh on any booking or payment change for this hotel
   React.useEffect(() => {
     const supabase = createClient();
@@ -42,18 +47,18 @@ export function OutstandingClient({
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
-        () => router.refresh(),
+        () => refreshRef.current(),
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payments", filter: `hotel_id=eq.${hotelId}` },
-        () => router.refresh(),
+        () => refreshRef.current(),
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [hotelId, router]);
+  }, [hotelId]);
 
   const filtered = search
     ? data.filter((r) =>
@@ -118,7 +123,7 @@ export function OutstandingClient({
                   <td className="px-4 py-3 text-muted-foreground">{r.roomType ?? "—"}{r.roomNumber ? ` · Rm ${r.roomNumber}` : ""}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className={isToday ? "text-amber-600 font-medium" : "text-foreground"}>
-                      {format(new Date(r.checkIn), "MMM d")}
+                      {format(parseISO(r.checkIn), "MMM d")}
                     </span>
                     {isToday && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">Today</span>}
                   </td>

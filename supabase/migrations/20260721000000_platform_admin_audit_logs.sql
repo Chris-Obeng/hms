@@ -58,5 +58,4 @@ GRANT INSERT ON public.platform_admin_audit_logs TO service_role;
 
 -- Add comment
 COMMENT ON TABLE public.platform_admin_audit_logs IS 
-  'Audit trail for all platform admin actions on hotel integrations and configurations. ' ||
-  'Provides compliance tracking and troubleshooting history.';
+  'Audit trail for all platform admin actions on hotel integrations and configurations. Provides compliance tracking and troubleshooting history.';

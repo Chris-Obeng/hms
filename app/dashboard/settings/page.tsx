@@ -64,9 +64,9 @@ export default async function SettingsPage() {
         },
         {
           icon: Link2,
-          label: "Integrations",
-          description: "Beds24 OTA sync, Arkesel SMS/email, and connection status",
-          href: "/dashboard/settings/integrations",
+          label: "SMS & Email",
+          description: "Arkesel SMS/email settings",
+          href: "/dashboard/settings/notifications",
           restricted: true,
         },
       ],

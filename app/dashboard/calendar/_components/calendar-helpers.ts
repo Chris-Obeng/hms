@@ -33,9 +33,6 @@ export function getBookingBarColor(
 
   // CONFIRMED: source-based coloring — matches CALENDAR_LEGEND swatches exactly
   switch (source) {
-    case "bookings_com":
-      // Booking.com - purple, matches legend #6D5DF6
-      return { bg: "#6D5DF6", text: "#FFFFFF", border: "#5B4FE0" };
     case "manual":
     case "phone":
     case "walk_in":
@@ -146,8 +143,6 @@ export function getEventHtml(
 
 function getSourceShortLabel(source: string | null): string {
   switch (source) {
-    case "bookings_com":
-      return "Booking.com";
     case "direct":
       return "Direct";
     case "manual":
@@ -182,7 +177,6 @@ export interface LegendItem {
 
 export const CALENDAR_LEGEND: LegendItem[] = [
   { label: "Direct", color: "#16A7D8", type: "booking" },
-  { label: "Booking.com", color: "#6D5DF6", type: "booking" },
   { label: "Manual/Phone", color: "#2FAA67", type: "booking" },
   { label: "In House", color: "#16A34A", type: "booking" },
   { label: "Pending", color: "#7C3AED", type: "booking" },

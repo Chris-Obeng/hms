@@ -96,6 +96,9 @@ export function AvailabilityMatrixClient({ data, hotelId }: { data: Availability
   );
 
   // Realtime subscription — auto-refresh on booking or availability_block changes
+  const refreshRef = React.useRef(router.refresh.bind(router));
+  React.useEffect(() => { refreshRef.current = router.refresh.bind(router); });
+
   React.useEffect(() => {
     const supabase = createClient();
     const channel = supabase
@@ -103,18 +106,18 @@ export function AvailabilityMatrixClient({ data, hotelId }: { data: Availability
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
-        () => router.refresh(),
+        () => refreshRef.current(),
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "availability_blocks", filter: `hotel_id=eq.${hotelId}` },
-        () => router.refresh(),
+        () => refreshRef.current(),
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [hotelId, router]);
+  }, [hotelId]);
 
   const gridTemplateColumns = React.useMemo(
     () => `220px repeat(${data.dates.length}, minmax(78px, 1fr))`,

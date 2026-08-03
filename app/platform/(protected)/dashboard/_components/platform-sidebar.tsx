@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, LayoutDashboard, Settings, Link2, X } from "lucide-react";
+import { Building2, LayoutDashboard, Settings, X } from "lucide-react";
 import { Button, Avatar, Chip } from "@heroui/react";
 import { cn } from "@/lib/utils";
 import {
@@ -49,12 +49,6 @@ const navItems: NavItem[] = [
     title: "Hotels",
     href: "/platform/dashboard/hotels",
     icon: Building2,
-    exact: false,
-  },
-  {
-    title: "Integrations",
-    href: "/platform/dashboard/integrations",
-    icon: Link2,
     exact: false,
   },
   {

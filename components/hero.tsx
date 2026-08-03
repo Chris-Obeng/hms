@@ -30,7 +30,7 @@ import { Button } from "@/components/ui/button";
 
 export function Hero() {
   const [scrolled, setScrolled] = useState(false);
-  const [activeTab, setActiveTab] = useState<"calendar" | "billing" | "channel" | "sms">("calendar");
+  const [activeTab, setActiveTab] = useState<"calendar" | "billing" | "sms">("calendar");
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
   useEffect(() => {
@@ -54,15 +54,10 @@ export function Hero() {
   const tabs = [
     { id: "calendar", label: "Front Desk Calendar" },
     { id: "billing", label: "Paystack & MoMo" },
-    { id: "channel", label: "OTA Channel Manager" },
     { id: "sms", label: "Arkesel SMS Engine" }
   ] as const;
 
   const faqs = [
-    {
-      q: "How does the Beds24 channel manager integration work?",
-      a: "HotelOS Pro integrates natively with Beds24's robust API. When a guest books a room on your direct hotel page, or when your front desk assigns a room, our system instantly updates your inventory on Booking.com, Expedia, and Airbnb. This guarantees zero double-bookings, even during peak safari or holiday seasons."
-    },
     {
       q: "Can we accept MTN Mobile Money, Telecel Cash, and AirtelTigo?",
       a: "Yes. Through our integrated Paystack gateway, guests can pay deposits or settle invoices instantly using any major African mobile money provider or debit/credit card. Payments are settled directly into your Ghanaian bank account in GHS, eliminating foreign exchange conversion losses."
@@ -77,7 +72,7 @@ export function Hero() {
     },
     {
       q: "How long does the setup and onboarding process take?",
-      a: "We can get your property live in under 30 minutes. Our support team assists with uploading your room types, mapping your beds, and connecting your Paystack subaccount. If you require Beds24 room mapping for Booking.com, we handle the technical sync setup for you."
+      a: "We can get your property live in under 30 minutes. Our support team assists with uploading your room types, configuring your rates, and connecting your Paystack subaccount."
     }
   ];
 
@@ -180,7 +175,7 @@ export function Hero() {
               transition={{ duration: 0.7, delay: 0.2 }}
               className="text-base sm:text-lg text-ivory/50 leading-relaxed font-normal"
             >
-              The premium, cloud-native PMS built specifically for West African hotels. Accept local GHS payments via MTN MoMo, sync channels automatically via Beds24 to eliminate double bookings, and power your front desk with speed.
+              The premium, cloud-native PMS built specifically for West African hotels. Accept local GHS payments via MTN MoMo, manage your front desk calendar in real time, and power your operations with speed.
             </motion.p>
 
             {/* CTA Buttons */}
@@ -286,19 +281,10 @@ export function Hero() {
                     <div className="grid grid-cols-6 items-center p-2 text-center">
                       <div className="font-semibold text-left text-ivory/50">201 VIP Suite</div>
                       <div className="col-span-5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded py-1 font-medium truncate">
-                        Booking.com Sync - G. Cooper
+                        Direct Booking - G. Cooper
                       </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Integration Status Footer Bar */}
-                <div className="flex items-center justify-between text-[10px] bg-gold/[0.02] border border-gold/[0.08] rounded-lg p-2.5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-ivory/60 font-semibold">Beds24 Channel Sync Active</span>
-                  </div>
-                  <span className="text-gold/80 font-medium">Synced 1m ago</span>
                 </div>
               </div>
             </motion.div>
@@ -332,9 +318,9 @@ export function Hero() {
               <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center text-gold group-hover:bg-gold/20 transition-colors">
                 <RefreshCw className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-ivory">Beds24 Two-Way OTA Sync</h3>
+              <h3 className="text-lg font-bold text-ivory">Real-Time Availability</h3>
               <p className="text-sm text-ivory/50 leading-relaxed">
-                Sync rates, availability, and bookings across Booking.com, Airbnb, and Expedia in real time. Keep all channels aligned automatically and say goodbye to double-bookings forever.
+                Live calendar and availability matrix update instantly across all front desk sessions. Always know which rooms are free, occupied, or blocked — with zero manual refresh needed.
               </p>
             </div>
 
@@ -516,48 +502,6 @@ export function Hero() {
               </motion.div>
             )}
 
-            {activeTab === "channel" && (
-              <motion.div
-                key="channel"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.4 }}
-                className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center"
-              >
-                <div className="lg:col-span-5 space-y-4">
-                  <span className="text-xs font-bold text-gold uppercase tracking-wider">Two-Way Channel Manager</span>
-                  <h3 className="text-2xl font-bold text-ivory">Zero Effort Beds24 Sync</h3>
-                  <p className="text-sm text-ivory/50 leading-relaxed">
-                    Say goodbye to double bookings on Booking.com, Airbnb, and Expedia. Our Beds24 channel API updates inventory globally. When a room is checked into from the lobby, your rates and vacancies update automatically across all online platforms.
-                  </p>
-                </div>
-                <div className="lg:col-span-7 bg-forest border border-ivory/[0.06] rounded-xl p-5 space-y-4">
-                  <div className="text-sm font-bold text-ivory border-b border-ivory/[0.05] pb-3">Channel Connection Ledger</div>
-                  <div className="space-y-3 text-xs">
-                    <div className="flex justify-between items-center bg-ivory/[0.02] p-2.5 rounded-lg border border-ivory/[0.04]">
-                      <span className="font-semibold text-ivory/70">Booking.com</span>
-                      <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Synced
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center bg-ivory/[0.02] p-2.5 rounded-lg border border-ivory/[0.04]">
-                      <span className="font-semibold text-ivory/70">Airbnb</span>
-                      <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Synced
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center bg-ivory/[0.02] p-2.5 rounded-lg border border-ivory/[0.04]">
-                      <span className="font-semibold text-ivory/70">Expedia</span>
-                      <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Synced
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
             {activeTab === "sms" && (
               <motion.div
                 key="sms"
@@ -627,9 +571,6 @@ export function Hero() {
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-gold shrink-0" /> Arkesel SMS Automations
                   </li>
-                  <li className="flex items-center gap-2 text-ivory/30 line-through">
-                    <Check className="w-4 h-4 shrink-0" /> Beds24 OTA Sync
-                  </li>
                 </ul>
               </div>
               <Link href="/sign-up" className="block w-full mt-8">
@@ -662,9 +603,6 @@ export function Hero() {
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-gold shrink-0" /> Everything in Starter Plan
-                  </li>
-                  <li className="flex items-center gap-2 font-medium text-gold">
-                    <Check className="w-4 h-4 text-gold shrink-0" /> Beds24 OTA Sync
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-gold shrink-0" /> Advanced Financial Reports
@@ -815,7 +753,6 @@ export function Hero() {
             <ul className="space-y-2 text-xs text-ivory/45 font-medium">
               <li><a href="https://paystack.com" target="_blank" className="hover:text-ivory">Paystack Gateway</a></li>
               <li><a href="https://arkesel.com" target="_blank" className="hover:text-ivory">Arkesel SMS Gateway</a></li>
-              <li><a href="https://beds24.com" target="_blank" className="hover:text-ivory">Beds24 Channel Sync</a></li>
             </ul>
           </div>
 

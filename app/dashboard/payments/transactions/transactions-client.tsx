@@ -61,6 +61,9 @@ export function TransactionsClient({ data, currency, hotelId }: { data: PaymentR
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   // Realtime subscription — refresh on any payment change for this hotel
+  const refreshRef = React.useRef(router.refresh.bind(router));
+  React.useEffect(() => { refreshRef.current = router.refresh.bind(router); });
+
   React.useEffect(() => {
     const supabase = createClient();
     const channel = supabase
@@ -68,13 +71,13 @@ export function TransactionsClient({ data, currency, hotelId }: { data: PaymentR
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payments", filter: `hotel_id=eq.${hotelId}` },
-        () => router.refresh(),
+        () => refreshRef.current(),
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [hotelId, router]);
+  }, [hotelId]);
 
   const filtered = data.filter((r) => {
     if (statusFilter !== "all" && r.status !== statusFilter) return false;

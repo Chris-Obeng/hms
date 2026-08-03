@@ -320,14 +320,12 @@ function SourcesTab({
 }) {
   if (loading || !data) return <TabSkeleton />;
   const directPct = data.bySource.find((s) => s.source === "direct")?.pct ?? 0;
-  const otaPct = data.bySource.find((s) => s.source === "bookings_com")?.pct ?? 0;
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="grid grid-cols-3 gap-4 flex-1">
+        <div className="grid grid-cols-2 gap-4 flex-1">
           <KpiCard label="Total Bookings" value={data.totalBookings.toLocaleString()} />
           <KpiCard label="Direct %" value={`${directPct}%`} />
-          <KpiCard label="OTA %" value={`${otaPct}%`} />
         </div>
         <Button variant="outline" size="sm" className="h-8 rounded-xl text-xs" onClick={onExport}>
           <Download className="size-3.5 mr-1.5" />

@@ -39,7 +39,7 @@ export async function POST(
 
     let hotelQuery = await supabaseAdmin
       .from("hotels")
-      .select("id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, cancellation_policy, phone, address, beds24_api_key, beds24_property_id")
+      .select("id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, cancellation_policy, phone, address")
       .eq("slug", slug)
       .eq("status", "active")
       .maybeSingle();
@@ -47,7 +47,7 @@ export async function POST(
     if (!hotelQuery.data) {
       hotelQuery = await supabaseAdmin
         .from("hotels")
-        .select("id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, cancellation_policy, phone, address, beds24_api_key, beds24_property_id")
+        .select("id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, cancellation_policy, phone, address")
         .eq("custom_domain", slug)
         .eq("status", "active")
         .maybeSingle();
@@ -206,24 +206,6 @@ export async function POST(
       booking_id: booking.id,
       is_read: false,
     });
-
-    if (hotel.beds24_api_key && hotel.beds24_property_id) {
-      const { pushAvailability, bookingToAvailabilityRange } = await import("@/lib/beds24");
-      const { data: mapping } = await supabaseAdmin
-        .from("beds24_property_mappings")
-        .select("beds24_room_id")
-        .eq("hotel_id", hotel.id)
-        .eq("room_type_id", data.room_type_id)
-        .maybeSingle();
-
-      if (mapping?.beds24_room_id) {
-        const { from, to } = bookingToAvailabilityRange(data.check_in, data.check_out);
-        await pushAvailability(
-          { token: hotel.beds24_api_key },
-          [{ roomId: mapping.beds24_room_id, from, to, availability: 0 }]
-        ).catch((e: unknown) => console.error("[beds24:outbound]", e));
-      }
-    }
 
     if (data.payment_preference === "pay_at_checkin") {
       const { sendBookingConfirmation } = await import(

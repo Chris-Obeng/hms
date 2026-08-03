@@ -129,108 +129,7 @@ export type Database = {
           },
         ]
       }
-      beds24_property_mappings: {
-        Row: {
-          beds24_property_id: string
-          beds24_room_id: string
-          created_at: string | null
-          hotel_id: string
-          id: string
-          room_type_id: string
-          updated_at: string
-        }
-        Insert: {
-          beds24_property_id: string
-          beds24_room_id: string
-          created_at?: string | null
-          hotel_id: string
-          id?: string
-          room_type_id: string
-          updated_at?: string
-        }
-        Update: {
-          beds24_property_id?: string
-          beds24_room_id?: string
-          created_at?: string | null
-          hotel_id?: string
-          id?: string
-          room_type_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "beds24_property_mappings_hotel_id_fkey"
-            columns: ["hotel_id"]
-            isOneToOne: false
-            referencedRelation: "hotels"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "beds24_property_mappings_room_type_id_fkey"
-            columns: ["room_type_id"]
-            isOneToOne: false
-            referencedRelation: "room_types"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      beds24_sync_log: {
-        Row: {
-          beds24_booking_id: string | null
-          booking_id: string | null
-          conflict_details: string | null
-          direction: string | null
-          error_message: string | null
-          event_type: string | null
-          hotel_id: string
-          id: string
-          payload: Json | null
-          processed_at: string | null
-          status: string | null
-        }
-        Insert: {
-          beds24_booking_id?: string | null
-          booking_id?: string | null
-          conflict_details?: string | null
-          direction?: string | null
-          error_message?: string | null
-          event_type?: string | null
-          hotel_id: string
-          id?: string
-          payload?: Json | null
-          processed_at?: string | null
-          status?: string | null
-        }
-        Update: {
-          beds24_booking_id?: string | null
-          booking_id?: string | null
-          conflict_details?: string | null
-          direction?: string | null
-          error_message?: string | null
-          event_type?: string | null
-          hotel_id?: string
-          id?: string
-          payload?: Json | null
-          processed_at?: string | null
-          status?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "beds24_sync_log_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "beds24_sync_log_hotel_id_fkey"
-            columns: ["hotel_id"]
-            isOneToOne: false
-            referencedRelation: "hotels"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+
       booking_reference_counters: {
         Row: {
           hotel_id: string
@@ -261,7 +160,6 @@ export type Database = {
         Row: {
           adults: number | null
           amount_paid: number | null
-          beds24_booking_id: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
           check_in: string
@@ -296,7 +194,6 @@ export type Database = {
         Insert: {
           adults?: number | null
           amount_paid?: number | null
-          beds24_booking_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           check_in: string
@@ -331,7 +228,6 @@ export type Database = {
         Update: {
           adults?: number | null
           amount_paid?: number | null
-          beds24_booking_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           check_in?: string
@@ -510,8 +406,6 @@ export type Database = {
           address: string | null
           arkesel_api_key: string | null
           arkesel_sender_name: string | null
-          beds24_api_key: string | null
-          beds24_property_id: string | null
           cancellation_policy: string | null
           check_in_time: string | null
           check_out_time: string | null
@@ -544,8 +438,6 @@ export type Database = {
           address?: string | null
           arkesel_api_key?: string | null
           arkesel_sender_name?: string | null
-          beds24_api_key?: string | null
-          beds24_property_id?: string | null
           cancellation_policy?: string | null
           check_in_time?: string | null
           check_out_time?: string | null
@@ -578,8 +470,6 @@ export type Database = {
           address?: string | null
           arkesel_api_key?: string | null
           arkesel_sender_name?: string | null
-          beds24_api_key?: string | null
-          beds24_property_id?: string | null
           cancellation_policy?: string | null
           check_in_time?: string | null
           check_out_time?: string | null

@@ -85,7 +85,6 @@ export function getPaymentVariant(status: string): BadgeVariant {
 
 export const SOURCE_BADGES: Record<string, { label: string; color: string; bg: string }> = {
   direct: { label: "Direct", color: "text-blue-600", bg: "bg-blue-500/10" },
-  bookings_com: { label: "Booking.com", color: "text-purple-600", bg: "bg-purple-500/10" },
   manual: { label: "Manual", color: "text-teal-600", bg: "bg-teal-500/10" },
   phone: { label: "Phone", color: "text-amber-600", bg: "bg-amber-500/10" },
   walk_in: { label: "Walk-in", color: "text-emerald-600", bg: "bg-emerald-500/10" },

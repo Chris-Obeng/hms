@@ -41,8 +41,6 @@ const FEATURES: Feature[] = [
   { label: "Guest SMS/email (Arkesel)", starter: true,  growth: true,          professional: true },
   { label: "Housekeeping board",   starter: true,       growth: true,          professional: true },
   { label: "Reports & analytics",  starter: true,       growth: true,          professional: true },
-  { label: "OTA sync (Beds24)",    starter: false,      growth: true,          professional: true },
-  { label: "Booking.com integration", starter: false,   growth: true,          professional: true },
   { label: "Custom domain",        starter: false,      growth: false,         professional: true },
   { label: "Priority support",     starter: false,      growth: false,         professional: true },
 ];
@@ -176,7 +174,7 @@ export default async function BillingPage() {
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               {currentPlan === "starter"
-                ? "Unlock OTA sync with Booking.com, more rooms, and more staff accounts."
+                ? "Unlock more rooms, more staff accounts, and priority support."
                 : "Get a custom domain for your booking page and priority support."}
               {" "}Contact the HotelOS Pro team to upgrade — no online payment form, we handle it for you.
             </p>

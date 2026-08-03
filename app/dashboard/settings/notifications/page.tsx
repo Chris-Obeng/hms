@@ -20,7 +20,6 @@ const EVENT_TYPES = [
   { key: "new_booking", label: "New Booking", description: "When a new reservation is confirmed" },
   { key: "payment_received", label: "Payment Received", description: "When a payment is successfully processed" },
   { key: "booking_cancelled", label: "Booking Cancelled", description: "When a reservation is cancelled" },
-  { key: "ota_conflict", label: "OTA Sync Conflict", description: "When a Booking.com booking conflicts with a direct one" },
   { key: "check_in_reminder", label: "Check-In Reminder", description: "Day-before arrival reminder" },
   { key: "check_out_reminder", label: "Check-Out Reminder", description: "Morning-of departure reminder" },
   { key: "staff_access_request", label: "Staff Access Request", description: "When a staff member requests access" },

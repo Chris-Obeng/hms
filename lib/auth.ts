@@ -97,6 +97,9 @@ export async function requireAuth(): Promise<AuthContext> {
   ]);
 
   if (!hotelResult.data) {
+    if (hotelResult.error) {
+      throw new AuthError(`DB error fetching hotel: ${hotelResult.error.message}`, "HOTEL_NOT_FOUND");
+    }
     throw new AuthError("Hotel not found for this organization", "HOTEL_NOT_FOUND");
   }
 
@@ -166,6 +169,7 @@ export async function getHotelScope(): Promise<HotelScope> {
   ]);
 
   const hotel = hotelResult.data;
+  if (hotelResult.error) throw new Error(`DB error fetching hotel: ${hotelResult.error.message}`);
   if (!hotel) throw new Error("Hotel not found");
 
   return {

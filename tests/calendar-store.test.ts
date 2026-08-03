@@ -88,8 +88,8 @@ describe("toggles", () => {
     toggleStatusFilter("confirmed");
     toggleStatusFilter("pending");
     toggleStatusFilter("confirmed");
-    toggleSourceFilter("beds24");
-    toggleSourceFilter("beds24");
+    toggleSourceFilter("direct");
+    toggleSourceFilter("direct");
 
     const s = useCalendarStore.getState();
     expect(s.statusFilters).toEqual(["pending"]);
@@ -105,7 +105,7 @@ describe("clearFilters", () => {
       { id: "rt2", name: "Standard", visible: false },
     ]);
     state.setStatusFilters(["confirmed"]);
-    state.setSourceFilters(["beds24"]);
+    state.setSourceFilters(["direct"]);
     state.setSearchQuery("ama");
     state.setSelectedBookingId("b1");
 

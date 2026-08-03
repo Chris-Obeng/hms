@@ -465,16 +465,6 @@ export async function notifyStaffApproved(
   await safe(() => sendSMS(sender, [data.staffPhone!], msg), "staff-approved-sms");
 }
 
-export async function notifyOtaConflict(
-  config: HotelNotifyConfig,
-  data: { adminPhone: string | null | undefined; beds24BookingId: string; roomName: string; checkIn: string; checkOut: string }
-): Promise<void> {
-  if (!data.adminPhone) return;
-  const sender = senderName(config.hotelName);
-  const msg = `URGENT: OTA booking conflict at ${config.hotelName}! Beds24 booking ${data.beds24BookingId} for ${data.roomName} (${data.checkIn}→${data.checkOut}) conflicts with an existing direct booking. Login to resolve.`;
-  await safe(() => sendSMS(sender, [data.adminPhone!], msg), "ota-conflict-sms");
-}
-
 /** Test SMS — used from the integrations settings page */
 export async function sendTestSms(
   recipientPhone: string,

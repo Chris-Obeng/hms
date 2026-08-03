@@ -15,7 +15,6 @@ import {
   Menu,
   CalendarDays,
   DollarSign,
-  AlertTriangle,
   CalendarX,
 } from "lucide-react";
 import {
@@ -70,12 +69,6 @@ function NotifIcon({ type }: { type: string | null }) {
       return (
         <span className={cn(base, "bg-emerald-500/10 text-emerald-500")}>
           <DollarSign className="size-4" />
-        </span>
-      );
-    case "ota_conflict":
-      return (
-        <span className={cn(base, "bg-red-500/10 text-red-500")}>
-          <AlertTriangle className="size-4" />
         </span>
       );
     case "booking_cancelled":

@@ -22,7 +22,7 @@ import {
   CalendarX,
   DoorOpen,
 } from "lucide-react";
-import { format } from "date-fns";
+import { addDays, format } from "date-fns";
 import { toast } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
@@ -506,7 +506,7 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
                   onClick={() => {
                     setBlockRoomId(room.id);
                     setBlockStartDate(format(new Date(), "yyyy-MM-dd"));
-                    setBlockEndDate(format(new Date(Date.now() + 86400000), "yyyy-MM-dd"));
+                    setBlockEndDate(format(addDays(new Date(), 1), "yyyy-MM-dd"));
                     setBlockOpen(true);
                   }}
                 >
@@ -519,7 +519,7 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
         },
       },
     ],
-    []
+    [handleStatusChange]
   );
 
   const table = useReactTable({

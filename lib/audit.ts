@@ -27,7 +27,6 @@ export type AuditAction =
   // Settings
   | "hotel.settings_updated"
   | "hotel.paystack_configured"
-  | "hotel.beds24_configured"
   | "hotel.arkesel_configured"
   // Rooms
   | "room.block_created"
