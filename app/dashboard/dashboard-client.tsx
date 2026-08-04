@@ -17,7 +17,7 @@ import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer
 import { createClient } from "@/lib/supabase/client";
 import { writeAuditLog } from "@/lib/audit";
 import { qk } from "@/lib/query-keys";
-import { findOverlappingBookingIds, isStayoverOnDate, staysOnDate } from "@/lib/calendar-domain";
+import { findOverlappingBookingIds, isCheckedInStayoverOnDate, isInHouseOnDate } from "@/lib/calendar-domain";
 import { updateBookingStatus } from "@/app/actions/bookings";
 
 interface DashboardClientProps {
@@ -91,7 +91,9 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
         room_types(name)
       `)
       .eq("hotel_id", hotelId)
-      .eq("status", "checked_in"),
+      .eq("status", "checked_in")
+      .lte("check_in", dayStr)
+      .gte("check_out", dayStr),
     supabase
       .from("bookings")
       .select(`
@@ -202,8 +204,8 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
     if (!seen.has(b.id)) { uniqueBookings.push(b); seen.add(b.id); }
   }
 
-  const stayovers = (dateBookingsRes.data || []).filter((b: any) => isStayoverOnDate({ id: b.id, roomId: b.room_id, checkIn: b.check_in, checkOut: b.check_out }, dayStr)).length;
-  const inHouse = (dateBookingsRes.data || []).filter((b: any) => staysOnDate({ id: b.id, roomId: b.room_id, checkIn: b.check_in, checkOut: b.check_out }, dayStr)).length;
+  const stayovers = (dateBookingsRes.data || []).filter((b: any) => isCheckedInStayoverOnDate({ id: b.id, roomId: b.room_id, checkIn: b.check_in, checkOut: b.check_out, status: b.status }, dayStr)).length;
+  const inHouse = inHouseList.length;
   const conflictIds = findOverlappingBookingIds((dateBookingsRes.data || []).map((b: any) => ({ id: b.id, roomId: b.room_id, checkIn: b.check_in, checkOut: b.check_out })));
   for (const booking of uniqueBookings) booking.hasConflict = conflictIds.has(booking.id);
   const overbookings = conflictIds.size;
@@ -541,9 +543,9 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
             ["confirmed", "checked_in", "checked_out"].includes(b.status)
         );
       case "in_house":
-        return data.bookings.filter((b: any) => staysOnDate({ id: b.id, roomId: null, checkIn: b.checkIn, checkOut: b.checkOut }, dateParamStr));
+        return data.bookings.filter((b: any) => isInHouseOnDate({ id: b.id, roomId: null, checkIn: b.checkIn, checkOut: b.checkOut, status: b.status }, dateParamStr));
       case "stayovers":
-        return data.bookings.filter((b: any) => isStayoverOnDate({ id: b.id, roomId: null, checkIn: b.checkIn, checkOut: b.checkOut }, dateParamStr));
+        return data.bookings.filter((b: any) => isCheckedInStayoverOnDate({ id: b.id, roomId: null, checkIn: b.checkIn, checkOut: b.checkOut, status: b.status }, dateParamStr));
       case "bookings":
         return data.bookings.filter((b: any) => b.createdAt?.slice(0, 10) === dateParamStr);
       case "cancellations":

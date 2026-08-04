@@ -18,24 +18,23 @@ describe("getTemplate", () => {
 
   it("shallow-merges hotel overrides over the defaults", () => {
     const templates: NotificationTemplatesMap = {
-      booking_confirmed: { sms_enabled: false, sms_template: "Custom {{reference}}" },
+      booking_confirmed: { email_enabled: false, email_subject: "Custom {{reference}}" },
     };
     const merged = getTemplate(templates, "booking_confirmed");
 
-    expect(merged.sms_enabled).toBe(false);
-    expect(merged.sms_template).toBe("Custom {{reference}}");
+    expect(merged.email_enabled).toBe(false);
+    expect(merged.email_subject).toBe("Custom {{reference}}");
     expect(merged.email_template).toBe(DEFAULT_TEMPLATES.booking_confirmed.email_template);
-    expect(merged.email_subject).toBe(DEFAULT_TEMPLATES.booking_confirmed.email_subject);
   });
 
   it("does not mutate the defaults when merging", () => {
-    const before = { ...DEFAULT_TEMPLATES.check_in_reminder };
-    getTemplate({ check_in_reminder: { sms_template: "x" } }, "check_in_reminder");
-    expect(DEFAULT_TEMPLATES.check_in_reminder).toEqual(before);
+    const before = { ...DEFAULT_TEMPLATES.payment_received };
+    getTemplate({ payment_received: { email_subject: "x" } }, "payment_received");
+    expect(DEFAULT_TEMPLATES.payment_received).toEqual(before);
   });
 
   it("only applies overrides for the requested event type", () => {
-    const merged = getTemplate({ booking_cancelled: { sms_enabled: false } }, "booking_confirmed");
+    const merged = getTemplate({ booking_cancelled: { email_enabled: false } }, "booking_confirmed");
     expect(merged).toBe(DEFAULT_TEMPLATES.booking_confirmed);
   });
 });
@@ -103,13 +102,15 @@ describe("renderTemplate", () => {
     expect(renderTemplate("  {{hotel_phone}}Done{{hotel_address}}  ", {})).toBe("Done");
   });
 
-  it("renders the default booking_confirmed SMS template end to end", () => {
-    const out = renderTemplate(DEFAULT_TEMPLATES.booking_confirmed.sms_template, {
+  it("renders the default booking confirmation email template end to end", () => {
+    const out = renderTemplate(DEFAULT_TEMPLATES.booking_confirmed.email_template, {
+      guest_name: "Ama",
       reference: "BK-9",
       room_name: "Suite",
       hotel_name: "Sunset Inn",
       check_in: "2026-02-01",
       check_out: "2026-02-04",
+      nights: 3,
       currency: "GHS",
       total_amount: "1200",
     });

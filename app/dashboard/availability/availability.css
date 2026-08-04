@@ -26,6 +26,10 @@
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
+.availability-summary{display:flex;align-items:stretch;overflow-x:auto;border-block:1px solid var(--av-border);background:color-mix(in oklch,var(--muted) 18%,transparent)}
+.availability-summary-item{min-width:150px;flex:1;padding:12px 18px;border-right:1px solid var(--av-border)}
+.availability-summary-item:last-child{border-right:0}.availability-summary-item p{font-size:10px;font-weight:650;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}.availability-summary-item strong{display:block;margin-top:2px;font-size:20px;line-height:1.1;font-variant-numeric:tabular-nums}
+
 .availability-grid-row {
   display: grid;
   min-width: max-content;
@@ -39,7 +43,7 @@
 .availability-sticky-cell {
   position: sticky;
   left: 0;
-  z-index: 5;
+  z-index: 20;
   display: grid;
   min-height: 72px;
   align-content: center;
@@ -68,12 +72,12 @@
 .availability-date-header {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 25;
   border-bottom: 1px solid var(--av-border);
 }
 
 .availability-corner {
-  z-index: 15;
+  z-index: 40;
   min-height: 64px;
   background: var(--av-header-bg);
   color: var(--muted-foreground);

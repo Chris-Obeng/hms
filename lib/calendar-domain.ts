@@ -22,12 +22,24 @@ export type RoomStay = {
   checkOut: string;
 };
 
+export type BookingStay = RoomStay & {
+  status: string | null;
+};
+
 export function staysOnDate(stay: RoomStay, date: string): boolean {
   return stay.checkIn <= date && date < stay.checkOut;
 }
 
 export function isStayoverOnDate(stay: RoomStay, date: string): boolean {
   return stay.checkIn < date && date < stay.checkOut;
+}
+
+export function isInHouseOnDate(booking: BookingStay, date: string): boolean {
+  return booking.status === "checked_in" && booking.checkIn <= date && date <= booking.checkOut;
+}
+
+export function isCheckedInStayoverOnDate(booking: BookingStay, date: string): boolean {
+  return booking.status === "checked_in" && isStayoverOnDate(booking, date);
 }
 
 export function findOverlappingBookingIds(stays: RoomStay[]): Set<string> {

@@ -3,7 +3,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/preserve-manual-memoization */
 
 import * as React from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { addDays, format, parseISO, subDays } from "date-fns";
 import {
@@ -44,6 +43,7 @@ import {
   checkRoomAvailability,
   getCalendarData,
   moveBooking,
+  unassignBooking,
   type CalendarData,
 } from "./actions";
 import { buildEvents, type CalendarEvent } from "./_components/calendar-events";
@@ -59,15 +59,8 @@ import { BookingDetailPanel } from "./_components/booking-detail-panel";
 import { BlockRoomSheet } from "./_components/block-room-sheet";
 import { UnassignedTray } from "./_components/unassigned-tray";
 import { MobileAgenda } from "./_components/mobile-agenda";
+import { TimelineCalendar } from "./_components/timeline/timeline-calendar";
 import "./calendar.css";
-
-const DayPilotScheduler = dynamic(
-  () =>
-    import("@daypilot/daypilot-lite-react").then(
-      (mod) => mod.DayPilotScheduler,
-    ),
-  { ssr: false },
-) as React.ComponentType<any>;
 
 interface CalendarClientProps {
   initialData: CalendarData;
@@ -129,7 +122,6 @@ function CalendarClientContent({
 }: CalendarClientProps) {
   const queryClient = useQueryClient();
   const { orgId } = useAuth();
-  const schedulerRef = React.useRef<any>(null);
 
   const [startDate, setStartDate] = React.useState(() => new Date());
   const [viewPreset, setViewPreset] = React.useState<ViewPreset>("2 Wks");
@@ -423,20 +415,9 @@ function CalendarClientContent({
     return () => document.removeEventListener("click", close);
   }, []);
 
-  // DayPilot doesn't auto-detect flex container size on first mount.
-  // Calling update() after layout resolves forces grid cell recalculation,
-  // fixing the blank right-panel issue when rendered inside overflow:hidden flex containers.
-  React.useEffect(() => {
-    const timer = window.setTimeout(() => {
-      schedulerRef.current?.control?.update();
-    }, 50);
-    return () => window.clearTimeout(timer);
-  }, []);
-
   const goToPrev = React.useCallback(() => {
     setStartDate((previous) => {
       const next = subDays(previous, days);
-      schedulerRef.current?.control?.scrollTo(format(next, "yyyy-MM-dd"));
       return next;
     });
   }, [days]);
@@ -444,14 +425,12 @@ function CalendarClientContent({
   const goToNext = React.useCallback(() => {
     setStartDate((previous) => {
       const next = addDays(previous, days);
-      schedulerRef.current?.control?.scrollTo(format(next, "yyyy-MM-dd"));
       return next;
     });
   }, [days]);
   const goToToday = React.useCallback(() => {
     const today = new Date();
     setStartDate(today);
-    schedulerRef.current?.control?.scrollTo(format(today, "yyyy-MM-dd"));
   }, []);
 
   const clearFilters = React.useCallback(() => {
@@ -985,6 +964,28 @@ function CalendarClientContent({
     [schedulerConfig],
   );
 
+  const handleTimelineChange = React.useCallback(async (booking: CalendarData["bookings"][number], roomId: string | null, checkIn: string, checkOut: string) => {
+    if (!canEdit) { toast.danger("No permission to update bookings"); return; }
+    const queryKey = qk.calendar(orgId || "", hotelId, dateStr, days);
+    const snapshot = queryClient.getQueryData<CalendarData>(queryKey);
+    const room = rooms.find(item => item.id === roomId);
+    if (snapshot) queryClient.setQueryData<CalendarData>(queryKey, { ...snapshot, bookings: snapshot.bookings.map(item => item.id === booking.id ? { ...item, roomId, roomNumber: room?.roomNumber ?? null, checkIn, checkOut, nights: Math.max(1, Math.round((parseISO(checkOut).getTime() - parseISO(checkIn).getTime()) / 86_400_000)) } : item) });
+    try {
+      const result = roomId ? await moveBooking(booking.id, { roomId, checkIn, checkOut }) : await unassignBooking(booking.id);
+      if (!result.success) throw new Error(result.error);
+      toast.success(roomId ? "Booking updated" : "Booking unassigned");
+    } catch (error) {
+      if (snapshot) queryClient.setQueryData(queryKey, snapshot);
+      toast.danger(error instanceof Error ? error.message : "Booking update failed");
+    }
+  }, [canEdit, dateStr, days, hotelId, orgId, queryClient, rooms]);
+
+  React.useEffect(() => {
+    const report = (event: Event) => toast.danger((event as CustomEvent<string>).detail);
+    window.addEventListener("roomline-calendar-error", report);
+    return () => window.removeEventListener("roomline-calendar-error", report);
+  }, []);
+
   const activeFilterCount =
     hiddenTypeCount +
     statusFilters.length +
@@ -1280,29 +1281,7 @@ function CalendarClientContent({
         )}
 
         {resources.length > 0 ? (
-          <DayPilotScheduler
-            {...schedulerConfig}
-            ref={schedulerRef}
-            resources={resources}
-            events={filteredEvents}
-            onEventClick={handleEventClick}
-            onTimeRangeSelected={handleTimeRangeSelected}
-            onEventMoved={(args: any) => handleMoveOrResize(args, "move")}
-            onEventResized={(args: any) => handleMoveOrResize(args, "resize")}
-            onEventRightClick={(args: any) => {
-              args.preventDefault();
-              const event = args.e.data as CalendarEvent;
-              if (event?.bookingId && !event.isBlock) {
-                setContextMenu({
-                  x: args.div.getBoundingClientRect().left,
-                  y: args.div.getBoundingClientRect().bottom + window.scrollY,
-                  event,
-                });
-              }
-            }}
-            onEventMouseEnter={handleEventHover}
-            onEventMouseLeave={handleEventHoverEnd}
-          />
+          <TimelineCalendar startDate={startDate} days={days} rooms={filteredRooms} bookings={bookings.filter(b => (!b.roomId || filteredRooms.some(r => r.id === b.roomId)) && (!statusFilters.length || statusFilters.includes(b.status)) && (!sourceFilters.length || sourceFilters.includes(b.source ?? "")) && (!searchQuery.trim() || `${b.guestName} ${b.reference} ${b.roomNumber}`.toLowerCase().includes(searchQuery.toLowerCase())))} blocks={availabilityBlocks} canEdit={canEdit} onOpenBooking={openBooking} onChange={handleTimelineChange} onCreate={(room, date) => { setNewBookingPrefill({ roomId: room.id, roomTypeId: room.roomTypeId, checkIn: parseISO(date), checkOut: addDays(parseISO(date), 1) }); setNewBookingOpen(true); }} />
         ) : (
           <div className="flex flex-col items-center justify-center h-[500px] text-center px-6">
             <div className="mb-6 relative">
@@ -1418,7 +1397,7 @@ function CalendarClientContent({
 
         {mobileView === "timeline" ? (
           <div className="mobile-scheduler flex-1 overflow-hidden">
-            <DayPilotScheduler {...mobileSchedulerConfig} resources={resources} events={filteredEvents} onEventClick={handleEventClick} onTimeRangeSelected={handleTimeRangeSelected} onEventMoved={(args: any) => handleMoveOrResize(args, "move")} onEventResized={(args: any) => handleMoveOrResize(args, "resize")} />
+            <TimelineCalendar startDate={startDate} days={7} rooms={filteredRooms} bookings={bookings} blocks={availabilityBlocks} canEdit={canEdit} onOpenBooking={openBooking} onChange={handleTimelineChange} onCreate={(room, date) => { setNewBookingPrefill({ roomId: room.id, roomTypeId: room.roomTypeId, checkIn: parseISO(date), checkOut: addDays(parseISO(date), 1) }); setNewBookingOpen(true); }} />
           </div>
         ) : (
           <div className="min-h-0 flex-1">

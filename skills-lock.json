@@ -199,6 +199,12 @@
       "skillPath": "skills/paystack-transfers/SKILL.md",
       "computedHash": "df23f56e95c02314a0ec868b2bb0edbfbff518533779224f7257f88a3625394b"
     },
+    "powersync": {
+      "source": "powersync-ja/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/powersync/SKILL.md",
+      "computedHash": "65ea27ee9b920392119892e8c2d5cf23e5546aa64c8d2a8bbb792110dc1f0cc0"
+    },
     "redesign-existing-projects": {
       "source": "Leonxlnx/taste-skill",
       "sourceType": "github",

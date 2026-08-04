@@ -39,7 +39,6 @@ export default async function PricingPage() {
     <PricingClient
       hotelId={hotelId}
       orgId={orgId}
-      userId={userId}
       currency={hotel.currency || "GHS"}
       roomTypes={roomTypes || []}
     />

@@ -132,11 +132,11 @@ export async function getDashboardData(dateStr?: string): Promise<DashboardData>
     .from("bookings")
     .select("id, check_in, check_out")
     .eq("hotel_id", hotelId)
-    .eq("status", "checked_in");
+    .eq("status", "checked_in")
+    .lt("check_in", dayStr)
+    .gt("check_out", dayStr);
 
-  const stayovers = (allCheckedIn || []).filter(
-    (b) => b.check_in !== dayStr && b.check_out !== dayStr
-  ).length;
+  const stayovers = allCheckedIn?.length || 0;
 
   // New bookings today
   const { count: newBookings } = await supabase

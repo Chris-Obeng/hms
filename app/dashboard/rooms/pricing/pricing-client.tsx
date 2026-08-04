@@ -1,8 +1,21 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "@heroui/react";
+import {
+  Alert,
+  Button as HeroButton,
+  Card as HeroCard,
+  DateField,
+  DateRangePicker,
+  Input as HeroInput,
+  Label,
+  RangeCalendar,
+  Surface,
+  Tabs as HeroTabs,
+  toast,
+} from "@heroui/react";
+import { parseDate as parseCalendarDate } from "@internationalized/date";
 import {
   CalendarDays,
   Calendar as CalendarIcon,
@@ -12,19 +25,12 @@ import {
   Copy,
   ChevronLeft,
   ChevronRight,
-  RefreshCw,
-  Sliders,
-  DollarSign,
   Tag,
   AlertTriangle,
   Info,
-  Check,
-  CheckCircle2,
   SlidersHorizontal,
-  X,
-  Keyboard,
 } from "lucide-react";
-import { format, addDays, subDays, parseISO, isSameDay } from "date-fns";
+import { format, addDays, subDays, parseISO } from "date-fns";
 
 import { qk } from "@/lib/query-keys";
 import { createClient } from "@/lib/supabase/client";
@@ -36,7 +42,6 @@ import { usePricingStore, SelectedCell } from "@/lib/store/pricing-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -65,7 +70,6 @@ import {
 interface PricingClientProps {
   hotelId: string;
   orgId: string;
-  userId: string;
   currency: string;
   roomTypes: {
     id: string;
@@ -81,7 +85,7 @@ function isWeekend(dateStr: string): boolean {
   return day === 5 || day === 6; // 5 is Friday, 6 is Saturday
 }
 
-export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: PricingClientProps) {
+export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingClientProps) {
   const queryClient = useQueryClient();
 
   // Connect state to Zustand store
@@ -116,11 +120,8 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
   // Single/Bulk daily price edit state
   const [bulkPriceInput, setBulkPriceInput] = useState("");
   const [singlePriceInput, setSinglePriceInput] = useState("");
-  const [isBulkEditing, setIsBulkEditing] = useState(false);
 
   // Popover open states for date pickers
-  const [startPopoverOpen, setStartPopoverOpen] = useState(false);
-  const [endPopoverOpen, setEndPopoverOpen] = useState(false);
   const [rangePopoverOpen, setRangePopoverOpen] = useState(false);
 
   // Generate date columns dynamically based on the current range
@@ -165,7 +166,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
   };
 
   const handleDateReset = () => {
-    handleSetWindow(90);
+    handleSetWindow(30);
   };
 
   // ── Queries ────────────────────────────────────────────────────────
@@ -470,7 +471,6 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
     },
     onSuccess: () => {
       toast.success(`Updated prices for ${selectedCells.length} date(s)`);
-      setIsBulkEditing(false);
       setBulkPriceInput("");
       clearSelection();
       queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), startDateStr, endDateStr) });
@@ -544,7 +544,15 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
       const newSelection = getCellRange(first.roomTypeId, first.date, roomTypeId, date);
       setSelectedCells(newSelection);
       setEditingCell(null);
+      return;
     }
+
+    setSelectedCells([{ roomTypeId, date }]);
+    const cellData = resolvedRateMap.get(`${roomTypeId}_${date}`);
+    const price = cellData ? String(cellData.price) : "";
+    setSinglePriceInput(price);
+    setBulkPriceInput(price);
+    setEditingCell(null);
   };
 
   // Bounding box range calculation (spreadsheet selection)
@@ -606,16 +614,18 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
     }
   };
 
-  const handleCellMouseUp = (roomTypeId: string, date: string, e: React.MouseEvent) => {
+  const handleCellMouseUp = (roomTypeId: string, date: string) => {
     if (!dragStartCell) return;
 
     const isSingleClick = dragStartCell.roomTypeId === roomTypeId && dragStartCell.date === date;
     if (isSingleClick) {
-      // Establish single selection and open popup
+      // Establish single selection. Persistent editor handles price changes.
       setSelectedCells([{ roomTypeId, date }]);
       const cellData = resolvedRateMap.get(`${roomTypeId}_${date}`);
-      setSinglePriceInput(cellData ? String(cellData.price) : "");
-      setEditingCell({ roomTypeId, date });
+      const price = cellData ? String(cellData.price) : "";
+      setSinglePriceInput(price);
+      setBulkPriceInput(price);
+      setEditingCell(null);
     } else {
       // Range drag finished
       setEditingCell(null);
@@ -721,17 +731,16 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
 
   // ── Render ─────────────────────────────────────────────────────────
 
-  const isCalendarView = activeTab === "calendar";
-
   return (
     <TooltipProvider>
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* ── Page Header ─────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <header className="flex flex-col gap-4 border-b border-border/60 pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Room Rates & Pricing</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manually manage seasonal price policies and set daily overrides for room types.
+          <p className="mb-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Revenue controls</p>
+          <h1 className="text-2xl font-semibold tracking-[-0.03em] text-foreground sm:text-3xl">Rates</h1>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Set daily room prices, review demand, and maintain seasonal rate periods.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -744,10 +753,10 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
               }
             }}>
               <DialogTrigger render={
-                <Button className="font-semibold shadow-sm hover:shadow transition-all bg-primary hover:bg-primary/95 text-primary-foreground">
+                <HeroButton size="sm" variant="primary">
                   <Plus className="size-4 mr-1.5" />
                   New Season
-                </Button>
+                </HeroButton>
               } />
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
@@ -770,63 +779,71 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Start Date</label>
-                      <Popover open={startPopoverOpen} onOpenChange={setStartPopoverOpen}>
-                        <PopoverTrigger render={
-                          <Button variant="outline" className="w-full justify-start text-left font-normal border-input/60 hover:bg-accent/40">
-                            <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                            {seasonStart ? format(seasonStart, "yyyy-MM-dd") : <span className="text-muted-foreground text-sm">Select date</span>}
-                          </Button>
-                        } />
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={seasonStart}
-                            onSelect={(d) => {
-                              setSeasonStart(d);
-                              setTimeout(() => setStartPopoverOpen(false), 0);
-                            }}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">End Date</label>
-                      <Popover open={endPopoverOpen} onOpenChange={setEndPopoverOpen}>
-                        <PopoverTrigger render={
-                          <Button variant="outline" className="w-full justify-start text-left font-normal border-input/60 hover:bg-accent/40">
-                            <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                            {seasonEnd ? format(seasonEnd, "yyyy-MM-dd") : <span className="text-muted-foreground text-sm">Select date</span>}
-                          </Button>
-                        } />
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={seasonEnd}
-                            onSelect={(d) => {
-                              setSeasonEnd(d);
-                              setTimeout(() => setEndPopoverOpen(false), 0);
-                            }}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
+                  <DateRangePicker
+                    value={seasonStart && seasonEnd ? {
+                      start: parseCalendarDate(format(seasonStart, "yyyy-MM-dd")),
+                      end: parseCalendarDate(format(seasonEnd, "yyyy-MM-dd")),
+                    } : null}
+                    onChange={(range) => {
+                      setSeasonStart(range ? new Date(`${range.start.toString()}T12:00:00`) : undefined);
+                      setSeasonEnd(range ? new Date(`${range.end.toString()}T12:00:00`) : undefined);
+                    }}
+                    className="w-full gap-2"
+                  >
+                    <Label className="text-xs font-medium text-muted-foreground">Season dates</Label>
+                    <DateField.Group fullWidth variant="secondary" className="rounded-lg border border-border/70 shadow-none">
+                      <DateField.InputContainer>
+                        <DateField.Input slot="start">
+                          {(segment) => <DateField.Segment segment={segment} />}
+                        </DateField.Input>
+                        <DateRangePicker.RangeSeparator className="px-2 text-muted-foreground" />
+                        <DateField.Input slot="end">
+                          {(segment) => <DateField.Segment segment={segment} />}
+                        </DateField.Input>
+                      </DateField.InputContainer>
+                      <DateField.Suffix>
+                        <DateRangePicker.Trigger>
+                          <DateRangePicker.TriggerIndicator />
+                        </DateRangePicker.Trigger>
+                      </DateField.Suffix>
+                    </DateField.Group>
+                    <DateRangePicker.Popover className="rounded-xl border border-border p-2 shadow-lg">
+                      <RangeCalendar aria-label="Season date range" visibleDuration={{ months: 2 }}>
+                        <RangeCalendar.Header>
+                          <RangeCalendar.YearPickerTrigger>
+                            <RangeCalendar.YearPickerTriggerHeading />
+                            <RangeCalendar.YearPickerTriggerIndicator />
+                          </RangeCalendar.YearPickerTrigger>
+                          <RangeCalendar.NavButton slot="previous" />
+                          <RangeCalendar.NavButton slot="next" />
+                        </RangeCalendar.Header>
+                        <div className="flex gap-4">
+                          {[0, 1].map((monthOffset) => (
+                            <RangeCalendar.Grid key={monthOffset} offset={{ months: monthOffset }}>
+                              <RangeCalendar.GridHeader>
+                                {(day) => <RangeCalendar.HeaderCell>{day}</RangeCalendar.HeaderCell>}
+                              </RangeCalendar.GridHeader>
+                              <RangeCalendar.GridBody>
+                                {(date) => <RangeCalendar.Cell date={date} />}
+                              </RangeCalendar.GridBody>
+                            </RangeCalendar.Grid>
+                          ))}
+                        </div>
+                      </RangeCalendar>
+                    </DateRangePicker.Popover>
+                  </DateRangePicker>
 
                   {/* Overlaps warning */}
                   {clientOverlapSeason && (
-                    <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-lg p-3 space-y-1">
-                      <div className="flex items-center gap-1.5 font-bold text-sm">
-                        <AlertTriangle className="size-4" />
-                        <span>Date Overlap Warning</span>
-                      </div>
-                      <p className="text-xs leading-normal">
-                        This range overlaps with the season: <strong>{clientOverlapSeason.name}</strong> ({clientOverlapSeason.start_date} to {clientOverlapSeason.end_date}). Overlapping ranges are blocked at submit.
-                      </p>
-                    </div>
+                    <Alert status="danger" className="rounded-lg border border-danger/20 shadow-none">
+                      <Alert.Indicator />
+                      <Alert.Content>
+                        <Alert.Title>Date range overlaps</Alert.Title>
+                        <Alert.Description>
+                          {clientOverlapSeason.name} runs from {clientOverlapSeason.start_date} to {clientOverlapSeason.end_date}. Choose non-overlapping dates.
+                        </Alert.Description>
+                      </Alert.Content>
+                    </Alert>
                   )}
                 </div>
 
@@ -853,30 +870,34 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
             </Dialog>
           )}
         </div>
-      </div>
+      </header>
 
       {/* ── Main Tabs ───────────────────────────────────────────── */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-        <TabsList className="bg-muted/50 p-1 border border-border/40 grid grid-cols-2 max-w-[400px]">
-          <TabsTrigger value="calendar" className="font-semibold text-sm py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+      <HeroTabs selectedKey={activeTab} onSelectionChange={(key) => setActiveTab(String(key) as "calendar" | "seasons")} variant="secondary" className="w-full">
+        <HeroTabs.ListContainer className="w-fit max-w-full">
+          <HeroTabs.List aria-label="Pricing views" className="w-fit gap-6 *:h-9 *:w-fit *:px-0 *:text-sm *:font-medium">
+          <HeroTabs.Tab id="calendar">
             <CalendarDays className="size-4 mr-2" />
             Rate Calendar
-          </TabsTrigger>
-          <TabsTrigger value="seasons" className="font-semibold text-sm py-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+            <HeroTabs.Indicator />
+          </HeroTabs.Tab>
+          <HeroTabs.Tab id="seasons">
             <Tag className="size-4 mr-2" />
-            Seasonal Rates
-          </TabsTrigger>
-        </TabsList>
+            Seasons
+            <HeroTabs.Indicator />
+          </HeroTabs.Tab>
+          </HeroTabs.List>
+        </HeroTabs.ListContainer>
 
         {/* ── Tab Content: Rate Calendar ────────────────────────────── */}
-        <TabsContent value="calendar" className="mt-4 space-y-4">
+        <HeroTabs.Panel id="calendar" className="mt-4 space-y-4 px-0">
           
           {/* Controls Bar */}
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-card p-4 rounded-xl border border-border/50 shadow-sm">
+          <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="icon" onClick={handlePrevWindow} className="border-input/60 hover:bg-accent/40">
+              <HeroButton variant="ghost" size="sm" isIconOnly aria-label="Previous date range" onPress={handlePrevWindow}>
                 <ChevronLeft className="size-4" />
-              </Button>
+              </HeroButton>
               
               <Popover open={rangePopoverOpen} onOpenChange={setRangePopoverOpen}>
                 <PopoverTrigger render={
@@ -902,34 +923,31 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                 </PopoverContent>
               </Popover>
 
-              <Button variant="outline" size="icon" onClick={handleNextWindow} className="border-input/60 hover:bg-accent/40">
+              <HeroButton variant="ghost" size="sm" isIconOnly aria-label="Next date range" onPress={handleNextWindow}>
                 <ChevronRight className="size-4" />
-              </Button>
+              </HeroButton>
 
               {/* Quick-range buttons — industry standard: 30 / 60 / 90 */}
               <div className="flex items-center gap-1 ml-1 border-l border-border/60 pl-3">
                 {([30, 60, 90] as const).map((d) => (
-                  <Button
+                  <HeroButton
                     key={d}
-                    variant="outline"
+                    variant={windowDays === d ? "secondary" : "ghost"}
                     size="sm"
-                    onClick={() => handleSetWindow(d)}
-                    className={cn(
-                      "h-8 px-2.5 text-xs font-semibold border-input/60 hover:bg-accent/40",
-                      windowDays === d && "bg-primary/10 text-primary border-primary/30"
-                    )}
+                    onPress={() => handleSetWindow(d)}
+                    className="min-w-10 text-xs"
                   >
                     {d}d
-                  </Button>
+                  </HeroButton>
                 ))}
-                <Button variant="outline" onClick={handleDateReset} className="font-medium border-input/60 hover:bg-accent/40 text-xs py-1 h-8 ml-1">
+                <HeroButton variant="ghost" size="sm" onPress={handleDateReset} className="ml-1 text-xs">
                   Today
-                </Button>
+                </HeroButton>
               </div>
             </div>
 
             {/* Legend & Quick Actions */}
-            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground select-none">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground select-none">
               <div className="flex items-center gap-2">
                 <span className="inline-block size-3 rounded bg-muted border border-border/80" />
                 <span>Base Rate</span>
@@ -950,53 +968,59 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                 </span>
                 <span className="text-violet-700 dark:text-violet-400 font-semibold">Daily Override</span>
               </div>
-              <div className="flex items-center gap-1.5 pl-2 border-l border-border/60">
-                <Keyboard className="size-3.5 text-muted-foreground/60" />
-                <span className="text-[10px] text-muted-foreground/60">Arrow keys + Tab to navigate grid</span>
-              </div>
             </div>
           </div>
 
-          {/* Bulk Selection Toolbar */}
-          {selectedCells.length > 1 && (
-            <div className="flex items-center justify-between bg-violet-500/10 border border-violet-500/20 p-3.5 rounded-xl text-foreground text-sm shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-200">
-              <div className="flex items-center gap-2 font-medium text-violet-700 dark:text-violet-300">
-                <SlidersHorizontal className="size-4" />
-                <span>{selectedCells.length} cells selected</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {isBulkEditing ? (
-                  <div className="flex items-center gap-2 bg-background border border-violet-500/30 p-1 rounded-lg">
-                    <Input
-                      type="number"
-                      placeholder={`Price (${currency})`}
-                      value={bulkPriceInput}
-                      onChange={(e) => setBulkPriceInput(e.target.value)}
-                      className="h-8 w-28 border-0 focus-visible:ring-0 text-sm"
-                      autoFocus
-                    />
-                    <Button size="sm" onClick={handleSaveBulkOverride} disabled={bulkSaveDailyOverridesMutation.isPending} className="bg-violet-600 hover:bg-violet-700 text-white font-medium h-7 px-2">
-                      {bulkSaveDailyOverridesMutation.isPending ? "..." : <Check className="size-3.5" />}
-                    </Button>
-                    <Button size="icon" variant="ghost" onClick={() => setIsBulkEditing(false)} className="h-7 w-7 text-muted-foreground hover:bg-accent/40">
-                      <X className="size-3.5" />
-                    </Button>
+          <Surface variant="secondary" className="rounded-lg border border-border/70 p-3 shadow-none">
+            {selectedCells.length === 0 ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-foreground text-background">
+                    <SlidersHorizontal className="size-4" />
                   </div>
-                ) : (
-                  <Button size="sm" onClick={() => setIsBulkEditing(true)} className="bg-violet-600 hover:bg-violet-700 text-white font-medium text-xs">
-                    Bulk Override
-                  </Button>
-                )}
-
-                <Button size="sm" variant="outline" onClick={() => bulkClearDailyOverridesMutation.mutate()} disabled={bulkClearDailyOverridesMutation.isPending} className="border-violet-500/30 text-violet-700 dark:text-violet-300 hover:bg-violet-500/10 text-xs">
-                  {bulkClearDailyOverridesMutation.isPending ? "Clearing..." : "Clear Overrides"}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={clearSelection} className="text-muted-foreground hover:bg-accent/40 text-xs">
-                  Cancel
-                </Button>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Change a daily rate</p>
+                    <p className="text-xs leading-5 text-muted-foreground">Select one cell, or drag across dates and room types. Then enter one price and apply it.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                  <span className="rounded border border-border bg-background px-2 py-1">1. Select</span>
+                  <span>→</span>
+                  <span className="rounded border border-border bg-background px-2 py-1">2. Enter price</span>
+                  <span>→</span>
+                  <span className="rounded border border-border bg-background px-2 py-1">3. Apply</span>
+                </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">{selectedCells.length} rate {selectedCells.length === 1 ? "selected" : "cells selected"}</p>
+                  <p className="text-xs text-muted-foreground">New price replaces daily rate for selected date{selectedCells.length === 1 ? "" : "s"}.</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <HeroInput
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    aria-label={`New price in ${currency}`}
+                    placeholder={`Price (${currency})`}
+                    value={bulkPriceInput}
+                    onChange={(event) => setBulkPriceInput(event.target.value)}
+                    onKeyDown={(event) => { if (event.key === "Enter") handleSaveBulkOverride(); }}
+                    variant="secondary"
+                    className="w-36"
+                  />
+                  <HeroButton variant="primary" size="sm" isPending={bulkSaveDailyOverridesMutation.isPending} onPress={handleSaveBulkOverride}>
+                    Apply price
+                  </HeroButton>
+                  <HeroButton variant="outline" size="sm" isPending={bulkClearDailyOverridesMutation.isPending} onPress={() => bulkClearDailyOverridesMutation.mutate()}>
+                    Clear override
+                  </HeroButton>
+                  <HeroButton variant="ghost" size="sm" onPress={clearSelection}>Cancel</HeroButton>
+                </div>
+              </div>
+            )}
+          </Surface>
 
           {/* ── Mobile/Tablet View (Date Scroller & Room type List) ── */}
           <div className="block lg:hidden">
@@ -1171,7 +1195,7 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                               onKeyDown={(e) => handleKeyDown(e, rt.id, dateStr)}
                               onMouseDown={(e) => handleCellMouseDown(rt.id, dateStr, e)}
                               onMouseEnter={() => handleCellMouseEnter(rt.id, dateStr)}
-                              onMouseUp={(e) => handleCellMouseUp(rt.id, dateStr, e)}
+                              onMouseUp={() => handleCellMouseUp(rt.id, dateStr)}
                               onClick={(e) => handleCellClick(rt.id, dateStr, e)}
                               className={cn(
                                 "relative px-3 py-3.5 text-center align-middle border-r border-border/40 cursor-pointer select-none transition-all focus:outline-none focus:ring-1 focus:ring-primary/80",
@@ -1282,27 +1306,33 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
               </div>
             )}
           </div>
-        </TabsContent>
+        </HeroTabs.Panel>
 
         {/* ── Tab Content: Seasonal Rates ──────────────────────────── */}
-        <TabsContent value="seasons" className="mt-4">
-          <div className="bg-card rounded-xl border border-border/50 shadow-sm p-4">
+        <HeroTabs.Panel id="seasons" className="mt-4 px-0">
+          <div className="rounded-lg border border-border/60 bg-card p-4">
             {loadingSeasons ? (
               <div className="space-y-4">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-32 w-full" />
               </div>
             ) : seasons.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 text-center bg-card rounded-2xl">
-                <Tag className="size-10 text-muted-foreground/30 mb-3" />
-                <span className="font-bold text-lg text-foreground">No pricing seasons configured</span>
-                <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                  Create seasonal rate periods to automatically apply specific base and weekend rates to room types.
-                </p>
-                <Button onClick={() => setNewSeasonOpen(true)} className="mt-4 bg-primary text-primary-foreground font-semibold">
-                  Create First Season
-                </Button>
-              </div>
+              <HeroCard className="mx-auto max-w-xl border-border/60 bg-background p-6 text-center shadow-none sm:p-8">
+                <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-muted">
+                  <Tag className="size-5 text-muted-foreground" />
+                </div>
+                <HeroCard.Header className="items-center gap-1.5">
+                  <HeroCard.Title className="text-base font-semibold">No pricing seasons yet</HeroCard.Title>
+                  <HeroCard.Description className="max-w-md text-sm leading-6">
+                    Set rates for a date period, such as holidays or peak months. Daily overrides remain in control.
+                  </HeroCard.Description>
+                </HeroCard.Header>
+                <HeroCard.Footer className="justify-center">
+                  <HeroButton variant="primary" onPress={() => setNewSeasonOpen(true)}>
+                    Create season
+                  </HeroButton>
+                </HeroCard.Footer>
+              </HeroCard>
             ) : (
               <div className="space-y-5">
                 {/* ── Season Timeline / Gantt View ─────────────────────────── */}
@@ -1310,11 +1340,9 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
                   // Build a 12-month window from today for the Gantt
                   const ganttStart = new Date();
                   ganttStart.setDate(1); // first of current month
-                  const ganttStartStr = ganttStart.toISOString().split("T")[0];
                   const ganttEnd = new Date(ganttStart);
                   ganttEnd.setFullYear(ganttEnd.getFullYear() + 1);
                   ganttEnd.setDate(ganttEnd.getDate() - 1);
-                  const ganttEndStr = ganttEnd.toISOString().split("T")[0];
                   const ganttTotalMs = ganttEnd.getTime() - ganttStart.getTime();
 
                   // Month tick marks
@@ -1553,8 +1581,8 @@ export function PricingClient({ hotelId, orgId, userId, currency, roomTypes }: P
               </div>
             )}
           </div>
-        </TabsContent>
-      </Tabs>
+        </HeroTabs.Panel>
+      </HeroTabs>
 
       {/* ── Per-Season Detail pricing Slide-over Sheet ────────────── */}
       <Sheet open={seasonDetailOpen} onOpenChange={setSeasonDetailOpen}>

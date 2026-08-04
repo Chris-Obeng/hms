@@ -102,7 +102,7 @@ export function AppHeader({
   const router = useRouter();
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
-  const { openUserProfile, openOrganizationProfile } = useClerk();
+  const { openUserProfile } = useClerk();
   const { toggleSidebar } = useSidebar();
 
 
@@ -376,8 +376,8 @@ export function AppHeader({
 
           <button
             type="button"
-            onClick={() => openOrganizationProfile?.()}
-            title="Manage Hotel & Organization Settings"
+            onClick={() => router.push("/dashboard/settings/hotel")}
+            title="Hotel settings"
             className="group flex min-w-0 items-center gap-2 text-left cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded-lg p-0.5"
           >
             {hotelLogoUrl ? (

@@ -2,10 +2,10 @@
  * lib/notifications/email-templates.ts
  *
  * HTML email templates for transactional notifications.
- * Used by both the Resend sender and the legacy Arkesel email sender.
+ * Sent through Resend.
  */
 
-import type { BookingNotifyData } from "@/lib/arkesel";
+import type { BookingNotifyData } from "@/lib/notifications/types";
 
 /**
  * Builds the HTML body for a booking confirmation email.

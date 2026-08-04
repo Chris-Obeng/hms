@@ -298,7 +298,7 @@ export default function NotificationSettingsPage() {
               Message Templates
             </CardTitle>
             <CardDescription className="text-xs mt-0.5">
-              Customize the SMS and email messages sent to guests. Click a card to edit. Use the variable chips to insert dynamic values.
+              Customize transactional emails sent to guests. Click a card to edit and use variables for booking details.
             </CardDescription>
           </CardHeader>
           <CardContent>

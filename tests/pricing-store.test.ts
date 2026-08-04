@@ -19,7 +19,7 @@ describe("pricing store defaults", () => {
     expect(s.seasonDetailOpen).toBe(false);
   });
 
-  it("defaults to a 90-day viewport of YYYY-MM-DD dates", () => {
+  it("defaults to a focused 30-day viewport of YYYY-MM-DD dates", () => {
     const { startDateStr, endDateStr } = usePricingStore.getState();
     expect(startDateStr).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(endDateStr).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -27,7 +27,7 @@ describe("pricing store defaults", () => {
     const days = Math.round(
       (Date.parse(endDateStr) - Date.parse(startDateStr)) / 86_400_000
     );
-    expect(days).toBe(89);
+    expect(days).toBe(29);
   });
 });
 

@@ -380,13 +380,10 @@ export async function updateBookingStatus(
             config: {
               hotelName: ctx.hotel.name,
               currency: ctx.hotel.currency,
-              notificationsEnabled:
-                ctx.hotel.settings.sms_notifications_enabled !== false,
             },
             booking: {
               guestName: guest?.full_name ?? "Guest",
               guestEmail: guest?.email,
-              guestPhone: guest?.phone,
               reference: before.reference,
               roomName: (before.room_types as { name?: string } | null)?.name ?? "Room",
               checkIn: before.check_in,
@@ -423,13 +420,10 @@ export async function updateBookingStatus(
             config: {
               hotelName: ctx.hotel.name,
               currency: ctx.hotel.currency,
-              notificationsEnabled:
-                ctx.hotel.settings.sms_notifications_enabled !== false,
             },
             booking: {
               guestName: guest?.full_name ?? "Guest",
               guestEmail: guest?.email,
-              guestPhone: guest?.phone,
               reference: before.reference,
               roomName: (before.room_types as { name?: string } | null)?.name ?? "Room",
               checkIn: before.check_in,

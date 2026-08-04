@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findOverlappingBookingIds, includesDate, isStayoverOnDate, staysOnDate, toStoredBlockRange } from "@/lib/calendar-domain";
+import { findOverlappingBookingIds, includesDate, isCheckedInStayoverOnDate, isInHouseOnDate, isStayoverOnDate, staysOnDate, toStoredBlockRange } from "@/lib/calendar-domain";
 
 describe("calendar date semantics", () => {
   it("stores a one-day room block as a bounded half-open range", () => {
@@ -21,6 +21,22 @@ describe("calendar date semantics", () => {
     expect(isStayoverOnDate(stay, "2026-07-02")).toBe(false);
     expect(isStayoverOnDate(stay, "2026-07-03")).toBe(true);
     expect(isStayoverOnDate(stay, "2026-07-05")).toBe(false);
+  });
+
+  it("requires checked-in status for in-house guests", () => {
+    const reservation = { id: "a", roomId: "101", checkIn: "2026-07-02", checkOut: "2026-07-05", status: "confirmed" };
+    expect(isInHouseOnDate(reservation, "2026-07-02")).toBe(false);
+    expect(isInHouseOnDate({ ...reservation, status: "checked_in" }, "2026-07-02")).toBe(true);
+    expect(isInHouseOnDate({ ...reservation, status: "checked_out" }, "2026-07-03")).toBe(false);
+    expect(isInHouseOnDate({ ...reservation, status: "checked_in" }, "2026-07-05")).toBe(true);
+  });
+
+  it("requires checked-in status and an overnight continuation for stayovers", () => {
+    const reservation = { id: "a", roomId: "101", checkIn: "2026-07-02", checkOut: "2026-07-05", status: "confirmed" };
+    expect(isCheckedInStayoverOnDate(reservation, "2026-07-03")).toBe(false);
+    expect(isCheckedInStayoverOnDate({ ...reservation, status: "checked_in" }, "2026-07-02")).toBe(false);
+    expect(isCheckedInStayoverOnDate({ ...reservation, status: "checked_in" }, "2026-07-03")).toBe(true);
+    expect(isCheckedInStayoverOnDate({ ...reservation, status: "checked_in" }, "2026-07-05")).toBe(false);
   });
 
   it("flags both bookings in same-room overlap only", () => {

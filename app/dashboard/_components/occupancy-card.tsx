@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { Info } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface OccupancyCardProps {
   occupancyPercent: number;
@@ -35,7 +34,7 @@ function OccupancyDonut({ percent }: { percent: number }) {
         viewBox="0 0 130 130"
         className="transform -rotate-90"
         role="img"
-        aria-label={`Occupancy: ${formattedPercent}%`}
+        aria-label={`Room-night occupancy: ${formattedPercent}%`}
       >
         <circle
           cx="65"
@@ -65,7 +64,7 @@ function OccupancyDonut({ percent }: { percent: number }) {
           {formattedPercent}%
         </span>
         <span className="text-xs font-semibold text-muted-foreground mt-0.5">
-          Occupancy
+          Night occupancy
         </span>
       </div>
     </div>
@@ -84,7 +83,7 @@ export function OccupancyCard({
       {/* Top info icon */}
       <button
         type="button"
-        title="Occupancy Information"
+        title="Room-night occupancy for selected date. Same-day departures are excluded; arrivals and stayovers are included."
         className="absolute top-4 right-4 text-muted-foreground/60 hover:text-foreground transition-colors cursor-pointer"
       >
         <Info className="size-4" />
@@ -100,9 +99,9 @@ export function OccupancyCard({
             <span className="font-bold text-foreground w-8 text-right font-mono">
               {availableUnits}
             </span>
-            <span className="font-medium text-foreground">Available units</span>
+            <span className="font-medium text-foreground">Available tonight</span>
           </div>
-          <button type="button" title="Available units details" className="text-muted-foreground/50 hover:text-foreground transition-colors">
+          <button type="button" title="Units available for selected night after departures" className="text-muted-foreground/50 hover:text-foreground transition-colors">
             <Info className="size-3.5" />
           </button>
         </div>
@@ -112,7 +111,7 @@ export function OccupancyCard({
             <span className="font-bold text-foreground w-8 text-right font-mono">
               {bookedUnits}
             </span>
-            <span className="text-muted-foreground">Booked units</span>
+            <span className="text-muted-foreground">Booked tonight</span>
           </div>
         </div>
 

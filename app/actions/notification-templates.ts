@@ -76,9 +76,7 @@ export async function saveNotificationTemplates(
       const tpl = templates[key];
       if (!tpl) continue;
       sanitized[key] = {
-        sms_enabled: Boolean(tpl.sms_enabled),
         email_enabled: Boolean(tpl.email_enabled),
-        sms_template: typeof tpl.sms_template === "string" ? tpl.sms_template.slice(0, 2000) : undefined,
         email_subject: typeof tpl.email_subject === "string" ? tpl.email_subject.slice(0, 200) : undefined,
         email_template: typeof tpl.email_template === "string" ? tpl.email_template.slice(0, 4000) : undefined,
       };

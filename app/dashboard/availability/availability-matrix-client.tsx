@@ -94,6 +94,7 @@ export function AvailabilityMatrixClient({ data, hotelId }: { data: Availability
   const [visibleTypeIds, setVisibleTypeIds] = React.useState<Set<string>>(
     () => new Set(data.roomTypes.map((roomType) => roomType.id))
   );
+  const [liveStatus, setLiveStatus] = React.useState<"connecting" | "live">("connecting");
 
   // Realtime subscription — auto-refresh on booking or availability_block changes
   const refreshRef = React.useRef(router.refresh.bind(router));
@@ -101,20 +102,36 @@ export function AvailabilityMatrixClient({ data, hotelId }: { data: Availability
 
   React.useEffect(() => {
     const supabase = createClient();
+    let timer: number | undefined;
+    const refresh = () => {
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => refreshRef.current(), 180);
+    };
     const channel = supabase
       .channel(`hotel:${hotelId}:availability`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
-        () => refreshRef.current(),
+        refresh,
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "availability_blocks", filter: `hotel_id=eq.${hotelId}` },
-        () => refreshRef.current(),
+        refresh,
       )
-      .subscribe();
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "rooms", filter: `hotel_id=eq.${hotelId}` },
+        refresh,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "room_types", filter: `hotel_id=eq.${hotelId}` },
+        refresh,
+      )
+      .subscribe((status) => setLiveStatus(status === "SUBSCRIBED" ? "live" : "connecting"));
     return () => {
+      if (timer) window.clearTimeout(timer);
       supabase.removeChannel(channel);
     };
   }, [hotelId]);
@@ -170,14 +187,15 @@ export function AvailabilityMatrixClient({ data, hotelId }: { data: Availability
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="rounded-md border-border/70 bg-background text-[11px]">
-              Live inventory
+              <span className={cn("mr-1.5 inline-block size-1.5 rounded-full", liveStatus === "live" ? "bg-emerald-500" : "bg-amber-400")} />
+              {liveStatus === "live" ? "Live inventory" : "Connecting"}
             </Badge>
             <span className="text-xs text-muted-foreground">
               Updated {format(parseISO(data.generatedAt), "MMM d, h:mm a")}
             </span>
           </div>
           <h1 className="text-page-title text-foreground">
-            Availability Matrix
+            Availability
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {format(start, "MMM d")} - {format(end, "MMM d, yyyy")}
@@ -244,11 +262,11 @@ export function AvailabilityMatrixClient({ data, hotelId }: { data: Availability
         </div>
       </header>
 
-      <section className="mb-4 grid gap-2 sm:grid-cols-2 md:gap-3 lg:grid-cols-4">
+      <section className="availability-summary mb-4">
         <Metric label="Rooms" value={String(totalRooms)} />
         <Metric label="Avg occupancy" value={`${avgOccupancy}%`} />
-        <Metric label="Lowest availability" value={`${Number.isFinite(minAvailable) ? minAvailable : 0}`} />
-        <Metric label="Sold-out days" value={String(soldOutDays)} />
+        <Metric label="Lowest open" value={`${Number.isFinite(minAvailable) ? minAvailable : 0}`} />
+        <Metric label="Sold out" value={String(soldOutDays)} />
       </section>
 
       <section className="mb-4 flex flex-col gap-3 rounded-lg border border-border/70 bg-background p-3 shadow-sm lg:flex-row lg:items-center lg:justify-between">
@@ -335,9 +353,9 @@ export function AvailabilityMatrixClient({ data, hotelId }: { data: Availability
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-foreground tabular-nums tracking-tight">{value}</p>
+    <div className="availability-summary-item">
+      <p>{label}</p>
+      <strong>{value}</strong>
     </div>
   );
 }

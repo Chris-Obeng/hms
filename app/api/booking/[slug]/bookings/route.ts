@@ -211,19 +211,16 @@ export async function POST(
       const { sendBookingConfirmation } = await import(
         "@/lib/notifications/send-booking-confirmation"
       );
-      const hotelSettings = (hotel.settings as Record<string, unknown>) ?? {};
       const result = await sendBookingConfirmation({
         hotelId: hotel.id,
         bookingId: booking.id,
         config: {
           hotelName: hotel.name,
           currency: hotel.currency ?? "GHS",
-          notificationsEnabled: hotelSettings.sms_notifications_enabled !== false,
         },
         booking: {
           guestName: data.guest_name,
           guestEmail: data.guest_email,
-          guestPhone: data.guest_phone,
           reference: booking.reference,
           roomName: roomType.name,
           checkIn: data.check_in,

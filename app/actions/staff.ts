@@ -4,7 +4,6 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
-import { notifyStaffApproved } from "@/lib/arkesel";
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -141,7 +140,7 @@ export async function approveStaff(
   role: "front_desk" | "manager" | "read_only"
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { supabase, orgId, currentStaffId, currentStaffName, hotelId, hotel, isSuperAdmin } =
+    const { supabase, orgId, currentStaffId, currentStaffName, hotelId, isSuperAdmin } =
       await getHotelScopedClient();
 
     if (!isSuperAdmin) return { success: false, error: "Only super admins can approve staff" };
@@ -172,15 +171,6 @@ export async function approveStaff(
       entityId: staffId,
       afterState: { role, is_active: true, staff_name: target?.full_name, staff_email: target?.email },
     });
-
-    // Arkesel SMS to newly approved staff
-    // Note: phone not in staff_profiles schema — notification only for now
-    if (target) {
-      await notifyStaffApproved(
-        { hotelName: hotel.name, currency: "GHS" },
-        { staffPhone: null, staffName: target.full_name ?? target.email, role }
-      );
-    }
 
     revalidatePath("/dashboard/staff");
     return { success: true };

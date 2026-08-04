@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
-import { notifyBookingCancelled, notifyPaymentReceived } from "@/lib/arkesel";
+import { sendPaymentReceipt } from "@/lib/notifications/send-payment-receipt";
 import { requireAuth, requireMinRole, toActionError } from "@/lib/auth";
 
 // ── Get Hotel ID Helper ──────────────────────────────────────────
@@ -324,7 +324,7 @@ export async function recordPayment(
       afterState: { amount: data.amount, method: data.method, payment_id: payment.id },
     });
 
-    // Arkesel email receipt to guest
+    // Email receipt to guest when an email address is available.
     const { data: fullBooking } = await supabase
       .from("bookings")
       .select("reference, total_amount, amount_paid, outstanding_balance, guests(full_name, email)")
@@ -332,20 +332,16 @@ export async function recordPayment(
       .single();
 
     if (fullBooking) {
-      await notifyPaymentReceived(
-        {
-          hotelName: hotel.name,
-          currency: hotel.currency,
-          notificationsEnabled: hotel.settings.sms_notifications_enabled !== false,
-        },
-        {
-          guestName: (fullBooking.guests as { full_name?: string | null } | null)?.full_name ?? "Guest",
-          guestEmail: (fullBooking.guests as { email?: string | null } | null)?.email,
-          reference: fullBooking.reference,
-          amountPaid: data.amount,
-          outstandingBalance: Number(fullBooking.outstanding_balance ?? 0),
-        }
-      );
+      await sendPaymentReceipt({
+        hotelName: hotel.name,
+        currency: hotel.currency,
+        guestName: (fullBooking.guests as { full_name?: string | null } | null)?.full_name ?? "Guest",
+        guestEmail: (fullBooking.guests as { email?: string | null } | null)?.email,
+        reference: fullBooking.reference,
+        paymentId: payment.id,
+        amountPaid: data.amount,
+        outstandingBalance: Number(fullBooking.outstanding_balance ?? 0),
+      });
     }
 
     revalidatePath("/dashboard");

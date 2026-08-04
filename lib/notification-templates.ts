@@ -10,14 +10,10 @@
 export type NotificationEventType =
   | "booking_confirmed"
   | "booking_cancelled"
-  | "payment_received"
-  | "check_in_reminder"
-  | "check_out_reminder";
+  | "payment_received";
 
 export interface NotificationTemplate {
-  sms_enabled: boolean;
   email_enabled: boolean;
-  sms_template: string;
   email_subject: string;
   email_template: string;
 }
@@ -46,49 +42,22 @@ export interface TemplateVars {
 
 export const DEFAULT_TEMPLATES: Record<NotificationEventType, NotificationTemplate> = {
   booking_confirmed: {
-    sms_enabled: true,
     email_enabled: true,
-    sms_template:
-      "Booking confirmed! Ref: {{reference}}\n{{room_name}} at {{hotel_name}}\nCheck-in: {{check_in}}{{check_in_time}}\nCheck-out: {{check_out}}\nTotal: {{currency}} {{total_amount}}{{hotel_phone}}",
     email_subject: "Booking Confirmed — {{reference}}",
     email_template:
       "Hi {{guest_name}},\n\nYour booking at {{hotel_name}} is confirmed.\n\nReference: {{reference}}\nRoom: {{room_name}}\nCheck-in: {{check_in}}{{check_in_time}}\nCheck-out: {{check_out}}{{check_out_time}}\nNights: {{nights}}\nTotal: {{currency}} {{total_amount}}\n\n{{hotel_address}}{{hotel_phone}}",
   },
   booking_cancelled: {
-    sms_enabled: true,
     email_enabled: true,
-    sms_template:
-      "Your booking {{reference}} at {{hotel_name}} has been cancelled. If this was a mistake, please contact us.{{hotel_phone}}",
     email_subject: "Booking Cancelled — {{reference}}",
     email_template:
       "Hi {{guest_name}},\n\nYour booking {{reference}} at {{hotel_name}} has been cancelled.\n\nIf this was unexpected, please contact the hotel directly.{{hotel_phone}}",
   },
   payment_received: {
-    sms_enabled: false,
     email_enabled: true,
-    sms_template:
-      "Payment of {{currency}} {{total_amount}} received for booking {{reference}} at {{hotel_name}}. Thank you!",
     email_subject: "Payment Receipt — {{reference}}",
     email_template:
       "Hi {{guest_name}},\n\nWe've received your payment of {{currency}} {{total_amount}} for booking {{reference}} at {{hotel_name}}.\n\nThank you!",
-  },
-  check_in_reminder: {
-    sms_enabled: true,
-    email_enabled: false,
-    sms_template:
-      "Reminder: You check in to {{hotel_name}} tomorrow ({{check_in}}){{check_in_time}}. Ref: {{reference}}.{{hotel_address}}{{hotel_phone}}",
-    email_subject: "Check-In Reminder — {{hotel_name}}",
-    email_template:
-      "Hi {{guest_name}},\n\nThis is a reminder that you check in to {{hotel_name}} tomorrow ({{check_in}}){{check_in_time}}.\n\nRef: {{reference}}\n{{hotel_address}}{{hotel_phone}}",
-  },
-  check_out_reminder: {
-    sms_enabled: true,
-    email_enabled: false,
-    sms_template:
-      "Reminder: Check-out at {{hotel_name}} is today ({{check_out}}){{check_out_time}}. We hope you enjoyed your stay! Ref: {{reference}}",
-    email_subject: "Check-Out Reminder — {{hotel_name}}",
-    email_template:
-      "Hi {{guest_name}},\n\nThis is a reminder that check-out at {{hotel_name}} is today ({{check_out}}){{check_out_time}}.\n\nWe hope you enjoyed your stay!\nRef: {{reference}}",
   },
 };
 
@@ -96,24 +65,18 @@ export const EVENT_LABELS: Record<NotificationEventType, string> = {
   booking_confirmed: "Booking Confirmed",
   booking_cancelled: "Booking Cancelled",
   payment_received: "Payment Received",
-  check_in_reminder: "Check-In Reminder",
-  check_out_reminder: "Check-Out Reminder",
 };
 
 export const EVENT_DESCRIPTIONS: Record<NotificationEventType, string> = {
   booking_confirmed: "Sent to the guest when a reservation is confirmed",
   booking_cancelled: "Sent to the guest when a booking is cancelled",
   payment_received: "Sent to the guest when a payment is processed",
-  check_in_reminder: "Sent the day before the guest arrives",
-  check_out_reminder: "Sent on the morning of the guest's departure",
 };
 
 export const ALL_EVENT_TYPES: NotificationEventType[] = [
   "booking_confirmed",
   "booking_cancelled",
   "payment_received",
-  "check_in_reminder",
-  "check_out_reminder",
 ];
 
 export const TEMPLATE_VARIABLES = [

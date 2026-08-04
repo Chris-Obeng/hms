@@ -172,10 +172,11 @@ export function BookingDetailPanel({
     <Sheet open={open} onOpenChange={(val) => !val && onClose()}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-lg p-0 flex flex-col"
+        className="w-full sm:max-w-lg p-0 flex flex-col max-h-[92dvh] sm:max-h-none rounded-t-2xl sm:rounded-none data-[side=right]:inset-y-auto data-[side=right]:bottom-0 sm:data-[side=right]:inset-y-0 sm:data-[side=right]:bottom-auto"
       >
         {/* Header */}
         <SheetHeader className="p-4 pb-3 border-b border-border/50">
+          <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-muted sm:hidden" aria-hidden="true" />
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <SheetTitle className="text-base font-semibold text-foreground truncate">

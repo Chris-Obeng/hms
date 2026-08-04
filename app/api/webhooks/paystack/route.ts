@@ -314,7 +314,6 @@ export async function POST(req: NextRequest) {
         | { full_name?: string; email?: string; phone?: string }
         | null;
       const roomType = fullBooking.room_types as { name?: string } | null;
-      const hotelSettings = (hotel.settings as Record<string, unknown>) ?? {};
 
       const result = await sendBookingConfirmation({
         hotelId: booking.hotel_id,
@@ -322,12 +321,10 @@ export async function POST(req: NextRequest) {
         config: {
           hotelName: hotel.name,
           currency: hotel.currency ?? "GHS",
-          notificationsEnabled: hotelSettings.sms_notifications_enabled !== false,
         },
         booking: {
           guestName: guest?.full_name ?? "Guest",
           guestEmail: guest?.email,
-          guestPhone: guest?.phone,
           reference: fullBooking.reference,
           roomName: roomType?.name ?? "Room",
           checkIn: fullBooking.check_in,

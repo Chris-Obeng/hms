@@ -64,8 +64,8 @@ export default async function SettingsPage() {
         },
         {
           icon: Link2,
-          label: "SMS & Email",
-          description: "Arkesel SMS/email settings",
+          label: "Guest emails",
+          description: "Transactional email settings",
           href: "/dashboard/settings/notifications",
           restricted: true,
         },

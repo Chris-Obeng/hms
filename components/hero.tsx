@@ -8,11 +8,9 @@ import {
   CreditCard,
   ShieldCheck,
   RefreshCw,
-  Smartphone,
   Layers,
   Check,
   ChevronDown,
-  MessageSquare,
   Shield,
   Zap,
   Globe,
@@ -30,7 +28,7 @@ import { Button } from "@/components/ui/button";
 
 export function Hero() {
   const [scrolled, setScrolled] = useState(false);
-  const [activeTab, setActiveTab] = useState<"calendar" | "billing" | "sms">("calendar");
+  const [activeTab, setActiveTab] = useState<"calendar" | "billing" | "email">("calendar");
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
   useEffect(() => {
@@ -54,7 +52,7 @@ export function Hero() {
   const tabs = [
     { id: "calendar", label: "Front Desk Calendar" },
     { id: "billing", label: "Paystack & MoMo" },
-    { id: "sms", label: "Arkesel SMS Engine" }
+    { id: "email", label: "Guest Email" }
   ] as const;
 
   const faqs = [
@@ -327,11 +325,11 @@ export function Hero() {
             {/* Feature 3 */}
             <div className="bg-forest border border-ivory/[0.05] p-8 rounded-2xl flex flex-col gap-4 hover:border-gold/20 transition-all group">
               <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center text-gold group-hover:bg-gold/20 transition-colors">
-                <Smartphone className="w-6 h-6" />
+                <Mail className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-ivory">Arkesel SMS Automation</h3>
+              <h3 className="text-lg font-bold text-ivory">Guest Email Automation</h3>
               <p className="text-sm text-ivory/50 leading-relaxed">
-                Send automated booking notifications, check-in instructions, and payment receipts directly to guests' phones via Arkesel SMS integration, guaranteeing high delivery rates in Africa.
+                Send booking confirmations, cancellation notices, and payment receipts by email whenever a guest provides an address.
               </p>
             </div>
 
@@ -502,9 +500,9 @@ export function Hero() {
               </motion.div>
             )}
 
-            {activeTab === "sms" && (
+            {activeTab === "email" && (
               <motion.div
-                key="sms"
+                key="email"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
@@ -512,20 +510,20 @@ export function Hero() {
                 className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center"
               >
                 <div className="lg:col-span-5 space-y-4">
-                  <span className="text-xs font-bold text-gold uppercase tracking-wider">SMS Engagement Hub</span>
-                  <h3 className="text-2xl font-bold text-ivory">Automated Arkesel Messaging</h3>
+                  <span className="text-xs font-bold text-gold uppercase tracking-wider">Transactional email</span>
+                  <h3 className="text-2xl font-bold text-ivory">Clear guest communication</h3>
                   <p className="text-sm text-ivory/50 leading-relaxed">
-                    SMS has a 98% open rate in Ghana. RoomLine leverages the local Arkesel gateway to text guests their booking numbers, check-in instructions, WiFi passwords, and invoice receipts automatically. This keeps your guest service modern and localized.
+                    RoomLine emails booking references, stay details, cancellations, and receipts through a reliable transactional email workflow.
                   </p>
                 </div>
                 <div className="lg:col-span-7 bg-forest border border-ivory/[0.06] rounded-xl p-5 space-y-3">
-                  <div className="text-sm font-bold text-ivory border-b border-ivory/[0.05] pb-2">SMS Message Log</div>
+                  <div className="text-sm font-bold text-ivory border-b border-ivory/[0.05] pb-2">Email preview</div>
                   <div className="border border-ivory/[0.05] rounded-xl p-4 bg-ivory/[0.005] max-w-sm mx-auto space-y-2">
-                    <div className="text-[10px] text-ivory/45">To: +233 24 123 4567</div>
+                    <div className="text-[10px] text-ivory/45">To: frank@example.com</div>
                     <div className="bg-ivory/[0.03] text-xs p-3 rounded-xl text-ivory/80 leading-relaxed">
                       Hello Frank, your booking at Hilltop Resort is confirmed! Room 102 (Deluxe). Check-in: 03-July-2026. Code: HOP-9482. Thank you!
                     </div>
-                    <div className="text-[9px] text-emerald-400 text-right font-semibold uppercase">Delivered via Arkesel</div>
+                    <div className="text-[9px] text-emerald-400 text-right font-semibold uppercase">Email sent</div>
                   </div>
                 </div>
               </motion.div>
@@ -569,7 +567,7 @@ export function Hero() {
                     <Check className="w-4 h-4 text-gold shrink-0" /> Paystack & MoMo Integration
                   </li>
                   <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-gold shrink-0" /> Arkesel SMS Automations
+                    <Check className="w-4 h-4 text-gold shrink-0" /> Guest Transactional Email
                   </li>
                 </ul>
               </div>
@@ -752,7 +750,6 @@ export function Hero() {
             <h4 className="text-xs uppercase font-extrabold tracking-wider text-gold">Local Integrations</h4>
             <ul className="space-y-2 text-xs text-ivory/45 font-medium">
               <li><a href="https://paystack.com" target="_blank" className="hover:text-ivory">Paystack Gateway</a></li>
-              <li><a href="https://arkesel.com" target="_blank" className="hover:text-ivory">Arkesel SMS Gateway</a></li>
             </ul>
           </div>
 

@@ -329,7 +329,7 @@ export function AppSidebar({ hotelName }: { hotelName?: string }) {
   const { user } = useUser();
   const { membership } = useOrganization();
   const { isMobile, setOpenMobile, setOpen, state } = useSidebar();
-  const { openUserProfile, openOrganizationProfile } = useClerk();
+  const { openUserProfile } = useClerk();
 
   const isCollapsed = !isMobile && state === "collapsed";
   const selectedKeys = React.useMemo(() => new Set([pathname]), [pathname]);
@@ -388,8 +388,8 @@ export function AppSidebar({ hotelName }: { hotelName?: string }) {
         <div className="flex items-center justify-between">
           <button
             type="button"
-            onClick={() => openOrganizationProfile?.()}
-            title="Manage Hotel & Organization Settings"
+            onClick={() => navigateTo("/dashboard/settings/hotel")}
+            title="Hotel settings"
             className="flex items-center gap-2.5 min-w-0 text-left group cursor-pointer outline-none rounded-lg p-0.5"
           >
             <div className="size-8 rounded-lg bg-sidebar-accent flex items-center justify-center shrink-0 ring-1 ring-sidebar-border/40 group-hover:bg-sidebar-foreground/10 transition-colors">

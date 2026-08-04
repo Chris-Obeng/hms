@@ -1,12 +1,10 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { buildCancellationEmail, buildConfirmationEmail } from "@/lib/notifications/email-templates";
-import { senderName } from "@/lib/arkesel";
-import type { BookingNotifyData } from "@/lib/arkesel";
+import type { BookingNotifyData } from "@/lib/notifications/types";
 
 const booking: BookingNotifyData = {
   guestName: "Ama Mensah",
   guestEmail: "ama@example.com",
-  guestPhone: "+233244123456",
   reference: "BK-1234",
   roomName: "Deluxe Suite",
   checkIn: "2026-03-02",
@@ -78,27 +76,5 @@ describe("buildCancellationEmail", () => {
   it("links the hotel phone when provided", () => {
     const html = buildCancellationEmail("Sunset Inn", "Ama", "BK-1", "+233200000000");
     expect(html).toContain('href="tel:+233200000000"');
-  });
-});
-
-describe("senderName", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  it("strips non-alphanumeric characters and caps at 11 characters", () => {
-    expect(senderName("Sunset Inn")).toBe("Sunset Inn");
-    expect(senderName("Sunset & Sands Resort")).toBe("Sunset  San");
-    expect(senderName("  Beach-Side Hotel  ")).toBe("BeachSide H");
-  });
-
-  it("falls back to the configured sender when the name yields nothing", () => {
-    vi.stubEnv("ARKESEL_FALLBACK_SENDER", "MyHotel");
-    expect(senderName("!!!")).toBe("MyHotel");
-  });
-
-  it("falls back to RoomLine when no fallback sender is configured", () => {
-    vi.stubEnv("ARKESEL_FALLBACK_SENDER", "");
-    expect(senderName("")).toBe("RoomLine");
   });
 });
