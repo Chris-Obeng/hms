@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/dashboard",
-    name: "HotelOS Pro",
-    short_name: "HotelOS",
+    name: "RoomLine",
+    short_name: "RoomLine",
     description: "Hotel management and direct booking platform",
     start_url: "/dashboard",
     scope: "/dashboard",

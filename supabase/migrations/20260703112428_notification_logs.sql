@@ -2,7 +2,7 @@
 -- Purpose: Add notification_logs table for transactional notification observability.
 --
 -- This table records every notification attempt (SMS or email) made by the
--- HotelOS notification pipeline. It serves three purposes:
+-- RoomLine notification pipeline. It serves three purposes:
 --   1. Idempotency: prevents duplicate sends on webhook retries (checked before send)
 --   2. Observability: staff can see what was sent, when, and to whom
 --   3. Delivery tracking: Arkesel delivery webhooks update status via provider_message_id

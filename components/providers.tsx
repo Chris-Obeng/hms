@@ -26,7 +26,9 @@ export function getQueryClient() {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const queryClient = getQueryClient();
+  // Keep exactly one client for this mounted provider. Creating it during render
+  // can leave an SSR/hydration pass with a different context instance.
+  const [queryClient] = React.useState(() => getQueryClient());
 
   return (
     <QueryClientProvider client={queryClient}>

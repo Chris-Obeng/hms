@@ -119,7 +119,7 @@ export function PlatformSidebar({ admin }: { admin: PlatformAdmin | null }) {
             {/* Brand name — hidden when icon-collapsed */}
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
               <p className="text-sm font-semibold text-sidebar-foreground truncate leading-tight">
-                HotelOS Pro
+                RoomLine
               </p>
               <p className="text-[11px] text-sidebar-foreground/50 truncate mt-0.5">
                 Platform Admin

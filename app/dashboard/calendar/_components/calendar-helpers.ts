@@ -117,26 +117,27 @@ export function getEventHtml(
   else if (status === "pending") statusText = "PENDING";
   else if (status === "checked_out") statusText = "CHECKED OUT";
 
-  // Derive colors from the single source of truth — matches legend exactly
   const colors = getBookingBarColor(status, source);
   const bgColor = colors.bg;
   const stripeColorDarker = colors.border;
 
   const sourceLabel = getSourceShortLabel(source);
-  // Always show source label for confirmed/pending to reinforce legend
   const showSource = sourceLabel && status !== "checked_out" && status !== "cancelled";
+  const paid = paymentStatus === "paid";
   const guestPart = escapeHtml(name);
   const sourcePart = showSource ? `<span class="cal-evt-source">${sourceLabel}</span>` : "";
   const statusPart = statusText ? `<span class="cal-evt-status-pill">${statusText}</span>` : "";
-  const nightsPart = `<span class="cal-evt-nights">${n}n</span>`;
+  const nightsPart = `<span class="cal-evt-nights">${n}n${paid ? "" : " · due"}</span>`;
 
+  void _stripeColor;
   return `<div class="cal-evt" style="background:${bgColor}">
     <div class="cal-evt-stripe" style="background:${stripeColorDarker}"></div>
     <div class="cal-evt-bar">
       <span class="cal-evt-name">${guestPart}</span>
       ${sourcePart}
-      ${nightsPart}
+      <span class="cal-evt-spacer"></span>
       ${statusPart}
+      ${nightsPart}
     </div>
   </div>`;
 }

@@ -28,15 +28,15 @@ const jakarta = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "HotelOS Pro",
-    template: "%s | HotelOS Pro",
+    default: "RoomLine",
+    template: "%s | RoomLine",
   },
   description: "Hotel management and direct booking platform for independent properties",
-  applicationName: "HotelOS Pro",
+  applicationName: "RoomLine",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "HotelOS",
+    title: "RoomLine",
   },
   formatDetection: {
     telephone: false,

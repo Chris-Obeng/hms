@@ -1,4 +1,4 @@
-# HotelOS Pro — Database Schema Reference
+# RoomLine — Database Schema Reference
 
 > Last regenerated: 2026-06-14
 > Source of truth: `supabase/migrations/*.sql` (apply with `pnpm db:push`)
@@ -250,7 +250,7 @@ Every payment transaction against a booking. Cash, POS, Paystack, refunds.
 | `paystack_reference` | `text` | UNIQUE |
 | `paystack_id` | `text` | |
 | `paystack_subaccount` | `text` | Subaccount used for this txn |
-| `platform_fee` | `numeric(10,2)` | HotelOS cut (post-MVP) |
+| `platform_fee` | `numeric(10,2)` | RoomLine cut (post-MVP) |
 | `status` | `text` | CHECK in (`pending`, `success`, `failed`, `refunded`) |
 | `paid_at` | `timestamptz` | |
 | `recorded_by` | `uuid` | FK → `staff_profiles.id` |
@@ -305,8 +305,8 @@ In-app bell-icon notifications for staff.
 
 ### `beds24_property_mappings`
 
-Maps a Beds24 `room_id` to a HotelOS `room_type_id`. Set up once during
-onboarding by HotelOS Pro staff.
+Maps a Beds24 `room_id` to a RoomLine `room_type_id`. Set up once during
+onboarding by RoomLines staff.
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -378,7 +378,7 @@ for diffing.
 
 ### `platform_admins`
 
-HotelOS Pro internal team. Completely separate from `staff_profiles` — a
+RoomLines internal team. Completely separate from `staff_profiles` — a
 platform admin signs in via **Supabase Auth** (email + password) at
 `/platform/sign-in`. They manage all tenants but are NOT staff of any hotel.
 
@@ -473,7 +473,7 @@ any user JWT are subject to RLS.
 
 ## Adding a new column (recipe)
 
-1. Edit the PRD (`HotelOS_Pro_PRD_v5.md` section 8) to document the column
+1. Edit the PRD (`RoomLine_Pro_PRD_v5.md` section 8) to document the column
    and its purpose.
 2. Add a new migration file under `supabase/migrations/`. Use a timestamp
    in the `YYYYMMDDHHMMSS_name.sql` format. Slot it in chronological order

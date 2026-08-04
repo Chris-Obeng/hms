@@ -41,18 +41,10 @@ export function buildResources(
   }
 
   for (const [typeId, group] of groups) {
-    const availableCount = group.rooms.filter((room) => room.status === "available").length;
-    const unavailableCount = group.rooms.length - availableCount;
-
     resources.push({
       id: `section-${typeId}`,
       name: group.type,
-      html: buildSectionHeaderHtml(
-        group.type,
-        group.rooms.length,
-        availableCount,
-        unavailableCount
-      ),
+      html: buildSectionHeaderHtml(group.type),
       isSectionHeader: true,
       roomTypeId: typeId,
       roomTypeName: group.type,
@@ -85,10 +77,7 @@ export function buildResources(
 }
 
 function buildSectionHeaderHtml(
-  name: string,
-  _count: number,
-  _availableCount: number,
-  _unavailableCount: number
+  name: string
 ): string {
   return `<div class="cal-section-hdr">
     <span class="cal-section-name">${escapeHtml(name)}</span>

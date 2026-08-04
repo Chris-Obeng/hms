@@ -8,6 +8,7 @@ import {
   getEventText,
   getStatusCssClass,
 } from "./calendar-helpers";
+import { findOverlappingBookingIds } from "@/lib/calendar-domain";
 
 export interface CalendarEvent {
   id: string;
@@ -40,6 +41,12 @@ export function buildEvents(
   newBookingIds: Set<string> = new Set()
 ): CalendarEvent[] {
   const events: CalendarEvent[] = [];
+  const conflictIds = findOverlappingBookingIds(bookings.map((booking) => ({
+    id: booking.id,
+    roomId: booking.roomId,
+    checkIn: booking.checkIn,
+    checkOut: booking.checkOut,
+  })));
 
   for (const booking of bookings) {
     if (!booking.roomId) continue;
@@ -56,6 +63,7 @@ export function buildEvents(
       "calendar-event",
       getStatusCssClass(booking.status),
       isNew ? "calendar-event--new" : "",
+      conflictIds.has(booking.id) ? "calendar-event--conflict" : "",
     ]
       .filter(Boolean)
       .join(" ");

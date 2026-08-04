@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { requireAuth, requireMinRole, toActionError } from "@/lib/auth";
 import { slugify } from "@/lib/utils";
+import { toStoredBlockRange } from "@/lib/calendar-domain";
 
 // ── Schemas ──────────────────────────────────────────────────────────
 
@@ -406,6 +407,8 @@ export async function updateRoom(id: string, input: Partial<RoomInput>) {
 // ── Availability Blocks ───────────────────────────────────────────
 
 export async function createAvailabilityBlock(input: AvailabilityBlockInput) {
+  try { await requireMinRole("manager", "block rooms"); }
+  catch (err) { return toActionError(err); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };
 
@@ -423,18 +426,15 @@ export async function createAvailabilityBlock(input: AvailabilityBlockInput) {
   const data = parsed.data;
   const supabase = await createClient();
 
-  // Check if dates are valid
-  const startDate = new Date(data.startDate);
-  const endDate = new Date(data.endDate);
-  if (endDate <= startDate) {
-    return { success: false as const, error: "End date must be after start date" };
-  }
+  let storedRange;
+  try { storedRange = toStoredBlockRange(data.startDate, data.endDate); }
+  catch (err) { return { success: false as const, error: err instanceof Error ? err.message : "Invalid dates" }; }
 
   const { error } = await supabase.from("availability_blocks").insert({
     hotel_id: result.hotelId,
     room_id: data.roomId,
-    start_date: data.startDate,
-    end_date: data.endDate,
+    start_date: storedRange.startDate,
+    end_date: storedRange.endDate,
     reason: data.reason,
     notes: data.notes || null,
   });
@@ -442,6 +442,7 @@ export async function createAvailabilityBlock(input: AvailabilityBlockInput) {
   if (error) return { success: false as const, error: error.message };
 
   revalidatePath("/dashboard/rooms/directory");
+  revalidatePath("/dashboard/calendar");
   return { success: true as const };
 }
 

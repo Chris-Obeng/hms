@@ -3,13 +3,14 @@
 import * as React from "react";
 import { Calendar as CalendarIcon, Moon } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
-import { Popover, RangeCalendar } from "@heroui/react";
+import { Popover } from "@heroui/react";
 import {
   CalendarDate,
   today,
   getLocalTimeZone,
 } from "@internationalized/date";
 import { cn } from "@/lib/utils";
+import { StayRangeCalendar } from "@/components/ui/stay-range-calendar";
 
 function stringToCalendarDate(dateStr?: string | null): CalendarDate | null {
   if (!dateStr) return null;
@@ -64,7 +65,7 @@ export function BookingDateRangePicker({
       let endStr = calendarDateToString(val.end);
 
       if (startStr === endStr) {
-        const nextDay = new CalendarDate(val.end.year, val.end.month, val.end.day + 1);
+        const nextDay = val.end.add({ days: 1 });
         endStr = calendarDateToString(nextDay);
       }
 
@@ -126,37 +127,18 @@ export function BookingDateRangePicker({
 
       <Popover.Content
         placement="bottom"
-        className="p-0 w-auto border-border/60 max-w-[calc(100vw-1rem)]"
+        className="w-[min(46rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] border-border/60 p-0"
       >
         <Popover.Dialog
-          className="outline-none p-3 sm:p-3.5 booking-calendar-panel light"
+          className="outline-none p-3 sm:p-4 booking-calendar-panel light"
           data-theme="light"
         >
-          <RangeCalendar
-            aria-label="Select stay dates"
-            className="booking-range-calendar w-full"
-            minValue={nowCd}
+          <StayRangeCalendar
             value={rangeValue}
             onChange={handleRangeChange}
-            firstDayOfWeek="mon"
-          >
-            <RangeCalendar.Header>
-              <RangeCalendar.Heading />
-              <RangeCalendar.NavButton slot="previous" />
-              <RangeCalendar.NavButton slot="next" />
-            </RangeCalendar.Header>
-
-            <RangeCalendar.Grid>
-              <RangeCalendar.GridHeader>
-                {(day) => (
-                  <RangeCalendar.HeaderCell>{day}</RangeCalendar.HeaderCell>
-                )}
-              </RangeCalendar.GridHeader>
-              <RangeCalendar.GridBody>
-                {(date) => <RangeCalendar.Cell date={date} />}
-              </RangeCalendar.GridBody>
-            </RangeCalendar.Grid>
-          </RangeCalendar>
+            minValue={nowCd}
+            aria-label="Select stay dates"
+          />
         </Popover.Dialog>
       </Popover.Content>
     </Popover>

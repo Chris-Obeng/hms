@@ -165,7 +165,7 @@ export function AvailabilityMatrixClient({ data, hotelId }: { data: Availability
   const soldOutDays = data.totals.filter((cell) => cell.available <= 0 && cell.totalRooms > 0).length;
 
   return (
-    <div className="availability-page -m-4 min-h-[calc(100vh-5rem)] bg-[#f7f8fa] p-4 md:-m-6 md:p-6 lg:-m-8 lg:p-8">
+    <div className="availability-page -m-4 min-h-[calc(100vh-5rem)] bg-background p-4 md:-m-6 md:p-6 lg:-m-8 lg:p-8">
       <header className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -244,7 +244,7 @@ export function AvailabilityMatrixClient({ data, hotelId }: { data: Availability
         </div>
       </header>
 
-      <section className="mb-4 grid gap-3 md:grid-cols-4">
+      <section className="mb-4 grid gap-2 sm:grid-cols-2 md:gap-3 lg:grid-cols-4">
         <Metric label="Rooms" value={String(totalRooms)} />
         <Metric label="Avg occupancy" value={`${avgOccupancy}%`} />
         <Metric label="Lowest availability" value={`${Number.isFinite(minAvailable) ? minAvailable : 0}`} />
@@ -335,9 +335,9 @@ export function AvailabilityMatrixClient({ data, hotelId }: { data: Availability
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border/70 bg-background p-4 shadow-sm">
-      <p className="text-label font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 text-kpi text-foreground">{value}</p>
+    <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-foreground tabular-nums tracking-tight">{value}</p>
     </div>
   );
 }

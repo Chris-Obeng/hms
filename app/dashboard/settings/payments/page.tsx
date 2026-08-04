@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { PaymentsSettingsClient } from "./payments-client";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Payments · HotelOS" };
+export const metadata = { title: "Payments · RoomLine" };
 
 export default async function PaymentsSettingsPage() {
   const { orgId, userId } = await auth();

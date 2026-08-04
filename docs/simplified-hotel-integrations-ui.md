@@ -181,13 +181,13 @@ When "View Sync Details" is clicked:
 │ │ ✓ 5 hours ago - Availability updated    ││
 │ └──────────────────────────────────────────┘│
 │                                              │
-│ All sync operations managed by HotelOS team │
+│ All sync operations managed by RoomLine team │
 └─────────────────────────────────────────────┘
 ```
 
 ### Contact Support Flow
 Button opens either:
-1. Email client: `mailto:support@hotelosprp.com?subject=Integration Support - [Hotel Name]`
+1. Email client: `mailto:support@RoomLineprp.com?subject=Integration Support - [Hotel Name]`
 2. Modal with support form (future enhancement)
 
 ## Responsive Behavior

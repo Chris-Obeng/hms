@@ -1,31 +1,35 @@
+/* ============================================================================
+   Availability matrix — dense inventory grid.
+   Token-driven (works in light + dark). Sticky first column + date header.
+   ============================================================================ */
+
 .availability-page {
-  --availability-border: #e2e8f0;
-  --availability-row-bg: #ffffff;
-  --availability-header-bg: #fbfcfe;
-  --availability-muted-bg: #f8fafc;
-  --availability-today-bg: #eff6ff;
-  --availability-open: #16a34a;
-  --availability-tight: #f59e0b;
-  --availability-sold: #ef4444;
-  --availability-blocked: #64748b;
+  --av-bg: var(--background);
+  --av-surface: var(--card);
+  --av-header-bg: color-mix(in oklch, var(--muted) 30%, var(--card));
+  --av-border: var(--border);
+  --av-grid: color-mix(in oklch, var(--border) 60%, transparent);
+  --av-today-bg: color-mix(in oklch, var(--primary) 6%, transparent);
+  --av-today-line: var(--primary);
+  --av-open: #16a34a;
+  --av-tight: #d97706;
+  --av-sold: #dc2626;
+  --av-blocked: #64748b;
 }
 
 .availability-grid-shell {
   overflow-x: auto;
   overflow-y: visible;
-  height: auto;
-  max-height: none;
-  min-height: 0;
-  border: 1px solid var(--availability-border);
+  border: 1px solid var(--av-border);
   border-radius: 10px;
-  background: var(--availability-row-bg);
+  background: var(--av-surface);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .availability-grid-row {
   display: grid;
   min-width: max-content;
-  border-bottom: 1px solid #eef2f7;
+  border-bottom: 1px solid var(--av-grid);
 }
 
 .availability-grid-row:last-child {
@@ -37,76 +41,81 @@
   left: 0;
   z-index: 5;
   display: grid;
-  min-height: 74px;
+  min-height: 72px;
   align-content: center;
   gap: 2px;
-  border-right: 1px solid var(--availability-border);
-  background: var(--availability-row-bg);
+  border-right: 1px solid var(--av-border);
+  background: var(--av-surface);
   padding: 10px 14px;
 }
 
 .availability-sticky-cell strong {
   overflow: hidden;
-  color: #111827;
+  color: var(--foreground);
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 650;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .availability-sticky-cell small {
-  color: #8b95a6;
+  color: var(--muted-foreground);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .availability-date-header {
   position: sticky;
   top: 0;
   z-index: 10;
-  border-bottom: 1px solid #dbe2ec;
+  border-bottom: 1px solid var(--av-border);
 }
 
 .availability-corner {
   z-index: 15;
-  min-height: 70px;
-  background: var(--availability-header-bg);
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 800;
+  min-height: 64px;
+  background: var(--av-header-bg);
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .availability-date-cell {
   display: grid;
-  min-height: 70px;
+  min-height: 64px;
   place-items: center;
-  border-right: 1px solid #e7ebf0;
-  background: var(--availability-header-bg);
+  border-right: 1px solid var(--av-grid);
+  background: var(--av-header-bg);
   padding: 6px 4px;
   text-align: center;
+  gap: 0;
 }
 
 .availability-date-cell span {
-  color: #8a94a6;
+  color: var(--muted-foreground);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 650;
+  letter-spacing: 0.05em;
   line-height: 1;
   text-transform: uppercase;
 }
 
 .availability-date-cell strong {
-  color: #111827;
-  font-size: 25px;
-  font-weight: 800;
+  color: var(--foreground);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .availability-date-cell small {
-  color: #8b95a6;
+  color: var(--muted-foreground);
   font-size: 10px;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1;
 }
 
@@ -114,90 +123,93 @@
 .availability-total-cell.is-today,
 .availability-inventory-cell.is-today,
 .availability-room-cell.is-today {
-  background: var(--availability-today-bg);
-  box-shadow: inset 2px 0 0 #3b82f6;
+  background: var(--av-today-bg);
+  box-shadow: inset 2px 0 0 var(--av-today-line);
 }
 
 .availability-total-cell {
   display: grid;
-  min-height: 58px;
+  min-height: 56px;
   align-content: center;
   justify-items: center;
-  border-right: 1px solid #e7ebf0;
-  background: #f8fafc;
+  border-right: 1px solid var(--av-grid);
+  background: var(--av-header-bg);
   padding: 8px 6px;
+  gap: 2px;
 }
 
 .availability-total-cell strong {
-  color: #111827;
-  font-size: 18px;
-  font-weight: 800;
+  color: var(--foreground);
+  font-size: 17px;
+  font-weight: 700;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .availability-total-cell span {
-  color: #64748b;
+  color: var(--muted-foreground);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .availability-grid-total .availability-sticky-cell {
-  min-height: 58px;
-  background: #f8fafc;
+  min-height: 56px;
+  background: var(--av-header-bg);
 }
 
 .availability-inventory-cell {
   display: grid;
-  min-height: 74px;
+  min-height: 72px;
   align-content: center;
-  gap: 6px;
-  border-right: 1px solid #e7ebf0;
-  background: #ffffff;
-  padding: 9px 8px;
+  gap: 5px;
+  border-right: 1px solid var(--av-grid);
+  background: var(--av-surface);
+  padding: 9px 10px;
 }
 
 .availability-inventory-cell strong {
-  color: #111827;
-  font-size: 20px;
-  font-weight: 800;
+  color: var(--foreground);
+  font-size: 18px;
+  font-weight: 700;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
-.availability-inventory-cell span {
-  color: #64748b;
+.availability-inventory-cell .av-share {
+  color: var(--muted-foreground);
   font-size: 10px;
-  font-weight: 750;
+  font-weight: 600;
   line-height: 1;
 }
 
 .availability-meter {
   overflow: hidden;
-  height: 5px;
+  height: 4px;
   border-radius: 999px;
-  background: #ecfdf5;
+  background: color-mix(in oklch, var(--av-open) 10%, transparent);
 }
 
 .availability-meter span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--availability-open);
+  background: var(--av-open);
 }
 
 .availability-inventory-cell.is-tight .availability-meter {
-  background: #fffbeb;
+  background: color-mix(in oklch, var(--av-tight) 12%, transparent);
 }
 
 .availability-inventory-cell.is-tight .availability-meter span {
-  background: var(--availability-tight);
+  background: var(--av-tight);
 }
 
 .availability-inventory-cell.is-sold-out .availability-meter {
-  background: #fef2f2;
+  background: color-mix(in oklch, var(--av-sold) 12%, transparent);
 }
 
 .availability-inventory-cell.is-sold-out .availability-meter span {
-  background: var(--availability-sold);
+  background: var(--av-sold);
 }
 
 .availability-cell-meta,
@@ -206,69 +218,76 @@
   min-width: 0;
   flex-wrap: wrap;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
+}
+
+.availability-cell-meta span {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .availability-exception-line span {
-  max-width: 72px;
+  max-width: 84px;
   overflow: hidden;
   border-radius: 4px;
-  background: #f1f5f9;
-  padding: 2px 4px;
-  color: #475569;
+  background: color-mix(in oklch, var(--muted) 60%, var(--card));
+  padding: 2px 5px;
+  color: var(--foreground);
+  font-size: 10px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .availability-room-cell {
   display: grid;
-  min-height: 56px;
+  min-height: 52px;
   align-content: center;
-  gap: 4px;
-  border-right: 1px solid #e7ebf0;
-  background: #ffffff;
-  padding: 7px 8px;
+  gap: 3px;
+  border-right: 1px solid var(--av-grid);
+  background: var(--av-surface);
+  padding: 6px 8px;
 }
 
 .availability-room-cell span {
   overflow: hidden;
   border-radius: 5px;
   padding: 4px 6px;
-  color: #475569;
+  color: var(--muted-foreground);
   font-size: 10px;
-  font-weight: 750;
-  line-height: 1.1;
+  font-weight: 600;
+  line-height: 1.15;
   text-align: center;
   text-overflow: ellipsis;
   text-transform: capitalize;
   white-space: nowrap;
 }
 
+/* Room rack state colors — token-safe for dark mode */
 .availability-room-cell.is-open span {
-  background: #ecfdf5;
-  color: #15803d;
+  background: color-mix(in oklch, var(--av-open) 12%, transparent);
+  color: var(--av-open);
 }
 
 .availability-room-cell.is-reserved span {
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: color-mix(in oklch, #2563eb 14%, transparent);
+  color: #3b82f6;
 }
 
 .availability-room-cell.is-in_house span {
-  background: #dcfce7;
-  color: #166534;
+  background: color-mix(in oklch, var(--av-open) 18%, transparent);
+  color: var(--av-open);
 }
 
 .availability-room-cell.is-blocked span,
 .availability-room-cell.is-unsaleable span {
   background: repeating-linear-gradient(
     135deg,
-    rgba(100, 116, 139, 0.08),
-    rgba(100, 116, 139, 0.08) 6px,
-    rgba(100, 116, 139, 0.18) 6px,
-    rgba(100, 116, 139, 0.18) 12px
+    color-mix(in oklch, var(--av-blocked) 8%, transparent) 0 6px,
+    color-mix(in oklch, var(--av-blocked) 18%, transparent) 6px 12px
   );
-  color: #475569;
+  color: var(--muted-foreground);
 }
 
 .availability-room-flags {
@@ -279,16 +298,10 @@
 
 .availability-room-flags b {
   border-radius: 4px;
-  background: #111827;
+  background: var(--foreground);
   padding: 1px 4px;
-  color: #ffffff;
+  color: var(--background);
   font-size: 9px;
-  font-weight: 750;
+  font-weight: 650;
   line-height: 1.25;
-}
-
-@media (max-width: 768px) {
-  .availability-grid-shell {
-    max-height: none;
-  }
 }

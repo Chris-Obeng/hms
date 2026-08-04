@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser, useAuth, useClerk } from "@clerk/nextjs";
 import { useTheme } from "@/components/theme-provider";
@@ -29,6 +28,7 @@ import {
   type NotificationIconHandle,
 } from "@/components/ui/notification-icon";
 import { GlobalSearch } from "@/app/dashboard/_components/global-search";
+import { NewBookingModal } from "@/components/bookings/new-booking-modal";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/format";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -49,6 +49,8 @@ export interface AppHeaderProps {
   hotelLogoUrl?: string | null;
   hotelId?: string;
   notificationCount?: number;
+  roomTypes?: { id: string; name: string; base_price: number }[];
+  currency?: string;
   /** Kept for API compatibility — not rendered in the header */
   bookingUrl?: string;
 }
@@ -93,6 +95,8 @@ export function AppHeader({
   hotelLogoUrl,
   hotelId,
   notificationCount = 0,
+  roomTypes = [],
+  currency = "GHS",
   bookingUrl: _bookingUrl,
 }: AppHeaderProps) {
   const router = useRouter();
@@ -104,10 +108,16 @@ export function AppHeader({
 
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
-  React.useEffect(() => setMounted(true), []);
+  React.useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setMounted(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  void _bookingUrl;
 
   // ── HeroUI-native overlay state for the command palette ──────
   const searchState = useOverlayState();
+  const [newBookingOpen, setNewBookingOpen] = React.useState(false);
 
   // ── Audio ────────────────────────────────────────────────────
   const bellRef = React.useRef<NotificationIconHandle>(null);
@@ -180,7 +190,10 @@ export function AppHeader({
   );
 
   React.useEffect(() => {
-    setLiveCount(notificationCount);
+    const frame = window.requestAnimationFrame(() => {
+      setLiveCount(notificationCount);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [notificationCount]);
 
   // ── Realtime subscription ────────────────────────────────────
@@ -263,12 +276,12 @@ export function AppHeader({
                 bellRef.current?.startAnimation();
 
                 const soundEnabled =
-                  localStorage.getItem("hotelos_sound_enabled") !== "false";
+                  localStorage.getItem("RoomLine_sound_enabled") !== "false";
                 if (soundEnabled) playChime();
 
                 const browserAlerts =
                   localStorage.getItem(
-                    "hotelos_browser_notifications_enabled",
+                    "RoomLine_browser_notifications_enabled",
                   ) === "true";
                 if (browserAlerts && Notification.permission === "granted") {
                   try {
@@ -427,7 +440,7 @@ export function AppHeader({
           <Button
             variant="primary"
             size="sm"
-            onPress={() => router.push("/dashboard/bookings?new=1")}
+            onPress={() => setNewBookingOpen(true)}
             aria-label="New booking"
             className="hidden h-8 gap-1.5 rounded-lg text-xs sm:inline-flex"
           >
@@ -588,6 +601,12 @@ export function AppHeader({
 
       {/* ── Global Search command palette ─────────────────────── */}
       <GlobalSearch state={searchState} />
+      <NewBookingModal
+        open={newBookingOpen}
+        onOpenChange={setNewBookingOpen}
+        roomTypes={roomTypes}
+        currency={currency}
+      />
     </>
   );
 }

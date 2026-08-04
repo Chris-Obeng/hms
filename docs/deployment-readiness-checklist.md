@@ -237,7 +237,7 @@ What's new:
 - Integration management handled by our team
 - Contact support for any configuration changes
 
-Questions? support@hotelosprp.com
+Questions? support@RoomLineprp.com
 ```
 
 ### Post-Deployment
@@ -287,8 +287,8 @@ We apologize for any inconvenience.
 - Rate Limiter: `lib/bed24-rate-limiter.ts`
 
 **Support Contacts:**
-- Platform Team: platform-team@hotelosprp.com
-- DevOps: devops@hotelosprp.com
+- Platform Team: platform-team@RoomLineprp.com
+- DevOps: devops@RoomLineprp.com
 - Emergency: [On-call engineer]
 
 ---

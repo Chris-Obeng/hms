@@ -16,7 +16,7 @@ import "./onboarding.css";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = "hotelos_onboarding_data";
+const STORAGE_KEY = "RoomLine_onboarding_data";
 
 const HOTEL_TYPE_OPTIONS = [
   { value: "Hotel", label: "Hotel" },
@@ -172,7 +172,7 @@ export default function OnboardingPage() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        
+
         // Validate and clamp step to valid range [1, STEP_META.length]
         if (parsed.step) {
           const restoredStep = Number(parsed.step);
@@ -181,7 +181,7 @@ export default function OnboardingPage() {
             : 1;
           setStep(safeStep);
         }
-        
+
         if (parsed.data) setFormData((p) => ({ ...p, ...parsed.data }));
       } catch {
         // Ignore parse errors
@@ -277,7 +277,7 @@ export default function OnboardingPage() {
               </svg>
             </div>
             <span className="text-[15px] font-semibold text-white tracking-[-0.01em]">
-              HotelOS Pro
+              RoomLine
             </span>
           </div>
 
@@ -353,7 +353,7 @@ export default function OnboardingPage() {
             </svg>
           </div>
           <span className="text-[14px] font-semibold" style={{ color: "var(--onboarding-text-primary)" }}>
-            HotelOS Pro
+            RoomLine
           </span>
         </div>
 
@@ -686,7 +686,7 @@ export default function OnboardingPage() {
           }}
         >
           <p className="text-[11px]" style={{ color: "var(--onboarding-text-muted)" }}>
-            © 2026 HotelOS Pro
+            © 2026 RoomLine
           </p>
           <div className="flex items-center gap-1.5">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">

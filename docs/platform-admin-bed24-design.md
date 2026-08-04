@@ -64,7 +64,7 @@ This document outlines the design for moving Bed24 technical configuration from 
    - Token refresh (applies to all hotels - shared master token)
 
 3. **Room Mapping Management**
-   - Create: Map HotelOS room_type_id → Bed24 room_id
+   - Create: Map RoomLine room_type_id → Bed24 room_id
    - Read: View all mappings for selected hotel
    - Update: Edit existing mappings
    - Delete: Remove mappings

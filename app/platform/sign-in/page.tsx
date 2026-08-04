@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { PlatformLoginForm } from "./_components/login-form";
 
-export const metadata = { title: "HotelOS Pro — Platform Admin" };
+export const metadata = { title: "RoomLine — Platform Admin" };
 
 export default function PlatformSignInPage() {
   return (
@@ -12,7 +12,7 @@ export default function PlatformSignInPage() {
           <div className="inline-flex items-center justify-center size-12 rounded-2xl bg-secondary mb-4">
             <span className="text-2xl font-bold text-foreground">H</span>
           </div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">HotelOS Pro</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">RoomLines</h1>
           <p className="text-sm text-muted-foreground mt-1">Platform Admin</p>
         </div>
 

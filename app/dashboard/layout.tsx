@@ -66,12 +66,24 @@ export default async function DashboardLayout({
       .eq('clerk_org_id', orgId);
   }
 
-  // Fetch unread notification count
-  const { count: notificationCount } = await supabase
-    .from('notifications')
-    .select('*', { count: 'exact', head: true })
-    .eq('hotel_id', hotel.id)
-    .eq('is_read', false)
+  // Header needs a small, stable data set for global reservation creation.
+  const [notificationResult, roomTypesResult] = await Promise.all([
+    supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('hotel_id', hotel.id)
+      .eq('is_read', false),
+    supabase
+      .from('room_types')
+      .select('id, name, base_price')
+      .eq('hotel_id', hotel.id)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true }),
+  ])
+
+  const notificationCount = notificationResult.count
+  const roomTypes = roomTypesResult.data ?? []
 
   return (
     <SidebarProvider defaultOpen={false}>
@@ -87,6 +99,12 @@ export default async function DashboardLayout({
           hotelLogoUrl={hotel.logo_url}
           hotelId={hotel.id}
           notificationCount={notificationCount ?? 0}
+          roomTypes={roomTypes.map((roomType) => ({
+            id: roomType.id,
+            name: roomType.name,
+            base_price: roomType.base_price ?? 0,
+          }))}
+          currency={hotel.currency || "GHS"}
           bookingUrl={
             hotel.slug
               ? hotel.custom_domain

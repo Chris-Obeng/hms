@@ -22,7 +22,6 @@ import {
   CalendarX,
   DoorOpen,
 } from "lucide-react";
-import { addDays, format } from "date-fns";
 import { toast } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
@@ -53,12 +52,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { type RoomInput, type AvailabilityBlockInput } from "@/app/actions/rooms";
+import { type RoomInput } from "@/app/actions/rooms";
 import { createClient } from "@/lib/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { qk } from "@/lib/query-keys";
 import { writeAuditLog } from "@/lib/audit";
+import { BlockRoomSheet } from "@/app/dashboard/calendar/_components/block-room-sheet";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -133,10 +133,6 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
   // Block Room Sheet State
   const [blockOpen, setBlockOpen] = React.useState(false);
   const [blockRoomId, setBlockRoomId] = React.useState("");
-  const [blockStartDate, setBlockStartDate] = React.useState("");
-  const [blockEndDate, setBlockEndDate] = React.useState("");
-  const [blockReason, setBlockReason] = React.useState<"maintenance" | "deep_cleaning" | "owner_use" | "renovation" | "other">("maintenance");
-  const [blockNotes, setBlockNotes] = React.useState("");
 
   // Query staff profile for audit logs
   const { data: staffProfile } = useQuery({
@@ -322,71 +318,6 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
     }
   });
 
-  const createBlockMutation = useMutation({
-    mutationFn: async (input: AvailabilityBlockInput) => {
-      const supabase = createClient();
-      
-      const { data: roomData, error: roomError } = await supabase
-        .from("rooms")
-        .select("room_number")
-        .eq("id", input.roomId)
-        .single();
-      
-      if (roomError) throw roomError;
-
-      const { error, data: block } = await supabase.from("availability_blocks").insert({
-        hotel_id: hotelId,
-        room_id: input.roomId,
-        start_date: input.startDate,
-        end_date: input.endDate,
-        reason: input.reason,
-        notes: input.notes || null,
-      }).select("id").single();
-
-      if (error) throw error;
-
-      const statusToSet = input.reason === "maintenance" || input.reason === "deep_cleaning" ? "maintenance" : "out_of_service";
-      const { error: roomUpdateError } = await supabase
-        .from("rooms")
-        .update({ status: statusToSet })
-        .eq("id", input.roomId);
-
-      if (roomUpdateError) throw roomUpdateError;
-
-      if (staffProfile) {
-        await writeAuditLog(supabase, {
-          hotelId,
-          staffId: staffProfile.id,
-          staffName: staffProfile.full_name,
-          action: "room.block_created",
-          entityType: "room",
-          entityId: input.roomId,
-          afterState: {
-            room_number: roomData?.room_number,
-            start_date: input.startDate,
-            end_date: input.endDate,
-            reason: input.reason,
-          },
-        });
-      }
-
-      return block;
-    },
-    onSuccess: () => {
-      toast.success("Room blocked for selected dates");
-      setBlockOpen(false);
-      setBlockRoomId("");
-      setBlockStartDate("");
-      setBlockEndDate("");
-      setBlockReason("maintenance");
-      setBlockNotes("");
-      queryClient.invalidateQueries({ queryKey: qk.rooms(orgId || "", hotelId) });
-    },
-    onError: (err) => {
-      toast.danger(err instanceof Error ? err.message : "Failed to block room");
-    }
-  });
-
   const handleStatusChange = (roomId: string, newStatus: string) => {
     updateStatusMutation.mutate({ roomId, newStatus });
   };
@@ -402,19 +333,6 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
       notes: newNotes,
       status: "available",
       isActive: true,
-    });
-  };
-
-  const handleBlockRoom = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!blockRoomId || !blockStartDate || !blockEndDate) return;
-
-    createBlockMutation.mutate({
-      roomId: blockRoomId,
-      startDate: blockStartDate,
-      endDate: blockEndDate,
-      reason: blockReason,
-      notes: blockNotes,
     });
   };
 
@@ -505,8 +423,6 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
                 <DropdownMenuItem
                   onClick={() => {
                     setBlockRoomId(room.id);
-                    setBlockStartDate(format(new Date(), "yyyy-MM-dd"));
-                    setBlockEndDate(format(addDays(new Date(), 1), "yyyy-MM-dd"));
                     setBlockOpen(true);
                   }}
                 >
@@ -782,87 +698,15 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
       </Dialog>
 
       {/* ── Block Room Dialog ── */}
-      <Dialog open={blockOpen} onOpenChange={setBlockOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Block Room Dates</DialogTitle>
-            <DialogDescription>
-              Block this room from being booked for maintenance, cleaning, or owner use.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleBlockRoom} className="space-y-4 mt-2">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                Reason
-              </label>
-              <select
-                value={blockReason}
-                onChange={(e) => setBlockReason(e.target.value as typeof blockReason)}
-                className="h-9 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <option value="maintenance">Maintenance</option>
-                <option value="deep_cleaning">Deep Cleaning</option>
-                <option value="owner_use">Owner Use</option>
-                <option value="renovation">Renovation</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                Start date *
-              </label>
-              <Input
-                type="date"
-                value={blockStartDate}
-                onChange={(e) => setBlockStartDate(e.target.value)}
-                className="h-9 rounded-xl"
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                End date *
-              </label>
-              <Input
-                type="date"
-                value={blockEndDate}
-                onChange={(e) => setBlockEndDate(e.target.value)}
-                className="h-9 rounded-xl"
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                Notes (optional)
-              </label>
-              <textarea
-                placeholder="Reason for blocking..."
-                value={blockNotes}
-                onChange={(e) => setBlockNotes(e.target.value)}
-                rows={3}
-                className="w-full rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 placeholder:text-muted-foreground resize-none"
-              />
-            </div>
-            <div className="flex items-center justify-between pt-2">
-              <Button
-                variant="ghost"
-                type="button"
-                className="text-sm rounded-xl"
-                onClick={() => setBlockOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={loading || !blockStartDate || !blockEndDate}
-                className="text-sm rounded-xl bg-foreground text-background hover:bg-foreground/90"
-              >
-                {loading ? "Blocking..." : "Block Dates"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <BlockRoomSheet
+        open={blockOpen}
+        onOpenChange={setBlockOpen}
+        rooms={localData}
+        prefillRoomId={blockRoomId || undefined}
+        prefillStartDate={new Date()}
+        prefillEndDate={new Date()}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: qk.rooms(orgId || "", hotelId) })}
+      />
     </>
   );
 }

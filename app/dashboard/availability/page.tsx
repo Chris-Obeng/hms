@@ -7,7 +7,7 @@ import "./availability.css";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Availability | HotelOS",
+  title: "Availability | RoomLine",
 };
 
 type PageProps = {

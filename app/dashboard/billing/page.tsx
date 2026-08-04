@@ -176,12 +176,12 @@ export default async function BillingPage() {
               {currentPlan === "starter"
                 ? "Unlock more rooms, more staff accounts, and priority support."
                 : "Get a custom domain for your booking page and priority support."}
-              {" "}Contact the HotelOS Pro team to upgrade — no online payment form, we handle it for you.
+              {" "}Contact the RoomLine team to upgrade — no online payment form, we handle it for you.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <a
-              href="https://wa.me/233XXXXXXXXX?text=Hi%2C%20I'd%20like%20to%20upgrade%20my%20HotelOS%20plan"
+              href="https://wa.me/233XXXXXXXXX?text=Hi%2C%20I'd%20like%20to%20upgrade%20my%20RoomLine%20plan"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-foreground text-background text-xs font-medium hover:bg-foreground/90 transition-colors"
@@ -190,7 +190,7 @@ export default async function BillingPage() {
               WhatsApp us
             </a>
             <a
-              href="mailto:support@hotelosprp.com?subject=Plan upgrade request"
+              href="mailto:support@RoomLineprp.com?subject=Plan upgrade request"
               className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border/60 text-foreground text-xs font-medium hover:bg-muted/40 transition-colors"
             >
               <MessageCircle className="size-3.5" />
@@ -204,7 +204,7 @@ export default async function BillingPage() {
         <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
           <p className="text-xs text-muted-foreground">
             <Check className="size-3 inline-block mr-1 text-emerald-600" />
-            You're on the <strong>Professional</strong> plan — you have access to all HotelOS features.
+            You're on the <strong>Professional</strong> plan — you have access to all RoomLine features.
           </p>
         </div>
       )}

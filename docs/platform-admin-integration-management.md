@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Platform Admin Integration Management system allows HotelOS platform administrators to configure and monitor Bed24 channel manager integrations for all hotels in the system.
+The Platform Admin Integration Management system allows RoomLine platform administrators to configure and monitor Bed24 channel manager integrations for all hotels in the system.
 
 **Access**: `/platform/dashboard/integrations`
 
@@ -17,7 +17,7 @@ The Platform Admin Integration Management system allows HotelOS platform adminis
 1. **Obtain Property ID**
    - Get the Property ID from hotel's Bed24 account (Settings → Properties)
 
-2. **Configure in HotelOS**
+2. **Configure in RoomLine**
    - Select hotel from dropdown
    - Go to Connection tab
    - Enter Property ID and click Save
@@ -26,7 +26,7 @@ The Platform Admin Integration Management system allows HotelOS platform adminis
 3. **Create Room Mappings**
    - Go to Room Mappings tab
    - Click Add Mapping
-   - Map each HotelOS room type to its Bed24 room ID
+   - Map each RoomLine room type to its Bed24 room ID
 
 4. **Initialize Sync**
    - Click Force Full Sync
@@ -60,7 +60,7 @@ Use the dropdown to switch between hotels. Shows:
 ### Room Mappings Tab
 
 **Manage Channel Mappings:**
-- Create new mappings (HotelOS room type → Bed24 room ID)
+- Create new mappings (RoomLine room type → Bed24 room ID)
 - Edit existing mappings
 - Delete outdated mappings
 - View mapping status (active/inactive)
@@ -109,14 +109,14 @@ Use the dropdown to switch between hotels. Shows:
 
 When a hotel adds a new room type:
 
-1. Confirm room type is created in HotelOS
+1. Confirm room type is created in RoomLine
 2. Get Bed24 room ID from hotel's Bed24 account
 3. Go to Room Mappings tab
 4. Click Add Mapping
 5. Fill in:
    - Bed24 Property ID (same as hotel's)
    - Bed24 Room ID (from step 2)
-   - HotelOS Room Type (new room type)
+   - RoomLine Room Type (new room type)
 6. Click Create Mapping
 7. Run Force Full Sync to initialize
 
@@ -235,7 +235,7 @@ exportSyncLogsForHotel(filters: SyncLogFilters)
 
 ## Support
 
-- **Technical Issues**: support@hotelosprp.com
+- **Technical Issues**: support@RoomLineprp.com
 - **Bed24 Support**: https://beds24.com/support
 - **Emergency**: Contact dev team in #platform-admins Slack
 
@@ -257,4 +257,4 @@ These are shared across all hotels. Each hotel has a separate Property ID.
 
 **Last Updated**: 2026-07-21  
 **Version**: 1.0  
-**Maintained By**: HotelOS Platform Team
+**Maintained By**: RoomLine Platform Team

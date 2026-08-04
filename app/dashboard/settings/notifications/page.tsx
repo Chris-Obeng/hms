@@ -67,7 +67,7 @@ export default function NotificationSettingsPage() {
     loadPrefs();
 
     // Load sound preference from localStorage
-    const sound = localStorage.getItem("hotelos_sound_enabled");
+    const sound = localStorage.getItem("RoomLine_sound_enabled");
     if (sound !== null) {
       setSoundEnabled(sound === "true");
     }
@@ -75,7 +75,7 @@ export default function NotificationSettingsPage() {
     // Load browser push preference & permission state
     if (typeof window !== "undefined") {
       setNotificationPermission(Notification.permission);
-      const alerts = localStorage.getItem("hotelos_browser_notifications_enabled") === "true";
+      const alerts = localStorage.getItem("RoomLine_browser_notifications_enabled") === "true";
       setBrowserAlertsEnabled(alerts && Notification.permission === "granted");
     }
   }, []);
@@ -89,7 +89,7 @@ export default function NotificationSettingsPage() {
   const toggleSound = () => {
     const newVal = !soundEnabled;
     setSoundEnabled(newVal);
-    localStorage.setItem("hotelos_sound_enabled", String(newVal));
+    localStorage.setItem("RoomLine_sound_enabled", String(newVal));
   };
 
   // Toggle browser push alerts
@@ -100,11 +100,11 @@ export default function NotificationSettingsPage() {
       const permission = await Notification.requestPermission();
       setNotificationPermission(permission);
       if (permission === "granted") {
-        localStorage.setItem("hotelos_browser_notifications_enabled", "true");
+        localStorage.setItem("RoomLine_browser_notifications_enabled", "true");
         setBrowserAlertsEnabled(true);
         toast.success("Browser notifications authorized!");
       } else {
-        localStorage.setItem("hotelos_browser_notifications_enabled", "false");
+        localStorage.setItem("RoomLine_browser_notifications_enabled", "false");
         setBrowserAlertsEnabled(false);
         toast.danger("Notification permission denied");
       }
@@ -113,7 +113,7 @@ export default function NotificationSettingsPage() {
     } else {
       const newVal = !browserAlertsEnabled;
       setBrowserAlertsEnabled(newVal);
-      localStorage.setItem("hotelos_browser_notifications_enabled", String(newVal));
+      localStorage.setItem("RoomLine_browser_notifications_enabled", String(newVal));
       if (newVal) {
         toast.success("Browser alerts enabled");
       } else {
@@ -231,7 +231,7 @@ export default function NotificationSettingsPage() {
             </div>
             <Switch checked={browserAlertsEnabled} onCheckedChange={toggleBrowserAlerts} size="lg" />
           </div>
-          
+
           <div className="rounded-xl bg-muted/30 border border-border/40 p-3 text-xs space-y-1.5">
             <div className="flex items-center gap-1.5 text-muted-foreground font-medium">
               <Info className="size-3.5" />

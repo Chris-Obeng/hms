@@ -192,7 +192,7 @@ export function StaffClient({ data, currentUserId, isSuperAdmin }: StaffClientPr
 
   const handleShareWhatsApp = () => {
     const text = encodeURIComponent(
-      `Join our hotel team on HotelOS Pro! Sign up using this link: ${inviteLink}`
+      `Join our hotel team on RoomLine! Sign up using this link: ${inviteLink}`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
   };

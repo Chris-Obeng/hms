@@ -61,7 +61,7 @@ export function PlatformLoginForm({
         <CardHeader className="pb-4">
           <CardTitle className="text-xl text-foreground">Sign in</CardTitle>
           <CardDescription className="text-foreground/50">
-            Internal access only — authorised HotelOS team
+            Internal access only — authorised RoomLine team
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -73,7 +73,7 @@ export function PlatformLoginForm({
               <Input
                 id="email"
                 type="email"
-                placeholder="you@hotelosprp.com"
+                placeholder="you@RoomLineprp.com"
                 required
                 autoComplete="email"
                 value={email}

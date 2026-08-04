@@ -1,7 +1,7 @@
 ﻿/**
  * lib/notifications/resend.ts
  *
- * Resend email sender for HotelOS Pro.
+ * Resend email sender for RoomLine.
  *
  * Architecture:
  *   - Single platform-level Resend account (env RESEND_API_KEY).

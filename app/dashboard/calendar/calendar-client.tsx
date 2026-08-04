@@ -4,22 +4,23 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { addDays, format, parseISO, subDays } from "date-fns";
 import {
   CalendarDays,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Grid2X2,
+  List,
   Plus,
   Search,
-  Settings,
   SlidersHorizontal,
   X,
 } from "lucide-react";
 import { toast } from "@heroui/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -27,7 +28,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { createClient } from "@/lib/supabase/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { qk } from "@/lib/query-keys";
 import { checkInBooking, checkOutBooking } from "@/app/dashboard/actions";
@@ -38,10 +44,7 @@ import {
   checkRoomAvailability,
   getCalendarData,
   moveBooking,
-  type CalendarAvailabilityBlock,
-  type CalendarBooking,
   type CalendarData,
-  type CalendarRoom,
 } from "./actions";
 import { buildEvents, type CalendarEvent } from "./_components/calendar-events";
 import { buildResources } from "./_components/calendar-resources";
@@ -55,6 +58,7 @@ import {
 import { BookingDetailPanel } from "./_components/booking-detail-panel";
 import { BlockRoomSheet } from "./_components/block-room-sheet";
 import { UnassignedTray } from "./_components/unassigned-tray";
+import { MobileAgenda } from "./_components/mobile-agenda";
 import "./calendar.css";
 
 const DayPilotScheduler = dynamic(
@@ -93,7 +97,29 @@ function getDateRangeKey(startDate: Date, days: number): string {
   return `${format(startDate, "yyyy-MM-dd")}_${days}`;
 }
 
-export function CalendarClient({
+export function CalendarClient(props: CalendarClientProps) {
+  // This boundary makes CalendarClient safe when rendered in isolated route
+  // previews, error recoveries, or layouts that do not inherit app providers.
+  const [queryClient] = React.useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 30 * 1000,
+            refetchOnWindowFocus: false,
+          },
+        },
+      }),
+  );
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <CalendarClientContent {...props} />
+    </QueryClientProvider>
+  );
+}
+
+function CalendarClientContent({
   initialData,
   roomTypes,
   hotelId,
@@ -149,6 +175,12 @@ export function CalendarClient({
   const [showSearch, setShowSearch] = React.useState(false);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const [rangePopoverOpen, setRangePopoverOpen] = React.useState(false);
+  const [mobileView, setMobileView] = React.useState<"timeline" | "agenda">(
+    "timeline",
+  );
+  const [realtimeStatus, setRealtimeStatus] = React.useState<
+    "live" | "reconnecting"
+  >("reconnecting");
 
   React.useEffect(() => {
     if (showSearch) {
@@ -216,6 +248,43 @@ export function CalendarClient({
     () => buildEvents(bookings, availabilityBlocks, newBookingIds),
     [bookings, availabilityBlocks, newBookingIds],
   );
+
+  const todayKey = React.useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
+
+  // Scheduler callbacks run for every pointer movement. Keep lookup work indexed
+  // so a large property does not turn drag feedback into repeated array scans.
+  const bookingByEventId = React.useMemo(
+    () => new Map(bookings.map((booking) => [`booking-${booking.id}`, booking])),
+    [bookings],
+  );
+  const roomById = React.useMemo(
+    () => new Map(rooms.map((room) => [room.id, room])),
+    [rooms],
+  );
+  const eventsByResource = React.useMemo(() => {
+    const index = new Map<string, CalendarEvent[]>();
+    for (const event of events) {
+      const row = index.get(event.resource) ?? [];
+      row.push(event);
+      index.set(event.resource, row);
+    }
+    return index;
+  }, [events]);
+  const occupancyByDate = React.useMemo(() => {
+    const occupancy = new Map<string, number>();
+    const firstDay = format(startDate, "yyyy-MM-dd");
+    const lastDay = format(addDays(startDate, days), "yyyy-MM-dd");
+
+    for (const booking of bookings) {
+      if (!booking.roomId || booking.status === "cancelled" || booking.status === "checked_out") continue;
+      const from = booking.checkIn > firstDay ? booking.checkIn : firstDay;
+      const until = booking.checkOut < lastDay ? booking.checkOut : lastDay;
+      for (let cursor = from; cursor < until; cursor = format(addDays(parseISO(cursor), 1), "yyyy-MM-dd")) {
+        occupancy.set(cursor, (occupancy.get(cursor) ?? 0) + 1);
+      }
+    }
+    return occupancy;
+  }, [bookings, days, startDate]);
 
   const filteredEvents = React.useMemo(() => {
     let next = events.filter((event) =>
@@ -287,10 +356,17 @@ export function CalendarClient({
   React.useEffect(() => {
     if (!orgId) return;
     const supabase = createClient();
-    const invalidate = () => {
-      queryClient.invalidateQueries({
-        queryKey: ["calendar", orgId, hotelId],
-      });
+    let refreshTimer: number | undefined;
+    const refresh = () => {
+      if (refreshTimer) window.clearTimeout(refreshTimer);
+      // Several rows can change in one reservation operation. Batch those
+      // events, then immediately refetch the active calendar query.
+      refreshTimer = window.setTimeout(() => {
+        void queryClient.invalidateQueries({
+          queryKey: ["calendar", orgId, hotelId],
+          refetchType: "active",
+        });
+      }, 75);
     };
     const channel = supabase
       .channel(`hotel:${hotelId}:calendar`)
@@ -302,7 +378,7 @@ export function CalendarClient({
           table: "bookings",
           filter: `hotel_id=eq.${hotelId}`,
         },
-        invalidate,
+        refresh,
       )
       .on(
         "postgres_changes",
@@ -312,10 +388,13 @@ export function CalendarClient({
           table: "availability_blocks",
           filter: `hotel_id=eq.${hotelId}`,
         },
-        invalidate,
+        refresh,
       )
-      .subscribe();
+      .subscribe((status) => {
+        setRealtimeStatus(status === "SUBSCRIBED" ? "live" : "reconnecting");
+      });
     return () => {
+      if (refreshTimer) window.clearTimeout(refreshTimer);
       supabase.removeChannel(channel);
     };
   }, [hotelId, orgId, queryClient]);
@@ -330,7 +409,9 @@ export function CalendarClient({
 
   // Kept for scheduler scroll-to behaviour; no longer used for data fetching
   const fetchCalendarData = React.useCallback(
-    (_date: Date, _numDays: number) => {
+    (dateArg: Date, daysArg: number) => {
+      void dateArg;
+      void daysArg;
       invalidateCalendar();
     },
     [invalidateCalendar],
@@ -580,7 +661,7 @@ export function CalendarClient({
 
       for (const room of rooms.filter(
         (item) =>
-          item.roomTypeId === booking.roomTypeId && item.status === "available",
+          item.roomTypeId === booking.roomTypeId && !["maintenance", "out_of_service"].includes(item.status),
       )) {
         const availability = await checkRoomAvailability(
           room.id,
@@ -680,6 +761,11 @@ export function CalendarClient({
   const roomsRef = React.useRef(rooms);
   const eventsRef = React.useRef(events);
   const filteredEventsRef = React.useRef(filteredEvents);
+  const bookingByEventIdRef = React.useRef(bookingByEventId);
+  const roomByIdRef = React.useRef(roomById);
+  const eventsByResourceRef = React.useRef(eventsByResource);
+  const occupancyByDateRef = React.useRef(occupancyByDate);
+  const serviceableRoomCountRef = React.useRef(0);
   React.useEffect(() => {
     bookingsRef.current = bookings;
   }, [bookings]);
@@ -692,6 +778,23 @@ export function CalendarClient({
   React.useEffect(() => {
     filteredEventsRef.current = filteredEvents;
   }, [filteredEvents]);
+  React.useEffect(() => {
+    bookingByEventIdRef.current = bookingByEventId;
+  }, [bookingByEventId]);
+  React.useEffect(() => {
+    roomByIdRef.current = roomById;
+  }, [roomById]);
+  React.useEffect(() => {
+    eventsByResourceRef.current = eventsByResource;
+  }, [eventsByResource]);
+  React.useEffect(() => {
+    occupancyByDateRef.current = occupancyByDate;
+  }, [occupancyByDate]);
+  React.useEffect(() => {
+    serviceableRoomCountRef.current = rooms.filter(
+      (room) => !room.status?.includes("maintenance") && !room.status?.includes("out_of_service"),
+    ).length;
+  }, [rooms]);
 
   const schedulerConfig = React.useMemo(() => {
     let cellWidth = 72;
@@ -749,7 +852,7 @@ export function CalendarClient({
       durationBarVisible: false,
       floatingEvents: true,
       floatingTimeHeaders: false,
-      headerHeight: 56,
+      headerHeight: 52,
       timeHeaders: [{ groupBy: "Day" as const, format: "ddd d" }],
       onEventMoving: (args: any) => {
         const startStr = args.start.toString("yyyy-MM-dd");
@@ -765,9 +868,9 @@ export function CalendarClient({
         }
 
         // 2. Prevent dragging to start in the past unless walk-in/manual/phone or checked-in
-        const todayStr = format(new Date(), "yyyy-MM-dd");
+        const todayStr = todayKey;
         if (startStr < todayStr) {
-          const booking = bookingsRef.current.find(b => `booking-${b.id}` === eventId);
+          const booking = bookingByEventIdRef.current.get(eventId);
           const isAllowedPast = booking && (isManualLikeSource(booking.source) || booking.status === "checked_in");
           if (!isAllowedPast) {
             args.allowed = false;
@@ -777,8 +880,8 @@ export function CalendarClient({
         }
 
         // 3. Room type compatibility
-        const booking = bookingsRef.current.find(b => `booking-${b.id}` === eventId);
-        const targetRoom = roomsRef.current.find(r => r.id === resourceId);
+        const booking = bookingByEventIdRef.current.get(eventId);
+        const targetRoom = roomByIdRef.current.get(resourceId);
         if (booking && targetRoom && booking.roomTypeId !== targetRoom.roomTypeId) {
           args.allowed = false;
           args.right.html = "Room type mismatch";
@@ -786,7 +889,7 @@ export function CalendarClient({
         }
 
         // 4. Overlap checks against the UNFILTERED events array
-        const hasOverlap = eventsRef.current.some(evt => {
+        const hasOverlap = (eventsByResourceRef.current.get(resourceId) ?? []).some(evt => {
           if (evt.id === eventId) return false;
           if (evt.resource !== resourceId) return false;
           return evt.start < endStr && evt.end > startStr;
@@ -804,9 +907,9 @@ export function CalendarClient({
         const eventId = args.e.id();
 
         // Prevent resizing to start in the past unless allowed (walk-in/manual/phone or checked-in)
-        const todayStr = format(new Date(), "yyyy-MM-dd");
+        const todayStr = todayKey;
         if (startStr < todayStr) {
-          const booking = bookingsRef.current.find(b => `booking-${b.id}` === eventId);
+          const booking = bookingByEventIdRef.current.get(eventId);
           const isAllowedPast = booking && (isManualLikeSource(booking.source) || booking.status === "checked_in");
           if (!isAllowedPast) {
             args.allowed = false;
@@ -816,9 +919,8 @@ export function CalendarClient({
         }
 
         // Overlap checks against the UNFILTERED events array
-        const hasOverlap = eventsRef.current.some(evt => {
+        const hasOverlap = (eventsByResourceRef.current.get(resourceId) ?? []).some(evt => {
           if (evt.id === eventId) return false;
-          if (evt.resource !== resourceId) return false;
           return evt.start < endStr && evt.end > startStr;
         });
 
@@ -831,7 +933,7 @@ export function CalendarClient({
         const date = args.cell.start.toString("yyyy-MM-dd");
         const weekday = args.cell.start.toString("ddd");
         const classes = [args.cell.properties.cssClass || ""];
-        if (date === format(new Date(), "yyyy-MM-dd"))
+        if (date === todayKey)
           classes.push("today-col");
         if (weekday === "Sat" || weekday === "Sun") classes.push("weekend-col");
         if (String(args.cell.resource).startsWith("section-"))
@@ -840,22 +942,11 @@ export function CalendarClient({
       },
       onBeforeTimeHeaderRender: (args: any) => {
         const date = args.header.start.toString("yyyy-MM-dd");
-        const occupied = bookingsRef.current.filter(
-          (booking) =>
-            booking.roomId &&
-            booking.checkIn <= date &&
-            booking.checkOut > date &&
-            booking.status !== "cancelled" &&
-            booking.status !== "checked_out",
-        ).length;
-        const totalRooms = roomsRef.current.filter(
-          (r) =>
-            !r.status?.includes("maintenance") &&
-            !r.status?.includes("out_of_service"),
-        ).length;
+        const occupied = occupancyByDateRef.current.get(date) ?? 0;
+        const totalRooms = serviceableRoomCountRef.current;
         const occupancy =
           totalRooms > 0 ? Math.round((occupied / totalRooms) * 100) : 0;
-        const today = date === format(new Date(), "yyyy-MM-dd");
+        const today = date === todayKey;
 
         const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
         // getDayOfWeek() is the correct DayPilotDate API (not native Date.getDay())
@@ -864,9 +955,7 @@ export function CalendarClient({
         args.header.html = `<div class="cal-day-hdr${today ? " is-today" : ""}">
           <span class="cal-day-dow">${dayNames[dayIndex] || "Sun"}</span>
           <span class="cal-day-num">${args.header.start.toString("d")}</span>
-          <div class="cal-day-occ-wrap">
-            <span class="cal-day-occ">${occupancy}%</span>
-          </div>
+          <span class="cal-day-occ">${occupancy}%</span>
         </div>`;
         if (today)
           args.header.properties = {
@@ -875,12 +964,27 @@ export function CalendarClient({
           };
       },
     };
-  }, [canEdit, days, startDate, viewPreset]);
+  }, [canEdit, days, startDate, todayKey, viewPreset]);
 
   const filteredCount = roomTypeFilters.filter(
     (filter) => filter.visible,
   ).length;
   const hiddenTypeCount = roomTypeFilters.length - filteredCount;
+  const mobileSchedulerConfig = React.useMemo(
+    () => ({
+      ...schedulerConfig,
+      days: 7,
+      cellWidth: 64,
+      rowHeaderWidth: 104,
+      rowHeight: 48,
+      eventHeight: 40,
+      height: 560,
+      heightSpec: "Fixed" as const,
+      floatingEvents: false,
+    }),
+    [schedulerConfig],
+  );
+
   const activeFilterCount =
     hiddenTypeCount +
     statusFilters.length +
@@ -891,8 +995,6 @@ export function CalendarClient({
     <div className="cal-wrap flex flex-col h-[calc(100vh-3rem)] bg-background overflow-hidden min-h-0">
       {/* ── Desktop Toolbar ── */}
       <div className="hidden md:flex items-center gap-1.5 px-3 border-b border-border bg-background sticky top-0 z-30 h-11">
-
-        {/* ── Left group: navigation ── */}
 
         {/* Prev */}
         <button
@@ -968,16 +1070,52 @@ export function CalendarClient({
         {/* Today */}
         <button
           onClick={goToToday}
-          title="Jump to today"
+          title="Jump to today (T)"
           className="h-8 px-3 rounded-md border border-border text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         >
           Today
         </button>
 
-        {/* ── Spacer ── */}
         <div className="flex-1" />
 
-        {/* ── Right group ── */}
+        {/* Legend */}
+        <Popover>
+          <PopoverTrigger
+            render={
+              <button className="h-8 px-2.5 rounded-md text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-1.5">
+                <span className="flex gap-1">
+                  <span className="size-2 rounded-sm" style={{ background: "#16A7D8" }} />
+                  <span className="size-2 rounded-sm" style={{ background: "#2FAA67" }} />
+                  <span className="size-2 rounded-sm" style={{ background: "#16A34A" }} />
+                </span>
+                Legend
+              </button>
+            }
+          />
+          <PopoverContent className="w-52 p-3" align="end">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              Status colors
+            </p>
+            <ul className="space-y-1.5">
+              {CALENDAR_LEGEND.map((item) => (
+                <li key={item.label} className="flex items-center gap-2 text-xs text-foreground">
+                  <span
+                    className={cn("size-2.5 rounded-sm shrink-0", item.type === "block" && "rounded-[3px]")}
+                    style={
+                      item.type === "block"
+                        ? {
+                            background:
+                              "repeating-linear-gradient(135deg, rgba(100,116,139,0.25) 0 3px, rgba(100,116,139,0.5) 3px 6px)",
+                          }
+                        : { background: item.color }
+                    }
+                  />
+                  {item.label}
+                </li>
+              ))}
+            </ul>
+          </PopoverContent>
+        </Popover>
 
         {/* Search — icon that expands inline */}
         <div className={cn(
@@ -1036,24 +1174,16 @@ export function CalendarClient({
             title="Block room"
             className="h-8 w-8 rounded-md flex items-center justify-center border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" className="size-3.5">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" className="size-3.5" aria-hidden>
               <rect x="1" y="1" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
               <line x1="3.5" y1="7.5" x2="11.5" y2="7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </button>
         )}
 
-        {/* Settings */}
-        <button
-          title="Calendar settings"
-          className="h-8 w-8 rounded-md flex items-center justify-center border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-        >
-          <Settings className="size-3.5" />
-        </button>
-
         <div className="w-px h-5 bg-border mx-0.5" />
 
-        {/* New Reservation — primary CTA, right-most */}
+        {/* New Reservation — primary CTA */}
         <button
           onClick={() => { setNewBookingPrefill(null); setNewBookingOpen(true); }}
           title="Create new reservation (N)"
@@ -1063,6 +1193,53 @@ export function CalendarClient({
           New Reservation
         </button>
 
+      </div>
+
+      {/* ── Mobile Toolbar ── */}
+      <div className="flex md:hidden items-center gap-2 px-3 border-b border-border bg-background sticky top-0 z-30 h-12">
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground leading-tight">
+            Calendar
+            <span
+              className={cn(
+                "size-1.5 rounded-full",
+                realtimeStatus === "live" ? "bg-emerald-500" : "bg-amber-400",
+              )}
+              aria-label={realtimeStatus === "live" ? "Live updates connected" : "Live updates reconnecting"}
+            />
+          </p>
+          <p className="text-[10px] text-muted-foreground tabular-nums leading-tight">
+            {format(startDate, "MMM d")} – {format(addDays(startDate, 6), "MMM d")}
+          </p>
+        </div>
+        <div className="ml-auto flex items-center rounded-md border border-border bg-muted/30 p-0.5">
+          <button onClick={() => setStartDate((date) => subDays(date, 7))} className="grid size-7 place-items-center rounded text-muted-foreground active:bg-background" aria-label="Previous week">
+            <ChevronLeft className="size-3.5" />
+          </button>
+          <button onClick={goToToday} className="h-7 px-2 text-[11px] font-semibold text-foreground active:bg-background">Today</button>
+          <button onClick={() => setStartDate((date) => addDays(date, 7))} className="grid size-7 place-items-center rounded text-muted-foreground active:bg-background" aria-label="Next week">
+            <ChevronRight className="size-3.5" />
+          </button>
+        </div>
+        {canBlock && (
+          <button
+            onClick={() => { setBlockPrefillRoomId(undefined); setBlockRoomOpen(true); }}
+            aria-label="Block room"
+            className="h-9 w-9 rounded-md flex items-center justify-center border border-border text-muted-foreground active:bg-muted"
+          >
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" className="size-4" aria-hidden>
+              <rect x="1" y="1" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+              <line x1="3.5" y1="7.5" x2="11.5" y2="7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </button>
+        )}
+        <button
+          onClick={() => { setNewBookingPrefill(null); setNewBookingOpen(true); }}
+          className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5"
+        >
+          <Plus className="size-3.5" />
+          New
+        </button>
       </div>
       {/* Active filter chips */}
       {activeFilterCount > 0 && (
@@ -1091,7 +1268,7 @@ export function CalendarClient({
         />
       )}
 
-      {/* Scheduler */}
+      {/* Scheduler (desktop) */}
       <div className="hidden md:block flex-1 relative overflow-hidden min-h-0">
         {loading && (
           <div className="absolute top-0 left-0 right-0 h-0.5 z-30 bg-primary/10 overflow-hidden">
@@ -1143,12 +1320,12 @@ export function CalendarClient({
               change dates, and create new bookings by clicking on empty cells.
             </p>
             <div className="flex items-center gap-3">
-              <a href="/dashboard/rooms/types">
+              <Link href="/dashboard/rooms/types">
                 <Button variant="outline">Set up rooms</Button>
-              </a>
-              <a href="/dashboard/rooms/types/new">
+              </Link>
+              <Link href="/dashboard/rooms/types/new">
                 <Button>Create room type</Button>
-              </a>
+              </Link>
             </div>
 
             {/* Quick tips */}
@@ -1223,6 +1400,32 @@ export function CalendarClient({
                 </p>
               </div>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile operations view — timeline stays available instead of collapsing into agenda only. */}
+      <div className="md:hidden flex min-h-0 flex-1 flex-col bg-background">
+        <div className="flex items-center gap-1 border-b border-border px-3 py-2">
+          <button onClick={() => setMobileView("timeline")} className={cn("inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors", mobileView === "timeline" ? "bg-primary text-primary-foreground" : "text-muted-foreground active:bg-muted")}>
+            <Grid2X2 className="size-3.5" /> Timeline
+          </button>
+          <button onClick={() => setMobileView("agenda")} className={cn("inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors", mobileView === "agenda" ? "bg-primary text-primary-foreground" : "text-muted-foreground active:bg-muted")}>
+            <List className="size-3.5" /> Agenda
+          </button>
+          <span className="ml-auto text-[10px] font-medium text-muted-foreground">Swipe grid to see rooms</span>
+        </div>
+
+        {mobileView === "timeline" ? (
+          <div className="mobile-scheduler flex-1 overflow-hidden">
+            <DayPilotScheduler {...mobileSchedulerConfig} resources={resources} events={filteredEvents} onEventClick={handleEventClick} onTimeRangeSelected={handleTimeRangeSelected} onEventMoved={(args: any) => handleMoveOrResize(args, "move")} onEventResized={(args: any) => handleMoveOrResize(args, "resize")} />
+          </div>
+        ) : (
+          <div className="min-h-0 flex-1">
+            <MobileAgenda rooms={rooms} bookings={bookings} blocks={availabilityBlocks} canEdit={canEdit} onSelectBooking={openBooking} onNewBooking={(prefill) => {
+              setNewBookingPrefill({ roomId: prefill.roomId, roomTypeId: prefill.roomTypeId, checkIn: prefill.date, checkOut: addDays(prefill.date, 1) });
+              setNewBookingOpen(true);
+            }} />
           </div>
         )}
       </div>

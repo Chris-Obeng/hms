@@ -405,7 +405,7 @@ export function AppSidebar({ hotelName }: { hotelName?: string }) {
                 {hotelName ?? "Hotel"}
               </p>
               <p className="text-[10px] text-sidebar-foreground/40 truncate leading-tight mt-0.5">
-                HotelOS Pro
+                RoomLine
               </p>
             </div>
           </button>

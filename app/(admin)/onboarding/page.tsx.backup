@@ -17,7 +17,7 @@ import "./onboarding.css";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = "hotelos_onboarding_data";
+const STORAGE_KEY = "RoomLine_onboarding_data";
 
 const HOTEL_TYPE_OPTIONS = [
   { value: "Hotel", label: "Hotel" },
@@ -264,7 +264,7 @@ export default function OnboardingPage() {
                 <rect x="3" y="1" width="10" height="1" rx="0.5" fill="white" fillOpacity="0.4" />
               </svg>
             </div>
-            <span className="text-[15px] font-semibold text-white tracking-[-0.01em]">HotelOS Pro</span>
+            <span className="text-[15px] font-semibold text-white tracking-[-0.01em]">RoomLine</span>
           </div>
 
           {/* Step-aware headline */}
@@ -360,7 +360,7 @@ export default function OnboardingPage() {
               <rect x="9" y="4" width="6" height="11" rx="0.5" fill="white" fillOpacity="0.6" />
             </svg>
           </div>
-          <span className="text-[14px] font-semibold" style={{ color: "#0f172a" }}>HotelOS Pro</span>
+          <span className="text-[14px] font-semibold" style={{ color: "#0f172a" }}>RoomLine</span>
         </div>
 
         {/* Step indicator bar */}
@@ -413,7 +413,7 @@ export default function OnboardingPage() {
                     <SectionHeader
                       eyebrow="Step 1 of 3"
                       title="Tell us about your property"
-                      subtitle="This becomes your profile on HotelOS and is visible to your team."
+                      subtitle="This becomes your profile on RoomLine and is visible to your team."
                     />
 
                     <form onSubmit={goNext} className="flex flex-col gap-5">
@@ -609,7 +609,7 @@ export default function OnboardingPage() {
         {/* Footer */}
         <div className="px-6 py-4 flex items-center justify-between border-t" style={{ borderColor: "#e5e7eb", backgroundColor: "#fff" }}>
           <p className="text-[11px]" style={{ color: "#9ca3af" }}>
-            © 2025 HotelOS Pro
+            © 2026 RoomLine
           </p>
           <div className="flex items-center gap-1.5">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">

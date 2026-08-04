@@ -6,7 +6,7 @@
 --      Enter email + strong password. Copy the UUID shown.
 --   2. Run in SQL Editor:
 --      INSERT INTO platform_admins (supabase_user_id, email, full_name, role, is_active)
---      VALUES ('<uuid>', 'you@hotelosprp.com', 'Your Name', 'super_admin', true);
+--      VALUES ('<uuid>', 'you@RoomLineprp.com', 'Your Name', 'super_admin', true);
 -- ============================================================================
 
 -- Add supabase_user_id column (nullable initially so existing rows don't break)

@@ -1,9 +1,9 @@
 /**
  * lib/arkesel.ts
  *
- * Centralised Arkesel SMS + Email for HotelOS Pro.
+ * Centralised Arkesel SMS + Email for RoomLine.
  *
- * ARCHITECTURE: One HotelOS master Arkesel account. All hotels send through it.
+ * ARCHITECTURE: One RoomLine master Arkesel account. All hotels send through it.
  * Hotels never see or manage an Arkesel account — they only get a single
  * "SMS & Email notifications" on/off toggle in their settings.
  *
@@ -14,7 +14,7 @@
  * At 5 SMS per booking × 200 bookings/month = ~GHS 22/hotel/month max.
  *
  * Required env:
- *   ARKESEL_API_KEY       — HotelOS master Arkesel API key (server-only)
+ *   ARKESEL_API_KEY       — RoomLine master Arkesel API key (server-only)
  *   ARKESEL_WEBHOOK_URL   — Full URL of our Arkesel delivery webhook, e.g.
  *                           https://yourdomain.com/api/webhooks/arkesel
  *                           Enables real-time delivery status tracking.
@@ -33,7 +33,7 @@
  *   Settings > Sender IDs before SMS will deliver promptly.
  *
  *   As a safe fallback, set ARKESEL_FALLBACK_SENDER to a registered sender ID
- *   (e.g. "HotelOS") in env. The per-hotel derived name is still sent when
+ *   (e.g. "RoomLine") in env. The per-hotel derived name is still sent when
  *   available but the fallback prevents silent queueing.
  */
 
@@ -59,7 +59,7 @@ export function senderName(hotelName: string): string {
   const derived = hotelName.replace(/[^a-zA-Z0-9 ]/g, "").trim().slice(0, 11);
   // Fall back to the registered fallback sender if hotel name produces
   // something that hasn't been registered, or is empty.
-  return derived || process.env.ARKESEL_FALLBACK_SENDER || "HotelOS";
+  return derived || process.env.ARKESEL_FALLBACK_SENDER || "RoomLine";
 }
 
 /** Get the master API key from env */
@@ -293,7 +293,7 @@ async function sendEmail(
     method: "POST",
     headers: { "api-key": apiKey, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: `${sender} <noreply@hotelosprp.com>`,
+      from: `${sender} <noreply@RoomLineprp.com>`,
       to: [{ email: to }],
       subject,
       html: htmlBody,
@@ -310,7 +310,7 @@ async function sendEmail(
 
 /**
  * Minimal hotel context needed for sending notifications.
- * No per-hotel API keys — everything goes through the HotelOS master account.
+ * No per-hotel API keys — everything goes through the RoomLine master account.
  */
 export interface HotelNotifyConfig {
   /** Hotel name — used as the SMS sender ID seen by guests */
@@ -461,7 +461,7 @@ export async function notifyStaffApproved(
 ): Promise<void> {
   if (!data.staffPhone) return;
   const sender = senderName(config.hotelName);
-  const msg = `Hi ${data.staffName}, your HotelOS access for ${config.hotelName} has been approved as ${data.role.replace("_", " ")}. You can now log in.`;
+  const msg = `Hi ${data.staffName}, your RoomLine access for ${config.hotelName} has been approved as ${data.role.replace("_", " ")}. You can now log in.`;
   await safe(() => sendSMS(sender, [data.staffPhone!], msg), "staff-approved-sms");
 }
 
@@ -473,7 +473,7 @@ export async function sendTestSms(
   const apiKey = getMasterApiKey();
   if (!apiKey) return { success: false, error: "ARKESEL_API_KEY not configured on server" };
   try {
-    await sendSMS(senderName(hotelName), [recipientPhone], `Test SMS from HotelOS Pro for ${hotelName}. Guest notifications are working correctly.`);
+    await sendSMS(senderName(hotelName), [recipientPhone], `Test SMS from RoomLiness for ${hotelName}. Guest notifications are working correctly.`);
     return { success: true };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "SMS failed" };

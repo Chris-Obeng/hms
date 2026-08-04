@@ -51,7 +51,7 @@ export default async function PlatformDashboard() {
           Platform Overview
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          HotelOS Pro internal admin
+          RoomLine internal admin
         </p>
       </div>
 

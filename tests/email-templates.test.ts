@@ -97,8 +97,8 @@ describe("senderName", () => {
     expect(senderName("!!!")).toBe("MyHotel");
   });
 
-  it("falls back to HotelOS when no fallback sender is configured", () => {
+  it("falls back to RoomLine when no fallback sender is configured", () => {
     vi.stubEnv("ARKESEL_FALLBACK_SENDER", "");
-    expect(senderName("")).toBe("HotelOS");
+    expect(senderName("")).toBe("RoomLine");
   });
 });

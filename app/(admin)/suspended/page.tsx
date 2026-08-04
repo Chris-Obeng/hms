@@ -32,7 +32,7 @@ export default async function SuspendedPage() {
       {/* Subtle Ethereal Glass Background Ambient Red Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-red-950/[0.06] blur-[120px] pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] rounded-full bg-indigo-950/[0.04] blur-[100px] pointer-events-none" />
-      
+
       {/* Double-Bezel Outer Shell */}
       <div className="w-full max-w-md p-1.5 bg-card border border-border rounded-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.85)] relative z-10 transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-border">
         {/* Double-Bezel Inner Core */}
@@ -69,7 +69,7 @@ export default async function SuspendedPage() {
             </SignOutButton>
 
             <a
-              href="mailto:support@hotelos.pro"
+              href="mailto:support@RoomLine.pro"
               className="w-full px-6 py-3 rounded-full border border-border bg-secondary text-foreground font-medium hover:bg-zinc-900/80 hover:text-foreground active:scale-[0.98] transition-all duration-300 text-center text-sm cursor-pointer"
             >
               Contact Support

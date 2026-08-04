@@ -17,13 +17,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { createAvailabilityBlock, type CalendarRoom } from "../actions";
+import { createAvailabilityBlock } from "../actions";
 import { BLOCK_REASONS } from "./calendar-helpers";
 
 interface BlockRoomSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  rooms: CalendarRoom[];
+  rooms: Array<{ id: string; roomNumber: string; roomTypeName: string }>;
   prefillRoomId?: string;
   prefillStartDate?: Date;
   prefillEndDate?: Date;

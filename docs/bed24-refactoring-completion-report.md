@@ -529,7 +529,7 @@ What's the same:
 - No changes to how bookings flow
 - Same reliable service
 
-Questions? Reply to this email or contact support@hotelosprp.com
+Questions? Reply to this email or contact support@RoomLineprp.com
 ```
 
 ---
@@ -626,5 +626,5 @@ The Bed24 integration refactoring project has been successfully completed with *
 ---
 
 **Project Completion Date**: 2026-07-21  
-**Team**: HotelOS Platform Development  
+**Team**: RoomLine Platform Development  
 **Review Status**: Ready for QA and deployment

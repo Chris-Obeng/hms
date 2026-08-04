@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { format } from "date-fns";
 import { writeAuditLog } from "@/lib/audit";
-import { requireAuth, requireMinRole, toActionError } from "@/lib/auth";
+import { requireMinRole, toActionError } from "@/lib/auth";
 
 // ── Schemas ──────────────────────────────────────────────────────
 
@@ -14,6 +14,7 @@ const NewBookingSchema = z.object({
   guestName: z.string().min(1, "Guest name is required").max(200),
   guestEmail: z.string().email().optional().or(z.literal("")),
   guestPhone: z.string().max(30).optional().or(z.literal("")),
+  nationality: z.string().max(80).optional().or(z.literal("")),
 
   // Booking
   roomTypeId: z.string().uuid("Room type is required"),
@@ -51,7 +52,7 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
 };
 
 // Statuses that require manager or above
-const MANAGER_ONLY_STATUSES = new Set(["cancelled", "confirmed"]);
+const MANAGER_ONLY_STATUSES = new Set(["cancelled", "confirmed", "no_show"]);
 
 // ── Create Booking ───────────────────────────────────────────────
 
@@ -133,6 +134,7 @@ export async function createBooking(
             full_name: data.guestName,
             email: data.guestEmail || null,
             phone: data.guestPhone || null,
+            nationality: data.nationality || null,
           })
           .select("id")
           .single();
@@ -141,6 +143,12 @@ export async function createBooking(
           return { success: false, error: "Failed to create guest" };
         }
         guestId = newGuest.id;
+      } else if (data.nationality) {
+        await supabase
+          .from("guests")
+          .update({ nationality: data.nationality })
+          .eq("id", guestId)
+          .eq("hotel_id", hotelId);
       }
     }
 

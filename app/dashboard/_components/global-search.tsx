@@ -15,15 +15,23 @@ import {
   Sun,
   Moon,
   Loader2,
-  Search,
   ArrowUpRight,
   DoorOpen,
   CreditCard,
   Wrench,
   UserPlus,
 } from "lucide-react";
-import { Modal, SearchField, Chip } from "@heroui/react";
 import type { UseOverlayStateReturn } from "@heroui/react";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+  CommandShortcut,
+} from "@/components/ui/command";
 import { searchGlobal, type SearchResult } from "@/app/actions/search";
 import { cn } from "@/lib/utils";
 
@@ -33,13 +41,13 @@ interface GlobalSearchProps {
   state: UseOverlayStateReturn;
 }
 
-type ItemGroup = "Bookings" | "Front Desk" | "Operations" | "Settings" | "Results";
+type ActionGroup = "Bookings" | "Front Desk" | "Operations" | "Settings";
 
-interface NavigableItem {
+interface ActionItem {
   id: string;
   label: string;
   subLabel?: string;
-  group: ItemGroup;
+  group: ActionGroup;
   icon: React.ReactNode;
   iconColor: string;
   url?: string;
@@ -47,15 +55,15 @@ interface NavigableItem {
   shortcut?: string;
 }
 
-// ── Chip color map for search result types ─────────────────────
+// ── Result type meta ───────────────────────────────────────────
 
-const RESULT_CHIP: Record<
-  string,
-  { color: "accent" | "success" | "warning" | "danger" | "default"; label: string }
+const RESULT_META: Record<
+  SearchResult["type"],
+  { pill: string; iconColor: string }
 > = {
-  guest: { color: "accent", label: "Guest" },
-  booking: { color: "success", label: "Booking" },
-  room: { color: "warning", label: "Room" },
+  guest: { pill: "Guest", iconColor: "text-violet-500" },
+  booking: { pill: "Booking", iconColor: "text-emerald-500" },
+  room: { pill: "Room", iconColor: "text-amber-500" },
 };
 
 // ── Idle action definitions ────────────────────────────────────
@@ -63,18 +71,16 @@ const RESULT_CHIP: Record<
 function useActions(
   theme: string | undefined,
   setTheme: (t: string) => void,
-  router: ReturnType<typeof useRouter>,
-  closeModal: () => void,
-): NavigableItem[] {
-  return React.useMemo<NavigableItem[]>(
+  close: () => void,
+): ActionItem[] {
+  return React.useMemo<ActionItem[]>(
     () => [
-      // ── Bookings ───────────────────────────────────────────
       {
         id: "new-booking",
         label: "New Booking",
         subLabel: "Create a walk-in or reservation",
         group: "Bookings",
-        icon: <CalendarPlus className="size-4" />,
+        icon: <CalendarPlus />,
         iconColor: "text-blue-500",
         url: "/dashboard/bookings?new=1",
         shortcut: "N",
@@ -84,7 +90,7 @@ function useActions(
         label: "View All Bookings",
         subLabel: "Browse reservations and history",
         group: "Bookings",
-        icon: <CalendarDays className="size-4" />,
+        icon: <CalendarDays />,
         iconColor: "text-blue-400",
         url: "/dashboard/bookings",
       },
@@ -93,17 +99,16 @@ function useActions(
         label: "Room Availability",
         subLabel: "Check occupancy and open dates",
         group: "Bookings",
-        icon: <BedDouble className="size-4" />,
+        icon: <BedDouble />,
         iconColor: "text-indigo-500",
         url: "/dashboard/availability",
       },
-      // ── Front Desk ────────────────────────────────────────
       {
         id: "check-in",
         label: "Check-In Guest",
         subLabel: "Process arrival and assign room",
         group: "Front Desk",
-        icon: <DoorOpen className="size-4" />,
+        icon: <DoorOpen />,
         iconColor: "text-emerald-500",
         url: "/dashboard/bookings?filter=arriving",
       },
@@ -112,7 +117,7 @@ function useActions(
         label: "Check-Out Guest",
         subLabel: "Process departure and settle bill",
         group: "Front Desk",
-        icon: <LogOut className="size-4" />,
+        icon: <LogOut />,
         iconColor: "text-orange-500",
         url: "/dashboard/bookings?filter=departing",
       },
@@ -121,7 +126,7 @@ function useActions(
         label: "Guest Directory",
         subLabel: "View and manage guest profiles",
         group: "Front Desk",
-        icon: <Users className="size-4" />,
+        icon: <Users />,
         iconColor: "text-violet-500",
         url: "/dashboard/customers",
       },
@@ -130,7 +135,7 @@ function useActions(
         label: "Add Guest Profile",
         subLabel: "Create a new guest record",
         group: "Front Desk",
-        icon: <UserPlus className="size-4" />,
+        icon: <UserPlus />,
         iconColor: "text-violet-400",
         url: "/dashboard/customers?new=1",
       },
@@ -139,17 +144,16 @@ function useActions(
         label: "Payments",
         subLabel: "Track payments and invoices",
         group: "Front Desk",
-        icon: <CreditCard className="size-4" />,
+        icon: <CreditCard />,
         iconColor: "text-emerald-400",
         url: "/dashboard/payments",
       },
-      // ── Operations ─────────────────────────────────────────
       {
         id: "housekeeping",
         label: "Housekeeping",
         subLabel: "Room status and cleaning tasks",
         group: "Operations",
-        icon: <ClipboardList className="size-4" />,
+        icon: <ClipboardList />,
         iconColor: "text-amber-500",
         url: "/dashboard/housekeeping",
       },
@@ -158,7 +162,7 @@ function useActions(
         label: "Room Directory",
         subLabel: "Manage rooms, types and rates",
         group: "Operations",
-        icon: <Wrench className="size-4" />,
+        icon: <Wrench />,
         iconColor: "text-amber-400",
         url: "/dashboard/rooms",
       },
@@ -167,18 +171,17 @@ function useActions(
         label: "Reports",
         subLabel: "Occupancy, revenue and analytics",
         group: "Operations",
-        icon: <BarChart3 className="size-4" />,
+        icon: <BarChart3 />,
         iconColor: "text-sky-500",
         url: "/dashboard/reports",
       },
-      // ── Settings ───────────────────────────────────────────
       {
         id: "settings",
         label: "Hotel Settings",
         subLabel: "Taxes, policies and integrations",
         group: "Settings",
-        icon: <Settings className="size-4" />,
-        iconColor: "text-default-500",
+        icon: <Settings />,
+        iconColor: "text-muted-foreground",
         url: "/dashboard/settings",
       },
       {
@@ -186,25 +189,58 @@ function useActions(
         label: theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode",
         subLabel: "Toggle UI appearance",
         group: "Settings",
-        icon:
-          theme === "dark" ? (
-            <Sun className="size-4" />
-          ) : (
-            <Moon className="size-4" />
-          ),
-        iconColor: "text-default-400",
+        icon: theme === "dark" ? <Sun /> : <Moon />,
+        iconColor: "text-muted-foreground",
         action: () => {
           setTheme(theme === "dark" ? "light" : "dark");
-          closeModal();
+          close();
         },
       },
     ],
-    [theme, setTheme, router, closeModal],
+    [theme, setTheme, close],
   );
 }
 
-// ── Group order for the idle view ──────────────────────────────
-const GROUP_ORDER: ItemGroup[] = ["Bookings", "Front Desk", "Operations", "Settings"];
+const GROUP_ORDER: ActionGroup[] = ["Bookings", "Front Desk", "Operations", "Settings"];
+
+// ── Row content ────────────────────────────────────────────────
+
+function ItemContent({
+  icon,
+  iconColor,
+  label,
+  subLabel,
+}: {
+  icon: React.ReactNode;
+  iconColor: string;
+  label: string;
+  subLabel?: string;
+}) {
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className={cn(
+          "flex size-8 shrink-0 items-center justify-center rounded-lg",
+          "bg-muted/70 text-muted-foreground transition-colors",
+          "group-data-selected/command-item:bg-muted group-data-selected/command-item:text-foreground",
+          "[&_svg]:size-4!",
+          iconColor,
+        )}
+      >
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium">{label}</span>
+        {subLabel && (
+          <span className="mt-0.5 block truncate text-[11px] font-normal text-muted-foreground">
+            {subLabel}
+          </span>
+        )}
+      </span>
+    </>
+  );
+}
 
 // ── Component ───────────────────────────────────────────────────
 
@@ -215,46 +251,30 @@ export function GlobalSearch({ state }: GlobalSearchProps) {
   const [query, setQuery] = React.useState("");
   const [results, setResults] = React.useState<SearchResult[]>([]);
   const [searching, setSearching] = React.useState(false);
-  const [selectedIndex, setSelectedIndex] = React.useState(0);
 
-  const inputRef = React.useRef<HTMLInputElement>(null);
-  const selectedRef = React.useRef<HTMLButtonElement>(null);
+  const close = React.useCallback(() => state.close(), [state]);
+  const actions = useActions(theme, setTheme, close);
 
-  const closeModal = React.useCallback(() => state.close(), [state]);
-  const actions = useActions(theme, setTheme, router, closeModal);
+  // Reset search state when dialog closes (onOpenChange fires on any close)
+  const handleOpenChange = React.useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setQuery("");
+        setResults([]);
+        setSearching(false);
+      }
+      state.setOpen(open);
+    },
+    [state],
+  );
 
-  // ── Reset on close ───────────────────────────────────────────
+  // Debounced server search — searching state set in handleQueryChange
   React.useEffect(() => {
-    if (!state.isOpen) {
-      setQuery("");
-      setResults([]);
-      setSearching(false);
-      setSelectedIndex(0);
-    }
-  }, [state.isOpen]);
-
-  // ── Focus input on open ──────────────────────────────────────
-  React.useEffect(() => {
-    if (state.isOpen) {
-      const t = setTimeout(() => {
-        inputRef.current?.focus();
-        setSelectedIndex(0);
-      }, 80);
-      return () => clearTimeout(t);
-    }
-  }, [state.isOpen]);
-
-  // ── Debounced search ─────────────────────────────────────────
-  React.useEffect(() => {
-    if (!query.trim()) {
-      setResults([]);
-      setSearching(false);
-      return;
-    }
-    setSearching(true);
+    const q = query.trim();
+    if (!q) return;
     const t = setTimeout(async () => {
       try {
-        const res = await searchGlobal(query);
+        const res = await searchGlobal(q);
         setResults(res.success ? res.data : []);
       } catch {
         setResults([]);
@@ -265,335 +285,149 @@ export function GlobalSearch({ state }: GlobalSearchProps) {
     return () => clearTimeout(t);
   }, [query]);
 
-  // ── Reset selection on change ────────────────────────────────
-  React.useEffect(() => {
-    setSelectedIndex(0);
-  }, [query, results]);
-
-  // ── Scroll selected item into view ───────────────────────────
-  React.useEffect(() => {
-    selectedRef.current?.scrollIntoView({ block: "nearest", behavior: "auto" });
-  }, [selectedIndex]);
-
-  // ── Build flat navigable list ─────────────────────────────────
-  const navigableItems = React.useMemo<NavigableItem[]>(() => {
-    if (query.trim()) {
-      return results.map((r) => ({
-        id: r.id,
-        label: r.label,
-        subLabel: r.subLabel,
-        group: "Results" as ItemGroup,
-        icon: <ArrowUpRight className="size-4" />,
-        iconColor:
-          r.type === "guest"
-            ? "text-violet-500"
-            : r.type === "booking"
-              ? "text-emerald-500"
-              : "text-amber-500",
-        url: r.url,
-      }));
+  const handleQueryChange = React.useCallback((v: string) => {
+    setQuery(v);
+    if (!v.trim()) {
+      setResults([]);
+      setSearching(false);
+    } else {
+      setSearching(true);
     }
-    return actions;
-  }, [query, results, actions]);
+  }, []);
 
-  // ── Select handler ───────────────────────────────────────────
-  const handleSelect = React.useCallback(
-    (item: NavigableItem) => {
-      if (item.url) {
-        closeModal();
-        router.push(item.url);
-      } else if (item.action) {
+  const runAction = React.useCallback(
+    (item: ActionItem) => {
+      if (item.action) {
         item.action();
-      }
-    },
-    [router, closeModal],
-  );
-
-  // ── Keyboard nav ─────────────────────────────────────────────
-  const handleKeyDown = React.useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Escape") {
-        closeModal();
         return;
       }
-      if (navigableItems.length === 0) return;
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedIndex((p) => (p + 1) % navigableItems.length);
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedIndex((p) => (p - 1 + navigableItems.length) % navigableItems.length);
-      } else if (e.key === "Enter") {
-        e.preventDefault();
-        const item = navigableItems[selectedIndex];
-        if (item) handleSelect(item);
+      if (item.url) {
+        close();
+        router.push(item.url);
       }
     },
-    [navigableItems, selectedIndex, handleSelect, closeModal],
+    [router, close],
+  );
+
+  const runResult = React.useCallback(
+    (r: SearchResult) => {
+      close();
+      router.push(r.url);
+    },
+    [router, close],
   );
 
   const isQuerying = !!query.trim();
   const showEmpty = isQuerying && !searching && results.length === 0;
 
-  // ── Single item row ───────────────────────────────────────────
-  const renderItem = (item: NavigableItem, idx: number, resultType?: string) => {
-    const active = idx === selectedIndex;
-    const chip = resultType ? RESULT_CHIP[resultType] : undefined;
-
-    return (
-      <li key={item.id} role="option" aria-selected={active}>
-        <button
-          ref={active ? selectedRef : null}
-          type="button"
-          onClick={() => handleSelect(item)}
-          onMouseEnter={() => setSelectedIndex(idx)}
-          className={cn(
-            "group w-full cursor-pointer text-left",
-            "flex items-center gap-3 rounded-xl px-3 py-2.5",
-            "transition-colors duration-100",
-            active
-              ? "bg-default-100 dark:bg-default-100/8"
-              : "hover:bg-default-50 dark:hover:bg-default-100/5",
-          )}
-        >
-          {/* Icon pill */}
-          <span
-            className={cn(
-              "flex size-8 shrink-0 items-center justify-center rounded-lg",
-              "transition-colors duration-100",
-              active
-                ? "bg-default-200/70 dark:bg-default-100/10"
-                : "bg-default-100 dark:bg-default-900/60",
-              item.iconColor,
-            )}
-          >
-            {item.icon}
-          </span>
-
-          {/* Labels */}
-          <span className="min-w-0 flex-1">
-            <span
-              className={cn(
-                "block truncate text-sm font-medium",
-                active
-                  ? "text-foreground"
-                  : "text-default-700 dark:text-default-300",
-              )}
-            >
-              {item.label}
-            </span>
-            {item.subLabel && (
-              <span className="mt-0.5 block truncate text-[11px] text-default-400/80">
-                {item.subLabel}
-              </span>
-            )}
-          </span>
-
-          {/* Right: chip for search results OR shortcut key */}
-          {chip ? (
-            <Chip
-              size="sm"
-              variant="soft"
-              color={chip.color}
-              className="shrink-0"
-            >
-              {chip.label}
-            </Chip>
-          ) : item.shortcut ? (
-            <kbd
-              className={cn(
-                "hidden shrink-0 select-none items-center rounded-md sm:inline-flex",
-                "border border-default-200 dark:border-default-800",
-                "bg-default-50 dark:bg-default-950",
-                "px-1.5 py-0.5 text-[10px] font-medium",
-                active
-                  ? "text-default-600 dark:text-default-400"
-                  : "text-default-400",
-              )}
-            >
-              {item.shortcut}
-            </kbd>
-          ) : null}
-        </button>
-      </li>
-    );
-  };
-
-  // ── Group sections for idle view ──────────────────────────────
-  const renderGroups = () => {
-    const grouped = GROUP_ORDER.map((group) => ({
-      group,
-      items: actions.filter((a) => a.group === group),
-    })).filter((g) => g.items.length > 0);
-
-    let globalIdx = 0;
-
-    return (
-      <div className="space-y-1 py-2">
-        {grouped.map(({ group, items }, gi) => (
-          <div key={group}>
-            {gi > 0 && <div className="mx-3 my-1 h-px bg-divider/40" />}
-            <div className="mb-1 px-3 pt-1">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-default-400">
-                {group}
-              </span>
-            </div>
-            <ul role="listbox" aria-label={group} className="space-y-0.5 px-1">
-              {items.map((item) => {
-                const el = renderItem(item, globalIdx);
-                globalIdx++;
-                return el;
-              })}
-            </ul>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  // ── Search results view ───────────────────────────────────────
-  const renderResults = () => {
-    const byType: Record<string, { items: NavigableItem[]; startIdx: number }> = {};
-    let idx = 0;
-    for (const r of results) {
-      const t = r.type;
-      if (!byType[t]) byType[t] = { items: [], startIdx: idx };
-      const item = navigableItems[idx];
-      if (item) byType[t].items.push(item);
-      idx++;
-    }
-
-    return (
-      <div className="py-2">
-        <div className="mb-1 flex items-center justify-between px-3 pt-1">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-default-400">
-            Results
-          </span>
-          <span className="text-[10px] text-default-400/60">
-            {results.length} found
-          </span>
-        </div>
-        <ul role="listbox" aria-label="Search results" className="space-y-0.5 px-1">
-          {results.map((r, i) => {
-            const item = navigableItems[i];
-            if (!item) return null;
-            return renderItem(item, i, r.type);
-          })}
-        </ul>
-      </div>
-    );
-  };
-
-  // ── Render ────────────────────────────────────────────────────
-
   return (
-    <Modal.Backdrop
-      isOpen={state.isOpen}
-      onOpenChange={state.setOpen}
-      variant="blur"
-      className="bg-black/30 backdrop-blur-sm"
+    <CommandDialog
+      open={state.isOpen}
+      onOpenChange={handleOpenChange}
+      title="Command Palette"
+      description="Search guests, bookings, rooms, or run an action"
+      className="top-[12vh] max-w-xl! translate-y-0 sm:top-[18vh]"
     >
-      <Modal.Container
-        placement="top"
-        size="lg"
-        className="items-start px-4 pt-[10vh] md:px-0"
-      >
-        <Modal.Dialog
-          aria-label="PMS Command Palette"
-          className={cn(
-            "w-full max-w-[560px] mx-auto outline-none overflow-hidden",
-            "rounded-2xl border border-default-200/60 dark:border-default-800/50",
-            "bg-background dark:bg-zinc-950",
-            "shadow-2xl shadow-black/10 dark:shadow-black/40",
-          )}
-        >
-          {/* ── Context badge ─────────────────────────────── */}
-          <div className="flex items-center gap-2 border-b border-divider/40 px-4 py-3">
-            <span className="inline-flex items-center rounded-lg bg-default-100 dark:bg-default-800/60 px-2.5 py-1 text-[11px] font-semibold text-default-500 dark:text-default-400">
-              Hotel PMS
-            </span>
-            <span className="text-[11px] text-default-400/60">
-              {isQuerying ? `Searching for "${query}"` : "What do you need?"}
-            </span>
-          </div>
+      <CommandInput
+        value={query}
+        onValueChange={handleQueryChange}
+        placeholder="Search guests, bookings, rooms…"
+        aria-label="Search guests, bookings, rooms, or run an action"
+      />
 
-          {/* ── Search input ───────────────────────────────── */}
-          <div className="flex items-center gap-2 border-b border-divider/40 px-4 py-3">
-            <SearchField
-              fullWidth
-              variant="secondary"
-              value={query}
-              onChange={setQuery}
-              aria-label="Search guests, bookings, rooms, or run an action"
-            >
-              <SearchField.Group className="border-0 shadow-none bg-transparent h-auto gap-2 ring-0 outline-none w-full flex items-center">
-                <Search className="size-[18px] shrink-0 text-default-400" />
-                <SearchField.Input
-                  ref={inputRef}
-                  placeholder="Search guests, bookings, rooms…"
-                  onKeyDown={handleKeyDown}
-                  className="flex-1 bg-transparent border-0 shadow-none outline-none ring-0 text-sm text-foreground placeholder:text-default-400/60 py-1 px-0"
-                />
-                {query && (
-                  <SearchField.ClearButton className="text-default-400 hover:text-default-600 transition-colors shrink-0" />
-                )}
-              </SearchField.Group>
-            </SearchField>
-
-            <kbd className="hidden sm:inline-flex shrink-0 select-none items-center rounded-lg border border-default-200 dark:border-default-800 bg-default-50 dark:bg-default-900 px-2 py-1 text-[11px] font-medium text-default-400">
-              Esc
-            </kbd>
-          </div>
-
-          {/* ── Body ──────────────────────────────────────── */}
+      <CommandList className="max-h-[min(420px,50vh)]">
+        {searching && (
           <div
-            className="max-h-[420px] min-h-[200px] overflow-y-auto overscroll-contain scrollbar-none"
+            aria-live="polite"
+            className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground"
           >
-            {searching ? (
-              <div className="flex flex-col items-center justify-center gap-2.5 py-14 text-sm text-default-400">
-                <Loader2 className="size-5 animate-spin text-default-500/60" />
-                <span className="text-[13px] font-medium">Searching records…</span>
-              </div>
-            ) : showEmpty ? (
-              <div className="flex flex-col items-center gap-1.5 py-14 px-6 text-center">
-                <Search className="size-7 text-default-300 mb-1" />
-                <span className="text-sm font-medium text-foreground">
-                  No results found
-                </span>
-                <span className="text-[12px] text-default-400 max-w-xs">
-                  No guests, bookings, or rooms match &ldquo;{query}&rdquo;
-                </span>
-              </div>
-            ) : isQuerying ? (
-              renderResults()
-            ) : (
-              renderGroups()
-            )}
+            <Loader2 className="size-4 animate-spin" />
+            Searching records…
           </div>
+        )}
 
-          {/* ── Footer keyboard hint ───────────────────────── */}
-          <div className="flex items-center gap-5 border-t border-divider/40 bg-default-50/60 dark:bg-default-900/20 px-4 py-2.5">
-            <div className="flex items-center gap-1.5">
-              <kbd className="inline-flex size-5 items-center justify-center rounded border border-default-200 dark:border-default-800 bg-background dark:bg-default-950 text-[10px] font-medium text-default-500">
-                ↑
-              </kbd>
-              <kbd className="inline-flex size-5 items-center justify-center rounded border border-default-200 dark:border-default-800 bg-background dark:bg-default-950 text-[10px] font-medium text-default-500">
-                ↓
-              </kbd>
-              <span className="text-[11px] text-default-400">Navigate</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <kbd className="inline-flex h-5 items-center justify-center rounded border border-default-200 dark:border-default-800 bg-background dark:bg-default-950 px-1.5 text-[10px] font-medium text-default-500">
-                ↵
-              </kbd>
-              <span className="text-[11px] text-default-400">Select</span>
-            </div>
-            <div className="ml-auto text-[11px] text-default-400/50">
-              ⌘K
-            </div>
-          </div>
-        </Modal.Dialog>
-      </Modal.Container>
-    </Modal.Backdrop>
+        {showEmpty && (
+          <CommandEmpty className="py-10">
+            <p className="font-medium text-foreground">No results found</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              No guests, bookings, or rooms match &ldquo;{query}&rdquo;
+            </p>
+          </CommandEmpty>
+        )}
+
+        {isQuerying && !searching && results.length > 0 && (
+          <CommandGroup heading={`Results · ${results.length}`}>
+            {results.map((r) => {
+              const meta = RESULT_META[r.type];
+              return (
+                <CommandItem
+                  key={r.id}
+                  value={`${r.label} ${r.subLabel}`}
+                  onSelect={() => runResult(r)}
+                  className="gap-3 py-2"
+                >
+                  <ItemContent
+                    icon={<ArrowUpRight />}
+                    iconColor={meta.iconColor}
+                    label={r.label}
+                    subLabel={r.subLabel}
+                  />
+                  <span className="ml-auto shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    {meta.pill}
+                  </span>
+                </CommandItem>
+              );
+            })}
+          </CommandGroup>
+        )}
+
+        {!isQuerying &&
+          GROUP_ORDER.map((group, gi) => {
+            const items = actions.filter((a) => a.group === group);
+            if (items.length === 0) return null;
+            return (
+              <React.Fragment key={group}>
+                {gi > 0 && <CommandSeparator />}
+                <CommandGroup heading={group}>
+                  {items.map((item) => (
+                    <CommandItem
+                      key={item.id}
+                      value={`${item.label} ${item.subLabel ?? ""}`}
+                      onSelect={() => runAction(item)}
+                      className="gap-3 py-2"
+                      keywords={
+                        item.id === "theme" ? ["dark", "light", "mode"] : undefined
+                      }
+                    >
+                      <ItemContent
+                        icon={item.icon}
+                        iconColor={item.iconColor}
+                        label={item.label}
+                        subLabel={item.subLabel}
+                      />
+                      {item.shortcut && (
+                        <CommandShortcut>{item.shortcut}</CommandShortcut>
+                      )}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </React.Fragment>
+            );
+          })}
+      </CommandList>
+
+      {/* Footer hints */}
+      <div className="flex items-center gap-4 border-t border-border/60 px-3 py-2 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <kbd className="inline-flex h-5 items-center rounded border border-border bg-background px-1.5 font-medium">↑↓</kbd>
+          Navigate
+        </span>
+        <span className="flex items-center gap-1.5">
+          <kbd className="inline-flex h-5 items-center rounded border border-border bg-background px-1.5 font-medium">↵</kbd>
+          Select
+        </span>
+        <span className="ml-auto hidden sm:inline">⌘K</span>
+      </div>
+    </CommandDialog>
   );
 }

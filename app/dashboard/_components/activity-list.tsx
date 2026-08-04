@@ -40,6 +40,8 @@ export interface ActivityBooking {
   paymentStatus: string;
   totalAmount: number;
   source: string;
+  createdAt?: string | null;
+  hasConflict?: boolean;
   roomDirty?: boolean;
 }
 
@@ -50,6 +52,8 @@ interface ActivityListProps {
   currency?: string;
   onCheckIn?: (bookingId: string) => void;
   onCheckOut?: (bookingId: string) => void;
+  onCancel?: (bookingId: string) => void;
+  onNoShow?: (bookingId: string) => void;
   onViewDetails?: (booking: ActivityBooking) => void;
 }
 
@@ -60,6 +64,8 @@ export function ActivityList({
   currency = "GHS",
   onCheckIn,
   onCheckOut,
+  onCancel,
+  onNoShow,
   onViewDetails,
 }: ActivityListProps) {
   const isMobile = useIsMobile();
@@ -151,6 +157,8 @@ export function ActivityList({
               booking={b}
               onCheckIn={onCheckIn}
               onCheckOut={onCheckOut}
+              onCancel={onCancel}
+              onNoShow={onNoShow}
               onViewDetails={onViewDetails}
             />
           ))}
@@ -184,6 +192,8 @@ export function ActivityList({
                   booking={b}
                   onCheckIn={onCheckIn}
                   onCheckOut={onCheckOut}
+                  onCancel={onCancel}
+                  onNoShow={onNoShow}
                   onViewDetails={onViewDetails}
                 />
               ))}
@@ -199,11 +209,15 @@ function DesktopBookingRow({
   booking,
   onCheckIn,
   onCheckOut,
+  onCancel,
+  onNoShow,
   onViewDetails,
 }: {
   booking: ActivityBooking;
   onCheckIn?: (id: string) => void;
   onCheckOut?: (id: string) => void;
+  onCancel?: (id: string) => void;
+  onNoShow?: (id: string) => void;
   onViewDetails?: (b: ActivityBooking) => void;
 }) {
   const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
@@ -305,7 +319,10 @@ function DesktopBookingRow({
                   <ChevronDown className="size-3.5" />
                 </Dropdown.Trigger>
                 <Dropdown.Popover placement="bottom end">
-                  <Dropdown.Menu className="w-36 text-xs">
+                  <Dropdown.Menu className="w-36 text-xs" onAction={(key) => {
+                    if (key === "cancel" && window.confirm(`Cancel booking ${booking.reference}?`)) onCancel?.(booking.id);
+                    if (key === "noshow" && window.confirm(`Mark booking ${booking.reference} as no-show?`)) onNoShow?.(booking.id);
+                  }}>
                     <Dropdown.Item key="cancel">Cancel Booking</Dropdown.Item>
                     <Dropdown.Item key="noshow">Mark No-Show</Dropdown.Item>
                   </Dropdown.Menu>
@@ -404,11 +421,15 @@ function MobileBookingRow({
   booking,
   onCheckIn,
   onCheckOut,
+  onCancel,
+  onNoShow,
   onViewDetails,
 }: {
   booking: ActivityBooking;
   onCheckIn?: (id: string) => void;
   onCheckOut?: (id: string) => void;
+  onCancel?: (id: string) => void;
+  onNoShow?: (id: string) => void;
   onViewDetails?: (b: ActivityBooking) => void;
 }) {
   return (
@@ -433,6 +454,20 @@ function MobileBookingRow({
           <Button size="sm" className="bg-amber-600 text-white text-xs h-7" onPress={() => onCheckOut(booking.id)}>
             Check-out
           </Button>
+        )}
+        {booking.status === "confirmed" && (
+          <Dropdown>
+            <Dropdown.Trigger className="ml-auto p-1.5 text-muted-foreground"><MoreVertical className="size-4" /></Dropdown.Trigger>
+            <Dropdown.Popover placement="bottom end">
+              <Dropdown.Menu onAction={(key) => {
+                if (key === "cancel" && window.confirm(`Cancel booking ${booking.reference}?`)) onCancel?.(booking.id);
+                if (key === "noshow" && window.confirm(`Mark booking ${booking.reference} as no-show?`)) onNoShow?.(booking.id);
+              }}>
+                <Dropdown.Item key="cancel">Cancel Booking</Dropdown.Item>
+                <Dropdown.Item key="noshow">Mark No-Show</Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
         )}
       </div>
     </div>

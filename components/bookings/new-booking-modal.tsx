@@ -1,27 +1,34 @@
 "use client";
 
 import * as React from "react";
-import { format, differenceInDays } from "date-fns";
 import { toast } from "@heroui/react";
 import {
-  CalendarIcon,
-  ChevronDown,
-  User,
-  Plus,
+  CalendarDays,
   Minus,
-  Building2,
-  Clock,
-  MessageSquareText,
+  Plus,
+  User,
   Wallet,
-  Banknote,
 } from "lucide-react";
+import {
+  Modal,
+  Button,
+  Select,
+  ListBox,
+  TextField,
+  Label,
+  Input,
+  TextArea,
+  Description,
+  FieldError,
+} from "@heroui/react";
+import {
+  CalendarDate,
+  today,
+  getLocalTimeZone,
+} from "@internationalized/date";
 
-import { Modal, Button, useOverlayState } from "@heroui/react";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { Calendar } from "@/components/ui/calendar";
-import { CountrySelect } from "@/components/ui/country-select";
-import type { DateRange } from "react-day-picker";
+import { StayRangeCalendar, type StayRangeValue } from "@/components/ui/stay-range-calendar";
+import { CountrySelect, getCountryDialCode } from "@/components/ui/country-select";
 import { createBooking, type NewBookingInput } from "@/app/actions/bookings";
 import { getResolvedRatesForBooking, type StaffResolvedPricing } from "@/app/actions/pricing";
 import { cn } from "@/lib/utils";
@@ -38,21 +45,102 @@ interface RoomTypeOption {
 interface NewBookingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  roomTypes: { id: string; name: string }[];
+  roomTypes: { id: string; name: string; base_price?: number }[];
   currency: string;
   prefillRoomTypeId?: string;
+  prefillRoomId?: string;
   prefillCheckIn?: Date;
   prefillCheckOut?: Date;
 }
 
 const SOURCE_OPTIONS = [
-  { value: "direct", label: "Direct" },
-  { value: "manual", label: "Manual" },
-  { value: "phone", label: "Phone" },
-  { value: "walk_in", label: "Walk-in" },
+  { id: "direct", label: "Direct" },
+  { id: "manual", label: "Manual" },
+  { id: "phone", label: "Phone" },
+  { id: "walk_in", label: "Walk-in" },
 ] as const;
 
+function dateToCalendarDate(date: Date): CalendarDate {
+  return new CalendarDate(date.getFullYear(), date.getMonth() + 1, date.getDate());
+}
 
+function calendarDateToLocalDate(cd: CalendarDate): Date {
+  return new Date(cd.year, cd.month - 1, cd.day);
+}
+
+// ── Section heading ────────────────────────────────────────────────
+
+function SectionHeading({
+  icon: Icon,
+  title,
+  sub,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  sub: string;
+}) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+        <Icon className="size-4 text-primary" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-foreground">{title}</p>
+        <p className="text-xs text-muted-foreground">{sub}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Stepper ────────────────────────────────────────────────────────
+
+function GuestStepper({
+  value,
+  onChange,
+  min,
+  max,
+  label,
+  icon,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  min: number;
+  max: number;
+  label: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <span className="text-sm font-medium text-foreground flex items-center gap-1.5">
+        {icon}
+        {label}
+      </span>
+      <div className="flex h-12 items-center gap-2 rounded-xl border border-border bg-background p-1.5 shadow-sm transition-colors focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(min, value - 1))}
+          disabled={value <= min}
+          className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
+          aria-label={`Decrease ${label}`}
+        >
+          <Minus className="size-3.5" />
+        </button>
+        <span className="flex-1 text-center text-base font-semibold tabular-nums text-foreground">
+          {value}
+        </span>
+        <button
+          type="button"
+          onClick={() => onChange(Math.min(max, value + 1))}
+          disabled={value >= max}
+          className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
+          aria-label={`Increase ${label}`}
+        >
+          <Plus className="size-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ── Component ──────────────────────────────────────────────────────
 
@@ -65,30 +153,8 @@ export function NewBookingModal({
   prefillCheckIn,
   prefillCheckOut,
 }: NewBookingModalProps) {
-  // ── Form State ─────────────────────────────────────────────────
   const [step, setStep] = React.useState(1);
   const [loading, setLoading] = React.useState(false);
-
-  // Apply prefill values when they change or modal opens
-  const initialised = React.useRef(false);
-  React.useEffect(() => {
-    if (open && !initialised.current) {
-      initialised.current = true;
-      if (prefillRoomTypeId) setSelectedRoomTypeId(prefillRoomTypeId);
-      if (prefillCheckIn || prefillCheckOut) {
-        setDateRange({
-          from: prefillCheckIn || undefined,
-          to: prefillCheckOut || undefined,
-        });
-        if (prefillRoomTypeId && prefillCheckIn && prefillCheckOut) {
-          setStep(2);
-        }
-      }
-    }
-    if (!open) {
-      initialised.current = false;
-    }
-  }, [open, prefillRoomTypeId, prefillCheckIn, prefillCheckOut]);
 
   // Guest
   const [guestName, setGuestName] = React.useState("");
@@ -96,57 +162,72 @@ export function NewBookingModal({
   const [guestPhone, setGuestPhone] = React.useState("");
   const [nationality, setNationality] = React.useState("Ghana");
 
-  // Room & Dates
-  const [selectedRoomTypeId, setSelectedRoomTypeId] = React.useState("");
-  const [dateRange, setDateRange] = React.useState<DateRange | undefined>(undefined);
+  // Stay
+  const [selectedRoomTypeId, setSelectedRoomTypeId] = React.useState<string>("");
+  const [range, setRange] = React.useState<StayRangeValue | null>(null);
   const [adults, setAdults] = React.useState(2);
   const [children, setChildren] = React.useState(0);
+  const [source, setSource] = React.useState<string | null>("walk_in");
 
-  // Details (now in step 2)
+  // Details
   const [estimatedArrival, setEstimatedArrival] = React.useState("");
   const [specialRequests, setSpecialRequests] = React.useState("");
-  const [source, setSource] = React.useState<string>("walk_in");
   const [internalNotes, setInternalNotes] = React.useState("");
-
-  // Payment
   const [paymentPreference, setPaymentPreference] = React.useState<"pay_now" | "pay_at_checkin">("pay_at_checkin");
 
-  // Validation errors
+  // Validation
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
   // ── Derived ────────────────────────────────────────────────────
-  const nights = dateRange?.from && dateRange?.to
-    ? differenceInDays(dateRange.to, dateRange.from)
-    : 0;
+  const nights = React.useMemo(() => {
+    if (!range) return 0;
+    const start = calendarDateToLocalDate(range.start);
+    const end = calendarDateToLocalDate(range.end);
+    return Math.max(0, Math.round((end.getTime() - start.getTime()) / 86_400_000));
+  }, [range]);
 
   const selectedRoomType = roomTypeOptions.find(
-    (rt): rt is RoomTypeOption => rt.id === selectedRoomTypeId && "base_price" in rt
-  ) as RoomTypeOption | undefined;
+    (rt): rt is RoomTypeOption => rt.id === selectedRoomTypeId && rt.base_price != null,
+  );
 
-  // ── Pricing ─────────────────────────────────────────────────────
+  const rangeKey = range ? `${range.start.toString()}_${range.end.toString()}` : null;
+
+  // ── Pricing (server-authoritative preview) ──────────────────────
   const [resolvedPricing, setResolvedPricing] = React.useState<StaffResolvedPricing | null>(null);
   const [pricingLoading, setPricingLoading] = React.useState(false);
+  const [pricingKey, setPricingKey] = React.useState<string | null>(null);
 
+  // Fetch pricing whenever the selection changes. Stale responses are
+  // discarded via the cancellation flag; only setState in async callbacks or
+  // scheduled tasks (never synchronously within the effect body).
   React.useEffect(() => {
-    const checkIn = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : null;
-    const checkOut = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : null;
-
-    if (!selectedRoomTypeId || !checkIn || !checkOut || nights <= 0) {
-      setResolvedPricing(null);
+    if (!open || !selectedRoomTypeId || !rangeKey || !range || nights <= 0) {
+      if (pricingKey !== null) {
+        // Clear selection asynchronously so we don't setState during render.
+        const t = setTimeout(() => setPricingKey(null), 0);
+        return () => clearTimeout(t);
+      }
       return;
     }
 
-    let cancelled = false;
-    setPricingLoading(true);
+    const key = `${selectedRoomTypeId}_${rangeKey}`;
+    if (pricingKey === key) return;
 
-    getResolvedRatesForBooking(selectedRoomTypeId, checkIn, checkOut)
-      .then((result) => {
+    const checkInStr = `${range.start.year}-${String(range.start.month).padStart(2, "0")}-${String(range.start.day).padStart(2, "0")}`;
+    const checkOutStr = `${range.end.year}-${String(range.end.month).padStart(2, "0")}-${String(range.end.day).padStart(2, "0")}`;
+
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setPricingKey(key);
+        setPricingLoading(true);
+      }
+    });
+
+    getResolvedRatesForBooking(selectedRoomTypeId, checkInStr, checkOutStr)
+      .then((r) => {
         if (cancelled) return;
-        if (result.success) {
-          setResolvedPricing(result.data);
-        } else {
-          setResolvedPricing(null);
-        }
+        setResolvedPricing(r.success ? r.data : null);
       })
       .catch(() => {
         if (!cancelled) setResolvedPricing(null);
@@ -155,19 +236,49 @@ export function NewBookingModal({
         if (!cancelled) setPricingLoading(false);
       });
 
-    return () => { cancelled = true; };
-  }, [selectedRoomTypeId, dateRange?.from, dateRange?.to, nights]);
+    return () => {
+      cancelled = true;
+    };
+    // pricingKey intentional — only re-fetch when the selection itself changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, selectedRoomTypeId, rangeKey, nights]);
 
-  const fallbackRate = selectedRoomType?.base_price ?? 0;
-  const roomRate = resolvedPricing?.avgNightlyRate ?? fallbackRate;
-  const subtotal = resolvedPricing?.subtotal ?? fallbackRate * nights;
-  const taxRate = resolvedPricing?.taxRate ?? 0;
-  const taxAmount = resolvedPricing?.taxAmount ?? 0;
-  const totalAmount = resolvedPricing?.totalAmount ?? subtotal;
+  // Clear stale pricing as soon as inputs change (derived reset)
+  const effectivePricing =
+    resolvedPricing && pricingKey === `${selectedRoomTypeId}_${rangeKey}`
+      ? resolvedPricing
+      : null;
 
+  const roomRate = effectivePricing?.avgNightlyRate ?? selectedRoomType?.base_price ?? 0;
+  const subtotal = effectivePricing?.subtotal ?? roomRate * nights;
+  const taxAmount = effectivePricing?.taxAmount ?? 0;
+  const taxRate = effectivePricing?.taxRate ?? 0;
+  const totalAmount = effectivePricing?.totalAmount ?? subtotal;
 
+  // ── Prefill / Reset ──────────────────────────────────────────────
+  const initialised = React.useRef(false);
+  React.useEffect(() => {
+    if (!open) {
+      initialised.current = false;
+      return;
+    }
+    if (initialised.current) return;
+    initialised.current = true;
+    // Defer state application until after the current render to comply
+    // with react-hooks/set-state-in-effect.
+    const id = requestAnimationFrame(() => {
+      if (prefillRoomTypeId) setSelectedRoomTypeId(prefillRoomTypeId);
+      if (prefillCheckIn && prefillCheckOut) {
+        setRange({
+          start: dateToCalendarDate(prefillCheckIn),
+          end: dateToCalendarDate(prefillCheckOut),
+        });
+        if (prefillRoomTypeId) setStep(2);
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [open, prefillRoomTypeId, prefillCheckIn, prefillCheckOut]);
 
-  // ── Reset form ─────────────────────────────────────────────────
   function resetForm() {
     setStep(1);
     setGuestName("");
@@ -175,47 +286,67 @@ export function NewBookingModal({
     setGuestPhone("");
     setNationality("Ghana");
     setSelectedRoomTypeId("");
-    setDateRange(undefined);
+    setRange(null);
     setAdults(2);
     setChildren(0);
+    setSource("walk_in");
     setEstimatedArrival("");
     setSpecialRequests("");
-    setSource("walk_in");
     setInternalNotes("");
     setPaymentPreference("pay_at_checkin");
     setErrors({});
     setResolvedPricing(null);
   }
 
-  function handleClose(open: boolean) {
-    if (!open) {
-      resetForm();
-    }
-    onOpenChange(open);
+  function handleClose(openState: boolean) {
+    if (!openState) resetForm();
+    onOpenChange(openState);
+  }
+
+  const countryDialCode = getCountryDialCode(nationality) || "+233";
+
+  /** Nationality suggests a dial code, but never rewrites a real guest number. */
+  function handleNationalityChange(countryName: string) {
+    const nextDialCode = getCountryDialCode(countryName) || "+233";
+    setNationality(countryName);
+    setGuestPhone((previous) => {
+      const trimmed = previous.trim();
+      return !trimmed || /^\+\d{1,4}$/.test(trimmed) ? `${nextDialCode} ` : previous;
+    });
   }
 
   // ── Submit ─────────────────────────────────────────────────────
   async function handleSubmit() {
     const newErrors: Record<string, string> = {};
-    if (!guestName.trim()) newErrors.guestName = "Guest name is required";
-    if (!selectedRoomTypeId) newErrors.roomTypeId = "Room type is required";
-    if (!dateRange?.from) newErrors.checkIn = "Check-in date is required";
-    if (!dateRange?.to) newErrors.checkOut = "Check-out date is required";
-    if (nights <= 0) newErrors.dates = "Check-out must be after check-in";
-    if (!source) newErrors.source = "Source is required";
+    if (!guestName.trim()) newErrors.guestName = "Required";
+    if (guestEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+      newErrors.guestEmail = "Invalid email";
+    }
+    if (!selectedRoomTypeId) newErrors.roomTypeId = "Select a room type";
+    if (!range) newErrors.dates = "Select check-in and check-out";
+    else if (nights <= 0) newErrors.dates = "Check-out must be after check-in";
+    if (!source) newErrors.source = "Required";
 
     setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return;
+    if (Object.keys(newErrors).length > 0) {
+      toast.danger("Please complete the highlighted fields");
+      return;
+    }
+    if (!range) return;
 
     setLoading(true);
+
+    const toStr = (cd: CalendarDate) =>
+      `${cd.year}-${String(cd.month).padStart(2, "0")}-${String(cd.day).padStart(2, "0")}`;
 
     const formData: NewBookingInput = {
       guestName: guestName.trim(),
       guestEmail: guestEmail.trim() || undefined,
       guestPhone: guestPhone.trim() || undefined,
+      nationality: nationality || undefined,
       roomTypeId: selectedRoomTypeId,
-      checkIn: format(dateRange!.from!, "yyyy-MM-dd"),
-      checkOut: format(dateRange!.to!, "yyyy-MM-dd"),
+      checkIn: toStr(range.start),
+      checkOut: toStr(range.end),
       adults,
       children,
       roomRate,
@@ -230,13 +361,10 @@ export function NewBookingModal({
     };
 
     const result = await createBooking(formData);
-
     setLoading(false);
 
     if (result.success) {
-      toast.success(`Reservation ${result.reference} created`, {
-        description: `${guestName} · ${format(dateRange!.from!, "MMM dd")} - ${format(dateRange!.to!, "MMM dd, yyyy")}`,
-      });
+      toast.success(`Reservation ${result.reference} created`);
       handleClose(false);
     } else {
       if (result.fieldErrors) {
@@ -250,446 +378,356 @@ export function NewBookingModal({
     }
   }
 
-  // ── Validation ──────────────────────────────────────────────────
   const step1Valid = guestName.trim().length > 0;
-  const step2Valid = selectedRoomTypeId.length > 0 && dateRange?.from != null && dateRange?.to != null && nights > 0 && source.length > 0;
+  const step2Valid =
+    selectedRoomTypeId.length > 0 &&
+    range != null &&
+    nights > 0 &&
+    (source?.length ?? 0) > 0;
 
-
+  const todayCd = today(getLocalTimeZone());
 
   return (
-    <Modal.Backdrop isOpen={open} onOpenChange={handleClose} variant="blur" isDismissable={!loading}>
-      <Modal.Container placement="center" size="lg">
-        <Modal.Dialog className="sm:max-w-2xl">
-          <Modal.CloseTrigger />
-          
-          <Modal.Header className="border-b border-border/40 px-6 py-4">
-            <div className="space-y-1">
-              <Modal.Heading className="text-lg font-semibold">New Reservation</Modal.Heading>
-              <p className="text-sm text-muted-foreground">
-                Create a manual reservation for walk-in, phone, or assisted bookings.
-              </p>
-            </div>
+    <Modal.Backdrop
+      isOpen={open}
+      onOpenChange={handleClose}
+      variant="blur"
+      isDismissable={!loading}
+    >
+      <Modal.Container
+        placement="center"
+        size="lg"
+        scroll="inside"
+      >
+        <Modal.Dialog className="flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-none sm:max-h-[92dvh] sm:max-w-2xl sm:rounded-2xl">
+          <Modal.CloseTrigger className="right-3 top-3 rounded-full border border-border/70 bg-background text-foreground shadow-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary sm:right-4 sm:top-4" />
+
+          <Modal.Header className="shrink-0 border-b border-border/40 px-5 pb-2 pt-4 sm:px-6 sm:pt-5">
+            <Modal.Heading className="text-base sm:text-lg font-semibold">
+              New reservation
+            </Modal.Heading>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Staff booking · server-verified pricing
+            </p>
           </Modal.Header>
 
-          {/* Steps indicator */}
-          <div className="flex items-center gap-2 px-6 py-4 border-b border-border/30 bg-muted/10">
-            {[1, 2].map((s) => (
-              <React.Fragment key={s}>
-                <div className="flex items-center gap-2">
-                  <div
+          {/* Segmented step tabs */}
+          <div className="shrink-0 px-5 pt-1.5 sm:px-6">
+            <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+              {["Guest", "Stay details"].map((label, i) => {
+                const stepNum = i + 1;
+                const isActive = step === stepNum;
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => {
+                      if (stepNum === 1) setStep(1);
+                      else if (step1Valid) setStep(2);
+                    }}
+                    disabled={stepNum === 2 && !step1Valid}
                     className={cn(
-                      "size-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors",
-                      step === s
-                        ? "bg-primary text-primary-foreground"
-                        : step > s
-                        ? "bg-emerald-500/20 text-emerald-600 dark:bg-emerald-500/10"
-                        : "bg-muted text-muted-foreground"
+                      "h-8 rounded-md text-xs font-medium transition-all",
+                      isActive
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed",
                     )}
                   >
-                    {step > s ? "✓" : s}
-                  </div>
-                  <span
-                    className={cn(
-                      "text-xs font-medium hidden sm:inline",
-                      step >= s ? "text-foreground" : "text-muted-foreground"
-                    )}
-                  >
-                    {["Guest Information", "Booking Details"][s - 1]}
-                  </span>
-                </div>
-                {s < 2 && <div className="flex-1 h-px bg-border/40" />}
-              </React.Fragment>
-            ))}
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <Modal.Body className="px-6 py-6">
-            {/* ═══ Step 1: Guest Information ═══ */}
+          <Modal.Body className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-6 sm:py-7">
             {step === 1 && (
-              <div className="space-y-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <User className="size-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">Guest Information</h3>
-                    <p className="text-xs text-muted-foreground">Enter guest details for the reservation</p>
-                  </div>
+              <div className="space-y-6">
+                <SectionHeading icon={User} title="Guest" sub="Primary contact for this reservation" />
+
+                <TextField isInvalid={!!errors.guestName} fullWidth isRequired>
+                  <Label>Full name</Label>
+                  <Input
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    placeholder="Ama Serwaa"
+                    autoFocus
+                  />
+                  {errors.guestName && <FieldError>{errors.guestName}</FieldError>}
+                </TextField>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <TextField isInvalid={!!errors.guestEmail} fullWidth>
+                    <Label>Email</Label>
+                    <Input
+                      type="email"
+                      value={guestEmail}
+                      onChange={(e) => setGuestEmail(e.target.value)}
+                      placeholder="ama@example.com"
+                    />
+                    {errors.guestEmail ? (
+                      <FieldError>{errors.guestEmail}</FieldError>
+                    ) : (
+                      <Description>Optional · confirmations sent here</Description>
+                    )}
+                  </TextField>
+
+                  <TextField fullWidth>
+                    <Label>Phone</Label>
+                    <Input
+                      type="tel"
+                      value={guestPhone}
+                      onChange={(e) => setGuestPhone(e.target.value)}
+                      placeholder={`${countryDialCode} 24 123 4567`}
+                      inputMode="tel"
+                      autoComplete="tel"
+                    />
+                    <Description>Optional · starts with {countryDialCode}; international numbers stay unchanged</Description>
+                  </TextField>
                 </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-2 block">
-                      Full name <span className="text-destructive">*</span>
-                    </label>
-                    <Input
-                      placeholder="Guest's full name"
-                      value={guestName}
-                      onChange={(e) => setGuestName(e.target.value)}
-                      className={cn(
-                        "h-10",
-                        errors.guestName && "border-destructive"
-                      )}
-                    />
-                    {errors.guestName && (
-                      <p className="text-xs text-destructive mt-1.5">{errors.guestName}</p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-foreground mb-2 block">
-                        Email
-                      </label>
-                      <Input
-                        type="email"
-                        placeholder="guest@example.com"
-                        value={guestEmail}
-                        onChange={(e) => setGuestEmail(e.target.value)}
-                        className="h-10"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-foreground mb-2 block">
-                        Phone
-                      </label>
-                      <Input
-                        type="tel"
-                        placeholder="+233 XX XXX XXXX"
-                        value={guestPhone}
-                        onChange={(e) => setGuestPhone(e.target.value)}
-                        className="h-10"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-2 block">
-                      Nationality
-                    </label>
-                    <CountrySelect
-                      value={nationality}
-                      onChange={setNationality}
-                      placeholder="Select country..."
-                    />
-                    <p className="text-xs text-muted-foreground mt-1.5">Optional - defaults to Ghana</p>
-                  </div>
+                <div>
+                  <Label className="text-sm font-medium text-foreground mb-2 block">Nationality</Label>
+                  <CountrySelect value={nationality} onChange={handleNationalityChange} placeholder="Search country" />
+                  <p className="mt-1.5 text-xs text-muted-foreground">Defaults to Ghana · sets phone code only when phone is empty</p>
                 </div>
               </div>
             )}
 
-
-
-            {/* ═══ Step 2: Booking Details ═══ */}
             {step === 2 && (
-              <div className="space-y-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Building2 className="size-5 text-primary" />
+              <div className="space-y-6">
+                {/* Stay dates */}
+                <div className="space-y-3">
+                  <SectionHeading icon={CalendarDays} title="Dates" sub="Check-in and check-out" />
+
+                  <div className="rounded-2xl border border-border bg-gradient-to-b from-muted/30 to-background p-3 sm:p-4">
+                    <StayRangeCalendar
+                      value={range ? { start: range.start, end: range.end } : null}
+                      onChange={(v) => setRange(v)}
+                      minValue={todayCd}
+                      aria-label="Select stay dates"
+                    />
                   </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">Booking Details</h3>
-                    <p className="text-xs text-muted-foreground">Room selection, dates, and preferences</p>
+
+                  {range && nights > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-muted/50 px-3 py-2">
+                      <span className="text-xs text-muted-foreground">Stay:</span>
+                      <span className="text-xs font-semibold text-foreground tabular-nums">
+                        {formatStay(range.start)} → {formatStay(range.end)}
+                      </span>
+                      <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[11px] font-semibold">
+                        {nights} night{nights !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  )}
+                  {errors.dates && (
+                    <p className="text-xs text-destructive">{errors.dates}</p>
+                  )}
+                </div>
+
+                {/* Room type + occupancy */}
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <Select
+                    fullWidth
+                    variant="secondary"
+                    placeholder="Select room type"
+                    value={selectedRoomTypeId || null}
+                    onChange={(v) => setSelectedRoomTypeId(String(v))}
+                    isInvalid={!!errors.roomTypeId}
+                  >
+                    <Label>
+                      Room type <span className="text-destructive">*</span>
+                    </Label>
+                    <Select.Trigger className="min-h-12 border-border bg-background shadow-sm hover:border-primary/40">
+                      <Select.Value />
+                      <Select.Indicator />
+                    </Select.Trigger>
+                    {errors.roomTypeId && <FieldError>{errors.roomTypeId}</FieldError>}
+                    <Select.Popover>
+                      <ListBox>
+                        {roomTypeOptions.map((rt) => (
+                          <ListBox.Item
+                            key={rt.id}
+                            id={rt.id}
+                            textValue={rt.name}
+                          >
+                            <div className="flex items-center justify-between gap-3 w-full">
+                              <span>{rt.name}</span>
+                              {"base_price" in rt && rt.base_price != null && (
+                                <span className="text-xs text-muted-foreground tabular-nums">
+                                  {formatCurrency(rt.base_price, currency)}/night
+                                </span>
+                              )}
+                            </div>
+                          </ListBox.Item>
+                        ))}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <GuestStepper
+                      label="Adults"
+                      value={adults}
+                      onChange={setAdults}
+                      min={1}
+                      max={10}
+                    />
+                    <GuestStepper
+                      label="Children"
+                      value={children}
+                      onChange={setChildren}
+                      min={0}
+                      max={6}
+                    />
                   </div>
                 </div>
 
-                <div className="space-y-5">
-                  {/* Room Type */}
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-2 block">
-                      Room type <span className="text-destructive">*</span>
-                    </label>
-                    <select
-                      value={selectedRoomTypeId}
-                      onChange={(e) => setSelectedRoomTypeId(e.target.value)}
-                      className={cn(
-                        "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20",
-                        errors.roomTypeId && "border-destructive"
-                      )}
-                    >
-                      <option value="">Select room type...</option>
-                      {roomTypeOptions.map((rt) => (
-                        <option key={rt.id} value={rt.id}>
-                          {rt.name}
-                          {"base_price" in rt
-                            ? ` — ${formatCurrency((rt as RoomTypeOption).base_price, currency)}/night`
-                            : ""}
-                        </option>
+                {/* Source */}
+                <Select
+                  fullWidth
+                  variant="secondary"
+                  placeholder="Select source"
+                  value={source}
+                  onChange={(v) => setSource(String(v))}
+                  isInvalid={!!errors.source}
+                >
+                  <Label>
+                    Booking source <span className="text-destructive">*</span>
+                  </Label>
+                  <Select.Trigger className="min-h-12 border-border bg-background shadow-sm hover:border-primary/40">
+                    <Select.Value />
+                    <Select.Indicator />
+                  </Select.Trigger>
+                  {errors.source && <FieldError>{errors.source}</FieldError>}
+                  <Select.Popover>
+                    <ListBox>
+                      {SOURCE_OPTIONS.map((opt) => (
+                        <ListBox.Item key={opt.id} id={opt.id} textValue={opt.label}>
+                          {opt.label}
+                        </ListBox.Item>
                       ))}
-                    </select>
-                    {errors.roomTypeId && (
-                      <p className="text-xs text-destructive mt-1.5">{errors.roomTypeId}</p>
-                    )}
-                  </div>
+                    </ListBox>
+                  </Select.Popover>
+                </Select>
 
-                  {/* Date Range */}
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-2 block">
-                      Check-in / Check-out <span className="text-destructive">*</span>
-                    </label>
-                    <div className="border border-border rounded-lg p-3 bg-muted/5">
-                      <Calendar
-                        mode="range"
-                        selected={dateRange}
-                        onSelect={setDateRange}
-                        numberOfMonths={1}
-                        className="mx-auto"
-                      />
-                    </div>
-                    {dateRange?.from && dateRange?.to && (
-                      <div className="flex items-center gap-2 mt-3 px-3 py-2 bg-primary/5 border border-primary/20 rounded-lg">
-                        <CalendarIcon className="size-4 text-primary" />
-                        <span className="text-sm text-foreground">
-                          {format(dateRange.from, "MMM dd")} → {format(dateRange.to, "MMM dd, yyyy")}
-                        </span>
-                        <span className="ml-auto font-semibold text-sm text-primary">
-                          {nights} night{nights > 1 ? "s" : ""}
-                        </span>
-                      </div>
-                    )}
-                    {errors.dates && (
-                      <p className="text-xs text-destructive mt-1.5">{errors.dates}</p>
-                    )}
-                  </div>
+                {/* Arrival time + special requests */}
+                <div className="space-y-4">
+                  <TextField fullWidth>
+                    <Label>Estimated arrival</Label>
+                    <Input
+                      type="time"
+                      value={estimatedArrival}
+                      onChange={(e) => setEstimatedArrival(e.target.value)}
+                    />
+                    <Description>Optional · defaults to standard check-in time</Description>
+                  </TextField>
 
-                  {/* Occupancy with simple stepper */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-foreground mb-2 block">
-                        Adults
-                      </label>
-                      <div className="flex items-center gap-3 h-10 px-3 border border-border rounded-lg bg-background">
-                        <button
-                          type="button"
-                          onClick={() => setAdults(Math.max(1, adults - 1))}
-                          disabled={adults <= 1}
-                          className="p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <Minus className="size-4 text-muted-foreground" />
-                        </button>
-                        <span className="flex-1 text-center font-semibold text-foreground">{adults}</span>
-                        <button
-                          type="button"
-                          onClick={() => setAdults(Math.min(10, adults + 1))}
-                          disabled={adults >= 10}
-                          className="p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <Plus className="size-4 text-muted-foreground" />
-                        </button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-foreground mb-2 block">
-                        Children
-                      </label>
-                      <div className="flex items-center gap-3 h-10 px-3 border border-border rounded-lg bg-background">
-                        <button
-                          type="button"
-                          onClick={() => setChildren(Math.max(0, children - 1))}
-                          disabled={children <= 0}
-                          className="p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <Minus className="size-4 text-muted-foreground" />
-                        </button>
-                        <span className="flex-1 text-center font-semibold text-foreground">{children}</span>
-                        <button
-                          type="button"
-                          onClick={() => setChildren(Math.min(8, children + 1))}
-                          disabled={children >= 8}
-                          className="p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <Plus className="size-4 text-muted-foreground" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator className="opacity-50" />
-
-                  {/* Details Section */}
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-2 block">
-                      Estimated arrival time
-                    </label>
-                    <div className="relative">
-                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-                      <Input
-                        type="time"
-                        value={estimatedArrival}
-                        onChange={(e) => setEstimatedArrival(e.target.value)}
-                        className="h-10 pl-10"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-2 block">
-                      Special requests
-                    </label>
-                    <textarea
-                      placeholder="e.g., Late check-in, extra pillows, ground floor..."
+                  <TextField fullWidth>
+                    <Label>Special requests</Label>
+                    <TextArea
                       value={specialRequests}
                       onChange={(e) => setSpecialRequests(e.target.value)}
-                      rows={3}
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 placeholder:text-muted-foreground resize-none"
+                      placeholder="Late check-in, extra pillows, ground floor…"
+                      rows={2}
                     />
-                  </div>
+                  </TextField>
 
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-2 block">
-                      Reservation source <span className="text-destructive">*</span>
-                    </label>
-                    <select
-                      value={source}
-                      onChange={(e) => setSource(e.target.value)}
-                      className={cn(
-                        "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20",
-                        errors.source && "border-destructive"
-                      )}
-                    >
-                      {SOURCE_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.source && (
-                      <p className="text-xs text-destructive mt-1.5">{errors.source}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-2 block">
-                      Internal notes
-                    </label>
-                    <textarea
-                      placeholder="Staff-only notes about this reservation..."
+                  <TextField fullWidth>
+                    <Label>Internal notes</Label>
+                    <TextArea
                       value={internalNotes}
                       onChange={(e) => setInternalNotes(e.target.value)}
+                      placeholder="Staff-only notes · never shown to guest"
                       rows={2}
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 placeholder:text-muted-foreground resize-none"
                     />
-                  </div>
+                  </TextField>
+                </div>
 
-                  {/* Payment Preference */}
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-3 block">
-                      Payment preference
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setPaymentPreference("pay_at_checkin")}
-                        className={cn(
-                          "p-4 rounded-lg border-2 transition-all text-left",
-                          paymentPreference === "pay_at_checkin"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-border/80 hover:bg-muted/5"
-                        )}
-                      >
-                        <div className="font-medium text-sm">Pay at Check-in</div>
-                        <div className="text-xs text-muted-foreground mt-1">Guest pays upon arrival</div>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPaymentPreference("pay_now")}
-                        className={cn(
-                          "p-4 rounded-lg border-2 transition-all text-left",
-                          paymentPreference === "pay_now"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-border/80 hover:bg-muted/5"
-                        )}
-                      >
-                        <div className="font-medium text-sm">Pay Now</div>
-                        <div className="text-xs text-muted-foreground mt-1">Record payment immediately</div>
-                      </button>
-                    </div>
+                {/* Payment collection is intentionally separate from reservation creation. */}
+                <div className="space-y-2">
+                  <SectionHeading icon={Wallet} title="Payment collection" sub="Record money only after the reservation exists" />
+                  <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/60 px-3.5 py-3 dark:border-emerald-900/70 dark:bg-emerald-950/20">
+                    <p className="text-sm font-semibold text-foreground">Payment due at property</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                      Create reservation first. Then record cash, mobile money, card, bank transfer, or send a secure payment link from reservation payments.
+                    </p>
                   </div>
                 </div>
               </div>
             )}
           </Modal.Body>
 
-
-
-          <Modal.Footer className="border-t border-border/40 px-6 py-4 flex flex-col gap-4">
-            {/* Real-time Pricing Display */}
-            {selectedRoomTypeId && dateRange?.from && dateRange?.to && nights > 0 && (
-              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
+          <Modal.Footer className="shrink-0 flex-col gap-2.5 border-t border-border/40 bg-card px-5 py-3 sm:px-6">
+            {/* Pricing summary */}
+            {step === 2 && selectedRoomTypeId && range && nights > 0 && (
+              <div className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3">
                 {pricingLoading ? (
-                  <div className="flex items-center justify-center gap-2 py-2">
-                    <div className="size-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                    <span className="text-sm text-muted-foreground">Calculating rates...</span>
+                  <div className="flex items-center justify-center gap-2 py-1">
+                    <div className="size-3.5 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+                    <span className="text-xs text-muted-foreground">Calculating rates…</span>
                   </div>
                 ) : (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-foreground">Subtotal ({nights} × {formatCurrency(roomRate, currency)})</span>
-                      <span className="text-sm font-medium">{formatCurrency(subtotal, currency)}</span>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>
+                        {formatCurrency(roomRate, currency)} × {nights} {nights === 1 ? "night" : "nights"}
+                      </span>
+                      <span className="tabular-nums">{formatCurrency(subtotal, currency)}</span>
                     </div>
                     {taxAmount > 0 && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Tax ({(taxRate * 100).toFixed(0)}%)</span>
-                        <span className="text-sm">{formatCurrency(taxAmount, currency)}</span>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Tax {(taxRate * 100).toFixed(0)}%</span>
+                        <span className="tabular-nums">{formatCurrency(taxAmount, currency)}</span>
                       </div>
                     )}
-                    <Separator className="opacity-50 my-2" />
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-base font-semibold text-foreground">Total</span>
-                      <span className="text-lg font-bold text-primary">{formatCurrency(totalAmount, currency)}</span>
+                    <div className="mt-1 flex items-center justify-between border-t border-border/50 pt-2">
+                      <span className="text-sm font-semibold text-foreground">Total</span>
+                      <span className="text-base font-bold text-primary tabular-nums">
+                        {formatCurrency(totalAmount, currency)}
+                      </span>
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
             )}
 
-            {/* Navigation Buttons */}
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                {step > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onPress={() => setStep(step - 1)}
-                    isDisabled={loading}
-                  >
-                    ← Previous
-                  </Button>
-                )}
-              </div>
+            <div className="flex w-full items-center justify-between gap-3">
+              {step > 1 ? (
+                <Button variant="ghost" size="sm" onPress={() => setStep(1)} isDisabled={loading}>
+                  Back
+                </Button>
+              ) : (
+                <span />
+              )}
 
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onPress={() => handleClose(false)}
-                  isDisabled={loading}
-                >
+                <Button variant="outline" size="sm" onPress={() => handleClose(false)} isDisabled={loading}>
                   Cancel
                 </Button>
-
                 {step < 2 ? (
                   <Button
                     size="sm"
-                    onPress={() => setStep(step + 1)}
-                    isDisabled={loading || (step === 1 && !step1Valid)}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    onPress={() => setStep(2)}
+                    isDisabled={!step1Valid}
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 min-w-[110px]"
                   >
-                    Continue →
+                    Continue
                   </Button>
                 ) : (
                   <Button
                     size="sm"
                     onPress={handleSubmit}
                     isDisabled={loading || !step1Valid || !step2Valid}
-                    className="min-w-[120px] bg-primary text-primary-foreground hover:bg-primary/90"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 min-w-[130px]"
                   >
                     {loading ? (
-                      <div className="flex items-center gap-2">
-                        <div className="size-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                        <span>Creating...</span>
-                      </div>
+                      <span className="flex items-center gap-2">
+                        <span className="size-3.5 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
+                        Creating…
+                      </span>
                     ) : (
-                      "Create Reservation"
+                      "Create reservation"
                     )}
                   </Button>
                 )}
@@ -700,4 +738,9 @@ export function NewBookingModal({
       </Modal.Container>
     </Modal.Backdrop>
   );
+}
+
+function formatStay(cd: CalendarDate): string {
+  const d = new Date(cd.year, cd.month - 1, cd.day);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }

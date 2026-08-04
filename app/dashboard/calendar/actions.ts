@@ -3,6 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { parseISO, addDays, format } from "date-fns";
+import { toStoredBlockRange } from "@/lib/calendar-domain";
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -595,14 +596,14 @@ export async function createAvailabilityBlock(
       return { success: false, error: "Only managers and super admins can block rooms" };
     }
 
-    // Insert block
+    const storedRange = toStoredBlockRange(startDate, endDate);
     const { error } = await supabase
       .from("availability_blocks")
       .insert({
         hotel_id: hotelId,
         room_id: roomId,
-        start_date: startDate,
-        end_date: endDate,
+        start_date: storedRange.startDate,
+        end_date: storedRange.endDate,
         reason,
         notes,
       });

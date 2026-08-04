@@ -440,7 +440,7 @@
 }
 
 .booking-calendar-panel {
-  width: min(20.5rem, calc(100vw - 1.25rem));
+  width: min(21rem, calc(100vw - 1.25rem));
   max-width: calc(100vw - 1.25rem);
   /* Always light surface — guest hero can sit under dark html theme */
   color-scheme: light;
@@ -491,6 +491,20 @@
   --color-accent-soft: var(--accent-soft);
   --color-accent-soft-foreground: var(--accent-soft-foreground);
   --color-accent-soft-hover: var(--accent-soft-hover);
+
+  /* Bridge: StayRangeCalendar drives selection UI off --primary/--muted-foreground */
+  --primary: oklch(0.6204 0.195 253.83);
+  --primary-foreground: var(--snow);
+  --muted-foreground: var(--muted);
+  --border: oklch(90% 0.004 286.32);
+}
+
+/* Dual-month layout needs breathing room on desktop */
+@media (min-width: 768px) {
+  .booking-calendar-panel {
+    width: auto;
+    max-width: 46rem;
+  }
 }
 
 /* Full-bleed sticky header padding on notched phones */
@@ -506,39 +520,7 @@
   }
 }
 
-/* Guest date-range calendar — HeroUI structure; tokens from panel above */
-.booking-range-calendar {
-  width: 100%;
-  max-width: 100%;
-  color: var(--foreground);
-}
-
-.booking-range-calendar .range-calendar__grid {
-  width: 100%;
-}
-
-/* Extra safety: day numbers + weekdays stay readable */
-.booking-range-calendar .range-calendar__heading {
-  color: var(--foreground);
-}
-
-.booking-range-calendar .range-calendar__header-cell {
-  color: var(--muted);
-  opacity: 1;
-}
-
-.booking-range-calendar .range-calendar__cell-button {
-  color: var(--foreground);
-}
-
-.booking-range-calendar
-  .range-calendar__cell[data-selection-start="true"]
-  .range-calendar__cell-button,
-.booking-range-calendar
-  .range-calendar__cell[data-selection-end="true"]
-  .range-calendar__cell-button {
-  color: var(--accent-foreground);
-}
+/* Guest date-range panel: dual-month grid handled by .stay-range-calendar (globals.css) */
 
 /* Comfortable tap targets on coarse pointers */
 @media (pointer: coarse) {

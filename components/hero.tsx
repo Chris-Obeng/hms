@@ -68,7 +68,7 @@ export function Hero() {
     },
     {
       q: "What happens if our hotel internet goes offline?",
-      a: "HotelOS Pro features a lightweight, offline-resilient client architecture. The front desk team can continue viewing the calendar and guest check-ins using local cache. Once connection is restored, offline entries are seamlessly synced back to the secure Supabase database."
+      a: "RoomLines features a lightweight, offline-resilient client architecture. The front desk team can continue viewing the calendar and guest check-ins using local cache. Once connection is restored, offline entries are seamlessly synced back to the secure Supabase database."
     },
     {
       q: "How long does the setup and onboarding process take?",
@@ -105,7 +105,7 @@ export function Hero() {
               <span className="text-forest font-bold text-lg">H</span>
             </span>
             <span className="text-xl font-bold tracking-tight text-ivory">
-              HotelOS<span className="text-gold font-medium">Pro</span>
+              RoomLine<span className="text-gold font-medium">Pro</span>
             </span>
           </Link>
 
@@ -141,7 +141,7 @@ export function Hero() {
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 max-w-7xl mx-auto px-6 lg:px-8 z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-          
+
           {/* Left Hero Column */}
           <div className="lg:col-span-6 flex flex-col gap-6 max-w-[620px]">
             {/* Announcement Badge */}
@@ -156,7 +156,7 @@ export function Hero() {
             </motion.div>
 
             {/* Headline */}
-            <motion.h1 
+            <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.1 }}
@@ -179,7 +179,7 @@ export function Hero() {
             </motion.p>
 
             {/* CTA Buttons */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.3 }}
@@ -198,7 +198,7 @@ export function Hero() {
             </motion.div>
 
             {/* Trust Indicators */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.8, delay: 0.4 }}
@@ -231,7 +231,7 @@ export function Hero() {
                   <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/30" />
                   <div className="w-2.5 h-2.5 rounded-full bg-green-500/30" />
                 </div>
-                <div className="text-[10px] text-ivory/30 font-semibold tracking-wider uppercase">HotelOS Pro &bull; Calendar</div>
+                <div className="text-[10px] text-ivory/30 font-semibold tracking-wider uppercase">RoomLine &bull; Calendar</div>
                 <div className="w-10" />
               </div>
 
@@ -375,7 +375,7 @@ export function Hero() {
       <section id="demo" className="py-20 max-w-7xl mx-auto px-6 lg:px-8 z-10 relative">
         <div className="text-center max-w-3xl mx-auto mb-12">
           <h2 className="text-xs uppercase font-bold tracking-widest text-gold mb-3">Live Platform Tour</h2>
-          <p className="text-3xl sm:text-4xl font-bold tracking-tight">How HotelOS Pro Streamlines Operations</p>
+          <p className="text-3xl sm:text-4xl font-bold tracking-tight">How RoomLine Streamlines Operations</p>
           <p className="text-ivory/50 mt-3 text-base">Select a module to preview the speed and elegance of the property management interface.</p>
         </div>
 
@@ -515,7 +515,7 @@ export function Hero() {
                   <span className="text-xs font-bold text-gold uppercase tracking-wider">SMS Engagement Hub</span>
                   <h3 className="text-2xl font-bold text-ivory">Automated Arkesel Messaging</h3>
                   <p className="text-sm text-ivory/50 leading-relaxed">
-                    SMS has a 98% open rate in Ghana. HotelOS Pro leverages the local Arkesel gateway to text guests their booking numbers, check-in instructions, WiFi passwords, and invoice receipts automatically. This keeps your guest service modern and localized.
+                    SMS has a 98% open rate in Ghana. RoomLine leverages the local Arkesel gateway to text guests their booking numbers, check-in instructions, WiFi passwords, and invoice receipts automatically. This keeps your guest service modern and localized.
                   </p>
                 </div>
                 <div className="lg:col-span-7 bg-forest border border-ivory/[0.06] rounded-xl p-5 space-y-3">
@@ -732,7 +732,7 @@ export function Hero() {
           <div className="space-y-4 md:col-span-1">
             <div className="flex items-center gap-2">
               <span className="w-6 h-6 rounded bg-gradient-to-br from-[#e5c158] to-gold flex items-center justify-center font-bold text-forest text-sm">H</span>
-              <span className="font-bold text-ivory">HotelOS Pro</span>
+              <span className="font-bold text-ivory">RoomLine</span>
             </div>
             <p className="text-xs text-ivory/45 leading-relaxed">
               Premium Property Management System designed specifically for West African hotels. Denominated in GHC. No exchange rate volatility risk.
@@ -763,7 +763,7 @@ export function Hero() {
                 <MapPin className="w-3.5 h-3.5 text-gold" /> Airport Residential Area, Accra
               </li>
               <li className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-gold" /> support@hotelospro.com
+                <Mail className="w-3.5 h-3.5 text-gold" /> support@RoomLinepro.com
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="w-3.5 h-3.5 text-gold" /> +233 24 000 0000
@@ -773,7 +773,7 @@ export function Hero() {
         </div>
 
         <div className="max-w-7xl mx-auto px-6 lg:px-8 border-t border-ivory/[0.03] mt-10 pt-6 flex flex-col sm:flex-row justify-between items-center text-xs text-ivory/30 gap-4">
-          <p>&copy; {new Date().getFullYear()} HotelOS Pro. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} RoomLine. All rights reserved.</p>
           <div className="flex gap-4">
             <a href="#" className="hover:text-ivory">Terms of Service</a>
             <a href="#" className="hover:text-ivory">Privacy Policy</a>

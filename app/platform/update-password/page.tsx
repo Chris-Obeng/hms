@@ -1,6 +1,6 @@
 import { UpdatePasswordForm } from "./_components/update-password-form";
 
-export const metadata = { title: "Update Password — HotelOS Pro Platform" };
+export const metadata = { title: "Update Password — RoomLine Platform" };
 
 export default function UpdatePasswordPage() {
   return (
@@ -11,7 +11,7 @@ export default function UpdatePasswordPage() {
             <span className="text-2xl font-bold text-foreground">H</span>
           </div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Set new password</h1>
-          <p className="text-sm text-muted-foreground mt-1">HotelOS Pro Platform Admin</p>
+          <p className="text-sm text-muted-foreground mt-1">RoomLine Platform Admin</p>
         </div>
         <UpdatePasswordForm />
       </div>

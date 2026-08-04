@@ -17,6 +17,8 @@ import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer
 import { createClient } from "@/lib/supabase/client";
 import { writeAuditLog } from "@/lib/audit";
 import { qk } from "@/lib/query-keys";
+import { findOverlappingBookingIds, isStayoverOnDate, staysOnDate } from "@/lib/calendar-domain";
+import { updateBookingStatus } from "@/app/actions/bookings";
 
 interface DashboardClientProps {
   hotelId: string;
@@ -47,7 +49,8 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
     inHouseBookingsRes,
     newBookingsRes,
     cancellationsRes,
-    todayBookingsRes,
+    dateBookingsRes,
+    blocksRes,
     todayPaymentsRes
   ] = await Promise.all([
     supabase
@@ -91,24 +94,41 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
       .eq("status", "checked_in"),
     supabase
       .from("bookings")
-      .select("*", { count: "exact", head: true })
+      .select(`
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at,
+        guests(full_name, email, phone), rooms(room_number), room_types(name)
+      `)
       .eq("hotel_id", hotelId)
       .gte("created_at", startOfDay(today).toISOString())
-      .lte("created_at", endOfDay(today).toISOString()),
+      .lte("created_at", endOfDay(today).toISOString())
+      .order("created_at", { ascending: false }),
     supabase
       .from("bookings")
-      .select("*", { count: "exact", head: true })
+      .select(`
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, updated_at,
+        guests(full_name, email, phone), rooms(room_number), room_types(name)
+      `)
       .eq("hotel_id", hotelId)
       .eq("status", "cancelled")
       .gte("updated_at", startOfDay(today).toISOString())
-      .lte("updated_at", endOfDay(today).toISOString()),
+      .lte("updated_at", endOfDay(today).toISOString())
+      .order("updated_at", { ascending: false }),
     supabase
       .from("bookings")
-      .select("id, room_id")
+      .select(`
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at,
+        guests(full_name, email, phone), rooms(room_number), room_types(name)
+      `)
       .eq("hotel_id", hotelId)
       .in("status", ["confirmed", "checked_in"])
       .lte("check_in", dayStr)
-      .gte("check_out", dayStr),
+      .gt("check_out", dayStr),
+    supabase
+      .from("availability_blocks")
+      .select("room_id, start_date, end_date")
+      .eq("hotel_id", hotelId)
+      .lte("start_date", dayStr)
+      .gt("end_date", dayStr),
     supabase
       .from("payments")
       .select("amount")
@@ -124,14 +144,17 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
   if (inHouseBookingsRes.error) throw inHouseBookingsRes.error;
   if (newBookingsRes.error) throw newBookingsRes.error;
   if (cancellationsRes.error) throw cancellationsRes.error;
-  if (todayBookingsRes.error) throw todayBookingsRes.error;
+  if (dateBookingsRes.error) throw dateBookingsRes.error;
+  if (blocksRes.error) throw blocksRes.error;
   if (todayPaymentsRes.error) throw todayPaymentsRes.error;
 
   const roomStatuses = roomsRes.data || [];
-  const occupiedRooms = roomStatuses.filter((r: any) => r.status === "occupied").length;
   const outOfService = roomStatuses.filter((r: any) => r.status === "maintenance" || r.status === "out_of_service").length;
-  const blocked = roomStatuses.filter((r: any) => r.status === "cleaning").length;
   const activeRooms = roomStatuses.length;
+  const occupiedRoomIds = new Set((dateBookingsRes.data || []).map((b: any) => b.room_id).filter(Boolean));
+  const blockedRoomIds = new Set((blocksRes.data || []).map((b: any) => b.room_id));
+  const occupiedRooms = occupiedRoomIds.size;
+  const blocked = [...blockedRoomIds].filter((id) => !occupiedRoomIds.has(id)).length;
   const availableRooms = activeRooms - occupiedRooms - outOfService - blocked;
 
   const mapBooking = (b: any): ActivityBooking => ({
@@ -151,11 +174,16 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
     paymentStatus: b.payment_status || "unpaid",
     totalAmount: b.total_amount,
     source: b.source || "direct",
+    createdAt: b.created_at || null,
+    hasConflict: false,
   });
 
   const arrivalsList = (arrivalsRes.data || []).map(mapBooking);
   const departuresList = (departuresRes.data || []).map(mapBooking);
   const inHouseList = (inHouseBookingsRes.data || []).map(mapBooking);
+  const recordedList = (newBookingsRes.data || []).map(mapBooking);
+  const cancellationsList = (cancellationsRes.data || []).map(mapBooking);
+  const dateBookingsList = (dateBookingsRes.data || []).map(mapBooking);
 
   const seen = new Set<string>();
   const uniqueBookings = [...arrivalsList, ...departuresList].filter((b) => {
@@ -170,17 +198,15 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
       seen.add(b.id);
     }
   }
+  for (const b of [...recordedList, ...cancellationsList, ...dateBookingsList]) {
+    if (!seen.has(b.id)) { uniqueBookings.push(b); seen.add(b.id); }
+  }
 
-  const stayovers = (inHouseBookingsRes.data || []).filter(
-    (b: any) => b.check_in !== dayStr && b.check_out !== dayStr
-  ).length;
-
-  const inHouse = (inHouseBookingsRes.data || []).filter(
-    (b: any) => b.check_in <= dayStr && b.check_out >= dayStr
-  ).length;
-
-  const roomsNeeded = todayBookingsRes.data?.length || 0;
-  const overbookings = Math.max(0, roomsNeeded - (activeRooms - outOfService));
+  const stayovers = (dateBookingsRes.data || []).filter((b: any) => isStayoverOnDate({ id: b.id, roomId: b.room_id, checkIn: b.check_in, checkOut: b.check_out }, dayStr)).length;
+  const inHouse = (dateBookingsRes.data || []).filter((b: any) => staysOnDate({ id: b.id, roomId: b.room_id, checkIn: b.check_in, checkOut: b.check_out }, dayStr)).length;
+  const conflictIds = findOverlappingBookingIds((dateBookingsRes.data || []).map((b: any) => ({ id: b.id, roomId: b.room_id, checkIn: b.check_in, checkOut: b.check_out })));
+  for (const booking of uniqueBookings) booking.hasConflict = conflictIds.has(booking.id);
+  const overbookings = conflictIds.size;
 
   const totalRevenueToday = todayPaymentsRes.data?.reduce((s: number, p: any) => s + (p.amount || 0), 0) || 0;
   const roomNightsSold = uniqueBookings.reduce((s: number, b: any) => s + (b.nights || 1), 0);
@@ -195,8 +221,8 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
       pendingDepartures: departuresRes.data?.filter((b: any) => b.status !== "checked_out").length || 0,
       inHouse,
       stayovers,
-      newBookings: newBookingsRes.count || 0,
-      cancellations: cancellationsRes.count || 0,
+      newBookings: recordedList.length,
+      cancellations: cancellationsList.length,
       overbookings,
     },
     bookings: uniqueBookings,
@@ -475,6 +501,30 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
     checkOutMutation.mutate(bookingId);
   }, [checkOutMutation]);
 
+  const statusMutation = useMutation({
+    mutationFn: async ({ bookingId, status }: { bookingId: string; status: "cancelled" | "no_show" }) => {
+      const result = await updateBookingStatus(bookingId, status);
+      if (!result.success) throw new Error(result.error || "Status update failed");
+      return { bookingId, status };
+    },
+    onMutate: async ({ bookingId, status }) => {
+      const queryKey = qk.dashboard(orgId || "", hotelId, dateParamStr);
+      await queryClient.cancelQueries({ queryKey });
+      const previousData = queryClient.getQueryData(queryKey);
+      queryClient.setQueryData(queryKey, (old: any) => old ? {
+        ...old,
+        bookings: old.bookings.map((booking: any) => booking.id === bookingId ? { ...booking, status } : booking),
+      } : old);
+      return { previousData, queryKey };
+    },
+    onError: (err, _variables, context: any) => {
+      if (context?.previousData) queryClient.setQueryData(context.queryKey, context.previousData);
+      toast.danger(err instanceof Error ? err.message : "Status update failed");
+    },
+    onSuccess: ({ status }) => toast.success(status === "cancelled" ? "Booking cancelled" : "Booking marked no-show"),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: qk.dashboard(orgId || "", hotelId, dateParamStr) }),
+  });
+
   const tabs = data ? buildActivityTabs(data.stats) : buildActivityTabs(defaultEmptyStats);
 
   const filteredBookings = React.useMemo(() => {
@@ -491,17 +541,19 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
             ["confirmed", "checked_in", "checked_out"].includes(b.status)
         );
       case "in_house":
-        return data.bookings.filter((b: any) => b.status === "checked_in");
+        return data.bookings.filter((b: any) => staysOnDate({ id: b.id, roomId: null, checkIn: b.checkIn, checkOut: b.checkOut }, dateParamStr));
       case "stayovers":
-        return data.bookings.filter(
-          (b: any) => b.status === "checked_in" &&
-            b.checkIn !== format(selectedDate, "yyyy-MM-dd") &&
-            b.checkOut !== format(selectedDate, "yyyy-MM-dd")
-        );
+        return data.bookings.filter((b: any) => isStayoverOnDate({ id: b.id, roomId: null, checkIn: b.checkIn, checkOut: b.checkOut }, dateParamStr));
+      case "bookings":
+        return data.bookings.filter((b: any) => b.createdAt?.slice(0, 10) === dateParamStr);
+      case "cancellations":
+        return data.bookings.filter((b: any) => b.status === "cancelled");
+      case "overbookings":
+        return data.bookings.filter((b: any) => b.hasConflict);
       default:
         return data.bookings;
     }
-  }, [data?.bookings, activeTab, selectedDate]);
+  }, [data?.bookings, activeTab, dateParamStr]);
 
   if (loading && !data) {
     return <DashboardSkeleton />;
@@ -578,6 +630,8 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
             onCheckOut={(id) => {
               if (!checkingOut.has(id)) handleCheckOut(id);
             }}
+            onCancel={(id) => statusMutation.mutate({ bookingId: id, status: "cancelled" })}
+            onNoShow={(id) => statusMutation.mutate({ bookingId: id, status: "no_show" })}
             onViewDetails={handleViewDetails}
           />
         </div>

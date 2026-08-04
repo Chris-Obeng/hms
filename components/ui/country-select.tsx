@@ -3,15 +3,21 @@
 import * as React from "react";
 import Select, { StylesConfig, components, SingleValueProps, OptionProps } from "react-select";
 import countries from "world-countries";
-import { Globe } from "lucide-react";
 
 // Format countries data for react-select
-const countryOptions = countries.map((country) => ({
+export const countryOptions = countries.map((country) => ({
   value: country.name.common,
   label: country.name.common,
   flag: country.flag,
   code: country.cca2,
+  dialCode: country.idd.root
+    ? `${country.idd.root}${country.idd.suffixes?.[0] ?? ""}`
+    : "",
 })).sort((a, b) => a.label.localeCompare(b.label));
+
+export function getCountryDialCode(countryName: string): string | undefined {
+  return countryOptions.find((country) => country.value === countryName)?.dialCode || undefined;
+}
 
 interface CountrySelectProps {
   value: string;
@@ -47,7 +53,7 @@ export function CountrySelect({ value, onChange, placeholder = "Select country..
   const customStyles: StylesConfig<typeof countryOptions[0], false> = {
     control: (provided, state) => ({
       ...provided,
-      minHeight: "40px",
+      minHeight: "44px",
       borderWidth: "1px",
       borderStyle: "solid",
       borderColor: state.isFocused 
@@ -68,7 +74,7 @@ export function CountrySelect({ value, onChange, placeholder = "Select country..
       border: "1px solid hsl(var(--border))",
       borderRadius: "0.5rem",
       boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
-      zIndex: 50,
+      zIndex: 10001,
       marginTop: "4px",
     }),
     option: (provided, state) => ({
@@ -109,6 +115,10 @@ export function CountrySelect({ value, onChange, placeholder = "Select country..
       maxHeight: "300px",
       padding: "4px",
     }),
+    menuPortal: (provided) => ({
+      ...provided,
+      zIndex: 10001,
+    }),
     dropdownIndicator: (provided) => ({
       ...provided,
       color: "hsl(var(--muted-foreground))",
@@ -132,6 +142,8 @@ export function CountrySelect({ value, onChange, placeholder = "Select country..
       isDisabled={disabled}
       isSearchable
       isClearable={false}
+      menuPortalTarget={typeof document === "undefined" ? undefined : document.body}
+      menuPosition="fixed"
       styles={customStyles}
       components={{ SingleValue, Option }}
       noOptionsMessage={() => "No countries found"}

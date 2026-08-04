@@ -13,7 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 
-const DISMISS_KEY = "hotelos_pwa_install_dismissed";
+const DISMISS_KEY = "RoomLine_pwa_install_dismissed";
 const DISMISS_DAYS = 14;
 
 function wasDismissedRecently(): boolean {
@@ -76,7 +76,7 @@ export function PwaInstallPrompt() {
             <Smartphone className="size-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">Install HotelOS</p>
+            <p className="text-sm font-semibold text-foreground">Install RoomLine</p>
             <p className="text-caption text-muted-foreground mt-0.5">
               Add to home screen for faster check-ins, offline shell, and native feel on tablet or phone.
             </p>
@@ -124,7 +124,7 @@ function IosInstallDialog({ onDismiss }: { onDismiss: () => void }) {
   return (
     <DialogContent className="sm:max-w-md rounded-2xl">
       <DialogHeader>
-        <DialogTitle>Add HotelOS to Home Screen</DialogTitle>
+        <DialogTitle>Add RoomLine to Home Screen</DialogTitle>
         <DialogDescription>
           Install works like a native app — full screen, fast launch, no browser chrome.
         </DialogDescription>
@@ -144,7 +144,7 @@ function IosInstallDialog({ onDismiss }: { onDismiss: () => void }) {
         </li>
         <li className="flex items-start gap-3">
           <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">3</span>
-          <span className="pt-0.5">Tap Add — HotelOS opens standalone from your home screen</span>
+          <span className="pt-0.5">Tap Add — RoomLine opens standalone from your home screen</span>
         </li>
       </ol>
       <Button className="w-full rounded-xl" onClick={onDismiss}>

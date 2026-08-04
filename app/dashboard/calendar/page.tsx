@@ -6,7 +6,7 @@ import { getCalendarData, getCurrentStaffRole } from "./actions";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Calendar | HotelOS",
+  title: "Calendar | RoomLine",
 };
 
 export default async function CalendarPage() {

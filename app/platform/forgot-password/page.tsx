@@ -1,6 +1,6 @@
 import { ForgotPasswordForm } from "./_components/forgot-password-form";
 
-export const metadata = { title: "Reset Password — HotelOS Pro Platform" };
+export const metadata = { title: "Reset Password — RoomLine Platform" };
 
 export default function ForgotPasswordPage() {
   return (
@@ -11,7 +11,7 @@ export default function ForgotPasswordPage() {
             <span className="text-2xl font-bold text-foreground">H</span>
           </div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Reset password</h1>
-          <p className="text-sm text-muted-foreground mt-1">HotelOS Pro Platform Admin</p>
+          <p className="text-sm text-muted-foreground mt-1">RoomLine Platform Admin</p>
         </div>
         <ForgotPasswordForm />
       </div>

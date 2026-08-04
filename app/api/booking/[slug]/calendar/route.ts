@@ -67,7 +67,7 @@ export async function GET(
     .toISOString()
     .replace(/[-:]/g, "")
     .replace(/\.\d+/, "");
-  const uid = `${reference}@hotelosprp.com`;
+  const uid = `${reference}@RoomLineprp.com`;
 
   const location = [hotel.name, hotel.address, hotel.city]
     .filter(Boolean)
@@ -76,7 +76,7 @@ export async function GET(
   const ics = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//HotelOS Pro//EN",
+    "PRODID:-//RoomLine//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
