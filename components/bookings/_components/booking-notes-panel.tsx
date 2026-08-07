@@ -1,10 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "@heroui/react";
+import { Button, Separator, TextArea, toast } from "@heroui/react";
 import { FileText, Edit3, Clock } from "lucide-react";
 
-import { Separator } from "@/components/ui/separator";
 import { updateBookingNotes } from "@/app/actions/bookings-detail";
 import type { FullBookingDetail } from "./booking-detail-types";
 
@@ -40,7 +39,10 @@ export function BookingNotesPanel({
   };
 
   return (
-    <div className="px-5 py-4 space-y-5">
+    <section className="space-y-5 border-t border-border/40 px-5 py-5" aria-labelledby="reservation-notes-heading">
+      <h3 id="reservation-notes-heading" className="text-xs font-semibold text-foreground">
+        Notes
+      </h3>
       {/* Special Requests (read-only) */}
       <div>
         <div className="flex items-center gap-1.5 mb-3">
@@ -74,22 +76,24 @@ export function BookingNotesPanel({
             </p>
           </div>
           {!editingNotes && (
-            <button
-              onClick={() => {
+            <Button
+              size="sm"
+              variant="ghost"
+              onPress={() => {
                 setNotesDraft(booking.internalNotes || "");
                 setEditingNotes(true);
               }}
-              className="text-[10px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              className="h-7 px-2 text-[10px] text-muted-foreground"
             >
               <Edit3 className="size-3" />
               {booking.internalNotes ? "Edit" : "Add Note"}
-            </button>
+            </Button>
           )}
         </div>
 
         {editingNotes ? (
           <div className="space-y-2">
-            <textarea
+            <TextArea
               value={notesDraft}
               onChange={(e) => setNotesDraft(e.target.value)}
               placeholder="Staff-only notes about this booking (preferences, special needs, issues)..."
@@ -102,22 +106,25 @@ export function BookingNotesPanel({
                 {notesDraft.length}/2000
               </span>
               <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => {
+                <Button
+                  onPress={() => {
                     setEditingNotes(false);
                     setNotesDraft(booking.internalNotes || "");
                   }}
-                  className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1"
+                  size="sm"
+                  variant="ghost"
+                  className="text-[10px]"
                 >
                   Cancel
-                </button>
-                <button
-                  onClick={handleSaveNotes}
-                  disabled={savingNotes}
-                  className="text-[10px] bg-foreground text-background hover:bg-foreground/90 transition-colors rounded-lg px-3 py-1 font-medium"
+                </Button>
+                <Button
+                  onPress={handleSaveNotes}
+                  isPending={savingNotes}
+                  size="sm"
+                  className="text-[10px]"
                 >
                   {savingNotes ? "Saving..." : "Save Notes"}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -145,6 +152,6 @@ export function BookingNotesPanel({
           </div>
         </>
       )}
-    </div>
+    </section>
   );
 }

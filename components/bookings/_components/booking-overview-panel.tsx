@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Chip, Separator } from "@heroui/react";
 import {
   CalendarDays,
   Moon,
@@ -13,9 +14,6 @@ import {
   Building2,
 } from "lucide-react";
 
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { DetailCard } from "./booking-detail-card";
 import { formatDateFull, formatDateTime, getNights } from "@/lib/format";
 import { getSourceLabel } from "@/lib/booking-status";
@@ -23,10 +21,9 @@ import { type FullBookingDetail } from "./booking-detail-types";
 
 interface BookingOverviewPanelProps {
   booking: FullBookingDetail;
-  currency: string;
 }
 
-export function BookingOverviewPanel({ booking, currency: _currency }: BookingOverviewPanelProps) {
+export function BookingOverviewPanel({ booking }: BookingOverviewPanelProps) {
   const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
 
   return (
@@ -139,19 +136,19 @@ export function BookingOverviewPanel({ booking, currency: _currency }: BookingOv
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
             Booking Source
           </p>
-          <Badge variant="outline" className="text-xs font-medium">
+          <Chip variant="secondary" size="sm">
             {getSourceLabel(booking.source)}
-          </Badge>
+          </Chip>
         </div>
         <div>
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
             Payment Preference
           </p>
-          <Badge variant="outline" className="text-xs font-medium capitalize">
+          <Chip variant="secondary" size="sm" className="capitalize">
             {booking.paymentPreference === "pay_now"
               ? "Pay Now"
               : "Pay at Check-in"}
-          </Badge>
+          </Chip>
         </div>
       </div>
     </div>

@@ -1,28 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "@heroui/react";
+import { Chip, Drawer, Skeleton, Tabs, toast } from "@heroui/react";
 import { AlertCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { checkInBooking, checkOutBooking } from "@/app/dashboard/actions";
-import { updateBookingStatus } from "@/app/actions/bookings";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   getFullBookingDetail,
   type FullBookingDetail,
 } from "@/app/actions/bookings-detail";
 
-import { getStatusVariant, getStatusLabel, STATUS_COLORS } from "@/lib/booking-status";
+import { getStatusLabel, STATUS_COLORS } from "@/lib/booking-status";
 import { formatDateTime } from "@/lib/format";
 import { BookingActionBar } from "./_components/booking-action-bar";
 import { BookingOverviewPanel } from "./_components/booking-overview-panel";
@@ -51,6 +40,7 @@ export function BookingDetailDrawer({
   initialTab = "overview",
   onBookingChanged,
 }: BookingDetailDrawerProps) {
+  const isMobile = useIsMobile();
   const [booking, setBooking] = React.useState<FullBookingDetail | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState("overview");
@@ -85,8 +75,23 @@ export function BookingDetailDrawer({
 
   // ── Handlers ──────────────────────────────────────────────────
 
-  const handleAction = async (action: string, actionFn: () => Promise<any>) => {
+  const handleAction = async (
+    action: string,
+    optimisticStatus: string,
+    actionFn: () => Promise<{ success: boolean; error?: string }>
+  ) => {
+    if (!booking) return;
+    const previousBooking = booking;
+    const now = new Date().toISOString();
+
     setActionLoading(action);
+    setBooking({
+      ...booking,
+      status: optimisticStatus,
+      checkInAt: action === "check_in" ? now : booking.checkInAt,
+      checkOutAt: action === "check_out" ? now : booking.checkOutAt,
+      cancelledAt: action === "cancel" ? now : action === "reinstate" ? null : booking.cancelledAt,
+    });
     try {
       const result = await actionFn();
       if (result.success) {
@@ -104,9 +109,11 @@ export function BookingDetailDrawer({
         fetchBooking();
         if (onBookingChanged) onBookingChanged();
       } else {
+        setBooking(previousBooking);
         toast.danger(result.error || `${action} failed`);
       }
     } catch {
+      setBooking(previousBooking);
       toast.danger(`${action} failed`);
     } finally {
       setActionLoading(null);
@@ -116,29 +123,32 @@ export function BookingDetailDrawer({
   // ── Render ─────────────────────────────────────────────────────
 
   return (
-    <Sheet open={open} onOpenChange={(val) => !val && onClose()}>
-      <SheetContent
-        side="right"
-        className="w-full sm:max-w-xl p-0 flex flex-col max-md:max-h-[94dvh] max-md:rounded-t-3xl max-md:border-t max-md:shadow-[0_-12px_40px_rgba(15,23,42,0.18)]"
-      >
+    <Drawer.Backdrop
+      isOpen={open}
+      onOpenChange={(isOpen) => !isOpen && onClose()}
+      variant="blur"
+    >
+      <Drawer.Content placement={isMobile ? "bottom" : "right"}>
+        <Drawer.Dialog className="flex max-h-[92dvh] w-full flex-col overflow-hidden bg-background p-0 md:h-dvh md:max-h-dvh md:max-w-md md:rounded-none">
+          {isMobile && <Drawer.Handle />}
+          <Drawer.CloseTrigger className="right-3 top-3 z-20" />
         {loading && !booking ? (
-          <div className="flex flex-1 flex-col p-6 space-y-6">
+          <Drawer.Body className="flex flex-1 flex-col space-y-6 p-6">
             <Skeleton className="h-8 w-48 rounded-lg" />
             <Skeleton className="h-10 w-full rounded-xl" />
             <Skeleton className="h-20 w-full rounded-xl" />
             <Skeleton className="h-20 w-full rounded-xl" />
             <Skeleton className="h-20 w-full rounded-xl" />
-          </div>
+          </Drawer.Body>
         ) : booking ? (
           <>
             {/* ═══ Header ═══ */}
-            <SheetHeader className="px-5 pt-5 pb-4 border-b border-border/40">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2.5 mb-1">
-                    <SheetTitle className="text-lg font-semibold text-foreground truncate">
+            <Drawer.Header className="shrink-0 border-b border-border/40 px-4 pb-3 pt-6 pr-14 sm:px-5 sm:pb-4 sm:pt-5 sm:pr-14">
+              <div className="min-w-0">
+                  <div className="mb-1 flex items-center gap-2.5">
+                    <Drawer.Heading className="truncate text-lg font-semibold text-foreground">
                       {booking.guest?.fullName || "Unknown Guest"}
-                    </SheetTitle>
+                    </Drawer.Heading>
                     <span
                       className={cn(
                         "size-2 rounded-full shrink-0",
@@ -146,11 +156,19 @@ export function BookingDetailDrawer({
                       )}
                     />
                   </div>
-                  <div className="flex flex-col gap-0.5">
-                    <SheetDescription className="text-xs text-muted-foreground font-mono">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <Chip
+                      color={getStatusColor(booking.status)}
+                      variant="soft"
+                      size="sm"
+                      className="shrink-0 capitalize"
+                    >
+                      {getStatusLabel(booking.status || "")}
+                    </Chip>
+                    <span className="font-mono text-[11px] text-muted-foreground">
                       {booking.reference}
-                    </SheetDescription>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
+                    </span>
+                    <div className="text-[11px] text-muted-foreground/60">
                       <span>Created {formatDateTime(booking.createdAt)}</span>
                       {booking.createdBy?.fullName && (
                         <>
@@ -160,89 +178,87 @@ export function BookingDetailDrawer({
                       )}
                     </div>
                   </div>
-                </div>
-                <Badge
-                  variant={getStatusVariant(booking.status || "")}
-                  className="text-[10px] px-2 py-0.5 shrink-0 capitalize"
-                >
-                  {getStatusLabel(booking.status || "")}
-                </Badge>
               </div>
-            </SheetHeader>
+            </Drawer.Header>
 
             {/* ═══ Action Bar ═══ */}
             <BookingActionBar
               booking={booking}
-              currency={currency}
               actionLoading={actionLoading}
               onAction={handleAction}
-              onOpenPaymentForm={() => {
-                // Switch to payments tab when opening payment form
-                setActiveTab("payments");
-              }}
             />
 
             {/* ═══ Tabs ═══ */}
-            <div className="flex-1 overflow-y-auto">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <div className="sticky top-0 z-10 border-b border-border/20 bg-background px-5 pt-2">
-                  <TabsList className="w-full h-9 bg-transparent p-0 gap-0">
-                    {(["overview", "payments", "notes", "guest"] as const).map(
+            <Drawer.Body className="min-h-0 flex-1 overscroll-contain p-0">
+              <Tabs
+                selectedKey={activeTab}
+                onSelectionChange={(key) => setActiveTab(String(key))}
+                variant="secondary"
+                className="w-full"
+              >
+                <div className="sticky top-0 z-10 border-b border-border/30 bg-background/95 px-4 backdrop-blur-md sm:px-5">
+                  <Tabs.ListContainer>
+                    <Tabs.List aria-label="Reservation details" className="w-full *:flex-1 *:text-xs">
+                    {(["overview", "payments"] as const).map(
                       (tab) => (
-                        <TabsTrigger
+                        <Tabs.Tab
                           key={tab}
-                          value={tab}
-                          className="flex-1 text-xs rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none pb-2 pt-1 h-auto"
+                          id={tab}
+                          className="h-11 px-1 font-medium capitalize !text-muted-foreground data-[selected=true]:!text-foreground aria-selected:!text-foreground"
                         >
                           {tab === "overview"
                             ? "Overview"
                             : tab === "payments"
                               ? "Payments"
-                              : tab === "notes"
-                                ? "Notes"
-                                : "Guest"}
-                        </TabsTrigger>
+                              : "Overview"}
+                          <Tabs.Indicator />
+                        </Tabs.Tab>
                       )
                     )}
-                  </TabsList>
+                    </Tabs.List>
+                  </Tabs.ListContainer>
                 </div>
 
-                <TabsContent value="overview" className="mt-0">
-                  <BookingOverviewPanel booking={booking} currency={currency} />
-                </TabsContent>
+                <Tabs.Panel id="overview" className="p-0">
+                  <BookingOverviewPanel booking={booking} />
+                  <BookingGuestPanel booking={booking} />
+                  <BookingNotesPanel
+                    booking={booking}
+                    onRefresh={fetchBooking}
+                  />
+                </Tabs.Panel>
 
-                <TabsContent value="payments" className="mt-0">
+                <Tabs.Panel id="payments" className="p-0">
                   <BookingPaymentsPanel
                     booking={booking}
                     currency={currency}
                     onBookingChanged={onBookingChanged}
                     onRefresh={fetchBooking}
                   />
-                </TabsContent>
+                </Tabs.Panel>
 
-                <TabsContent value="notes" className="mt-0">
-                  <BookingNotesPanel
-                    booking={booking}
-                    onRefresh={fetchBooking}
-                  />
-                </TabsContent>
-
-                <TabsContent value="guest" className="mt-0">
-                  <BookingGuestPanel booking={booking} />
-                </TabsContent>
               </Tabs>
-            </div>
+            </Drawer.Body>
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center flex-1 px-6 text-center">
+          <Drawer.Body className="flex flex-1 flex-col items-center justify-center px-6 text-center">
             <AlertCircle className="size-10 text-muted-foreground/20 mb-3" />
             <p className="text-sm font-medium text-muted-foreground">Reservation not found</p>
             <p className="text-xs text-muted-foreground/60 mt-1">
               This reservation could not be loaded.
             </p>
-          </div>
+          </Drawer.Body>
         )}
-      </SheetContent>
-    </Sheet>
+        </Drawer.Dialog>
+      </Drawer.Content>
+    </Drawer.Backdrop>
   );
+}
+
+function getStatusColor(status: string | null): "default" | "success" | "warning" | "danger" | "accent" {
+  if (status === "checked_in" || status === "confirmed") return "success";
+  if (status === "pending") return "warning";
+  if (status === "cancelled" || status === "no_show") return "danger";
+  if (status === "checked_out") return "accent";
+  return "default";
 }

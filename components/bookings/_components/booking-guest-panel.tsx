@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { Avatar } from "@heroui/react";
 import { Phone, Mail, ArrowUpRight } from "lucide-react";
 
-import { Separator } from "@/components/ui/separator";
 import type { FullBookingDetail } from "./booking-detail-types";
 
 interface BookingGuestPanelProps {
@@ -13,10 +13,13 @@ interface BookingGuestPanelProps {
 
 export function BookingGuestPanel({ booking }: BookingGuestPanelProps) {
   return (
-    <div className="px-5 py-4 space-y-5">
+    <section className="space-y-4 border-t border-border/40 px-5 py-5" aria-labelledby="guest-details-heading">
+      <h3 id="guest-details-heading" className="text-xs font-semibold text-foreground">
+        Guest details
+      </h3>
       <div className="flex items-center gap-3 mb-2">
-        <div className="size-10 rounded-full bg-muted flex items-center justify-center shrink-0 ring-1 ring-border/40">
-          <span className="text-sm font-semibold text-foreground">
+        <Avatar size="md" className="shrink-0">
+          <Avatar.Fallback className="text-sm font-semibold text-foreground">
             {booking.guest?.fullName
               ? booking.guest.fullName
                   .split(" ")
@@ -25,8 +28,8 @@ export function BookingGuestPanel({ booking }: BookingGuestPanelProps) {
                   .join("")
                   .toUpperCase()
               : "?"}
-          </span>
-        </div>
+          </Avatar.Fallback>
+        </Avatar>
         <div>
           <p className="text-sm font-semibold text-foreground">
             {booking.guest?.fullName || "Unknown Guest"}
@@ -42,12 +45,10 @@ export function BookingGuestPanel({ booking }: BookingGuestPanelProps) {
         </div>
       </div>
 
-      <Separator className="opacity-40" />
-
       {/* Contact */}
       <div>
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-          Contact Information
+        <p className="mb-3 text-xs font-medium text-muted-foreground">
+          Contact information
         </p>
         <div className="space-y-2.5">
           {booking.guest?.email ? (
@@ -80,6 +81,6 @@ export function BookingGuestPanel({ booking }: BookingGuestPanelProps) {
           )}
         </div>
       </div>
-    </div>
+    </section>
   );
 }

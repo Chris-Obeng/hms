@@ -12,14 +12,14 @@ export function DetailCard({
   value: string;
 }) {
   return (
-    <div className="rounded-xl border border-border/50 bg-muted/20 p-3 space-y-1">
+    <div className="min-w-0 space-y-1 border-l border-border/60 py-1 pl-3">
       <div className="flex items-center gap-1.5">
         <Icon className="size-3 text-muted-foreground/50" />
-        <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+        <span className="text-[11px] font-medium text-muted-foreground">
           {label}
         </span>
       </div>
-      <p className="text-sm font-medium text-foreground">{value}</p>
+      <p className="truncate text-sm font-medium tabular-nums text-foreground">{value}</p>
     </div>
   );
 }

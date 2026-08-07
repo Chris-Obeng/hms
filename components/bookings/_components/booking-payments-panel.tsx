@@ -1,14 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "@heroui/react";
+import { Button, Input, Separator, toast } from "@heroui/react";
 import { Plus, Wallet, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { HeroSelectField } from "@/components/ui/hero-select";
-import { Separator } from "@/components/ui/separator";
 import { PaymentRow } from "./booking-payment-row";
 import { formatCurrency } from "@/lib/format";
 import { type FullBookingDetail } from "./booking-detail-types";
@@ -78,7 +75,7 @@ export function BookingPaymentsPanel({
   return (
     <div className="px-5 py-4 space-y-5">
       {/* Payment Summary */}
-      <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
+      <div className="space-y-3 border-b border-border/40 pb-5 tabular-nums">
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">Room Rate</span>
           <span className="text-sm text-foreground">
@@ -133,9 +130,9 @@ export function BookingPaymentsPanel({
 
       {/* Record Payment Form */}
       {showPaymentForm ? (
-        <form onSubmit={handleRecordPayment} className="rounded-xl border border-border/50 p-4 space-y-4 bg-muted/10">
+        <form onSubmit={handleRecordPayment} className="space-y-4 rounded-xl border border-border/60 bg-muted/10 p-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-foreground uppercase tracking-wider">
+            <span className="text-xs font-semibold text-foreground">
               Record Payment
             </span>
             <button
@@ -187,7 +184,7 @@ export function BookingPaymentsPanel({
               variant="ghost"
               size="sm"
               className="text-xs rounded-lg"
-              onClick={() => setShowPaymentForm(false)}
+              onPress={() => setShowPaymentForm(false)}
             >
               Cancel
             </Button>
@@ -195,7 +192,8 @@ export function BookingPaymentsPanel({
               type="submit"
               size="sm"
               className="text-xs rounded-lg bg-foreground text-background hover:bg-foreground/90"
-              disabled={savingPayment || !paymentAmount}
+              isPending={savingPayment}
+              isDisabled={!paymentAmount}
             >
               {savingPayment ? "Recording..." : "Record Payment"}
             </Button>
@@ -206,19 +204,19 @@ export function BookingPaymentsPanel({
           <Button
             variant="outline"
             size="sm"
-            className="w-full rounded-xl text-xs h-9 border-dashed border-border/60"
-            onClick={openPaymentForm}
+            className="h-10 w-full rounded-xl !border-foreground/30 !bg-transparent text-xs font-semibold !text-foreground shadow-none hover:!border-foreground/50 hover:!bg-muted/50"
+            onPress={openPaymentForm}
           >
             <Plus className="size-3 mr-1.5" />
-            Record Payment
+            Take payment
           </Button>
         )
       )}
 
       {/* Payment History */}
       <div>
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-          Payment History
+        <p className="mb-3 text-xs font-medium text-muted-foreground">
+          Payment history
           {booking.payments.length > 0 && (
             <span className="ml-1.5 text-muted-foreground/50">
               ({booking.payments.length})

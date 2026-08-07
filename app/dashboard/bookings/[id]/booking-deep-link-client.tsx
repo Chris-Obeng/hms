@@ -44,8 +44,11 @@ export function BookingDeepLinkClient({ bookingId, currency }: Props) {
 
   React.useEffect(() => { loadBooking(); }, [bookingId]);
 
-  // Matches BookingActionBar's onAction signature: (action: string, actionFn: () => Promise<any>) => void
-  function handleAction(action: string, actionFn: () => Promise<any>) {
+  function handleAction(
+    action: string,
+    _optimisticStatus: string,
+    actionFn: () => Promise<{ success: boolean; error?: string }>
+  ) {
     setActionLoading(action);
     actionFn()
       .then((result: { success: boolean; error?: string }) => {
@@ -64,11 +67,6 @@ export function BookingDeepLinkClient({ bookingId, currency }: Props) {
       })
       .catch(() => toast.danger("Action failed"))
       .finally(() => setActionLoading(null));
-  }
-
-  function handleOpenPaymentForm() {
-    setShowPaymentForm(true);
-    setActiveTab("payments");
   }
 
   if (loading) {
@@ -107,7 +105,6 @@ export function BookingDeepLinkClient({ bookingId, currency }: Props) {
         booking={booking}
         actionLoading={actionLoading}
         onAction={handleAction}
-        onOpenPaymentForm={handleOpenPaymentForm}
       />
 
       {/* Tabs */}
@@ -126,7 +123,7 @@ export function BookingDeepLinkClient({ bookingId, currency }: Props) {
 
         <div className="mt-4 rounded-xl border border-border/60 bg-card p-5">
           <TabsContent value="overview" className="mt-0">
-            <BookingOverviewPanel booking={booking} currency={currency} />
+            <BookingOverviewPanel booking={booking} />
           </TabsContent>
           <TabsContent value="payments" className="mt-0">
             <BookingPaymentsPanel
