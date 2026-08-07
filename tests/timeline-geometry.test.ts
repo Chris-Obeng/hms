@@ -12,7 +12,6 @@ describe("timeline geometry",()=>{
   it("detects overlap",()=>expect(rangeOverlaps("2026-07-02","2026-07-05","2026-07-04","2026-07-06")).toBe(true));
 });
 describe("timeline validation",()=>{
-  it("accepts cleaning room",()=>expect(validateTimelineDrop({booking,room:{...room,status:"cleaning"},checkIn:"2026-07-02",checkOut:"2026-07-05",bookings:[],blocks:[]})).toBeNull());
   it("rejects maintenance and type mismatch",()=>{expect(validateTimelineDrop({booking,room:{...room,status:"maintenance"},checkIn:"2026-07-02",checkOut:"2026-07-05",bookings:[],blocks:[]})).toContain("maintenance");expect(validateTimelineDrop({booking,room:{...room,roomTypeId:"rt2"},checkIn:"2026-07-02",checkOut:"2026-07-05",bookings:[],blocks:[]})).toContain("mismatch")});
   it("rejects exact-range block",()=>expect(validateTimelineDrop({booking,room,checkIn:"2026-07-02",checkOut:"2026-07-05",bookings:[],blocks:[{id:"x",roomId:"r1",startDate:"2026-07-03",endDate:"2026-07-04",reason:"maintenance",notes:null}]})).toContain("blocked"));
 });

@@ -434,7 +434,7 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
       if (booking.room_id) {
         await supabase
           .from("rooms")
-          .update({ status: "cleaning" })
+          .update({ status: "available" })
           .eq("id", booking.room_id);
       }
 

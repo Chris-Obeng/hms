@@ -7,6 +7,9 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "@heroui/react";
 import { cn } from "@/lib/utils";
 
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
 interface ImageUploadProps {
   /** Current image URL (from DB) */
   currentUrl?: string | null;
@@ -31,11 +34,11 @@ export function ImageUpload({
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File) {
-    if (!file.type.startsWith("image/")) {
-      toast.danger("Please select an image file");
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+      toast.danger("Use a JPEG, PNG, WebP, or AVIF image");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > MAX_IMAGE_BYTES) {
       toast.danger("Image must be under 5 MB");
       return;
     }
@@ -43,18 +46,19 @@ export function ImageUpload({
     setUploading(true);
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-      const filename = `${Date.now()}.${ext}`;
+      const filename = `${Date.now()}-${crypto.randomUUID()}.${ext}`;
       const path = `${storagePath}/${filename}`;
       const supabase = createClient();
       const { error } = await supabase.storage
         .from("hotel-assets")
-        .upload(path, file, { upsert: true, contentType: file.type });
+        .upload(path, file, { upsert: false, contentType: file.type });
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from("hotel-assets").getPublicUrl(path);
       await onUpload(publicUrl);
       toast.success("Image uploaded");
     } catch (err) {
-      toast.danger((err as Error).message ?? "Upload failed");
+      const message = err instanceof Error ? err.message : "Upload failed";
+      toast.danger(message);
     } finally {
       setUploading(false);
     }

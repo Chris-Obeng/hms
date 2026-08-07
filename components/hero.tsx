@@ -22,7 +22,6 @@ import {
   ChevronRight,
   Sparkles,
   Database,
-  Layers3
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -355,16 +354,6 @@ export function Hero() {
               </p>
             </div>
 
-            {/* Feature 6 */}
-            <div className="bg-forest border border-ivory/[0.05] p-8 rounded-2xl flex flex-col gap-4 hover:border-gold/20 transition-all group">
-              <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center text-gold group-hover:bg-gold/20 transition-colors">
-                <Layers3 className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-ivory">Housekeeping Kanban</h3>
-              <p className="text-sm text-ivory/50 leading-relaxed">
-                Streamline operations with live room status trackers. Reception lists room updates instantly and housekeeping staff mark room status as dirty, clean, or in-progress in real-time.
-              </p>
-            </div>
           </div>
         </div>
       </section>

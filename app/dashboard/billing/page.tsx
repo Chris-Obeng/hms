@@ -39,7 +39,6 @@ const FEATURES: Feature[] = [
   { label: "Direct booking page",  starter: true,       growth: true,          professional: true },
   { label: "Paystack payments",    starter: true,       growth: true,          professional: true },
   { label: "Guest transactional email", starter: true,  growth: true,          professional: true },
-  { label: "Housekeeping board",   starter: true,       growth: true,          professional: true },
   { label: "Reports & analytics",  starter: true,       growth: true,          professional: true },
   { label: "Custom domain",        starter: false,      growth: false,         professional: true },
   { label: "Priority support",     starter: false,      growth: false,         professional: true },

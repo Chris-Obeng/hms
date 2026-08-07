@@ -147,7 +147,7 @@ A physical `room` references one `room_type`.
 ### `rooms`
 
 Individual physical rooms. Each has a `room_number` and belongs to a
-`room_type`. The `status` column drives the live housekeeping board.
+`room_type`. The `status` column tracks whether a room can be sold or occupied.
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -157,7 +157,7 @@ Individual physical rooms. Each has a `room_number` and belongs to a
 | `room_number` | `text` | NOT NULL |
 | `floor` | `text` | |
 | `notes` | `text` | |
-| `status` | `text` | CHECK in (`available`, `occupied`, `checkout_pending`, `maintenance`, `out_of_service`, `cleaning`) |
+| `status` | `text` | CHECK in (`available`, `occupied`, `maintenance`, `out_of_service`) |
 | `is_active` | `boolean` | DEFAULT `true` |
 | `created_at` | `timestamptz` | |
 | `updated_at` | `timestamptz` | Auto-bumped |

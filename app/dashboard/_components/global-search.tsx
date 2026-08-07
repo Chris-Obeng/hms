@@ -9,7 +9,6 @@ import {
   Users,
   CalendarDays,
   LogOut,
-  ClipboardList,
   BarChart3,
   Settings,
   Sun,
@@ -147,15 +146,6 @@ function useActions(
         icon: <CreditCard />,
         iconColor: "text-emerald-400",
         url: "/dashboard/payments",
-      },
-      {
-        id: "housekeeping",
-        label: "Housekeeping",
-        subLabel: "Room status and cleaning tasks",
-        group: "Operations",
-        icon: <ClipboardList />,
-        iconColor: "text-amber-500",
-        url: "/dashboard/housekeeping",
       },
       {
         id: "rooms",

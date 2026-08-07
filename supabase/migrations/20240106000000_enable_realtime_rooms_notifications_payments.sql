@@ -1,7 +1,7 @@
 -- ============================================================
 -- Enable Supabase Realtime for additional tables
 -- ============================================================
--- rooms: needed for housekeeping board and rooms directory
+-- rooms: needed for live room availability and rooms directory
 --   live updates when staff change room statuses
 -- notifications: needed for live notification bell count
 --   in the persistent app header

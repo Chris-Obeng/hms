@@ -6,6 +6,9 @@ import { Upload, X, Loader2, GripVertical } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@heroui/react";
 
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
 export interface RoomImage {
   url: string;
   caption: string;
@@ -38,12 +41,15 @@ export function RoomImagesUpload({
       const supabase = createClient();
       const uploaded: RoomImage[] = [];
       for (const file of toUpload) {
-        if (!file.type.startsWith("image/")) continue;
-        if (file.size > 5 * 1024 * 1024) { toast.danger(`${file.name} exceeds 5 MB`); continue; }
+        if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+          toast.danger(`${file.name}: use JPEG, PNG, WebP, or AVIF`);
+          continue;
+        }
+        if (file.size > MAX_IMAGE_BYTES) { toast.danger(`${file.name} exceeds 5 MB`); continue; }
         const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-        const path = `hotels/${hotelId}/room-types/${roomTypeId}/${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
+        const path = `hotels/${hotelId}/room-types/${roomTypeId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
         const { error } = await supabase.storage.from("hotel-assets").upload(path, file, { contentType: file.type });
-        if (error) { toast.danger(`Failed to upload ${file.name}`); continue; }
+        if (error) { toast.danger(`${file.name}: ${error.message}`); continue; }
         const { data: { publicUrl } } = supabase.storage.from("hotel-assets").getPublicUrl(path);
         uploaded.push({ url: publicUrl, caption: "", order: images.length + uploaded.length });
       }

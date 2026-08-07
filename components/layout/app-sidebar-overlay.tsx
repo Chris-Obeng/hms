@@ -10,7 +10,6 @@ import {
   DoorOpen,
   BedDouble,
   LifeBuoy,
-  Sparkles,
   Receipt,
   BarChart3,
   Settings,
@@ -51,7 +50,6 @@ function getRoleLabel(role: string | undefined | null): string {
     super_admin: "Super Admin",
     admin: "Admin",
     front_desk: "Front Desk",
-    housekeeping: "Housekeeping",
     receptionist: "Front Desk",
     manager: "Manager",
   };
@@ -66,8 +64,6 @@ function getRoleChipColor(
     case "admin":
     case "manager":
       return "accent";
-    case "housekeeping":
-      return "success";
     default:
       return "default";
   }
@@ -121,7 +117,6 @@ const navGroups: NavGroup[] = [
   {
     title: "Operations",
     items: [
-      { title: "Housekeeping", url: "/dashboard/housekeeping", icon: Sparkles },
       { title: "Night Audit", url: "/dashboard/night-audit", icon: Moon },
       { title: "Billing", url: "/dashboard/billing", icon: Receipt },
       { title: "Staff", url: "/dashboard/staff", icon: Shield },

@@ -54,10 +54,6 @@ export function getRoomStatusColor(status: string): {
       return { color: "#16A34A", label: "Available" };
     case "occupied":
       return { color: "#2563EB", label: "Occupied" };
-    case "checkout_pending":
-      return { color: "#EA580C", label: "Checkout Today" };
-    case "cleaning":
-      return { color: "#0891B2", label: "Cleaning" };
     case "maintenance":
     case "out_of_service":
       return { color: "#64748B", label: "Out of Service" };

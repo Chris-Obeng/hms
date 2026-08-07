@@ -1,6 +1,5 @@
 export const qk = {
   dashboard: (orgId: string, hotelId: string, dateStr: string) => ['dashboard', orgId, hotelId, dateStr] as const,
-  housekeeping: (orgId: string, hotelId: string) => ['housekeeping', orgId, hotelId] as const,
   rooms: (orgId: string, hotelId: string) => ['rooms', orgId, hotelId] as const,
   roomTypes: (orgId: string, hotelId: string) => ['roomTypes', orgId, hotelId] as const,
   calendar: (orgId: string, hotelId: string, startDate: string, days: number) => ['calendar', orgId, hotelId, startDate, days] as const,

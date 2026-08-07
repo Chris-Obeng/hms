@@ -45,10 +45,11 @@ export async function saveHotelImageUrl(
     const hotelId = await getHotelId();
     if (url) assertStorageUrl(url);
     const supabase = await createClient();
-    await supabase
+    const { error } = await supabase
       .from("hotels")
       .update(type === "logo" ? { logo_url: url } : { cover_image_url: url })
       .eq("id", hotelId);
+    if (error) throw error;
     revalidatePath("/dashboard/settings/hotel");
     return { success: true };
   } catch (err) {

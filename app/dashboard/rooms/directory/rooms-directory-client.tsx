@@ -86,19 +86,15 @@ interface RoomsDirectoryProps {
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   available: { label: "Available", color: "text-emerald-600", bg: "bg-emerald-500/10" },
   occupied: { label: "Occupied", color: "text-blue-600", bg: "bg-blue-500/10" },
-  checkout_pending: { label: "Checkout Pending", color: "text-orange-600", bg: "bg-orange-500/10" },
   maintenance: { label: "Maintenance", color: "text-slate-600", bg: "bg-slate-500/10" },
   out_of_service: { label: "Out of Service", color: "text-red-600", bg: "bg-red-500/10" },
-  cleaning: { label: "Cleaning", color: "text-cyan-600", bg: "bg-cyan-500/10" },
 };
 
 const STATUS_TRANSITIONS: Record<string, string[]> = {
-  available: ["occupied", "maintenance", "cleaning"],
-  occupied: ["checkout_pending", "maintenance"],
-  checkout_pending: ["available", "cleaning", "occupied"],
+  available: ["occupied", "maintenance"],
+  occupied: ["available", "maintenance"],
   maintenance: ["available"],
   out_of_service: ["available"],
-  cleaning: ["available"],
 };
 
 // ── Component ──────────────────────────────────────────────────────

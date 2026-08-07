@@ -32,7 +32,7 @@ const RoomSchema = z.object({
   roomNumber: z.string().min(1, "Room number is required"),
   floor: z.string().optional().or(z.literal("")),
   notes: z.string().max(500).optional().or(z.literal("")),
-  status: z.enum(["available", "occupied", "checkout_pending", "maintenance", "out_of_service", "cleaning"]).default("available"),
+  status: z.enum(["available", "occupied", "maintenance", "out_of_service"]).default("available"),
   isActive: z.boolean().default(true),
 });
 

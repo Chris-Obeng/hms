@@ -46,12 +46,6 @@ export default function manifest(): MetadataRoute.Manifest {
         url: "/dashboard/bookings?new=1",
         icons: [{ src: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" }],
       },
-      {
-        name: "Housekeeping",
-        short_name: "Rooms",
-        url: "/dashboard/housekeeping",
-        icons: [{ src: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" }],
-      },
     ],
   };
 }

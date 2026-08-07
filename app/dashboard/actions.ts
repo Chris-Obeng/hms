@@ -96,7 +96,7 @@ export async function getDashboardData(dateStr?: string): Promise<DashboardData>
 
   const occupiedRooms = roomStatuses?.filter((r) => r.status === "occupied").length || 0;
   const outOfService = roomStatuses?.filter((r) => r.status === "maintenance" || r.status === "out_of_service").length || 0;
-  const blocked = roomStatuses?.filter((r) => r.status === "cleaning").length || 0;
+  const blocked = 0;
   const activeRooms = roomStatuses?.length || 0;
   const availableRooms = activeRooms - occupiedRooms - outOfService - blocked;
 
@@ -348,7 +348,7 @@ export async function checkOutBooking(bookingId: string): Promise<{ success: boo
     if (error) return { success: false, error: error.message };
 
     if (booking.room_id) {
-      await supabase.from("rooms").update({ status: "cleaning" }).eq("id", booking.room_id);
+      await supabase.from("rooms").update({ status: "available" }).eq("id", booking.room_id);
     }
 
     await writeAuditLog(supabase, {
