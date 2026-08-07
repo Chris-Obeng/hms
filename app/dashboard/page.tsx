@@ -1,7 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardClient } from "./dashboard-client";
-import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
 
@@ -13,13 +12,14 @@ export default async function DashboardHomePage() {
     return <NoHotelState />;
   }
 
-  const { data: hotel } = await supabase
+  const { data: hotel, error: hotelError } = await supabase
     .from("hotels")
     .select("id, name, currency, logo_url")
     .eq("clerk_org_id", orgId)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
-  if (!hotel) {
+  if (hotelError || !hotel) {
     return <NoHotelState />;
   }
 

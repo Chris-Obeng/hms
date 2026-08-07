@@ -83,7 +83,7 @@ export function DashboardHeader({
             </Button>
           </Popover.Trigger>
           <Popover.Content placement="bottom" className="p-0 w-auto border-border/60">
-            <Popover.Dialog className="outline-none p-3">
+            <Popover.Dialog className="outline-none bg-card p-3 text-foreground">
               {/* Jump-to-today shortcut */}
               {!isTodayDate && (
                 <div className="mb-2 flex justify-center">
@@ -108,19 +108,19 @@ export function DashboardHeader({
                   }
                 }}
               >
-                <Calendar.Header className="pb-2">
+                <Calendar.Header className="pb-2 text-foreground">
                   <Calendar.NavButton slot="previous" />
                   <Calendar.Heading />
                   <Calendar.NavButton slot="next" />
                 </Calendar.Header>
                 <Calendar.Grid>
-                  <Calendar.GridHeader>
+                  <Calendar.GridHeader className="text-foreground">
                     {(day) => (
-                      <Calendar.HeaderCell>{day}</Calendar.HeaderCell>
+                      <Calendar.HeaderCell className="text-xs font-semibold text-foreground">{day}</Calendar.HeaderCell>
                     )}
                   </Calendar.GridHeader>
                   <Calendar.GridBody>
-                    {(date) => <Calendar.Cell date={date} />}
+                    {(date) => <Calendar.Cell date={date} className="text-sm text-foreground" />}
                   </Calendar.GridBody>
                 </Calendar.Grid>
               </Calendar>

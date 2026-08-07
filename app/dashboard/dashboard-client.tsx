@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import { format, startOfDay, endOfDay } from "date-fns";
-import { toast } from "@heroui/react";
+import { addDays, startOfWeek } from "date-fns";
+import { AlertDialog, toast } from "@heroui/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
-import { RotateCw } from "lucide-react";
+import { CalendarClock, RotateCw } from "lucide-react";
 
 import { Skeleton, Button } from "@heroui/react";
 import { DashboardHeader } from "./_components/dashboard-header";
@@ -19,6 +20,9 @@ import { writeAuditLog } from "@/lib/audit";
 import { qk } from "@/lib/query-keys";
 import { findOverlappingBookingIds, isCheckedInStayoverOnDate, isInHouseOnDate } from "@/lib/calendar-domain";
 import { updateBookingStatus } from "@/app/actions/bookings";
+import { formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import PullToRefresh from "react-simple-pull-to-refresh";
 
 interface DashboardClientProps {
   hotelId: string;
@@ -61,7 +65,7 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, special_requests, internal_notes,
         guests(full_name, email, phone),
         rooms(room_number),
         room_types(name)
@@ -73,7 +77,7 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, special_requests, internal_notes,
         guests(full_name, email, phone),
         rooms(room_number),
         room_types(name)
@@ -85,7 +89,7 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, special_requests, internal_notes,
         guests(full_name, email, phone),
         rooms(room_number),
         room_types(name)
@@ -97,7 +101,7 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, special_requests, internal_notes,
         guests(full_name, email, phone), rooms(room_number), room_types(name)
       `)
       .eq("hotel_id", hotelId)
@@ -107,7 +111,7 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, updated_at,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, updated_at, special_requests, internal_notes,
         guests(full_name, email, phone), rooms(room_number), room_types(name)
       `)
       .eq("hotel_id", hotelId)
@@ -118,7 +122,7 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, special_requests, internal_notes,
         guests(full_name, email, phone), rooms(room_number), room_types(name)
       `)
       .eq("hotel_id", hotelId)
@@ -178,6 +182,7 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
     source: b.source || "direct",
     createdAt: b.created_at || null,
     hasConflict: false,
+    hasNotes: Boolean(b.special_requests?.trim() || b.internal_notes?.trim()),
   });
 
   const arrivalsList = (arrivalsRes.data || []).map(mapBooking);
@@ -253,6 +258,9 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
   const [activeTab, setActiveTab] = React.useState<ActivityTab>("arrivals");
   const [selectedBookingId, setSelectedBookingId] = React.useState<string | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
+  const [detailInitialTab, setDetailInitialTab] = React.useState<"overview" | "payments">("overview");
+  const [earlyCheckoutBooking, setEarlyCheckoutBooking] = React.useState<ActivityBooking | null>(null);
+  const [earlyCheckinBooking, setEarlyCheckinBooking] = React.useState<ActivityBooking | null>(null);
 
   const [checkingIn, setCheckingIn] = React.useState<Set<string>>(new Set());
   const [checkingOut, setCheckingOut] = React.useState<Set<string>>(new Set());
@@ -323,6 +331,13 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
   }, []);
 
   const handleViewDetails = React.useCallback((booking: ActivityBooking) => {
+    setDetailInitialTab("overview");
+    setSelectedBookingId(booking.id);
+    setDetailOpen(true);
+  }, []);
+
+  const handleTakePayment = React.useCallback((booking: ActivityBooking) => {
+    setDetailInitialTab("payments");
     setSelectedBookingId(booking.id);
     setDetailOpen(true);
   }, []);
@@ -496,12 +511,38 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
   });
 
   const handleCheckIn = React.useCallback((bookingId: string) => {
+    const booking = data?.bookings.find((item: ActivityBooking) => item.id === bookingId);
+    const today = format(new Date(), "yyyy-MM-dd");
+    if (booking && booking.checkIn > today) {
+      setEarlyCheckinBooking(booking);
+      return;
+    }
     checkInMutation.mutate(bookingId);
-  }, [checkInMutation]);
+  }, [checkInMutation, data?.bookings]);
 
   const handleCheckOut = React.useCallback((bookingId: string) => {
+    const booking = data?.bookings.find((item: ActivityBooking) => item.id === bookingId);
+    const today = format(new Date(), "yyyy-MM-dd");
+
+    if (booking && booking.checkOut > today) {
+      setEarlyCheckoutBooking(booking);
+      return;
+    }
+
     checkOutMutation.mutate(bookingId);
-  }, [checkOutMutation]);
+  }, [checkOutMutation, data?.bookings]);
+
+  const confirmEarlyCheckout = React.useCallback(() => {
+    if (!earlyCheckoutBooking) return;
+    checkOutMutation.mutate(earlyCheckoutBooking.id);
+    setEarlyCheckoutBooking(null);
+  }, [checkOutMutation, earlyCheckoutBooking]);
+
+  const confirmEarlyCheckin = React.useCallback(() => {
+    if (!earlyCheckinBooking) return;
+    checkInMutation.mutate(earlyCheckinBooking.id);
+    setEarlyCheckinBooking(null);
+  }, [checkInMutation, earlyCheckinBooking]);
 
   const statusMutation = useMutation({
     mutationFn: async ({ bookingId, status }: { bookingId: string; status: "cancelled" | "no_show" }) => {
@@ -544,8 +585,6 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
         );
       case "in_house":
         return data.bookings.filter((b: any) => isInHouseOnDate({ id: b.id, roomId: null, checkIn: b.checkIn, checkOut: b.checkOut, status: b.status }, dateParamStr));
-      case "stayovers":
-        return data.bookings.filter((b: any) => isCheckedInStayoverOnDate({ id: b.id, roomId: null, checkIn: b.checkIn, checkOut: b.checkOut, status: b.status }, dateParamStr));
       case "bookings":
         return data.bookings.filter((b: any) => b.createdAt?.slice(0, 10) === dateParamStr);
       case "cancellations":
@@ -576,11 +615,17 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
   if (!data) return null;
 
   return (
+    <PullToRefresh
+      onRefresh={async () => { await refetch(); }}
+      pullingContent={<div className="flex h-8 items-center justify-center text-xs text-muted-foreground md:hidden">Pull to refresh</div>}
+      refreshingContent={<div className="flex h-8 items-center justify-center text-xs text-primary md:hidden">Refreshing...</div>}
+      maxPullDownDistance={96}
+      resistance={2.5}
+    >
     <div className="space-y-6 max-w-[1600px] mx-auto">
       {/* Cloudbeds Header Row */}
-      <div className="flex items-center justify-between pb-2">
-        <h1 className="text-3xl font-bold text-foreground tracking-tight">Dashboard</h1>
-        
+      <div className="flex items-center justify-between pb-2 rounded-xl border border-border/50 bg-card/70 px-3 py-2">
+        <div className="hidden lg:flex items-center gap-2 text-sm font-semibold text-foreground"><CalendarClock className="size-4 text-primary" />{format(selectedDate, "EEEE, MMM d")}</div>
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -588,29 +633,37 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
             isIconOnly
             onPress={() => refetch()}
             aria-label="Refresh data"
-            className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+            className="hidden md:inline-flex size-8 rounded-lg text-muted-foreground hover:text-foreground"
           >
             <RotateCw className={`size-4 ${isRefetching ? "animate-spin" : ""}`} />
           </Button>
 
-          <DashboardHeader selectedDate={selectedDate} onDateChange={handleDateChange} />
+          <div className="hidden md:block">
+            <DashboardHeader selectedDate={selectedDate} onDateChange={handleDateChange} />
+          </div>
         </div>
       </div>
+
+      <MobileWeekStrip selectedDate={selectedDate} onDateChange={handleDateChange} />
 
       {/* Cloudbeds Main 2-Column Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[270px_1fr] gap-6 items-start">
         {/* Left Column: Date Widget + Occupancy Widget */}
-        <div className="space-y-6">
-          <DateCard selectedDate={selectedDate} onDateChange={handleDateChange} />
+        <div className="space-y-4 lg:space-y-6">
+          <div>
+            <DateCard selectedDate={selectedDate} onDateChange={handleDateChange} />
+          </div>
           
-          <OccupancyCard
-            occupancyPercent={data.occupancy.percent}
-            availableUnits={data.occupancy.availableRooms}
-            bookedUnits={data.occupancy.occupiedRooms}
-            outOfService={data.occupancy.outOfService}
-            blockedDates={data.occupancy.blocked}
-            totalRooms={data.occupancy.totalRooms}
-          />
+          <div>
+            <OccupancyCard
+              occupancyPercent={data.occupancy.percent}
+              availableUnits={data.occupancy.availableRooms}
+              bookedUnits={data.occupancy.occupiedRooms}
+              outOfService={data.occupancy.outOfService}
+              blockedDates={data.occupancy.blocked}
+              totalRooms={data.occupancy.totalRooms}
+            />
+          </div>
         </div>
 
         {/* Right Column: Activity Card Container */}
@@ -635,6 +688,7 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
             onCancel={(id) => statusMutation.mutate({ bookingId: id, status: "cancelled" })}
             onNoShow={(id) => statusMutation.mutate({ bookingId: id, status: "no_show" })}
             onViewDetails={handleViewDetails}
+            onTakePayment={handleTakePayment}
           />
         </div>
       </div>
@@ -648,9 +702,66 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
           setSelectedBookingId(null);
         }}
         currency={currency}
+        initialTab={detailInitialTab}
         onBookingChanged={handleBookingChanged}
       />
+
+      <AlertDialog.Backdrop
+        isOpen={earlyCheckoutBooking !== null || earlyCheckinBooking !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setEarlyCheckoutBooking(null);
+        }}
+        variant="blur"
+      >
+        <AlertDialog.Container>
+          <AlertDialog.Dialog className="w-[calc(100%-2rem)] max-w-md rounded-xl border border-border bg-card shadow-xl">
+            <Button
+              isIconOnly
+              variant="tertiary"
+              aria-label="Close confirmation"
+              onPress={() => { setEarlyCheckoutBooking(null); setEarlyCheckinBooking(null); }}
+              className="absolute right-4 top-4 z-10 size-9 rounded-full border border-border bg-muted text-foreground hover:bg-muted/70"
+            >
+              <span className="text-xl leading-none">×</span>
+            </Button>
+            <AlertDialog.Header>
+              <AlertDialog.Icon status="warning">
+                <CalendarClock className="size-5" />
+              </AlertDialog.Icon>
+                <AlertDialog.Heading>
+                  {earlyCheckinBooking ? "Confirm early check-in" : "Confirm early check-out"}
+                </AlertDialog.Heading>
+            </AlertDialog.Header>
+            <AlertDialog.Body className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {earlyCheckinBooking?.guestName || earlyCheckoutBooking?.guestName} is scheduled to {earlyCheckinBooking ? "check in" : "check out"} on{" "}
+                <strong className="font-semibold text-foreground">
+                  {earlyCheckinBooking
+                    ? formatDate(earlyCheckinBooking.checkIn, "dd MMM yyyy")
+                    : earlyCheckoutBooking
+                      ? formatDate(earlyCheckoutBooking.checkOut, "dd MMM yyyy")
+                    : ""}
+                </strong>.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {earlyCheckinBooking
+                  ? "Checking in now will assign the room before scheduled arrival date."
+                  : "Checking out now will mark room available before scheduled departure date."}
+              </p>
+            </AlertDialog.Body>
+            <AlertDialog.Footer>
+              <Button variant="tertiary" onPress={() => { setEarlyCheckoutBooking(null); setEarlyCheckinBooking(null); }}>
+                Cancel
+              </Button>
+              <Button variant="primary" onPress={earlyCheckinBooking ? confirmEarlyCheckin : confirmEarlyCheckout}>
+                Confirm {earlyCheckinBooking ? "early check-in" : "early check-out"}
+              </Button>
+            </AlertDialog.Footer>
+          </AlertDialog.Dialog>
+        </AlertDialog.Container>
+      </AlertDialog.Backdrop>
     </div>
+    </PullToRefresh>
   );
 }
 
@@ -671,6 +782,28 @@ function DashboardSkeleton() {
           <Skeleton className="h-20 w-full rounded-xl" />
           <Skeleton className="h-[400px] w-full rounded-xl" />
         </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileWeekStrip({ selectedDate, onDateChange }: { selectedDate: Date; onDateChange: (date: Date) => void }) {
+  const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
+  return (
+    <div className="-mx-1 overflow-x-auto pb-1 md:hidden">
+      <div className="grid min-w-[350px] grid-cols-7 gap-1 rounded-xl border border-border/60 bg-card p-2 shadow-xs">
+        {Array.from({ length: 7 }, (_, index) => {
+          const day = addDays(weekStart, index);
+          const active = format(day, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd");
+          return (
+            <button key={day.toISOString()} type="button" onClick={() => onDateChange(day)}
+              className={cn("flex min-h-16 flex-col items-center justify-center rounded-lg px-1 py-2 transition-colors", active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted")}
+              aria-pressed={active}>
+              <span className="text-[10px] font-semibold uppercase">{format(day, "EEE")}</span>
+              <span className="mt-1 text-lg font-semibold tabular-nums">{format(day, "d")}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

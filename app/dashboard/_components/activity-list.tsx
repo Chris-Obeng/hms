@@ -4,18 +4,13 @@ import * as React from "react";
 import {
   Moon,
   User,
-  Snowflake,
+  MessageSquareText,
   ChevronRight,
   ChevronDown,
   MoreVertical,
-  FileText,
-  CreditCard,
-  MessageSquare,
   Search,
   ArrowUpDown,
   Calendar as CalendarIcon,
-  Lock,
-  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate, getNights } from "@/lib/format";
@@ -43,6 +38,7 @@ export interface ActivityBooking {
   createdAt?: string | null;
   hasConflict?: boolean;
   roomDirty?: boolean;
+  hasNotes?: boolean;
 }
 
 interface ActivityListProps {
@@ -55,6 +51,7 @@ interface ActivityListProps {
   onCancel?: (bookingId: string) => void;
   onNoShow?: (bookingId: string) => void;
   onViewDetails?: (booking: ActivityBooking) => void;
+  onTakePayment?: (booking: ActivityBooking) => void;
 }
 
 export function ActivityList({
@@ -67,6 +64,7 @@ export function ActivityList({
   onCancel,
   onNoShow,
   onViewDetails,
+  onTakePayment,
 }: ActivityListProps) {
   const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -160,6 +158,7 @@ export function ActivityList({
               onCancel={onCancel}
               onNoShow={onNoShow}
               onViewDetails={onViewDetails}
+              onTakePayment={onTakePayment}
             />
           ))}
         </div>
@@ -182,7 +181,7 @@ export function ActivityList({
                   </div>
                 </th>
                 <th className="py-3 px-4">Stay</th>
-                <th className="py-3 px-6">Status</th>
+                <th className="py-3 px-6 whitespace-nowrap">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/30 text-sm">
@@ -195,6 +194,7 @@ export function ActivityList({
                   onCancel={onCancel}
                   onNoShow={onNoShow}
                   onViewDetails={onViewDetails}
+                  onTakePayment={onTakePayment}
                 />
               ))}
             </tbody>
@@ -212,6 +212,7 @@ function DesktopBookingRow({
   onCancel,
   onNoShow,
   onViewDetails,
+  onTakePayment,
 }: {
   booking: ActivityBooking;
   onCheckIn?: (id: string) => void;
@@ -219,6 +220,7 @@ function DesktopBookingRow({
   onCancel?: (id: string) => void;
   onNoShow?: (id: string) => void;
   onViewDetails?: (b: ActivityBooking) => void;
+  onTakePayment?: (b: ActivityBooking) => void;
 }) {
   const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
   const totalGuests = (booking.adults || 1) + (booking.children || 0);
@@ -244,8 +246,7 @@ function DesktopBookingRow({
             <span className="font-bold text-foreground text-sm">
               {booking.guestName}
             </span>
-            <Lock className="size-3 text-muted-foreground/50 shrink-0" />
-            <Users className="size-3 text-muted-foreground/50 shrink-0" />
+            {booking.hasNotes && <MessageSquareText className="size-3.5 shrink-0 text-amber-600" aria-label="Booking has notes or special requests" />}
           </div>
           <span className="text-[11px] font-mono text-muted-foreground/60 mt-0.5">
             {booking.reference}
@@ -274,7 +275,7 @@ function DesktopBookingRow({
       <td className="py-3.5 px-4 align-top">
         <div className="flex flex-col gap-1">
           <div className="text-xs font-medium text-foreground font-mono">
-            {formatDate(booking.checkIn, "MM/dd/yyyy")} - {formatDate(booking.checkOut, "MM/dd/yyyy")}
+            {formatDate(booking.checkIn, "dd/MM/yyyy")} - {formatDate(booking.checkOut, "dd/MM/yyyy")}
           </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
             <span className="flex items-center gap-1">
@@ -285,35 +286,32 @@ function DesktopBookingRow({
               <span className="font-semibold text-foreground">{totalGuests}</span>
               <User className="size-3" />
             </span>
-            <span className="flex items-center gap-1">
-              <span className="font-semibold text-foreground">0</span>
-              <Snowflake className="size-3" />
-            </span>
           </div>
         </div>
       </td>
 
       {/* Status & Actions */}
-      <td className="py-3.5 px-6 align-top">
-        <div className="flex items-center justify-between gap-3">
+      <td className="py-3.5 px-6 align-top whitespace-nowrap">
+        <div className="flex items-center gap-3 whitespace-nowrap">
+          {booking.paymentStatus !== "paid" && <button type="button" onClick={(e) => { e.stopPropagation(); onTakePayment?.(booking); }} className="rounded-lg border border-[#ff6b4a] px-3 py-1.5 text-xs font-semibold text-[#e95738] transition-colors hover:bg-[#fff1ed] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6b4a]/40">Take payment</button>}
           {/* Main Check-In / Check-Out split button matching Cloudbeds */}
           {booking.status === "confirmed" && onCheckIn ? (
-            <div className="inline-flex rounded-lg overflow-hidden border border-blue-600 bg-blue-600 text-white text-xs font-semibold shadow-xs">
+            <div className="inline-flex rounded-lg overflow-hidden border border-emerald-600 bg-emerald-600 text-white text-xs font-semibold shadow-xs">
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onCheckIn(booking.id);
                 }}
-                className="px-3 py-1.5 hover:bg-blue-700 transition-colors"
+                className="px-3 py-1.5 hover:bg-emerald-700 transition-colors"
               >
                 Check-in
               </button>
-              <div className="w-[1px] bg-blue-700" />
+              <div className="w-[1px] bg-emerald-700" />
               <Dropdown>
                 <Dropdown.Trigger
                   onClick={(e) => e.stopPropagation()}
-                  className="px-1.5 py-1.5 hover:bg-blue-700 transition-colors cursor-pointer outline-none"
+                  className="px-1.5 py-1.5 hover:bg-emerald-700 transition-colors cursor-pointer outline-none"
                   aria-label="Check-in options"
                 >
                   <ChevronDown className="size-3.5" />
@@ -330,22 +328,22 @@ function DesktopBookingRow({
               </Dropdown>
             </div>
           ) : booking.status === "checked_in" && onCheckOut ? (
-            <div className="inline-flex rounded-lg overflow-hidden border border-amber-600 bg-amber-600 text-white text-xs font-semibold shadow-xs">
+            <div className="inline-flex rounded-lg overflow-hidden border border-slate-800 bg-slate-800 text-white text-xs font-semibold shadow-xs">
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onCheckOut(booking.id);
                 }}
-                className="px-3 py-1.5 hover:bg-amber-700 transition-colors"
+                className="px-3 py-1.5 hover:bg-slate-700 transition-colors"
               >
                 Check-out
               </button>
-              <div className="w-[1px] bg-amber-700" />
+              <div className="w-[1px] bg-slate-700" />
               <Dropdown>
                 <Dropdown.Trigger
                   onClick={(e) => e.stopPropagation()}
-                  className="px-1.5 py-1.5 hover:bg-amber-700 transition-colors cursor-pointer outline-none"
+                  className="px-1.5 py-1.5 hover:bg-slate-700 transition-colors cursor-pointer outline-none"
                   aria-label="Check-out options"
                 >
                   <ChevronDown className="size-3.5" />
@@ -363,54 +361,6 @@ function DesktopBookingRow({
             </span>
           )}
 
-          {/* Icon strip next to button */}
-          <div className="flex items-center gap-1.5 text-muted-foreground/60">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onViewDetails?.(booking);
-              }}
-              title="Folio / Details"
-              className="p-1 hover:text-foreground transition-colors"
-            >
-              <FileText className="size-4" />
-            </button>
-
-            <button
-              type="button"
-              onClick={(e) => e.stopPropagation()}
-              title="Payment"
-              className="p-1 hover:text-foreground transition-colors"
-            >
-              <CreditCard className="size-4" />
-            </button>
-
-            <button
-              type="button"
-              onClick={(e) => e.stopPropagation()}
-              title="Message guest"
-              className="p-1 hover:text-foreground transition-colors"
-            >
-              <MessageSquare className="size-4" />
-            </button>
-
-            <Dropdown>
-              <Dropdown.Trigger
-                onClick={(e) => e.stopPropagation()}
-                className="p-1 hover:text-foreground transition-colors cursor-pointer outline-none"
-                aria-label="More actions"
-              >
-                <MoreVertical className="size-4" />
-              </Dropdown.Trigger>
-              <Dropdown.Popover placement="bottom end">
-                <Dropdown.Menu className="w-40 text-xs">
-                  <Dropdown.Item key="details">View Details</Dropdown.Item>
-                  <Dropdown.Item key="edit">Edit Reservation</Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown.Popover>
-            </Dropdown>
-          </div>
         </div>
       </td>
     </tr>
@@ -424,6 +374,7 @@ function MobileBookingRow({
   onCancel,
   onNoShow,
   onViewDetails,
+  onTakePayment,
 }: {
   booking: ActivityBooking;
   onCheckIn?: (id: string) => void;
@@ -431,33 +382,44 @@ function MobileBookingRow({
   onCancel?: (id: string) => void;
   onNoShow?: (id: string) => void;
   onViewDetails?: (b: ActivityBooking) => void;
+  onTakePayment?: (b: ActivityBooking) => void;
 }) {
   return (
     <div
       onClick={() => onViewDetails?.(booking)}
-      className="p-3 rounded-xl border border-border/50 bg-card space-y-2 cursor-pointer"
+      className="p-4 rounded-lg border border-border/60 bg-card shadow-xs space-y-2.5 cursor-pointer active:bg-muted/20 transition-colors"
     >
-      <div className="flex items-center justify-between">
-        <span className="font-bold text-foreground text-sm">{booking.guestName}</span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <span className={cn(
+            "block text-[10px] font-bold uppercase text-nowrap mb-1",
+            booking.status === "checked_in" ? "text-emerald-600" :
+            booking.status === "confirmed" ? "text-blue-600" :
+            booking.status === "cancelled" || booking.status === "no_show" ? "text-rose-600" :
+            "text-muted-foreground"
+          )}>{booking.status.replace("_", " ")}</span>
+          <span className="flex items-center gap-1.5 font-semibold text-foreground text-base"><span className="truncate">{booking.guestName}</span>{booking.hasNotes && <MessageSquareText className="size-3.5 shrink-0 text-amber-600" aria-label="Booking has notes or special requests" />}</span>
+        </div>
         <span className="text-xs font-mono text-muted-foreground">{booking.reference}</span>
       </div>
       <div className="text-xs text-muted-foreground">
-        {booking.roomType || "Unassigned"} • {formatDate(booking.checkIn, "MM/dd/yyyy")} - {formatDate(booking.checkOut, "MM/dd/yyyy")}
+        {booking.roomType || "Unassigned"} • {formatDate(booking.checkIn, "dd/MM/yyyy")} - {formatDate(booking.checkOut, "dd/MM/yyyy")}
       </div>
-      <div className="flex items-center justify-between pt-1">
+      <div className="flex items-center pt-2 gap-2">
+        {booking.paymentStatus !== "paid" && <Button size="sm" variant="tertiary" className="h-9 flex-1 border border-[#ff6b4a] text-xs font-semibold text-[#e95738] hover:bg-[#fff1ed]" onPress={() => onTakePayment?.(booking)}>Take payment</Button>}
         {booking.status === "confirmed" && onCheckIn && (
-          <Button size="sm" className="bg-blue-600 text-white text-xs h-7" onPress={() => onCheckIn(booking.id)}>
+          <Button size="sm" className="flex-1 bg-emerald-600 text-white text-xs h-9 font-semibold" onPress={() => onCheckIn(booking.id)}>
             Check-in
           </Button>
         )}
         {booking.status === "checked_in" && onCheckOut && (
-          <Button size="sm" className="bg-amber-600 text-white text-xs h-7" onPress={() => onCheckOut(booking.id)}>
+          <Button size="sm" className="flex-1 bg-foreground text-background text-xs h-9 font-semibold" onPress={() => onCheckOut(booking.id)}>
             Check-out
           </Button>
         )}
         {booking.status === "confirmed" && (
           <Dropdown>
-            <Dropdown.Trigger className="ml-auto p-1.5 text-muted-foreground"><MoreVertical className="size-4" /></Dropdown.Trigger>
+            <Dropdown.Trigger className="size-9 grid place-items-center rounded-lg border border-border text-muted-foreground"><MoreVertical className="size-4" /></Dropdown.Trigger>
             <Dropdown.Popover placement="bottom end">
               <Dropdown.Menu onAction={(key) => {
                 if (key === "cancel" && window.confirm(`Cancel booking ${booking.reference}?`)) onCancel?.(booking.id);

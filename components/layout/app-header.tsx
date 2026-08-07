@@ -442,7 +442,7 @@ export function AppHeader({
             size="sm"
             onPress={() => setNewBookingOpen(true)}
             aria-label="New booking"
-            className="hidden h-8 gap-1.5 rounded-lg text-xs sm:inline-flex"
+            className="inline-flex h-8 gap-1.5 rounded-lg text-xs"
           >
             <Plus className="size-3.5" />
           </Button>

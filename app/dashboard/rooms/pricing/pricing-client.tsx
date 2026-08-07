@@ -82,7 +82,7 @@ interface PricingClientProps {
 function isWeekend(dateStr: string): boolean {
   const date = new Date(dateStr + "T12:00:00");
   const day = date.getDay();
-  return day === 5 || day === 6; // 5 is Friday, 6 is Saturday
+  return day === 5 || day === 6; // Friday and Saturday rate nights (property default)
 }
 
 export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingClientProps) {

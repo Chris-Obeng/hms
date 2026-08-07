@@ -37,6 +37,7 @@ interface BookingDetailDrawerProps {
   open: boolean;
   onClose: () => void;
   currency?: string;
+  initialTab?: "overview" | "payments";
   onBookingChanged?: () => void;
 }
 
@@ -47,6 +48,7 @@ export function BookingDetailDrawer({
   open,
   onClose,
   currency = "GHS",
+  initialTab = "overview",
   onBookingChanged,
 }: BookingDetailDrawerProps) {
   const [booking, setBooking] = React.useState<FullBookingDetail | null>(null);
@@ -74,12 +76,12 @@ export function BookingDetailDrawer({
 
   React.useEffect(() => {
     if (open && bookingId) {
-      setActiveTab("overview");
+      setActiveTab(initialTab);
       fetchBooking();
     } else if (!open) {
       setBooking(null);
     }
-  }, [open, bookingId, fetchBooking]);
+  }, [open, bookingId, fetchBooking, initialTab]);
 
   // ── Handlers ──────────────────────────────────────────────────
 
@@ -117,7 +119,7 @@ export function BookingDetailDrawer({
     <Sheet open={open} onOpenChange={(val) => !val && onClose()}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-xl p-0 flex flex-col"
+        className="w-full sm:max-w-xl p-0 flex flex-col max-md:max-h-[94dvh] max-md:rounded-t-3xl max-md:border-t max-md:shadow-[0_-12px_40px_rgba(15,23,42,0.18)]"
       >
         {loading && !booking ? (
           <div className="flex flex-1 flex-col p-6 space-y-6">

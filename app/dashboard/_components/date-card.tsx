@@ -31,7 +31,7 @@ export function DateCard({ selectedDate, onDateChange }: DateCardProps) {
   }, [onDateChange]);
 
   return (
-    <div className="rounded-xl border border-border/50 bg-card p-5 shadow-xs transition-all hover:shadow-sm">
+    <div className="hidden rounded-xl border border-border/50 bg-card p-5 shadow-xs transition-all hover:shadow-sm lg:block">
       <div className="flex flex-col items-start justify-between">
         <span className="text-sm font-semibold text-muted-foreground tracking-wide">
           {format(selectedDate, "EEEE")}
@@ -73,19 +73,19 @@ export function DateCard({ selectedDate, onDateChange }: DateCardProps) {
                     }
                   }}
                 >
-                  <Calendar.Header className="pb-2">
+                  <Calendar.Header className="pb-2 text-foreground">
                     <Calendar.NavButton slot="previous" />
                     <Calendar.Heading />
                     <Calendar.NavButton slot="next" />
                   </Calendar.Header>
                   <Calendar.Grid>
-                    <Calendar.GridHeader>
+                    <Calendar.GridHeader className="text-foreground">
                       {(day) => (
-                        <Calendar.HeaderCell>{day}</Calendar.HeaderCell>
+                        <Calendar.HeaderCell className="text-xs font-semibold text-foreground">{day}</Calendar.HeaderCell>
                       )}
                     </Calendar.GridHeader>
                     <Calendar.GridBody>
-                      {(date) => <Calendar.Cell date={date} />}
+                      {(date) => <Calendar.Cell date={date} className="text-sm text-foreground" />}
                     </Calendar.GridBody>
                   </Calendar.Grid>
                 </Calendar>

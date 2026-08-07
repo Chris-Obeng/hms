@@ -15,12 +15,14 @@ async function getHotelScopedClient() {
 
   const supabase = await createClient();
 
-  const { data: hotel } = await supabase
+  const { data: hotel, error: hotelError } = await supabase
     .from("hotels")
     .select("id, name, currency, logo_url")
     .eq("clerk_org_id", orgId)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
+  if (hotelError) throw new Error(`DB error fetching hotel: ${hotelError.message}`);
   if (!hotel) throw new Error("Hotel not found");
 
   // Resolve current staff for audit logs
@@ -30,7 +32,7 @@ async function getHotelScopedClient() {
         .select("id, full_name")
         .eq("clerk_user_id", userId)
         .eq("clerk_org_id", orgId)
-        .single()
+        .maybeSingle()
     : { data: null };
 
   return {

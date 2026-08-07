@@ -94,15 +94,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       { title: "Reservations", url: "/dashboard/bookings", icon: BookOpen },
-      {
-        title: "Calendar",
-        url: "/dashboard/calendar",
-        icon: CalendarDays,
-        subItems: [
-          { title: "Timeline", url: "/dashboard/calendar" },
-          { title: "Availability", url: "/dashboard/availability" },
-        ],
-      },
+      { title: "Calendar", url: "/dashboard/calendar", icon: CalendarDays },
       { title: "Guests", url: "/dashboard/customers", icon: Users },
     ],
   },
@@ -111,7 +103,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Room Types", url: "/dashboard/rooms/types", icon: DoorOpen },
       { title: "Directory", url: "/dashboard/rooms/directory", icon: BedDouble },
-      { title: "Pricing", url: "/dashboard/rooms/pricing", icon: DollarSign },
+      { title: "Inventory", url: "/dashboard/availability", icon: DollarSign },
     ],
   },
   {

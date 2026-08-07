@@ -47,7 +47,9 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   confirmed:    ["checked_in", "cancelled"],
   checked_in:   ["checked_out"],
   checked_out:  [], // terminal — no transitions
-  cancelled:    [], // terminal
+  // Manager-approved reinstatement. Reinstated booking returns to confirmed,
+  // preserving audit trail through booking status history.
+  cancelled:    ["confirmed"],
   no_show:      [], // terminal
 };
 

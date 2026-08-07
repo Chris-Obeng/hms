@@ -34,11 +34,12 @@ const DailyOverrideDeleteSchema = z.object({
 // min(1) is enforced here — callers must NOT early-return before this parse
 const BulkDailyOverrideDeleteSchema = z.array(DailyOverrideDeleteSchema).min(1).max(500);
 
-// Helper function to check if a date is a weekend (Friday or Saturday night)
-function isWeekend(dateStr: string): boolean {
+// Weekend rate nights are property-configurable. Default follows common hotel practice:
+// Friday and Saturday nights (the nights with highest leisure demand).
+function isWeekend(dateStr: string, weekendDays: number[] = [5, 6]): boolean {
   const date = new Date(dateStr + "T12:00:00");
   const day = date.getDay();
-  return day === 5 || day === 6; // 5 is Friday, 6 is Saturday
+  return weekendDays.includes(day);
 }
 
 // ── Seasonal Rates CRUD ──────────────────────────────────────────────
@@ -705,12 +706,17 @@ export async function getResolvedRates(
     }
 
     // ── Resolve each cell ──────────────────────────────────────────
+    const configuredWeekendDays = Array.isArray(ctx.hotel.settings.weekend_days)
+      ? ctx.hotel.settings.weekend_days.filter((day): day is number => Number.isInteger(day) && day >= 0 && day <= 6)
+      : [5, 6];
+    const weekendDays = configuredWeekendDays.length > 0 ? configuredWeekendDays : [5, 6];
+
     for (const roomTypeId of roomTypeIds) {
       const roomType = roomTypeMap.get(roomTypeId);
       if (!roomType) continue;
 
       for (const dateStr of dateList) {
-        const weekend = isWeekend(dateStr);
+        const weekend = isWeekend(dateStr, weekendDays);
 
         // 1. Daily override
         const dailyPrice = dailyOverrideMap.get(`${roomTypeId}_${dateStr}`);

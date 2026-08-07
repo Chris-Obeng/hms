@@ -26,6 +26,10 @@
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
+.inventory-filters { display: flex; align-items: end; gap: 18px; flex-wrap: wrap; }
+.inventory-filter-search { width: min(300px, 100%); display: grid; gap: 7px; }
+.inventory-filter-search label { color: #4e5660; font-size: 12px; font-weight: 500; }
+
 .availability-summary{display:flex;align-items:stretch;overflow-x:auto;border-block:1px solid var(--av-border);background:color-mix(in oklch,var(--muted) 18%,transparent)}
 .availability-summary-item{min-width:150px;flex:1;padding:12px 18px;border-right:1px solid var(--av-border)}
 .availability-summary-item:last-child{border-right:0}.availability-summary-item p{font-size:10px;font-weight:650;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}.availability-summary-item strong{display:block;margin-top:2px;font-size:20px;line-height:1.1;font-variant-numeric:tabular-nums}
@@ -308,4 +312,21 @@
   font-size: 9px;
   font-weight: 650;
   line-height: 1.25;
+}
+
+.availability-room-type-heading { background: #e8eef5; border-top: 1px solid #d4dde8; }
+.availability-room-type-heading .availability-sticky-cell { background: #e8eef5; }
+.availability-rate-cell { position: relative; min-height: 54px; display: flex; align-items: center; justify-content: center; border-right: 1px solid #dce3eb; background: #fff; font-variant-numeric: tabular-nums; transition: background-color 160ms ease, box-shadow 160ms ease; }
+.availability-rate-cell:hover { background: #f7faff; }
+.availability-rate-cell.is-weekend, .availability-date-cell.is-weekend { background: #fff0e8; }
+.availability-rate-cell.is-seasonal { color: #28745a; background: #eef9f4; }
+.availability-rate-cell.is-daily { color: #155fbd; font-weight: 650; }
+.availability-rate-cell.is-today { box-shadow: inset 2px 0 #1683e8, inset -2px 0 #1683e8; }
+.rate-dot { position: absolute; right: 7px; top: 7px; width: 6px; height: 6px; border-radius: 99px; background: #1683e8; }
+.availability-rate-meta { min-height: 28px; display: flex; align-items: center; justify-content: center; gap: 8px; border-right: 1px solid #dce3eb; color: #7a8490; font-size: 10px; background: #fafbfd; }
+@media (max-width: 767px) {
+  .availability-page { padding: 12px; }
+  .availability-grid-shell { margin-inline: -12px; border-radius: 0; }
+  .availability-sticky-cell { min-width: 152px; padding-inline: 10px; }
+  .availability-date-cell, .availability-total-cell, .availability-rate-cell { min-width: 72px; }
 }

@@ -8,7 +8,6 @@ export type ActivityTab =
   | "arrivals"
   | "departures"
   | "in_house"
-  | "stayovers"
   | "bookings"
   | "cancellations"
   | "overbookings";
@@ -29,7 +28,7 @@ interface ActivityTabsProps {
 
 export function ActivityTabs({ tabs, activeTab, onTabChange }: ActivityTabsProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 p-4 bg-background/50 border-b border-border/40 overflow-x-auto">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 p-4 bg-background/50 border-b border-border/40 overflow-x-auto">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.key;
         return (
@@ -86,7 +85,6 @@ export function buildActivityTabs(data: {
   departures: number;
   pendingDepartures: number;
   inHouse: number;
-  stayovers: number;
   newBookings: number;
   cancellations: number;
   overbookings: number;
@@ -108,11 +106,6 @@ export function buildActivityTabs(data: {
       key: "in_house",
       label: "In-house",
       count: data.inHouse,
-    },
-    {
-      key: "stayovers",
-      label: "Stayovers",
-      count: data.stayovers,
     },
     {
       key: "bookings",
