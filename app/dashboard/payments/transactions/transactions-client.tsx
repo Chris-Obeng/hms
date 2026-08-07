@@ -9,6 +9,7 @@ import { PAYMENT_METHOD_LABELS, getMethodLabel } from "@/lib/booking-status";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { Button } from "@/components/ui/button";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
+import { HeroSelectField } from "@/components/ui/hero-select";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -125,19 +126,8 @@ export function TransactionsClient({ data, currency, hotelId }: { data: PaymentR
           onChange={(e) => setSearch(e.target.value)}
           className="h-8 rounded-lg border border-border/60 bg-background px-3 text-sm outline-none focus-visible:border-ring w-56"
         />
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-          className="h-8 rounded-lg border border-border/60 bg-background px-2.5 text-sm outline-none focus-visible:border-ring">
-          <option value="all">All statuses</option>
-          <option value="success">Success</option>
-          <option value="pending">Pending</option>
-          <option value="failed">Failed</option>
-          <option value="refunded">Refunded</option>
-        </select>
-        <select value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)}
-          className="h-8 rounded-lg border border-border/60 bg-background px-2.5 text-sm outline-none focus-visible:border-ring">
-          <option value="all">All methods</option>
-          {Object.entries(PAYMENT_METHOD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
+        <HeroSelectField className="w-40" value={statusFilter} onValueChange={setStatusFilter} options={[{value:"all",label:"All statuses"},{value:"success",label:"Success"},{value:"pending",label:"Pending"},{value:"failed",label:"Failed"},{value:"refunded",label:"Refunded"}]} ariaLabel="Transaction status" />
+        <HeroSelectField className="w-40" value={methodFilter} onValueChange={setMethodFilter} options={[{value:"all",label:"All methods"}, ...Object.entries(PAYMENT_METHOD_LABELS).map(([value,label]) => ({value,label}))]} ariaLabel="Payment method" />
       </div>
 
       {/* Table */}

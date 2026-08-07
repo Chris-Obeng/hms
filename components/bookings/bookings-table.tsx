@@ -52,6 +52,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { HeroSelectField } from "@/components/ui/hero-select";
 import { Card, CardContent } from "@/components/ui/card";
 
 import {
@@ -696,18 +697,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
                   <label className="text-label font-medium text-muted-foreground uppercase tracking-wider">
                     Status
                   </label>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="h-8 rounded-lg border border-border/60 bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  >
-                    <option value="all">All</option>
-                    {STATUS_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                  <HeroSelectField className="w-40" value={statusFilter} onValueChange={setStatusFilter} options={[{value:"all",label:"All"},...STATUS_OPTIONS]} ariaLabel="Booking status" />
                 </div>
 
                 {/* Payment Status */}
@@ -715,18 +705,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
                   <label className="text-label font-medium text-muted-foreground uppercase tracking-wider">
                     Payment
                   </label>
-                  <select
-                    value={paymentFilter}
-                    onChange={(e) => setPaymentFilter(e.target.value)}
-                    className="h-8 rounded-lg border border-border/60 bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  >
-                    <option value="all">All</option>
-                    {PAYMENT_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                  <HeroSelectField className="w-40" value={paymentFilter} onValueChange={setPaymentFilter} options={[{value:"all",label:"All"},...PAYMENT_OPTIONS]} ariaLabel="Payment status" />
                 </div>
 
                 {/* Source */}
@@ -734,18 +713,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
                   <label className="text-label font-medium text-muted-foreground uppercase tracking-wider">
                     Source
                   </label>
-                  <select
-                    value={sourceFilter}
-                    onChange={(e) => setSourceFilter(e.target.value)}
-                    className="h-8 rounded-lg border border-border/60 bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  >
-                    <option value="all">All</option>
-                    {SOURCE_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                  <HeroSelectField className="w-40" value={sourceFilter} onValueChange={setSourceFilter} options={[{value:"all",label:"All"},...SOURCE_OPTIONS]} ariaLabel="Booking source" />
                 </div>
 
                 {/* Room Type */}
@@ -753,18 +721,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
                   <label className="text-label font-medium text-muted-foreground uppercase tracking-wider">
                     Room Type
                   </label>
-                  <select
-                    value={roomTypeFilter}
-                    onChange={(e) => setRoomTypeFilter(e.target.value)}
-                    className="h-8 rounded-lg border border-border/60 bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  >
-                    <option value="all">All</option>
-                    {roomTypes.map((rt) => (
-                      <option key={rt.id} value={rt.name}>
-                        {rt.name}
-                      </option>
-                    ))}
-                  </select>
+                  <HeroSelectField className="w-40" value={roomTypeFilter} onValueChange={setRoomTypeFilter} options={[{value:"all",label:"All"},...roomTypes.map((rt) => ({value:rt.name,label:rt.name}))]} ariaLabel="Room type" />
                 </div>
 
                 {/* Clear */}

@@ -7,6 +7,7 @@ import { Plus, Wallet, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { HeroSelectField } from "@/components/ui/hero-select";
 import { Separator } from "@/components/ui/separator";
 import { PaymentRow } from "./booking-payment-row";
 import { formatCurrency } from "@/lib/format";
@@ -165,20 +166,7 @@ export function BookingPaymentsPanel({
               <label className="text-[11px] font-medium text-muted-foreground mb-1 block">
                 Method *
               </label>
-              <select
-                value={paymentMethod}
-                onChange={(e) =>
-                  setPaymentMethod(e.target.value as typeof paymentMethod)
-                }
-                className="h-9 w-full rounded-lg border border-border/60 bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <option value="cash">Cash</option>
-                <option value="pos">POS</option>
-                <option value="mobile_money">Mobile Money</option>
-                <option value="bank_transfer">Bank Transfer</option>
-                <option value="card">Card</option>
-                <option value="other">Other</option>
-              </select>
+              <HeroSelectField value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as typeof paymentMethod)} options={[{value:"cash",label:"Cash"},{value:"pos",label:"POS"},{value:"mobile_money",label:"Mobile Money"},{value:"bank_transfer",label:"Bank Transfer"},{value:"card",label:"Card"},{value:"other",label:"Other"}]} ariaLabel="Payment method" />
             </div>
           </div>
           <div>

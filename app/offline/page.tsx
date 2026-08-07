@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { WifiOff, RefreshCw } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-styles";
 import { cn } from "@/lib/utils";
 
 export default function OfflinePage() {

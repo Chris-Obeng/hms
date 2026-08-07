@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { HeroSelectField } from "@/components/ui/hero-select";
 import { createAvailabilityBlock } from "../actions";
 import { BLOCK_REASONS } from "./calendar-helpers";
 
@@ -124,21 +125,7 @@ export function BlockRoomSheet({
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                 Select Room
               </label>
-              <select
-                value={selectedRoomId}
-                onChange={(e) => setSelectedRoomId(e.target.value)}
-                className={cn(
-                  "h-9 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-                  errors.roomId && "border-destructive"
-                )}
-              >
-                <option value="">Choose room...</option>
-                {rooms.map((room) => (
-                  <option key={room.id} value={room.id}>
-                    Room {room.roomNumber} ({room.roomTypeName})
-                  </option>
-                ))}
-              </select>
+              <HeroSelectField value={selectedRoomId} onValueChange={setSelectedRoomId} options={rooms.map((room) => ({value:room.id,label:`Room ${room.roomNumber} (${room.roomTypeName})`}))} placeholder="Choose room..." isInvalid={!!errors.roomId} ariaLabel="Room" />
               {errors.roomId && (
                 <p className="text-xs text-destructive mt-1">{errors.roomId}</p>
               )}
@@ -176,21 +163,7 @@ export function BlockRoomSheet({
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                 Reason
               </label>
-              <select
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                className={cn(
-                  "h-9 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-                  errors.reason && "border-destructive"
-                )}
-              >
-                <option value="">Choose reason...</option>
-                {BLOCK_REASONS.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
+              <HeroSelectField value={reason} onValueChange={setReason} options={BLOCK_REASONS} placeholder="Choose reason..." isInvalid={!!errors.reason} ariaLabel="Block reason" />
               {errors.reason && (
                 <p className="text-xs text-destructive mt-1">{errors.reason}</p>
               )}

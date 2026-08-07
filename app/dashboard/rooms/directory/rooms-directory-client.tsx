@@ -25,6 +25,7 @@ import {
 import { toast } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
+import { HeroSelectField } from "@/components/ui/hero-select";
 import {
   Table,
   TableBody,
@@ -372,21 +373,7 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
           const status = row.original.status || "available";
           const config = STATUS_CONFIG[status] || STATUS_CONFIG.available;
           return (
-            <select
-              value={status}
-              onChange={(e) => handleStatusChange(row.original.id, e.target.value)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md border-0 px-2 py-1 text-xs font-medium outline-none cursor-pointer transition-colors",
-                config.bg,
-                config.color
-              )}
-            >
-              {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-                <option key={key} value={key} className="bg-background text-foreground">
-                  {cfg.label}
-                </option>
-              ))}
-            </select>
+            <HeroSelectField className="w-36" value={status} onValueChange={(v) => handleStatusChange(row.original.id, v)} options={Object.entries(STATUS_CONFIG).map(([value,cfg]) => ({value,label:cfg.label}))} ariaLabel={`Status for room ${row.original.roomNumber}`} />
           );
         },
       },
@@ -637,17 +624,7 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                 Room type *
               </label>
-              <select
-                value={newRoomTypeId}
-                onChange={(e) => setNewRoomTypeId(e.target.value)}
-                className="h-9 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                required
-              >
-                <option value="">Select room type...</option>
-                {roomTypes.map((rt) => (
-                  <option key={rt.id} value={rt.id}>{rt.name}</option>
-                ))}
-              </select>
+              <HeroSelectField value={newRoomTypeId} onValueChange={setNewRoomTypeId} options={roomTypes.map((rt) => ({value:rt.id,label:rt.name}))} placeholder="Select room type..." isRequired ariaLabel="Room type" />
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">

@@ -29,15 +29,21 @@ const EVENT_TYPES = [
 
 export default function NotificationSettingsPage() {
   const [loading, setLoading] = React.useState(true);
-  const [saving, setSaving] = React.useState(false);
   const [soundEnabled, setSoundEnabled] = React.useState(true);
   const [browserAlertsEnabled, setBrowserAlertsEnabled] = React.useState(false);
   const [notificationPermission, setNotificationPermission] = React.useState<NotificationPermission>("default");
   const [eventPrefs, setEventPrefs] = React.useState<Record<string, boolean>>({});
+  const [savingEvents, setSavingEvents] = React.useState<Set<string>>(() => new Set());
   const [notifTemplates, setNotifTemplates] = React.useState<Record<NotificationEventType, NotificationTemplate> | null>(null);
+  const eventPrefsRef = React.useRef<Record<string, boolean>>({});
+  const saveQueueRef = React.useRef<Promise<void>>(Promise.resolve());
+  const isMountedRef = React.useRef(false);
 
   // Load preferences
   React.useEffect(() => {
+    isMountedRef.current = true;
+    let cancelled = false;
+
     async function loadPrefs() {
       try {
         const [prefsResult, templatesResult] = await Promise.all([
@@ -45,23 +51,29 @@ export default function NotificationSettingsPage() {
           getNotificationTemplates(),
         ]);
 
+        if (cancelled) return;
+
         if (prefsResult.success) {
           setEventPrefs(prefsResult.data);
+          eventPrefsRef.current = prefsResult.data;
         } else {
           const defaults: Record<string, boolean> = {};
           EVENT_TYPES.forEach((evt) => { defaults[evt.key] = true; });
           setEventPrefs(defaults);
+          eventPrefsRef.current = defaults;
         }
 
         if (templatesResult.success) {
           setNotifTemplates(templatesResult.data);
         }
       } catch {
+        if (cancelled) return;
         const defaults: Record<string, boolean> = {};
         EVENT_TYPES.forEach((evt) => { defaults[evt.key] = true; });
         setEventPrefs(defaults);
+        eventPrefsRef.current = defaults;
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     loadPrefs();
@@ -78,11 +90,40 @@ export default function NotificationSettingsPage() {
       const alerts = localStorage.getItem("RoomLine_browser_notifications_enabled") === "true";
       setBrowserAlertsEnabled(alerts && Notification.permission === "granted");
     }
+
+    return () => {
+      cancelled = true;
+      isMountedRef.current = false;
+    };
   }, []);
 
   // Toggle event preference
   const toggleEvent = (key: string) => {
-    setEventPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+    const previousValue = eventPrefsRef.current[key] ?? true;
+    const nextPrefs = {
+      ...eventPrefsRef.current,
+      [key]: !previousValue,
+    };
+
+    eventPrefsRef.current = nextPrefs;
+    setEventPrefs(nextPrefs);
+    setSavingEvents((current) => new Set(current).add(key));
+
+    saveQueueRef.current = saveQueueRef.current.then(async () => {
+      const result = await updateNotificationPrefs(eventPrefsRef.current);
+
+      if (!isMountedRef.current) return;
+
+      setSavingEvents((current) => {
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
+
+      if (!result.success) {
+        toast.danger(result.error || "Failed to save notification preference");
+      }
+    });
   };
 
   // Toggle sound
@@ -139,18 +180,6 @@ export default function NotificationSettingsPage() {
       toast.success("Test sound played");
     } catch {
       toast.danger("Could not play test sound");
-    }
-  };
-
-  // Save all preferences
-  const handleSave = async () => {
-    setSaving(true);
-    const result = await updateNotificationPrefs(eventPrefs);
-    setSaving(false);
-    if (result.success) {
-      toast.success("Notification preferences saved");
-    } else {
-      toast.danger(result.error || "Failed to save preferences");
     }
   };
 
@@ -281,7 +310,13 @@ export default function NotificationSettingsPage() {
                     {event.description}
                   </p>
                 </div>
-                <Switch checked={eventPrefs[event.key] ?? true} onCheckedChange={() => toggleEvent(event.key)} size="lg" />
+                <Switch
+                  checked={eventPrefs[event.key] ?? true}
+                  onCheckedChange={() => toggleEvent(event.key)}
+                  isDisabled={savingEvents.has(event.key)}
+                  size="lg"
+                  aria-label={`${event.label} notifications`}
+                />
               </div>
               {index < EVENT_TYPES.length - 1 && <Separator className="opacity-30" />}
             </React.Fragment>
@@ -291,7 +326,7 @@ export default function NotificationSettingsPage() {
 
       {/* Message Templates */}
       {notifTemplates && (
-        <Card>
+        <Card id="message-templates" className="scroll-mt-6">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <MessageSquareText className="size-3.5" />
@@ -307,16 +342,6 @@ export default function NotificationSettingsPage() {
         </Card>
       )}
 
-      {/* Save */}
-      <div className="flex items-center justify-end pb-8">
-        <Button
-          onClick={handleSave}
-          disabled={saving}
-          className="text-sm rounded-xl bg-foreground text-background hover:bg-foreground/90"
-        >
-          {saving ? "Saving..." : "Save Preferences"}
-        </Button>
-      </div>
     </div>
   );
 }

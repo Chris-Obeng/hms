@@ -1,22 +1,31 @@
 "use client";
 
-import { forwardRef, SelectHTMLAttributes, useId } from "react";
+import { useId } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { HeroSelectField } from "@/components/ui/hero-select";
 
 interface OnboardingSelectOption {
   value: string;
   label: string;
 }
 
-interface OnboardingSelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+interface OnboardingSelectProps {
   label: string;
   options: OnboardingSelectOption[];
   error?: string;
   hint?: string;
+  value?: string;
+  defaultValue?: string;
+  onChange?: (event: { target: { value: string } }) => void;
+  required?: boolean;
+  disabled?: boolean;
+  id?: string;
+  className?: string;
 }
 
-export const OnboardingSelect = forwardRef<HTMLSelectElement, OnboardingSelectProps>(
-  ({ label, options, error, hint, className = "", id, ...props }, ref) => {
+export function OnboardingSelect({
+  label, options, error, hint, value, defaultValue, onChange, className = "", id, required, disabled,
+}: OnboardingSelectProps) {
     const uid = useId();
     const selectId = id ?? uid;
     const hasError = !!error;
@@ -25,25 +34,21 @@ export const OnboardingSelect = forwardRef<HTMLSelectElement, OnboardingSelectPr
       <div className="onboarding-form-group">
         <label htmlFor={selectId} className="onboarding-label">
           {label}
-          {props.required && <span className="onboarding-label-required" aria-label="required">*</span>}
+          {required && <span className="onboarding-label-required" aria-label="required">*</span>}
         </label>
 
-        <select
-          ref={ref}
-          id={selectId}
-          className={`onboarding-select ${className}`}
-          aria-invalid={hasError}
-          aria-describedby={
-            hasError ? `${selectId}-error` : hint ? `${selectId}-hint` : undefined
-          }
-          {...props}
-        >
-          {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+        <HeroSelectField
+          value={value ?? defaultValue}
+          onValueChange={(next) => onChange?.({ target: { value: next } })}
+          options={options}
+          label={null}
+          isInvalid={hasError}
+          isRequired={required}
+          isDisabled={disabled}
+          ariaLabel={label}
+          className={className}
+          triggerClassName="onboarding-select"
+        />
 
         {hint && !hasError && (
           <p id={`${selectId}-hint`} className="onboarding-hint">
@@ -80,6 +85,3 @@ export const OnboardingSelect = forwardRef<HTMLSelectElement, OnboardingSelectPr
       </div>
     );
   }
-);
-
-OnboardingSelect.displayName = "OnboardingSelect";

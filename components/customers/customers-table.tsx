@@ -39,6 +39,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { HeroSelectField } from "@/components/ui/hero-select";
 import { Card, CardContent } from "@/components/ui/card";
 import { GuestDetailSheet } from "@/components/customers/guest-detail-sheet";
 
@@ -384,18 +385,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
                   <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                     Tag
                   </label>
-                  <select
-                    value={tagFilter}
-                    onChange={(e) => setTagFilter(e.target.value)}
-                    className="h-8 rounded-lg border border-border/60 bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  >
-                    <option value="all">All</option>
-                    {ALL_TAG_OPTIONS.map((tag) => (
-                      <option key={tag} value={tag}>
-                        {tag.charAt(0).toUpperCase() + tag.slice(1)}
-                      </option>
-                    ))}
-                  </select>
+                  <HeroSelectField className="w-40" value={tagFilter} onValueChange={setTagFilter} options={[{value:"all",label:"All"}, ...ALL_TAG_OPTIONS.map((tag) => ({value:tag,label:tag.charAt(0).toUpperCase()+tag.slice(1)}))]} ariaLabel="Guest tag" />
                 </div>
 
                 {/* Clear */}

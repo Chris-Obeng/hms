@@ -22,7 +22,7 @@ import { PanelLeftIcon } from "lucide-react"
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "16rem"
-const SIDEBAR_WIDTH_MOBILE = "18rem"
+const SIDEBAR_WIDTH_MOBILE = "20rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
@@ -117,6 +117,7 @@ function SidebarProvider({
         style={
           {
             "--sidebar-width": SIDEBAR_WIDTH,
+            "--sidebar-width-mobile": SIDEBAR_WIDTH_MOBILE,
             "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
             ...style,
           } as React.CSSProperties
@@ -178,7 +179,7 @@ function Sidebar({
           variant="blur"
           isOpen={openMobile}
           onOpenChange={(v) => setOpenMobile(v)}
-          className="z-50"
+          className="z-50 bg-black/35 backdrop-blur-sm"
         >
           <Drawer.Content
             placement="left"
@@ -187,8 +188,9 @@ function Sidebar({
             <Drawer.Dialog
               aria-label="Navigation sidebar"
               className={cn(
-                "flex h-full flex-col bg-sidebar text-sidebar-foreground p-0 outline-none",
-                "w-[18rem] max-w-[85vw]",
+                "flex h-[100dvh] flex-col overflow-hidden border-r border-sidebar-border/70 bg-sidebar p-0 text-sidebar-foreground shadow-2xl outline-none",
+                "w-(--sidebar-width-mobile) max-w-[88vw] rounded-r-2xl",
+                "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
                 className
               )}
             >

@@ -1,64 +1,51 @@
 "use client";
 
-import { Switch as SwitchPrimitive } from "@base-ui/react/switch";
-import { cva, type VariantProps } from "class-variance-authority";
+import type React from "react";
+import { Switch as HeroSwitch } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
 
-const switchVariants = cva(
-  [
-    "peer inline-flex shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-    "disabled:cursor-not-allowed disabled:opacity-50",
-    "data-[checked]:bg-foreground data-[unchecked]:bg-input",
-  ].join(" "),
-  {
-    variants: {
-      size: {
-        sm: "h-5 w-9",
-        lg: "h-6 w-10",
-      },
-    },
-    defaultVariants: {
-      size: "sm",
-    },
-  }
-);
-
-const thumbVariants = cva(
-  [
-    "pointer-events-none block rounded-full bg-background shadow-lg ring-0 transition-transform",
-    "data-[checked]:translate-x-4 data-[unchecked]:translate-x-0",
-  ].join(" "),
-  {
-    variants: {
-      size: {
-        sm: "size-4",
-        lg: "size-5",
-      },
-    },
-    defaultVariants: {
-      size: "sm",
-    },
-  }
-);
+type SwitchProps = Omit<
+  React.ComponentProps<typeof HeroSwitch>,
+  "isSelected" | "onChange" | "size"
+> & {
+  checked?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+  size?: "sm" | "lg";
+};
 
 function Switch({
+  checked,
+  onCheckedChange,
+  size = "sm",
   className,
-  size,
+  "aria-label": ariaLabel,
   ...props
-}: SwitchPrimitive.Root.Props & VariantProps<typeof switchVariants>) {
+}: SwitchProps) {
   return (
-    <SwitchPrimitive.Root
-      data-slot="switch"
-      className={cn(switchVariants({ size, className }))}
+    <HeroSwitch
       {...props}
+      aria-label={ariaLabel ?? "Toggle setting"}
+      className={className}
+      isSelected={checked}
+      onChange={onCheckedChange}
+      size={size === "lg" ? "md" : "sm"}
     >
-      <SwitchPrimitive.Thumb
-        data-slot="switch-thumb"
-        className={cn(thumbVariants({ size }))}
-      />
-    </SwitchPrimitive.Root>
+      {({ isSelected }) => (
+        <HeroSwitch.Content>
+          <HeroSwitch.Control
+            className={cn(
+              "border shadow-inner transition-colors duration-200",
+              isSelected
+                ? "border-blue-600 bg-blue-600 data-[hovered=true]:bg-blue-500"
+                : "border-border/70 bg-muted data-[hovered=true]:bg-muted/80",
+            )}
+          >
+            <HeroSwitch.Thumb className="bg-white shadow-sm ring-1 ring-black/10" />
+          </HeroSwitch.Control>
+        </HeroSwitch.Content>
+      )}
+    </HeroSwitch>
   );
 }
 

@@ -8,6 +8,7 @@ import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { HeroSelectField } from "@/components/ui/hero-select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateHotelProfile } from "@/app/actions/settings";
 import { saveHotelImageUrl } from "@/app/actions/upload";
@@ -242,35 +243,13 @@ export function HotelSettingsClient({
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                 Timezone
               </label>
-              <select
-                value={values.timezone}
-                onChange={(e) => set("timezone", e.target.value)}
-                className="h-9 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <option value="">Select timezone...</option>
-                {TIMEZONE_OPTIONS.map((tz) => (
-                  <option key={tz} value={tz}>
-                    {tz}
-                  </option>
-                ))}
-              </select>
+              <HeroSelectField value={values.timezone} onValueChange={(v) => set("timezone", v)} options={TIMEZONE_OPTIONS.map((tz) => ({ value: tz, label: tz }))} placeholder="Select timezone..." ariaLabel="Timezone" />
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                 Currency
               </label>
-              <select
-                value={values.currency}
-                onChange={(e) => set("currency", e.target.value)}
-                className="h-9 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <option value="">Select currency...</option>
-                <option value="GHS">GHS (Ghana Cedi)</option>
-                <option value="NGN">NGN (Nigerian Naira)</option>
-                <option value="USD">USD (US Dollar)</option>
-                <option value="EUR">EUR (Euro)</option>
-                <option value="GBP">GBP (British Pound)</option>
-              </select>
+              <HeroSelectField value={values.currency} onValueChange={(v) => set("currency", v)} options={[["GHS", "GHS (Ghana Cedi)"], ["NGN", "NGN (Nigerian Naira)"], ["USD", "USD (US Dollar)"], ["EUR", "EUR (Euro)"], ["GBP", "GBP (British Pound)"]].map(([value, label]) => ({ value, label }))} placeholder="Select currency..." ariaLabel="Currency" />
             </div>
           </div>
           <div>

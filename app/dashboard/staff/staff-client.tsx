@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { HeroSelectField } from "@/components/ui/hero-select";
 import { formatDate, getInitials } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -241,16 +242,7 @@ export function StaffClient({ data, currentUserId, isSuperAdmin }: StaffClientPr
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Assign Role
                   </label>
-                  <select
-                    value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as "super_admin" | "manager" | "front_desk" | "read_only")}
-                    className="w-full rounded-xl border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <option value="front_desk">Front Desk</option>
-                    <option value="manager">Manager</option>
-                    <option value="super_admin">Super Admin</option>
-                    <option value="read_only">Read Only</option>
-                  </select>
+                  <HeroSelectField value={inviteRole} onValueChange={(v) => setInviteRole(v as typeof inviteRole)} options={ROLE_OPTIONS} ariaLabel="Assign role" />
                 </div>
 
                 {!inviteLink ? (
@@ -350,23 +342,7 @@ export function StaffClient({ data, currentUserId, isSuperAdmin }: StaffClientPr
                       {/* Role */}
                       <TableCell>
                         {isSuperAdmin ? (
-                          <select
-                            value={staff.role}
-                            onChange={(e) => handleRoleChange(staff.id, e.target.value)}
-                            disabled={isCurrentUser}
-                            className={cn(
-                              "inline-flex items-center gap-1.5 rounded-md border-0 px-2 py-1 text-xs font-medium outline-none cursor-pointer transition-colors",
-                              config.bg,
-                              config.color,
-                              isCurrentUser && "opacity-60 cursor-not-allowed"
-                            )}
-                          >
-                            {ROLE_OPTIONS.map((opt) => (
-                              <option key={opt.value} value={opt.value} className="bg-background text-foreground">
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
+                          <HeroSelectField className="w-36" value={staff.role} onValueChange={(v) => handleRoleChange(staff.id, v)} isDisabled={isCurrentUser} options={ROLE_OPTIONS} ariaLabel={`Role for ${staff.fullName ?? "staff member"}`} />
                         ) : (
                           <div
                             className={cn(

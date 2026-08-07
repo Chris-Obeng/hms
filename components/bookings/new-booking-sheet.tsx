@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { HeroSelectField } from "@/components/ui/hero-select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Calendar } from "@/components/ui/calendar";
@@ -382,24 +383,7 @@ export function NewBookingSheet({
                     <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                       Room type
                     </label>
-                    <select
-                      value={selectedRoomTypeId}
-                      onChange={(e) => setSelectedRoomTypeId(e.target.value)}
-                      className={cn(
-                        "h-9 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-                        errors.roomTypeId && "border-destructive"
-                      )}
-                    >
-                      <option value="">Select room type...</option>
-                      {roomTypeOptions.map((rt) => (
-                        <option key={rt.id} value={rt.id}>
-                          {rt.name}
-                          {"base_price" in rt
-                            ? ` — ${formatCurrency((rt as RoomTypeOption).base_price, currency)}/night`
-                            : ""}
-                        </option>
-                      ))}
-                    </select>
+                    <HeroSelectField value={selectedRoomTypeId} onValueChange={setSelectedRoomTypeId} options={roomTypeOptions.map((rt) => ({value:rt.id,label:`${rt.name}${"base_price" in rt ? ` — ${formatCurrency((rt as RoomTypeOption).base_price, currency)}/night` : ""}`}))} placeholder="Select room type..." isInvalid={!!errors.roomTypeId} ariaLabel="Room type" />
                     {errors.roomTypeId && (
                       <p className="text-xs text-destructive mt-1">{errors.roomTypeId}</p>
                     )}
@@ -441,29 +425,13 @@ export function NewBookingSheet({
                       <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                         Adults
                       </label>
-                      <select
-                        value={adults}
-                        onChange={(e) => setAdults(Number(e.target.value))}
-                        className="h-9 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                      >
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <option key={n} value={n}>{n}</option>
-                        ))}
-                      </select>
+                      <HeroSelectField value={String(adults)} onValueChange={(v) => setAdults(Number(v))} options={[1,2,3,4,5].map((n) => ({value:String(n),label:n}))} ariaLabel="Adults" />
                     </div>
                     <div>
                       <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                         Children
                       </label>
-                      <select
-                        value={children}
-                        onChange={(e) => setChildren(Number(e.target.value))}
-                        className="h-9 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                      >
-                        {[0, 1, 2, 3].map((n) => (
-                          <option key={n} value={n}>{n}</option>
-                        ))}
-                      </select>
+                      <HeroSelectField value={String(children)} onValueChange={(v) => setChildren(Number(v))} options={[0,1,2,3].map((n) => ({value:String(n),label:n}))} ariaLabel="Children" />
                     </div>
                   </div>
                 </div>
@@ -509,20 +477,7 @@ export function NewBookingSheet({
                   <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                     Reservation source
                   </label>
-                  <select
-                    value={source}
-                    onChange={(e) => setSource(e.target.value)}
-                    className={cn(
-                      "h-9 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-                      errors.source && "border-destructive"
-                    )}
-                  >
-                    {SOURCE_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                  <HeroSelectField value={source} onValueChange={setSource} options={SOURCE_OPTIONS} isInvalid={!!errors.source} ariaLabel="Reservation source" />
                   {errors.source && (
                     <p className="text-xs text-destructive mt-1">{errors.source}</p>
                   )}

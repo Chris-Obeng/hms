@@ -8,6 +8,7 @@ import { toast } from "@heroui/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { HeroSelectField } from "@/components/ui/hero-select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn, slugify } from "@/lib/utils";
 import { AMENITIES_LIST } from "@/lib/amenities";
@@ -263,29 +264,13 @@ export function RoomTypeForm({
                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                   Max adults
                 </label>
-                <select
-                  value={values.maxAdults}
-                  onChange={(e) => set("maxAdults", Number(e.target.value))}
-                  className="h-9 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
-                  {[1, 2, 3, 4, 5, 6].map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
+                <HeroSelectField value={String(values.maxAdults)} onValueChange={(v) => set("maxAdults", Number(v))} options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: n }))} ariaLabel="Max adults" />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                   Max children
                 </label>
-                <select
-                  value={values.maxChildren}
-                  onChange={(e) => set("maxChildren", Number(e.target.value))}
-                  className="h-9 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
-                  {[0, 1, 2, 3].map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
+                <HeroSelectField value={String(values.maxChildren)} onValueChange={(v) => set("maxChildren", Number(v))} options={[0, 1, 2, 3].map((n) => ({ value: String(n), label: n }))} ariaLabel="Max children" />
               </div>
             </div>
           </CardContent>

@@ -6,6 +6,7 @@ import { toast } from "@heroui/react";
 import { ArrowLeft, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { HeroSelectField } from "@/components/ui/hero-select";
 import { cn } from "@/lib/utils";
 import {
   fetchPaystackBanks,
@@ -221,17 +222,7 @@ export function PaymentsSettingsClient({ hotelName, hotelEmail, currency, initia
 
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Bank</label>
-            <select
-              value={bankCode}
-              onChange={(e) => setBankCode(e.target.value)}
-              disabled={banksLoading}
-              className="h-9 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
-            >
-              <option value="">{banksLoading ? "Loading banks…" : "Select bank"}</option>
-              {banks.map((b, i) => (
-                <option key={`${b.code}-${i}`} value={b.code}>{b.name}</option>
-              ))}
-            </select>
+            <HeroSelectField value={bankCode} onValueChange={setBankCode} isDisabled={banksLoading} options={banks.map((b) => ({ value: b.code, label: b.name }))} placeholder={banksLoading ? "Loading banks…" : "Select bank"} ariaLabel="Bank" />
           </div>
 
           <div>
@@ -265,15 +256,7 @@ export function PaymentsSettingsClient({ hotelName, hotelEmail, currency, initia
 
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Settlement schedule</label>
-            <select
-              value={settlement}
-              onChange={(e) => setSettlement(e.target.value)}
-              className="h-9 w-full rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              <option value="auto">Automatic (T+1)</option>
-              <option value="weekly">Weekly</option>
-              <option value="manual">Manual</option>
-            </select>
+            <HeroSelectField value={settlement} onValueChange={setSettlement} options={[{ value: "auto", label: "Automatic (T+1)" }, { value: "weekly", label: "Weekly" }, { value: "manual", label: "Manual" }]} ariaLabel="Settlement schedule" />
           </div>
         </div>
 

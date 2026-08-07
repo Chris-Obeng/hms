@@ -1,8 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { Settings, Building2, Bell, Shield, CreditCard, Link2, ChevronRight, ClipboardList } from "lucide-react";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { Settings } from "lucide-react";
+import { SettingsNavigation } from "./settings-navigation";
+import { SettingsHeader } from "./settings-header";
 
 export const dynamic = "force-dynamic";
 
@@ -29,11 +29,12 @@ export default async function SettingsPage() {
 
   const sections = [
     {
-      title: "Property",
+      title: "Property operations",
+      description: "Core hotel details and connected operational systems.",
       items: [
         {
-          icon: Building2,
-          label: "Hotel Profile",
+          icon: "building" as const,
+          label: "Hotel profile",
           description: "Name, address, contact, check-in/out times, and branding",
           href: "/dashboard/settings/hotel",
           restricted: true,
@@ -41,61 +42,59 @@ export default async function SettingsPage() {
       ],
     },
     {
-      title: "Preferences",
+      title: "Guest communication",
+      description: "Control staff alerts and messages sent to guests.",
       items: [
         {
-          icon: Bell,
+          icon: "bell" as const,
           label: "Notifications",
           description: "Sound, event toggles, and notification preferences",
           href: "/dashboard/settings/notifications",
           restricted: false,
         },
+        {
+          icon: "mail" as const,
+          label: "Guest emails",
+          description: "Edit transactional email content and booking messages",
+          href: "/dashboard/settings/notifications#message-templates",
+          restricted: true,
+        },
       ],
     },
     {
-      title: "Payments & Integrations",
+      title: "Payments & integrations",
+      description: "Manage payment processing and external connections.",
       items: [
         {
-          icon: CreditCard,
+          icon: "card" as const,
           label: "Payments",
           description: "Payment policy, Paystack bank account, and subaccount setup",
           href: "/dashboard/settings/payments",
           restricted: true,
         },
-        {
-          icon: Link2,
-          label: "Guest emails",
-          description: "Transactional email settings",
-          href: "/dashboard/settings/notifications",
-          restricted: true,
-        },
       ],
     },
     {
-      title: "Subscription",
+      title: "Workspace administration",
+      description: "Manage subscription, staff access, and accountability.",
       items: [
         {
-          icon: Settings,
-          label: "Billing & Plan",
+          icon: "settings" as const,
+          label: "Billing & plan",
           description: "Your current plan, features, and upgrade options",
           href: "/dashboard/billing",
           restricted: false,
         },
-      ],
-    },
-    {
-      title: "Team",
-      items: [
         {
-          icon: Shield,
+          icon: "users" as const,
           label: "Staff",
           description: "Manage team members, roles, and access permissions",
           href: "/dashboard/staff",
           restricted: false,
         },
         {
-          icon: Shield,
-          label: "Audit Log",
+          icon: "audit" as const,
+          label: "Audit log",
           description: "Append-only record of all staff actions and changes",
           href: "/dashboard/settings/audit-log",
           restricted: true,
@@ -105,52 +104,14 @@ export default async function SettingsPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-page-title text-foreground">Settings</h1>
-        <p className="text-body text-muted-foreground mt-1">
-          Manage your hotel configuration and preferences
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-7xl space-y-7 pb-10 sm:space-y-9">
+      <SettingsHeader isSuperAdmin={isSuperAdmin} />
 
-      {sections.map((section) => (
-        <div key={section.title}>
-          <h2 className="text-label font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            {section.title}
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {section.items.map((item) => {
-              const Icon = item.icon;
-              const canAccess = !item.restricted || isSuperAdmin;
-              return (
-                <Link
-                  key={item.href}
-                  href={canAccess ? item.href : "#"}
-                  className={cn(
-                    "flex items-center gap-4 rounded-xl border border-border/60 bg-card p-4 transition-all shadow-sm",
-                    canAccess
-                      ? "hover:border-border hover:shadow-md hover:bg-accent/5"
-                      : "opacity-50 cursor-not-allowed"
-                  )}
-                >
-                  <div className="size-10 rounded-lg bg-muted/50 flex items-center justify-center shrink-0 ring-1 ring-border/30">
-                    <Icon className="size-4 text-muted-foreground" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-body font-medium text-foreground">{item.label}</p>
-                    <p className="text-caption text-muted-foreground mt-0.5">{item.description}</p>
-                  </div>
-                  <ChevronRight className="size-4 text-muted-foreground/30 shrink-0" />
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+      <SettingsNavigation sections={sections} isSuperAdmin={isSuperAdmin} />
     </div>
   );
 }
+
 
 function NoAccessState() {
   return (
