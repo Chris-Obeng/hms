@@ -5,7 +5,6 @@ import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
-import { sendPaymentReceipt } from "@/lib/notifications/send-payment-receipt";
 import { requireAuth, requireMinRole, toActionError } from "@/lib/auth";
 
 // ── Get Hotel ID Helper ──────────────────────────────────────────
@@ -323,26 +322,6 @@ export async function recordPayment(
       entityId: data.bookingId,
       afterState: { amount: data.amount, method: data.method, payment_id: payment.id },
     });
-
-    // Email receipt to guest when an email address is available.
-    const { data: fullBooking } = await supabase
-      .from("bookings")
-      .select("reference, total_amount, amount_paid, outstanding_balance, guests(full_name, email)")
-      .eq("id", data.bookingId)
-      .single();
-
-    if (fullBooking) {
-      await sendPaymentReceipt({
-        hotelName: hotel.name,
-        currency: hotel.currency,
-        guestName: (fullBooking.guests as { full_name?: string | null } | null)?.full_name ?? "Guest",
-        guestEmail: (fullBooking.guests as { email?: string | null } | null)?.email,
-        reference: fullBooking.reference,
-        paymentId: payment.id,
-        amountPaid: data.amount,
-        outstandingBalance: Number(fullBooking.outstanding_balance ?? 0),
-      });
-    }
 
     revalidatePath("/dashboard");
     return { success: true, paymentId: payment.id };

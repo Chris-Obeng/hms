@@ -1604,6 +1604,7 @@ function CalendarClientContent({
           }
         }}
         roomTypes={roomTypes}
+        rooms={rooms}
         currency={currency}
         prefillRoomTypeId={newBookingPrefill?.roomTypeId}
         prefillCheckIn={newBookingPrefill?.checkIn}

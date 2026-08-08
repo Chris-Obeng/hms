@@ -4,10 +4,8 @@ import * as React from "react";
 import { toast } from "@heroui/react";
 import {
   CalendarDays,
-  Minus,
-  Plus,
   User,
-  Wallet,
+  Building2,
 } from "lucide-react";
 import {
   Modal,
@@ -27,7 +25,8 @@ import {
   getLocalTimeZone,
 } from "@internationalized/date";
 
-import { StayRangeCalendar, type StayRangeValue } from "@/components/ui/stay-range-calendar";
+import { BookingDateRangePicker } from "@/components/booking/booking-date-range-picker";
+import { GuestPickerPopover } from "@/components/booking/guest-picker-popover";
 import { CountrySelect, getCountryDialCode } from "@/components/ui/country-select";
 import { createBooking, type NewBookingInput } from "@/app/actions/bookings";
 import { getResolvedRatesForBooking, type StaffResolvedPricing } from "@/app/actions/pricing";
@@ -46,6 +45,7 @@ interface NewBookingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   roomTypes: { id: string; name: string; base_price?: number }[];
+  rooms?: { id: string; roomNumber: string; roomTypeId: string; status: string }[];
   currency: string;
   prefillRoomTypeId?: string;
   prefillRoomId?: string;
@@ -94,60 +94,13 @@ function SectionHeading({
 
 // ── Stepper ────────────────────────────────────────────────────────
 
-function GuestStepper({
-  value,
-  onChange,
-  min,
-  max,
-  label,
-  icon,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-  min: number;
-  max: number;
-  label: string;
-  icon?: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-2">
-      <span className="text-sm font-medium text-foreground flex items-center gap-1.5">
-        {icon}
-        {label}
-      </span>
-      <div className="flex h-12 items-center gap-2 rounded-xl border border-border bg-background p-1.5 shadow-sm transition-colors focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15">
-        <button
-          type="button"
-          onClick={() => onChange(Math.max(min, value - 1))}
-          disabled={value <= min}
-          className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
-          aria-label={`Decrease ${label}`}
-        >
-          <Minus className="size-3.5" />
-        </button>
-        <span className="flex-1 text-center text-base font-semibold tabular-nums text-foreground">
-          {value}
-        </span>
-        <button
-          type="button"
-          onClick={() => onChange(Math.min(max, value + 1))}
-          disabled={value >= max}
-          className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
-          aria-label={`Increase ${label}`}
-        >
-          <Plus className="size-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ── Component ──────────────────────────────────────────────────────
 
 export function NewBookingModal({
   open,
   onOpenChange,
   roomTypes: roomTypeOptions,
+  rooms = [],
   currency,
   prefillRoomTypeId,
   prefillCheckIn,
@@ -164,8 +117,8 @@ export function NewBookingModal({
 
   // Stay
   const [selectedRoomTypeId, setSelectedRoomTypeId] = React.useState<string>("");
-  const [range, setRange] = React.useState<StayRangeValue | null>(null);
-  const [adults, setAdults] = React.useState(2);
+  const [range, setRange] = React.useState<{ start: CalendarDate; end: CalendarDate } | null>(null);
+  const [adults, setAdults] = React.useState(1);
   const [children, setChildren] = React.useState(0);
   const [source, setSource] = React.useState<string | null>("walk_in");
 
@@ -287,7 +240,7 @@ export function NewBookingModal({
     setNationality("Ghana");
     setSelectedRoomTypeId("");
     setRange(null);
-    setAdults(2);
+    setAdults(1);
     setChildren(0);
     setSource("walk_in");
     setEstimatedArrival("");
@@ -386,12 +339,18 @@ export function NewBookingModal({
     (source?.length ?? 0) > 0;
 
   const todayCd = today(getLocalTimeZone());
+  const pickerCheckIn = range
+    ? `${range.start.year}-${String(range.start.month).padStart(2, "0")}-${String(range.start.day).padStart(2, "0")}`
+    : `${todayCd.year}-${String(todayCd.month).padStart(2, "0")}-${String(todayCd.day).padStart(2, "0")}`;
+  const pickerCheckOut = range
+    ? `${range.end.year}-${String(range.end.month).padStart(2, "0")}-${String(range.end.day).padStart(2, "0")}`
+    : `${todayCd.add({ days: 1 }).year}-${String(todayCd.add({ days: 1 }).month).padStart(2, "0")}-${String(todayCd.add({ days: 1 }).day).padStart(2, "0")}`;
 
   return (
     <Modal.Backdrop
       isOpen={open}
       onOpenChange={handleClose}
-      variant="blur"
+      variant="opaque"
       isDismissable={!loading}
     >
       <Modal.Container
@@ -399,20 +358,17 @@ export function NewBookingModal({
         size="lg"
         scroll="inside"
       >
-        <Modal.Dialog className="flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-none sm:max-h-[92dvh] sm:max-w-2xl sm:rounded-2xl">
+        <Modal.Dialog className="mx-2 flex max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] flex-col overflow-hidden rounded-2xl sm:mx-0 sm:max-h-[94dvh] sm:w-full sm:max-w-2xl">
           <Modal.CloseTrigger className="right-3 top-3 rounded-full border border-border/70 bg-background text-foreground shadow-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary sm:right-4 sm:top-4" />
 
-          <Modal.Header className="shrink-0 border-b border-border/40 px-5 pb-2 pt-4 sm:px-6 sm:pt-5">
+          <Modal.Header className="shrink-0 border-b border-border/40 px-4 pb-0 pt-1.5 sm:px-5 sm:pt-2">
             <Modal.Heading className="text-base sm:text-lg font-semibold">
               New reservation
             </Modal.Heading>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Staff booking · server-verified pricing
-            </p>
           </Modal.Header>
 
           {/* Segmented step tabs */}
-          <div className="shrink-0 px-5 pt-1.5 sm:px-6">
+          <div className="shrink-0 px-4 pt-0.5 sm:px-5">
             <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
               {["Guest", "Stay details"].map((label, i) => {
                 const stepNum = i + 1;
@@ -440,9 +396,9 @@ export function NewBookingModal({
             </div>
           </div>
 
-          <Modal.Body className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-6 sm:py-7">
+          <Modal.Body className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-4">
             {step === 1 && (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <SectionHeading icon={User} title="Guest" sub="Primary contact for this reservation" />
 
                 <TextField isInvalid={!!errors.guestName} fullWidth isRequired>
@@ -495,19 +451,21 @@ export function NewBookingModal({
             )}
 
             {step === 2 && (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* Stay dates */}
                 <div className="space-y-3">
                   <SectionHeading icon={CalendarDays} title="Dates" sub="Check-in and check-out" />
 
-                  <div className="rounded-2xl border border-border bg-gradient-to-b from-muted/30 to-background p-3 sm:p-4">
-                    <StayRangeCalendar
-                      value={range ? { start: range.start, end: range.end } : null}
-                      onChange={(v) => setRange(v)}
-                      minValue={todayCd}
-                      aria-label="Select stay dates"
-                    />
-                  </div>
+                  <BookingDateRangePicker
+                    checkIn={pickerCheckIn}
+                    checkOut={pickerCheckOut}
+                    onDatesChange={(checkIn, checkOut) => {
+                      const parse = (value: string) => { const [y, m, d] = value.split("-").map(Number); return new CalendarDate(y, m, d); };
+                      setRange({ start: parse(checkIn), end: parse(checkOut) });
+                    }}
+                    variant="card"
+                    className="w-full"
+                  />
 
                   {range && nights > 0 && (
                     <div className="flex flex-wrap items-center gap-2 rounded-lg bg-muted/50 px-3 py-2">
@@ -526,62 +484,22 @@ export function NewBookingModal({
                 </div>
 
                 {/* Room type + occupancy */}
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                  <Select
-                    fullWidth
-                    variant="secondary"
-                    placeholder="Select room type"
-                    value={selectedRoomTypeId || null}
-                    onChange={(v) => setSelectedRoomTypeId(String(v))}
-                    isInvalid={!!errors.roomTypeId}
-                  >
-                    <Label>
-                      Room type <span className="text-destructive">*</span>
-                    </Label>
-                    <Select.Trigger className="min-h-12 border-border bg-background shadow-sm hover:border-primary/40">
-                      <Select.Value />
-                      <Select.Indicator />
-                    </Select.Trigger>
-                    {errors.roomTypeId && <FieldError>{errors.roomTypeId}</FieldError>}
-                    <Select.Popover>
-                      <ListBox>
-                        {roomTypeOptions.map((rt) => (
-                          <ListBox.Item
-                            key={rt.id}
-                            id={rt.id}
-                            textValue={rt.name}
-                          >
-                            <div className="flex items-center justify-between gap-3 w-full">
-                              <span>{rt.name}</span>
-                              {"base_price" in rt && rt.base_price != null && (
-                                <span className="text-xs text-muted-foreground tabular-nums">
-                                  {formatCurrency(rt.base_price, currency)}/night
-                                </span>
-                              )}
-                            </div>
-                          </ListBox.Item>
-                        ))}
-                      </ListBox>
-                    </Select.Popover>
-                  </Select>
-
-                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                    <GuestStepper
-                      label="Adults"
-                      value={adults}
-                      onChange={setAdults}
-                      min={1}
-                      max={10}
-                    />
-                    <GuestStepper
-                      label="Children"
-                      value={children}
-                      onChange={setChildren}
-                      min={0}
-                      max={6}
-                    />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between"><Label>Room type <span className="text-destructive">*</span></Label><span className="text-[11px] text-muted-foreground">Select available category</span></div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Available room types">
+                    {roomTypeOptions.map((rt) => {
+                      const selected = selectedRoomTypeId === rt.id;
+                      const typeRooms = rooms.filter((room) => room.roomTypeId === rt.id && room.status === "available");
+                      return <button key={rt.id} type="button" role="radio" aria-checked={selected} onClick={() => setSelectedRoomTypeId(rt.id)} className={cn("flex min-h-16 items-center justify-between rounded-xl border px-3 text-left opacity-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary", selected ? "border-primary bg-primary/8 ring-1 ring-primary/30" : "border-border bg-background hover:border-primary/40")}>
+                        <span className="flex items-center gap-2 text-foreground"><Building2 className={cn("size-4 shrink-0", selected ? "text-primary" : "text-muted-foreground")} /><span><span className="block text-sm font-bold text-foreground">{rt.name}</span><span className="block text-[11px] font-medium text-muted-foreground">{typeRooms.length ? `${typeRooms.length} room${typeRooms.length === 1 ? "" : "s"} ready · ${typeRooms.slice(0, 3).map((room) => room.roomNumber).join(", ")}` : "Availability checked for dates"}</span></span></span>
+                        <span className="text-xs font-bold tabular-nums text-foreground">{rt.base_price != null ? `${formatCurrency(rt.base_price, currency)}/night` : "Available"}</span>
+                      </button>;
+                    })}
                   </div>
+                  {errors.roomTypeId && <FieldError>{errors.roomTypeId}</FieldError>}
                 </div>
+
+                <GuestPickerPopover adults={adults} childrenCount={children} rooms={1} onAdultsChange={setAdults} onChildrenChange={setChildren} onRoomsChange={() => undefined} className="w-full" />
 
                 {/* Source */}
                 <Select
@@ -644,21 +562,11 @@ export function NewBookingModal({
                   </TextField>
                 </div>
 
-                {/* Payment collection is intentionally separate from reservation creation. */}
-                <div className="space-y-2">
-                  <SectionHeading icon={Wallet} title="Payment collection" sub="Record money only after the reservation exists" />
-                  <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/60 px-3.5 py-3 dark:border-emerald-900/70 dark:bg-emerald-950/20">
-                    <p className="text-sm font-semibold text-foreground">Payment due at property</p>
-                    <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                      Create reservation first. Then record cash, mobile money, card, bank transfer, or send a secure payment link from reservation payments.
-                    </p>
-                  </div>
-                </div>
               </div>
             )}
           </Modal.Body>
 
-          <Modal.Footer className="shrink-0 flex-col gap-2.5 border-t border-border/40 bg-card px-5 py-3 sm:px-6">
+          <Modal.Footer className="shrink-0 flex-col gap-1 border-t border-border/40 bg-card px-4 py-1.5 sm:px-5">
             {/* Pricing summary */}
             {step === 2 && selectedRoomTypeId && range && nights > 0 && (
               <div className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3">

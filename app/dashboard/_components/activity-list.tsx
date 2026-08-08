@@ -10,7 +10,6 @@ import {
   MoreVertical,
   Search,
   ArrowUpDown,
-  Calendar as CalendarIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate, getNights } from "@/lib/format";
@@ -226,13 +225,9 @@ function DesktopBookingRow({
   const totalGuests = (booking.adults || 1) + (booking.children || 0);
 
   // Generate room code prefix like Cloudbeds e.g. QUE(2) or KIN(15)
-  const roomCode = booking.roomType
-    ? booking.roomType.substring(0, 3).toUpperCase()
-    : "RM";
-  const roomNumStr = booking.roomNumber ? `(${booking.roomNumber})` : "";
-  const roomLabel = booking.roomType
-    ? `${roomCode}${roomNumStr} - ${booking.roomType}`
-    : "Unassigned Room";
+  const roomLabel = booking.roomNumber
+    ? `Room ${booking.roomNumber}`
+    : booking.roomType || "Unassigned Room";
 
   return (
     <tr
@@ -261,13 +256,6 @@ function DesktopBookingRow({
             <span>{roomLabel}</span>
             <ChevronRight className="size-3.5 text-muted-foreground/40 shrink-0" />
           </div>
-          <button
-            type="button"
-            className="p-1 rounded text-muted-foreground/50 hover:text-foreground transition-colors shrink-0"
-            title="Room notes"
-          >
-            <CalendarIcon className="size-3.5" />
-          </button>
         </div>
       </td>
 

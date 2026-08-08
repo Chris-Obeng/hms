@@ -112,7 +112,8 @@ export function CountrySelect({ value, onChange, placeholder = "Select country..
     }),
     menuList: (provided) => ({
       ...provided,
-      maxHeight: "300px",
+      maxHeight: "220px",
+      overflowY: "auto",
       padding: "4px",
     }),
     menuPortal: (provided) => ({
@@ -144,6 +145,9 @@ export function CountrySelect({ value, onChange, placeholder = "Select country..
       isClearable={false}
       menuPortalTarget={typeof document === "undefined" ? undefined : document.body}
       menuPosition="fixed"
+      menuPlacement="auto"
+      menuShouldScrollIntoView={false}
+      maxMenuHeight={220}
       styles={customStyles}
       components={{ SingleValue, Option }}
       noOptionsMessage={() => "No countries found"}

@@ -790,7 +790,7 @@ function DashboardSkeleton() {
 function MobileWeekStrip({ selectedDate, onDateChange }: { selectedDate: Date; onDateChange: (date: Date) => void }) {
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
   return (
-    <div className="-mx-1 overflow-x-auto pb-1 md:hidden">
+    <div className="-mx-1 -mt-4 overflow-x-auto pb-1 md:hidden">
       <div className="grid min-w-[350px] grid-cols-7 gap-1 rounded-xl border border-border/60 bg-card p-2 shadow-xs">
         {Array.from({ length: 7 }, (_, index) => {
           const day = addDays(weekStart, index);
