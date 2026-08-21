@@ -13,6 +13,7 @@ import { getNotificationPrefs, updateNotificationPrefs } from "@/app/actions/set
 import { getNotificationTemplates } from "@/app/actions/notification-templates";
 import { NotificationTemplatesClient } from "./templates-client";
 import type { NotificationEventType, NotificationTemplate } from "@/lib/notification-templates";
+import { disableWebPush, enableWebPush } from "@/lib/push";
 
 // ── Event Types ────────────────────────────────────────────────────
 
@@ -136,30 +137,16 @@ export default function NotificationSettingsPage() {
   // Toggle browser push alerts
   const toggleBrowserAlerts = async () => {
     if (typeof window === "undefined") return;
-
-    if (Notification.permission === "default") {
-      const permission = await Notification.requestPermission();
-      setNotificationPermission(permission);
-      if (permission === "granted") {
-        localStorage.setItem("RoomLine_browser_notifications_enabled", "true");
-        setBrowserAlertsEnabled(true);
-        toast.success("Browser notifications authorized!");
-      } else {
-        localStorage.setItem("RoomLine_browser_notifications_enabled", "false");
-        setBrowserAlertsEnabled(false);
-        toast.danger("Notification permission denied");
-      }
-    } else if (Notification.permission === "denied") {
-      toast.danger("Alerts are blocked. Please reset site permissions in your browser address bar.");
-    } else {
-      const newVal = !browserAlertsEnabled;
-      setBrowserAlertsEnabled(newVal);
-      localStorage.setItem("RoomLine_browser_notifications_enabled", String(newVal));
-      if (newVal) {
-        toast.success("Browser alerts enabled");
-      } else {
-        toast.success("Browser alerts disabled");
-      }
+    try {
+      if (browserAlertsEnabled) await disableWebPush(); else await enableWebPush();
+      const enabled = !browserAlertsEnabled;
+      setBrowserAlertsEnabled(enabled);
+      setNotificationPermission(Notification.permission);
+      localStorage.setItem("RoomLine_browser_notifications_enabled", String(enabled));
+      toast.success(enabled ? "Background push alerts enabled" : "Push alerts disabled");
+    } catch (error) {
+      setNotificationPermission(Notification.permission);
+      toast.danger(error instanceof Error ? error.message : "Could not update push alerts");
     }
   };
 
@@ -279,7 +266,7 @@ export default function NotificationSettingsPage() {
             )}
             {notificationPermission === "granted" && browserAlertsEnabled && (
               <p className="text-emerald-700 dark:text-emerald-400 pl-5 leading-normal">
-                Real-time alerts active. Keep the dashboard open, or install it as a PWA, to receive them.
+                Background push active. Alerts can arrive while dashboard is closed.
               </p>
             )}
           </div>

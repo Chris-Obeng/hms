@@ -39,7 +39,7 @@ export async function POST(
 
     let hotelQuery = await supabaseAdmin
       .from("hotels")
-      .select("id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, cancellation_policy, phone, address")
+      .select("id, clerk_org_id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, cancellation_policy, phone, address")
       .eq("slug", slug)
       .eq("status", "active")
       .maybeSingle();
@@ -47,7 +47,7 @@ export async function POST(
     if (!hotelQuery.data) {
       hotelQuery = await supabaseAdmin
         .from("hotels")
-        .select("id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, cancellation_policy, phone, address")
+        .select("id, clerk_org_id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, cancellation_policy, phone, address")
         .eq("custom_domain", slug)
         .eq("status", "active")
         .maybeSingle();
@@ -198,14 +198,41 @@ export async function POST(
       return NextResponse.json({ error: "Failed to create booking." }, { status: 500 });
     }
 
-    await supabaseAdmin.from("notifications").insert({
-      hotel_id: hotel.id,
-      type: "new_booking",
-      title: "New Booking",
-      message: `${data.guest_name} · ${roomType.name} · ${data.check_in} → ${data.check_out}`,
-      booking_id: booking.id,
-      is_read: false,
-    });
+    // Online bookings fan out to every eligible active staff recipient.
+    // Recipient rows persist while staff is offline and enqueue Web Push.
+    const { data: recipients, error: recipientsError } = await supabaseAdmin
+      .from("staff_profiles")
+      .select("id, notification_prefs")
+      .eq("clerk_org_id", hotel.clerk_org_id)
+      .eq("is_active", true);
+
+    if (recipientsError) {
+      console.error("Online booking notification recipients error:", recipientsError);
+    } else {
+      const notifications = (recipients ?? [])
+        .filter((staff) =>
+          (staff.notification_prefs as Record<string, boolean> | null)?.new_booking !== false
+        )
+        .map((staff) => ({
+          hotel_id: hotel.id,
+          recipient_staff_id: staff.id,
+          created_by_staff_id: null,
+          type: "new_booking",
+          title: "New online booking",
+          message: `${booking.reference} · ${data.guest_name} · ${roomType.name} · ${data.check_in} → ${data.check_out}`,
+          booking_id: booking.id,
+          is_read: false,
+        }));
+
+      if (notifications.length) {
+        const { error: notificationError } = await supabaseAdmin
+          .from("notifications")
+          .insert(notifications);
+        if (notificationError) {
+          console.error("Online booking notification fan-out error:", notificationError);
+        }
+      }
+    }
 
     if (data.payment_preference === "pay_at_checkin") {
       const { sendBookingConfirmation } = await import(

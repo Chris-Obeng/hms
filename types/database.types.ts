@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
@@ -129,7 +129,6 @@ export type Database = {
           },
         ]
       }
-
       booking_reference_counters: {
         Row: {
           hotel_id: string
@@ -500,6 +499,63 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_delivery_outbox: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          delivered_at: string | null
+          id: string
+          last_error: string | null
+          locked_at: string | null
+          next_attempt_at: string
+          notification_id: string
+          recipient_staff_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          last_error?: string | null
+          locked_at?: string | null
+          next_attempt_at?: string
+          notification_id: string
+          recipient_staff_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          last_error?: string | null
+          locked_at?: string | null
+          next_attempt_at?: string
+          notification_id?: string
+          recipient_staff_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_delivery_outbox_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_delivery_outbox_recipient_staff_id_fkey"
+            columns: ["recipient_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_logs: {
         Row: {
           booking_id: string | null
@@ -559,46 +615,46 @@ export type Database = {
       }
       notifications: {
         Row: {
-          booking_id: string | null
-          created_by_staff_id: string | null
-          recipient_staff_id: string | null
           archived_at: string | null
+          booking_id: string | null
           created_at: string | null
+          created_by_staff_id: string | null
           hotel_id: string
           id: string
           is_read: boolean | null
           message: string
           read_at: string | null
+          recipient_staff_id: string | null
           title: string
           type: string | null
           updated_at: string
         }
         Insert: {
-          booking_id?: string | null
-          created_by_staff_id?: string | null
-          recipient_staff_id?: string | null
           archived_at?: string | null
+          booking_id?: string | null
           created_at?: string | null
+          created_by_staff_id?: string | null
           hotel_id: string
           id?: string
           is_read?: boolean | null
           message: string
           read_at?: string | null
+          recipient_staff_id?: string | null
           title: string
           type?: string | null
           updated_at?: string
         }
         Update: {
-          booking_id?: string | null
-          created_by_staff_id?: string | null
-          recipient_staff_id?: string | null
           archived_at?: string | null
+          booking_id?: string | null
           created_at?: string | null
+          created_by_staff_id?: string | null
           hotel_id?: string
           id?: string
           is_read?: boolean | null
           message?: string
           read_at?: string | null
+          recipient_staff_id?: string | null
           title?: string
           type?: string | null
           updated_at?: string
@@ -612,10 +668,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "notifications_created_by_staff_id_fkey"
+            columns: ["created_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "notifications_hotel_id_fkey"
             columns: ["hotel_id"]
             isOneToOne: false
             referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_recipient_staff_id_fkey"
+            columns: ["recipient_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -788,6 +858,69 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          device_name: string | null
+          disabled_at: string | null
+          endpoint: string
+          expires_at: string | null
+          hotel_id: string
+          id: string
+          last_seen_at: string
+          p256dh: string
+          staff_id: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          device_name?: string | null
+          disabled_at?: string | null
+          endpoint: string
+          expires_at?: string | null
+          hotel_id: string
+          id?: string
+          last_seen_at?: string
+          p256dh: string
+          staff_id: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          device_name?: string | null
+          disabled_at?: string | null
+          endpoint?: string
+          expires_at?: string | null
+          hotel_id?: string
+          id?: string
+          last_seen_at?: string
+          p256dh?: string
+          staff_id?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_subscriptions_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       room_types: {
         Row: {
@@ -1088,10 +1221,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      bulk_update_room_statuses: {
-        Args: { p_hotel_id: string; p_updates: Json }
-        Returns: undefined
-      }
       check_room_availability: {
         Args: {
           p_check_in: string

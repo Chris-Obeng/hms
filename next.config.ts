@@ -11,6 +11,7 @@ const withPWA = withPWAInit({
     document: "/offline",
   },
   workboxOptions: {
+    importScripts: ["/push-worker.js"],
     skipWaiting: true,
     clientsClaim: true,
     runtimeCaching: [
