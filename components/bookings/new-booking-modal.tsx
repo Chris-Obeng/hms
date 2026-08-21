@@ -373,7 +373,8 @@ export function NewBookingModal({
         scroll="inside"
         className="items-start p-0 sm:items-center sm:p-4"
       >
-        <Modal.Dialog ref={dialogRef} className="flex h-[var(--reservation-vvh,100dvh)] max-h-[var(--reservation-vvh,100dvh)] w-full flex-col overflow-hidden rounded-none sm:h-auto sm:max-h-[94dvh] sm:w-full sm:max-w-3xl sm:rounded-2xl">
+        <div ref={dialogRef} className="contents">
+        <Modal.Dialog className="flex h-[var(--reservation-vvh,100dvh)] max-h-[var(--reservation-vvh,100dvh)] w-full flex-col overflow-hidden rounded-none sm:h-auto sm:max-h-[94dvh] sm:w-full sm:max-w-3xl sm:rounded-2xl">
           <Modal.CloseTrigger className="right-3 top-3 rounded-full border border-border/70 bg-background text-foreground shadow-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary sm:right-4 sm:top-4" />
 
           <Modal.Header className="shrink-0 border-b border-border/40 px-4 pb-1 pt-[calc(env(safe-area-inset-top)+0.5rem)] sm:px-6 sm:pt-3">
@@ -668,6 +669,7 @@ export function NewBookingModal({
             </div>
           </Modal.Footer>
         </Modal.Dialog>
+        </div>
       </Modal.Container>
     </Modal.Backdrop>
   );
