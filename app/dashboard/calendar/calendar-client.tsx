@@ -10,8 +10,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Grid2X2,
-  List,
   Plus,
   Search,
   SlidersHorizontal,
@@ -55,10 +53,9 @@ import {
   VIEW_PRESETS,
   type ViewPreset,
 } from "./_components/calendar-helpers";
-import { BookingDetailPanel } from "./_components/booking-detail-panel";
+import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import { BlockRoomSheet } from "./_components/block-room-sheet";
 import { UnassignedTray } from "./_components/unassigned-tray";
-import { MobileAgenda } from "./_components/mobile-agenda";
 import { TimelineCalendar } from "./_components/timeline/timeline-calendar";
 import "./calendar.css";
 
@@ -167,9 +164,6 @@ function CalendarClientContent({
   const [showSearch, setShowSearch] = React.useState(false);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const [rangePopoverOpen, setRangePopoverOpen] = React.useState(false);
-  const [mobileView, setMobileView] = React.useState<"timeline" | "agenda">(
-    "timeline",
-  );
   const [realtimeStatus, setRealtimeStatus] = React.useState<
     "live" | "reconnecting"
   >("reconnecting");
@@ -186,6 +180,7 @@ function CalendarClientContent({
     string | null
   >(null);
   const [detailPanelOpen, setDetailPanelOpen] = React.useState(false);
+  const [detailInitialTab, setDetailInitialTab] = React.useState<"overview" | "payments">("overview");
   const [newBookingOpen, setNewBookingOpen] = React.useState(false);
   const [newBookingPrefill, setNewBookingPrefill] = React.useState<{
     roomId?: string;
@@ -309,11 +304,6 @@ function CalendarClientContent({
 
     return next;
   }, [events, filteredRooms, searchQuery, sourceFilters, statusFilters]);
-
-  const selectedBooking = React.useMemo(
-    () => bookings.find((booking) => booking.id === selectedBookingId) ?? null,
-    [bookings, selectedBookingId],
-  );
 
   // ── Ref for new-booking highlight animation ───────────────────────
   const knownDateRangeKeyRef = React.useRef(dateRangeKey);
@@ -467,6 +457,7 @@ function CalendarClientContent({
   }, []);
 
   const openBooking = React.useCallback((bookingId: string) => {
+    setDetailInitialTab("overview");
     setSelectedBookingId(bookingId);
     setDetailPanelOpen(true);
   }, []);
@@ -1270,7 +1261,7 @@ function CalendarClientContent({
       )}
 
       {/* Scheduler (desktop) */}
-      <div className="hidden md:block flex-1 relative overflow-hidden min-h-0">
+      <div className="relative min-h-0 flex-1 overflow-hidden">
         {loading && (
           <div className="absolute top-0 left-0 right-0 h-0.5 z-30 bg-primary/10 overflow-hidden">
             <div
@@ -1384,31 +1375,6 @@ function CalendarClientContent({
       </div>
 
       {/* Mobile operations view — timeline stays available instead of collapsing into agenda only. */}
-      <div className="md:hidden flex min-h-0 flex-1 flex-col bg-background">
-        <div className="flex items-center gap-1 border-b border-border px-3 py-2">
-          <button onClick={() => setMobileView("timeline")} className={cn("inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors", mobileView === "timeline" ? "bg-primary text-primary-foreground" : "text-muted-foreground active:bg-muted")}>
-            <Grid2X2 className="size-3.5" /> Timeline
-          </button>
-          <button onClick={() => setMobileView("agenda")} className={cn("inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors", mobileView === "agenda" ? "bg-primary text-primary-foreground" : "text-muted-foreground active:bg-muted")}>
-            <List className="size-3.5" /> Agenda
-          </button>
-          <span className="ml-auto text-[10px] font-medium text-muted-foreground">Swipe grid to see rooms</span>
-        </div>
-
-        {mobileView === "timeline" ? (
-          <div className="mobile-scheduler flex-1 overflow-hidden">
-            <TimelineCalendar startDate={startDate} days={7} rooms={filteredRooms} bookings={bookings} blocks={availabilityBlocks} canEdit={canEdit} onOpenBooking={openBooking} onChange={handleTimelineChange} onCreate={(room, date) => { setNewBookingPrefill({ roomId: room.id, roomTypeId: room.roomTypeId, checkIn: parseISO(date), checkOut: addDays(parseISO(date), 1) }); setNewBookingOpen(true); }} />
-          </div>
-        ) : (
-          <div className="min-h-0 flex-1">
-            <MobileAgenda rooms={rooms} bookings={bookings} blocks={availabilityBlocks} canEdit={canEdit} onSelectBooking={openBooking} onNewBooking={(prefill) => {
-              setNewBookingPrefill({ roomId: prefill.roomId, roomTypeId: prefill.roomTypeId, checkIn: prefill.date, checkOut: addDays(prefill.date, 1) });
-              setNewBookingOpen(true);
-            }} />
-          </div>
-        )}
-      </div>
-
       {/* Hover tooltip */}
       {hoveredEvent &&
         (() => {
@@ -1567,25 +1533,16 @@ function CalendarClientContent({
         </div>
       )}
 
-      <BookingDetailPanel
-        booking={selectedBooking}
+      <BookingDetailDrawer
+        bookingId={selectedBookingId}
         open={detailPanelOpen}
         onClose={() => {
           setDetailPanelOpen(false);
           setSelectedBookingId(null);
         }}
         currency={currency}
-        canEdit={canEdit}
-        onCheckIn={handleCheckIn}
-        onCheckOut={handleCheckOut}
-        onCancel={(id) => handleStatusUpdate(id, "cancelled")}
-        onReinstate={(id) => handleStatusUpdate(id, "confirmed")}
-        onAssign={handleAssignBooking}
-        onConfirm={(id) => handleStatusUpdate(id, "confirmed")}
-        onBlockRoom={(roomId) => {
-          setBlockPrefillRoomId(roomId);
-          setBlockRoomOpen(true);
-        }}
+        initialTab={detailInitialTab}
+        onBookingChanged={() => fetchCalendarData(startDate, days)}
       />
       <BlockRoomSheet
         open={blockRoomOpen}
@@ -1609,6 +1566,12 @@ function CalendarClientContent({
         prefillRoomTypeId={newBookingPrefill?.roomTypeId}
         prefillCheckIn={newBookingPrefill?.checkIn}
         prefillCheckOut={newBookingPrefill?.checkOut}
+        onReservationCreated={({ bookingId, payNow }) => {
+          if (!payNow) return;
+          setDetailInitialTab("payments");
+          setSelectedBookingId(bookingId);
+          setDetailPanelOpen(true);
+        }}
       />
 
       {showFilters && (

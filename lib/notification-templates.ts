@@ -1,12 +1,3 @@
-/**
- * lib/notification-templates.ts
- *
- * Default notification templates and helpers for rendering them.
- * Hotels can override these defaults via hotels.settings.notification_templates.
- */
-
-// ── Types ─────────────────────────────────────────────────────────
-
 export type NotificationEventType =
   | "booking_confirmed"
   | "booking_cancelled"

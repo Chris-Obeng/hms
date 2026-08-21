@@ -65,12 +65,16 @@ export function BookingDetailDrawer({
   }, [bookingId]);
 
   React.useEffect(() => {
-    if (open && bookingId) {
-      setActiveTab(initialTab);
-      fetchBooking();
-    } else if (!open) {
-      setBooking(null);
-    }
+    const frame = window.requestAnimationFrame(() => {
+      if (open && bookingId) {
+        setActiveTab(initialTab);
+        void fetchBooking();
+      } else {
+        setBooking(null);
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [open, bookingId, fetchBooking, initialTab]);
 
   // ── Handlers ──────────────────────────────────────────────────
@@ -129,16 +133,16 @@ export function BookingDetailDrawer({
       variant="blur"
     >
       <Drawer.Content placement={isMobile ? "bottom" : "right"}>
-        <Drawer.Dialog className="flex max-h-[92dvh] w-full flex-col overflow-hidden bg-background p-0 md:h-dvh md:max-h-dvh md:max-w-md md:rounded-none">
+        <Drawer.Dialog className="flex h-[min(92dvh,48rem)] max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-lg bg-background p-0 shadow-2xl md:h-dvh md:max-h-dvh md:max-w-md md:rounded-none">
           {isMobile && <Drawer.Handle />}
           <Drawer.CloseTrigger className="right-3 top-3 z-20" />
         {loading && !booking ? (
-          <Drawer.Body className="flex flex-1 flex-col space-y-6 p-6">
-            <Skeleton className="h-8 w-48 rounded-lg" />
-            <Skeleton className="h-10 w-full rounded-xl" />
-            <Skeleton className="h-20 w-full rounded-xl" />
-            <Skeleton className="h-20 w-full rounded-xl" />
-            <Skeleton className="h-20 w-full rounded-xl" />
+          <Drawer.Body className="flex min-h-0 flex-1 flex-col space-y-5 overflow-hidden px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-6 sm:px-5">
+            <Skeleton className="h-8 w-48 rounded-md" />
+            <Skeleton className="h-11 w-full rounded-md" />
+            <Skeleton className="h-24 w-full rounded-md" />
+            <Skeleton className="h-24 w-full rounded-md" />
+            <Skeleton className="h-24 w-full rounded-md" />
           </Drawer.Body>
         ) : booking ? (
           <>
@@ -189,7 +193,7 @@ export function BookingDetailDrawer({
             />
 
             {/* ═══ Tabs ═══ */}
-            <Drawer.Body className="min-h-0 flex-1 overscroll-contain p-0">
+            <Drawer.Body className="min-h-0 flex-1 overscroll-contain p-0 pb-[env(safe-area-inset-bottom)]">
               <Tabs
                 selectedKey={activeTab}
                 onSelectionChange={(key) => setActiveTab(String(key))}

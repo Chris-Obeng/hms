@@ -595,10 +595,11 @@
 .rl-timeline-shell{height:100%;min-height:420px;position:relative;background:var(--background)}
 .rl-timeline-scroll{height:100%;overflow:auto;overscroll-behavior:contain}
 .rl-timeline-canvas{position:relative;min-height:100%}
-.rl-corner,.rl-date-header{position:sticky;top:0;height:62px;background:color-mix(in oklch,var(--background) 96%,var(--muted));border-bottom:1px solid var(--border)}
-.rl-corner{left:0;display:flex;flex-direction:column;justify-content:center;padding:0 16px;font-size:12px;font-weight:700;z-index:40;border-right:1px solid var(--border);box-shadow:8px 0 18px -16px color-mix(in oklch,var(--foreground) 35%,transparent)}
+.rl-timeline-header{position:sticky;top:0;z-index:30;display:flex;height:62px;width:max-content;background:color-mix(in oklch,var(--background) 96%,var(--muted));border-bottom:1px solid var(--border)}
+.rl-corner,.rl-date-header{height:62px;background:color-mix(in oklch,var(--background) 96%,var(--muted))}
+.rl-corner{position:sticky;left:0;display:flex;flex:none;flex-direction:column;justify-content:center;padding:0 16px;font-size:12px;font-weight:700;z-index:40;border-right:1px solid var(--border);box-shadow:8px 0 18px -16px color-mix(in oklch,var(--foreground) 35%,transparent)}
 .rl-corner small{font-size:10px;font-weight:500;color:var(--muted-foreground)}
-.rl-date-header{z-index:25;display:flex;margin-left:220px}
+.rl-date-header{display:flex;flex:none}
 .rl-date{height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-right:1px solid var(--border);font-size:11px;color:var(--muted-foreground)}
 .rl-date strong{color:var(--foreground)} .rl-date.weekend{background:color-mix(in oklch,var(--muted) 45%,transparent)} .rl-date.today{box-shadow:inset 0 -3px var(--primary);background:color-mix(in oklch,var(--primary) 7%,transparent)}
 .rl-room-row{position:absolute;left:0;width:100%;border-bottom:1px solid var(--border)}

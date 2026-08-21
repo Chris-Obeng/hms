@@ -15,12 +15,13 @@ import {
   CalendarDays,
   DollarSign,
   CalendarX,
+  ArrowLeft,
 } from "lucide-react";
 import {
   Avatar,
   Button,
   Kbd,
-  Popover,
+  Modal,
   useOverlayState,
 } from "@heroui/react";
 import {
@@ -38,6 +39,7 @@ import {
   fetchNotificationsAction,
   markAllReadAction,
   markSingleReadAction,
+  clearReadNotificationsAction,
   type NotificationItem,
 } from "@/app/actions/notifications";
 import { toast } from "@heroui/react";
@@ -48,6 +50,7 @@ export interface AppHeaderProps {
   hotelName?: string;
   hotelLogoUrl?: string | null;
   hotelId?: string;
+  staffId?: string;
   notificationCount?: number;
   roomTypes?: { id: string; name: string; base_price: number }[];
   currency?: string;
@@ -94,6 +97,7 @@ export function AppHeader({
   hotelName,
   hotelLogoUrl,
   hotelId,
+  staffId,
   notificationCount = 0,
   roomTypes = [],
   currency = "GHS",
@@ -148,6 +152,7 @@ export function AppHeader({
   const [notifications, setNotifications] = React.useState<NotificationItem[]>(
     [],
   );
+  const [selectedNotification, setSelectedNotification] = React.useState<NotificationItem | null>(null);
 
   const fetchNotifications = React.useCallback(async () => {
     if (!hotelId) return;
@@ -157,6 +162,13 @@ export function AppHeader({
       setLiveCount(res.unreadCount);
     }
   }, [hotelId]);
+
+  const clearRead = React.useCallback(async () => {
+    if (!hotelId) return;
+    const res = await clearReadNotificationsAction(hotelId);
+    if (!res.success) toast.danger(res.error);
+    else fetchNotifications();
+  }, [hotelId, fetchNotifications]);
 
   const markAllRead = React.useCallback(async () => {
     if (!hotelId) return;
@@ -182,11 +194,9 @@ export function AppHeader({
       );
       setLiveCount((prev) => Math.max(0, prev - (n.is_read ? 0 : 1)));
       markSingleReadAction(n.id);
-      if (n.booking_id) {
-        router.push(`/dashboard/bookings/${n.booking_id}`);
-      }
+      setSelectedNotification(n);
     },
-    [router],
+    [],
   );
 
   React.useEffect(() => {
@@ -272,6 +282,8 @@ export function AppHeader({
                 filter: `hotel_id=eq.${hId}`,
               },
               (payload: { new: Record<string, unknown> }) => {
+                const recipient = payload.new.recipient_staff_id;
+                if (recipient && recipient !== staffId) return;
                 console.log("Realtime: notification INSERT", payload);
                 bellRef.current?.startAnimation();
 
@@ -334,7 +346,7 @@ export function AppHeader({
       if (retryTimer) clearTimeout(retryTimer);
       if (channel && supabase) supabase.removeChannel(channel);
     };
-  }, [hotelId, isLoaded, getToken, playChime, fetchNotifications]);
+  }, [hotelId, staffId, isLoaded, getToken, playChime, fetchNotifications]);
 
   // ── ⌘K shortcut ─────────────────────────────────────────────
   React.useEffect(() => {
@@ -467,9 +479,9 @@ export function AppHeader({
             <div aria-hidden="true" className="size-8 rounded-lg" />
           )}
 
-          {/* ── Notifications — HeroUI Popover (rich content, not a menu) ── */}
-          <Popover onOpenChange={(isOpen) => { if (isOpen) fetchNotifications(); }}>
-            <Popover.Trigger>
+          {/* ── Notifications — full HeroUI dialog for desktop and mobile ── */}
+          <Modal onOpenChange={(isOpen) => { if (isOpen) fetchNotifications(); else setSelectedNotification(null); }}>
+            <Modal.Trigger>
               <Button
                 variant="ghost"
                 isIconOnly
@@ -490,16 +502,20 @@ export function AppHeader({
                   </span>
                 )}
               </Button>
-            </Popover.Trigger>
-
-            <Popover.Content placement="bottom end" className="w-80 p-0">
-              <Popover.Dialog className="outline-none">
+            </Modal.Trigger>
+            <Modal.Backdrop>
+              <Modal.Container>
+              <Modal.Dialog className="flex h-[min(88dvh,44rem)] w-[calc(100%-1rem)] max-w-2xl flex-col overflow-hidden p-0 sm:w-full">
+                <Modal.CloseTrigger />
                 {/* Panel header */}
                 <div className="flex items-center justify-between border-b border-border/60 px-3 py-2.5">
                   <span className="text-sm font-semibold text-foreground">
                     Notifications
                   </span>
-                  {liveCount > 0 && (
+                  {(liveCount > 0 || notifications.some((n) => n.is_read)) && (
+                    <div className="flex items-center gap-3">
+                    {notifications.some((n) => n.is_read) && <button type="button" onClick={clearRead} className="text-[11px] text-muted-foreground hover:text-foreground">Clear read</button>}
+                    {liveCount > 0 && (
                     <button
                       type="button"
                       onClick={markAllRead}
@@ -507,11 +523,13 @@ export function AppHeader({
                     >
                       Mark all read
                     </button>
+                    )}</div>
                   )}
                 </div>
 
                 {/* Notification list */}
-                <div className="max-h-80 overflow-y-auto">
+                <div className="grid min-h-0 flex-1 md:grid-cols-[minmax(0,18rem)_1fr]">
+                <div className={cn("min-h-0 overflow-y-auto border-border/60 md:block md:border-r", selectedNotification && "hidden")}>
                   {notifications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center gap-1.5 py-8 text-center">
                       <Bell className="size-5 text-muted-foreground/40" />
@@ -558,19 +576,29 @@ export function AppHeader({
                   )}
                 </div>
 
+                <div className={cn("min-h-0 overflow-y-auto p-5 md:block md:p-6", !selectedNotification && "hidden md:block")}>
+                  {selectedNotification ? (
+                    <div className="space-y-5">
+                      <button type="button" onClick={() => setSelectedNotification(null)} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground md:hidden"><ArrowLeft className="size-4" />Back to notifications</button>
+                      <div className="flex items-start gap-3">
+                        <NotifIcon type={selectedNotification.type} />
+                        <div><h3 className="text-base font-semibold">{selectedNotification.title}</h3><p className="mt-1 text-xs text-muted-foreground">{formatRelativeTime(selectedNotification.created_at, { fallback: "", justNow: "just now" })}</p></div>
+                      </div>
+                      <p className="text-sm leading-6 text-muted-foreground">{selectedNotification.message}</p>
+                      {selectedNotification.booking_id && <Button onPress={() => router.push(`/dashboard/bookings/${selectedNotification.booking_id}`)}>Open booking</Button>}
+                    </div>
+                  ) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Select notification to view details</div>}
+                </div>
+                </div>
+
                 {/* Panel footer */}
                 <div className="border-t border-border/60 px-3 py-2">
-                  <button
-                    type="button"
-                    onClick={() => router.push("/dashboard/bookings")}
-                    className="w-full cursor-pointer text-center text-xs text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    View all bookings →
-                  </button>
+                  <p className="text-center text-xs text-muted-foreground">Notifications retained until cleared</p>
                 </div>
-              </Popover.Dialog>
-            </Popover.Content>
-          </Popover>
+              </Modal.Dialog>
+              </Modal.Container>
+            </Modal.Backdrop>
+          </Modal>
 
 
           {/* ── User avatar — opens Clerk's default UserProfile modal ── */}

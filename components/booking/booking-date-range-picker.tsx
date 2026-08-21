@@ -47,17 +47,14 @@ export function BookingDateRangePicker({
 }: BookingDateRangePickerProps) {
   const [open, setOpen] = React.useState(false);
 
-  const nowCd = today(getLocalTimeZone());
-  const startDate = stringToCalendarDate(checkIn) ?? nowCd;
-  const endDate =
-    stringToCalendarDate(checkOut) ??
-    new CalendarDate(nowCd.year, nowCd.month, nowCd.day + 1);
+  const nowCd = React.useMemo(() => today(getLocalTimeZone()), []);
+  const startDate = React.useMemo(() => stringToCalendarDate(checkIn) ?? nowCd, [checkIn, nowCd]);
+  const endDate = React.useMemo(() => stringToCalendarDate(checkOut) ?? nowCd.add({ days: 1 }), [checkOut, nowCd]);
+  const rangeValue = React.useMemo(() => ({ start: startDate, end: endDate }), [startDate, endDate]);
 
-  const rangeValue = { start: startDate, end: endDate };
-
-  const checkInDate = new Date(checkIn + "T00:00:00");
-  const checkOutDate = new Date(checkOut + "T00:00:00");
-  const nights = Math.max(1, differenceInDays(checkOutDate, checkInDate));
+  const checkInDate = React.useMemo(() => new Date(checkIn + "T00:00:00"), [checkIn]);
+  const checkOutDate = React.useMemo(() => new Date(checkOut + "T00:00:00"), [checkOut]);
+  const nights = React.useMemo(() => Math.max(1, differenceInDays(checkOutDate, checkInDate)), [checkInDate, checkOutDate]);
 
   const handleRangeChange = (val: { start: CalendarDate; end: CalendarDate } | null) => {
     if (val?.start && val?.end) {
@@ -86,19 +83,19 @@ export function BookingDateRangePicker({
     <Popover isOpen={open} onOpenChange={setOpen}>
       <Popover.Trigger
         className={cn(
-          "flex items-center justify-between gap-2 sm:gap-3 cursor-pointer outline-none transition-all w-full min-w-0",
+          "flex min-w-0 w-full cursor-pointer items-center justify-between gap-2 outline-none transition-[border-color,box-shadow,background-color] sm:gap-3 focus-visible:ring-2 focus-visible:ring-[oklch(0.52_0.12_178)] focus-visible:ring-offset-2",
           variant === "hero" &&
             "h-12 sm:h-[52px] px-3 sm:px-3.5 rounded-xl bg-background/90 border border-border/80 hover:border-primary shadow-xs hover:shadow-sm text-left",
           variant === "compact" &&
             "h-10 px-2.5 sm:px-3 rounded-lg border border-border/60 bg-card hover:bg-accent/40 text-xs font-medium",
           variant === "card" &&
-            "h-12 sm:h-[52px] px-3 sm:px-3.5 rounded-xl bg-background/90 border border-border/80 hover:border-primary shadow-xs text-left",
+            "min-h-14 px-3 sm:px-3.5 rounded-xl bg-background border border-border/80 hover:border-[oklch(0.52_0.12_178)] shadow-xs text-left",
           className
         )}
         aria-label="Select check-in and check-out dates"
       >
         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
-          <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
+          <div className="shrink-0 rounded-lg bg-[oklch(0.94_0.035_178)] p-2 text-[oklch(0.42_0.1_178)] dark:bg-[oklch(0.25_0.04_178)] dark:text-[oklch(0.78_0.09_178)]">
             <CalendarIcon className="size-4" />
           </div>
           <div className="flex flex-col min-w-0">
@@ -113,8 +110,8 @@ export function BookingDateRangePicker({
           </div>
         </div>
 
-        <div className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-accent/60 text-foreground text-[10px] sm:text-[11px] font-semibold shrink-0">
-          <Moon className="size-3 text-primary" />
+        <div className="flex shrink-0 items-center gap-1 rounded-full bg-[oklch(0.94_0.035_178)] px-2 py-1 text-[11px] font-semibold text-[oklch(0.36_0.09_178)] dark:bg-[oklch(0.25_0.04_178)] dark:text-[oklch(0.82_0.08_178)]">
+          <Moon className="size-3" />
           <span className="tabular-nums whitespace-nowrap">
             {nights}
             <span className="hidden min-[380px]:inline">
@@ -127,10 +124,10 @@ export function BookingDateRangePicker({
 
       <Popover.Content
         placement="bottom"
-        className="w-[min(46rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] border-border/60 p-0"
+        className="w-[min(46rem,calc(100vw-0.75rem))] max-w-[calc(100vw-0.75rem)] overflow-hidden border-border/60 p-0 shadow-xl"
       >
         <Popover.Dialog
-          className="outline-none p-3 sm:p-4 booking-calendar-panel light"
+          className="booking-calendar-panel light p-2.5 outline-none sm:p-5"
           data-theme="light"
         >
           <StayRangeCalendar

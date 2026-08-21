@@ -2,7 +2,6 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
-// ── Route matchers ────────────────────────────────────────────────
 
 // Public routes for the hotel staff dashboard (no Clerk auth needed)
 const isPublicDashboardRoute = createRouteMatcher([
@@ -108,9 +107,9 @@ export default clerkMiddleware(async (auth, req) => {
   if (!userId) {
     return NextResponse.redirect(new URL("/sign-in", req.url));
   }
-  if (userId && !orgId && !isOnboarding) {
-    return NextResponse.redirect(new URL("/onboarding", req.url));
-  }
+  // Do not redirect authenticated users while active organization claim is
+  // briefly absent during Clerk session refresh. Dashboard layout owns final
+  // onboarding decision after server auth settles.
   if (userId && orgId && isOnboarding) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }

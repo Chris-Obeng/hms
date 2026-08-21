@@ -51,6 +51,7 @@ interface NewBookingModalProps {
   prefillRoomId?: string;
   prefillCheckIn?: Date;
   prefillCheckOut?: Date;
+  onReservationCreated?: (result: { bookingId: string; reference: string; payNow: boolean }) => void;
 }
 
 const SOURCE_OPTIONS = [
@@ -105,7 +106,9 @@ export function NewBookingModal({
   prefillRoomTypeId,
   prefillCheckIn,
   prefillCheckOut,
+  onReservationCreated,
 }: NewBookingModalProps) {
+  const dialogRef = React.useRef<HTMLDivElement>(null);
   const [step, setStep] = React.useState(1);
   const [loading, setLoading] = React.useState(false);
 
@@ -130,6 +133,16 @@ export function NewBookingModal({
 
   // Validation
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    if (!open || !window.visualViewport) return;
+    const viewport = window.visualViewport;
+    const sync = () => dialogRef.current?.style.setProperty("--reservation-vvh", `${viewport.height}px`);
+    sync();
+    viewport.addEventListener("resize", sync);
+    viewport.addEventListener("scroll", sync);
+    return () => { viewport.removeEventListener("resize", sync); viewport.removeEventListener("scroll", sync); };
+  }, [open]);
 
   // ── Derived ────────────────────────────────────────────────────
   const nights = React.useMemo(() => {
@@ -318,6 +331,7 @@ export function NewBookingModal({
 
     if (result.success) {
       toast.success(`Reservation ${result.reference} created`);
+      onReservationCreated?.({ bookingId: result.bookingId, reference: result.reference, payNow: paymentPreference === "pay_now" });
       handleClose(false);
     } else {
       if (result.fieldErrors) {
@@ -354,21 +368,22 @@ export function NewBookingModal({
       isDismissable={!loading}
     >
       <Modal.Container
-        placement="center"
+        placement="top"
         size="lg"
         scroll="inside"
+        className="items-start p-0 sm:items-center sm:p-4"
       >
-        <Modal.Dialog className="mx-2 flex max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] flex-col overflow-hidden rounded-2xl sm:mx-0 sm:max-h-[94dvh] sm:w-full sm:max-w-2xl">
+        <Modal.Dialog ref={dialogRef} className="flex h-[var(--reservation-vvh,100dvh)] max-h-[var(--reservation-vvh,100dvh)] w-full flex-col overflow-hidden rounded-none sm:h-auto sm:max-h-[94dvh] sm:w-full sm:max-w-3xl sm:rounded-2xl">
           <Modal.CloseTrigger className="right-3 top-3 rounded-full border border-border/70 bg-background text-foreground shadow-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary sm:right-4 sm:top-4" />
 
-          <Modal.Header className="shrink-0 border-b border-border/40 px-4 pb-0 pt-1.5 sm:px-5 sm:pt-2">
+          <Modal.Header className="shrink-0 border-b border-border/40 px-4 pb-1 pt-[calc(env(safe-area-inset-top)+0.5rem)] sm:px-6 sm:pt-3">
             <Modal.Heading className="text-base sm:text-lg font-semibold">
               New reservation
             </Modal.Heading>
           </Modal.Header>
 
           {/* Segmented step tabs */}
-          <div className="shrink-0 px-4 pt-0.5 sm:px-5">
+          <div className="shrink-0 px-4 pt-1 sm:px-6 sm:pt-2">
             <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
               {["Guest", "Stay details"].map((label, i) => {
                 const stepNum = i + 1;
@@ -396,7 +411,7 @@ export function NewBookingModal({
             </div>
           </div>
 
-          <Modal.Body className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-4">
+          <Modal.Body className="native-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 sm:py-5">
             {step === 1 && (
               <div className="space-y-4">
                 <SectionHeading icon={User} title="Guest" sub="Primary contact for this reservation" />
@@ -407,7 +422,7 @@ export function NewBookingModal({
                     value={guestName}
                     onChange={(e) => setGuestName(e.target.value)}
                     placeholder="Ama Serwaa"
-                    autoFocus
+                    autoComplete="name"
                   />
                   {errors.guestName && <FieldError>{errors.guestName}</FieldError>}
                 </TextField>
@@ -429,23 +444,24 @@ export function NewBookingModal({
                   </TextField>
 
                   <TextField fullWidth>
-                    <Label>Phone</Label>
+                    <Label>Phone number</Label>
                     <Input
                       type="tel"
                       value={guestPhone}
                       onChange={(e) => setGuestPhone(e.target.value)}
+                      onFocus={() => { if (!guestPhone.trim()) setGuestPhone(`${countryDialCode} `); }}
                       placeholder={`${countryDialCode} 24 123 4567`}
                       inputMode="tel"
                       autoComplete="tel"
                     />
-                    <Description>Optional · starts with {countryDialCode}; international numbers stay unchanged</Description>
+                    <Description>International format · prefix follows nationality until number entered</Description>
                   </TextField>
                 </div>
 
                 <div>
-                  <Label className="text-sm font-medium text-foreground mb-2 block">Nationality</Label>
+                  <Label className="mb-1.5 block text-sm font-medium text-foreground">Nationality</Label>
                   <CountrySelect value={nationality} onChange={handleNationalityChange} placeholder="Search country" />
-                  <p className="mt-1.5 text-xs text-muted-foreground">Defaults to Ghana · sets phone code only when phone is empty</p>
+                  <p className="mt-1.5 text-xs text-muted-foreground">Defaults to Ghana · updates empty phone prefix</p>
                 </div>
               </div>
             )}
@@ -486,12 +502,12 @@ export function NewBookingModal({
                 {/* Room type + occupancy */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between"><Label>Room type <span className="text-destructive">*</span></Label><span className="text-[11px] text-muted-foreground">Select available category</span></div>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Available room types">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Room types">
                     {roomTypeOptions.map((rt) => {
                       const selected = selectedRoomTypeId === rt.id;
                       const typeRooms = rooms.filter((room) => room.roomTypeId === rt.id && room.status === "available");
-                      return <button key={rt.id} type="button" role="radio" aria-checked={selected} onClick={() => setSelectedRoomTypeId(rt.id)} className={cn("flex min-h-16 items-center justify-between rounded-xl border px-3 text-left opacity-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary", selected ? "border-primary bg-primary/8 ring-1 ring-primary/30" : "border-border bg-background hover:border-primary/40")}>
-                        <span className="flex items-center gap-2 text-foreground"><Building2 className={cn("size-4 shrink-0", selected ? "text-primary" : "text-muted-foreground")} /><span><span className="block text-sm font-bold text-foreground">{rt.name}</span><span className="block text-[11px] font-medium text-muted-foreground">{typeRooms.length ? `${typeRooms.length} room${typeRooms.length === 1 ? "" : "s"} ready · ${typeRooms.slice(0, 3).map((room) => room.roomNumber).join(", ")}` : "Availability checked for dates"}</span></span></span>
+                      return <button key={rt.id} type="button" role="radio" aria-checked={selected} onClick={() => setSelectedRoomTypeId(rt.id)} className={cn("group flex min-h-20 items-center justify-between gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary", selected ? "border-primary bg-primary/8 ring-1 ring-primary/25" : "border-border bg-background hover:border-foreground/25 hover:bg-muted/35")}>
+                        <span className="flex items-center gap-2 text-foreground"><Building2 className={cn("size-4 shrink-0", selected ? "text-primary" : "text-muted-foreground")} /><span><span className="block text-sm font-bold text-foreground">{rt.name}</span><span className="block text-[11px] font-medium text-muted-foreground">{typeRooms.length ? `${typeRooms.length} room${typeRooms.length === 1 ? "" : "s"} in inventory · assignment checked at save` : "Assignment checked at save"}</span></span></span>
                         <span className="text-xs font-bold tabular-nums text-foreground">{rt.base_price != null ? `${formatCurrency(rt.base_price, currency)}/night` : "Available"}</span>
                       </button>;
                     })}
@@ -499,10 +515,11 @@ export function NewBookingModal({
                   {errors.roomTypeId && <FieldError>{errors.roomTypeId}</FieldError>}
                 </div>
 
-                <GuestPickerPopover adults={adults} childrenCount={children} rooms={1} onAdultsChange={setAdults} onChildrenChange={setChildren} onRoomsChange={() => undefined} className="w-full" />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
+                  <GuestPickerPopover adults={adults} childrenCount={children} rooms={1} onAdultsChange={setAdults} onChildrenChange={setChildren} onRoomsChange={() => undefined} className="w-full" />
 
-                {/* Source */}
-                <Select
+                  {/* Source */}
+                  <Select
                   fullWidth
                   variant="secondary"
                   placeholder="Select source"
@@ -527,10 +544,11 @@ export function NewBookingModal({
                       ))}
                     </ListBox>
                   </Select.Popover>
-                </Select>
+                  </Select>
+                </div>
 
                 {/* Arrival time + special requests */}
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <TextField fullWidth>
                     <Label>Estimated arrival</Label>
                     <Input
@@ -541,7 +559,14 @@ export function NewBookingModal({
                     <Description>Optional · defaults to standard check-in time</Description>
                   </TextField>
 
-                  <TextField fullWidth>
+                  <Select fullWidth variant="secondary" value={paymentPreference} onChange={(value) => setPaymentPreference(value as "pay_now" | "pay_at_checkin")}>
+                    <Label>Payment preference</Label>
+                    <Select.Trigger className="min-h-11 border-border bg-background shadow-sm hover:border-foreground/25"><Select.Value /><Select.Indicator /></Select.Trigger>
+                    <Select.Popover><ListBox><ListBox.Item id="pay_at_checkin" textValue="Pay at check-in">Pay at check-in</ListBox.Item><ListBox.Item id="pay_now" textValue="Pay now">Pay now</ListBox.Item></ListBox></Select.Popover>
+                    <Description>Recorded with reservation</Description>
+                  </Select>
+
+                  <TextField fullWidth className="sm:col-span-2">
                     <Label>Special requests</Label>
                     <TextArea
                       value={specialRequests}
@@ -566,7 +591,7 @@ export function NewBookingModal({
             )}
           </Modal.Body>
 
-          <Modal.Footer className="shrink-0 flex-col gap-1 border-t border-border/40 bg-card px-4 py-1.5 sm:px-5">
+          <Modal.Footer className="shrink-0 flex-col gap-2 border-t border-border/40 bg-card px-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 sm:px-6 sm:pb-3">
             {/* Pricing summary */}
             {step === 2 && selectedRoomTypeId && range && nights > 0 && (
               <div className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3">
@@ -585,7 +610,7 @@ export function NewBookingModal({
                     </div>
                     {taxAmount > 0 && (
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>Tax {(taxRate * 100).toFixed(0)}%</span>
+                        <span>Tax {taxRate.toFixed(2).replace(/\.00$/, "")}%</span>
                         <span className="tabular-nums">{formatCurrency(taxAmount, currency)}</span>
                       </div>
                     )}

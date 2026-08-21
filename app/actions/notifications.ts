@@ -13,6 +13,9 @@ export interface NotificationItem {
   created_at: string | null;
 }
 
+const visibleToStaff = (staffId: string) =>
+  `recipient_staff_id.eq.${staffId},recipient_staff_id.is.null`;
+
 export async function fetchNotificationsAction(
   hotelId: string
 ): Promise<{ success: true; data: NotificationItem[]; unreadCount: number } | { success: false; error: string }> {
@@ -29,7 +32,9 @@ export async function fetchNotificationsAction(
       .from("notifications")
       .select("*", { count: "exact", head: true })
       .eq("hotel_id", hotelId)
-      .eq("is_read", false);
+      .eq("is_read", false)
+      .is("archived_at", null)
+      .or(visibleToStaff(ctx.staffId));
 
     if (countError) {
       return { success: false, error: countError.message };
@@ -37,8 +42,10 @@ export async function fetchNotificationsAction(
 
     const { data, error } = await supabase
       .from("notifications")
-      .select("id, type, title, message, booking_id, is_read, created_at")
+      .select("id, type, title, message, booking_id, is_read, created_at, created_by_staff_id")
       .eq("hotel_id", hotelId)
+      .is("archived_at", null)
+      .or(visibleToStaff(ctx.staffId))
       .order("created_at", { ascending: false })
       .limit(20);
 
@@ -71,7 +78,9 @@ export async function markAllReadAction(
       .from("notifications")
       .update({ is_read: true, read_at: new Date().toISOString() })
       .eq("hotel_id", hotelId)
-      .eq("is_read", false);
+      .eq("is_read", false)
+      .is("archived_at", null)
+      .or(visibleToStaff(ctx.staffId));
 
     if (error) {
       return { success: false, error: error.message };
@@ -81,6 +90,25 @@ export async function markAllReadAction(
   } catch (error: any) {
     console.error("markAllReadAction error:", error);
     return { success: false, error: error.message || "Failed to mark all as read" };
+  }
+}
+
+export async function clearReadNotificationsAction(hotelId: string) {
+  try {
+    const ctx = await requireAuth();
+    if (ctx.hotelId !== hotelId) return { success: false as const, error: "Access denied" };
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("notifications")
+      .update({ archived_at: new Date().toISOString() })
+      .eq("hotel_id", hotelId)
+      .eq("is_read", true)
+      .is("archived_at", null)
+      .or(visibleToStaff(ctx.staffId));
+    if (error) return { success: false as const, error: error.message };
+    return { success: true as const };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Failed to clear notifications" };
   }
 }
 

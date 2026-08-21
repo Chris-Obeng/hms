@@ -182,6 +182,30 @@ export async function createBooking(
     // Average nightly rate stored as room_rate (used for reporting, not pricing)
     const computedRoomRate = resolved.avgNightlyRate;
 
+    // Category booking still needs date-level inventory protection. A room
+    // marked "available" now may overlap another reservation on these dates.
+    const { data: candidateRooms } = await supabase
+      .from("rooms")
+      .select("id, room_number, status")
+      .eq("hotel_id", hotelId)
+      .eq("room_type_id", data.roomTypeId)
+      .not("status", "in", "(maintenance,out_of_service)");
+    if (!candidateRooms?.length) return { success: false, error: "No rooms available for this room type" };
+    const candidateIds = candidateRooms.map((room) => room.id);
+    const { data: overlaps } = await supabase
+      .from("bookings")
+      .select("room_id")
+      .eq("hotel_id", hotelId)
+      .in("room_id", candidateIds)
+      .in("status", ["pending", "confirmed", "checked_in"])
+      .lt("check_in", checkOutStr)
+      .gt("check_out", checkInStr);
+    const occupiedIds = new Set((overlaps ?? []).map((booking) => booking.room_id).filter(Boolean));
+    const eligibleRoom = candidateRooms.find((room) => !occupiedIds.has(room.id));
+    if (!eligibleRoom && !data.roomId) {
+      return { success: false, error: "No rooms available for selected dates" };
+    }
+
     // Room assignment availability check
     if (data.roomId) {
       const { data: room } = await supabase
@@ -245,7 +269,9 @@ export async function createBooking(
         reference,
         guest_id: guestId,
         room_type_id: data.roomTypeId,
-        room_id: data.roomId ?? null,
+        // Hold a real room at creation. Existing GiST exclusion constraint is
+        // then final authority against concurrent overlapping reservations.
+        room_id: data.roomId ?? eligibleRoom?.id ?? null,
         check_in: checkInStr,
         check_out: checkOutStr,
         adults: data.adults,
@@ -287,6 +313,26 @@ export async function createBooking(
         check_out: data.checkOut,
       },
     });
+
+    // Fan out internal alert per staff preference. Creator excluded by design.
+    const { data: recipients } = await supabase
+      .from("staff_profiles")
+      .select("id, notification_prefs")
+      .eq("clerk_org_id", ctx.orgId)
+      .eq("is_active", true)
+      .neq("id", ctx.staffId);
+    const rows = (recipients ?? [])
+      .filter((staff) => (staff.notification_prefs as Record<string, boolean> | null)?.new_booking !== false)
+      .map((staff) => ({
+        hotel_id: hotelId,
+        type: "new_booking",
+        title: "New booking created",
+        message: `${booking.reference} added by ${ctx.staffName ?? "staff"}`,
+        booking_id: booking.id,
+        created_by_staff_id: ctx.staffId,
+        recipient_staff_id: staff.id,
+      }));
+    if (rows.length) await supabase.from("notifications").insert(rows as never);
 
     return { success: true, bookingId: booking.id, reference: booking.reference };
   } catch (err) {

@@ -544,6 +544,11 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
     setEarlyCheckinBooking(null);
   }, [checkInMutation, earlyCheckinBooking]);
 
+  const closeEarlyConfirmation = React.useCallback(() => {
+    setEarlyCheckoutBooking(null);
+    setEarlyCheckinBooking(null);
+  }, []);
+
   const statusMutation = useMutation({
     mutationFn: async ({ bookingId, status }: { bookingId: string; status: "cancelled" | "no_show" }) => {
       const result = await updateBookingStatus(bookingId, status);
@@ -707,33 +712,36 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
       />
 
       <AlertDialog.Backdrop
+        variant="opaque"
         isOpen={earlyCheckoutBooking !== null || earlyCheckinBooking !== null}
         onOpenChange={(isOpen) => {
-          if (!isOpen) setEarlyCheckoutBooking(null);
+          if (!isOpen) closeEarlyConfirmation();
         }}
-        variant="blur"
       >
-        <AlertDialog.Container>
-          <AlertDialog.Dialog className="w-[calc(100%-2rem)] max-w-md rounded-xl border border-border bg-card shadow-xl">
-            <Button
-              isIconOnly
-              variant="tertiary"
-              aria-label="Close confirmation"
-              onPress={() => { setEarlyCheckoutBooking(null); setEarlyCheckinBooking(null); }}
-              className="absolute right-4 top-4 z-10 size-9 rounded-full border border-border bg-muted text-foreground hover:bg-muted/70"
-            >
-              <span className="text-xl leading-none">×</span>
-            </Button>
-            <AlertDialog.Header>
-              <AlertDialog.Icon status="warning">
-                <CalendarClock className="size-5" />
+        <AlertDialog.Container placement="auto" size="md">
+          <AlertDialog.Dialog className="rounded-2xl border border-border/80 bg-card p-6 shadow-2xl relative overflow-hidden">
+            <AlertDialog.CloseTrigger
+              onPress={closeEarlyConfirmation}
+              className="absolute top-4 right-4 inline-flex size-8 items-center justify-center rounded-full bg-muted/80 text-foreground/80 hover:bg-muted hover:text-foreground hover:scale-105 active:scale-95 border border-border/60 transition-all shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <AlertDialog.Header className="gap-3 pb-1">
+              <AlertDialog.Icon
+                status={earlyCheckinBooking ? "accent" : "warning"}
+                className={cn(
+                  "size-12 rounded-2xl flex items-center justify-center border shadow-xs transition-all",
+                  earlyCheckinBooking
+                    ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/25"
+                    : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/25"
+                )}
+              >
+                <CalendarClock className="size-6" />
               </AlertDialog.Icon>
-                <AlertDialog.Heading>
-                  {earlyCheckinBooking ? "Confirm early check-in" : "Confirm early check-out"}
-                </AlertDialog.Heading>
+              <AlertDialog.Heading className="text-lg font-bold tracking-tight text-foreground">
+                {earlyCheckinBooking ? "Confirm early check-in" : "Confirm early check-out"}
+              </AlertDialog.Heading>
             </AlertDialog.Header>
-            <AlertDialog.Body className="space-y-3">
-              <p className="text-sm text-muted-foreground">
+            <AlertDialog.Body className="space-y-2.5 py-2 text-sm leading-relaxed text-muted-foreground">
+              <p>
                 {earlyCheckinBooking?.guestName || earlyCheckoutBooking?.guestName} is scheduled to {earlyCheckinBooking ? "check in" : "check out"} on{" "}
                 <strong className="font-semibold text-foreground">
                   {earlyCheckinBooking
@@ -743,17 +751,29 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
                     : ""}
                 </strong>.
               </p>
-              <p className="text-sm text-muted-foreground">
+              <p>
                 {earlyCheckinBooking
                   ? "Checking in now will assign the room before scheduled arrival date."
                   : "Checking out now will mark room available before scheduled departure date."}
               </p>
             </AlertDialog.Body>
-            <AlertDialog.Footer>
-              <Button variant="tertiary" onPress={() => { setEarlyCheckoutBooking(null); setEarlyCheckinBooking(null); }}>
+            <AlertDialog.Footer className="pt-3 gap-2.5 flex items-center justify-end">
+              <Button
+                variant="tertiary"
+                onPress={closeEarlyConfirmation}
+                className="rounded-xl font-medium px-4 h-10 border border-border/80 bg-background/80 text-foreground hover:bg-muted/80 hover:border-border transition-all shadow-xs cursor-pointer"
+              >
                 Cancel
               </Button>
-              <Button variant="primary" onPress={earlyCheckinBooking ? confirmEarlyCheckin : confirmEarlyCheckout}>
+              <Button
+                onPress={earlyCheckinBooking ? confirmEarlyCheckin : confirmEarlyCheckout}
+                className={cn(
+                  "rounded-xl font-semibold px-5 h-10 text-white shadow-xs transition-all active:scale-[0.98] cursor-pointer",
+                  earlyCheckinBooking
+                    ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 dark:text-zinc-950"
+                    : "bg-amber-600 hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-zinc-950"
+                )}
+              >
                 Confirm {earlyCheckinBooking ? "early check-in" : "early check-out"}
               </Button>
             </AlertDialog.Footer>

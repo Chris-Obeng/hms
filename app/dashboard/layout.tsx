@@ -72,7 +72,9 @@ export default async function DashboardLayout({
       .from('notifications')
       .select('*', { count: 'exact', head: true })
       .eq('hotel_id', hotel.id)
-      .eq('is_read', false),
+      .eq('is_read', false)
+      .is('archived_at', null)
+      .or(`recipient_staff_id.eq.${staff.id},recipient_staff_id.is.null`),
     supabase
       .from('room_types')
       .select('id, name, base_price')
@@ -98,6 +100,7 @@ export default async function DashboardLayout({
           hotelName={hotel.name}
           hotelLogoUrl={hotel.logo_url}
           hotelId={hotel.id}
+          staffId={staff.id}
           notificationCount={notificationCount ?? 0}
           roomTypes={roomTypes.map((roomType) => ({
             id: roomType.id,

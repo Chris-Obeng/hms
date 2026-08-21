@@ -11,8 +11,6 @@
 
 import { format, parseISO } from "date-fns";
 
-// ── Currency ─────────────────────────────────────────────────────
-
 export function formatCurrency(
   amount: number,
   currency = "GHS",

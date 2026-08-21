@@ -560,6 +560,9 @@ export type Database = {
       notifications: {
         Row: {
           booking_id: string | null
+          created_by_staff_id: string | null
+          recipient_staff_id: string | null
+          archived_at: string | null
           created_at: string | null
           hotel_id: string
           id: string
@@ -572,6 +575,9 @@ export type Database = {
         }
         Insert: {
           booking_id?: string | null
+          created_by_staff_id?: string | null
+          recipient_staff_id?: string | null
+          archived_at?: string | null
           created_at?: string | null
           hotel_id: string
           id?: string
@@ -584,6 +590,9 @@ export type Database = {
         }
         Update: {
           booking_id?: string | null
+          created_by_staff_id?: string | null
+          recipient_staff_id?: string | null
+          archived_at?: string | null
           created_at?: string | null
           hotel_id?: string
           id?: string

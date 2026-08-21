@@ -535,6 +535,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
 
   const [detailBookingId, setDetailBookingId] = React.useState<string | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
+  const [detailInitialTab, setDetailInitialTab] = React.useState<"overview" | "payments">("overview");
 
   // Selected filters
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
@@ -561,6 +562,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
   }, [statusFilter, paymentFilter, sourceFilter, roomTypeFilter]);
 
   const handleViewDetails = React.useCallback((id: string) => {
+    setDetailInitialTab("overview");
     setDetailBookingId(id);
     setDetailOpen(true);
   }, []);
@@ -938,6 +940,12 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
         }}
         roomTypes={roomTypes}
         currency={currency}
+        onReservationCreated={({ bookingId, payNow }) => {
+          if (!payNow) return;
+          setDetailInitialTab("payments");
+          setDetailBookingId(bookingId);
+          setDetailOpen(true);
+        }}
       />
 
       {/* Reservation Detail Drawer */}
@@ -949,6 +957,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
           setDetailBookingId(null);
         }}
         currency={currency}
+        initialTab={detailInitialTab}
         onBookingChanged={() => router.refresh()}
       />
     </div>
