@@ -19,10 +19,13 @@ export function BookingNotesPanel({
   const [editingNotes, setEditingNotes] = React.useState(false);
   const [notesDraft, setNotesDraft] = React.useState(booking.internalNotes || "");
   const [savingNotes, setSavingNotes] = React.useState(false);
-
-  React.useEffect(() => {
+  // Prop-derived draft reset via the official "adjust state during render"
+  // pattern — an effect + setState here cascades an extra render pass.
+  const [syncedNotes, setSyncedNotes] = React.useState(booking.internalNotes || "");
+  if ((booking.internalNotes || "") !== syncedNotes) {
+    setSyncedNotes(booking.internalNotes || "");
     setNotesDraft(booking.internalNotes || "");
-  }, [booking.internalNotes]);
+  }
 
   const handleSaveNotes = async () => {
     if (!booking.id) return;

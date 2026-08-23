@@ -58,3 +58,9 @@ graphify-out/
 
 # Windows artifacts
 nul
+
+# opencode local state
+.opencode/
+
+# Playwright session state + screenshots
+.playwright/

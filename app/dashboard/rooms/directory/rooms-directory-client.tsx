@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   useReactTable,
   getCoreRowModel,
@@ -10,49 +10,29 @@ import {
   getPaginationRowModel,
   flexRender,
   type ColumnDef,
-  type SortingState,
 } from "@tanstack/react-table";
 import {
-  ChevronDown,
-  Plus,
-  Search,
-  MoreHorizontal,
-  Hammer,
-  Wrench,
   CalendarX,
   DoorOpen,
+  Plus,
+  Wrench,
 } from "lucide-react";
-import { toast } from "@heroui/react";
+import {
+  Button,
+  Chip,
+  Dropdown,
+  Input,
+  Label,
+  Modal,
+  SearchField,
+  Table,
+  TextArea,
+  toast,
+} from "@heroui/react";
 
 import { cn } from "@/lib/utils";
 import { HeroSelectField } from "@/components/ui/hero-select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { HeroTablePagination } from "@/components/ui/hero-table-pagination";
 import { type RoomInput } from "@/app/actions/rooms";
 import { createClient } from "@/lib/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -84,11 +64,34 @@ interface RoomsDirectoryProps {
 
 // ── Status Config ──────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  available: { label: "Available", color: "text-emerald-600", bg: "bg-emerald-500/10" },
-  occupied: { label: "Occupied", color: "text-blue-600", bg: "bg-blue-500/10" },
-  maintenance: { label: "Maintenance", color: "text-slate-600", bg: "bg-slate-500/10" },
-  out_of_service: { label: "Out of Service", color: "text-red-600", bg: "bg-red-500/10" },
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; bg: string; dot: string }
+> = {
+  available: {
+    label: "Available",
+    color: "text-emerald-700 dark:text-emerald-400",
+    bg: "bg-emerald-500/10",
+    dot: "bg-emerald-500",
+  },
+  occupied: {
+    label: "Occupied",
+    color: "text-blue-700 dark:text-blue-400",
+    bg: "bg-blue-500/10",
+    dot: "bg-blue-500",
+  },
+  maintenance: {
+    label: "Maintenance",
+    color: "text-slate-600 dark:text-slate-300",
+    bg: "bg-slate-500/10",
+    dot: "bg-slate-500",
+  },
+  out_of_service: {
+    label: "Out of Service",
+    color: "text-red-600 dark:text-red-400",
+    bg: "bg-red-500/10",
+    dot: "bg-red-500",
+  },
 };
 
 const STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -98,17 +101,68 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
   out_of_service: ["available"],
 };
 
+function getStatusConfig(status: string | null) {
+  return STATUS_CONFIG[status || "available"] || STATUS_CONFIG.available;
+}
+
+// ── Status cell: chip that opens allowed transitions ───────────────
+
+function RoomStatusCell({
+  room,
+  onStatusChange,
+}: {
+  room: RoomRow;
+  onStatusChange: (roomId: string, newStatus: string) => void;
+}) {
+  const config = getStatusConfig(room.status);
+  const transitions = STATUS_TRANSITIONS[room.status || "available"] || [];
+
+  return (
+    <Dropdown>
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-label={`Change status for room ${room.roomNumber}, currently ${config.label}`}
+        className={cn(
+          "h-7 min-w-0 gap-1.5 rounded-lg px-2 text-caption font-medium",
+          config.bg,
+          config.color
+        )}
+      >
+        <span className={cn("size-1.5 rounded-full", config.dot)} />
+        {config.label}
+      </Button>
+      <Dropdown.Popover placement="bottom start">
+        <Dropdown.Menu
+          onAction={(key) => onStatusChange(room.id, String(key))}
+        >
+          <Dropdown.Section>
+            <Label className="px-2 py-1 text-caption text-muted-foreground">
+              Mark as
+            </Label>
+            {transitions.map((transition) => (
+              <Dropdown.Item
+                key={transition}
+                id={transition}
+                textValue={`Mark as ${STATUS_CONFIG[transition]?.label || transition}`}
+              >
+                <Label>{STATUS_CONFIG[transition]?.label || transition}</Label>
+              </Dropdown.Item>
+            ))}
+          </Dropdown.Section>
+        </Dropdown.Menu>
+      </Dropdown.Popover>
+    </Dropdown>
+  );
+}
+
 // ── Component ──────────────────────────────────────────────────────
 
 export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps) {
   const queryClient = useQueryClient();
   const { orgId, userId } = useAuth();
-  const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [sorting, setSorting] = React.useState<SortingState>([
-    { id: "roomNumber", desc: false },
-  ]);
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
 
@@ -162,9 +216,9 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
         `)
         .eq("hotel_id", hotelId)
         .order("room_number", { ascending: true });
-      
+
       if (error) throw error;
-      
+
       return (roomsData || []).map((r) => ({
         id: r.id,
         roomNumber: r.room_number,
@@ -223,7 +277,7 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
   const updateStatusMutation = useMutation({
     mutationFn: async ({ roomId, newStatus }: { roomId: string; newStatus: string }) => {
       const supabase = createClient();
-      
+
       const { data: before, error: selectError } = await supabase
         .from("rooms")
         .select("room_number, status")
@@ -259,16 +313,13 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
       await queryClient.cancelQueries({ queryKey });
       const previousData = queryClient.getQueryData(queryKey);
 
-      queryClient.setQueryData(queryKey, (old: any) => {
-        if (!old) return old;
-        return old.map((r: any) =>
-          r.id === roomId ? { ...r, status: newStatus } : r
-        );
-      });
+      queryClient.setQueryData<RoomRow[]>(queryKey, (old) =>
+        old?.map((r) => (r.id === roomId ? { ...r, status: newStatus } : r))
+      );
 
       return { previousData };
     },
-    onError: (err, variables, context: any) => {
+    onError: (err, _variables, context) => {
       const queryKey = qk.rooms(orgId || "", hotelId);
       if (context?.previousData) {
         queryClient.setQueryData(queryKey, context.previousData);
@@ -287,7 +338,7 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
   const createRoomMutation = useMutation({
     mutationFn: async (input: RoomInput) => {
       const supabase = createClient();
-      
+
       const { error, data: newRoom } = await supabase.from("rooms").insert({
         hotel_id: hotelId,
         room_type_id: input.roomTypeId,
@@ -315,9 +366,12 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
     }
   });
 
-  const handleStatusChange = (roomId: string, newStatus: string) => {
-    updateStatusMutation.mutate({ roomId, newStatus });
-  };
+  const handleStatusChange = React.useCallback(
+    (roomId: string, newStatus: string) => {
+      updateStatusMutation.mutate({ roomId, newStatus });
+    },
+    [updateStatusMutation]
+  );
 
   const handleAddRoom = (e: React.FormEvent) => {
     e.preventDefault();
@@ -341,15 +395,15 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
         header: "Room",
         cell: ({ row }) => (
           <div className="flex items-center gap-2.5">
-            <div className="size-8 rounded-lg bg-muted/30 flex items-center justify-center shrink-0 ring-1 ring-border/20">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/30 ring-1 ring-border/20">
               <DoorOpen className="size-3.5 text-muted-foreground" />
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-medium text-foreground font-mono">
+              <span className="font-mono text-body font-medium text-foreground">
                 {row.original.roomNumber}
               </span>
               {row.original.floor && (
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-caption text-muted-foreground">
                   Floor {row.original.floor}
                 </span>
               )}
@@ -361,59 +415,49 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
         accessorKey: "roomTypeName",
         header: "Type",
         cell: ({ row }) => (
-          <Badge variant="outline" className="text-[11px] font-medium">
-            {row.original.roomTypeName}
-          </Badge>
+          <Chip size="sm" variant="soft" className="max-w-[140px]">
+            <span className="truncate">{row.original.roomTypeName}</span>
+          </Chip>
         ),
       },
       {
         id: "status",
         header: "Status",
-        cell: ({ row }) => {
-          const status = row.original.status || "available";
-          const config = STATUS_CONFIG[status] || STATUS_CONFIG.available;
-          return (
-            <HeroSelectField className="w-36" value={status} onValueChange={(v) => handleStatusChange(row.original.id, v)} options={Object.entries(STATUS_CONFIG).map(([value,cfg]) => ({value,label:cfg.label}))} ariaLabel={`Status for room ${row.original.roomNumber}`} />
-          );
-        },
+        cell: ({ row }) => (
+          <RoomStatusCell room={row.original} onStatusChange={handleStatusChange} />
+        ),
       },
       {
         id: "actions",
         cell: ({ row }) => {
           const room = row.original;
-          const transitions = STATUS_TRANSITIONS[room.status || "available"] || [];
           return (
-            <DropdownMenu>
-              <DropdownMenuTrigger className="inline-flex items-center justify-center size-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
-                <MoreHorizontal className="size-3.5" />
-                <span className="sr-only">Actions</span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel className="font-normal text-xs text-muted-foreground">
-                  Rm {room.roomNumber}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {transitions.map((transition) => (
-                  <DropdownMenuItem
-                    key={transition}
-                    onClick={() => handleStatusChange(room.id, transition)}
+            <Dropdown>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                aria-label={`Actions for room ${room.roomNumber}`}
+                className="size-8 min-w-8 rounded-lg text-muted-foreground"
+              >
+                <Wrench className="size-4" />
+              </Button>
+              <Dropdown.Popover placement="bottom end">
+                <Dropdown.Menu>
+                  <Dropdown.Item
+                    id="block"
+                    textValue="Block dates"
+                    onAction={() => {
+                      setBlockRoomId(room.id);
+                      setBlockOpen(true);
+                    }}
                   >
-                    <span className="size-3.5 mr-2 flex items-center justify-center">→</span>
-                    Mark as {STATUS_CONFIG[transition]?.label || transition}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => {
-                    setBlockRoomId(room.id);
-                    setBlockOpen(true);
-                  }}
-                >
-                  <CalendarX className="size-3.5 mr-2" />
-                  Block Dates
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    <CalendarX className="size-3.5" />
+                    <Label>Block dates…</Label>
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
           );
         },
       },
@@ -424,253 +468,286 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
   const table = useReactTable({
     data: filteredData,
     columns,
-    state: { sorting },
-    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: {
-      pagination: { pageSize: 50 },
+      pagination: { pageSize: 20 },
     },
   });
 
-  const totalCount = data.length;
+  const totalCount = localData.length;
 
   // ── Status counts ─────────────────────────────────────────────
   const statusCounts = React.useMemo(() => {
     const counts: Record<string, number> = {};
-    data.forEach((r) => {
+    localData.forEach((r) => {
       const s = r.status || "available";
       counts[s] = (counts[s] || 0) + 1;
     });
     return counts;
-  }, [data]);
+  }, [localData]);
+
+  const rows = table.getRowModel().rows;
+  const filteredCount = table.getFilteredRowModel().rows.length;
+  const isFiltered = statusFilter !== "all" || globalFilter.trim().length > 0;
+
+  const emptyState = (
+    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+      <DoorOpen className="mb-3 size-10 text-muted-foreground/30" />
+      <p className="text-body font-medium text-muted-foreground">
+        {isFiltered ? "No rooms match your filters" : "No rooms yet"}
+      </p>
+      <p className="text-caption mt-1 max-w-[260px] text-muted-foreground/60">
+        {isFiltered
+          ? "Try adjusting your search or filters."
+          : "Add your first room to get started."}
+      </p>
+    </div>
+  );
 
   return (
     <>
       <div className="space-y-4">
-        {/* Status summary bar */}
-        <div className="flex flex-wrap items-center gap-2">
-          {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
-            const count = statusCounts[key] || 0;
-            return (
-              <button
-                key={key}
-                onClick={() => setStatusFilter(statusFilter === key ? "all" : key)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all",
-                  statusFilter === key
-                    ? "border-foreground/30 bg-foreground/5"
-                    : "border-border/50 hover:border-border",
-                  cfg.color
-                )}
-              >
-                <span className={cn("size-1.5 rounded-full", cfg.bg.replace("/10", "/60").replace("/20", "/60"))} />
-                {cfg.label}
-                <span className="text-muted-foreground font-normal">{count}</span>
-              </button>
-            );
-          })}
-          {statusFilter !== "all" && (
-            <button
-              onClick={() => setStatusFilter("all")}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-
-        {/* Search + Add */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/60 pointer-events-none" />
-            <Input
-              placeholder="Search room number, type, floor..."
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              className="h-9 pl-9 text-sm rounded-xl border-border/60"
-            />
+        {/* Status summary + filters */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          {/* Status chips */}
+          <div className="-mx-1 no-scrollbar flex items-center gap-2 overflow-x-auto px-1 pb-1 lg:pb-0">
+            {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
+              const count = statusCounts[key] || 0;
+              const active = statusFilter === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => setStatusFilter(active ? "all" : key)}
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                    active
+                      ? "border-foreground/30 bg-foreground/5"
+                      : "border-border/50 hover:border-border hover:bg-muted/40",
+                    cfg.color
+                  )}
+                >
+                  <span className={cn("size-1.5 rounded-full", cfg.dot)} />
+                  {cfg.label}
+                  <span className="tabular-nums text-muted-foreground">{count}</span>
+                </button>
+              );
+            })}
           </div>
-          <Button
-            size="sm"
-            className="h-9 text-sm rounded-xl bg-foreground text-background hover:bg-foreground/90 shrink-0"
-            onClick={() => setAddRoomOpen(true)}
-          >
-            <Plus className="size-3.5 mr-1.5" />
-            Add Room
-          </Button>
+
+          {/* Search + add */}
+          <div className="flex items-center gap-2">
+            <SearchField
+              aria-label="Search rooms"
+              value={globalFilter}
+              onChange={setGlobalFilter}
+              className="flex-1 lg:max-w-xs"
+            >
+              <SearchField.Group className="h-9 rounded-xl border-border/60 bg-background">
+                <SearchField.SearchIcon />
+                <SearchField.Input
+                  placeholder="Search room, type, floor..."
+                  className="text-sm"
+                />
+                <SearchField.ClearButton />
+              </SearchField.Group>
+            </SearchField>
+            <Button size="sm" onPress={() => setAddRoomOpen(true)} className="shrink-0">
+              <Plus className="size-4" />
+              Add Room
+            </Button>
+          </div>
         </div>
 
-        {/* DataTable */}
-        <Card className="border-border/60 overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder ? null : (
-                          <button
-                            className={cn(
-                              "flex items-center gap-1 select-none",
-                              header.column.getCanSort() && "cursor-pointer hover:text-foreground"
-                            )}
-                            onClick={header.column.getToggleSortingHandler()}
-                          >
-                            {flexRender(header.column.columnDef.header, header.getContext())}
-                            {{
-                              asc: <ChevronDown className="size-3 rotate-180 text-muted-foreground/60" />,
-                              desc: <ChevronDown className="size-3 text-muted-foreground/60" />,
-                            }[header.column.getIsSorted() as string] ?? null}
-                          </button>
-                        )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
+        {/* Desktop table */}
+        <Table variant="secondary" className="hidden md:block">
+          <Table.ScrollContainer>
+            <Table.Content aria-label="Rooms" className="min-w-[640px]">
+              <Table.Header>
+                {table.getHeaderGroups()[0]?.headers.map((header) => (
+                  <Table.Column
+                    key={header.id}
+                    id={header.id}
+                    isRowHeader={header.id === "roomNumber"}
+                  >
+                    {header.id === "actions" ? null : (
+                      flexRender(header.column.columnDef.header, header.getContext())
+                    )}
+                  </Table.Column>
                 ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.length > 0 ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id} className="group">
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} className="h-48 text-center">
-                      <div className="flex flex-col items-center justify-center">
-                        <DoorOpen className="size-10 text-muted-foreground/30 mb-3" />
-                        <p className="text-sm font-medium text-muted-foreground">
-                          {globalFilter || statusFilter !== "all"
-                            ? "No rooms match your filters"
-                            : "No rooms yet"}
-                        </p>
-                        <p className="text-xs text-muted-foreground/60 mt-1 max-w-[240px]">
-                          {globalFilter || statusFilter !== "all"
-                            ? "Try adjusting your search or filters"
-                            : "Add your first room to get started."}
+              </Table.Header>
+              <Table.Body renderEmptyState={() => emptyState}>
+                {rows.map((row) => (
+                  <Table.Row key={row.id} id={row.id} className={cn(loading && "opacity-60")}>
+                    {row.getVisibleCells().map((cell) => (
+                      <Table.Cell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </Table.Cell>
+                    ))}
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+          <Table.Footer>
+            <HeroTablePagination
+              table={table}
+              totalRows={totalCount}
+              filteredRows={filteredCount}
+            />
+          </Table.Footer>
+        </Table>
+
+        {/* Mobile cards */}
+        <div className="space-y-3 md:hidden">
+          {rows.length > 0 ? (
+            <>
+              {rows.map(({ original: room }) => {
+                const cfg = getStatusConfig(room.status);
+                return (
+                  <div
+                    key={room.id}
+                    className="rounded-xl border border-border/60 bg-card p-4 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-body font-semibold text-foreground">
+                            {room.roomNumber}
+                          </span>
+                          {room.floor && (
+                            <span className="text-caption text-muted-foreground">
+                              Fl {room.floor}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-caption mt-0.5 truncate text-muted-foreground">
+                          {room.roomTypeName}
                         </p>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
-            <p className="text-xs text-muted-foreground">
-              {table.getRowModel().rows.length > 0
-                ? `Showing ${table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} - ${Math.min(
-                    (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-                    table.getRowModel().rows.length
-                  )} of ${table.getRowModel().rows.length}`
-                : "No results"}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs rounded-lg"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs rounded-lg"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                Next
-              </Button>
+                      <RoomStatusCell room={room} onStatusChange={handleStatusChange} />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
+                      <span className={cn("inline-flex items-center gap-1.5 text-caption font-medium", cfg.color)}>
+                        <span className={cn("size-1.5 rounded-full", cfg.dot)} />
+                        {cfg.label}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 gap-1.5 rounded-lg px-2 text-caption text-muted-foreground"
+                        onPress={() => {
+                          setBlockRoomId(room.id);
+                          setBlockOpen(true);
+                        }}
+                      >
+                        <CalendarX className="size-3.5" />
+                        Block dates
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+              <HeroTablePagination
+                table={table}
+                totalRows={totalCount}
+                filteredRows={filteredCount}
+              />
+            </>
+          ) : (
+            <div className="rounded-xl border border-dashed border-border/60 p-4">
+              {emptyState}
             </div>
-          </div>
-        </Card>
+          )}
+        </div>
       </div>
 
-      {/* ── Add Room Dialog ── */}
-      <Dialog open={addRoomOpen} onOpenChange={setAddRoomOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add Room</DialogTitle>
-            <DialogDescription>Add a new physical room to your hotel.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleAddRoom} className="space-y-4 mt-2">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                Room number *
-              </label>
-              <Input
-                placeholder="e.g. 101"
-                value={newRoomNumber}
-                onChange={(e) => setNewRoomNumber(e.target.value)}
-                className="h-9 rounded-xl"
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                Room type *
-              </label>
-              <HeroSelectField value={newRoomTypeId} onValueChange={setNewRoomTypeId} options={roomTypes.map((rt) => ({value:rt.id,label:rt.name}))} placeholder="Select room type..." isRequired ariaLabel="Room type" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                Floor
-              </label>
-              <Input
-                placeholder="e.g. Ground, 1, 2"
-                value={newFloor}
-                onChange={(e) => setNewFloor(e.target.value)}
-                className="h-9 rounded-xl"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                Notes
-              </label>
-              <textarea
-                placeholder="Optional notes about this room..."
-                value={newNotes}
-                onChange={(e) => setNewNotes(e.target.value)}
-                rows={3}
-                className="w-full rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 placeholder:text-muted-foreground resize-none"
-              />
-            </div>
-            <div className="flex items-center justify-between pt-2">
-              <Button
-                variant="ghost"
-                type="button"
-                className="text-sm rounded-xl"
-                onClick={() => setAddRoomOpen(false)}
-              >
+      {/* ── Add Room Modal ── */}
+      <Modal.Backdrop isOpen={addRoomOpen} onOpenChange={setAddRoomOpen}>
+        <Modal.Container>
+          <Modal.Dialog className="max-w-md">
+            <Modal.CloseTrigger />
+            <Modal.Header>
+              <Modal.Heading>Add Room</Modal.Heading>
+              <p className="text-caption text-muted-foreground">
+                Add a new physical room to your hotel.
+              </p>
+            </Modal.Header>
+            <Modal.Body>
+              <form onSubmit={handleAddRoom} className="space-y-4" id="add-room-form">
+                <div>
+                  <label htmlFor="new-room-number" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    Room number *
+                  </label>
+                  <Input
+                    id="new-room-number"
+                    placeholder="e.g. 101"
+                    value={newRoomNumber}
+                    onChange={(e) => setNewRoomNumber(e.target.value)}
+                    className="h-9 rounded-xl"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    Room type *
+                  </label>
+                  <HeroSelectField
+                    value={newRoomTypeId}
+                    onValueChange={setNewRoomTypeId}
+                    options={roomTypes.map((rt) => ({ value: rt.id, label: rt.name }))}
+                    placeholder="Select room type..."
+                    isRequired
+                    ariaLabel="Room type"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="new-room-floor" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    Floor
+                  </label>
+                  <Input
+                    id="new-room-floor"
+                    placeholder="e.g. Ground, 1, 2"
+                    value={newFloor}
+                    onChange={(e) => setNewFloor(e.target.value)}
+                    className="h-9 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="new-room-notes" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    Notes
+                  </label>
+                  <TextArea
+                    id="new-room-notes"
+                    placeholder="Optional notes about this room..."
+                    value={newNotes}
+                    onChange={(e) => setNewNotes(e.target.value)}
+                    rows={3}
+                    className="w-full resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  />
+                </div>
+              </form>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="tertiary" type="button" onPress={() => setAddRoomOpen(false)}>
                 Cancel
               </Button>
               <Button
                 type="submit"
-                disabled={loading || !newRoomNumber || !newRoomTypeId}
-                className="text-sm rounded-xl bg-foreground text-background hover:bg-foreground/90"
+                form="add-room-form"
+                isPending={createRoomMutation.isPending}
+                isDisabled={!newRoomNumber || !newRoomTypeId}
               >
-                {loading ? "Adding..." : "Add Room"}
+                {createRoomMutation.isPending ? "Adding..." : "Add Room"}
               </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
 
-      {/* ── Block Room Dialog ── */}
+      {/* ── Block Room Sheet ── */}
       <BlockRoomSheet
         open={blockOpen}
         onOpenChange={setBlockOpen}

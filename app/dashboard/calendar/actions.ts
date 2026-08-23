@@ -4,24 +4,26 @@ import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { parseISO, addDays, format } from "date-fns";
 import { toStoredBlockRange } from "@/lib/calendar-domain";
+import { businessToday } from "@/lib/business-date";
+import { writeAuditLog } from "@/lib/audit";
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
 async function getHotelScopedClient() {
-  const { orgId } = await auth();
+  const { orgId, userId } = await auth();
   if (!orgId) throw new Error("Not authenticated");
 
   const supabase = await createClient();
 
   const { data: hotel } = await supabase
     .from("hotels")
-    .select("id, name, currency, logo_url")
+    .select("id, name, currency, logo_url, timezone")
     .eq("clerk_org_id", orgId)
     .single();
 
   if (!hotel) throw new Error("Hotel not found");
 
-  return { supabase, hotelId: hotel.id, hotel };
+  return { supabase, hotelId: hotel.id, hotel, userId };
 }
 
 // ── Staff Role Resolution ────────────────────────────────────────────
@@ -158,8 +160,11 @@ export async function getCalendarData(
     .eq("is_active", true)
     .order("room_number", { ascending: true });
 
-  // 3. Bookings overlapping the visible window (assigned + unassigned)
-  //    Only active statuses that should appear on the calendar
+  // 3. Bookings overlapping the visible window (assigned + unassigned).
+  //    ALL statuses are returned so scrolling into history still shows
+  //    past stays (checked_out / cancelled / no_show render muted and are
+  //    not draggable). Window bounds keep the payload proportional to what
+  //    is actually on screen.
   const { data: bookings } = await supabase
     .from("bookings")
     .select(`
@@ -174,7 +179,6 @@ export async function getCalendarData(
       rooms(room_number, room_types!inner(name))
     `)
     .eq("hotel_id", hotelId)
-    .in("status", ["pending", "confirmed", "checked_in"])
     .lt("check_in", endDate)
     .gt("check_out", startDate)
     .order("check_in", { ascending: true });
@@ -442,6 +446,10 @@ export type MoveBookingResult =
  * Moves a booking to a different room and/or date range.
  * Used by drag-and-drop move and resize operations.
  * Validates room type compatibility and availability before applying.
+ *
+ * `roomTypeId` opts in to an explicit room type change (upgrade/downgrade).
+ * When provided, the booking's room_type_id is rewritten and the usual
+ * "type mismatch" guard is bypassed for the target room.
  */
 export async function moveBooking(
   bookingId: string,
@@ -449,15 +457,16 @@ export async function moveBooking(
     roomId?: string;
     checkIn?: string;
     checkOut?: string;
+    roomTypeId?: string;
   }
 ): Promise<MoveBookingResult> {
   try {
-    const { supabase, hotelId } = await getHotelScopedClient();
+    const { supabase, hotelId, hotel, userId } = await getHotelScopedClient();
 
     // Fetch current booking
     const { data: booking } = await supabase
       .from("bookings")
-      .select("id, room_id, room_type_id, check_in, check_out, status, nights")
+      .select("id, room_id, room_type_id, check_in, check_out, status, nights, source")
       .eq("id", bookingId)
       .eq("hotel_id", hotelId)
       .single();
@@ -470,14 +479,44 @@ export async function moveBooking(
     const newRoomId = updates.roomId ?? booking.room_id;
     const newCheckIn = updates.checkIn ?? booking.check_in;
     const newCheckOut = updates.checkOut ?? booking.check_out;
+    const typeChangeRequested =
+      updates.roomTypeId !== undefined && updates.roomTypeId !== booking.room_type_id;
 
     // Validate dates
     if (newCheckOut <= newCheckIn) {
       return { success: false, error: "Check-out must be after check-in" };
     }
 
-    // If room is changing, verify type compatibility and availability
-    if (newRoomId && updates.roomId && updates.roomId !== booking.room_id) {
+    // Past-date guard — mirrors the timeline preview rule. Client checks are
+    // advisory (bundled server actions are directly invocable), so the policy
+    // is enforced here against the property's business date.
+    const todayKey = businessToday(hotel.timezone || "UTC");
+    if (
+      newCheckIn < todayKey &&
+      booking.status !== "checked_in" &&
+      !["manual", "phone", "walk_in"].includes(booking.source ?? "")
+    ) {
+      return { success: false, error: "Cannot schedule in the past" };
+    }
+
+    // An explicit room type change must reference a valid, active type of this hotel
+    if (typeChangeRequested) {
+      const { data: roomType } = await supabase
+        .from("room_types")
+        .select("id, name")
+        .eq("id", updates.roomTypeId as string)
+        .eq("hotel_id", hotelId)
+        .eq("is_active", true)
+        .single();
+
+      if (!roomType) return { success: false, error: "Room type not found" };
+    }
+
+    // Resolve the effective room whenever a move is happening OR a type change
+    // was requested, so room/type consistency holds even when the caller sends
+    // only `roomTypeId` for a booking that stays in its current room.
+    const roomChanged = !!updates.roomId && updates.roomId !== booking.room_id;
+    if ((roomChanged || typeChangeRequested) && newRoomId) {
       const { data: room } = await supabase
         .from("rooms")
         .select("id, room_type_id, status")
@@ -489,8 +528,11 @@ export async function moveBooking(
       if (room.status === "maintenance" || room.status === "out_of_service") {
         return { success: false, error: `Room is ${room.status.replace("_", " ")}` };
       }
-      if (booking.room_type_id && room.room_type_id !== booking.room_type_id) {
+      if (!typeChangeRequested && booking.room_type_id && room.room_type_id !== booking.room_type_id) {
         return { success: false, error: "Room type mismatch" };
+      }
+      if (typeChangeRequested && room.room_type_id !== updates.roomTypeId) {
+        return { success: false, error: "Selected room does not belong to the chosen room type" };
       }
     }
 
@@ -517,10 +559,12 @@ export async function moveBooking(
       room_id: string | null;
       check_in: string;
       check_out: string;
+      room_type_id: string | null;
     }> = {};
     if (updates.roomId !== undefined) payload.room_id = newRoomId;
     if (updates.checkIn !== undefined) payload.check_in = newCheckIn;
     if (updates.checkOut !== undefined) payload.check_out = newCheckOut;
+    if (typeChangeRequested) payload.room_type_id = updates.roomTypeId as string;
 
     const { error } = await supabase
       .from("bookings")
@@ -534,6 +578,22 @@ export async function moveBooking(
       }
       return { success: false, error: error.message };
     }
+
+    // Audit trail: room moves are high-value operational events
+    void writeAuditLog(supabase, {
+      hotelId,
+      staffId: userId ?? null,
+      action: typeChangeRequested ? "booking.room_type_change" : "booking.move",
+      entityType: "booking",
+      entityId: bookingId,
+      beforeState: {
+        room_id: booking.room_id,
+        room_type_id: booking.room_type_id,
+        check_in: booking.check_in,
+        check_out: booking.check_out,
+      },
+      afterState: payload,
+    });
 
     return { success: true };
   } catch (err) {

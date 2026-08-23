@@ -10,37 +10,18 @@ import {
   getPaginationRowModel,
   flexRender,
   type ColumnDef,
-  type SortingState,
   type ColumnFiltersState,
-  type VisibilityState,
+  type SortingState,
 } from "@tanstack/react-table";
-import {
-  ChevronDown,
-  Download,
-  Mail,
-  Phone,
-  Search,
-  SlidersHorizontal,
-  Users,
-} from "lucide-react";
+import { Download, SlidersHorizontal, Users } from "lucide-react";
+import { Button, Chip, SearchField, Table } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { downloadCsv, toCsv } from "@/lib/csv";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { HeroSelectField } from "@/components/ui/hero-select";
-import { Card, CardContent } from "@/components/ui/card";
+import { HeroTablePagination } from "@/components/ui/hero-table-pagination";
 import { GuestDetailSheet } from "@/components/customers/guest-detail-sheet";
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -66,22 +47,35 @@ interface CustomersTableProps {
   currency: string;
 }
 
-const TAG_STYLES: Record<string, { color: string; bg: string }> = {
-  vip: { color: "text-amber-600", bg: "bg-amber-500/10" },
-  regular: { color: "text-blue-600", bg: "bg-blue-500/10" },
-  flagged: { color: "text-red-600", bg: "bg-red-500/10" },
-  corporate: { color: "text-purple-600", bg: "bg-purple-500/10" },
-  new: { color: "text-emerald-600", bg: "bg-emerald-500/10" },
-  returning: { color: "text-teal-600", bg: "bg-teal-500/10" },
-  vip_plus: { color: "text-amber-700", bg: "bg-amber-500/15" },
+const TAG_CHIP_COLOR: Record<string, "warning" | "accent" | "danger" | "success" | "default"> = {
+  vip: "warning",
+  vip_plus: "warning",
+  corporate: "accent",
+  flagged: "danger",
+  new: "success",
 };
 
-function getTagStyle(tag: string) {
-  const lower = tag.toLowerCase();
-  return TAG_STYLES[lower] || { color: "text-muted-foreground", bg: "bg-muted" };
+function getTagColor(tag: string) {
+  return TAG_CHIP_COLOR[tag.toLowerCase()] || "default";
 }
 
 const ALL_TAG_OPTIONS = ["vip", "regular", "flagged", "corporate", "new", "returning"];
+
+function GuestInitials({ fullName }: { fullName: string }) {
+  const initials =
+    fullName
+      .split(" ")
+      .map((n) => n[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "?";
+  return (
+    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
+      <span className="text-xs font-medium text-muted-foreground">{initials}</span>
+    </span>
+  );
+}
 
 // ── CSV Export ─────────────────────────────────────────────────────
 
@@ -121,13 +115,12 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const [sorting, setSorting] = React.useState<SortingState>([
-    { id: "totalSpend", desc: true },
-  ]);
+  // Newest guests first by default (server pre-sorts created_at desc)
+  const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [showFilters, setShowFilters] = React.useState(false);
+  const [tagFilter, setTagFilter] = React.useState<string>("all");
   const [selectedGuest, setSelectedGuest] = React.useState<GuestRow | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
 
@@ -143,25 +136,24 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
     }
   }, [searchParams, data]);
 
-  const handleOpenChange = React.useCallback((open: boolean) => {
-    setDetailOpen(open);
-    if (!open) {
-      // Remove guestId from URL without triggering a full page reload or layout shift
-      const params = new URLSearchParams(window.location.search);
-      params.delete("guestId");
-      const cleanUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
-      router.replace(cleanUrl);
-    }
-  }, [router]);
+  const handleOpenChange = React.useCallback(
+    (open: boolean) => {
+      setDetailOpen(open);
+      if (!open) {
+        // Remove guestId from URL without triggering a full page reload
+        const params = new URLSearchParams(window.location.search);
+        params.delete("guestId");
+        const cleanUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+        router.replace(cleanUrl);
+      }
+    },
+    [router]
+  );
 
-  // Tag filter
-  const [tagFilter, setTagFilter] = React.useState<string>("all");
-
-  // Apply column filters from selections
+  // Apply tag selection as a column filter
   React.useEffect(() => {
     const filters: ColumnFiltersState = [];
     if (tagFilter !== "all") {
-      // Tags are stored as array — we filter client-side via custom filter fn
       filters.push({ id: "tags", value: tagFilter });
     }
     setColumnFilters(filters);
@@ -175,22 +167,13 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
         header: "Guest",
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
-            <div className="size-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-              <span className="text-xs font-medium text-muted-foreground">
-                {row.original.fullName
-                  .split(" ")
-                  .map((n) => n[0])
-                  .slice(0, 2)
-                  .join("")
-                  .toUpperCase()}
-              </span>
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-sm font-medium text-foreground truncate max-w-[180px]">
+            <GuestInitials fullName={row.original.fullName} />
+            <div className="flex min-w-0 flex-col">
+              <span className="max-w-[180px] truncate text-body font-medium text-foreground">
                 {row.original.fullName}
               </span>
               {row.original.email && (
-                <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+                <span className="max-w-[180px] truncate text-caption text-muted-foreground">
                   {row.original.email}
                 </span>
               )}
@@ -199,20 +182,10 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
         ),
       },
       {
-        accessorKey: "email",
-        header: "Email",
-        enableHiding: true,
-        cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground truncate max-w-[180px] block">
-            {row.original.email || "—"}
-          </span>
-        ),
-      },
-      {
         accessorKey: "phone",
         header: "Phone",
         cell: ({ row }) => (
-          <span className="text-sm text-foreground tabular-nums">
+          <span className="whitespace-nowrap text-body tabular-nums text-foreground">
             {row.original.phone || "—"}
           </span>
         ),
@@ -221,7 +194,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
         accessorKey: "nationality",
         header: "Nationality",
         cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">
+          <span className="text-body text-muted-foreground">
             {row.original.nationality || "—"}
           </span>
         ),
@@ -230,7 +203,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
         accessorKey: "totalStays",
         header: "Stays",
         cell: ({ row }) => (
-          <span className="text-sm font-medium text-foreground tabular-nums">
+          <span className="text-body font-medium tabular-nums text-foreground">
             {row.original.totalStays}
           </span>
         ),
@@ -239,7 +212,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
         accessorKey: "totalSpend",
         header: "Total Spent",
         cell: ({ row }) => (
-          <span className="text-sm font-medium text-foreground tabular-nums whitespace-nowrap">
+          <span className="whitespace-nowrap text-body font-medium tabular-nums text-foreground">
             {formatCurrency(row.original.totalSpend, currency)}
           </span>
         ),
@@ -248,7 +221,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
         accessorKey: "lastStayDate",
         header: "Last Stay",
         cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
+          <span className="whitespace-nowrap text-caption text-muted-foreground">
             {formatDate(row.original.lastStayDate)}
           </span>
         ),
@@ -256,32 +229,26 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
       {
         accessorKey: "tags",
         header: "Tags",
+        enableSorting: false,
         filterFn: (row, id, filterValue) => {
           const tags = row.getValue(id) as string[];
           return tags.includes(filterValue as string);
         },
         cell: ({ row }) => {
           const tags = row.original.tags;
-          if (tags.length === 0) return <span className="text-xs text-muted-foreground/50">—</span>;
+          if (tags.length === 0)
+            return <span className="text-caption text-muted-foreground/50">—</span>;
           return (
             <div className="flex flex-wrap gap-1">
-              {tags.slice(0, 3).map((tag) => {
-                const style = getTagStyle(tag);
-                return (
-                  <span
-                    key={tag}
-                    className={cn(
-                      "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium capitalize",
-                      style.bg,
-                      style.color
-                    )}
-                  >
-                    {tag}
-                  </span>
-                );
-              })}
-              {tags.length > 3 && (
-                <span className="text-[10px] text-muted-foreground">+{tags.length - 3}</span>
+              {tags.slice(0, 2).map((tag) => (
+                <Chip key={tag} size="sm" variant="soft" color={getTagColor(tag)}>
+                  <span className="capitalize">{tag.replace("_", " ")}</span>
+                </Chip>
+              ))}
+              {tags.length > 2 && (
+                <span className="self-center text-caption text-muted-foreground">
+                  +{tags.length - 2}
+                </span>
               )}
             </div>
           );
@@ -297,12 +264,10 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
     state: {
       sorting,
       columnFilters,
-      columnVisibility,
       globalFilter,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
-    onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -321,199 +286,218 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
     },
     initialState: {
       pagination: {
-        pageSize: 50,
+        pageSize: 15,
       },
     },
   });
 
   const filteredCount = table.getFilteredRowModel().rows.length;
   const totalCount = data.length;
+  const rows = table.getRowModel().rows;
+  const isFiltered = globalFilter.trim().length > 0 || tagFilter !== "all";
 
   function handleGuestClick(guest: GuestRow) {
     setSelectedGuest(guest);
     setDetailOpen(true);
   }
 
+  const emptyState = (
+    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+      <Users className="mb-3 size-10 text-muted-foreground/30" />
+      <p className="text-body font-medium text-muted-foreground">
+        {isFiltered ? "No guests match your filters" : "No guest profiles yet"}
+      </p>
+      <p className="mt-1 max-w-[280px] text-caption text-muted-foreground/60">
+        {isFiltered
+          ? "Try adjusting your search or filters."
+          : "Guest profiles are created automatically when bookings are made."}
+      </p>
+    </div>
+  );
+
   return (
     <>
       <div className="space-y-4">
-        {/* Search + Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-2 flex-1 max-w-md">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/60 pointer-events-none" />
-              <Input
-                placeholder="Search name, email, phone, tags..."
-                value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
-                className="h-9 pl-9 text-sm rounded-xl border-border/60"
-              />
-            </div>
+        {/* Toolbar */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <SearchField
+              aria-label="Search guests"
+              value={globalFilter}
+              onChange={setGlobalFilter}
+              className="max-w-xs flex-1"
+            >
+              <SearchField.Group className="h-9 rounded-xl border-border/60 bg-background">
+                <SearchField.SearchIcon />
+                <SearchField.Input
+                  placeholder="Search name, email, phone..."
+                  className="text-sm"
+                />
+                <SearchField.ClearButton />
+              </SearchField.Group>
+            </SearchField>
             <Button
               variant="ghost"
               size="sm"
-              className={cn(
-                "h-9 text-sm rounded-xl gap-1.5 shrink-0",
-                showFilters && "bg-muted text-foreground"
-              )}
-              onClick={() => setShowFilters(!showFilters)}
+              onPress={() => setShowFilters(!showFilters)}
+              aria-expanded={showFilters}
+              className={cn("h-9 shrink-0 rounded-xl text-sm", showFilters && "bg-muted")}
             >
               <SlidersHorizontal className="size-3.5" />
               Filters
             </Button>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 text-sm rounded-xl border-border/60"
-              onClick={() => exportToCsv(data)}
-            >
-              <Download className="size-3.5 mr-1.5" />
-              Export
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 shrink-0 rounded-xl text-sm"
+            onPress={() => exportToCsv(data)}
+          >
+            <Download className="size-3.5" />
+            Export
+          </Button>
         </div>
 
         {/* Filters */}
         {showFilters && (
-          <Card size="sm" className="border-border/60">
-            <CardContent className="p-3">
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Tags */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                    Tag
-                  </label>
-                  <HeroSelectField className="w-40" value={tagFilter} onValueChange={setTagFilter} options={[{value:"all",label:"All"}, ...ALL_TAG_OPTIONS.map((tag) => ({value:tag,label:tag.charAt(0).toUpperCase()+tag.slice(1)}))]} ariaLabel="Guest tag" />
-                </div>
-
-                {/* Clear */}
-                {tagFilter !== "all" && (
-                  <button
-                    onClick={() => setTagFilter("all")}
-                    className="h-8 px-3 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted self-end"
-                  >
-                    Clear filters
-                  </button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/60 bg-card p-3 shadow-sm">
+            <HeroSelectField
+              className="w-40"
+              label="Tag"
+              value={tagFilter}
+              onValueChange={setTagFilter}
+              options={[
+                { value: "all", label: "All" },
+                ...ALL_TAG_OPTIONS.map((tag) => ({
+                  value: tag,
+                  label: tag.charAt(0).toUpperCase() + tag.slice(1),
+                })),
+              ]}
+              ariaLabel="Guest tag"
+            />
+            {tagFilter !== "all" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 rounded-lg text-xs text-muted-foreground"
+                onPress={() => setTagFilter("all")}
+              >
+                Clear filters
+              </Button>
+            )}
+          </div>
         )}
 
-        {/* DataTable */}
-        <Card className="border-border/60 overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder ? null : (
-                          <button
-                            className={cn(
-                              "flex items-center gap-1 select-none",
-                              header.column.getCanSort() && "cursor-pointer hover:text-foreground"
-                            )}
-                            onClick={header.column.getToggleSortingHandler()}
-                          >
-                            {flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                            {{
-                              asc: (
-                                <ChevronDown className="size-3 rotate-180 text-muted-foreground/60" />
-                              ),
-                              desc: (
-                                <ChevronDown className="size-3 text-muted-foreground/60" />
-                              ),
-                            }[header.column.getIsSorted() as string] ?? null}
-                          </button>
-                        )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
+        {/* Desktop table */}
+        <Table variant="secondary" className="hidden md:block">
+          <Table.ScrollContainer>
+            <Table.Content aria-label="Guests" className="min-w-[760px]">
+              <Table.Header>
+                {table.getHeaderGroups()[0]?.headers.map((header) => (
+                  <Table.Column
+                    key={header.id}
+                    allowsSorting={header.column.getCanSort()}
+                    id={header.id}
+                    isRowHeader={header.id === "fullName"}
+                  >
+                    {({ sortDirection }) =>
+                      header.id === "tags" ? (
+                        flexRender(header.column.columnDef.header, header.getContext())
+                      ) : (
+                        <Table.SortableColumnHeader sortDirection={sortDirection}>
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                        </Table.SortableColumnHeader>
+                      )
+                    }
+                  </Table.Column>
                 ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.length > 0 ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      className="group cursor-pointer transition-colors hover:bg-muted/30"
-                      onClick={() => handleGuestClick(row.original)}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-48 text-center"
-                    >
-                      <div className="flex flex-col items-center justify-center">
-                        <Users className="size-10 text-muted-foreground/30 mb-3" />
-                        <p className="text-sm font-medium text-muted-foreground">
-                          {globalFilter || tagFilter !== "all"
-                            ? "No guests match your filters"
-                            : "No guest profiles yet"}
-                        </p>
-                        <p className="text-xs text-muted-foreground/60 mt-1 max-w-[240px]">
-                          {globalFilter || tagFilter !== "all"
-                            ? "Try adjusting your search or filters"
-                            : "Guest profiles are created automatically when bookings are made."}
+              </Table.Header>
+              <Table.Body renderEmptyState={() => emptyState}>
+                {rows.map((row) => (
+                  <Table.Row
+                    key={row.id}
+                    id={row.id}
+                    className="cursor-pointer"
+                    onAction={() => handleGuestClick(row.original)}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <Table.Cell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </Table.Cell>
+                    ))}
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+          <Table.Footer>
+            <HeroTablePagination
+              table={table}
+              totalRows={totalCount}
+              filteredRows={filteredCount}
+            />
+          </Table.Footer>
+        </Table>
+
+        {/* Mobile cards */}
+        <div className="space-y-3 md:hidden">
+          {rows.length > 0 ? (
+            <>
+              {rows.map(({ original: guest }) => (
+                <button
+                  key={guest.id}
+                  onClick={() => handleGuestClick(guest)}
+                  className="w-full rounded-xl border border-border/60 bg-card p-4 text-left shadow-sm transition-colors active:bg-muted/40"
+                >
+                  <div className="flex items-center gap-3">
+                    <GuestInitials fullName={guest.fullName} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-body font-semibold text-foreground">
+                        {guest.fullName}
+                      </p>
+                      <p className="truncate text-caption text-muted-foreground">
+                        {guest.phone || guest.email || "—"}
+                      </p>
+                    </div>
+                    {guest.tags.length > 0 && (
+                      <Chip size="sm" variant="soft" color={getTagColor(guest.tags[0])}>
+                        <span className="capitalize">{guest.tags[0].replace("_", " ")}</span>
+                      </Chip>
+                    )}
+                  </div>
+                  <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
+                    <div className="flex gap-4">
+                      <div>
+                        <p className="text-caption text-muted-foreground">Stays</p>
+                        <p className="text-body font-medium tabular-nums text-foreground">
+                          {guest.totalStays}
                         </p>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
-            <p className="text-xs text-muted-foreground">
-              {filteredCount > 0
-                ? `Showing ${table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} - ${Math.min(
-                    (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-                    filteredCount
-                  )} of ${filteredCount}`
-                : "No results"}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs rounded-lg"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs rounded-lg"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                Next
-              </Button>
+                      <div>
+                        <p className="text-caption text-muted-foreground">Total spent</p>
+                        <p className="text-body font-medium tabular-nums text-foreground">
+                          {formatCurrency(guest.totalSpend, currency)}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-caption text-muted-foreground">
+                      Last stay {formatDate(guest.lastStayDate)}
+                    </p>
+                  </div>
+                </button>
+              ))}
+              <HeroTablePagination
+                table={table}
+                totalRows={totalCount}
+                filteredRows={filteredCount}
+              />
+            </>
+          ) : (
+            <div className="rounded-xl border border-dashed border-border/60 p-4">
+              {emptyState}
             </div>
-          </div>
-        </Card>
+          )}
+        </div>
       </div>
 
       {/* Guest Detail Sheet */}

@@ -20,6 +20,10 @@ interface RoomCardProps {
   checkOut?: string;
   availableCount?: number | null;
   datesSelected?: boolean;
+  /** Party context carried through to the booking wizard. */
+  adults?: string;
+  childGuests?: string;
+  rooms?: string;
 }
 
 export function RoomCard({
@@ -35,6 +39,9 @@ export function RoomCard({
   checkOut,
   availableCount,
   datesSelected,
+  adults,
+  childGuests,
+  rooms,
 }: RoomCardProps) {
   const router = useRouter();
   const [galleryOpen, setGalleryOpen] = React.useState(false);
@@ -43,8 +50,11 @@ export function RoomCard({
     const params = new URLSearchParams({ room_type_id: id });
     if (checkIn) params.set("check_in", checkIn);
     if (checkOut) params.set("check_out", checkOut);
+    if (adults) params.set("adults", adults);
+    if (childGuests && childGuests !== "0") params.set("children", childGuests);
+    if (rooms && rooms !== "1") params.set("rooms", rooms);
     return `/${slug}/book?${params.toString()}`;
-  }, [slug, id, checkIn, checkOut]);
+  }, [slug, id, checkIn, checkOut, adults, childGuests, rooms]);
 
   const firstImage = images[0]?.url ?? null;
   const isSoldOut =
@@ -84,7 +94,7 @@ export function RoomCard({
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-stone-100 to-stone-200">
+            <div className="absolute inset-0 flex items-center justify-center bg-[var(--bk-surface-soft)]">
               <span className="text-2xl font-semibold text-[var(--bk-muted)]/50 tracking-wide">
                 {name
                   .split(" ")

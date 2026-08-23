@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { verifyTransaction } from "@/lib/paystack";
+import { recordOnlinePayment } from "@/lib/bookings/confirm-online-payment";
 
 /**
  * GET /api/booking/[slug]/payments/verify?reference=<paystackRef>
@@ -8,14 +9,14 @@ import { verifyTransaction } from "@/lib/paystack";
  * Guest-facing payment verification. Called from the confirmation page after
  * Paystack redirects back. The webhook is the primary confirmation path — this
  * route is an idempotent fallback for cases where the webhook fires before the
- * browser redirect arrives.
+ * browser redirect arrives (or never arrives).
  *
  * Security properties:
  * - Amount is re-verified against Paystack (not trusted from client/URL)
  * - Booking ownership verified: booking.hotel_id must match the hotel resolved
  *   from the slug — prevents confirming a foreign hotel's booking
- * - Idempotent: skips insert if payment record already exists (webhook may
- *   have beaten us here)
+ * - Idempotent: shares recordOnlinePayment() with the webhook; UNIQUE
+ *   paystack_reference makes concurrent runs race-safe
  */
 export async function GET(
   req: NextRequest,
@@ -77,153 +78,52 @@ export async function GET(
       return NextResponse.json({ verified: false, error: "No booking linked" }, { status: 400 });
     }
 
-    // Idempotent — webhook may have already confirmed it
-    const { data: existing, error: existingError } = await supabaseAdmin
-      .from("payments")
-      .select("id")
-      .eq("paystack_reference", reference)
-      .maybeSingle();
-
-    if (existingError) {
-      // Fail loudly rather than risk recording a duplicate payment on a
-      // transient read error.
-      throw new Error(`Idempotency lookup failed: ${existingError.message}`);
-    }
-
-    if (existing) {
-      // Already recorded — just return success
-      return NextResponse.json({ verified: true, bookingReference: bookingRef });
-    }
-
-    // Fetch booking and assert it belongs to THIS hotel (cross-tenant check)
-    const { data: booking, error: bookingFetchError } = await supabaseAdmin
+    // Booking must belong to the hotel resolved from the URL slug (cross-tenant check)
+    const { data: ownership, error: ownershipError } = await supabaseAdmin
       .from("bookings")
-      .select("id, hotel_id, total_amount, currency, status")
+      .select("hotel_id")
       .eq("id", bookingId)
       .maybeSingle();
 
-    if (bookingFetchError) {
-      throw new Error(`Booking lookup failed: ${bookingFetchError.message}`);
+    if (ownershipError) {
+      throw new Error(`Ownership lookup failed: ${ownershipError.message}`);
     }
 
-    if (!booking) {
-      return NextResponse.json({ verified: false, error: "Booking not found" }, { status: 404 });
-    }
-
-    // Booking must belong to the hotel resolved from the URL slug
-    if (booking.hotel_id !== hotel.id) {
+    if (!ownership || ownership.hotel_id !== hotel.id) {
       console.error("[payment/verify] hotel_id mismatch — possible cross-tenant access attempt", {
         urlSlug: slug,
         resolvedHotelId: hotel.id,
-        bookingHotelId: booking.hotel_id,
+        bookingHotelId: ownership?.hotel_id ?? null,
         bookingId,
       });
       return NextResponse.json({ verified: false, error: "Invalid request" }, { status: 403 });
     }
 
-    const amountPaid = txn.amount / 100; // pesewas → GHS
-    const expectedAmount = Number(booking.total_amount);
+    // ── Shared, race-safe recording pipeline (same as webhook) ──
+    const subaccountData = txn.subaccount as Record<string, unknown> | null | undefined;
 
-    // Validate amount matches what was expected
-    // Allow a small float delta (0.01) for rounding differences
-    if (Math.abs(amountPaid - expectedAmount) > 0.01) {
-      console.error("[payment/verify] Amount mismatch — recording as partial/suspicious", {
-        bookingId,
-        expectedAmount,
-        amountPaid,
-        reference,
-      });
-
-      const { error: mismatchPaymentError } = await supabaseAdmin.from("payments").insert({
-        hotel_id: booking.hotel_id,
-        booking_id: bookingId,
-        amount: amountPaid,
-        currency: booking.currency ?? "GHS",
-        method: "card",
-        status: "success",
-        paystack_reference: reference,
-        paystack_subaccount: txn.subaccount?.account_code ?? null,
-        paid_at: new Date().toISOString(),
-        notes: `Amount mismatch: expected ${expectedAmount}, received ${amountPaid}`,
-      });
-
-      if (mismatchPaymentError) {
-        // Don't tell the guest "verified" when we failed to persist the payment.
-        throw new Error(`Failed to record payment: ${mismatchPaymentError.message}`);
-      }
-
-      const { error: mismatchNotifyError } = await supabaseAdmin.from("notifications").insert({
-        hotel_id: booking.hotel_id,
-        type: "payment_received",
-        title: "⚠️ Payment Amount Mismatch",
-        message: `Payment of ${booking.currency ?? "GHS"} ${amountPaid.toFixed(2)} received for booking (expected ${expectedAmount.toFixed(2)}). Manual review required.`,
-        booking_id: bookingId,
-        is_read: false,
-      });
-
-      if (mismatchNotifyError) {
-        console.error("[payment/verify] Failed to write amount-mismatch alert", {
-          bookingId,
-          reference,
-          error: mismatchNotifyError.message,
-        });
-      }
-
-      // Still verified from Paystack's perspective — partial payment
-      const { error: mismatchBookingError } = await supabaseAdmin
-        .from("bookings")
-        .update({ payment_status: "partial", amount_paid: amountPaid })
-        .eq("id", bookingId);
-
-      if (mismatchBookingError) {
-        console.error("[payment/verify] Payment recorded but booking update failed", {
-          bookingId,
-          reference,
-          error: mismatchBookingError.message,
-        });
-      }
-
-      return NextResponse.json({ verified: true, bookingReference: bookingRef, partialPayment: true });
-    }
-
-    // Amount matches — record payment and confirm booking
-    const { error: paymentInsertError } = await supabaseAdmin.from("payments").insert({
-      hotel_id: booking.hotel_id,
-      booking_id: bookingId,
-      amount: amountPaid,
-      currency: booking.currency ?? "GHS",
-      method: "card",
-      status: "success",
-      paystack_reference: reference,
-      paystack_subaccount: txn.subaccount?.account_code ?? null,
-      paid_at: new Date().toISOString(),
+    const result = await recordOnlinePayment({
+      bookingId,
+      paystackReference: reference,
+      paystackId: txn.id != null ? String(txn.id) : null,
+      amountPaid: txn.amount / 100, // pesewas → major units
+      currency: typeof txn.currency === "string" ? txn.currency : hotel.currency,
+      subaccountCode: (subaccountData?.account_code as string | null) ?? null,
     });
 
-    if (paymentInsertError) {
-      // The guest paid — surface a 500 so the confirmation page can retry rather
-      // than reporting success for a payment we never stored.
-      throw new Error(`Failed to record payment: ${paymentInsertError.message}`);
+    switch (result.outcome) {
+      case "already_recorded":
+      case "recorded":
+        return NextResponse.json({
+          verified: true,
+          bookingReference: bookingRef,
+          partialPayment: !result.fullyPaid,
+        });
+      case "failed":
+        // The guest may have paid — surface a 500 so the confirmation page can
+        // retry rather than reporting success for a payment we never stored.
+        throw new Error(result.error);
     }
-
-    const { error: bookingUpdateError } = await supabaseAdmin
-      .from("bookings")
-      .update({ status: "confirmed", payment_status: "paid", amount_paid: amountPaid })
-      .eq("id", bookingId);
-
-    if (bookingUpdateError) {
-      // Payment is stored; only the booking status failed to update. Log rather
-      // than 500 (the money is safely recorded). Note: neither this route nor
-      // the webhook re-attempts the status update on retry — both short-circuit
-      // once the payment row exists — so a persistent update failure needs the
-      // logged error for manual reconciliation.
-      console.error("[payment/verify] Payment recorded but booking update failed", {
-        bookingId,
-        reference,
-        error: bookingUpdateError.message,
-      });
-    }
-
-    return NextResponse.json({ verified: true, bookingReference: bookingRef });
   } catch (err) {
     console.error("[payment/verify]", err instanceof Error ? err.message : err);
     return NextResponse.json(

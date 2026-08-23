@@ -13,10 +13,10 @@ export function CopyButton({ text }: { text: string }) {
           setTimeout(() => setCopied(false), 2000);
         });
       }}
-      className="text-[#A8A29E] hover:text-[#1C1917] transition-colors"
+      className="inline-flex size-9 items-center justify-center rounded-lg text-[var(--bk-muted)] hover:text-[var(--bk-ink)] hover:bg-[var(--bk-surface-soft)] transition-colors cursor-pointer touch-manipulation"
       title="Copy reference"
     >
-      {copied ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}
+      {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
     </button>
   );
 }

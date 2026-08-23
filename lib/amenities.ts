@@ -20,3 +20,17 @@ export const AMENITIES_LIST = [
 ] as const;
 
 export type Amenity = (typeof AMENITIES_LIST)[number];
+
+/**
+ * Converts selected amenity labels into stored `{ icon, label }` objects.
+ * Known amenities keep their icon; custom staff-added ones fall back to a
+ * generic icon (icons are not rendered on guest-facing pages today).
+ */
+export function toAmenityObjects(labels: string[]): { icon: string; label: string }[] {
+  return labels.map((label) => {
+    const known = AMENITIES_LIST.find(
+      (a) => a.label.toLowerCase() === label.toLowerCase()
+    );
+    return { icon: known?.icon ?? "check", label: known?.label ?? label };
+  });
+}

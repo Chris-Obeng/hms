@@ -1,38 +1,54 @@
-/* Guest booking — warm editorial hospitality palette (distinct from admin) */
+/* ============================================================================
+ * Guest booking site — warm editorial hospitality palette
+ *
+ * Theme-aware: follows the device/account theme via the html.dark class that
+ * the app's theme-init script sets before first paint. Every colour on guest
+ * pages flows from --bk-* tokens (or bridged HeroUI tokens) below, so light
+ * and dark both render correctly without component-level conditionals.
+ * ==========================================================================*/
+
 .booking-body {
   font-family: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
   font-size: 15px;
   line-height: 1.65;
-  color: #1c1917;
-  background: #fafaf8;
   -webkit-font-smoothing: antialiased;
   display: block;
   min-height: 100dvh;
   overflow-x: clip;
-  color-scheme: light;
 
-  /* Guest accent tokens — deep stone primary, warm amber highlight */
+  /* ── Guest tokens · LIGHT (warm stone + amber highlight) ── */
   --bk-bg: #fafaf8;
   --bk-surface: #ffffff;
   --bk-surface-soft: #f5f4f1;
   --bk-ink: #1c1917;
+  --bk-ink-hover: #292524;
   --bk-ink-soft: #44403c;
   --bk-muted: #78716c;
   --bk-line: #e7e5e4;
   --bk-line-strong: #d6d3d1;
   --bk-accent: #b45309;
+  --bk-accent-hover: #92400e;
   --bk-accent-soft: #fef3c7;
   --bk-success: #047857;
+  --bk-success-soft: #ecfdf5;
+  --bk-success-line: #a7f3d0;
   --bk-danger: #be123c;
+  --bk-danger-soft: #fff1f2;
+  --bk-danger-line: #fecdd3;
+  --bk-on-ink: #fafaf8;
+  --bk-chrome: rgb(250 250 248 / 0.92);
+  --bk-hero-panel: rgb(255 255 255 / 0.95);
+  --bk-field-bg: #ffffff;
+  --bk-focus-ring: rgb(28 25 23 / 0.08);
   --bk-radius: 1rem;
   --bk-radius-lg: 1.25rem;
   --bk-shadow: 0 1px 2px rgb(28 25 23 / 0.04), 0 8px 24px rgb(28 25 23 / 0.04);
   --bk-shadow-lg: 0 4px 6px rgb(28 25 23 / 0.03), 0 16px 40px rgb(28 25 23 / 0.08);
 
-  /*
-   * Force HeroUI light form tokens on guest pages.
-   * html.dark otherwise makes labels/placeholders/inputs unreadable.
-   */
+  color: var(--bk-ink);
+  background: var(--bk-bg);
+
+  /* ── Force HeroUI light form tokens on guest pages ── */
   --white: oklch(100% 0 0);
   --snow: oklch(0.9911 0 0);
   --eclipse: oklch(0.2103 0.0059 285.89);
@@ -60,6 +76,16 @@
   );
   --accent-soft-hover: color-mix(in oklab, var(--accent) 20%, transparent);
 
+  /* Semantic tokens consumed by Tailwind utilities inside guest pages */
+  /* (bg-background, bg-card, bg-popover, text-muted-foreground, …) */
+  --background: var(--bk-surface);
+  --card: var(--bk-surface);
+  --popover: var(--bk-surface);
+  --muted-foreground: var(--bk-muted);
+  --primary: var(--bk-accent);
+  --primary-foreground: var(--bk-on-ink);
+  --ring: var(--bk-accent);
+
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-default: var(--default);
@@ -76,6 +102,60 @@
   --color-border: var(--border);
 }
 
+/* ── DARK — same structure, deep warm charcoal ────────────────── */
+.dark .booking-body {
+  --bk-bg: #141110;
+  --bk-surface: #1d1a18;
+  --bk-surface-soft: #262220;
+  --bk-ink: #f5f4f1;
+  --bk-ink-hover: #ffffff;
+  --bk-ink-soft: #d6d3d0;
+  --bk-muted: #a8a29e;
+  --bk-line: #332f2b;
+  --bk-line-strong: #474139;
+  --bk-accent: #e8a33d;
+  --bk-accent-hover: #f0b055;
+  --bk-accent-soft: rgb(232 163 61 / 0.14);
+  --bk-success: #34d399;
+  --bk-success-soft: rgb(52 211 153 / 0.12);
+  --bk-success-line: rgb(52 211 153 / 0.35);
+  --bk-danger: #fb7185;
+  --bk-danger-soft: rgb(251 113 133 / 0.12);
+  --bk-danger-line: rgb(251 113 133 / 0.35);
+  --bk-on-ink: #171412;
+  --bk-chrome: rgb(20 17 16 / 0.88);
+  --bk-hero-panel: rgb(29 26 24 / 0.94);
+  --bk-field-bg: #232019;
+  --bk-focus-ring: rgb(245 244 241 / 0.12);
+
+  --bk-shadow: 0 1px 2px rgb(0 0 0 / 0.32), 0 8px 24px rgb(0 0 0 / 0.32);
+  --bk-shadow-lg: 0 4px 6px rgb(0 0 0 / 0.28), 0 16px 40px rgb(0 0 0 / 0.44);
+
+  /* HeroUI bridge — dark equivalents */
+  --white: #232019;
+  --snow: #262220;
+  --eclipse: #f5f4f1;
+  --foreground: var(--eclipse);
+  --muted: oklch(0.72 0.008 286);
+  --default: #2b2724;
+  --default-foreground: var(--eclipse);
+  --default-hover: #332e2a;
+  --field-background: var(--white);
+  --field-foreground: var(--eclipse);
+  --field-placeholder: oklch(0.62 0.01 286);
+  --field-border: #3a3530;
+  --overlay: #201d1b;
+  --overlay-foreground: var(--eclipse);
+  --border: #38332e;
+  --separator: #302b27;
+  --accent: #e8a33d;
+  --accent-foreground: #171412;
+
+  --background: var(--bk-surface);
+  --card: var(--bk-surface);
+  --popover: var(--bk-surface);
+}
+
 /* Keyboard skip link — offscreen until focused */
 .booking-skip-link {
   position: absolute;
@@ -85,7 +165,7 @@
   padding: 0.5rem 1rem;
   border-radius: 0.75rem;
   background: var(--bk-ink);
-  color: #fafaf8;
+  color: var(--bk-on-ink);
   font-size: 0.875rem;
   font-weight: 600;
   text-decoration: none;
@@ -115,7 +195,7 @@
 
 /* Sticky guest chrome */
 .booking-header {
-  background: rgb(250 250 248 / 0.92);
+  background: var(--bk-chrome);
   backdrop-filter: blur(14px) saturate(1.2);
   -webkit-backdrop-filter: blur(14px) saturate(1.2);
   border-bottom: 1px solid var(--bk-line);
@@ -125,6 +205,10 @@
     border-color 220ms cubic-bezier(0.32, 0.72, 0, 1),
     box-shadow 220ms cubic-bezier(0.32, 0.72, 0, 1),
     backdrop-filter 220ms ease;
+}
+
+.dark .booking-header {
+  box-shadow: 0 1px 0 rgb(0 0 0 / 0.2), 0 8px 24px rgb(0 0 0 / 0.22);
 }
 
 .booking-header-hero {
@@ -145,17 +229,17 @@
 
 /* Hero header after scroll — reuses solid chrome tokens */
 .booking-header-hero[data-solid="true"] {
-  background: rgb(250 250 248 / 0.94);
+  background: var(--bk-chrome);
   backdrop-filter: blur(14px) saturate(1.2);
   -webkit-backdrop-filter: blur(14px) saturate(1.2);
   border-bottom: 1px solid var(--bk-line);
   box-shadow: 0 1px 0 rgb(28 25 23 / 0.02), 0 8px 24px rgb(28 25 23 / 0.04);
 }
 
-/* White pill CTA over dark hero imagery */
+/* White pill CTA over dark hero imagery — stays high-contrast in both themes */
 .booking-cta-on-hero {
   background: #ffffff !important;
-  color: var(--bk-ink) !important;
+  color: #1c1917 !important;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 4px 16px rgb(0 0 0 / 0.12) !important;
 }
 
@@ -190,7 +274,7 @@
 /* Primary guest CTA */
 .booking-cta {
   background: var(--bk-ink) !important;
-  color: #fafaf8 !important;
+  color: var(--bk-on-ink) !important;
   border: none !important;
   font-weight: 600 !important;
   letter-spacing: 0.01em;
@@ -200,7 +284,7 @@
 }
 
 .booking-cta:hover:not(:disabled) {
-  background: #292524 !important;
+  background: var(--bk-ink-hover) !important;
   box-shadow: var(--bk-shadow);
 }
 
@@ -209,19 +293,23 @@
 }
 
 .booking-cta:disabled {
-  background: #e7e5e4 !important;
-  color: #a8a29e !important;
+  background: var(--bk-line) !important;
+  color: var(--bk-muted) !important;
   box-shadow: none !important;
 }
 
 /* Accent CTA (pay / confirm) */
 .booking-cta-accent {
   background: var(--bk-accent) !important;
-  color: #fffbeb !important;
+  color: #171412 !important;
 }
 
 .booking-cta-accent:hover:not(:disabled) {
-  background: #92400e !important;
+  background: var(--bk-accent-hover) !important;
+}
+
+.dark .booking-cta-accent {
+  color: #171412 !important;
 }
 
 /* Form field shell inside booking — readable labels, values, placeholders */
@@ -242,7 +330,7 @@
 .booking-field .input {
   border-radius: 0.75rem;
   color: var(--bk-ink) !important;
-  background: #ffffff !important;
+  background: var(--bk-field-bg) !important;
   border: 1px solid var(--bk-line) !important;
   box-shadow: none;
 }
@@ -257,9 +345,9 @@
 .booking-field input:focus,
 .booking-field textarea:focus,
 .booking-field .input:focus-visible {
-  border-color: var(--bk-ink) !important;
+  border-color: var(--bk-accent) !important;
   outline: none;
-  box-shadow: 0 0 0 3px rgb(28 25 23 / 0.08);
+  box-shadow: 0 0 0 3px var(--bk-focus-ring);
 }
 
 /* Nationality select trigger — match field contrast */
@@ -277,7 +365,7 @@
 .booking-field-select .select__trigger,
 .booking-field-select [class*="trigger"] {
   color: var(--bk-ink);
-  background: #ffffff;
+  background: var(--bk-field-bg);
   border-color: var(--bk-line);
 }
 
@@ -306,9 +394,9 @@
 }
 
 .booking-room-option[data-selected="true"] {
-  border-color: var(--bk-ink);
-  background: #fafaf8;
-  box-shadow: inset 0 0 0 1px var(--bk-ink);
+  border-color: var(--bk-accent);
+  background: var(--bk-bg);
+  box-shadow: inset 0 0 0 1px var(--bk-accent);
 }
 
 .booking-room-option[data-sold-out="true"] {
@@ -338,8 +426,8 @@
 }
 
 .booking-pay-option[data-selected="true"] {
-  border-color: var(--bk-ink);
-  background: var(--bk-surface-soft);
+  border-color: var(--bk-accent);
+  background: var(--bk-accent-soft);
 }
 
 /* Tabular prices */
@@ -376,6 +464,72 @@
   border: 1px solid var(--bk-line);
 }
 
+/* Status icon medallion (confirmation page) */
+.booking-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  background: var(--bk-surface-soft);
+  color: var(--bk-muted);
+  border: 1px solid var(--bk-line);
+}
+
+.booking-status-icon-hero {
+  width: 3.5rem;
+  height: 3.5rem;
+  color: var(--bk-success);
+  background: var(--bk-success-soft);
+  border: 1px solid var(--bk-success-line);
+}
+
+.booking-status-icon-hero[data-state="awaiting_payment"] {
+  color: var(--bk-accent);
+  background: var(--bk-accent-soft);
+  border-color: var(--bk-accent);
+}
+
+.booking-status-icon-hero[data-state="expired"],
+.booking-status-icon-hero[data-state="cancelled"] {
+  color: var(--bk-danger);
+  background: var(--bk-danger-soft);
+  border-color: var(--bk-danger-line);
+}
+
+/* Payment verification pill (confirmation page) */
+.booking-verify-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.booking-verify-pill[data-state="confirmed"] {
+  color: var(--bk-success);
+  background: var(--bk-success-soft);
+  border: 1px solid var(--bk-success-line);
+}
+
+.booking-verify-pill[data-state="polling"] {
+  color: var(--bk-muted);
+  background: var(--bk-surface-soft);
+  border: 1px solid var(--bk-line);
+}
+
+.booking-verify-note {
+  font-size: 0.75rem;
+  line-height: 1.6;
+  text-align: center;
+  margin-bottom: 1rem;
+  color: var(--bk-muted);
+}
+
 /* Mobile sticky checkout bar — fixed for reliable thumb reach (OTA pattern) */
 .booking-sticky-bar {
   position: fixed;
@@ -383,7 +537,7 @@
   right: 0;
   bottom: 0;
   z-index: 35;
-  background: rgb(250 250 248 / 0.97);
+  background: var(--bk-chrome);
   backdrop-filter: blur(14px) saturate(1.1);
   -webkit-backdrop-filter: blur(14px) saturate(1.1);
   border-top: 1px solid var(--bk-line);
@@ -429,74 +583,69 @@
 .booking-popover-panel {
   width: min(20rem, calc(100vw - 1.5rem));
   max-width: calc(100vw - 1.5rem);
-  /* Same isolation as calendar: stay readable over dark html theme */
-  color-scheme: light;
-  background: #ffffff;
-  color: oklch(0.2103 0.0059 285.89);
-  --foreground: oklch(0.2103 0.0059 285.89);
-  --muted: oklch(0.5517 0.0138 285.94);
+  /* Same isolation as calendar: readable over any underlying theme */
+  color-scheme: inherit;
+  background: var(--bk-surface);
+  color: var(--bk-ink);
+  --foreground: var(--bk-ink);
+  --muted: var(--bk-muted);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
+  --color-border: var(--bk-line);
 }
 
 .booking-calendar-panel {
   width: min(21rem, calc(100vw - 1.25rem));
   max-width: calc(100vw - 1.25rem);
-  /* Always light surface — guest hero can sit under dark html theme */
-  color-scheme: light;
-  background: #ffffff;
-  color: oklch(0.2103 0.0059 285.89);
+  /* Token-driven surface — correct over both light and dark html themes */
+  color-scheme: inherit;
+  background: var(--bk-surface);
+  color: var(--bk-ink);
   border-radius: 1rem;
   box-shadow:
     0 1px 2px rgb(15 23 42 / 0.06),
     0 12px 32px rgb(15 23 42 / 0.12);
 
   /*
-   * Isolate HeroUI light calendar tokens so dark mode on <html>
-   * does not wash out day numbers / selection on a white popover.
-   * Values match @heroui/styles default light theme.
+   * Isolate calendar tokens so the surrounding html theme never washes out
+   * day numbers / selection. Values derive from the guest palette so light
+   * and dark stay consistent with the rest of the funnel.
    */
-  --white: oklch(100% 0 0);
-  --snow: oklch(0.9911 0 0);
-  --eclipse: oklch(0.2103 0.0059 285.89);
-  --background: oklch(0.9702 0 0);
-  --foreground: var(--eclipse);
-  --overlay: var(--white);
-  --overlay-foreground: var(--foreground);
-  --muted: oklch(0.5517 0.0138 285.94);
-  --default: oklch(94% 0.001 286.375);
-  --default-foreground: var(--eclipse);
-  /* HeroUI accent blue — selection start/end + range track */
-  --accent: oklch(0.6204 0.195 253.83);
-  --accent-foreground: var(--snow);
-  --accent-hover: color-mix(in oklab, var(--accent) 90%, var(--foreground) 10%);
-  --accent-soft: color-mix(in oklab, var(--accent) 15%, transparent);
-  --accent-soft-foreground: color-mix(
-    in oklab,
-    var(--accent) 70%,
-    var(--foreground) 30%
-  );
-  --accent-soft-hover: color-mix(in oklab, var(--accent) 20%, transparent);
-  --border: oklch(90% 0.004 286.32);
-  --focus: var(--accent);
+  --white: var(--bk-surface);
+  --snow: var(--bk-surface-soft);
+  --eclipse: var(--bk-ink);
+  --background: var(--bk-bg);
+  --foreground: var(--bk-ink);
+  --overlay: var(--bk-surface);
+  --overlay-foreground: var(--bk-ink);
+  --muted: var(--bk-muted);
+  --default: var(--bk-surface-soft);
+  --default-foreground: var(--bk-ink);
+  --border: var(--bk-line);
+  --focus: var(--bk-accent);
 
-  /* Tailwind / @theme bridges used by HeroUI utility classes */
+  /* HeroUI utility bridges */
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-default: var(--default);
   --color-default-foreground: var(--default-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent-hover: var(--accent-hover);
-  --color-accent-soft: var(--accent-soft);
-  --color-accent-soft-foreground: var(--accent-soft-foreground);
-  --color-accent-soft-hover: var(--accent-soft-hover);
+  --color-accent: var(--bk-accent);
+  --color-accent-foreground: var(--bk-on-ink);
+  --color-accent-hover: var(--bk-accent-hover);
+  --color-accent-soft: var(--bk-accent-soft);
+  --color-accent-soft-foreground: var(--bk-accent);
+  --color-accent-soft-hover: var(--bk-accent-soft);
 
   /* Bridge: StayRangeCalendar drives selection UI off --primary/--muted-foreground */
-  --primary: oklch(0.6204 0.195 253.83);
-  --primary-foreground: var(--snow);
-  --muted-foreground: var(--muted);
-  --border: oklch(90% 0.004 286.32);
+  --primary: var(--bk-accent);
+  --primary-foreground: var(--bk-on-ink);
+  --muted-foreground: var(--bk-muted);
+}
+
+.dark .booking-calendar-panel {
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.4),
+    0 12px 32px rgb(0 0 0 / 0.5);
 }
 
 /* Dual-month layout needs breathing room on desktop */
@@ -519,8 +668,6 @@
     padding-right: max(2.5rem, env(safe-area-inset-right));
   }
 }
-
-/* Guest date-range panel: dual-month grid handled by .stay-range-calendar (globals.css) */
 
 /* Comfortable tap targets on coarse pointers */
 @media (pointer: coarse) {

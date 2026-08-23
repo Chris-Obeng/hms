@@ -91,8 +91,8 @@ export function DateSearchBar({ slug, variant = "hero" }: DateSearchBarProps) {
 
   const shellClass =
     variant === "compact"
-      ? "grid grid-cols-1 min-[480px]:grid-cols-[1.2fr_1fr_auto] gap-1 items-stretch min-[480px]:items-center bg-white rounded-xl p-1 border border-[var(--bk-line)] shadow-[var(--bk-shadow)] w-full min-w-0"
-      : "grid grid-cols-1 min-[480px]:grid-cols-[1.25fr_1fr_auto] gap-1.5 sm:gap-2 items-stretch min-[480px]:items-center bg-white/95 backdrop-blur-xl rounded-2xl p-1.5 sm:p-2 shadow-[var(--bk-shadow-lg)] border border-white/40 w-full max-w-4xl mx-auto min-w-0";
+      ? "grid grid-cols-1 min-[480px]:grid-cols-[1.2fr_1fr_auto] gap-1 items-stretch min-[480px]:items-center bg-[var(--bk-surface)] rounded-xl p-1 border border-[var(--bk-line)] shadow-[var(--bk-shadow)] w-full min-w-0"
+      : "grid grid-cols-1 min-[480px]:grid-cols-[1.25fr_1fr_auto] gap-1.5 sm:gap-2 items-stretch min-[480px]:items-center bg-[var(--bk-hero-panel)] backdrop-blur-xl rounded-2xl p-1.5 sm:p-2 shadow-[var(--bk-shadow-lg)] border border-white/40 w-full max-w-4xl mx-auto min-w-0";
 
   return (
     <form onSubmit={handleSearch} className={shellClass} role="search">

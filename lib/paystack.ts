@@ -104,15 +104,20 @@ export async function initializeTransaction(input: TransactionInitInput) {
   return res.data;
 }
 
-export async function verifyTransaction(reference: string) {
-  const res = await paystackFetch<{
-    status: string;
-    amount: number;
-    reference: string;
-    currency: string;
-    subaccount?: { account_code: string };
-    customer: { email: string };
-    metadata?: string;
-  }>(`/transaction/verify/${encodeURIComponent(reference)}`);
+export interface VerifiedPaystackTransaction {
+  status: string;
+  amount: number;
+  reference: string;
+  currency: string;
+  id?: number | string;
+  subaccount?: { account_code: string };
+  customer: { email: string };
+  metadata?: string;
+}
+
+export async function verifyTransaction(reference: string): Promise<VerifiedPaystackTransaction> {
+  const res = await paystackFetch<VerifiedPaystackTransaction>(
+    `/transaction/verify/${encodeURIComponent(reference)}`
+  );
   return res.data;
 }

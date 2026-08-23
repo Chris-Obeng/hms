@@ -340,6 +340,17 @@
   color: var(--muted-foreground) !important;
 }
 
+/* HeroUI renders column headers with its own --muted token, which maps to a
+ * surface colour in this theme — headers were nearly invisible. Restore
+ * contrast while keeping the subtle look (75% foreground). */
+.table__column {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: color-mix(in oklch, var(--foreground) 75%, transparent);
+}
+
 /* ── Design System Utilities ──────────────────────────────────────────
  *
  *  Semantic typography — use these classes instead of raw text-* values

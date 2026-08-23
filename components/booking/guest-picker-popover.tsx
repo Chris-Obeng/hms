@@ -10,6 +10,8 @@ interface GuestPickerPopoverProps {
   adults: number;
   childrenCount: number;
   rooms: number;
+  /** Upper bound for the rooms stepper (live availability cap). */
+  maxRooms?: number;
   onAdultsChange: (val: number) => void;
   onChildrenChange: (val: number) => void;
   onRoomsChange: (val: number) => void;
@@ -20,12 +22,14 @@ export function GuestPickerPopover({
   adults = 1,
   childrenCount = 0,
   rooms = 1,
+  maxRooms,
   onAdultsChange,
   onChildrenChange,
   onRoomsChange,
   className,
 }: GuestPickerPopoverProps) {
   const [open, setOpen] = React.useState(false);
+  const roomsMax = Math.max(1, Math.min(maxRooms ?? 5, 5));
 
   // Always show rooms (even default 1) — hotel OTA pattern (Booking.com, Expedia).
   // Children stay optional: omit when 0 to keep the default line short.
@@ -89,11 +93,15 @@ export function GuestPickerPopover({
           <div className="h-px bg-border/40 my-1" />
           <NumericStepper
             label="Rooms"
-            description="Number of rooms needed"
+            description={
+              maxRooms != null && maxRooms < 5
+                ? `${maxRooms} available for these dates`
+                : "Number of rooms needed"
+            }
             value={rooms}
             onChange={onRoomsChange}
             min={1}
-            max={5}
+            max={roomsMax}
           />
 
           <div className="pt-3 border-t border-border/40 flex justify-end">

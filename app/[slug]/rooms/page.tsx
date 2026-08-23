@@ -49,6 +49,9 @@ function RoomGrid({
   checkIn,
   checkOut,
   datesSelected,
+  adults,
+  childGuests,
+  roomsParam,
 }: {
   rooms: RoomTypeRow[];
   slug: string;
@@ -58,6 +61,9 @@ function RoomGrid({
   checkIn?: string;
   checkOut?: string;
   datesSelected: boolean;
+  adults?: string;
+  childGuests?: string;
+  roomsParam?: string;
 }) {
   return (
     <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -88,6 +94,9 @@ function RoomGrid({
             checkOut={checkOut}
             availableCount={datesSelected ? (availMap.get(rt.id) ?? 0) : null}
             datesSelected={datesSelected}
+            adults={adults}
+            childGuests={childGuests}
+            rooms={roomsParam}
           />
         );
       })}
@@ -264,7 +273,7 @@ export default async function RoomsPage({ params, searchParams }: Props) {
             </p>
             <Link
               href={`/${slug}/rooms`}
-              className="inline-flex h-10 px-5 items-center rounded-xl bg-[var(--bk-ink)] text-[#fafaf8] text-sm font-semibold hover:bg-[#292524] transition-colors active:scale-[0.98]"
+              className="inline-flex h-10 px-5 items-center rounded-xl bg-[var(--bk-ink)] text-[var(--bk-on-ink)] text-sm font-semibold hover:bg-[var(--bk-ink-hover)] transition-colors active:scale-[0.98]"
             >
               Clear dates
             </Link>
@@ -280,6 +289,9 @@ export default async function RoomsPage({ params, searchParams }: Props) {
               checkIn={check_in}
               checkOut={check_out}
               datesSelected={datesSelected}
+              adults={adults}
+              childGuests={children}
+              roomsParam={rooms}
             />
 
             {datesSelected && soldOutRooms.length > 0 && (
@@ -302,6 +314,9 @@ export default async function RoomsPage({ params, searchParams }: Props) {
                   checkIn={check_in}
                   checkOut={check_out}
                   datesSelected={datesSelected}
+                  adults={adults}
+                  childGuests={children}
+                  roomsParam={rooms}
                 />
               </section>
             )}

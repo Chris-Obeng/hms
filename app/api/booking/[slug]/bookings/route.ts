@@ -10,6 +10,7 @@ const Schema = z.object({
   check_out: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   adults: z.coerce.number().int().min(1).max(20).default(1),
   children: z.coerce.number().int().min(0).max(10).default(0),
+  rooms_count: z.coerce.number().int().min(1).max(10).default(1),
   guest_name: z.string().min(1).max(120),
   guest_email: z.string().email(),
   guest_phone: z.string().min(7).max(20),
@@ -19,6 +20,20 @@ const Schema = z.object({
   estimated_arrival: z.string().optional(),
 });
 
+/**
+ * POST /api/booking/[slug]/bookings
+ *
+ * Guest-facing booking creation.
+ *
+ * Payment-policy semantics:
+ * - pay_at_checkin → booking is created `confirmed`; staff are notified and a
+ *   confirmation email is sent immediately.
+ * - pay_now        → booking is created as a PAYMENT HOLD (`pending` + unpaid).
+ *   The hotel dashboard intentionally does not treat it as a booking until the
+ *   Paystack webhook/verify records the payment (recordOnlinePayment), which
+ *   then confirms it, notifies staff, emails the guest — or expires it after
+ *   30 minutes via expire_stale_payment_holds() if the guest abandons checkout.
+ */
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -80,13 +95,17 @@ export async function POST(
       .single();
     if (!roomType) return NextResponse.json({ error: "Room type not available." }, { status: 400 });
 
+    // Availability gate — must cover the requested room quantity.
     const { data: availCount } = await supabaseAdmin.rpc("room_type_available_count", {
       p_room_type_id: data.room_type_id,
       p_check_in: data.check_in,
       p_check_out: data.check_out,
     });
-    if (((availCount as number) ?? 0) < 1) {
-      return NextResponse.json({ error: "No rooms available for these dates." }, { status: 409 });
+    if (((availCount as number) ?? 0) < data.rooms_count) {
+      return NextResponse.json(
+        { error: data.rooms_count > 1 ? `Only ${availCount ?? 0} room(s) left for these dates.` : "No rooms available for these dates." },
+        { status: 409 }
+      );
     }
 
     const checkInDate = new Date(data.check_in);
@@ -94,15 +113,20 @@ export async function POST(
     const nights = Math.ceil(
       (checkOutDate.getTime() - checkInDate.getTime()) / 86400000
     );
-    const { subtotal, avgNightlyRate: rate } = await resolvePublicNightlyTotal(
+    const { subtotal: unitSubtotal, avgNightlyRate: rate } = await resolvePublicNightlyTotal(
       hotel.id,
       data.room_type_id,
       data.check_in,
       data.check_out
     );
-    const taxEnabled = (hotel.settings as Record<string, unknown>)?.tax_enabled === true;
-    const taxPercentage = typeof (hotel.settings as Record<string, unknown>)?.tax_percentage === "number"
-      ? ((hotel.settings as Record<string, unknown>).tax_percentage as number)
+
+    // Totals scale with quantity; tax follows hotel settings exactly like the
+    // dashboard booking flow.
+    const subtotal = Math.round(unitSubtotal * data.rooms_count * 100) / 100;
+    const settings = (hotel.settings as Record<string, unknown>) ?? {};
+    const taxEnabled = settings.tax_enabled === true;
+    const taxPercentage = typeof settings.tax_percentage === "number"
+      ? (settings.tax_percentage as number)
       : 0;
     const taxAmount = taxEnabled ? Math.round(subtotal * (taxPercentage / 100) * 100) / 100 : 0;
     const total = subtotal + taxAmount;
@@ -160,6 +184,9 @@ export async function POST(
     }
     const reference = typeof refData === "string" ? refData : `${slugPrefix}-${Date.now()}`;
 
+    // pay_now bookings start life as an unpaid payment hold — NOT a booking on
+    // the hotel's books. recordOnlinePayment flips them to confirmed + notifies
+    // staff once Paystack captures the money; pg_cron expires abandoned holds.
     const status = data.payment_preference === "pay_now" ? "pending" : "confirmed";
     const paymentStatus = "unpaid";
 
@@ -174,6 +201,7 @@ export async function POST(
         check_out: data.check_out,
         adults: data.adults,
         children: data.children,
+        rooms_count: data.rooms_count,
         room_rate: rate,
         subtotal,
         tax_amount: taxAmount,
@@ -198,43 +226,11 @@ export async function POST(
       return NextResponse.json({ error: "Failed to create booking." }, { status: 500 });
     }
 
-    // Online bookings fan out to every eligible active staff recipient.
-    // Recipient rows persist while staff is offline and enqueue Web Push.
-    const { data: recipients, error: recipientsError } = await supabaseAdmin
-      .from("staff_profiles")
-      .select("id, notification_prefs")
-      .eq("clerk_org_id", hotel.clerk_org_id)
-      .eq("is_active", true);
-
-    if (recipientsError) {
-      console.error("Online booking notification recipients error:", recipientsError);
-    } else {
-      const notifications = (recipients ?? [])
-        .filter((staff) =>
-          (staff.notification_prefs as Record<string, boolean> | null)?.new_booking !== false
-        )
-        .map((staff) => ({
-          hotel_id: hotel.id,
-          recipient_staff_id: staff.id,
-          created_by_staff_id: null,
-          type: "new_booking",
-          title: "New online booking",
-          message: `${booking.reference} · ${data.guest_name} · ${roomType.name} · ${data.check_in} → ${data.check_out}`,
-          booking_id: booking.id,
-          is_read: false,
-        }));
-
-      if (notifications.length) {
-        const { error: notificationError } = await supabaseAdmin
-          .from("notifications")
-          .insert(notifications);
-        if (notificationError) {
-          console.error("Online booking notification fan-out error:", notificationError);
-        }
-      }
-    }
-
     if (data.payment_preference === "pay_at_checkin") {
+      // Confirmed reservation — notify staff and email the guest right away.
+      const { notifyStaffNewBooking } = await import("@/lib/bookings/confirm-online-payment");
+      await notifyStaffNewBooking(hotel.id, booking.id);
+
       const { sendBookingConfirmation } = await import(
         "@/lib/notifications/send-booking-confirmation"
       );
@@ -269,9 +265,14 @@ export async function POST(
         });
       }
 
-      return NextResponse.json({ bookingId: booking.id, reference: booking.reference });
+      return NextResponse.json({
+        bookingId: booking.id,
+        reference: booking.reference,
+        roomsCount: data.rooms_count,
+      });
     }
 
+    // ── pay_now: hand off to Paystack ────────────────────────────
     // Derive the callback from the request URL, never from the client-supplied
     // Origin header — Paystack would otherwise redirect guests to any host.
     const callbackUrl = `${req.nextUrl.origin}/${slug}/book/confirmation?bref=${booking.reference}`;
@@ -290,6 +291,7 @@ export async function POST(
     return NextResponse.json({
       bookingId: booking.id,
       reference: booking.reference,
+      roomsCount: data.rooms_count,
       paymentRequired: true,
       authorizationUrl: txn.authorization_url,
       paymentReference: payRef,

@@ -101,7 +101,7 @@ export function BookingProgress({
                 onClick={() => reachable && onStepChange(s.num)}
                 className={cn(
                   "flex-1 min-h-9 rounded-lg px-1 py-1.5 text-[10px] font-semibold tracking-wide uppercase transition-colors touch-manipulation",
-                  active && "bg-[var(--bk-ink)] text-[#fafaf8]",
+                  active && "bg-[var(--bk-ink)] text-[var(--bk-on-ink)]",
                   !active && done && "bg-[var(--bk-surface-soft)] text-[var(--bk-ink)]",
                   !active &&
                     !done &&
@@ -151,7 +151,7 @@ export function BookingProgress({
                   className={cn(
                     "size-6 rounded-full text-[11px] font-semibold flex items-center justify-center shrink-0 transition-colors",
                     (done && !active) || active
-                      ? "bg-[var(--bk-ink)] text-[#fafaf8]"
+                      ? "bg-[var(--bk-ink)] text-[var(--bk-on-ink)]"
                       : "bg-[var(--bk-surface-soft)] text-[var(--bk-muted)] border border-[var(--bk-line)]"
                   )}
                 >

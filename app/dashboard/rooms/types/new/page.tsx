@@ -5,17 +5,13 @@ import { useRouter } from "next/navigation";
 import { toast } from "@heroui/react";
 import { RoomTypeForm, type RoomTypeFormValues } from "../../_components/room-type-form";
 import { createRoomType } from "@/app/actions/rooms";
-import { AMENITIES_LIST } from "@/lib/amenities";
+import { toAmenityObjects } from "@/lib/amenities";
 
 export default function NewRoomTypePage() {
   const router = useRouter();
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
   async function handleSubmit(values: RoomTypeFormValues) {
-    const selectedAmenitiesData = AMENITIES_LIST.filter((a) =>
-      values.selectedAmenities.includes(a.label)
-    ).map((a) => ({ icon: a.icon, label: a.label }));
-
     const result = await createRoomType({
       name: values.name,
       slug: values.slug,
@@ -26,7 +22,7 @@ export default function NewRoomTypePage() {
       maxChildren: values.maxChildren,
       basePrice: Number(values.basePrice),
       weekendPrice: values.weekendPrice ? Number(values.weekendPrice) : undefined,
-      amenities: selectedAmenitiesData,
+      amenities: toAmenityObjects(values.selectedAmenities),
       isActive: values.isActive,
       sortOrder: values.sortOrder,
     });

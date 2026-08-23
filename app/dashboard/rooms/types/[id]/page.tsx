@@ -7,11 +7,10 @@ import { toast } from "@heroui/react";
 import { Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RoomTypeForm, type RoomTypeFormValues } from "../../_components/room-type-form";
-import { getRoomType, updateRoomType, getHotelSlug } from "@/app/actions/rooms";
-import { AMENITIES_LIST } from "@/lib/amenities";
+import { getRoomType, updateRoomType } from "@/app/actions/rooms";
+import { toAmenityObjects } from "@/lib/amenities";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RoomPreviewSheet } from "../../_components/room-preview-sheet";
 
 export default function EditRoomTypePage() {
   const params = useParams();
@@ -26,13 +25,6 @@ export default function EditRoomTypePage() {
   const [hotelId, setHotelId] = React.useState<string | undefined>(undefined);
   const [initialImages, setInitialImages] = React.useState<{ url: string; caption: string; order: number }[]>([]);
   const [showBanner, setShowBanner] = React.useState(isNew);
-  const [previewOpen, setPreviewOpen] = React.useState(false);
-  const [roomData, setRoomData] = React.useState<any>(null);
-  const [bookingUrl, setBookingUrl] = React.useState<string | undefined>(undefined);
-
-  React.useEffect(() => {
-    getHotelSlug().then((url) => { if (url) setBookingUrl(url); });
-  }, []);
 
   React.useEffect(() => {
     async function load() {
@@ -43,7 +35,6 @@ export default function EditRoomTypePage() {
         return;
       }
       const rt = result.data;
-      setRoomData(rt);
       setInitialValues({
         name: rt.name,
         slug: rt.slug,
@@ -66,9 +57,7 @@ export default function EditRoomTypePage() {
   }, [id]);
 
   async function handleSubmit(values: RoomTypeFormValues) {
-    const selectedAmenitiesData = AMENITIES_LIST.filter((a) =>
-      values.selectedAmenities.includes(a.label)
-    ).map((a) => ({ icon: a.icon, label: a.label }));
+    const selectedAmenitiesData = toAmenityObjects(values.selectedAmenities);
 
     const result = await updateRoomType(id, {
       name: values.name,
@@ -163,22 +152,12 @@ export default function EditRoomTypePage() {
         initialImages={initialImages}
         photosFirst={true}
         onSubmit={handleSubmit}
-        onPreview={() => setPreviewOpen(true)}
         submitLabel="Save Changes"
         submittingLabel="Saving..."
         title="Edit Room Type"
         subtitle="Update room details. Changes go live on your booking page immediately."
         errors={errors}
       />
-
-      {roomData && (
-        <RoomPreviewSheet
-          open={previewOpen}
-          onClose={() => setPreviewOpen(false)}
-          roomType={roomData}
-          bookingUrl={bookingUrl}
-        />
-      )}
     </>
   );
 }

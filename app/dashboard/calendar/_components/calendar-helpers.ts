@@ -1,9 +1,5 @@
 // Calendar helper constants and pure formatting functions.
 
-function escapeHtml(str: string): string {
-  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-}
-
 export function isManualLikeSource(source: string | null | undefined): boolean {
   return source === "manual" || source === "phone" || source === "walk_in";
 }
@@ -45,114 +41,6 @@ export function getBookingBarColor(
   }
 }
 
-export function getRoomStatusColor(status: string): {
-  color: string;
-  label: string;
-} {
-  switch (status) {
-    case "available":
-      return { color: "#16A34A", label: "Available" };
-    case "occupied":
-      return { color: "#2563EB", label: "Occupied" };
-    case "maintenance":
-    case "out_of_service":
-      return { color: "#64748B", label: "Out of Service" };
-    default:
-      return { color: "#94A3B8", label: "Unknown" };
-  }
-}
-
-export function getStatusCssClass(status: string): string {
-  switch (status) {
-    case "confirmed":
-      return "calendar-event--confirmed";
-    case "checked_in":
-      return "calendar-event--checked-in";
-    case "pending":
-      return "calendar-event--pending";
-    case "checked_out":
-      return "calendar-event--checked-out";
-    case "no_show":
-      return "calendar-event--no-show";
-    case "cancelled":
-      return "calendar-event--cancelled";
-    default:
-      return "";
-  }
-}
-
-export function getEventText(
-  guestName: string | null,
-  nights: number | null,
-  totalDays: number
-): string {
-  const name = guestName || "Guest";
-  const n = nights || totalDays;
-  if (totalDays <= 2) {
-    return name.length > 12 ? `${name.slice(0, 11)}...` : name;
-  }
-  return `${name} - ${n}n`;
-}
-
-export function getEventHtml(
-  guestName: string | null,
-  nights: number | null,
-  status: string,
-  source: string | null,
-  totalDays: number,
-  paymentStatus?: string | null,
-  _stripeColor?: string
-): string {
-  const name = guestName || "Guest";
-  const n = nights || totalDays;
-
-  // Status badge text
-  let statusText = "";
-  if (status === "checked_in") statusText = "IN HOUSE";
-  else if (status === "confirmed") statusText = "RESERVED";
-  else if (status === "pending") statusText = "PENDING";
-  else if (status === "checked_out") statusText = "CHECKED OUT";
-
-  const colors = getBookingBarColor(status, source);
-  const bgColor = colors.bg;
-  const stripeColorDarker = colors.border;
-
-  const sourceLabel = getSourceShortLabel(source);
-  const showSource = sourceLabel && status !== "checked_out" && status !== "cancelled";
-  const paid = paymentStatus === "paid";
-  const guestPart = escapeHtml(name);
-  const sourcePart = showSource ? `<span class="cal-evt-source">${sourceLabel}</span>` : "";
-  const statusPart = statusText ? `<span class="cal-evt-status-pill">${statusText}</span>` : "";
-  const nightsPart = `<span class="cal-evt-nights">${n}n${paid ? "" : " · due"}</span>`;
-
-  void _stripeColor;
-  return `<div class="cal-evt" style="background:${bgColor}">
-    <div class="cal-evt-stripe" style="background:${stripeColorDarker}"></div>
-    <div class="cal-evt-bar">
-      <span class="cal-evt-name">${guestPart}</span>
-      ${sourcePart}
-      <span class="cal-evt-spacer"></span>
-      ${statusPart}
-      ${nightsPart}
-    </div>
-  </div>`;
-}
-
-function getSourceShortLabel(source: string | null): string {
-  switch (source) {
-    case "direct":
-      return "Direct";
-    case "manual":
-      return "Manual";
-    case "phone":
-      return "Phone";
-    case "walk_in":
-      return "Walk-in";
-    default:
-      return "Direct";
-  }
-}
-
 export const VIEW_PRESETS = [
   { label: "Day", days: 1 },
   { label: "3 Day", days: 3 },
@@ -162,9 +50,6 @@ export const VIEW_PRESETS = [
 ] as const;
 
 export type ViewPreset = (typeof VIEW_PRESETS)[number]["label"];
-
-export const ROW_HEIGHT = 40;
-export const ROW_HEADER_WIDTH = 220;
 
 export interface LegendItem {
   label: string;

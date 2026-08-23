@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Printer, Download, Building2 } from "lucide-react";
+import { Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
 import { type FullBookingDetail } from "./booking-detail-types";
@@ -50,7 +50,7 @@ export function BookingFolioPrintButton({
       `
         )
         .join("");
-    } catch (e) {
+    } catch {
       nightlyRowsHtml = `
         <tr>
           <td style="padding: 8px 12px; border-bottom: 1px solid #E2E8F0;">Stay Charges</td>

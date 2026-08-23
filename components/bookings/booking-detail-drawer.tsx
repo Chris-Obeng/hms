@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Chip, Drawer, Skeleton, Tabs, toast } from "@heroui/react";
+import { Drawer, Skeleton, Tabs, toast } from "@heroui/react";
 import { AlertCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -12,7 +12,8 @@ import {
 } from "@/app/actions/bookings-detail";
 
 import { getStatusLabel, STATUS_COLORS } from "@/lib/booking-status";
-import { formatDateTime } from "@/lib/format";
+import { formatDateFull } from "@/lib/format";
+import { getNights } from "@/lib/format";
 import { BookingActionBar } from "./_components/booking-action-bar";
 import { BookingOverviewPanel } from "./_components/booking-overview-panel";
 import { BookingPaymentsPanel } from "./_components/booking-payments-panel";
@@ -130,59 +131,56 @@ export function BookingDetailDrawer({
     <Drawer.Backdrop
       isOpen={open}
       onOpenChange={(isOpen) => !isOpen && onClose()}
-      variant="blur"
+      variant="opaque"
+      className="bg-black/40 dark:bg-black/60"
     >
       <Drawer.Content placement={isMobile ? "bottom" : "right"}>
-        <Drawer.Dialog className="flex h-[min(92dvh,48rem)] max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-lg bg-background p-0 shadow-2xl md:h-dvh md:max-h-dvh md:max-w-md md:rounded-none">
-          {isMobile && <Drawer.Handle />}
-          <Drawer.CloseTrigger className="right-3 top-3 z-20" />
+        <Drawer.Dialog className="flex h-[min(92dvh,52rem)] max-h-[92dvh] w-full flex-col overflow-hidden bg-background p-0 shadow-[0_-24px_80px_rgb(0_0_0/0.35)] md:h-dvh md:max-h-dvh md:w-[min(30rem,100vw)] md:rounded-none md:border-l md:border-border/70 md:shadow-[-24px_0_80px_rgb(0_0_0/0.18)] rounded-t-2xl">
+          {isMobile && <Drawer.Handle className="mt-2.5" />}
+          <Drawer.CloseTrigger className="absolute right-3.5 top-3.5 z-20 inline-flex size-8 items-center justify-center rounded-full bg-muted/70 text-muted-foreground shadow-xs backdrop-blur transition-all hover:bg-muted hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         {loading && !booking ? (
-          <Drawer.Body className="flex min-h-0 flex-1 flex-col space-y-5 overflow-hidden px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-6 sm:px-5">
-            <Skeleton className="h-8 w-48 rounded-md" />
-            <Skeleton className="h-11 w-full rounded-md" />
-            <Skeleton className="h-24 w-full rounded-md" />
-            <Skeleton className="h-24 w-full rounded-md" />
-            <Skeleton className="h-24 w-full rounded-md" />
+          <Drawer.Body className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-14 sm:px-6">
+            <Skeleton className="h-7 w-44 rounded-lg" />
+            <Skeleton className="h-4 w-64 rounded-md" />
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <Skeleton className="h-20 rounded-xl" />
+              <Skeleton className="h-20 rounded-xl" />
+              <Skeleton className="h-20 rounded-xl" />
+              <Skeleton className="h-20 rounded-xl" />
+            </div>
+            <Skeleton className="h-28 rounded-xl" />
           </Drawer.Body>
         ) : booking ? (
           <>
-            {/* ═══ Header ═══ */}
-            <Drawer.Header className="shrink-0 border-b border-border/40 px-4 pb-3 pt-6 pr-14 sm:px-5 sm:pb-4 sm:pt-5 sm:pr-14">
-              <div className="min-w-0">
-                  <div className="mb-1 flex items-center gap-2.5">
-                    <Drawer.Heading className="truncate text-lg font-semibold text-foreground">
-                      {booking.guest?.fullName || "Unknown Guest"}
-                    </Drawer.Heading>
-                    <span
-                      className={cn(
-                        "size-2 rounded-full shrink-0",
-                        STATUS_COLORS[booking.status || ""] || "bg-slate-400"
-                      )}
-                    />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <Chip
-                      color={getStatusColor(booking.status)}
-                      variant="soft"
-                      size="sm"
-                      className="shrink-0 capitalize"
-                    >
-                      {getStatusLabel(booking.status || "")}
-                    </Chip>
-                    <span className="font-mono text-[11px] text-muted-foreground">
-                      {booking.reference}
-                    </span>
-                    <div className="text-[11px] text-muted-foreground/60">
-                      <span>Created {formatDateTime(booking.createdAt)}</span>
-                      {booking.createdBy?.fullName && (
-                        <>
-                          <span className="text-muted-foreground/30">·</span>
-                          <span>by {booking.createdBy.fullName}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
+            {/* ═══ Header — guest identity, status, stay window ═══ */}
+            <Drawer.Header className="shrink-0 flex-col items-start gap-2 border-b border-border/50 px-5 pb-4 pt-14 pr-14 sm:px-6">
+              <div className="flex w-full min-w-0 items-center gap-2.5">
+                <Drawer.Heading className="min-w-0 truncate text-[19px] font-semibold leading-tight tracking-tight text-foreground">
+                  {booking.guest?.fullName || "Unknown Guest"}
+                </Drawer.Heading>
               </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize",
+                    getStatusPillClass(booking.status)
+                  )}
+                >
+                  <span className={cn("size-1.5 rounded-full", STATUS_COLORS[booking.status || ""] || "bg-slate-400")} />
+                  {getStatusLabel(booking.status || "")}
+                </span>
+                <span className="rounded-md bg-muted/70 px-2 py-0.5 font-mono text-[11px] font-medium tracking-tight text-muted-foreground">
+                  {booking.reference}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {formatDateFull(booking.checkIn)} <span className="mx-1 text-muted-foreground/40">→</span> {formatDateFull(booking.checkOut)}
+                <span className="mx-1.5 text-muted-foreground/40">·</span>
+                {getNights(booking.checkIn, booking.checkOut, booking.nights)} nights
+                {booking.createdBy?.fullName && (
+                  <span className="ml-2 text-muted-foreground/60">· created by {booking.createdBy.fullName}</span>
+                )}
+              </p>
             </Drawer.Header>
 
             {/* ═══ Action Bar ═══ */}
@@ -259,10 +257,20 @@ export function BookingDetailDrawer({
   );
 }
 
-function getStatusColor(status: string | null): "default" | "success" | "warning" | "danger" | "accent" {
-  if (status === "checked_in" || status === "confirmed") return "success";
-  if (status === "pending") return "warning";
-  if (status === "cancelled" || status === "no_show") return "danger";
-  if (status === "checked_out") return "accent";
-  return "default";
+function getStatusPillClass(status: string | null): string {
+  switch (status) {
+    case "checked_in":
+      return "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/25";
+    case "confirmed":
+      return "bg-sky-500/12 text-sky-700 dark:text-sky-400 ring-1 ring-sky-500/25";
+    case "pending":
+      return "bg-violet-500/12 text-violet-700 dark:text-violet-400 ring-1 ring-violet-500/25";
+    case "cancelled":
+    case "no_show":
+      return "bg-red-500/10 text-red-700 dark:text-red-400 ring-1 ring-red-500/25";
+    case "checked_out":
+      return "bg-slate-500/12 text-slate-600 dark:text-slate-400 ring-1 ring-slate-500/25";
+    default:
+      return "bg-muted text-muted-foreground ring-1 ring-border";
+  }
 }

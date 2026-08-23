@@ -1,5 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import { businessToday } from "@/lib/business-date";
+import { sortByOperationalRelevance } from "@/lib/bookings/operational-sort";
 import { BookOpen } from "lucide-react";
 import { BookingsTable, type BookingRow } from "@/components/bookings/bookings-table";
 
@@ -16,7 +18,7 @@ export default async function BookingsPage() {
   // Fetch hotel
   const { data: hotel } = await supabase
     .from("hotels")
-    .select("id, name, currency")
+    .select("id, name, currency, timezone")
     .eq("clerk_org_id", orgId)
     .single();
 
@@ -40,13 +42,24 @@ export default async function BookingsPage() {
   const { data: bookingsRaw } = await supabase
     .from("bookings")
     .select(
-      "id, reference, check_in, check_out, nights, status, payment_status, source, total_amount, amount_paid, outstanding_balance, room_id, created_at, guests(full_name, email, phone), rooms(room_number), room_types(name)"
+      "id, reference, check_in, check_out, nights, status, payment_status, payment_preference, source, total_amount, amount_paid, outstanding_balance, room_id, created_at, guests(full_name, email, phone), rooms(room_number), room_types(name)"
     )
     .eq("hotel_id", hotelId)
-    .order("check_in", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(500);
 
-  const bookings: BookingRow[] = (bookingsRaw || []).map((b) => ({
+  // Transient guest payment holds (pay-online, still unpaid) are NOT bookings
+  // yet — they surface only after Paystack confirms the charge. Abandoned ones
+  // are cancelled automatically by expire_stale_payment_holds() (pg_cron).
+  const isTransientHold = (b: NonNullable<typeof bookingsRaw>[number]) =>
+    b.source === "direct" &&
+    b.payment_preference === "pay_now" &&
+    b.status === "pending" &&
+    b.payment_status === "unpaid";
+
+  const bookings: BookingRow[] = (bookingsRaw || [])
+    .filter((b) => !isTransientHold(b))
+    .map((b) => ({
     id: b.id,
     reference: b.reference,
     guestName: (b.guests as { full_name?: string | null } | null)?.full_name ?? "Unknown",
@@ -66,11 +79,17 @@ export default async function BookingsPage() {
     createdAt: b.created_at,
   }));
 
+  // Front-desk working order (Opera/Mews convention), anchored to the
+  // property's business date: today's arrivals and in-house stays first in
+  // arrival order, then past history most-recent-first. The table's column
+  // sorting still lets staff re-order on demand.
+  const orderedBookings = sortByOperationalRelevance(bookings, businessToday(hotel?.timezone || "UTC"));
+
   const currency = hotel?.currency || "GHS";
 
   return (
     <BookingsTable
-      data={bookings}
+      data={orderedBookings}
       roomTypes={roomTypes}
       currency={currency}
       hotelId={hotelId}

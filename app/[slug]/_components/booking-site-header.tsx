@@ -78,7 +78,7 @@ export function BookingSiteHeader({
                 "flex size-7 sm:size-8 shrink-0 items-center justify-center rounded-lg",
                 "booking-heading text-sm font-semibold",
                 solid
-                  ? "bg-[var(--bk-ink)] text-[#fafaf8]"
+                  ? "bg-[var(--bk-ink)] text-[var(--bk-on-ink)]"
                   : "bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-sm",
               ].join(" ")}
             >

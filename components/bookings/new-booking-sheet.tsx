@@ -5,10 +5,10 @@ import { format, differenceInDays } from "date-fns";
 import { toast } from "@heroui/react";
 import {
   CalendarIcon,
-  ChevronDown,
-  Search,
+
+
   User,
-  Plus,
+
   Building2,
   Clock,
   MessageSquareText,
@@ -26,7 +26,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HeroSelectField } from "@/components/ui/hero-select";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Calendar } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
@@ -78,28 +77,6 @@ export function NewBookingSheet({
   const [step, setStep] = React.useState(1);
   const [loading, setLoading] = React.useState(false);
 
-  // Apply prefill values when they change or sheet opens
-  const initialised = React.useRef(false);
-  React.useEffect(() => {
-    if (open && !initialised.current) {
-      initialised.current = true;
-      if (prefillRoomTypeId) setSelectedRoomTypeId(prefillRoomTypeId);
-      if (prefillCheckIn || prefillCheckOut) {
-        setDateRange({
-          from: prefillCheckIn || undefined,
-          to: prefillCheckOut || undefined,
-        });
-        // Jump to step 3 if both room and dates are pre-filled
-        if (prefillRoomTypeId && prefillCheckIn && prefillCheckOut) {
-          setStep(2);
-        }
-      }
-    }
-    if (!open) {
-      initialised.current = false;
-    }
-  }, [open, prefillRoomTypeId, prefillCheckIn, prefillCheckOut]);
-
   // Guest
   const [guestName, setGuestName] = React.useState("");
   const [guestEmail, setGuestEmail] = React.useState("");
@@ -123,6 +100,31 @@ export function NewBookingSheet({
   // Validation errors
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
+  // ── Prefill (calendar click-to-create) ─────────────────────────
+  // Applied via the official "adjust state during render" pattern, gated by
+  // state (not a ref, which must not be read during render).
+  const [appliedPrefillKey, setAppliedPrefillKey] = React.useState<string | null>(null);
+  const prefillKey = open
+    ? `${prefillRoomTypeId ?? ""}|${prefillCheckIn?.getTime() ?? ""}|${prefillCheckOut?.getTime() ?? ""}`
+    : null;
+  if (open && prefillKey !== null && appliedPrefillKey !== prefillKey) {
+    setAppliedPrefillKey(prefillKey);
+    if (prefillRoomTypeId) setSelectedRoomTypeId(prefillRoomTypeId);
+    if (prefillCheckIn || prefillCheckOut) {
+      setDateRange({
+        from: prefillCheckIn || undefined,
+        to: prefillCheckOut || undefined,
+      });
+      // Jump straight to details when room + dates are both pre-filled
+      if (prefillRoomTypeId && prefillCheckIn && prefillCheckOut) {
+        setStep(2);
+      }
+    }
+  }
+  if (!open && appliedPrefillKey !== null) {
+    setAppliedPrefillKey(null);
+  }
+
   // ── Derived ────────────────────────────────────────────────────
   const nights = dateRange?.from && dateRange?.to
     ? differenceInDays(dateRange.to, dateRange.from)
@@ -135,48 +137,37 @@ export function NewBookingSheet({
   // ── Override-aware pricing ─────────────────────────────────────
   // Fetches live pricing from the server action whenever room + dates change.
   // Falls back to base_price * nights only while loading or before selection.
-  const [resolvedPricing, setResolvedPricing] = React.useState<StaffResolvedPricing | null>(null);
-  const [pricingLoading, setPricingLoading] = React.useState(false);
+  // Loading is DERIVED (requested key vs fetched key) so the effect never
+  // setState's synchronously.
+  const [resolvedPricing, setResolvedPricing] = React.useState<{ key: string; data: StaffResolvedPricing | null } | null>(null);
+
+  const pricingCheckIn = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : null;
+  const pricingCheckOut = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : null;
+  const hasPricingStay = !!selectedRoomTypeId && !!pricingCheckIn && !!pricingCheckOut && nights > 0;
+  const pricingKey = hasPricingStay ? `${selectedRoomTypeId}|${pricingCheckIn}|${pricingCheckOut}` : null;
+  const pricingLoading = pricingKey !== null && resolvedPricing?.key !== pricingKey;
 
   React.useEffect(() => {
-    const checkIn = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : null;
-    const checkOut = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : null;
-
-    if (!selectedRoomTypeId || !checkIn || !checkOut || nights <= 0) {
-      setResolvedPricing(null);
-      return;
-    }
-
+    if (pricingKey === null || !selectedRoomTypeId || !pricingCheckIn || !pricingCheckOut) return;
     let cancelled = false;
-    setPricingLoading(true);
-
-    getResolvedRatesForBooking(selectedRoomTypeId, checkIn, checkOut)
+    getResolvedRatesForBooking(selectedRoomTypeId, pricingCheckIn, pricingCheckOut)
       .then((result) => {
-        if (cancelled) return;
-        if (result.success) {
-          setResolvedPricing(result.data);
-        } else {
-          // Server action failed — clear so fallback is used
-          setResolvedPricing(null);
-        }
+        if (!cancelled) setResolvedPricing({ key: pricingKey, data: result.success ? result.data : null });
       })
       .catch(() => {
-        if (!cancelled) setResolvedPricing(null);
-      })
-      .finally(() => {
-        if (!cancelled) setPricingLoading(false);
+        if (!cancelled) setResolvedPricing({ key: pricingKey, data: null });
       });
-
     return () => { cancelled = true; };
-  }, [selectedRoomTypeId, dateRange?.from, dateRange?.to, nights]);
+  }, [pricingKey, selectedRoomTypeId, pricingCheckIn, pricingCheckOut]);
 
   // Pricing values — use resolved data when available, fall back to base
+  const activePricing = pricingKey !== null && resolvedPricing?.key === pricingKey ? resolvedPricing.data : null;
   const fallbackRate = selectedRoomType?.base_price ?? 0;
-  const roomRate = resolvedPricing?.avgNightlyRate ?? fallbackRate;
-  const subtotal = resolvedPricing?.subtotal ?? fallbackRate * nights;
-  const taxRate = resolvedPricing?.taxRate ?? 0;
-  const taxAmount = resolvedPricing?.taxAmount ?? 0;
-  const totalAmount = resolvedPricing?.totalAmount ?? subtotal;
+  const roomRate = activePricing?.avgNightlyRate ?? fallbackRate;
+  const subtotal = activePricing?.subtotal ?? fallbackRate * nights;
+  const taxRate = activePricing?.taxRate ?? 0;
+  const taxAmount = activePricing?.taxAmount ?? 0;
+  const totalAmount = activePricing?.totalAmount ?? subtotal;
 
   // ── Reset form ─────────────────────────────────────────────────
   function resetForm() {
@@ -541,10 +532,10 @@ export function NewBookingSheet({
                     <span className="size-3 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
                     <span className="text-xs text-muted-foreground">Fetching rates…</span>
                   </div>
-                ) : resolvedPricing && resolvedPricing.nightlyRates.some((n) => n.source !== "base") ? (
+                ) : activePricing && activePricing.nightlyRates.some((n) => n.source !== "base") ? (
                   <div className="space-y-1">
                     <span className="text-xs font-medium text-muted-foreground">Nightly rates</span>
-                    {resolvedPricing.nightlyRates.map((n) => (
+                    {activePricing.nightlyRates.map((n) => (
                       <div key={n.date} className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">{n.date}</span>
                         <div className="flex items-center gap-1.5">

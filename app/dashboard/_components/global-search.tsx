@@ -13,12 +13,12 @@ import {
   Settings,
   Sun,
   Moon,
-  Loader2,
   ArrowUpRight,
   DoorOpen,
   CreditCard,
   Wrench,
   UserPlus,
+  UserRound,
 } from "lucide-react";
 import type { UseOverlayStateReturn } from "@heroui/react";
 import {
@@ -29,7 +29,6 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-  CommandShortcut,
 } from "@/components/ui/command";
 import { searchGlobal, type SearchResult } from "@/app/actions/search";
 import { cn } from "@/lib/utils";
@@ -42,27 +41,46 @@ interface GlobalSearchProps {
 
 type ActionGroup = "Bookings" | "Front Desk" | "Operations" | "Settings";
 
+/** Soft tinted chip palettes — one hue per domain, dark-mode aware */
+const TONES = {
+  blue: "bg-blue-500/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400",
+  sky: "bg-sky-500/10 text-sky-600 dark:bg-sky-400/10 dark:text-sky-400",
+  indigo:
+    "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-400/10 dark:text-indigo-400",
+  emerald:
+    "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400",
+  teal: "bg-teal-500/10 text-teal-600 dark:bg-teal-400/10 dark:text-teal-400",
+  violet:
+    "bg-violet-500/10 text-violet-600 dark:bg-violet-400/10 dark:text-violet-400",
+  amber:
+    "bg-amber-500/10 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400",
+  orange:
+    "bg-orange-500/10 text-orange-600 dark:bg-orange-400/10 dark:text-orange-400",
+  slate: "bg-muted text-muted-foreground",
+} as const;
+
+type Tone = keyof typeof TONES;
+
 interface ActionItem {
   id: string;
   label: string;
-  subLabel?: string;
   group: ActionGroup;
   icon: React.ReactNode;
-  iconColor: string;
+  tone: Tone;
   url?: string;
   action?: () => void;
-  shortcut?: string;
+  keywords?: string[];
 }
 
 // ── Result type meta ───────────────────────────────────────────
 
 const RESULT_META: Record<
   SearchResult["type"],
-  { pill: string; iconColor: string }
+  { label: string; icon: React.ReactNode; tone: Tone }
 > = {
-  guest: { pill: "Guest", iconColor: "text-violet-500" },
-  booking: { pill: "Booking", iconColor: "text-emerald-500" },
-  room: { pill: "Room", iconColor: "text-amber-500" },
+  guest: { label: "Guest", icon: <UserRound />, tone: "violet" },
+  booking: { label: "Booking", icon: <CalendarDays />, tone: "emerald" },
+  room: { label: "Room", icon: <BedDouble />, tone: "amber" },
 };
 
 // ── Idle action definitions ────────────────────────────────────
@@ -77,114 +95,102 @@ function useActions(
       {
         id: "new-booking",
         label: "New Booking",
-        subLabel: "Create a walk-in or reservation",
         group: "Bookings",
         icon: <CalendarPlus />,
-        iconColor: "text-blue-500",
+        tone: "blue",
         url: "/dashboard/bookings?new=1",
-        shortcut: "N",
       },
       {
         id: "view-bookings",
-        label: "View All Bookings",
-        subLabel: "Browse reservations and history",
+        label: "All Bookings",
         group: "Bookings",
         icon: <CalendarDays />,
-        iconColor: "text-blue-400",
+        tone: "sky",
         url: "/dashboard/bookings",
       },
       {
         id: "availability",
         label: "Room Availability",
-        subLabel: "Check occupancy and open dates",
         group: "Bookings",
         icon: <BedDouble />,
-        iconColor: "text-indigo-500",
+        tone: "indigo",
         url: "/dashboard/availability",
       },
       {
         id: "check-in",
         label: "Check-In Guest",
-        subLabel: "Process arrival and assign room",
         group: "Front Desk",
         icon: <DoorOpen />,
-        iconColor: "text-emerald-500",
+        tone: "emerald",
         url: "/dashboard/bookings?filter=arriving",
       },
       {
         id: "check-out",
         label: "Check-Out Guest",
-        subLabel: "Process departure and settle bill",
         group: "Front Desk",
         icon: <LogOut />,
-        iconColor: "text-orange-500",
+        tone: "orange",
         url: "/dashboard/bookings?filter=departing",
       },
       {
         id: "guests",
         label: "Guest Directory",
-        subLabel: "View and manage guest profiles",
         group: "Front Desk",
         icon: <Users />,
-        iconColor: "text-violet-500",
+        tone: "violet",
         url: "/dashboard/customers",
       },
       {
         id: "add-guest",
-        label: "Add Guest Profile",
-        subLabel: "Create a new guest record",
+        label: "Add Guest",
         group: "Front Desk",
         icon: <UserPlus />,
-        iconColor: "text-violet-400",
+        tone: "violet",
         url: "/dashboard/customers?new=1",
       },
       {
         id: "payments",
         label: "Payments",
-        subLabel: "Track payments and invoices",
         group: "Front Desk",
         icon: <CreditCard />,
-        iconColor: "text-emerald-400",
+        tone: "teal",
         url: "/dashboard/payments",
       },
       {
         id: "rooms",
-        label: "Room Directory",
-        subLabel: "Manage rooms, types and rates",
+        label: "Rooms",
         group: "Operations",
         icon: <Wrench />,
-        iconColor: "text-amber-400",
+        tone: "amber",
         url: "/dashboard/rooms",
       },
       {
         id: "reports",
         label: "Reports",
-        subLabel: "Occupancy, revenue and analytics",
         group: "Operations",
         icon: <BarChart3 />,
-        iconColor: "text-sky-500",
+        tone: "sky",
         url: "/dashboard/reports",
       },
       {
         id: "settings",
         label: "Hotel Settings",
-        subLabel: "Taxes, policies and integrations",
         group: "Settings",
         icon: <Settings />,
-        iconColor: "text-muted-foreground",
+        tone: "slate",
         url: "/dashboard/settings",
       },
       {
         id: "theme",
-        label: theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode",
-        subLabel: "Toggle UI appearance",
+        label: theme === "dark" ? "Light Mode" : "Dark Mode",
         group: "Settings",
         icon: theme === "dark" ? <Sun /> : <Moon />,
-        iconColor: "text-muted-foreground",
+        tone: "slate",
         action: () => {
           setTheme(theme === "dark" ? "light" : "dark");
           close();
         },
+        keywords: ["appearance", "dark", "light", "mode", "theme", "toggle"],
       },
     ],
     [theme, setTheme, close],
@@ -193,42 +199,25 @@ function useActions(
 
 const GROUP_ORDER: ActionGroup[] = ["Bookings", "Front Desk", "Operations", "Settings"];
 
-// ── Row content ────────────────────────────────────────────────
+// ── Shared bits ─────────────────────────────────────────────────
 
-function ItemContent({
-  icon,
-  iconColor,
-  label,
-  subLabel,
+function IconChip({
+  tone,
+  children,
 }: {
-  icon: React.ReactNode;
-  iconColor: string;
-  label: string;
-  subLabel?: string;
+  tone: Tone;
+  children: React.ReactNode;
 }) {
   return (
-    <>
-      <span
-        aria-hidden="true"
-        className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-lg",
-          "bg-muted/70 text-muted-foreground transition-colors",
-          "group-data-selected/command-item:bg-muted group-data-selected/command-item:text-foreground",
-          "[&_svg]:size-4!",
-          iconColor,
-        )}
-      >
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate font-medium">{label}</span>
-        {subLabel && (
-          <span className="mt-0.5 block truncate text-[11px] font-normal text-muted-foreground">
-            {subLabel}
-          </span>
-        )}
-      </span>
-    </>
+    <span
+      aria-hidden="true"
+      className={cn(
+        "flex size-7 shrink-0 items-center justify-center rounded-lg [&_svg]:size-3.5!",
+        TONES[tone],
+      )}
+    >
+      {children}
+    </span>
   );
 }
 
@@ -245,7 +234,7 @@ export function GlobalSearch({ state }: GlobalSearchProps) {
   const close = React.useCallback(() => state.close(), [state]);
   const actions = useActions(theme, setTheme, close);
 
-  // Reset search state when dialog closes (onOpenChange fires on any close)
+  // Reset search state when dialog closes
   const handleOpenChange = React.useCallback(
     (open: boolean) => {
       if (!open) {
@@ -258,21 +247,28 @@ export function GlobalSearch({ state }: GlobalSearchProps) {
     [state],
   );
 
-  // Debounced server search — searching state set in handleQueryChange
+  // Debounced server search — stale responses discarded via cancelled flag
   React.useEffect(() => {
     const q = query.trim();
     if (!q) return;
+
+    let cancelled = false;
     const t = setTimeout(async () => {
       try {
         const res = await searchGlobal(q);
+        if (cancelled) return;
         setResults(res.success ? res.data : []);
       } catch {
-        setResults([]);
+        if (!cancelled) setResults([]);
       } finally {
-        setSearching(false);
+        if (!cancelled) setSearching(false);
       }
     }, 250);
-    return () => clearTimeout(t);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
   }, [query]);
 
   const handleQueryChange = React.useCallback((v: string) => {
@@ -308,7 +304,10 @@ export function GlobalSearch({ state }: GlobalSearchProps) {
   );
 
   const isQuerying = !!query.trim();
-  const showEmpty = isQuerying && !searching && results.length === 0;
+  // Keep previous results visible while a new search runs (stale-while-revalidate)
+  const showResults = isQuerying && results.length > 0;
+  const showEmpty =
+    isQuerying && !searching && results.length === 0;
 
   return (
     <CommandDialog
@@ -316,36 +315,28 @@ export function GlobalSearch({ state }: GlobalSearchProps) {
       onOpenChange={handleOpenChange}
       title="Command Palette"
       description="Search guests, bookings, rooms, or run an action"
-      className="top-[12vh] max-w-xl! translate-y-0 sm:top-[18vh]"
     >
       <CommandInput
         value={query}
         onValueChange={handleQueryChange}
+        loading={searching}
         placeholder="Search guests, bookings, rooms…"
         aria-label="Search guests, bookings, rooms, or run an action"
+        autoComplete="off"
+        spellCheck={false}
       />
 
-      <CommandList className="max-h-[min(420px,50vh)]">
-        {searching && (
-          <div
-            aria-live="polite"
-            className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground"
-          >
-            <Loader2 className="size-4 animate-spin" />
-            Searching records…
-          </div>
-        )}
-
+      <CommandList className="max-h-[min(380px,calc(100dvh-12rem))] sm:max-h-[420px]">
         {showEmpty && (
-          <CommandEmpty className="py-10">
-            <p className="font-medium text-foreground">No results found</p>
+          <CommandEmpty>
+            <p className="font-medium text-foreground">No results</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              No guests, bookings, or rooms match &ldquo;{query}&rdquo;
+              Nothing matches &ldquo;{query}&rdquo;
             </p>
           </CommandEmpty>
         )}
 
-        {isQuerying && !searching && results.length > 0 && (
+        {showResults && (
           <CommandGroup heading={`Results · ${results.length}`}>
             {results.map((r) => {
               const meta = RESULT_META[r.type];
@@ -354,17 +345,17 @@ export function GlobalSearch({ state }: GlobalSearchProps) {
                   key={r.id}
                   value={`${r.label} ${r.subLabel}`}
                   onSelect={() => runResult(r)}
-                  className="gap-3 py-2"
                 >
-                  <ItemContent
-                    icon={<ArrowUpRight />}
-                    iconColor={meta.iconColor}
-                    label={r.label}
-                    subLabel={r.subLabel}
-                  />
-                  <span className="ml-auto shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    {meta.pill}
+                  <IconChip tone={meta.tone}>{meta.icon}</IconChip>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{r.label}</span>
+                    {r.subLabel && (
+                      <span className="block truncate text-[11px] text-muted-foreground">
+                        {r.subLabel}
+                      </span>
+                    )}
                   </span>
+                  <ArrowUpRight className="size-3.5! shrink-0 text-muted-foreground/40 transition-colors group-data-selected/command-item:text-muted-foreground" />
                 </CommandItem>
               );
             })}
@@ -382,22 +373,14 @@ export function GlobalSearch({ state }: GlobalSearchProps) {
                   {items.map((item) => (
                     <CommandItem
                       key={item.id}
-                      value={`${item.label} ${item.subLabel ?? ""}`}
+                      value={`${item.label} ${item.group}`}
+                      keywords={item.keywords}
                       onSelect={() => runAction(item)}
-                      className="gap-3 py-2"
-                      keywords={
-                        item.id === "theme" ? ["dark", "light", "mode"] : undefined
-                      }
                     >
-                      <ItemContent
-                        icon={item.icon}
-                        iconColor={item.iconColor}
-                        label={item.label}
-                        subLabel={item.subLabel}
-                      />
-                      {item.shortcut && (
-                        <CommandShortcut>{item.shortcut}</CommandShortcut>
-                      )}
+                      <IconChip tone={item.tone}>{item.icon}</IconChip>
+                      <span className="min-w-0 flex-1 truncate font-medium">
+                        {item.label}
+                      </span>
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -406,17 +389,21 @@ export function GlobalSearch({ state }: GlobalSearchProps) {
           })}
       </CommandList>
 
-      {/* Footer hints */}
-      <div className="flex items-center gap-4 border-t border-border/60 px-3 py-2 text-[11px] text-muted-foreground">
+      {/* Footer hints — desktop only; touch devices skip the noise */}
+      <div className="hidden items-center gap-4 border-t border-border/60 px-4 py-2 text-[11px] text-muted-foreground/70 sm:flex">
         <span className="flex items-center gap-1.5">
-          <kbd className="inline-flex h-5 items-center rounded border border-border bg-background px-1.5 font-medium">↑↓</kbd>
+          <kbd className="inline-flex h-5 items-center rounded border border-border/60 bg-muted/40 px-1.5 font-medium">
+            ↑↓
+          </kbd>
           Navigate
         </span>
         <span className="flex items-center gap-1.5">
-          <kbd className="inline-flex h-5 items-center rounded border border-border bg-background px-1.5 font-medium">↵</kbd>
+          <kbd className="inline-flex h-5 items-center rounded border border-border/60 bg-muted/40 px-1.5 font-medium">
+            ↵
+          </kbd>
           Select
         </span>
-        <span className="ml-auto hidden sm:inline">⌘K</span>
+        <span className="ml-auto font-medium tracking-wide">⌘K</span>
       </div>
     </CommandDialog>
   );

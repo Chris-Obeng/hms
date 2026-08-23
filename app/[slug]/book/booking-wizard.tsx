@@ -65,6 +65,9 @@ interface Hotel {
   cancellationPolicy: string | null;
   paymentPolicy: string;
   hasPaystack: boolean;
+  /** Mirrors the server-side tax math so displayed totals match charged amounts. */
+  taxEnabled: boolean;
+  taxPercentage: number;
 }
 interface Props {
   slug: string;
@@ -237,17 +240,28 @@ export function BookingWizard({
 
   const resolvedSelected = selectedRoom ? resolvedPrices[selectedRoom.id] : null;
   const displayNightRate = resolvedSelected?.displayPrice ?? selectedRoom?.basePrice ?? 0;
-  const total =
-    resolvedSelected?.subtotal ?? (selectedRoom?.basePrice ?? 0) * nights * roomsCount;
+
+  // Availability caps how many rooms of this type the party can actually book.
+  const selectedAvail = selectedRoom
+    ? resolvedPrices[selectedRoom.id]?.availableCount
+    : null;
+  const bookableRooms =
+    selectedAvail != null ? Math.max(1, Math.min(roomsCount, selectedAvail)) : roomsCount;
+
+  // Pricing mirrors POST /api/booking/[slug]/bookings exactly:
+  // unit subtotal (override-resolved) × rooms, then tax on top.
+  const unitSubtotal =
+    resolvedSelected?.subtotal ?? (selectedRoom?.basePrice ?? 0) * nights;
+  const subtotal = Math.round(unitSubtotal * bookableRooms * 100) / 100;
+  const taxAmount = hotel.taxEnabled
+    ? Math.round(subtotal * (hotel.taxPercentage / 100) * 100) / 100
+    : 0;
+  const total = subtotal + taxAmount;
 
   const fmt = (n: number) =>
     `${hotel.currency} ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
-  const selectedAvail = selectedRoom
-    ? resolvedPrices[selectedRoom.id]?.availableCount
-    : null;
-  const selectedAvailable =
-    selectedAvail === null || selectedAvail === undefined || selectedAvail > 0;
+  const selectedAvailable = selectedAvail === null || selectedAvail === undefined || selectedAvail > 0;
 
   const step1Valid =
     !!selectedRoom &&
@@ -326,6 +340,7 @@ export function BookingWizard({
           check_out: checkOut,
           adults,
           children: childrenCount,
+          rooms_count: bookableRooms,
           guest_name: guestName.trim(),
           guest_email: guestEmail.trim(),
           guest_phone: guestPhone.trim(),
@@ -439,6 +454,11 @@ export function BookingWizard({
                   adults={adults}
                   childrenCount={childrenCount}
                   rooms={roomsCount}
+                  maxRooms={
+                    selectedRoom && selectedAvail != null
+                      ? Math.max(1, Math.min(5, selectedAvail))
+                      : 5
+                  }
                   onAdultsChange={setAdults}
                   onChildrenChange={setChildrenCount}
                   onRoomsChange={setRoomsCount}
@@ -616,7 +636,7 @@ export function BookingWizard({
                     }}
                     className="w-full"
                   >
-                    <Select.Trigger className="h-11 w-full rounded-xl border border-[var(--bk-line)] bg-white px-3.5 text-sm text-[var(--bk-ink)] flex items-center justify-between">
+                    <Select.Trigger className="h-11 w-full rounded-xl border border-[var(--bk-line)] bg-[var(--bk-field-bg)] px-3.5 text-sm text-[var(--bk-ink)] flex items-center justify-between">
                       <Select.Value>
                         {({ defaultChildren, isPlaceholder }) => {
                           if (isPlaceholder || !selectedCountryObj) {
@@ -645,7 +665,7 @@ export function BookingWizard({
                       </Select.Value>
                       <Select.Indicator />
                     </Select.Trigger>
-                    <Select.Popover className="p-1 max-h-64 overflow-y-auto bg-white border border-[var(--bk-line)] rounded-xl shadow-lg z-50 text-[var(--bk-ink)]">
+                    <Select.Popover className="p-1 max-h-64 overflow-y-auto bg-[var(--bk-surface)] border border-[var(--bk-line)] rounded-xl shadow-lg z-50 text-[var(--bk-ink)]">
                       <ListBox>
                         {countryList.map((c) => (
                           <ListBox.Item
@@ -809,14 +829,25 @@ export function BookingWizard({
                       {childrenCount > 0
                         ? `, ${childrenCount} child${childrenCount !== 1 ? "ren" : ""}`
                         : ""}
+                      {bookableRooms > 1 ? `, ${bookableRooms} rooms` : ""}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">
                     <span className="text-[var(--bk-muted)]">
-                      {fmt(displayNightRate)} × {nights} night{nights !== 1 ? "s" : ""}
+                      {fmt(displayNightRate)} × {nights} night
+                      {nights !== 1 ? "s" : ""}
+                      {bookableRooms > 1 ? ` × ${bookableRooms} rooms` : ""}
                     </span>
-                    <span className="booking-price text-[var(--bk-ink)]">{fmt(total)}</span>
+                    <span className="booking-price text-[var(--bk-ink)]">{fmt(subtotal)}</span>
                   </div>
+                  {taxAmount > 0 && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-[var(--bk-muted)]">
+                        Taxes & fees ({hotel.taxPercentage}%)
+                      </span>
+                      <span className="booking-price text-[var(--bk-ink)]">{fmt(taxAmount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-baseline gap-4 pt-2 border-t border-[var(--bk-line)]">
                     <span className="font-semibold text-[var(--bk-ink)]">Total</span>
                     <span className="booking-heading booking-price text-2xl text-[var(--bk-ink)]">
@@ -1191,7 +1222,7 @@ function RoomOptionCard({
             }`}
             aria-hidden
           >
-            {selected && <Check className="size-3 text-white" strokeWidth={3} />}
+            {selected && <Check className="size-3 text-[var(--bk-on-ink)]" strokeWidth={3} />}
           </div>
         )}
       </div>

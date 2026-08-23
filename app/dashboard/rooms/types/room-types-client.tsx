@@ -3,13 +3,13 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
-import { toast } from "@heroui/react";
+import { Button, Modal } from "@heroui/react";
+
 import { RoomTypesTable, type RoomTypeRow } from "./room-types-table";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RoomTypeForm, type RoomTypeFormValues } from "../_components/room-type-form";
 import { createRoomType } from "@/app/actions/rooms";
-import { AMENITIES_LIST } from "@/lib/amenities";
+import { toAmenityObjects } from "@/lib/amenities";
+import { toast } from "@heroui/react";
 
 interface RoomTypesClientProps {
   data: RoomTypeRow[];
@@ -25,10 +25,6 @@ export function RoomTypesClient({ data, currency, totalRooms }: RoomTypesClientP
   const totalRoomTypes = data.length;
 
   async function handleSubmit(values: RoomTypeFormValues) {
-    const selectedAmenitiesData = AMENITIES_LIST.filter((a) =>
-      values.selectedAmenities.includes(a.label)
-    ).map((a) => ({ icon: a.icon, label: a.label }));
-
     const result = await createRoomType({
       name: values.name,
       slug: values.slug,
@@ -39,7 +35,7 @@ export function RoomTypesClient({ data, currency, totalRooms }: RoomTypesClientP
       maxChildren: values.maxChildren,
       basePrice: Number(values.basePrice),
       weekendPrice: values.weekendPrice ? Number(values.weekendPrice) : undefined,
-      amenities: selectedAmenitiesData,
+      amenities: toAmenityObjects(values.selectedAmenities),
       isActive: values.isActive,
       sortOrder: values.sortOrder,
     });
@@ -64,53 +60,57 @@ export function RoomTypesClient({ data, currency, totalRooms }: RoomTypesClientP
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-5">
+      {/* Page header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-page-title text-foreground">Room Types</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {totalRoomTypes} room type{totalRoomTypes !== 1 ? "s" : ""} · {totalRooms} total room{totalRooms !== 1 ? "s" : ""}
+          <p className="text-body mt-0.5 text-muted-foreground">
+            {totalRoomTypes} room type{totalRoomTypes !== 1 ? "s" : ""} · {totalRooms} total room
+            {totalRooms !== 1 ? "s" : ""}
           </p>
         </div>
         <Button
-          onClick={() => {
+          onPress={() => {
             setErrors({});
             setIsAddModalOpen(true);
           }}
           size="sm"
-          className="h-9 text-sm rounded-xl bg-foreground text-background hover:bg-foreground/90"
+          className="shrink-0"
         >
-          <Plus className="size-3.5 mr-1.5" />
+          <Plus className="size-4" />
           Add Room Type
         </Button>
       </div>
 
       <RoomTypesTable data={data} currency={currency} />
 
-      {/* Add Room Type Modal */}
-      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="sm:max-w-2xl h-[85vh] max-h-[85vh] flex flex-col rounded-2xl p-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
-            <DialogTitle>Add Room Type</DialogTitle>
-            <DialogDescription>
-              Create a new room category. You can upload photos on the next step.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-4">
-            <RoomTypeForm
-              onSubmit={handleSubmit}
-              submitLabel="Create Room Type"
-              submittingLabel="Creating..."
-              title="Add Room Type"
-              subtitle="Create a new room category. You'll add photos on the next step."
-              errors={errors}
-              isModal={true}
-              onCancel={() => setIsAddModalOpen(false)}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Add room type modal */}
+      <Modal.Backdrop isOpen={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+        <Modal.Container>
+          <Modal.Dialog className="flex h-[85dvh] max-w-2xl flex-col p-0 sm:h-[85vh]">
+            <Modal.CloseTrigger />
+            <Modal.Header className="shrink-0 border-b border-border">
+              <Modal.Heading>Add Room Type</Modal.Heading>
+              <p className="text-caption text-muted-foreground">
+                Create a new room category. You can upload photos on the next step.
+              </p>
+            </Modal.Header>
+            <Modal.Body className="min-h-0 flex-1 overflow-y-auto">
+              <RoomTypeForm
+                onSubmit={handleSubmit}
+                submitLabel="Create Room Type"
+                submittingLabel="Creating..."
+                title="Add Room Type"
+                subtitle="Create a new room category. You'll add photos on the next step."
+                errors={errors}
+                isModal={true}
+                onCancel={() => setIsAddModalOpen(false)}
+              />
+            </Modal.Body>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
     </div>
   );
 }

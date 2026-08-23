@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import { businessToday } from "@/lib/business-date";
 import { CalendarClient } from "./calendar-client";
 import { getCalendarData, getCurrentStaffRole } from "./actions";
 
@@ -44,8 +45,8 @@ export default async function CalendarPage() {
     base_price: rt.base_price,
   }));
 
-  // Fetch initial calendar data (today + 30 days)
-  const today = new Date().toISOString().split("T")[0];
+  // Fetch initial calendar data (property business date + 30 days)
+  const today = businessToday(hotel.timezone || "UTC");
   const initialData = await getCalendarData(today, 30);
 
   // Resolve staff role for permission gating
@@ -59,6 +60,7 @@ export default async function CalendarPage() {
         hotelId={hotel.id}
         hotelName={hotel.name}
         currency={hotel.currency || "GHS"}
+        hotelTimezone={hotel.timezone || "UTC"}
         canEdit={canEdit}
         canBlock={canBlock}
       />

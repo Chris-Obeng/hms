@@ -71,6 +71,11 @@ export default async function BookPage({ params, searchParams }: Props) {
         cancellationPolicy: hotel.cancellation_policy,
         paymentPolicy: effectivePolicy,
         hasPaystack,
+        taxEnabled: settings.tax_enabled === true,
+        taxPercentage:
+          typeof settings.tax_percentage === "number"
+            ? (settings.tax_percentage as number)
+            : 0,
       }}
       roomTypes={(roomTypes ?? []).map((rt) => ({
         id: rt.id,

@@ -10,27 +10,34 @@ import {
   getPaginationRowModel,
   flexRender,
   type ColumnDef,
-  type SortingState,
   type ColumnFiltersState,
-  type VisibilityState,
+  type SortingState,
 } from "@tanstack/react-table";
 import {
   CalendarIcon,
-  ChevronDown,
   Download,
   Eye,
   LayoutGrid,
   List,
   LogIn,
   LogOut,
-  MoreHorizontal,
   RotateCcw,
-  Search,
   SlidersHorizontal,
   XCircle,
 } from "lucide-react";
 import { format } from "date-fns";
-import { toast } from "@heroui/react";
+import {
+  AlertDialog,
+  Button,
+  Dropdown,
+  Label,
+  SearchField,
+  Table,
+  ToggleButton,
+  ToggleButtonGroup,
+  toast,
+} from "@heroui/react";
+import type { Key } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -38,31 +45,10 @@ import {
   SOURCE_BADGES,
   getPaymentLabel,
   getStatusLabel,
-  getStatusVariant,
 } from "@/lib/booking-status";
 import { downloadCsv, toCsv } from "@/lib/csv";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { HeroSelectField } from "@/components/ui/hero-select";
-import { Card, CardContent } from "@/components/ui/card";
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { HeroTablePagination } from "@/components/ui/hero-table-pagination";
 import { NewBookingModal } from "@/components/bookings/new-booking-modal";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import { updateBookingStatus } from "@/app/actions/bookings";
@@ -97,238 +83,122 @@ interface BookingsTableProps {
   hotelId?: string;
 }
 
-// ── Columns ────────────────────────────────────────────────────────
+// ── Status presentation ────────────────────────────────────────────
 
-function getColumns(
-  currency: string,
-  onViewDetails: (id: string) => void
-): ColumnDef<BookingRow>[] {
-  return [
-    {
-      accessorKey: "reference",
-      header: "Reference",
-      cell: ({ row }) => (
-        <span className="font-mono text-xs font-medium text-foreground">
-          {row.original.reference}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "guestName",
-      header: "Guest",
-      cell: ({ row }) => (
-        <div className="flex flex-col">
-          <span className="text-sm font-medium text-foreground truncate max-w-[160px]">
-            {row.original.guestName}
-          </span>
-          {row.original.guestEmail && (
-            <span className="text-xs text-muted-foreground truncate max-w-[160px]">
-              {row.original.guestEmail}
-            </span>
-          )}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "roomType",
-      header: "Room",
-      cell: ({ row }) => (
-        <div className="flex flex-col">
-          <span className="text-sm text-foreground">
-            {row.original.roomType || "—"}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {row.original.roomNumber
-              ? `Rm ${row.original.roomNumber}`
-              : "Not assigned"}
-          </span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "checkIn",
-      header: "Check-In",
-      cell: ({ row }) => (
-        <span className="text-sm text-foreground whitespace-nowrap">
-          {formatDate(row.original.checkIn)}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "checkOut",
-      header: "Check-Out",
-      cell: ({ row }) => (
-        <span className="text-sm text-foreground whitespace-nowrap">
-          {formatDate(row.original.checkOut)}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "nights",
-      header: "Nights",
-      cell: ({ row }) => (
-        <span className="text-sm text-foreground tabular-nums">
-          {row.original.nights ?? "—"}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => {
-        const s = row.original.status;
-        const statusClass =
-          s === "confirmed" ? "status-confirmed" :
-          s === "checked_in" ? "status-checked-in" :
-          s === "checked_out" ? "status-checked-out" :
-          s === "pending" ? "status-pending" :
-          s === "cancelled" || s === "no_show" ? "status-cancelled" :
-          "status-checked-out";
-        return (
-          <span className={cn(
-            "inline-flex items-center px-2 py-0.5 rounded-md border text-caption font-medium",
-            statusClass
-          )}>
-            {getStatusLabel(s)}
-          </span>
-        );
-      },
-    },
-    {
-      accessorKey: "paymentStatus",
-      header: "Payment",
-      cell: ({ row }) => {
-        const p = row.original.paymentStatus;
-        const payClass =
-          p === "paid" ? "status-confirmed" :
-          p === "partial" ? "status-pending" :
-          p === "unpaid" ? "status-checked-out" :
-          p === "refunded" ? "status-cancelled" :
-          "status-checked-out";
-        return (
-          <span className={cn(
-            "inline-flex items-center px-2 py-0.5 rounded-md border text-caption font-medium",
-            payClass
-          )}>
-            {getPaymentLabel(p)}
-          </span>
-        );
-      },
-    },
-    {
-      accessorKey: "source",
-      header: "Source",
-      cell: ({ row }) => {
-        const source = SOURCE_BADGES[row.original.source] || SOURCE_BADGES.direct;
-        return (
-          <div className={cn("inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium", source.bg, source.color)}>
-            {source.label}
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: "totalAmount",
-      header: "Total",
-      cell: ({ row }) => (
-        <span className="text-sm font-medium text-foreground tabular-nums whitespace-nowrap">
-          {formatCurrency(row.original.totalAmount, currency)}
-        </span>
-      ),
-    },
-    {
-      id: "actions",
-      cell: ({ row }) => {
-        const booking = row.original;
-        return (
-          <div onClick={(e) => e.stopPropagation()}>
-            <DropdownMenu>
-              <DropdownMenuTrigger className="inline-flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
-                <MoreHorizontal className="size-4" />
-                <span className="sr-only">Actions</span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuLabel className="font-normal text-xs text-muted-foreground">
-                  {booking.reference}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => onViewDetails(booking.id)}
-                >
-                  <Eye className="size-3.5 mr-2" />
-                  View Details
-                </DropdownMenuItem>
-                {booking.status === "confirmed" && (
-                  <DropdownMenuItem
-                    onClick={async () => {
-                      const result = await updateBookingStatus(booking.id, "checked_in");
-                      if (result.success) {
-                        toast.success(`${booking.guestName} checked in`);
-                      } else {
-                        toast.danger(result.error || "Check-in failed");
-                      }
-                    }}
-                  >
-                    <LogIn className="size-3.5 mr-2 text-emerald-500" />
-                    Check In
-                  </DropdownMenuItem>
-                )}
-                {booking.status === "checked_in" && (
-                  <DropdownMenuItem
-                    onClick={async () => {
-                      const result = await updateBookingStatus(booking.id, "checked_out");
-                      if (result.success) {
-                        toast.success(`${booking.guestName} checked out`);
-                      } else {
-                        toast.danger(result.error || "Check-out failed");
-                      }
-                    }}
-                  >
-                    <LogOut className="size-3.5 mr-2 text-amber-500" />
-                    Check Out
-                  </DropdownMenuItem>
-                )}
-                {(booking.status === "confirmed" || booking.status === "checked_in") && (
-                  <DropdownMenuItem
-                    onClick={async () => {
-                      const result = await updateBookingStatus(booking.id, "cancelled");
-                      if (result.success) {
-                        toast.success("Booking cancelled");
-                      } else {
-                        toast.danger(result.error || "Cancel failed");
-                      }
-                    }}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <XCircle className="size-3.5 mr-2" />
-                    Cancel
-                  </DropdownMenuItem>
-                )}
-                {booking.status === "cancelled" && (
-                  <DropdownMenuItem
-                    onClick={async () => {
-                      const result = await updateBookingStatus(booking.id, "confirmed");
-                      if (result.success) {
-                        toast.success("Booking reinstated");
-                      } else {
-                        toast.danger(result.error || "Reinstate failed");
-                      }
-                    }}
-                  >
-                    <RotateCcw className="size-3.5 mr-2" />
-                    Reinstate
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        );
-      },
-    },
-  ];
+function StatusChip({ kind, value }: { kind: "status" | "payment"; value: string }) {
+  const cls =
+    kind === "status"
+      ? value === "confirmed"
+        ? "status-confirmed"
+        : value === "checked_in"
+          ? "status-checked-in"
+          : value === "pending"
+            ? "status-pending"
+            : value === "cancelled" || value === "no_show"
+              ? "status-cancelled"
+              : "status-checked-out"
+      : value === "paid"
+        ? "status-confirmed"
+        : value === "partial"
+          ? "status-pending"
+          : value === "refunded"
+            ? "status-cancelled"
+            : "status-checked-out";
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center whitespace-nowrap rounded-md border px-2 py-0.5 text-caption font-medium",
+        cls
+      )}
+    >
+      {kind === "status" ? getStatusLabel(value) : getPaymentLabel(value)}
+    </span>
+  );
 }
 
-// ── Reservation Card (​Grid View) ─────────────────────────────────
+// ── Row actions ────────────────────────────────────────────────────
+
+function BookingActions({
+  booking,
+  onViewDetails,
+  onCheckIn,
+  onCheckOut,
+  onRequestCancel,
+  onReinstate,
+}: {
+  booking: BookingRow;
+  onViewDetails: (id: string) => void;
+  onCheckIn: (booking: BookingRow) => void;
+  onCheckOut: (booking: BookingRow) => void;
+  onRequestCancel: (booking: BookingRow) => void;
+  onReinstate: (booking: BookingRow) => void;
+}) {
+  return (
+    <Dropdown>
+      <Button
+        isIconOnly
+        size="sm"
+        variant="ghost"
+        aria-label={`Actions for booking ${booking.reference}`}
+        className="size-8 min-w-8 rounded-lg text-muted-foreground"
+      >
+        <Eye className="size-4" />
+      </Button>
+      <Dropdown.Popover placement="bottom end">
+        <Dropdown.Menu>
+          <Dropdown.Item id="view" textValue="View details" onAction={() => onViewDetails(booking.id)}>
+            <Eye className="size-3.5" />
+            <Label>View details</Label>
+          </Dropdown.Item>
+          {booking.status === "confirmed" && (
+            <Dropdown.Item
+              id="check-in"
+              textValue="Check in"
+              onAction={() => onCheckIn(booking)}
+            >
+              <LogIn className="size-3.5 text-emerald-500" />
+              <Label>Check in</Label>
+            </Dropdown.Item>
+          )}
+          {booking.status === "checked_in" && (
+            <Dropdown.Item
+              id="check-out"
+              textValue="Check out"
+              onAction={() => onCheckOut(booking)}
+            >
+              <LogOut className="size-3.5 text-amber-500" />
+              <Label>Check out</Label>
+            </Dropdown.Item>
+          )}
+          {(booking.status === "confirmed" || booking.status === "checked_in") && (
+            <Dropdown.Item
+              id="cancel"
+              textValue="Cancel booking"
+              variant="danger"
+              onAction={() => onRequestCancel(booking)}
+            >
+              <XCircle className="size-3.5" />
+              <Label>Cancel…</Label>
+            </Dropdown.Item>
+          )}
+          {booking.status === "cancelled" && (
+            <Dropdown.Item
+              id="reinstate"
+              textValue="Reinstate booking"
+              onAction={() => onReinstate(booking)}
+            >
+              <RotateCcw className="size-3.5" />
+              <Label>Reinstate</Label>
+            </Dropdown.Item>
+          )}
+        </Dropdown.Menu>
+      </Dropdown.Popover>
+    </Dropdown>
+  );
+}
+
+// ── Reservation Card (grid / mobile) ───────────────────────────────
 
 function ReservationCard({
   row,
@@ -339,9 +209,7 @@ function ReservationCard({
   currency: string;
   onViewDetails: (id: string) => void;
 }) {
-  const statusVariant = getStatusVariant(row.status);
-  const statusLabel = getStatusLabel(row.status);
-  const sourceBadge = SOURCE_BADGES[row.source] || { label: row.source, color: "text-slate-600", bg: "bg-slate-500/10" };
+  const source = SOURCE_BADGES[row.source] || SOURCE_BADGES.direct;
   const nights = row.nights ?? 0;
   const outstanding = row.outstandingBalance ?? 0;
 
@@ -351,71 +219,54 @@ function ReservationCard({
       tabIndex={0}
       onClick={() => onViewDetails(row.id)}
       onKeyDown={(e) => e.key === "Enter" && onViewDetails(row.id)}
-      className="group relative flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm hover:shadow-md hover:border-border transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm transition-all duration-150 hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      {/* Status dot + badge row */}
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span
-            className={cn(
-              "size-2 rounded-full shrink-0 mt-0.5",
-              row.status === "checked_in" && "bg-emerald-500",
-              row.status === "confirmed" && "bg-blue-500",
-              row.status === "checked_out" && "bg-slate-400",
-              row.status === "cancelled" && "bg-rose-500",
-              row.status === "pending" && "bg-amber-500",
-              row.status === "no_show" && "bg-orange-500",
-            )}
-          />
-          <span className="text-sm font-semibold text-foreground truncate">
-            {row.guestName}
-          </span>
+        <div className="min-w-0">
+          <p className="truncate text-body font-semibold text-foreground">{row.guestName}</p>
+          <p className="font-mono text-caption tracking-wide text-muted-foreground">
+            {row.reference}
+          </p>
         </div>
-        <Badge variant={statusVariant} className="text-[10px] px-2 py-0.5 shrink-0 capitalize whitespace-nowrap">
-          {statusLabel}
-        </Badge>
+        <StatusChip kind="status" value={row.status} />
       </div>
 
-      {/* Reference + Room */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span className="font-mono tracking-wide">{row.reference}</span>
-        <span className="flex items-center gap-1">
-          {row.roomNumber && (
-            <span className="font-medium text-foreground">Rm {row.roomNumber}</span>
-          )}
-          {row.roomType && (
-            <span className="text-muted-foreground/60">{row.roomNumber ? `· ${row.roomType}` : row.roomType}</span>
-          )}
-        </span>
-      </div>
-
-      {/* Dates */}
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 rounded-xl px-3 py-2">
+      <div className="flex items-center gap-1.5 rounded-xl bg-muted/40 px-3 py-2 text-caption text-muted-foreground">
         <CalendarIcon className="size-3 shrink-0" />
         <span>{formatDate(row.checkIn)}</span>
         <span className="text-muted-foreground/40">→</span>
         <span>{formatDate(row.checkOut)}</span>
-        <span className="ml-auto font-medium text-foreground">
+        <span className="ml-auto font-medium tabular-nums text-foreground">
           {nights} night{nights !== 1 ? "s" : ""}
         </span>
       </div>
 
-      {/* Amount + Payment + Source */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-foreground">
+          <span className="text-body font-semibold tabular-nums text-foreground">
             {formatCurrency(row.totalAmount, currency, { minimumFractionDigits: 0 })}
           </span>
           {outstanding > 0 && (
-            <span className="text-[10px] text-rose-500 font-medium">
+            <span className="text-[10px] font-medium text-rose-500">
               {formatCurrency(outstanding, currency, { minimumFractionDigits: 0 })} outstanding
             </span>
           )}
         </div>
         <div className="flex items-center gap-1.5">
-          <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", sourceBadge.bg, sourceBadge.color)}>
-            {sourceBadge.label}
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[10px] font-medium",
+              source.bg,
+              source.color
+            )}
+          >
+            {source.label}
           </span>
+          {row.roomNumber && (
+            <span className="text-caption font-medium tabular-nums text-foreground">
+              Rm {row.roomNumber}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -449,7 +300,7 @@ const SOURCE_OPTIONS = [
 
 // ── CSV Export ─────────────────────────────────────────────────────
 
-function exportToCsv(data: BookingRow[], currency: string) {
+function exportToCsv(data: BookingRow[]) {
   const headers = [
     "Reference",
     "Guest",
@@ -494,14 +345,10 @@ function exportToCsv(data: BookingRow[], currency: string) {
 export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTableProps) {
   const router = useRouter();
   const [viewMode, setViewMode] = React.useState<"table" | "grid">("table");
-  const [sorting, setSorting] = React.useState<SortingState>([
-    { id: "checkIn", desc: false },
-  ]);
+  // Rows arrive pre-sorted in front-desk working order (upcoming arrivals
+  // first, then recent history); column sorting re-orders on demand.
+  const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
-    guestEmail: false,
-    guestPhone: false,
-  });
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [showFilters, setShowFilters] = React.useState(false);
   const searchParams = useSearchParams();
@@ -543,21 +390,17 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
   const [sourceFilter, setSourceFilter] = React.useState<string>("all");
   const [roomTypeFilter, setRoomTypeFilter] = React.useState<string>("all");
 
-  // Apply column filters from dropdown selections
+  // Pending cancellation
+  const [pendingCancel, setPendingCancel] = React.useState<BookingRow | null>(null);
+  const [cancelling, setCancelling] = React.useState(false);
+
+  // Apply column filters from selections
   React.useEffect(() => {
     const filters: ColumnFiltersState = [];
-    if (statusFilter !== "all") {
-      filters.push({ id: "status", value: statusFilter });
-    }
-    if (paymentFilter !== "all") {
-      filters.push({ id: "paymentStatus", value: paymentFilter });
-    }
-    if (sourceFilter !== "all") {
-      filters.push({ id: "source", value: sourceFilter });
-    }
-    if (roomTypeFilter !== "all") {
-      filters.push({ id: "roomType", value: roomTypeFilter });
-    }
+    if (statusFilter !== "all") filters.push({ id: "status", value: statusFilter });
+    if (paymentFilter !== "all") filters.push({ id: "paymentStatus", value: paymentFilter });
+    if (sourceFilter !== "all") filters.push({ id: "source", value: sourceFilter });
+    if (roomTypeFilter !== "all") filters.push({ id: "roomType", value: roomTypeFilter });
     setColumnFilters(filters);
   }, [statusFilter, paymentFilter, sourceFilter, roomTypeFilter]);
 
@@ -567,7 +410,134 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
     setDetailOpen(true);
   }, []);
 
-  const columns = React.useMemo(() => getColumns(currency, handleViewDetails), [currency, handleViewDetails]);
+  const runStatusUpdate = React.useCallback(
+    async (booking: BookingRow, status: string, successMsg: string, errorMsg: string) => {
+      const result = await updateBookingStatus(booking.id, status);
+      if (result.success) {
+        toast.success(successMsg);
+        router.refresh();
+      } else {
+        toast.danger(result.error || errorMsg);
+      }
+    },
+    [router]
+  );
+
+  const handleCancel = React.useCallback(async () => {
+    if (!pendingCancel || cancelling) return;
+    setCancelling(true);
+    try {
+      const result = await updateBookingStatus(pendingCancel.id, "cancelled");
+      if (result.success) {
+        toast.success("Booking cancelled");
+        setPendingCancel(null);
+        router.refresh();
+      } else {
+        toast.danger(result.error || "Cancel failed");
+      }
+    } finally {
+      setCancelling(false);
+    }
+  }, [pendingCancel, cancelling, router]);
+
+  // ── Columns ────────────────────────────────────────────────────
+  const columns = React.useMemo<ColumnDef<BookingRow>[]>(
+    () => [
+      {
+        accessorKey: "createdAt",
+        header: "Created",
+      },
+      {
+        accessorKey: "guestName",
+        header: "Guest",
+        cell: ({ row }) => (
+          <div className="flex min-w-0 flex-col">
+            <span className="max-w-[170px] truncate text-body font-medium text-foreground">
+              {row.original.guestName}
+            </span>
+            <span className="font-mono text-caption tracking-wide text-muted-foreground">
+              {row.original.reference}
+              {" · "}
+              {(SOURCE_BADGES[row.original.source] || SOURCE_BADGES.direct).label}
+            </span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "roomType",
+        header: "Stay",
+        cell: ({ row }) => (
+          <div className="flex min-w-0 flex-col">
+            <span className="whitespace-nowrap text-body text-foreground">
+              {formatDate(row.original.checkIn)} → {formatDate(row.original.checkOut)}
+            </span>
+            <span className="whitespace-nowrap text-caption text-muted-foreground">
+              {row.original.nights ?? "—"} night{(row.original.nights ?? 0) !== 1 ? "s" : ""}
+              {row.original.roomNumber
+                ? ` · Rm ${row.original.roomNumber}`
+                : row.original.roomType
+                  ? ` · ${row.original.roomType}`
+                  : ""}
+            </span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        filterFn: (row, id, value) => row.getValue(id) === value,
+        cell: ({ row }) => <StatusChip kind="status" value={row.original.status} />,
+      },
+      {
+        accessorKey: "paymentStatus",
+        header: "Payment",
+        filterFn: (row, id, value) => row.getValue(id) === value,
+        cell: ({ row }) => <StatusChip kind="payment" value={row.original.paymentStatus} />,
+      },
+      {
+        accessorKey: "totalAmount",
+        header: "Total",
+        cell: ({ row }) => (
+          <div className="flex flex-col whitespace-nowrap">
+            <span className="text-body font-medium tabular-nums text-foreground">
+              {formatCurrency(row.original.totalAmount, currency)}
+            </span>
+            {(row.original.outstandingBalance ?? 0) > 0 && (
+              <span className="text-[10px] font-medium text-rose-500">
+                {formatCurrency(row.original.outstandingBalance ?? 0, currency, {
+                  minimumFractionDigits: 0,
+                })}{" "}
+                due
+              </span>
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "actions",
+        cell: ({ row }) => {
+          const booking = row.original;
+          return (
+            <BookingActions
+              booking={booking}
+              onViewDetails={handleViewDetails}
+              onCheckIn={(b) =>
+                void runStatusUpdate(b, "checked_in", `${b.guestName} checked in`, "Check-in failed")
+              }
+              onCheckOut={(b) =>
+                void runStatusUpdate(b, "checked_out", `${b.guestName} checked out`, "Check-out failed")
+              }
+              onRequestCancel={setPendingCancel}
+              onReinstate={(b) =>
+                void runStatusUpdate(b, "confirmed", "Booking reinstated", "Reinstate failed")
+              }
+            />
+          );
+        },
+      },
+    ],
+    [currency, handleViewDetails, runStatusUpdate]
+  );
 
   const table = useReactTable({
     data,
@@ -575,186 +545,209 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
     state: {
       sorting,
       columnFilters,
-      columnVisibility,
       globalFilter,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
-    onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    globalFilterFn: (row, _columnId, filterValue: string) => {
+      const b = row.original;
+      const search = filterValue.toLowerCase();
+      return (
+        b.guestName.toLowerCase().includes(search) ||
+        b.reference.toLowerCase().includes(search) ||
+        (b.guestEmail || "").toLowerCase().includes(search) ||
+        (b.guestPhone || "").toLowerCase().includes(search) ||
+        (b.roomType || "").toLowerCase().includes(search)
+      );
+    },
     initialState: {
       pagination: {
-        pageSize: 50,
+        pageSize: 15,
       },
     },
   });
 
   const filteredCount = table.getFilteredRowModel().rows.length;
   const totalCount = data.length;
+  const rows = table.getRowModel().rows;
+  const isFiltered =
+    globalFilter.trim().length > 0 ||
+    statusFilter !== "all" ||
+    paymentFilter !== "all" ||
+    sourceFilter !== "all" ||
+    roomTypeFilter !== "all";
+
+  function handleViewModeSelect(keys: "all" | Set<Key>) {
+    const first = keys instanceof Set && keys.size > 0 ? [...keys][0] : null;
+    if (first === "table" || first === "grid") setViewMode(first);
+  }
+
+  const emptyState = (
+    <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+      <CalendarIcon className="mb-3 size-10 text-muted-foreground/30" />
+      <p className="text-body font-medium text-muted-foreground">
+        {isFiltered ? "No reservations match your filters" : "No reservations yet"}
+      </p>
+      <p className="mt-1 max-w-[280px] text-caption text-muted-foreground/60">
+        {isFiltered
+          ? "Try adjusting your search or filters."
+          : "Reservations will appear here once guests start reserving rooms."}
+      </p>
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-page-title text-foreground">
-            Reservations
-          </h1>
-          <p className="text-body text-muted-foreground mt-1">
+          <h1 className="text-page-title text-foreground">Reservations</h1>
+          <p className="mt-0.5 text-body text-muted-foreground">
             {totalCount} total reservation{totalCount !== 1 ? "s" : ""}
             {filteredCount !== totalCount && (
-              <span className="text-muted-foreground/60">
-                {" "}· {filteredCount} visible
-              </span>
+              <span className="text-muted-foreground/60"> · {filteredCount} visible</span>
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {/* View toggle */}
-          <div className="flex items-center rounded-xl border border-border/60 overflow-hidden h-9">
-            <button
-              onClick={() => setViewMode("table")}
-              className={cn(
-                "h-9 px-2.5 flex items-center gap-1.5 text-sm transition-colors",
-                viewMode === "table"
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
-              title="Table view"
-            >
-              <List className="size-3.5" />
-            </button>
-            <button
-              onClick={() => setViewMode("grid")}
-              className={cn(
-                "h-9 px-2.5 flex items-center gap-1.5 text-sm transition-colors",
-                viewMode === "grid"
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
-              title="Grid view"
-            >
-              <LayoutGrid className="size-3.5" />
-            </button>
-          </div>
+        <div className="flex items-center gap-2">
+          {/* View toggle — desktop only; mobile always uses cards */}
+          <ToggleButtonGroup
+            selectionMode="single"
+            selectedKeys={new Set([viewMode])}
+            onSelectionChange={handleViewModeSelect}
+            className="hidden md:flex"
+            aria-label="View mode"
+          >
+            <ToggleButton isIconOnly id="table" aria-label="Table view" size="sm">
+              <List className="size-4" />
+            </ToggleButton>
+            <ToggleButton isIconOnly id="grid" aria-label="Grid view" size="sm">
+              <ToggleButtonGroup.Separator />
+              <LayoutGrid className="size-4" />
+            </ToggleButton>
+          </ToggleButtonGroup>
           <Button
             variant="outline"
             size="sm"
-            className="h-9 text-sm rounded-xl border-border/60"
-            onClick={() => exportToCsv(data, currency)}
+            className="shrink-0 rounded-xl text-sm"
+            onPress={() => exportToCsv(data)}
           >
-            <Download className="size-3.5 mr-1.5" />
+            <Download className="size-3.5" />
             Export
           </Button>
-          <Button
-            size="sm"
-            className="h-9 text-sm rounded-xl bg-foreground text-background hover:bg-foreground/90"
-            onClick={() => setNewBookingOpen(true)}
-          >
-            <span className="flex items-center gap-1.5">
-              <span className="text-base leading-none">+</span>
-              New Reservation
-            </span>
+          <Button size="sm" onPress={() => setNewBookingOpen(true)} className="shrink-0">
+            <span className="text-base leading-none">+</span>
+            New Reservation
           </Button>
         </div>
       </div>
 
-      {/* Search + Filters */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/60 pointer-events-none" />
-            <Input
-              placeholder="Search name, email, phone, reference..."
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              className="h-9 pl-9 text-sm rounded-xl border-border/60"
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchField
+          aria-label="Search reservations"
+          value={globalFilter}
+          onChange={setGlobalFilter}
+          className="max-w-sm flex-1"
+        >
+          <SearchField.Group className="h-9 rounded-xl border-border/60 bg-background">
+            <SearchField.SearchIcon />
+            <SearchField.Input
+              placeholder="Search name, email, reference..."
+              className="text-sm"
             />
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "h-9 text-sm rounded-xl gap-1.5",
-              showFilters && "bg-muted text-foreground"
-            )}
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <SlidersHorizontal className="size-3.5" />
-            Filters
-          </Button>
-        </div>
-
-        {/* Filter chips */}
-        {showFilters && (
-          <Card size="sm" className="border-border/60">
-            <CardContent className="p-3">
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Status */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-label font-medium text-muted-foreground uppercase tracking-wider">
-                    Status
-                  </label>
-                  <HeroSelectField className="w-40" value={statusFilter} onValueChange={setStatusFilter} options={[{value:"all",label:"All"},...STATUS_OPTIONS]} ariaLabel="Booking status" />
-                </div>
-
-                {/* Payment Status */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-label font-medium text-muted-foreground uppercase tracking-wider">
-                    Payment
-                  </label>
-                  <HeroSelectField className="w-40" value={paymentFilter} onValueChange={setPaymentFilter} options={[{value:"all",label:"All"},...PAYMENT_OPTIONS]} ariaLabel="Payment status" />
-                </div>
-
-                {/* Source */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-label font-medium text-muted-foreground uppercase tracking-wider">
-                    Source
-                  </label>
-                  <HeroSelectField className="w-40" value={sourceFilter} onValueChange={setSourceFilter} options={[{value:"all",label:"All"},...SOURCE_OPTIONS]} ariaLabel="Booking source" />
-                </div>
-
-                {/* Room Type */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-label font-medium text-muted-foreground uppercase tracking-wider">
-                    Room Type
-                  </label>
-                  <HeroSelectField className="w-40" value={roomTypeFilter} onValueChange={setRoomTypeFilter} options={[{value:"all",label:"All"},...roomTypes.map((rt) => ({value:rt.name,label:rt.name}))]} ariaLabel="Room type" />
-                </div>
-
-                {/* Clear */}
-                {(statusFilter !== "all" ||
-                  paymentFilter !== "all" ||
-                  sourceFilter !== "all" ||
-                  roomTypeFilter !== "all") && (
-                  <button
-                    onClick={() => {
-                      setStatusFilter("all");
-                      setPaymentFilter("all");
-                      setSourceFilter("all");
-                      setRoomTypeFilter("all");
-                    }}
-                    className="h-8 px-3 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted self-end"
-                  >
-                    Clear filters
-                  </button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+            <SearchField.ClearButton />
+          </SearchField.Group>
+        </SearchField>
+        <Button
+          variant="ghost"
+          size="sm"
+          onPress={() => setShowFilters(!showFilters)}
+          aria-expanded={showFilters}
+          className={cn("h-9 shrink-0 rounded-xl text-sm", showFilters && "bg-muted")}
+        >
+          <SlidersHorizontal className="size-3.5" />
+          Filters
+        </Button>
       </div>
 
-      {/* Grid view */}
-      {viewMode === "grid" && (
-        <>
-          {table.getRowModel().rows.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {table.getRowModel().rows.map((row) => (
+      {/* Filters */}
+      {showFilters && (
+        <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/60 bg-card p-3 shadow-sm">
+          <HeroSelectField
+            className="w-40"
+            label="Status"
+            value={statusFilter}
+            onValueChange={setStatusFilter}
+            options={[{ value: "all", label: "All" }, ...STATUS_OPTIONS]}
+            ariaLabel="Booking status"
+          />
+          <HeroSelectField
+            className="w-40"
+            label="Payment"
+            value={paymentFilter}
+            onValueChange={setPaymentFilter}
+            options={[{ value: "all", label: "All" }, ...PAYMENT_OPTIONS]}
+            ariaLabel="Payment status"
+          />
+          <HeroSelectField
+            className="w-40"
+            label="Source"
+            value={sourceFilter}
+            onValueChange={setSourceFilter}
+            options={[{ value: "all", label: "All" }, ...SOURCE_OPTIONS]}
+            ariaLabel="Booking source"
+          />
+          <HeroSelectField
+            className="w-40"
+            label="Room Type"
+            value={roomTypeFilter}
+            onValueChange={setRoomTypeFilter}
+            options={[
+              { value: "all", label: "All" },
+              ...roomTypes.map((rt) => ({ value: rt.name, label: rt.name })),
+            ]}
+            ariaLabel="Room type"
+          />
+          {isFiltered && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 rounded-lg text-xs text-muted-foreground"
+              onPress={() => {
+                setStatusFilter("all");
+                setPaymentFilter("all");
+                setSourceFilter("all");
+                setRoomTypeFilter("all");
+              }}
+            >
+              Clear filters
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Cards — mobile always; desktop when Grid view selected */}
+      {rows.length > 0 ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:hidden">
+            {rows.map((row) => (
+              <ReservationCard
+                key={row.id}
+                row={row.original}
+                currency={currency}
+                onViewDetails={handleViewDetails}
+              />
+            ))}
+          </div>
+          {viewMode === "grid" && (
+            <div className="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {rows.map((row) => (
                 <ReservationCard
                   key={row.id}
                   row={row.original}
@@ -763,170 +756,73 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
                 />
               ))}
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <CalendarIcon className="size-10 text-muted-foreground/30 mb-3" />
-              <p className="text-body font-medium text-muted-foreground">
-                {globalFilter || statusFilter !== "all" || paymentFilter !== "all"
-                  ? "No reservations match your filters"
-                  : "No reservations yet"}
-              </p>
-              <p className="text-caption text-muted-foreground/60 mt-1 max-w-[240px]">
-                {globalFilter || statusFilter !== "all" || paymentFilter !== "all"
-                  ? "Try adjusting your search or filters"
-                  : "Reservations will appear here once guests start reserving rooms."}
-              </p>
-            </div>
           )}
-          {/* Grid Pagination */}
-          {table.getPageCount() > 1 && (
-            <div className="flex items-center justify-between border-t border-border/50 pt-4">
-              <p className="text-xs text-muted-foreground">
-                {filteredCount > 0
-                  ? `Showing ${table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}–${Math.min(
-                      (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-                      filteredCount
-                    )} of ${filteredCount}`
-                  : "No results"}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs rounded-lg"
-                  onClick={() => table.previousPage()}
-                  disabled={!table.getCanPreviousPage()}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs rounded-lg"
-                  onClick={() => table.nextPage()}
-                  disabled={!table.getCanNextPage()}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Table view */}
-      {viewMode === "table" && (
-        <Card className="border-border/60 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} className="text-label font-semibold uppercase tracking-wide text-muted-foreground/70 h-11">
-                      {header.isPlaceholder ? null : (
-                        <button
-                          className={cn(
-                            "flex items-center gap-1 select-none",
-                            header.column.getCanSort() && "cursor-pointer hover:text-foreground"
-                          )}
-                          onClick={header.column.getToggleSortingHandler()}
-                        >
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                          {{
-                            asc: (
-                              <ChevronDown className="size-3 rotate-180 text-muted-foreground/60" />
-                            ),
-                            desc: (
-                              <ChevronDown className="size-3 text-muted-foreground/60" />
-                            ),
-                          }[header.column.getIsSorted() as string] ?? null}
-                        </button>
-                      )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.length > 0 ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className="group min-h-[44px] hover:bg-muted/30 transition-colors cursor-pointer"
-                    onClick={() => handleViewDetails(row.original.id)}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-3">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-48 text-center"
-                  >
-                    <div className="flex flex-col items-center justify-center">
-                      <CalendarIcon className="size-10 text-muted-foreground/30 mb-3" />
-                      <p className="text-body font-medium text-muted-foreground">
-                        {globalFilter || statusFilter !== "all" || paymentFilter !== "all"
-                          ? "No reservations match your filters"
-                          : "No reservations yet"}
-                      </p>
-                      <p className="text-caption text-muted-foreground/60 mt-1 max-w-[240px]">
-                        {globalFilter || statusFilter !== "all" || paymentFilter !== "all"
-                          ? "Try adjusting your search or filters"
-                          : "Reservations will appear here once guests start reserving rooms."}
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Pagination */}
-        <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
-          <p className="text-xs text-muted-foreground">
-            {filteredCount > 0
-              ? `Showing ${table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} - ${Math.min(
-                  (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-                  filteredCount
-                )} of ${filteredCount}`
-              : "No results"}
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs rounded-lg"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs rounded-lg"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              Next
-            </Button>
+          <div className={cn(viewMode === "table" && "md:hidden")}>
+            <HeroTablePagination
+              table={table}
+              totalRows={totalCount}
+              filteredRows={filteredCount}
+            />
           </div>
         </div>
-      </Card>
+      ) : (
+        emptyState
+      )}
+
+      {/* Table view — desktop only */}
+      {viewMode === "table" && (
+        <Table variant="secondary" className="hidden md:block">
+          <Table.ScrollContainer>
+            <Table.Content aria-label="Reservations" className="min-w-[820px]">
+              <Table.Header>
+                {table.getHeaderGroups()[0]?.headers.map((header) => (
+                  <Table.Column
+                    key={header.id}
+                    allowsSorting={
+                      ["guestName", "roomType", "status", "paymentStatus", "totalAmount"].includes(
+                        header.id
+                      )
+                    }
+                    id={header.id}
+                    isRowHeader={header.id === "guestName"}
+                    className={header.id === "createdAt" ? "hidden" : undefined}
+                  >
+                    {({ sortDirection }) =>
+                      header.id === "actions" || header.id === "createdAt" ? null : (
+                        <Table.SortableColumnHeader sortDirection={sortDirection}>
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                        </Table.SortableColumnHeader>
+                      )
+                    }
+                  </Table.Column>
+                ))}
+              </Table.Header>
+              <Table.Body renderEmptyState={() => emptyState}>
+                {rows.map((row) => (
+                  <Table.Row
+                    key={row.id}
+                    id={row.id}
+                    className="cursor-pointer"
+                    onAction={() => handleViewDetails(row.original.id)}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <Table.Cell key={cell.id} className={cell.column.id === "createdAt" ? "hidden" : undefined}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </Table.Cell>
+                    ))}
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+          <Table.Footer>
+            <HeroTablePagination
+              table={table}
+              totalRows={totalCount}
+              filteredRows={filteredCount}
+            />
+          </Table.Footer>
+        </Table>
       )}
 
       {/* New Reservation Modal */}
@@ -960,6 +856,41 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
         initialTab={detailInitialTab}
         onBookingChanged={() => router.refresh()}
       />
+
+      {/* Cancel confirmation — destructive, always confirm */}
+      <AlertDialog>
+        <AlertDialog.Backdrop
+          isOpen={pendingCancel !== null}
+          onOpenChange={(open) => !open && setPendingCancel(null)}
+        >
+          <AlertDialog.Container>
+            <AlertDialog.Dialog className="sm:max-w-[420px]">
+              <AlertDialog.Header>
+                <AlertDialog.Icon status="danger" />
+                <AlertDialog.Heading>Cancel this reservation?</AlertDialog.Heading>
+              </AlertDialog.Header>
+              <AlertDialog.Body>
+                <p>
+                  {pendingCancel?.guestName}&rsquo;s stay ({pendingCancel?.reference}) will be
+                  cancelled and the room released. You can reinstate it later if needed.
+                </p>
+              </AlertDialog.Body>
+              <AlertDialog.Footer>
+                <Button slot="close" variant="tertiary" isDisabled={cancelling}>
+                  Keep reservation
+                </Button>
+                <Button
+                  variant="danger"
+                  isPending={cancelling}
+                  onPress={() => void handleCancel()}
+                >
+                  Cancel reservation
+                </Button>
+              </AlertDialog.Footer>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
+      </AlertDialog>
     </div>
   );
 }

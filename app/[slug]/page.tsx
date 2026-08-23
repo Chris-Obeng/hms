@@ -99,7 +99,7 @@ export default async function HotelLandingPage({ params }: Props) {
           {!locationLabel && <div className="mb-5 sm:mb-8" />}
           <Suspense
             fallback={
-              <div className="h-[148px] min-[480px]:h-[68px] max-w-4xl mx-auto rounded-2xl bg-white/90 animate-pulse" />
+              <div className="h-[148px] min-[480px]:h-[68px] max-w-4xl mx-auto rounded-2xl bg-[var(--bk-hero-panel)] animate-pulse" />
             }
           >
             <DateSearchBar slug={slug} />

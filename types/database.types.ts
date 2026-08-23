@@ -182,6 +182,7 @@ export type Database = {
           room_id: string | null
           room_rate: number
           room_type_id: string | null
+          rooms_count: number
           source: string | null
           special_requests: string | null
           status: string | null
@@ -216,6 +217,7 @@ export type Database = {
           room_id?: string | null
           room_rate: number
           room_type_id?: string | null
+          rooms_count?: number
           source?: string | null
           special_requests?: string | null
           status?: string | null
@@ -250,6 +252,7 @@ export type Database = {
           room_id?: string | null
           room_rate?: number
           room_type_id?: string | null
+          rooms_count?: number
           source?: string | null
           special_requests?: string | null
           status?: string | null

@@ -14,4 +14,10 @@ describe("timeline geometry",()=>{
 describe("timeline validation",()=>{
   it("rejects maintenance and type mismatch",()=>{expect(validateTimelineDrop({booking,room:{...room,status:"maintenance"},checkIn:"2026-07-02",checkOut:"2026-07-05",bookings:[],blocks:[]})).toContain("maintenance");expect(validateTimelineDrop({booking,room:{...room,roomTypeId:"rt2"},checkIn:"2026-07-02",checkOut:"2026-07-05",bookings:[],blocks:[]})).toContain("mismatch")});
   it("rejects exact-range block",()=>expect(validateTimelineDrop({booking,room,checkIn:"2026-07-02",checkOut:"2026-07-05",bookings:[],blocks:[{id:"x",roomId:"r1",startDate:"2026-07-03",endDate:"2026-07-04",reason:"maintenance",notes:null}]})).toContain("blocked"));
+  it("rejects past check-in unless manual-like or checked_in",()=>{
+    expect(validateTimelineDrop({booking,room,checkIn:"2026-07-01",checkOut:"2026-07-03",bookings:[],blocks:[],today:"2026-07-02"})).toContain("past");
+    expect(validateTimelineDrop({booking:{...booking,status:"checked_in"},room,checkIn:"2026-07-01",checkOut:"2026-07-03",bookings:[],blocks:[],today:"2026-07-02"})).toBeNull();
+    expect(validateTimelineDrop({booking:{...booking,source:"walk_in"},room,checkIn:"2026-07-01",checkOut:"2026-07-03",bookings:[],blocks:[],today:"2026-07-02"})).toBeNull();
+    expect(validateTimelineDrop({booking,room,checkIn:"2026-07-02",checkOut:"2026-07-05",bookings:[],blocks:[],today:"2026-07-02"})).toBeNull();
+  });
 });
