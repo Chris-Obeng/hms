@@ -1,255 +1,478 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
+import {
+  addDays,
+  format,
+  parseISO,
+  subDays,
+} from "date-fns";
 import {
   Moon,
   CheckCircle2,
   AlertTriangle,
-  DollarSign,
-  TrendingUp,
   BedDouble,
+  CalendarArrowDown,
+  CalendarArrowUp,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Lock,
   ShieldCheck,
-  CalendarDays,
-  FileSpreadsheet,
+  Users,
 } from "lucide-react";
-import { Button, Card, Chip, Modal } from "@heroui/react";
-import { toast } from "@heroui/react";
+import { AlertDialog, Button, Chip, ProgressBar, toast } from "@heroui/react";
 import { NightAuditSummary, executeNightAudit } from "./actions";
-import { formatCurrencyCompact } from "@/lib/format";
+import { formatCurrency, formatCurrencyCompact, formatDateTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 interface NightAuditClientProps {
   initialSummary: NightAuditSummary;
+  canRunAudit: boolean;
 }
 
-export function NightAuditClient({ initialSummary }: NightAuditClientProps) {
-  const [summary, setSummary] = React.useState<NightAuditSummary>(initialSummary);
+const METHOD_LABELS: Record<string, string> = {
+  cash: "Cash",
+  card: "Card",
+  mobile_money: "Mobile Money",
+  bank_transfer: "Bank Transfer",
+  paystack: "Online (Paystack)",
+  other: "Other",
+};
+
+// ── Small building blocks ──────────────────────────────────────────
+
+function KpiCard({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="card-default p-4 min-w-0">
+      <p className="text-label text-muted-foreground">{label}</p>
+      <div className="mt-1.5">{children}</div>
+    </div>
+  );
+}
+
+function StatTile({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+  tone: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-xl border border-border/40 bg-card px-3 py-2.5 min-w-0">
+      <div className="p-1.5 rounded-lg bg-muted/20 shrink-0">
+        <Icon className={cn("size-4", tone)} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-caption text-muted-foreground leading-tight truncate">{label}</p>
+        <p className="text-sm font-semibold tabular-nums text-foreground">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Main ───────────────────────────────────────────────────────────
+
+export function NightAuditClient({ initialSummary, canRunAudit }: NightAuditClientProps) {
+  const router = useRouter();
+  const [summary, setSummary] = React.useState(initialSummary);
+  const [syncedSummary, setSyncedSummary] = React.useState(initialSummary);
+  if (syncedSummary !== initialSummary) {
+    setSyncedSummary(initialSummary);
+    setSummary(initialSummary);
+  }
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [isExecuting, setIsExecuting] = React.useState(false);
-  const [confirmModalOpen, setConfirmModalOpen] = React.useState(false);
+  const [isNavigating, startNavigation] = React.useTransition();
   const [auditNotes, setAuditNotes] = React.useState("");
+
+  const navigateToDate = (d: Date) => {
+    const next = format(d, "yyyy-MM-dd");
+    if (next === summary.auditDate) return;
+    startNavigation(() => {
+      router.push(`/dashboard/night-audit?date=${next}`);
+    });
+  };
+
+  const auditDay = React.useMemo(() => parseISO(summary.auditDate + "T00:00:00"), [summary.auditDate]);
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const viewingToday = summary.auditDate === todayStr;
+  const hasUnresolved = summary.unresolvedBookings.length > 0;
 
   const handleRunAudit = async () => {
     try {
       setIsExecuting(true);
-      const res = await executeNightAudit(summary.auditDate, auditNotes);
+      const res = await executeNightAudit(summary.auditDate, auditNotes.trim() || undefined);
       if (res.success) {
-        toast.success(res.message);
-        setSummary((prev) => ({ ...prev, isClosed: true }));
-        setConfirmModalOpen(false);
+        toast.success(res.message ?? "Day closed");
+        setConfirmOpen(false);
+        setSummary((prev) => ({
+          ...prev,
+          isClosed: true,
+          lastAudit: {
+            staffName: null,
+            notes: auditNotes.trim() || null,
+            at: new Date().toISOString(),
+          },
+        }));
+        router.refresh();
+      } else {
+        toast.danger(res.error ?? "Failed to close the day");
       }
-    } catch (err: any) {
-      toast.danger(err.message || "Failed to complete Night Audit");
+    } catch {
+      toast.danger("Failed to complete Night Audit");
     } finally {
       setIsExecuting(false);
     }
   };
 
-  const hasUnresolved = summary.unresolvedBookings.length > 0;
-
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/40">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="size-10 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center ring-1 ring-indigo-500/20">
-              <Moon className="size-5" />
-            </div>
-            <div>
-              <h1 className="text-page-title text-foreground">Night Audit & Daily Close</h1>
-              <p className="text-body text-muted-foreground mt-0.5">
-                Financial reconciliation, room charges, and daily close-out for{" "}
-                <span className="font-semibold text-foreground">{summary.auditDate}</span>
-              </p>
-            </div>
+    <div className="space-y-5 max-w-6xl mx-auto">
+      {/* ── Header ─────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="size-10 rounded-xl bg-foreground text-background flex items-center justify-center shrink-0">
+            <Moon className="size-5" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-page-title text-foreground">Night Audit</h1>
+            <p className="text-body text-muted-foreground mt-0.5">
+              Daily reconciliation &amp; close-out for{" "}
+              <span className="font-semibold text-foreground">
+                {format(auditDay, "EEEE, MMM d, yyyy")}
+              </span>
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
+          {/* Date navigation */}
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              isIconOnly
+              size="sm"
+              aria-label="Previous day"
+              onPress={() => navigateToDate(subDays(auditDay, 1))}
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <input
+              type="date"
+              value={summary.auditDate}
+              max={todayStr}
+              onChange={(e) => {
+                if (!e.target.value) return;
+                navigateToDate(parseISO(e.target.value + "T00:00:00"));
+              }}
+              className="h-9 rounded-lg border border-border/60 bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+              aria-label="Audit date"
+            />
+            <Button
+              variant="outline"
+              isIconOnly
+              size="sm"
+              aria-label="Next day"
+              isDisabled={viewingToday}
+              onPress={() => navigateToDate(addDays(auditDay, 1))}
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+            {!viewingToday && (
+              <Button variant="ghost" size="sm" onPress={() => navigateToDate(new Date())}>
+                Today
+              </Button>
+            )}
+          </div>
+
+          {/* Status / action */}
           {summary.isClosed ? (
-            <Chip color="success" variant="soft" className="gap-1.5 px-3 py-1 text-sm font-medium">
+            <Chip color="success" variant="soft" className="gap-1.5 px-3 py-1.5 text-sm font-medium shrink-0">
               <CheckCircle2 className="size-4" />
-              Day Closed ({summary.auditDate})
+              Closed
             </Chip>
-          ) : (
+          ) : canRunAudit ? (
             <Button
               variant="primary"
               size="md"
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-md gap-2"
-              onPress={() => setConfirmModalOpen(true)}
+              className="gap-2"
+              onPress={() => setConfirmOpen(true)}
             >
               <ShieldCheck className="size-4" />
-              Run Night Audit & Close Day
+              Close Day
             </Button>
+          ) : (
+            <Chip color="warning" variant="soft" className="gap-1.5 px-3 py-1.5 text-sm font-medium shrink-0">
+              <Lock className="size-3.5" />
+              Manager closes day
+            </Chip>
           )}
         </div>
       </div>
 
-      {/* Warning banner if unresolved arrivals/departures */}
-      {hasUnresolved && !summary.isClosed && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-600 dark:text-amber-400 flex items-start gap-3">
-          <AlertTriangle className="size-5 shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="font-semibold">Unresolved Same-Day Operations ({summary.unresolvedBookings.length})</p>
-            <p className="mt-0.5 text-amber-600/90 dark:text-amber-400/90">
-              There are pending arrivals or departures scheduled for today. It is recommended to resolve these (check-in, check-out, or mark no-show) before performing the official Close Day audit.
+      {(isNavigating || isExecuting) && (
+        <div className="h-0.5 w-full overflow-hidden rounded-full bg-muted/40" role="status" aria-label="Loading">
+          <div className="h-full w-1/3 animate-pulse rounded-full bg-gold" />
+        </div>
+      )}
+
+      {/* ── KPI grid ───────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+        <KpiCard label="Occupancy">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-kpi text-foreground">{summary.occupancyRate}%</span>
+            <span className="text-caption text-muted-foreground tabular-nums">
+              {summary.occupiedRooms}/{summary.totalRooms} rooms
+            </span>
+          </div>
+          <ProgressBar
+            aria-label={`Occupancy ${summary.occupancyRate}%`}
+            value={summary.occupancyRate}
+            maxValue={100}
+            className="mt-2"
+          >
+            <ProgressBar.Track className="h-1.5">
+              <ProgressBar.Fill className="bg-gold" />
+            </ProgressBar.Track>
+          </ProgressBar>
+          <p className="text-caption text-muted-foreground mt-1.5">
+            {summary.vacantRooms} vacant · {summary.outOfService} out of service
+          </p>
+        </KpiCard>
+
+        <KpiCard label="Est. room revenue">
+          <p className="text-kpi text-foreground">
+            {formatCurrencyCompact(summary.estimatedRoomRevenue, summary.currency)}
+          </p>
+          <p className="text-caption text-muted-foreground mt-1">
+            From stays active on this date
+          </p>
+        </KpiCard>
+
+        <KpiCard label="Collected today">
+          <p className="text-kpi text-foreground">
+            {formatCurrencyCompact(summary.totalPaymentsToday, summary.currency)}
+          </p>
+          {summary.paymentsByMethod.length > 0 ? (
+            <ul className="mt-1.5 space-y-0.5">
+              {summary.paymentsByMethod.slice(0, 3).map((m) => (
+                <li key={m.method} className="flex items-center justify-between gap-2 text-caption">
+                  <span className="text-muted-foreground truncate">
+                    {METHOD_LABELS[m.method] ?? m.method}
+                  </span>
+                  <span className="tabular-nums text-foreground font-medium shrink-0">
+                    {formatCurrencyCompact(m.amount, summary.currency)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-caption text-muted-foreground mt-1">No payments recorded</p>
+          )}
+        </KpiCard>
+
+        <KpiCard label="ADR · RevPAR">
+          <div className="flex items-baseline gap-1.5 flex-wrap">
+            <span className="text-kpi text-foreground">
+              {formatCurrencyCompact(summary.adrToday, summary.currency)}
+            </span>
+            <span className="text-caption text-muted-foreground">/</span>
+            <span className="text-sm font-semibold text-muted-foreground tabular-nums">
+              {formatCurrencyCompact(summary.revparToday, summary.currency)}
+            </span>
+          </div>
+          <p className="text-caption text-muted-foreground mt-1">
+            Avg daily rate / revenue per room
+          </p>
+        </KpiCard>
+      </div>
+
+      {/* ── Day operations strip ───────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatTile
+          icon={CalendarArrowDown}
+          label="Arrivals due"
+          value={summary.pendingArrivals}
+          tone="text-amber-600 dark:text-amber-400"
+        />
+        <StatTile
+          icon={CalendarArrowUp}
+          label="Departures due"
+          value={summary.pendingDepartures}
+          tone="text-rose-600 dark:text-rose-400"
+        />
+        <StatTile icon={Users} label="In-house guests" value={summary.inHouseCount} tone="text-emerald-600 dark:text-emerald-400" />
+        <StatTile icon={BedDouble} label="Rooms occupied" value={summary.occupiedRooms} tone="text-blue-600 dark:text-blue-400" />
+      </div>
+
+      {/* ── Closed confirmation ────────────────────────────────── */}
+      {summary.isClosed && summary.lastAudit && (
+        <div className="card-default p-4 flex items-start gap-3 border-emerald-500/25 bg-emerald-500/5">
+          <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+          <div className="min-w-0 text-sm">
+            <p className="font-semibold text-foreground">
+              Day closed{summary.lastAudit.staffName ? ` by ${summary.lastAudit.staffName}` : ""}
             </p>
+            <p className="text-caption text-muted-foreground mt-0.5 flex items-center gap-1.5">
+              <Clock3 className="size-3" />
+              {formatDateTime(summary.lastAudit.at)}
+            </p>
+            {summary.lastAudit.notes && (
+              <p className="text-body text-muted-foreground mt-1.5 whitespace-pre-wrap break-words">
+                “{summary.lastAudit.notes}”
+              </p>
+            )}
           </div>
         </div>
       )}
 
-      {/* Key Metrics Cards Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Room Revenue */}
-        <Card className="p-4 border-border/60 bg-card">
-          <div className="flex items-center justify-between">
-            <span className="text-caption font-medium text-muted-foreground uppercase tracking-wider">Est. Room Revenue</span>
-            <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-              <DollarSign className="size-4" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-foreground mt-2 tabular-nums">
-            {formatCurrencyCompact(summary.estimatedRoomRevenue, summary.currency)}
-          </p>
-          <p className="text-caption text-muted-foreground mt-1">Calculated from in-house stays</p>
-        </Card>
+      {/* ── Unresolved same-day operations ─────────────────────── */}
+      {hasUnresolved && !summary.isClosed && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-4 flex items-start gap-3">
+          <AlertTriangle className="size-5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+          <div className="min-w-0 w-full">
+            <p className="text-sm font-semibold text-foreground">
+              Resolve before closing ({summary.unresolvedBookings.length})
+            </p>
+            <p className="text-caption text-amber-700 dark:text-amber-400/90 mt-0.5">
+              These arrivals or departures are still open for this date.
+            </p>
 
-        {/* Total Payments Collected */}
-        <Card className="p-4 border-border/60 bg-card">
-          <div className="flex items-center justify-between">
-            <span className="text-caption font-medium text-muted-foreground uppercase tracking-wider">Collected Today</span>
-            <div className="size-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center">
-              <TrendingUp className="size-4" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-foreground mt-2 tabular-nums">
-            {formatCurrencyCompact(summary.totalPaymentsToday, summary.currency)}
-          </p>
-          <p className="text-caption text-muted-foreground mt-1">Processed payments total</p>
-        </Card>
-
-        {/* Occupancy Rate */}
-        <Card className="p-4 border-border/60 bg-card">
-          <div className="flex items-center justify-between">
-            <span className="text-caption font-medium text-muted-foreground uppercase tracking-wider">Occupancy</span>
-            <div className="size-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
-              <BedDouble className="size-4" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-foreground mt-2 tabular-nums">
-            {summary.occupancyRate}%
-          </p>
-          <p className="text-caption text-muted-foreground mt-1">
-            {summary.occupiedRooms} / {summary.totalRooms} rooms occupied
-          </p>
-        </Card>
-
-        {/* ADR & RevPAR */}
-        <Card className="p-4 border-border/60 bg-card">
-          <div className="flex items-center justify-between">
-            <span className="text-caption font-medium text-muted-foreground uppercase tracking-wider">ADR / RevPAR</span>
-            <div className="size-8 rounded-lg bg-violet-500/10 text-violet-500 flex items-center justify-center">
-              <FileSpreadsheet className="size-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-xl font-bold text-foreground tabular-nums">{formatCurrencyCompact(summary.adrToday, summary.currency)}</span>
-            <span className="text-caption text-muted-foreground">/</span>
-            <span className="text-sm font-semibold text-muted-foreground tabular-nums">{formatCurrencyCompact(summary.revparToday, summary.currency)}</span>
-          </div>
-          <p className="text-caption text-muted-foreground mt-1">Avg Daily Rate / RevPAR</p>
-        </Card>
-      </div>
-
-      {/* Unresolved Bookings Table */}
-      {hasUnresolved && (
-        <Card className="p-5 border-border/60 bg-card space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-section text-foreground font-semibold">
-              Action Required: Same-Day Bookings ({summary.unresolvedBookings.length})
-            </h2>
-          </div>
-
-          <div className="divide-y divide-border/40 rounded-xl border border-border/60 overflow-hidden bg-background">
-            {summary.unresolvedBookings.map((item) => (
-              <div key={item.id} className="p-3.5 flex items-center justify-between hover:bg-accent/5 transition-colors">
-                <div className="flex items-center gap-3">
+            <ul className="mt-3 divide-y divide-border/50 rounded-xl border border-border/60 bg-background overflow-hidden">
+              {summary.unresolvedBookings.map((item) => (
+                <li
+                  key={item.id}
+                  className="px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 hover:bg-accent/30 transition-colors"
+                >
                   <Chip
                     size="sm"
                     color={item.type === "pending_arrival" ? "warning" : "danger"}
                     variant="soft"
+                    className="shrink-0"
                   >
-                    {item.type === "pending_arrival" ? "Pending Check-in" : "Pending Check-out"}
+                    {item.type === "pending_arrival" ? "Arrival" : "Departure"}
                   </Chip>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">{item.guestName}</p>
-                    <p className="text-caption text-muted-foreground">Ref: {item.reference} • Room: {item.roomNumber || "Unassigned"}</p>
+                  <div className="min-w-0 flex-1 basis-40">
+                    <p className="text-sm font-medium text-foreground truncate">{item.guestName}</p>
+                    <p className="text-caption text-muted-foreground truncate">
+                      {item.reference} · Room {item.roomNumber ?? "unassigned"}
+                    </p>
                   </div>
-                </div>
-
-                <a
-                  href={`/dashboard/bookings?search=${item.reference}`}
-                  className="text-xs font-medium text-indigo-500 hover:underline"
-                >
-                  Manage →
-                </a>
-              </div>
-            ))}
+                  <a
+                    href={`/dashboard/bookings/${item.id}`}
+                    className="text-xs font-medium text-gold hover:underline shrink-0 py-1"
+                  >
+                    Manage →
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
-        </Card>
+        </div>
       )}
 
-      {/* Confirmation HeroUI Modal */}
-      <Modal isOpen={confirmModalOpen} onOpenChange={setConfirmModalOpen}>
-        <Modal.Backdrop />
-        <Modal.Container>
-          <Modal.Dialog className="max-w-lg p-6 rounded-2xl bg-card border border-border">
-            <Modal.Header className="flex items-center gap-3 pb-3 border-b border-border/40">
-              <div className="size-9 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
-                <ShieldCheck className="size-5" />
-              </div>
-              <div>
-                <Modal.Heading className="text-lg font-bold text-foreground">Confirm Night Audit</Modal.Heading>
-                <p className="text-caption text-muted-foreground">Closing day {summary.auditDate}</p>
-              </div>
-            </Modal.Header>
+      {/* ── Open-day summary CTA (manager only) ────────────────── */}
+      {!summary.isClosed && canRunAudit && (
+        <div className="card-default p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-section text-foreground">End of day</h2>
+            <p className="text-caption text-muted-foreground mt-1">
+              Closing records{" "}
+              <span className="font-semibold text-foreground tabular-nums">
+                {formatCurrency(summary.estimatedRoomRevenue, summary.currency)}
+              </span>{" "}
+              room revenue and{" "}
+              <span className="font-semibold text-foreground tabular-nums">
+                {formatCurrency(summary.totalPaymentsToday, summary.currency)}
+              </span>{" "}
+              collected payments to the permanent audit log.
+            </p>
+          </div>
+          <Button variant="primary" size="md" className="gap-2 shrink-0" onPress={() => setConfirmOpen(true)}>
+            <ShieldCheck className="size-4" />
+            Run Night Audit
+          </Button>
+        </div>
+      )}
 
-            <Modal.Body className="py-4 space-y-4 text-sm text-foreground">
-              <p>
-                Running Night Audit will record daily room revenue of{" "}
-                <span className="font-bold text-foreground">{formatCurrencyCompact(summary.estimatedRoomRevenue, summary.currency)}</span> and total collected payments of{" "}
-                <span className="font-bold text-foreground">{formatCurrencyCompact(summary.totalPaymentsToday, summary.currency)}</span> to the immutable audit log.
-              </p>
+      {/* ── Confirm dialog ─────────────────────────────────────── */}
+      <AlertDialog.Backdrop isOpen={confirmOpen} onOpenChange={setConfirmOpen} isDismissable={!isExecuting}>
+        <AlertDialog.Container>
+          <AlertDialog.Dialog className="max-w-lg">
+            <AlertDialog.CloseTrigger />
+            <AlertDialog.Header>
+              <AlertDialog.Icon status="warning">
+                <Moon className="size-5" />
+              </AlertDialog.Icon>
+              <AlertDialog.Heading>Close day {summary.auditDate}?</AlertDialog.Heading>
+            </AlertDialog.Header>
 
-              <div>
-                <label className="block text-label text-muted-foreground mb-1 font-medium">
-                  Audit Notes / Handover Comments
-                </label>
+            <AlertDialog.Body className="space-y-3">
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-border/60 p-3 text-sm">
+                <dt className="text-muted-foreground">Room revenue</dt>
+                <dd className="text-right font-semibold tabular-nums">
+                  {formatCurrency(summary.estimatedRoomRevenue, summary.currency)}
+                </dd>
+                <dt className="text-muted-foreground">Collected payments</dt>
+                <dd className="text-right font-semibold tabular-nums">
+                  {formatCurrency(summary.totalPaymentsToday, summary.currency)}
+                </dd>
+                <dt className="text-muted-foreground">Occupancy</dt>
+                <dd className="text-right font-semibold tabular-nums">{summary.occupancyRate}%</dd>
+                <dt className="text-muted-foreground">Open arrivals / departures</dt>
+                <dd className="text-right font-semibold tabular-nums">
+                  {summary.pendingArrivals} / {summary.pendingDepartures}
+                </dd>
+              </dl>
+
+              {hasUnresolved && (
+                <p className="rounded-lg bg-amber-500/10 border border-amber-500/25 px-3 py-2 text-xs text-amber-700 dark:text-amber-400 flex items-start gap-2">
+                  <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
+                  {summary.unresolvedBookings.length} same-day booking(s) are still unresolved. You can still
+                  close the day, but resolve them first if possible.
+                </p>
+              )}
+
+              <label className="block">
+                <span className="text-label text-muted-foreground mb-1 block">Handover notes (optional)</span>
                 <textarea
                   value={auditNotes}
                   onChange={(e) => setAuditNotes(e.target.value)}
-                  placeholder="Optional audit notes for staff log..."
-                  className="w-full h-20 rounded-xl border border-border bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Anything the morning shift should know…"
+                  maxLength={1000}
+                  rows={3}
+                  className="textarea w-full resize-none text-sm"
+                  disabled={isExecuting}
                 />
-              </div>
-            </Modal.Body>
+              </label>
 
-            <Modal.Footer className="pt-3 border-t border-border/40 flex justify-end gap-2">
-              <Button variant="ghost" size="sm" onPress={() => setConfirmModalOpen(false)}>
+              <p className="text-caption text-muted-foreground">
+                This entry is permanent and cannot be undone.
+              </p>
+            </AlertDialog.Body>
+
+            <AlertDialog.Footer>
+              <Button slot="close" variant="tertiary" isDisabled={isExecuting}>
                 Cancel
               </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                isPending={isExecuting}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
-                onPress={handleRunAudit}
-              >
-                Confirm & Close Day
+              <Button variant="primary" isPending={isExecuting} onPress={handleRunAudit}>
+                Confirm &amp; Close
               </Button>
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal>
+            </AlertDialog.Footer>
+          </AlertDialog.Dialog>
+        </AlertDialog.Container>
+      </AlertDialog.Backdrop>
     </div>
   );
 }
