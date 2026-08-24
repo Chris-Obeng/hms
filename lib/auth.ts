@@ -21,10 +21,12 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import type { StaffRole } from "@/lib/roles";
+import { ROLE_LEVEL } from "@/lib/roles";
+
+export type { StaffRole };
 
 // ── Types ─────────────────────────────────────────────────────────
-
-export type StaffRole = "super_admin" | "manager" | "front_desk" | "read_only" | "pending";
 
 export interface AuthContext {
   orgId: string;
@@ -45,14 +47,7 @@ export interface AuthContext {
 }
 
 // ── Role ordering ─────────────────────────────────────────────────
-
-const ROLE_LEVEL: Record<StaffRole, number> = {
-  pending:     0,
-  read_only:   1,
-  front_desk:  2,
-  manager:     3,
-  super_admin: 4,
-};
+// ROLE_LEVEL lives in lib/roles.ts (shared with client UI gating).
 
 export class AuthError extends Error {
   constructor(

@@ -99,6 +99,16 @@ export function HotelSettingsClient({
 
   const hasChanges = JSON.stringify(values) !== JSON.stringify(initialData);
 
+  // Warn before leaving with unsaved edits
+  React.useEffect(() => {
+    if (!hasChanges) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [hasChanges]);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Identity */}
@@ -306,7 +316,7 @@ export function HotelSettingsClient({
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-5">
-                e.g. 15% VAT adds {values.taxPercentage}% to the room subtotal
+                Adds {values.taxPercentage}% to the room subtotal on guest invoices
               </p>
             </div>
           )}
@@ -354,10 +364,10 @@ export function HotelSettingsClient({
         </CardContent>
       </Card>
 
-      {/* Save */}
-      <div className="flex items-center justify-between pb-8">
-        <p className="text-xs text-muted-foreground">
-          {staffName ? `Editing as ${staffName}` : ""}
+      {/* Save — inline on desktop */}
+      <div className="hidden sm:flex items-center justify-between pb-8">
+        <p className="text-caption text-muted-foreground">
+          {hasChanges ? "You have unsaved changes" : staffName ? `Editing as ${staffName}` : ""}
         </p>
         <Button
           type="submit"
@@ -368,6 +378,23 @@ export function HotelSettingsClient({
           {saving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
+
+      {/* Save — sticky bar on mobile, always reachable after long scroll */}
+      {hasChanges && (
+        <div className="sm:hidden sticky bottom-0 -mx-4 px-4 py-3 bg-background/90 backdrop-blur border-t border-border/60 flex items-center justify-between gap-3 z-10">
+          <p className="text-caption text-muted-foreground">
+            {saving ? "Saving…" : "Unsaved changes"}
+          </p>
+          <Button
+            type="submit"
+            disabled={saving || !values.name}
+            className="rounded-xl bg-foreground text-background hover:bg-foreground/90 min-w-[120px] h-9"
+          >
+            <Save className="size-3.5 mr-1.5" />
+            {saving ? "Saving..." : "Save"}
+          </Button>
+        </div>
+      )}
     </form>
   );
 }

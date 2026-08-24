@@ -132,14 +132,21 @@ function EventEditor({
 
 export function NotificationTemplatesClient({ initialTemplates }: { initialTemplates: TemplatesState }) {
   const [templates, setTemplates] = React.useState(initialTemplates);
+  const [lastSaved, setLastSaved] = React.useState(initialTemplates);
   const [saving, setSaving] = React.useState(false);
+
+  const hasChanges = JSON.stringify(templates) !== JSON.stringify(lastSaved);
 
   const save = async () => {
     setSaving(true);
     const result = await saveNotificationTemplates(templates);
     setSaving(false);
-    if (result.success) toast.success("Email templates saved");
-    else toast.danger(result.error || "Failed to save templates");
+    if (result.success) {
+      setLastSaved(templates);
+      toast.success("Email templates saved");
+    } else {
+      toast.danger(result.error || "Failed to save templates");
+    }
   };
 
   return (
@@ -155,8 +162,13 @@ export function NotificationTemplatesClient({ initialTemplates }: { initialTempl
           }))}
         />
       ))}
-      <div className="flex justify-end pt-2">
-        <Button variant="primary" isPending={saving} onPress={save}>Save email templates</Button>
+      <div className="flex items-center justify-end gap-3 pt-2">
+        <span className="text-caption text-muted-foreground">
+          {hasChanges ? "Unsaved changes" : undefined}
+        </span>
+        <Button variant="primary" isPending={saving} onPress={save} isDisabled={!hasChanges}>
+          Save email templates
+        </Button>
       </div>
     </div>
   );

@@ -5,10 +5,23 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import {
   getPaystackBanks,
+  getPaystackBankType,
   resolveAccount,
   createSubaccount,
   updateSubaccount,
 } from "@/lib/paystack";
+
+/** Ghana mobile money numbers are exactly 10 digits; bank accounts vary (6–20). */
+function validateAccountNumber(accountNumber: string, bankType: string | null): string | null {
+  if (bankType === "mobile_money") {
+    return /^\d{10}$/.test(accountNumber)
+      ? null
+      : "Mobile money numbers must be exactly 10 digits.";
+  }
+  return /^\d{6,20}$/.test(accountNumber)
+    ? null
+    : "Enter a valid account number (6–20 digits).";
+}
 
 async function getSuperAdminHotel() {
   const { orgId, userId } = await auth();
@@ -49,6 +62,10 @@ export async function fetchPaystackBanks() {
 export async function verifyBankAccount(accountNumber: string, bankCode: string) {
   try {
     await getSuperAdminHotel(); // auth check
+    const bankType = await getPaystackBankType(bankCode);
+    // Mobile money wallets: exactly 10 digits. Bank channels: 6–20.
+    const validationError = validateAccountNumber(accountNumber, bankType);
+    if (validationError) throw new Error(validationError);
     const data = await resolveAccount(accountNumber, bankCode);
     return { success: true as const, accountName: data.account_name };
   } catch (err) {
@@ -66,6 +83,10 @@ export async function savePaystackBankAccount(input: {
 }) {
   try {
     const { supabase, hotel } = await getSuperAdminHotel();
+
+    const bankType = await getPaystackBankType(input.bankCode);
+    const validationError = validateAccountNumber(input.accountNumber, bankType);
+    if (validationError) throw new Error(validationError);
 
     let subaccountCode = hotel.paystack_subaccount_code;
 
@@ -110,8 +131,13 @@ export async function savePaystackBankAccount(input: {
 
 export type PaymentPolicy = "choice" | "pay_now_only" | "pay_later_only";
 
+const PAYMENT_POLICIES: readonly string[] = ["choice", "pay_now_only", "pay_later_only"];
+
 export async function updatePaymentPolicy(policy: PaymentPolicy) {
   try {
+    if (!PAYMENT_POLICIES.includes(policy)) {
+      throw new Error("Invalid payment policy.");
+    }
     const { supabase, hotel } = await getSuperAdminHotel();
     const currentSettings = (hotel.settings as Record<string, unknown>) ?? {};
     await supabase

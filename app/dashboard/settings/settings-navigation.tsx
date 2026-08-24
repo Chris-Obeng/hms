@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Card, Chip, Link, Surface } from "@heroui/react";
+import { roleAtLeast, type StaffRole } from "@/lib/roles";
 
 type IconName =
   | "building"
@@ -23,11 +24,14 @@ type IconName =
   | "users"
   | "audit";
 
+type MinRole = Extract<StaffRole, "manager" | "super_admin">;
+
 type Item = {
   label: string;
   description: string;
   href: string;
-  restricted: boolean;
+  /** Minimum role required. Omit for all active staff. */
+  minRole?: MinRole;
   icon: IconName;
 };
 
@@ -49,10 +53,10 @@ const icons: Record<IconName, LucideIcon> = {
 
 export function SettingsNavigation({
   sections,
-  isSuperAdmin,
+  role,
 }: {
   sections: Section[];
-  isSuperAdmin: boolean;
+  role: string;
 }) {
   return (
     <div className="grid gap-5 lg:grid-cols-2 lg:gap-6">
@@ -81,7 +85,7 @@ export function SettingsNavigation({
             <div className="space-y-1">
               {section.items.map((item) => {
                 const Icon = icons[item.icon];
-                const canAccess = !item.restricted || isSuperAdmin;
+                const canAccess = !item.minRole || roleAtLeast(role, item.minRole);
 
                 return (
                   <Link
@@ -91,7 +95,7 @@ export function SettingsNavigation({
                     aria-label={
                       canAccess
                         ? `${item.label}: ${item.description}`
-                        : `${item.label}: super admin access required`
+                        : `${item.label}: ${item.minRole === "manager" ? "manager" : "super admin"} access required`
                     }
                     className="group grid min-h-20 w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl px-3 py-3 text-foreground no-underline transition-colors hover:bg-surface-secondary data-[disabled=true]:cursor-not-allowed data-[disabled=true]:opacity-60 sm:gap-4 sm:px-4"
                   >
@@ -110,7 +114,9 @@ export function SettingsNavigation({
                         {!canAccess ? (
                           <Chip size="sm" variant="secondary">
                             <ShieldCheck className="size-3" />
-                            <Chip.Label>Admin only</Chip.Label>
+                            <Chip.Label>
+                              {item.minRole === "manager" ? "Manager+" : "Admin only"}
+                            </Chip.Label>
                           </Chip>
                         ) : null}
                       </span>

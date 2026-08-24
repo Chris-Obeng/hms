@@ -21,8 +21,10 @@ export default async function PaymentsSettingsPage() {
   if (staff?.role !== "super_admin" && staff?.role !== "manager") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] text-center px-6">
-        <p className="text-sm font-medium text-foreground">Super Admin only</p>
-        <p className="text-xs text-muted-foreground mt-1">Only the hotel Super Admin can manage payment settings.</p>
+        <p className="text-sm font-medium text-foreground">Manager access required</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Only managers and super admins can manage payment settings.
+        </p>
       </div>
     );
   }
@@ -40,8 +42,6 @@ export default async function PaymentsSettingsPage() {
   return (
     <PaymentsSettingsClient
       hotelName={hotel.name}
-      hotelEmail={hotel.email ?? ""}
-      currency={hotel.currency ?? "GHS"}
       initialData={{
         subaccountCode: hotel.paystack_subaccount_code,
         bankCode: hotel.paystack_bank_code,

@@ -37,7 +37,7 @@ export default async function SettingsPage() {
           label: "Hotel profile",
           description: "Name, address, contact, check-in/out times, and branding",
           href: "/dashboard/settings/hotel",
-          restricted: true,
+          minRole: "super_admin" as const,
         },
       ],
     },
@@ -50,14 +50,13 @@ export default async function SettingsPage() {
           label: "Notifications",
           description: "Sound, event toggles, and notification preferences",
           href: "/dashboard/settings/notifications",
-          restricted: false,
         },
         {
           icon: "mail" as const,
           label: "Guest emails",
           description: "Edit transactional email content and booking messages",
           href: "/dashboard/settings/notifications#message-templates",
-          restricted: true,
+          minRole: "super_admin" as const,
         },
       ],
     },
@@ -70,7 +69,7 @@ export default async function SettingsPage() {
           label: "Payments",
           description: "Payment policy, Paystack bank account, and subaccount setup",
           href: "/dashboard/settings/payments",
-          restricted: true,
+          minRole: "manager" as const,
         },
       ],
     },
@@ -83,21 +82,19 @@ export default async function SettingsPage() {
           label: "Billing & plan",
           description: "Your current plan, features, and upgrade options",
           href: "/dashboard/billing",
-          restricted: false,
         },
         {
           icon: "users" as const,
           label: "Staff",
           description: "Manage team members, roles, and access permissions",
           href: "/dashboard/staff",
-          restricted: false,
         },
         {
           icon: "audit" as const,
           label: "Audit log",
           description: "Append-only record of all staff actions and changes",
           href: "/dashboard/settings/audit-log",
-          restricted: true,
+          minRole: "super_admin" as const,
         },
       ],
     },
@@ -107,7 +104,7 @@ export default async function SettingsPage() {
     <div className="mx-auto w-full max-w-7xl space-y-7 pb-10 sm:space-y-9">
       <SettingsHeader isSuperAdmin={isSuperAdmin} />
 
-      <SettingsNavigation sections={sections} isSuperAdmin={isSuperAdmin} />
+      <SettingsNavigation sections={sections} role={currentUser?.role ?? "pending"} />
     </div>
   );
 }

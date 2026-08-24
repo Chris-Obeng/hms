@@ -1,9 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { ShieldCheck, FileClock } from "lucide-react";
 import { AuditLogClient } from "./audit-log-client";
+import { SettingsSubHeader } from "../_components/settings-sub-header";
 
 export const dynamic = "force-dynamic";
 
@@ -49,20 +49,7 @@ export default async function AuditLogPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <div className="flex items-center gap-3">
-        <Link
-          href="/dashboard/settings"
-          className="inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-        >
-          <ArrowLeft className="size-4" />
-        </Link>
-        <div>
-          <h1 className="text-page-title text-foreground">Audit Log</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Append-only record of all staff actions — {logs?.length ?? 0} entries
-          </p>
-        </div>
-      </div>
+      <SettingsSubHeader icon={FileClock} title="Audit log" subtitle={`Append-only record of all staff actions — ${logs?.length ?? 0} entries`} />
 
       <AuditLogClient logs={logs ?? []} />
     </div>

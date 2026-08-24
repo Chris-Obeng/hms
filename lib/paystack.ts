@@ -28,11 +28,24 @@ export async function paystackFetch<T = unknown>(
 export interface PaystackBank {
   name: string;
   code: string;
+  /** e.g. "mobile_money" | "nuban" | "ghipps" */
+  type?: string;
 }
 
 export async function getPaystackBanks(): Promise<PaystackBank[]> {
-  const res = await paystackFetch<PaystackBank[]>("/bank?country=ghana&perPage=100");
+  // Bank list changes ~never — cache for 24h so getPaystackBankType() calls
+  // on verify/save don't burn Paystack API quota. Ghana /bank/resolve covers
+  // both bank channels (ghipps) and mobile money wallets (live mode).
+  const res = await paystackFetch<PaystackBank[]>("/bank?country=ghana&perPage=100", {
+    next: { revalidate: 86_400 },
+  });
   return res.data ?? [];
+}
+
+/** Resolve a bank channel's type ("mobile_money" | "ghipps" | ...) by code. */
+export async function getPaystackBankType(bankCode: string): Promise<string | null> {
+  const banks = await getPaystackBanks();
+  return banks.find((b) => b.code === bankCode)?.type ?? null;
 }
 
 export async function resolveAccount(

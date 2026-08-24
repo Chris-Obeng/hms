@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { toast } from "@heroui/react";
-import { Bell, BellRing, Speaker, Volume2, ArrowLeft, Loader2, MessageSquareText, Monitor, Smartphone, Info } from "lucide-react";
+import { Bell, BellRing, Speaker, Volume2, MessageSquareText, Monitor, Smartphone, Info } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -14,6 +13,7 @@ import { getNotificationTemplates } from "@/app/actions/notification-templates";
 import { NotificationTemplatesClient } from "./templates-client";
 import type { NotificationEventType, NotificationTemplate } from "@/lib/notification-templates";
 import { disableWebPush, enableWebPush } from "@/lib/push";
+import { SettingsSubHeader } from "../_components/settings-sub-header";
 
 // ── Event Types ────────────────────────────────────────────────────
 
@@ -79,20 +79,21 @@ export default function NotificationSettingsPage() {
     }
     loadPrefs();
 
-    // Load sound preference from localStorage
-    const sound = localStorage.getItem("RoomLine_sound_enabled");
-    if (sound !== null) {
-      setSoundEnabled(sound === "true");
-    }
+    // Device-only preferences read off the effect body (deferred) so state
+    // updates never run synchronously inside the effect.
+    const deviceSetup = window.setTimeout(() => {
+      const sound = localStorage.getItem("RoomLine_sound_enabled");
+      if (sound !== null) {
+        setSoundEnabled(sound === "true");
+      }
 
-    // Load browser push preference & permission state
-    if (typeof window !== "undefined") {
       setNotificationPermission(Notification.permission);
       const alerts = localStorage.getItem("RoomLine_browser_notifications_enabled") === "true";
       setBrowserAlertsEnabled(alerts && Notification.permission === "granted");
-    }
+    }, 0);
 
     return () => {
+      window.clearTimeout(deviceSetup);
       cancelled = true;
       isMountedRef.current = false;
     };
@@ -172,31 +173,20 @@ export default function NotificationSettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh]">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      <div className="space-y-6 max-w-lg" aria-busy="true" aria-label="Loading notification settings">
+        <SettingsSubHeader icon={BellRing} title="Notifications" subtitle="Control what notifications you receive" />
+        <div className="space-y-3 animate-pulse">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-24 rounded-xl bg-muted/40" />
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6 max-w-lg">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link
-          href="/dashboard/settings"
-          className="inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-        >
-          <ArrowLeft className="size-4" />
-        </Link>
-        <div>
-          <h1 className="text-page-title text-foreground">
-            Notifications
-          </h1>
-          <p className="text-body text-muted-foreground mt-0.5">
-            Control what notifications you receive
-          </p>
-        </div>
-      </div>
+      <SettingsSubHeader icon={BellRing} title="Notifications" subtitle="Control what notifications you receive" />
 
       {/* Sound Settings */}
       <Card>

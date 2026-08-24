@@ -1,9 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { Building2 } from "lucide-react";
-import Link from "next/link";
 import { HotelSettingsClient } from "./hotel-client";
 import { BookingPageCard } from "./booking-page-card";
+import { SettingsSubHeader } from "../_components/settings-sub-header";
 
 export const dynamic = "force-dynamic";
 
@@ -39,20 +39,7 @@ export default async function HotelSettingsPage() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div className="flex items-center gap-4">
-        <Link
-          href="/dashboard/settings"
-          className="inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-        >
-          <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-          </svg>
-        </Link>
-        <div>
-          <h1 className="text-page-title text-foreground">Hotel Profile</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage your property's public information and branding</p>
-        </div>
-      </div>
+      <SettingsSubHeader icon={Building2} title="Hotel profile" subtitle="Public information, operations, and branding" />
 
       {/* Booking page link — always visible */}
       {bookingUrl && <BookingPageCard url={bookingUrl} hotelName={hotel.name} />}
