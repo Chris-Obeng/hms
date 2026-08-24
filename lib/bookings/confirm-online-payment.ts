@@ -25,6 +25,8 @@ export type PaymentRecording =
       hotelId: string;
       fullyPaid: boolean;
       partial: boolean;
+      /** Money recorded but booking state left untouched (non-active booking). */
+      bookingStateUnchanged?: boolean;
     }
   | { outcome: "failed"; error: string };
 
@@ -84,7 +86,7 @@ export async function recordOnlinePayment(
   // ── 1. Load the booking ──────────────────────────────────────
   const { data: booking, error: bookingError } = await supabaseAdmin
     .from("bookings")
-    .select("id, hotel_id, total_amount, currency, status, payment_status")
+    .select("id, hotel_id, total_amount, currency, status, payment_status, cancellation_reason")
     .eq("id", bookingId)
     .maybeSingle();
 
@@ -177,6 +179,33 @@ export async function recordOnlinePayment(
   }
 
   // ── 4. Update booking state ──────────────────────────────────
+  // Money is truth: a captured payment confirms a pending hold. A hold the
+  // 30-min expiry cron cancelled while the payment was still in flight must
+  // come back to life (guest closed the browser, webhook landed late). Any
+  // other cancelled/terminal state keeps its state — we still record the
+  // money above and alert the hotel instead of silently resurrecting.
+  const wasTimeoutCancelled =
+    booking.status === "cancelled" &&
+    booking.cancellation_reason === "payment_timeout";
+
+  if (booking.status !== "pending" && !wasTimeoutCancelled) {
+    await alertOncePerBooking(
+      booking.hotel_id,
+      bookingId,
+      "payment_failed",
+      "⚠️ Payment on Non-Active Booking",
+      `Payment ${paystackReference} succeeded but booking status is "${booking.status}". Money recorded — review manually.`
+    );
+    return {
+      outcome: "recorded",
+      bookingId,
+      hotelId: booking.hotel_id,
+      fullyPaid: isFull || isOver,
+      partial: isPartial,
+      bookingStateUnchanged: true,
+    };
+  }
+
   const newStatus = isFull || isOver ? "confirmed" : "pending";
   const newPaymentStatus = isFull || isOver ? "paid" : "partial";
 
@@ -186,6 +215,7 @@ export async function recordOnlinePayment(
       status: newStatus,
       payment_status: newPaymentStatus,
       amount_paid: amountPaid,
+      ...(wasTimeoutCancelled ? { cancelled_at: null, cancellation_reason: null } : {}),
     })
     .eq("id", bookingId)
     .eq("hotel_id", booking.hotel_id);

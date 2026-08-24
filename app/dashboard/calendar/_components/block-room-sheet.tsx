@@ -2,20 +2,12 @@
 
 import * as React from "react";
 import { format } from "date-fns";
-import { toast } from "@heroui/react";
+import { Drawer, RangeCalendar, TextArea, Button, toast } from "@heroui/react";
 import { CalendarIcon } from "lucide-react";
-import { DateRange } from "react-day-picker";
 
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { toCalendarDate, fromCalendarDate } from "@/lib/date-convert";
+import type { CalendarDate } from "@internationalized/date";
 import { HeroSelectField } from "@/components/ui/hero-select";
 import { createAvailabilityBlock } from "../actions";
 import { BLOCK_REASONS } from "./calendar-helpers";
@@ -27,6 +19,8 @@ interface BlockRoomSheetProps {
   prefillRoomId?: string;
   prefillStartDate?: Date;
   prefillEndDate?: Date;
+  /** Earliest bookable date (property business date) — the calendar blocks anything before it. */
+  minDate?: Date;
   onSuccess?: () => void;
 }
 
@@ -37,10 +31,12 @@ export function BlockRoomSheet({
   prefillRoomId,
   prefillStartDate,
   prefillEndDate,
+  minDate,
   onSuccess,
 }: BlockRoomSheetProps) {
+  const isMobile = useIsMobile();
   const [selectedRoomId, setSelectedRoomId] = React.useState<string>("");
-  const [dateRange, setDateRange] = React.useState<DateRange | undefined>(undefined);
+  const [dateRange, setDateRange] = React.useState<{ from?: Date; to?: Date } | undefined>(undefined);
   const [reason, setReason] = React.useState<string>("");
   const [notes, setNotes] = React.useState<string>("");
   const [loading, setLoading] = React.useState(false);
@@ -51,13 +47,15 @@ export function BlockRoomSheet({
     if (open) {
       const timer = window.setTimeout(() => {
         setSelectedRoomId(prefillRoomId || "");
-        setDateRange({
-          from: prefillStartDate || undefined,
-          to: prefillEndDate || undefined,
-        });
+        setDateRange(
+          prefillStartDate || prefillEndDate
+            ? { from: prefillStartDate, to: prefillEndDate ?? prefillStartDate }
+            : undefined,
+        );
         setReason("");
         setNotes("");
         setErrors({});
+        setLoading(false);
       }, 0);
       return () => window.clearTimeout(timer);
     }
@@ -96,6 +94,7 @@ export function BlockRoomSheet({
       toast.success("Room blocked successfully", {
         description: `Blocked from ${format(dateRange!.from!, "MMM dd")} to ${format(dateRange!.to!, "MMM dd, yyyy")}`,
       });
+      setLoading(false);
       onOpenChange(false);
       if (onSuccess) onSuccess();
     } else {
@@ -104,105 +103,126 @@ export function BlockRoomSheet({
     }
   };
 
+  const calendarValue =
+    dateRange?.from
+      ? {
+          start: toCalendarDate(dateRange.from),
+          end: dateRange.to ? toCalendarDate(dateRange.to) : toCalendarDate(dateRange.from),
+        }
+      : null;
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="w-full sm:max-w-lg p-0 gap-0 flex flex-col"
-      >
-        <SheetHeader className="px-5 pt-5 pb-3 border-b border-border/40">
-          <SheetTitle className="text-lg">Block Room Dates</SheetTitle>
-          <SheetDescription className="text-sm text-muted-foreground">
-            Prevent reservations for maintenance, cleaning, or owner use.
-          </SheetDescription>
-        </SheetHeader>
+    <Drawer.Backdrop
+      isOpen={open}
+      onOpenChange={onOpenChange}
+      variant="opaque"
+      className="bg-black/40 dark:bg-black/60"
+    >
+      <Drawer.Content placement={isMobile ? "bottom" : "right"}>
+        <Drawer.Dialog
+          aria-labelledby="block-room-title"
+          className="flex h-[85dvh] max-h-[85dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-background shadow-[0_-24px_80px_rgb(0_0_0/0.35)] md:h-dvh md:max-h-dvh md:w-[min(26rem,100vw)] md:rounded-none md:border-l md:border-border/70 md:shadow-[-24px_0_80px_rgb(0_0_0/0.18)]"
+        >
+          {isMobile && <Drawer.Handle className="mt-2.5 shrink-0" />}
+          <Drawer.CloseTrigger className="absolute right-3.5 top-3.5 z-10 inline-flex size-8 items-center justify-center rounded-full bg-muted/70 text-muted-foreground shadow-xs backdrop-blur transition-all hover:bg-muted hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
 
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
-            {/* Room Picker */}
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                Select Room
-              </label>
-              <HeroSelectField value={selectedRoomId} onValueChange={setSelectedRoomId} options={rooms.map((room) => ({value:room.id,label:`Room ${room.roomNumber} (${room.roomTypeName})`}))} placeholder="Choose room..." isInvalid={!!errors.roomId} ariaLabel="Room" />
-              {errors.roomId && (
-                <p className="text-xs text-destructive mt-1">{errors.roomId}</p>
-              )}
-            </div>
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <Drawer.Header className="shrink-0 flex-col items-start gap-1.5 border-b border-border/50 px-5 pb-4 pr-14 pt-12">
+              <Drawer.Heading id="block-room-title" className="text-section text-foreground">
+                Block Room Dates
+              </Drawer.Heading>
+              <p className="text-caption text-muted-foreground">
+                Prevent reservations for maintenance, cleaning, or owner use.
+              </p>
+            </Drawer.Header>
 
-            {/* Date Range Picker */}
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                Date Range
-              </label>
-              <div className="border border-border/50 rounded-xl p-2 bg-background">
-                <Calendar
-                  mode="range"
-                  selected={dateRange}
-                  onSelect={setDateRange}
-                  numberOfMonths={1}
-                  className="mx-auto"
+            <Drawer.Body className="min-h-0 flex-1 space-y-5 px-5 py-4">
+              {/* Room Picker */}
+              <div>
+                <p className="mb-1.5 text-label font-medium text-muted-foreground">Select Room</p>
+                <HeroSelectField value={selectedRoomId} onValueChange={setSelectedRoomId} options={rooms.map((room) => ({value:room.id,label:`Room ${room.roomNumber} (${room.roomTypeName})`}))} placeholder="Choose room..." isInvalid={!!errors.roomId} ariaLabel="Room" />
+                {errors.roomId && (
+                  <p className="mt-1 text-caption text-destructive">{errors.roomId}</p>
+                )}
+              </div>
+
+              {/* Date Range */}
+              <div>
+                <p className="mb-1.5 text-label font-medium text-muted-foreground">Date Range</p>
+                <div className="rounded-xl border border-border/50 bg-background p-2">
+                  <RangeCalendar
+                    aria-label="Block date range"
+                    className="mx-auto w-fit"
+                    minValue={toCalendarDate(minDate ?? new Date())}
+                    value={calendarValue}
+                    onChange={(range) => {
+                      if (!range) {
+                        setDateRange(undefined);
+                        return;
+                      }
+                      const from = fromCalendarDate(range.start as CalendarDate);
+                      const to = range.end ? fromCalendarDate(range.end as CalendarDate) : from;
+                      setDateRange({ from, to });
+                      setErrors((previous) => ({ ...previous, dates: "" }));
+                    }}
+                  />
+                </div>
+                {dateRange?.from && dateRange?.to && (
+                  <div className="mt-2 flex items-center gap-2 text-caption text-muted-foreground tabular-nums">
+                    <CalendarIcon className="size-3" />
+                    <span>
+                      {format(dateRange.from, "MMM dd")} → {format(dateRange.to, "MMM dd, yyyy")}
+                    </span>
+                  </div>
+                )}
+                {errors.dates && (
+                  <p className="mt-1 text-caption text-destructive">{errors.dates}</p>
+                )}
+              </div>
+
+              {/* Reason */}
+              <div>
+                <p className="mb-1.5 text-label font-medium text-muted-foreground">Reason</p>
+                <HeroSelectField value={reason} onValueChange={setReason} options={BLOCK_REASONS} placeholder="Choose reason..." isInvalid={!!errors.reason} ariaLabel="Block reason" />
+                {errors.reason && (
+                  <p className="mt-1 text-caption text-destructive">{errors.reason}</p>
+                )}
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label htmlFor="block-room-notes" className="mb-1.5 block text-label font-medium text-muted-foreground">
+                  Internal Notes (Optional)
+                </label>
+                <TextArea
+                  id="block-room-notes"
+                  placeholder="Details about maintenance, service description, etc..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={3}
+                  className="min-h-20 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm shadow-none"
                 />
               </div>
-              {dateRange?.from && dateRange?.to && (
-                <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                  <CalendarIcon className="size-3" />
-                  <span>
-                    {format(dateRange.from, "MMM dd")} → {format(dateRange.to, "MMM dd, yyyy")}
-                  </span>
-                </div>
-              )}
-              {errors.dates && (
-                <p className="text-xs text-destructive mt-1">{errors.dates}</p>
-              )}
-            </div>
+            </Drawer.Body>
 
-            {/* Reason */}
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                Reason
-              </label>
-              <HeroSelectField value={reason} onValueChange={setReason} options={BLOCK_REASONS} placeholder="Choose reason..." isInvalid={!!errors.reason} ariaLabel="Block reason" />
-              {errors.reason && (
-                <p className="text-xs text-destructive mt-1">{errors.reason}</p>
-              )}
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                Internal Notes (Optional)
-              </label>
-              <Textarea
-                placeholder="Details about maintenance, service description, etc..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="rounded-xl min-h-[80px] text-sm resize-none"
-              />
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="px-5 py-4 border-t border-border/40 bg-muted/10 flex items-center justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="rounded-xl"
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className="rounded-xl px-5"
-              disabled={loading}
-            >
-              {loading ? "Saving..." : "Block Dates"}
-            </Button>
-          </div>
-        </form>
-      </SheetContent>
-    </Sheet>
+            <Drawer.Footer className="flex shrink-0 items-center justify-end gap-2 border-t border-border/50 bg-muted/10 px-5 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3.5">
+              <Button
+                type="button"
+                variant="outline"
+                slot="close"
+                onPress={() => onOpenChange(false)}
+                isDisabled={loading}
+                className="rounded-xl"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" isPending={loading} isDisabled={loading} className="rounded-xl px-5">
+                {loading ? "Saving..." : "Block Dates"}
+              </Button>
+            </Drawer.Footer>
+          </form>
+        </Drawer.Dialog>
+      </Drawer.Content>
+    </Drawer.Backdrop>
   );
 }

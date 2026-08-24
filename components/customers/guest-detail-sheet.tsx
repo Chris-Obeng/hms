@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { differenceInDays } from "date-fns";
 import {
   CalendarDays,
   Mail,
@@ -9,13 +8,10 @@ import {
   Globe,
   CreditCard,
   Tag,
-  FileText,
-  MessageSquareText,
   Edit3,
   Check,
   X,
   Plus,
-  Building2,
   MapPin,
   Clock,
   ArrowUpRight,
@@ -70,7 +66,8 @@ interface GuestDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currency: string;
-  onGuestUpdated?: () => void;
+  /** Notifies the parent list of successful edits so rows never go stale. */
+  onGuestUpdated?: (guestId: string, patch: Partial<GuestRow>) => void;
 }
 
 // ── Stat Card ──────────────────────────────────────────────────────
@@ -121,7 +118,6 @@ export function GuestDetailSheet({
   // ── State ─────────────────────────────────────────────────────
   const [guest, setGuest] = React.useState(initialGuest);
   const [bookings, setBookings] = React.useState<GuestBookingSummary[] | null>(null);
-  const [bookingsLoading, setBookingsLoading] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"overview" | "bookings">("overview");
 
   // Edit states
@@ -141,20 +137,25 @@ export function GuestDetailSheet({
   const [savingTags, setSavingTags] = React.useState(false);
 
   // ── Fetch bookings when sheet opens ───────────────────────────
+  // Loading is derived (open && bookings === null) — no sync setState here.
   React.useEffect(() => {
-    if (open && !bookings && !bookingsLoading) {
-      setBookingsLoading(true);
-      getGuestBookings(guest.id).then((result) => {
-        setBookingsLoading(false);
-        if (result.success) {
-          setBookings(result.data);
-        }
-      });
-    }
-  }, [open, guest.id, bookings, bookingsLoading]);
+    if (!open || bookings !== null) return;
+    let cancelled = false;
+    getGuestBookings(guest.id).then((result) => {
+      if (cancelled) return;
+      setBookings(result.success ? result.data : []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, guest.id, bookings]);
 
-  // Reset when guest changes
-  React.useEffect(() => {
+  // Reset when the sheet opens for a different guest (or reopens). Adjusting
+  // state during render is the documented alternative to a reset effect.
+  const resetKey = `${initialGuest.id}:${open}`;
+  const [prevResetKey, setPrevResetKey] = React.useState(resetKey);
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey);
     setGuest(initialGuest);
     setBookings(null);
     setActiveTab("overview");
@@ -167,7 +168,7 @@ export function GuestDetailSheet({
       nationality: initialGuest.nationality || "",
     });
     setNewTagInput("");
-  }, [initialGuest, open]);
+  }
 
   // ── Handlers ──────────────────────────────────────────────────
 
@@ -177,6 +178,7 @@ export function GuestDetailSheet({
     setSavingNotes(false);
     if (result.success) {
       setGuest((prev) => ({ ...prev, notes: notesDraft }));
+      onGuestUpdated?.(guest.id, { notes: notesDraft });
       setEditingNotes(false);
       toast.success("Notes updated");
     } else {
@@ -189,12 +191,13 @@ export function GuestDetailSheet({
     const result = await updateGuestContact(guest.id, contactDraft);
     setSavingContact(false);
     if (result.success) {
-      setGuest((prev) => ({
-        ...prev,
+      const patch: Partial<GuestRow> = {
         email: contactDraft.email || null,
         phone: contactDraft.phone || null,
         nationality: contactDraft.nationality || null,
-      }));
+      };
+      setGuest((prev) => ({ ...prev, ...patch }));
+      onGuestUpdated?.(guest.id, patch);
       setEditingContact(false);
       toast.success("Contact updated");
     } else {
@@ -213,6 +216,7 @@ export function GuestDetailSheet({
 
     if (result.success) {
       setGuest((prev) => ({ ...prev, tags: newTags }));
+      onGuestUpdated?.(guest.id, { tags: newTags });
       setNewTagInput("");
       toast.success(`Tag "${trimmed}" added`);
     } else {
@@ -228,6 +232,7 @@ export function GuestDetailSheet({
 
     if (result.success) {
       setGuest((prev) => ({ ...prev, tags: newTags }));
+      onGuestUpdated?.(guest.id, { tags: newTags });
       toast.success(`Tag "${tag}" removed`);
     } else {
       toast.danger(result.error || "Failed to remove tag");
@@ -285,14 +290,15 @@ export function GuestDetailSheet({
                       style.color
                     )}
                   >
-                    {tag}
-                    <button
-                      onClick={() => handleRemoveTag(tag)}
-                      className="hover:opacity-70 transition-opacity"
-                      disabled={savingTags}
-                    >
-                      <X className="size-2.5" />
-                    </button>
+                            {tag}
+                            <button
+                              onClick={() => handleRemoveTag(tag)}
+                              aria-label={`Remove tag ${tag}`}
+                              className="hover:opacity-70 transition-opacity"
+                              disabled={savingTags}
+                            >
+                              <X className="size-2.5" />
+                            </button>
                   </span>
                 );
               })}
@@ -511,6 +517,7 @@ export function GuestDetailSheet({
                             {tag}
                             <button
                               onClick={() => handleRemoveTag(tag)}
+                              aria-label={`Remove tag ${tag}`}
                               className="hover:opacity-70 transition-opacity"
                               disabled={savingTags}
                             >
@@ -641,7 +648,7 @@ export function GuestDetailSheet({
           {/* ════ TAB: Booking History ════ */}
           {activeTab === "bookings" && (
             <>
-              {bookingsLoading ? (
+              {open && bookings === null ? (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-border/30">

@@ -470,9 +470,15 @@
 }
 
 .onboarding-summary-icon {
-  font-size: 1rem;           /* 16px */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  background-color: var(--onboarding-border-muted);
+  color: var(--onboarding-text-secondary);
   flex-shrink: 0;
-  margin-top: 2px;
 }
 
 .onboarding-summary-content {
@@ -522,6 +528,82 @@
   display: flex;
   gap: 0.75rem;
   padding-top: 0.5rem;
+}
+
+/* ── Sticky action bar ───────────────────────────────────────────
+ *  Next/Back stay reachable with the on-screen keyboard up on phones.
+ *  Spans the scroll container width by cancelling its horizontal padding.
+ * ────────────────────────────────────────────────────────────── */
+
+.onboarding-action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  gap: 0.75rem;
+  margin: 0.5rem -1.25rem 0;
+  padding: 0.75rem 1.25rem calc(1rem + env(safe-area-inset-bottom));
+  background-color: color-mix(in srgb, var(--onboarding-content-bg) 92%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid var(--onboarding-border);
+}
+
+@media (min-width: 640px) {
+  .onboarding-action-bar {
+    margin: 0.5rem -2.5rem 0;
+    padding: 1rem 2.5rem calc(1rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* ── Completion screen ────────────────────────────────────────── */
+
+.onboarding-success-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 9999px;
+  color: var(--onboarding-success-fg);
+  background-color: var(--onboarding-success-bg);
+  border: 1px solid color-mix(in srgb, var(--onboarding-success-fg) 30%, transparent);
+}
+
+.onboarding-next-card {
+  border: 1px solid var(--onboarding-border);
+  border-radius: 0.75rem;
+  background-color: var(--onboarding-card-bg);
+  padding: 1rem;
+}
+
+.onboarding-next-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.625rem;
+  background-color: var(--onboarding-border-muted);
+  color: var(--onboarding-text-secondary);
+  flex-shrink: 0;
+}
+
+.onboarding-booking-url {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: var(--onboarding-button-height);
+  padding: 0 0.875rem;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--onboarding-text-primary);
+  background-color: var(--onboarding-border-muted);
+  border-radius: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .onboarding-button-group-full {

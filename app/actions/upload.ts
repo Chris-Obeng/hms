@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { requireMinRole } from "@/lib/auth";
 
 async function getHotelId() {
   const { orgId } = await auth();
@@ -42,6 +43,7 @@ export async function saveHotelImageUrl(
   url: string
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
+    await requireMinRole("manager", "update hotel branding");
     const hotelId = await getHotelId();
     if (url) assertStorageUrl(url);
     const supabase = await createClient();
@@ -64,6 +66,7 @@ export async function saveRoomImages(
   images: { url: string; caption: string; order: number }[]
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
+    await requireMinRole("manager", "update room photos");
     const hotelId = await getHotelId();
     for (const image of images) {
       assertStorageUrl(image.url);
@@ -90,6 +93,7 @@ export async function deleteStorageFile(
   path: string
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
+    await requireMinRole("manager", "delete hotel files");
     const hotelId = await getHotelId();
 
     const prefix = `hotels/${hotelId}/`;

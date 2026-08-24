@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { verifyTransaction } from "@/lib/paystack";
 import { recordOnlinePayment } from "@/lib/bookings/confirm-online-payment";
+import { rateLimit } from "@/lib/rate-limit";
 
 /**
  * GET /api/booking/[slug]/payments/verify?reference=<paystackRef>
@@ -22,6 +23,15 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  // Each call hits Paystack's paid/quota-limited API — throttle hard.
+  const rl = await rateLimit(req, { name: "payment-verify", limit: 10, windowSeconds: 60 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
+    );
+  }
+
   const { slug } = await params;
   const reference = req.nextUrl.searchParams.get("reference");
 

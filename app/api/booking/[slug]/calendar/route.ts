@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  const rl = await rateLimit(req, { name: "booking-ics", limit: 10, windowSeconds: 60 });
+  if (!rl.ok) {
+    return new NextResponse("Too many requests", {
+      status: 429,
+      headers: { "Retry-After": String(rl.retryAfterSeconds) },
+    });
+  }
+
   const { slug } = await params;
   const reference = req.nextUrl.searchParams.get("reference");
 

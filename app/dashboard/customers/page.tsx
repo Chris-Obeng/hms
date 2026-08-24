@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { Building2, Users } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { CustomersTable } from "@/components/customers/customers-table";
 export default async function CustomersPage() {
   const { orgId } = await auth();

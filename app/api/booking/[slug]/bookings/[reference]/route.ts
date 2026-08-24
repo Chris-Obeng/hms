@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string; reference: string }> }
 ) {
+  // Guest PII lookup gated only by booking reference — throttle enumeration.
+  const rl = await rateLimit(req, { name: "booking-lookup", limit: 20, windowSeconds: 60 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
+    );
+  }
+
   const { slug, reference } = await params;
 
   // Validate inputs before any DB query

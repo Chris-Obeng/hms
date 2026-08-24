@@ -16,7 +16,9 @@ interface Props {
  */
 export function PaymentVerifier({ paymentRef, slug }: Props) {
   const router = useRouter();
-  const [status, setStatus] = React.useState<"polling" | "confirmed" | "failed">("polling");
+  const [status, setStatus] = React.useState<"polling" | "confirmed" | "failed" | "cancelled">(
+    "polling"
+  );
 
   React.useEffect(() => {
     let attempts = 0;
@@ -33,6 +35,15 @@ export function PaymentVerifier({ paymentRef, slug }: Props) {
           setStatus("confirmed");
           // Pull server-rendered booking state (status/payment rows) fresh.
           router.refresh();
+          return;
+        }
+        // Definitive Paystack statuses — stop polling, tell the truth now.
+        if (data.status === "cancelled") {
+          setStatus("cancelled");
+          return;
+        }
+        if (data.status === "failed") {
+          setStatus("failed");
           return;
         }
       } catch {
@@ -64,6 +75,15 @@ export function PaymentVerifier({ paymentRef, slug }: Props) {
       <div className="booking-verify-pill" data-state="polling">
         <Loader2 className="size-4 shrink-0 animate-spin" />
         <span>Confirming your payment…</span>
+      </div>
+    );
+  }
+
+  if (status === "cancelled") {
+    return (
+      <div className="booking-verify-note">
+        Payment was cancelled — you have not been charged. Use the secure
+        payment button below to try again.
       </div>
     );
   }

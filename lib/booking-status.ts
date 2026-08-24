@@ -21,6 +21,24 @@ const STATUS_LABELS: Record<string, string> = {
   pending: "Pending",
 };
 
+/**
+ * State machine for booking status changes. Maps current status → allowed
+ * next statuses. checked_out and no_show are terminal. Reinstatement from
+ * cancelled returns to confirmed (audit trail preserved via status history).
+ */
+export const ALLOWED_BOOKING_TRANSITIONS: Record<string, string[]> = {
+  pending: ["confirmed", "cancelled"],
+  confirmed: ["checked_in", "cancelled"],
+  checked_in: ["checked_out"],
+  checked_out: [],
+  cancelled: ["confirmed"],
+  no_show: [],
+};
+
+export function canTransitionBooking(from: string | null, to: string): boolean {
+  return (ALLOWED_BOOKING_TRANSITIONS[from ?? ""] ?? []).includes(to);
+}
+
 /** Dot / pill background colour per booking status. */
 export const STATUS_COLORS: Record<string, string> = {
   confirmed: "bg-blue-500",

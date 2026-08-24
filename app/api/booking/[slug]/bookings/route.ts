@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { initializeTransaction } from "@/lib/paystack";
 import { z } from "zod";
 import { resolvePublicNightlyTotal } from "@/lib/pricing/resolve-public-price";
+import { rateLimit } from "@/lib/rate-limit";
 
 const Schema = z.object({
   room_type_id: z.string().uuid(),
@@ -17,7 +18,7 @@ const Schema = z.object({
   nationality: z.string().max(80).optional(),
   payment_preference: z.enum(["pay_now", "pay_at_checkin"]),
   special_requests: z.string().max(500).optional(),
-  estimated_arrival: z.string().optional(),
+  estimated_arrival: z.string().max(50).optional(),
 });
 
 /**
@@ -39,6 +40,16 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    // Public, unauthenticated endpoint — throttle booking creation so scripted
+    // abuse cannot flood inventory or exhaust downstream Paystack quota.
+    const rl = await rateLimit(req, { name: "booking-create", limit: 5, windowSeconds: 10 * 60 });
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Too many booking attempts. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
+      );
+    }
+
     const { slug } = await params;
 
     if (!/^[a-z0-9.-]+$/i.test(slug)) {
@@ -287,6 +298,14 @@ export async function POST(
       subaccount: hotel.paystack_subaccount_code!,
       metadata: { booking_id: booking.id, hotel_id: hotel.id, booking_reference: booking.reference },
     });
+
+    // Remember every reference handed to Paystack so the reconciliation sweep
+    // can verify a payment even if the guest never returns and the webhook is
+    // delayed past hold expiry.
+    await supabaseAdmin
+      .from("bookings")
+      .update({ initiated_payment_refs: [payRef] })
+      .eq("id", booking.id);
 
     return NextResponse.json({
       bookingId: booking.id,

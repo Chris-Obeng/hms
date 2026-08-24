@@ -3,9 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, LayoutDashboard, Settings, X } from "lucide-react";
+import { Building2, X } from "lucide-react";
 import { Button, Avatar, Chip } from "@heroui/react";
-import { cn } from "@/lib/utils";
 import {
   SidebarHeader,
   SidebarContent,
@@ -40,22 +39,10 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
-    title: "Overview",
-    href: "/platform/dashboard",
-    icon: LayoutDashboard,
-    exact: true,
-  },
-  {
-    title: "Hotels",
-    href: "/platform/dashboard/hotels",
+    title: "Hotel Oversight",
+    href: "/platform",
     icon: Building2,
-    exact: false,
-  },
-  {
-    title: "Settings",
-    href: "/platform/dashboard/settings",
-    icon: Settings,
-    exact: false,
+    exact: true,
   },
 ];
 
@@ -69,17 +56,6 @@ function getRoleLabel(role: string | null | undefined): string {
     viewer: "Viewer",
   };
   return role ? (map[role] ?? role.replace(/_/g, " ")) : "Platform Admin";
-}
-
-function getRoleBadgeClass(role: string | null | undefined): string {
-  switch (role) {
-    case "super_admin":
-      return "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-800";
-    case "admin":
-      return "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800";
-    default:
-      return "bg-muted/60 text-muted-foreground border-border/60";
-  }
 }
 
 // ── PlatformSidebar ────────────────────────────────────────────
@@ -102,7 +78,6 @@ export function PlatformSidebar({ admin }: { admin: PlatformAdmin | null }) {
     : (admin?.email?.[0] ?? "A").toUpperCase();
 
   const roleLabel = getRoleLabel(admin?.role);
-  const roleBadgeClass = getRoleBadgeClass(admin?.role);
 
   return (
     <>

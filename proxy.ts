@@ -78,7 +78,7 @@ async function updatePlatformSession(request: NextRequest): Promise<NextResponse
   const isSignIn = request.nextUrl.pathname.startsWith("/platform/sign-in");
   if (user && isSignIn) {
     const url = request.nextUrl.clone();
-    url.pathname = "/platform/dashboard";
+    url.pathname = "/platform";
     return NextResponse.redirect(url);
   }
 

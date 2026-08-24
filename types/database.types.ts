@@ -173,6 +173,7 @@ export type Database = {
           guest_id: string | null
           hotel_id: string
           id: string
+          initiated_payment_refs: string[]
           internal_notes: string | null
           nights: number | null
           outstanding_balance: number | null
@@ -208,6 +209,7 @@ export type Database = {
           guest_id?: string | null
           hotel_id: string
           id?: string
+          initiated_payment_refs?: string[]
           internal_notes?: string | null
           nights?: number | null
           outstanding_balance?: number | null
@@ -243,6 +245,7 @@ export type Database = {
           guest_id?: string | null
           hotel_id?: string
           id?: string
+          initiated_payment_refs?: string[]
           internal_notes?: string | null
           nights?: number | null
           outstanding_balance?: number | null
@@ -1240,12 +1243,14 @@ export type Database = {
           status: string
         }[]
       }
+      expire_stale_payment_holds: { Args: never; Returns: number }
       generate_booking_reference: {
         Args: { p_hotel_id: string; p_prefix?: string }
         Returns: string
       }
       get_user_clerk_org_ids: { Args: never; Returns: string[] }
       get_user_hotel_ids: { Args: never; Returns: string[] }
+      reconcile_pending_payments: { Args: never; Returns: number }
       record_payment_atomic: {
         Args: {
           p_amount: number

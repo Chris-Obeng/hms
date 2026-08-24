@@ -5,33 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { writeAuditLog } from "@/lib/audit";
+import {
+  computeNightAuditSummary,
+  type NightAuditSummary,
+} from "@/lib/metrics/night-audit-math";
 
-export interface NightAuditSummary {
-  auditDate: string;
-  currency: string;
-  totalRooms: number;
-  occupiedRooms: number;
-  vacantRooms: number;
-  outOfService: number;
-  occupancyRate: number;
-  pendingArrivals: number;
-  pendingDepartures: number;
-  inHouseCount: number;
-  totalPaymentsToday: number;
-  paymentsByMethod: { method: string; count: number; amount: number }[];
-  estimatedRoomRevenue: number;
-  adrToday: number;
-  revparToday: number;
-  isClosed: boolean;
-  lastAudit: { staffName: string | null; notes: string | null; at: string } | null;
-  unresolvedBookings: {
-    id: string;
-    reference: string;
-    guestName: string;
-    type: "pending_arrival" | "pending_departure";
-    roomNumber: string | null;
-  }[];
-}
+export type { NightAuditSummary };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -116,106 +95,18 @@ export async function getNightAuditData(dateStr?: string): Promise<NightAuditSum
   ]);
 
   const rooms = roomsRes.data || [];
-  const totalRooms = rooms.length;
-  const occupiedRooms = rooms.filter((r) => r.status === "occupied").length;
-  const outOfService = rooms.filter(
-    (r) => r.status === "maintenance" || r.status === "out_of_service"
-  ).length;
-  const vacantRooms = Math.max(0, totalRooms - occupiedRooms - outOfService);
-  const occupancyRate =
-    totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
 
-  const pendingArr = pendingArrivalsRes.data || [];
-  const pendingDep = pendingDeparturesRes.data || [];
-
-  // Embedded joins may arrive as an object or a single-element array
-  function joinName(value: unknown): string {
-    const row = Array.isArray(value) ? value[0] : value;
-    if (row && typeof row === "object" && "full_name" in row) {
-      const n = (row as { full_name?: string | null }).full_name;
-      if (n) return n;
-    }
-    return "Unknown Guest";
-  }
-  function joinRoomNumber(value: unknown): string | null {
-    const row = Array.isArray(value) ? value[0] : value;
-    if (row && typeof row === "object" && "room_number" in row) {
-      return (row as { room_number?: string | null }).room_number ?? null;
-    }
-    return null;
-  }
-
-  const unresolvedBookings = [
-    ...pendingArr.map((b) => ({
-      id: b.id,
-      reference: b.reference,
-      guestName: joinName(b.guests),
-      type: "pending_arrival" as const,
-      roomNumber: joinRoomNumber(b.rooms),
-    })),
-    ...pendingDep.map((b) => ({
-      id: b.id,
-      reference: b.reference,
-      guestName: joinName(b.guests),
-      type: "pending_departure" as const,
-      roomNumber: joinRoomNumber(b.rooms),
-    })),
-  ];
-
-  const methodMap = new Map<string, { count: number; amount: number }>();
-  let totalPaymentsToday = 0;
-  for (const p of todayPaymentsRes.data || []) {
-    const key = p.method || "other";
-    const cur = methodMap.get(key) ?? { count: 0, amount: 0 };
-    methodMap.set(key, { count: cur.count + 1, amount: cur.amount + Number(p.amount || 0) });
-    totalPaymentsToday += Number(p.amount || 0);
-  }
-  const paymentsByMethod = Array.from(methodMap.entries())
-    .map(([method, v]) => ({ method, count: v.count, amount: v.amount }))
-    .sort((a, b) => b.amount - a.amount);
-
-  const estimatedRoomRevenue = (occupiedBookingsRes.data || []).reduce((sum, b) => {
-    const nightly = Number(b.total_amount || 0) / Math.max(1, b.nights || 1);
-    return sum + nightly;
-  }, 0);
-
-  const adrToday =
-    occupiedRooms > 0 ? Math.round(estimatedRoomRevenue / occupiedRooms) : 0;
-  const revparToday =
-    totalRooms > 0 ? Math.round(estimatedRoomRevenue / totalRooms) : 0;
-
-  const logRow = auditLogRes.data?.[0] ?? null;
-  const lastAudit = logRow
-    ? {
-        staffName: (logRow.staff_name as string | null) ?? null,
-        notes:
-          typeof logRow.after_state === "object" && logRow.after_state !== null
-            ? ((logRow.after_state as Record<string, unknown>).notes as string | null) ?? null
-            : null,
-        at: logRow.created_at as string,
-      }
-    : null;
-
-  return {
+  return computeNightAuditSummary({
     auditDate: dayStr,
     currency: hotel.currency || "GHS",
-    totalRooms,
-    occupiedRooms,
-    vacantRooms,
-    outOfService,
-    occupancyRate,
-    pendingArrivals: pendingArr.length,
-    pendingDepartures: pendingDep.length,
+    rooms,
+    pendingArrivals: pendingArrivalsRes.data || [],
+    pendingDepartures: pendingDeparturesRes.data || [],
     inHouseCount: inHouseRes.count || 0,
-    totalPaymentsToday: Math.round(totalPaymentsToday * 100) / 100,
-    paymentsByMethod,
-    estimatedRoomRevenue: Math.round(estimatedRoomRevenue),
-    adrToday,
-    revparToday,
-    isClosed: Boolean(lastAudit),
-    lastAudit,
-    unresolvedBookings,
-  };
+    payments: todayPaymentsRes.data || [],
+    occupiedBookings: occupiedBookingsRes.data || [],
+    lastAuditLog: auditLogRes.data?.[0] ?? null,
+  });
 }
 
 export async function executeNightAudit(

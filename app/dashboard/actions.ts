@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { writeAuditLog } from "@/lib/audit";
+import { requireMinRole } from "@/lib/auth";
 import type { ActivityBooking } from "./_components/activity-list";
 
 // ── Get Hotel ID Helper ────────────────────────────────────────
@@ -288,6 +289,7 @@ export async function getDashboardData(dateStr?: string): Promise<DashboardData>
 
 export async function checkInBooking(bookingId: string): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireMinRole("front_desk", "check guests in");
     const { supabase, hotelId, staffId, staffName } = await getHotelScopedClient();
 
     const { data: booking } = await supabase
@@ -331,6 +333,7 @@ export async function checkInBooking(bookingId: string): Promise<{ success: bool
 
 export async function checkOutBooking(bookingId: string): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireMinRole("front_desk", "check guests out");
     const { supabase, hotelId, staffId, staffName } = await getHotelScopedClient();
 
     const { data: booking } = await supabase

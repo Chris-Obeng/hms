@@ -38,6 +38,7 @@ export default async function BookingDetailPage({ params }: Props) {
       <div className="flex items-center gap-3">
         <Link
           href="/dashboard/bookings"
+          aria-label="Back to bookings"
           className="inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
           <ArrowLeft className="size-4" />

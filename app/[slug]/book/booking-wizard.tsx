@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { toast } from "@heroui/react";
-import countries from "world-countries";
 import { format, parseISO } from "date-fns";
+import { COUNTRIES } from "@/lib/countries-data";
 import {
   Loader2,
   ChevronDown,
@@ -105,35 +105,8 @@ export function BookingWizard({
   const todayStr = today.toISOString().split("T")[0];
   const tomorrowStr = new Date(today.getTime() + 86400000).toISOString().split("T")[0];
 
-  /** Build international dial code from world-countries idd (e.g. GH → +233). */
-  const dialCodeFromIdd = React.useCallback(
-    (idd?: { root?: string; suffixes?: string[] } | null) => {
-      const root = idd?.root ?? "";
-      if (!root) return "";
-      const suffixes = idd?.suffixes ?? [];
-      // Single suffix completes country code (+2 + 33 → +233). Many suffixes = root is code (+1).
-      if (suffixes.length === 1) return `${root}${suffixes[0]}`;
-      return root;
-    },
-    []
-  );
-
-  const countryList = React.useMemo(() => {
-    const list = countries.map((c) => ({
-      code: c.cca2,
-      name: c.name.common,
-      flag: c.flag,
-      dialCode: dialCodeFromIdd(c.idd),
-    }));
-    list.sort((a, b) => {
-      if (a.name === "Ghana") return -1;
-      if (b.name === "Ghana") return 1;
-      if (a.name === "Nigeria") return -1;
-      if (b.name === "Nigeria") return 1;
-      return a.name.localeCompare(b.name);
-    });
-    return list;
-  }, [dialCodeFromIdd]);
+  // Static trimmed dataset (Ghana/Nigeria first) — see scripts/generate-countries.mjs
+  const countryList = COUNTRIES;
 
   const defaultDial =
     countryList.find((c) => c.name === "Ghana")?.dialCode ?? "+233";
@@ -159,6 +132,8 @@ export function BookingWizard({
   const [submitting, setSubmitting] = React.useState(false);
   const [section, setSection] = React.useState<BookingStepId>(1);
   const [touched, setTouched] = React.useState({ name: false, email: false, phone: false });
+  /** Bumped to force an availability re-fetch after a room-taken rejection. */
+  const [availNonce, setAvailNonce] = React.useState(0);
   const mainRef = React.useRef<HTMLElement>(null);
 
   const goToSection = React.useCallback((next: BookingStepId) => {
@@ -226,7 +201,7 @@ export function BookingWizard({
     return () => {
       cancelled = true;
     };
-  }, [checkIn, checkOut, slug]);
+  }, [checkIn, checkOut, slug, availNonce]);
 
   const nights =
     checkIn && checkOut
@@ -349,9 +324,26 @@ export function BookingWizard({
           special_requests: specialRequests || undefined,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.danger(data.error ?? "Reservation failed. Please check your details.");
+        if (res.status === 409) {
+          // Room taken while checking out — honest copy, refresh live counts,
+          // and send the guest back to step 1 with everything they typed kept.
+          toast.danger(
+            data?.error ??
+              "That room was just taken for these dates. Pick another room or change your dates."
+          );
+          setAvailNonce((n) => n + 1);
+          goToSection(1);
+          return;
+        }
+        if (res.status === 410 || res.status === 400) {
+          // Hold expired / validation / policy rejection — same recovery path.
+          toast.danger(data?.error ?? "Reservation failed. Please check your details and try again.");
+          if (res.status === 410) goToSection(1);
+          return;
+        }
+        toast.danger(data?.error ?? "Reservation failed. Please check your details.");
         return;
       }
       if (data.paymentRequired && data.authorizationUrl) {

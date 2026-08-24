@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { initializeTransaction } from "@/lib/paystack";
+import { rateLimit } from "@/lib/rate-limit";
 
 /**
  * POST /api/booking/[slug]/bookings/[reference]/retry-payment
@@ -15,6 +16,15 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string; reference: string }> }
 ) {
+  // Each call creates a real Paystack transaction — keep it tight.
+  const rl = await rateLimit(req, { name: "retry-payment", limit: 5, windowSeconds: 10 * 60 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Too many payment attempts. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
+    );
+  }
+
   const { slug, reference } = await params;
 
   if (!/^[a-z0-9.-]{1,253}$/i.test(slug)) {
@@ -48,7 +58,7 @@ export async function POST(
   const { data: booking } = await supabaseAdmin
     .from("bookings")
     .select(
-      "id, reference, status, payment_status, payment_preference, source, total_amount, currency, guests(email)"
+      "id, reference, status, payment_status, payment_preference, source, total_amount, currency, initiated_payment_refs, guests(email)"
     )
     .eq("hotel_id", hotel.id)
     .eq("reference", reference)
@@ -99,6 +109,14 @@ export async function POST(
         booking_reference: booking.reference,
       },
     });
+
+    // Track the new reference for the reconciliation sweep (cap 10 so repeated
+    // retries on a stale hold can't grow the array unbounded).
+    const nextRefs = [...(booking.initiated_payment_refs ?? []), payRef].slice(-10);
+    await supabaseAdmin
+      .from("bookings")
+      .update({ initiated_payment_refs: nextRefs })
+      .eq("id", booking.id);
 
     return NextResponse.json({ authorizationUrl: txn.authorization_url });
   } catch (err) {

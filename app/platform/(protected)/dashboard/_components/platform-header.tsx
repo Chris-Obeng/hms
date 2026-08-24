@@ -20,20 +20,12 @@ import type { PlatformAdmin } from "./platform-sidebar";
 // ── Route title map ────────────────────────────────────────────
 
 const ROUTE_TITLES: Record<string, string> = {
-  "/platform/dashboard": "Overview",
-  "/platform/dashboard/hotels": "Hotels",
-  "/platform/dashboard/settings": "Settings",
+  "/platform": "Hotel Oversight",
 };
 
 function getPageTitle(pathname: string): string {
   // Exact match first
   if (ROUTE_TITLES[pathname]) return ROUTE_TITLES[pathname];
-  // Prefix match (e.g. /platform/dashboard/hotels?status=pending)
-  for (const [route, title] of Object.entries(ROUTE_TITLES)) {
-    if (pathname.startsWith(route) && route !== "/platform/dashboard") {
-      return title;
-    }
-  }
   return "Platform Admin";
 }
 

@@ -4,8 +4,6 @@ import * as React from "react";
 import { toast } from "@heroui/react";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { checkInBooking, checkOutBooking } from "@/app/dashboard/actions";
-import { updateBookingStatus } from "@/app/actions/bookings";
 import {
   getFullBookingDetail,
   type FullBookingDetail,
@@ -15,7 +13,7 @@ import { BookingOverviewPanel } from "@/components/bookings/_components/booking-
 import { BookingPaymentsPanel } from "@/components/bookings/_components/booking-payments-panel";
 import { BookingNotesPanel } from "@/components/bookings/_components/booking-notes-panel";
 import { BookingGuestPanel } from "@/components/bookings/_components/booking-guest-panel";
-import { getStatusVariant, getStatusLabel, STATUS_COLORS } from "@/lib/booking-status";
+import { getStatusLabel, STATUS_COLORS } from "@/lib/booking-status";
 import { formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 
@@ -29,20 +27,31 @@ export function BookingDeepLinkClient({ bookingId, currency }: Props) {
   const [loading, setLoading] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState("overview");
   const [actionLoading, setActionLoading] = React.useState<string | null>(null);
-  const [showPaymentForm, setShowPaymentForm] = React.useState(false);
 
   async function loadBooking() {
-    setLoading(true);
     const result = await getFullBookingDetail(bookingId);
     if (result.success) {
       setBooking(result.booking);
     } else {
       toast.danger(result.error);
     }
-    setLoading(false);
   }
 
-  React.useEffect(() => { loadBooking(); }, [bookingId]);
+  React.useEffect(() => {
+    let cancelled = false;
+    getFullBookingDetail(bookingId).then((result) => {
+      if (cancelled) return;
+      if (result.success) {
+        setBooking(result.booking);
+      } else {
+        toast.danger(result.error);
+      }
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingId]);
 
   function handleAction(
     action: string,

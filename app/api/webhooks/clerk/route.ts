@@ -66,19 +66,39 @@ export async function POST(req: Request) {
           .single()
 
         if (invite && new Date(invite.expires_at) > new Date()) {
-          const clerk = await clerkClient()
-          const clerkRole = invite.role === 'super_admin' ? 'org:admin' : 'org:member'
-          
-          await clerk.organizations.createOrganizationMembership({
-            organizationId: invite.clerk_org_id,
-            userId: data.id,
-            role: clerkRole,
-          })
-
-          await supabaseAdmin
+          // Atomically claim the invitation before granting membership.
+          // Conditional UPDATE returns rows only when the token was still
+          // unused — concurrent sign-ups with the same link cannot both pass.
+          const { data: claimed } = await supabaseAdmin
             .from('staff_invitations')
             .update({ is_used: true })
             .eq('token', inviteToken)
+            .eq('is_used', false)
+            .select('token')
+
+          if (!claimed || claimed.length === 0) {
+            // Token already consumed by another sign-up.
+            return NextResponse.json({ success: true })
+          }
+
+          const clerk = await clerkClient()
+          const clerkRole = invite.role === 'super_admin' ? 'org:admin' : 'org:member'
+
+          try {
+            await clerk.organizations.createOrganizationMembership({
+              organizationId: invite.clerk_org_id,
+              userId: data.id,
+              role: clerkRole,
+            })
+          } catch (err) {
+            // Membership creation failed — release the token so the invite
+            // remains usable (matches previous non-atomic behavior).
+            await supabaseAdmin
+              .from('staff_invitations')
+              .update({ is_used: false })
+              .eq('token', inviteToken)
+            throw err
+          }
         }
       } catch (err) {
         console.error('[webhook] failed to auto-join user to organization:', err)

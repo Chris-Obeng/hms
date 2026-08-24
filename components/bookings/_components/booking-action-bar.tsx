@@ -9,7 +9,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-import { Button } from "@heroui/react";
+import { AlertDialog, Button } from "@heroui/react";
 import { checkInBooking, checkOutBooking } from "@/app/dashboard/actions";
 import { updateBookingStatus } from "@/app/actions/bookings";
 import type { FullBookingDetail } from "./booking-detail-types";
@@ -29,6 +29,7 @@ export function BookingActionBar({
   actionLoading,
   onAction,
 }: BookingActionBarProps) {
+  const [confirmCancel, setConfirmCancel] = React.useState(false);
   const handleCheckIn = () =>
     onAction("check_in", "checked_in", () => checkInBooking(booking.id));
 
@@ -81,16 +82,56 @@ export function BookingActionBar({
         </Button>
       )}
       {(booking.status === "confirmed" || booking.status === "pending") && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="ml-auto h-9 rounded-xl px-2.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          onPress={handleCancel}
-          isPending={actionLoading === "cancel"}
-        >
-          <XCircle className="size-3 mr-1 shrink-0" />
-          {actionLoading === "cancel" ? "Cancelling..." : "Cancel Booking"}
-        </Button>
+        <AlertDialog>
+          <Button
+            slot="open"
+            size="sm"
+            variant="ghost"
+            className="ml-auto h-9 rounded-xl px-2.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            isPending={actionLoading === "cancel"}
+          >
+            <XCircle className="size-3 mr-1 shrink-0" />
+            Cancel Booking
+          </Button>
+          <AlertDialog.Backdrop
+            isOpen={confirmCancel}
+            onOpenChange={setConfirmCancel}
+          >
+            <AlertDialog.Container>
+              <AlertDialog.Dialog className="sm:max-w-[420px]">
+                <AlertDialog.Header>
+                  <AlertDialog.Icon status="danger" />
+                  <AlertDialog.Heading>Cancel this reservation?</AlertDialog.Heading>
+                </AlertDialog.Header>
+                <AlertDialog.Body>
+                  <p>
+                    {booking.guest?.fullName}&rsquo;s stay ({booking.reference}) will be
+                    cancelled and the room released. You can reinstate it later if needed.
+                  </p>
+                </AlertDialog.Body>
+                <AlertDialog.Footer>
+                  <Button
+                    slot="close"
+                    variant="tertiary"
+                    isDisabled={actionLoading === "cancel"}
+                  >
+                    Keep reservation
+                  </Button>
+                  <Button
+                    variant="danger"
+                    isPending={actionLoading === "cancel"}
+                    onPress={() => {
+                      setConfirmCancel(false);
+                      handleCancel();
+                    }}
+                  >
+                    Cancel reservation
+                  </Button>
+                </AlertDialog.Footer>
+              </AlertDialog.Dialog>
+            </AlertDialog.Container>
+          </AlertDialog.Backdrop>
+        </AlertDialog>
       )}
       {booking.status === "cancelled" && (
         <Button

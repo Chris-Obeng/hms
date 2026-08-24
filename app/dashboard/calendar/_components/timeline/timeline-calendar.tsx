@@ -281,7 +281,7 @@ const RoomRow = React.memo(function RoomRow({ room, bookings, blocks, conflicts,
           return (
             <div
               key={b.id}
-              className={cn(highlightIds?.has(b.id) && "rl-bar-new")}
+              className={cn("rl-bar-slot", highlightIds?.has(b.id) && "rl-bar-new")}
               style={{ position: "absolute", left: clipped.left, width: clipped.width, top: 8, height: 36 }}
             >
               <BookingBar booking={b} conflict={conflicts.has(b.id)} canEdit={canEdit} onOpen={() => onOpenBooking(b.id)} />
@@ -343,6 +343,18 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
 
   const virtualizer = useVirtualizer({ count: rooms.length, getScrollElement: () => scrollRef.current, estimateSize: () => ROW_HEIGHT, overscan: 10 });
   const dates = React.useMemo(() => Array.from({ length: days }, (_, i) => addDays(startDate, i)), [startDate, days]);
+
+  // Column indices that fall on Sat/Sun — the weekend wash is painted by
+  // dedicated full-height overlays styled via [data-dow] in calendar.css.
+  const weekendColumns = React.useMemo(
+    () =>
+      dates.reduce<Array<{ index: number; dow: number }>>((acc, d, index) => {
+        const dow = d.getDay();
+        if (dow === 0 || dow === 6) acc.push({ index, dow });
+        return acc;
+      }, []),
+    [dates],
+  );
 
   const setDragState = React.useCallback((next: DragState | null) => {
     activeRef.current = next;
@@ -540,7 +552,8 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
                 {dates.map((d) => (
                   <div
                     key={d.toISOString()}
-                    className={cn("rl-date", [0, 6].includes(d.getDay()) && "weekend", format(d, "yyyy-MM-dd") === todayKey && "today")}
+                    data-dow={d.getDay()}
+                    className={cn("rl-date", format(d, "yyyy-MM-dd") === todayKey && "today")}
                     style={{ width: DAY_WIDTH }}
                   >
                     <strong>{format(d, "EEE")}</strong>
@@ -549,6 +562,17 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
                 ))}
               </div>
             </div>
+            {/* Full-height weekend wash — sits ABOVE the today tint and BELOW
+                every booking/block bar (see z-scale in calendar.css). */}
+            {weekendColumns.map(({ index, dow }) => (
+              <div
+                key={index}
+                className="rl-weekend-column"
+                data-dow={dow}
+                style={{ left: ROOM_COLUMN_WIDTH + index * DAY_WIDTH, width: DAY_WIDTH }}
+                aria-hidden
+              />
+            ))}
             {/* Full-height today marker — one element, sits under bars. */}
             {todayColumnVisible && (
               <div className="rl-today-column" style={{ left: ROOM_COLUMN_WIDTH + todayColumn * DAY_WIDTH, width: DAY_WIDTH }} aria-hidden />

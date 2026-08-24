@@ -1,18 +1,16 @@
 "use client";
 
-import countries from "world-countries";
 import { ComboBox, Input, ListBox } from "@heroui/react";
+import { COUNTRIES } from "@/lib/countries-data";
 
-// Format countries data for react-select
-export const countryOptions = countries.map((country) => ({
-  value: country.name.common,
-  label: country.name.common,
+// Formatted for this component's option shape (static trimmed dataset).
+export const countryOptions = COUNTRIES.map((country) => ({
+  value: country.name,
+  label: country.name,
   flag: country.flag,
-  code: country.cca2,
-  dialCode: country.idd.root
-    ? `${country.idd.root}${country.idd.suffixes?.[0] ?? ""}`
-    : "",
-})).sort((a, b) => a.label.localeCompare(b.label));
+  code: country.code,
+  dialCode: country.dialCode,
+}));
 
 export function getCountryDialCode(countryName: string): string | undefined {
   return countryOptions.find((country) => country.value === countryName)?.dialCode || undefined;

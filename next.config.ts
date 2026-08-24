@@ -10,18 +10,20 @@ const withPWA = withPWAInit({
   fallbacks: {
     document: "/offline",
   },
-  workboxOptions: {
+    workboxOptions: {
     importScripts: ["/push-worker.js"],
     skipWaiting: true,
     clientsClaim: true,
     runtimeCaching: [
+      // Only cache explicitly-public availability reads; never cache authenticated API data.
       {
-        urlPattern: ({ url }) => url.pathname.startsWith("/api/"),
+        urlPattern: ({ url }) =>
+          url.pathname.startsWith("/api/") && /^\/api\/booking\/[^/]+\/availability\/?$/.test(url.pathname),
         handler: "NetworkFirst",
         options: {
-          cacheName: "api-cache",
+          cacheName: "public-availability-cache",
           networkTimeoutSeconds: 10,
-          expiration: { maxEntries: 64, maxAgeSeconds: 5 * 60 },
+          expiration: { maxEntries: 16, maxAgeSeconds: 2 * 60 },
         },
       },
       {
@@ -54,11 +56,24 @@ const nextConfig: NextConfig = {
         hostname: "*.supabase.co",
         pathname: "/storage/v1/object/public/**",
       },
-      {
-        protocol: "https",
-        hostname: "**",
-      },
     ],
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+        ],
+      },
+    ];
   },
 };
 

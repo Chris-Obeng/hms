@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { format } from "date-fns";
 import { writeAuditLog } from "@/lib/audit";
 import { requireMinRole, toActionError } from "@/lib/auth";
+import { canTransitionBooking } from "@/lib/booking-status";
 
 // ── Schemas ──────────────────────────────────────────────────────
 
@@ -38,22 +39,7 @@ const NewBookingSchema = z.object({
 
 export type NewBookingInput = z.infer<typeof NewBookingSchema>;
 
-// ── Allowed status transitions ────────────────────────────────────
-// Maps current status → allowed next statuses per role level.
-// front_desk: can check in, check out (normal workflow)
-// manager+:   can also cancel and confirm
-const ALLOWED_TRANSITIONS: Record<string, string[]> = {
-  pending:      ["confirmed", "cancelled"],
-  confirmed:    ["checked_in", "cancelled"],
-  checked_in:   ["checked_out"],
-  checked_out:  [], // terminal — no transitions
-  // Manager-approved reinstatement. Reinstated booking returns to confirmed,
-  // preserving audit trail through booking status history.
-  cancelled:    ["confirmed"],
-  no_show:      [], // terminal
-};
-
-// Statuses that require manager or above
+// ── Statuses that require manager or above ────────────────────────
 const MANAGER_ONLY_STATUSES = new Set(["cancelled", "confirmed", "no_show"]);
 
 // ── Create Booking ───────────────────────────────────────────────
@@ -373,8 +359,7 @@ export async function updateBookingStatus(
     if (!before) return { success: false, error: "Booking not found" };
 
     // Enforce state machine — prevent illegal transitions
-    const allowed = ALLOWED_TRANSITIONS[before.status ?? ""] ?? [];
-    if (!allowed.includes(status)) {
+    if (!canTransitionBooking(before.status ?? "", status)) {
       return {
         success: false,
         error: `Cannot transition booking from '${before.status}' to '${status}'`,

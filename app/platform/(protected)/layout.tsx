@@ -1,6 +1,14 @@
 import { redirect } from "next/navigation";
 import { createPlatformClient } from "@/lib/supabase/platform-server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarRail,
+  SidebarInset,
+} from "@/components/ui/sidebar";
+import { PlatformSidebar } from "./dashboard/_components/platform-sidebar";
+import { PlatformHeader } from "./dashboard/_components/platform-header";
 
 /**
  * Platform Admin Layout — Supabase Auth (email + password)
@@ -9,7 +17,8 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
  *   1. Middleware (proxy.ts) refreshes the Supabase session on every request
  *      and redirects unauthenticated requests to /platform/sign-in.
  *   2. This layout double-checks authentication with getClaims() and then
- *      verifies the user is an active platform_admin (whitelist check).
+ *      verifies the user is an active platform_admin (whitelist check),
+ *      then renders the admin shell (sidebar + header) around every page.
  *
  * How to create a platform admin account:
  *   Step 1 — Supabase Dashboard → Authentication → Users → "Add user"
@@ -34,11 +43,11 @@ export default async function PlatformLayout({
 
   const userId = data.claims.sub;
 
-  // Verify this Supabase Auth user is an active platform admin
-  // Uses service role client to bypass RLS — authoritative whitelist check
+  // Verify this Supabase Auth user is an active platform admin.
+  // Uses service role client to bypass RLS — authoritative whitelist check.
   const { data: admin } = await supabaseAdmin
     .from("platform_admins")
-    .select("id, role, is_active")
+    .select("id, full_name, role, email, is_active")
     .eq("supabase_user_id", userId)
     .single();
 
@@ -51,5 +60,24 @@ export default async function PlatformLayout({
     redirect("/platform/auth/sign-out?reason=unauthorized");
   }
 
-  return <>{children}</>;
+  return (
+    <SidebarProvider defaultOpen={true}>
+      {/* ── Sidebar ───────────────────────────────────────── */}
+      <Sidebar collapsible="icon" variant="sidebar" side="left">
+        <PlatformSidebar admin={admin} />
+        <SidebarRail />
+      </Sidebar>
+
+      {/* ── Main content area ─────────────────────────────── */}
+      <SidebarInset>
+        {/* Sticky top header — contains SidebarTrigger + page title + admin dropdown */}
+        <PlatformHeader admin={admin} />
+
+        {/* Page content */}
+        <main className="flex-1 px-4 py-6 md:px-6 md:py-8 lg:px-8 lg:py-8 max-w-6xl mx-auto w-full">
+          {children}
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
+  );
 }

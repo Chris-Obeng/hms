@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase/admin";
 import { resolvePublicRoomPrices } from "@/lib/pricing/resolve-public-price";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  // Generous limit — legitimate guests poll this while picking dates.
+  const rl = await rateLimit(req, { name: "availability", limit: 60, windowSeconds: 60 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
+    );
+  }
+
   const { slug } = await params;
   const { searchParams } = req.nextUrl;
   const checkIn = searchParams.get("check_in");

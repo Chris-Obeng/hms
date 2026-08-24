@@ -124,17 +124,39 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
   const [selectedGuest, setSelectedGuest] = React.useState<GuestRow | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
 
+  // Edits saved inside the detail sheet are merged here so table rows and
+  // re-opened sheets reflect them immediately (server data refreshes on next
+  // navigation). Cleared whenever fresh server data arrives.
+  const [guestOverrides, setGuestOverrides] = React.useState<Record<string, Partial<GuestRow>>>({});
+  React.useEffect(() => {
+    setGuestOverrides({});
+  }, [data]);
+
+  const handleGuestUpdated = React.useCallback(
+    (guestId: string, patch: Partial<GuestRow>) => {
+      setGuestOverrides((prev) => ({ ...prev, [guestId]: { ...prev[guestId], ...patch } }));
+      setSelectedGuest((prev) => (prev && prev.id === guestId ? { ...prev, ...patch } : prev));
+    },
+    []
+  );
+
+  const enrichedData = React.useMemo(
+    () =>
+      data.map((g) => (guestOverrides[g.id] ? { ...g, ...guestOverrides[g.id] } : g)),
+    [data, guestOverrides]
+  );
+
   // Watch for guestId in search params to auto-open guest detail sheet
   React.useEffect(() => {
     const guestId = searchParams.get("guestId");
     if (guestId) {
-      const guest = data.find((g) => g.id === guestId);
+      const guest = enrichedData.find((g) => g.id === guestId);
       if (guest) {
         setSelectedGuest(guest);
         setDetailOpen(true);
       }
     }
-  }, [searchParams, data]);
+  }, [searchParams, enrichedData]);
 
   const handleOpenChange = React.useCallback(
     (open: boolean) => {
@@ -259,7 +281,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
   );
 
   const table = useReactTable({
-    data,
+    data: enrichedData,
     columns,
     state: {
       sorting,
@@ -318,6 +340,19 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
   return (
     <>
       <div className="space-y-4">
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-page-title text-foreground">Customers</h1>
+            <p className="mt-0.5 text-body text-muted-foreground">
+              {totalCount} guest profile{totalCount !== 1 ? "s" : ""}
+              {filteredCount !== totalCount && (
+                <span className="text-muted-foreground/60"> · {filteredCount} visible</span>
+              )}
+            </p>
+          </div>
+        </div>
+
         {/* Toolbar */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
@@ -351,7 +386,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
             variant="outline"
             size="sm"
             className="h-9 shrink-0 rounded-xl text-sm"
-            onPress={() => exportToCsv(data)}
+            onPress={() => exportToCsv(enrichedData)}
           >
             <Download className="size-3.5" />
             Export
@@ -507,9 +542,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
           open={detailOpen}
           onOpenChange={handleOpenChange}
           currency={currency}
-          onGuestUpdated={() => {
-            // Refresh will happen on next navigation
-          }}
+          onGuestUpdated={handleGuestUpdated}
         />
       )}
     </>

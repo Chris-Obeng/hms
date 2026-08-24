@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { addDays, format, parseISO } from "date-fns";
 import { CalendarDays, Plus, X } from "lucide-react";
-import { AlertDialog, Button, Switch, toast } from "@heroui/react";
+import { AlertDialog, Button, Chip, Drawer, Switch, toast } from "@heroui/react";
 import { keepPreviousData, QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { qk } from "@/lib/query-keys";
@@ -24,6 +24,7 @@ import type { TypeChangeRequest as DragTypeChangeRequest } from "./_components/t
 import { pickBestRoom } from "./_components/timeline/auto-assign";
 import { VIEW_PRESETS, type ViewPreset } from "./_components/calendar-helpers";
 import { businessToday } from "@/lib/business-date";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { BlockRoomSheet } from "./_components/block-room-sheet";
 import { CalendarToolbar } from "./_components/calendar-toolbar";
 import { TimelineCalendar } from "./_components/timeline/timeline-calendar";
@@ -555,18 +556,18 @@ function CalendarClientContent({
           {roomTypeFilters
             .filter((f) => !f.visible)
             .map((f) => (
-              <Chip key={f.id} label={`Type: ${f.name}`} onClick={() => toggleRoomTypeFilter(f.id)} />
+              <FilterChip key={f.id} label={`Type: ${f.name}`} onClick={() => toggleRoomTypeFilter(f.id)} />
             ))}
           {statusFilters.map((s) => (
-            <Chip key={s} label={`Status: ${s.replace(/_/g, " ")}`} onClick={() => toggleStatusFilter(s)} />
+            <FilterChip key={s} label={`Status: ${s.replace(/_/g, " ")}`} onClick={() => toggleStatusFilter(s)} />
           ))}
           {sourceFilters.map((s) => (
-            <Chip key={s} label={`Source: ${s.replace(/_/g, " ")}`} onClick={() => toggleSourceFilter(s)} />
+            <FilterChip key={s} label={`Source: ${s.replace(/_/g, " ")}`} onClick={() => toggleSourceFilter(s)} />
           ))}
-          {searchQuery && <Chip label={`"${searchQuery}"`} onClick={() => setSearchQuery("")} />}
+          {searchQuery && <FilterChip label={`"${searchQuery}"`} onClick={() => setSearchQuery("")} />}
           <button
             onClick={clearFilters}
-            className="ml-1 text-[10px] text-muted-foreground transition-colors hover:text-primary"
+            className="ml-1 text-caption text-muted-foreground transition-colors hover:text-primary"
           >
             Clear all
           </button>
@@ -699,6 +700,7 @@ function CalendarClientContent({
         onOpenChange={setBlockRoomOpen}
         rooms={rooms}
         prefillRoomId={blockPrefillRoomId}
+        minDate={parseISO(businessDateKey)}
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ["calendar", orgId, hotelId] })}
       />
       <NewBookingModal
@@ -724,18 +726,17 @@ function CalendarClientContent({
         }}
       />
 
-      {showFilters && (
-        <FilterPanel
-          roomTypeFilters={roomTypeFilters}
-          statusFilters={statusFilters}
-          sourceFilters={sourceFilters}
-          onClose={() => setShowFilters(false)}
-          onClear={clearFilters}
-          onToggleRoomType={toggleRoomTypeFilter}
-          onToggleStatus={toggleStatusFilter}
-          onToggleSource={toggleSourceFilter}
-        />
-      )}
+      <FilterDrawer
+        isOpen={showFilters}
+        onOpenChange={setShowFilters}
+        roomTypeFilters={roomTypeFilters}
+        statusFilters={statusFilters}
+        sourceFilters={sourceFilters}
+        onClear={clearFilters}
+        onToggleRoomType={toggleRoomTypeFilter}
+        onToggleStatus={toggleStatusFilter}
+        onToggleSource={toggleSourceFilter}
+      />
     </div>
   );
 }
@@ -756,89 +757,115 @@ function Tip({ title, body, icon }: { title: string; body: string; icon: React.R
   );
 }
 
-function Chip({ label, onClick }: { label: string; onClick: () => void }) {
+/** Removable active-filter pill. HeroUI Chip is display-only, so the press
+ *  affordance lives on a reset-styled wrapper button (whole chip removes). */
+function FilterChip({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="inline-flex h-6 items-center gap-1 rounded-full border border-border bg-muted/50 px-2 text-[10px] text-muted-foreground transition-colors hover:border-border/80 hover:text-foreground"
+      aria-label={`Remove filter ${label}`}
+      className="group inline-flex items-center rounded-full transition-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <span className="max-w-[140px] truncate capitalize">{label}</span>
-      <X className="size-2.5 shrink-0" />
+      <Chip size="sm" variant="soft" className="max-w-[180px] cursor-pointer">
+        <span className="truncate capitalize">{label}</span>
+      </Chip>
+      <X className="mr-1 size-3 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" aria-hidden />
     </button>
   );
 }
 
-function FilterPanel({
+function FilterDrawer({
+  isOpen,
+  onOpenChange,
   roomTypeFilters,
   statusFilters,
   sourceFilters,
-  onClose,
   onClear,
   onToggleRoomType,
   onToggleStatus,
   onToggleSource,
 }: {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
   roomTypeFilters: RoomTypeFilter[];
   statusFilters: string[];
   sourceFilters: string[];
-  onClose: () => void;
   onClear: () => void;
   onToggleRoomType: (id: string) => void;
   onToggleStatus: (s: string) => void;
   onToggleSource: (s: string) => void;
 }) {
+  const isMobile = useIsMobile();
+
   return (
-    <div className="fixed inset-0 z-50">
-      <button className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} aria-label="Close" />
-      <aside className="absolute right-0 top-0 flex h-full w-[min(380px,100vw)] flex-col overflow-y-auto border-l border-border bg-background shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border bg-muted/20 px-6 py-5">
-          <h2 className="text-base font-semibold text-foreground">Filters</h2>
-          <div className="flex items-center gap-4">
-            <button onClick={onClear} className="text-sm font-medium text-primary transition-opacity hover:opacity-80">
+    <Drawer.Backdrop
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+      variant="opaque"
+      className="bg-black/40 dark:bg-black/60"
+    >
+      <Drawer.Content placement={isMobile ? "bottom" : "right"}>
+        <Drawer.Dialog
+          aria-labelledby="calendar-filters-title"
+          className="flex h-[85dvh] max-h-[85dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-background shadow-[0_-24px_80px_rgb(0_0_0/0.35)] md:h-dvh md:max-h-dvh md:w-[min(21rem,100vw)] md:rounded-none md:border-l md:border-border/70 md:shadow-[-24px_0_80px_rgb(0_0_0/0.18)]"
+        >
+          {isMobile && <Drawer.Handle className="mt-2.5 shrink-0" />}
+          <Drawer.CloseTrigger className="absolute right-3.5 top-3.5 z-10 inline-flex size-8 items-center justify-center rounded-full bg-muted/70 text-muted-foreground shadow-xs backdrop-blur transition-all hover:bg-muted hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+
+          <Drawer.Header className="shrink-0 flex-col items-start gap-1 border-b border-border/50 px-5 pb-4 pr-14 pt-12">
+            <Drawer.Heading id="calendar-filters-title" className="text-section text-foreground">
+              Filters
+            </Drawer.Heading>
+            <p className="text-caption text-muted-foreground">Show or hide rooms and bookings</p>
+          </Drawer.Header>
+
+          <Drawer.Body className="min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-5">
+            <FilterGroup title="Room Types">
+              {roomTypeFilters.map((f) => (
+                <FilterToggle key={f.id} label={f.name} active={f.visible} onToggle={() => onToggleRoomType(f.id)} />
+              ))}
+            </FilterGroup>
+            <FilterGroup title="Booking Status">
+              {STATUS_OPTIONS.map((s) => (
+                <FilterToggle key={s} label={s.replace(/_/g, " ")} active={statusFilters.includes(s)} onToggle={() => onToggleStatus(s)} />
+              ))}
+            </FilterGroup>
+            <FilterGroup title="Booking Source">
+              {SOURCE_OPTIONS.map((s) => (
+                <FilterToggle key={s} label={s.replace(/_/g, " ")} active={sourceFilters.includes(s)} onToggle={() => onToggleSource(s)} />
+              ))}
+            </FilterGroup>
+          </Drawer.Body>
+
+          <Drawer.Footer className="flex shrink-0 items-center justify-between gap-2 border-t border-border/50 bg-muted/10 px-5 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3">
+            <Button variant="ghost" size="sm" onPress={onClear} className="min-h-9 font-medium text-primary">
               Reset all
-            </button>
-            <button onClick={onClose} className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-              <X className="size-5" />
-            </button>
-          </div>
-        </div>
-        <div className="flex-1 space-y-8 overflow-y-auto p-6">
-          <FilterGroup title="Room Types">
-            {roomTypeFilters.map((f) => (
-              <FilterToggle key={f.id} label={f.name} active={f.visible} onToggle={() => onToggleRoomType(f.id)} />
-            ))}
-          </FilterGroup>
-          <FilterGroup title="Booking Status">
-            {STATUS_OPTIONS.map((s) => (
-              <FilterToggle key={s} label={s.replace(/_/g, " ")} active={statusFilters.includes(s)} onToggle={() => onToggleStatus(s)} />
-            ))}
-          </FilterGroup>
-          <FilterGroup title="Booking Source">
-            {SOURCE_OPTIONS.map((s) => (
-              <FilterToggle key={s} label={s.replace(/_/g, " ")} active={sourceFilters.includes(s)} onToggle={() => onToggleSource(s)} />
-            ))}
-          </FilterGroup>
-        </div>
-      </aside>
-    </div>
+            </Button>
+            <Button size="sm" slot="close" onPress={() => onOpenChange(false)} className="min-h-9 min-w-24">
+              Done
+            </Button>
+          </Drawer.Footer>
+        </Drawer.Dialog>
+      </Drawer.Content>
+    </Drawer.Backdrop>
   );
 }
 
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-3">
-      <p className="px-1 text-xs font-semibold text-foreground">{title}</p>
-      <div className="space-y-2">{children}</div>
+    <section className="space-y-1.5">
+      <p className="px-1 text-label font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+      <div className="space-y-0.5">{children}</div>
     </section>
   );
 }
 
 function FilterToggle({ label, active, onToggle }: { label: string; active: boolean; onToggle(): void }) {
   return (
-    <Switch isSelected={active} onChange={onToggle} aria-label={label} className="w-full rounded-lg border px-4 py-3 transition-all data-[selected=true]:border-primary/30"
-    >
-      <Switch.Content className="w-full justify-between">
-        <span className="text-sm font-medium capitalize text-foreground">{label}</span>
+    <Switch isSelected={active} onChange={onToggle} aria-label={label} className="w-full">
+      <Switch.Content className="min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 transition-colors hover:bg-muted/60">
+        <span className="text-body font-medium capitalize text-foreground">{label}</span>
         <Switch.Control className="shrink-0">
           <Switch.Thumb />
         </Switch.Control>

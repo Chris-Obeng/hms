@@ -21,13 +21,57 @@ const OnboardingSchema = z.object({
 
 export type OnboardingInput = z.infer<typeof OnboardingSchema>;
 
+export type OnboardingResult =
+  | { error: string }
+  | { success: true; slug: string | null; resumed: boolean };
+
 function uniqueSlug(text: string) {
   // 4-char base36 suffix ensures uniqueness while keeping slug readable
   const suffix = Math.random().toString(36).slice(2, 6);
   return `${slugify(text, 40)}-${suffix}`;
 }
 
-export async function createHotelProfile(formData: OnboardingInput) {
+/*
+ * Ensure the onboarding user holds a super_admin staff profile for the org.
+ * Idempotent upsert — safe to re-run after a partial failure.
+ */
+async function ensureAdminStaffProfile(
+  clerk_org_id: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { userId } = await auth();
+  if (!userId) return { ok: false, error: "Not authenticated." };
+  const client = await clerkClient();
+  const clerkUser = await client.users.getUser(userId);
+
+  const { error } = await supabaseAdmin.from("staff_profiles").upsert({
+    clerk_org_id,
+    clerk_user_id: userId,
+    email: clerkUser.emailAddresses?.[0]?.emailAddress ?? null,
+    full_name: `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim(),
+    avatar_url: clerkUser.imageUrl ?? null,
+    role: "super_admin",
+    is_active: true,
+    granted_at: new Date().toISOString(),
+    granted_by: null,
+    notification_prefs: {},
+  }, {
+    onConflict: "clerk_user_id,clerk_org_id",
+  });
+
+  if (error) {
+    console.error("Admin staff_profile upsert error:", error);
+    return {
+      ok: false,
+      error:
+        "Your property exists, but we couldn't set up your admin access. Contact support and we'll finish it.",
+    };
+  }
+  return { ok: true };
+}
+
+export async function createHotelProfile(
+  formData: OnboardingInput
+): Promise<OnboardingResult> {
   const { userId } = await auth();
   if (!userId) {
     return { error: "Not authenticated." };
@@ -54,21 +98,6 @@ export async function createHotelProfile(formData: OnboardingInput) {
     return { error: "You do not have permission to onboard this organization." };
   }
 
-  const { data: existingHotel } = await supabaseAdmin
-    .from("hotels")
-    .select("id")
-    .eq("clerk_org_id", data.clerk_org_id)
-    .maybeSingle();
-
-  if (existingHotel) {
-    return { error: "This organization already has a hotel profile." };
-  }
-
-  // Make the slug unique by appending a random string to avoid collisions on onboarding
-  const slug = uniqueSlug(data.name);
-
-  const supabase = supabaseAdmin;
-
   const settings = {
     hotel_type: data.hotel_type,
     number_of_rooms: data.number_of_rooms,
@@ -76,7 +105,26 @@ export async function createHotelProfile(formData: OnboardingInput) {
     website: data.website,
   };
 
-  const { error } = await supabase.from("hotels").insert({
+  /*
+   * Idempotent completion: if this org already has a hotel (retry after a
+   * partial failure, double submit, resumed session), never insert a second
+   * row — repair whatever is missing and report success.
+   */
+  const { data: existingHotel } = await supabaseAdmin
+    .from("hotels")
+    .select("id, slug")
+    .eq("clerk_org_id", data.clerk_org_id)
+    .maybeSingle();
+
+  if (existingHotel) {
+    const staff = await ensureAdminStaffProfile(data.clerk_org_id);
+    if (!staff.ok) return { error: staff.error };
+    return { success: true, slug: existingHotel.slug ?? null, resumed: true };
+  }
+
+  const slug = uniqueSlug(data.name);
+
+  const { error } = await supabaseAdmin.from("hotels").insert({
     name: data.name,
     slug,
     clerk_org_id: data.clerk_org_id,
@@ -86,7 +134,7 @@ export async function createHotelProfile(formData: OnboardingInput) {
     phone: data.phone,
     email: data.email,
     settings,
-    status: 'pending', // Deactivated by default until platform admin approval
+    status: "pending", // Deactivated by default until platform admin approval
   });
 
   if (error) {
@@ -96,30 +144,10 @@ export async function createHotelProfile(formData: OnboardingInput) {
 
   // Admin staff_profile upsert — the onboarding user MUST become super_admin,
   // otherwise requireAuth() will reject them and they'll be locked out of the
-  // hotel they just created. Surface any failure instead of swallowing it.
-  {
-    const clerkUser = await client.users.getUser(userId);
+  // hotel they just created. Surface any failure instead of swallowing it;
+  // the retry path above repairs it without duplicating the hotel.
+  const staff = await ensureAdminStaffProfile(data.clerk_org_id);
+  if (!staff.ok) return { error: staff.error };
 
-    const { error: staffError } = await supabase.from('staff_profiles').upsert({
-      clerk_org_id:       data.clerk_org_id,
-      clerk_user_id:      userId,
-      email:              clerkUser.emailAddresses?.[0]?.emailAddress ?? null,
-      full_name:          `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim(),
-      avatar_url:         clerkUser.imageUrl ?? null,
-      role:               'super_admin',
-      is_active:          true,
-      granted_at:         new Date().toISOString(),
-      granted_by:         null,
-      notification_prefs: {},
-    }, {
-      onConflict: 'clerk_user_id,clerk_org_id',
-    });
-
-    if (staffError) {
-      console.error("Admin staff_profile upsert error:", staffError);
-      return { error: "Hotel created, but we couldn't set up your admin access. Please contact support." };
-    }
-  }
-
-  return { success: true };
+  return { success: true, slug, resumed: false };
 }
