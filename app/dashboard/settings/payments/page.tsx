@@ -2,8 +2,6 @@ import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { PaymentsSettingsClient } from "./payments-client";
-
-export const dynamic = "force-dynamic";
 export const metadata = { title: "Payments · RoomLine" };
 
 export default async function PaymentsSettingsPage() {

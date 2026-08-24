@@ -1,11 +1,10 @@
+﻿export const dynamic = "force-dynamic";
+
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import Link from "next/link";
 import { HotelsTable } from "../_components/hotels-table";
 import { cn } from "@/lib/utils";
-
-export const dynamic = "force-dynamic";
-
-// ── Filter tab definition ──────────────────────────────────────
+// â”€â”€ Filter tab definition â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const FILTERS = [
   { label: "All",       value: "" },
@@ -14,7 +13,7 @@ const FILTERS = [
   { label: "Suspended", value: "suspended" },
 ] as const;
 
-// ── Reusable: FilterTab ────────────────────────────────────────
+// â”€â”€ Reusable: FilterTab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function FilterTab({
   label,
@@ -47,7 +46,7 @@ function FilterTab({
   );
 }
 
-// ── Page ───────────────────────────────────────────────────────
+// â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type Props = { searchParams: Promise<{ status?: string }> };
 
@@ -71,7 +70,7 @@ export default async function PlatformHotelsPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* ── Page heading ──────────────────────────────────── */}
+      {/* â”€â”€ Page heading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div>
         <h1 className="text-2xl font-bold text-foreground tracking-tight">
           {statusLabel}
@@ -82,7 +81,7 @@ export default async function PlatformHotelsPage({ searchParams }: Props) {
         </p>
       </div>
 
-      {/* ── Filter tabs ───────────────────────────────────── */}
+      {/* â”€â”€ Filter tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div
         role="tablist"
         aria-label="Filter hotels by status"
@@ -103,7 +102,7 @@ export default async function PlatformHotelsPage({ searchParams }: Props) {
         })}
       </div>
 
-      {/* ── Hotels table ──────────────────────────────────── */}
+      {/* â”€â”€ Hotels table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <HotelsTable hotels={hotels ?? []} />
     </div>
   );

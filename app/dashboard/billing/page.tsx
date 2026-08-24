@@ -1,9 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { Check, Lock, MessageCircle, Phone } from "lucide-react";
-
-export const dynamic = "force-dynamic";
-
 // ── Plan definitions ───────────────────────────────────────────────
 
 type PlanKey = "starter" | "growth" | "professional";

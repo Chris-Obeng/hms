@@ -3,9 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { format, subDays } from "date-fns";
 import { ReportsClient } from "./reports-client";
 import { BarChart3 } from "lucide-react";
-
-export const dynamic = "force-dynamic";
-
 export default async function ReportsPage() {
   const { orgId } = await auth();
   if (!orgId) return <NoAccessState />;

@@ -1,24 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ArrowLeft, Bell, Building2, CreditCard, FileClock, type LucideIcon } from "lucide-react";
 
 /**
  * Shared header for settings sub-pages: back link, icon tile, title, subtitle.
- * Keeps every settings sub-page visually identical on desktop and mobile.
+ *
+ * Icons are referenced by NAME (string), never by passing a component from a
+ * Server Component — function props cannot cross the RSC serialization boundary
+ * and crash production builds with React error #441.
  */
+
+const ICONS = {
+  building: Building2,
+  bell: Bell,
+  card: CreditCard,
+  audit: FileClock,
+} satisfies Record<string, LucideIcon>;
+
+export type SubHeaderIcon = keyof typeof ICONS;
+
 export function SettingsSubHeader({
   href = "/dashboard/settings",
-  icon: Icon,
+  icon,
   title,
   subtitle,
 }: {
   href?: string;
-  icon: LucideIcon;
+  icon?: SubHeaderIcon;
   title: string;
   subtitle?: string;
 }) {
+  const Icon = icon ? ICONS[icon] : null;
+
   return (
     <div className="flex items-center gap-3 min-w-0">
       <Link
@@ -28,12 +42,14 @@ export function SettingsSubHeader({
       >
         <ArrowLeft className="size-4" />
       </Link>
-      <div
-        aria-hidden
-        className="hidden sm:flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted/40"
-      >
-        <Icon className="size-4 text-foreground/60" />
-      </div>
+      {Icon && (
+        <div
+          aria-hidden
+          className="hidden sm:flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted/40"
+        >
+          <Icon className="size-4 text-foreground/60" />
+        </div>
+      )}
       <div className="min-w-0">
         <h1 className="text-page-title text-foreground truncate">{title}</h1>
         {subtitle && (

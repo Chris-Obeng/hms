@@ -3,9 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { businessToday } from "@/lib/business-date";
 import { CalendarClient } from "./calendar-client";
 import { getCalendarData, getCurrentStaffRole } from "./actions";
-
-export const dynamic = "force-dynamic";
-
 export const metadata = {
   title: "Calendar | RoomLine",
 };

@@ -1,10 +1,9 @@
+﻿export const dynamic = "force-dynamic";
+
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "@clerk/nextjs";
-
-export const dynamic = "force-dynamic";
-
 export default async function SuspendedPage() {
   const { orgId, userId } = await auth();
 

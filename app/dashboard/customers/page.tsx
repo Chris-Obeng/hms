@@ -2,9 +2,6 @@ import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { Building2, Users } from "lucide-react";
 import { CustomersTable } from "@/components/customers/customers-table";
-
-export const dynamic = "force-dynamic";
-
 export default async function CustomersPage() {
   const { orgId } = await auth();
 

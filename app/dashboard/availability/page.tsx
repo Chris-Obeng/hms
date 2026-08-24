@@ -3,9 +3,6 @@ import { addDays, format, isValid, parseISO } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { AvailabilityMatrixClient, type AvailabilityMatrixData } from "./availability-matrix-client";
 import "./availability.css";
-
-export const dynamic = "force-dynamic";
-
 export const metadata = {
   title: "Availability | RoomLine",
 };

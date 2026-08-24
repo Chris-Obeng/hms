@@ -2,9 +2,6 @@ import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { TransactionsClient } from "./transactions-client";
-
-export const dynamic = "force-dynamic";
-
 export default async function PaymentTransactionsPage() {
   const { orgId } = await auth();
   if (!orgId) redirect("/sign-in");

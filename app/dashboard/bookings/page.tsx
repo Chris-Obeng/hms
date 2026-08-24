@@ -4,9 +4,6 @@ import { businessToday } from "@/lib/business-date";
 import { sortByOperationalRelevance } from "@/lib/bookings/operational-sort";
 import { BookOpen } from "lucide-react";
 import { BookingsTable, type BookingRow } from "@/components/bookings/bookings-table";
-
-export const dynamic = "force-dynamic";
-
 export default async function BookingsPage() {
   const { orgId } = await auth();
   const supabase = await createClient();

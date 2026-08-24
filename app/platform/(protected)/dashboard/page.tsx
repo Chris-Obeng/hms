@@ -1,14 +1,13 @@
+﻿export const dynamic = "force-dynamic";
+
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { Building2, Users, Clock } from "lucide-react";
 import Link from "next/link";
 import { HotelsTable } from "./_components/hotels-table";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-
-export const dynamic = "force-dynamic";
-
 export default async function PlatformDashboard() {
-  // ── Stats ──────────────────────────────────────────────────
+  // â”€â”€ Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [
     { count: totalHotels },
     { count: activeHotels },
@@ -36,7 +35,7 @@ export default async function PlatformDashboard() {
     {} as Record<string, number>
   );
 
-  // ── Recent hotels ─────────────────────────────────────────
+  // â”€â”€ Recent hotels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const { data: hotels } = await supabaseAdmin
     .from("hotels")
     .select("id, name, slug, plan, status, created_at, email, city, country")
@@ -45,7 +44,7 @@ export default async function PlatformDashboard() {
 
   return (
     <div className="space-y-8">
-      {/* ── Page heading ──────────────────────────────────── */}
+      {/* â”€â”€ Page heading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div>
         <h1 className="text-2xl font-bold text-foreground tracking-tight">
           Platform Overview
@@ -55,11 +54,11 @@ export default async function PlatformDashboard() {
         </p>
       </div>
 
-      {/* ── Stat cards ────────────────────────────────────── */}
+      {/* â”€â”€ Stat cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {/*
        * Layout:
        *   mobile (< sm)  : 1 column
-       *   sm – md        : 2 columns
+       *   sm â€“ md        : 2 columns
        *   lg+            : 4 columns
        */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -125,7 +124,7 @@ export default async function PlatformDashboard() {
         </Card>
       </div>
 
-      {/* ── Hotels table ──────────────────────────────────── */}
+      {/* â”€â”€ Hotels table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-foreground">All Hotels</h2>
@@ -133,7 +132,7 @@ export default async function PlatformDashboard() {
             href="/platform/dashboard/hotels?status=pending"
             className="text-xs text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 font-medium transition-colors"
           >
-            {pendingHotels ?? 0} pending approval →
+            {pendingHotels ?? 0} pending approval â†’
           </Link>
         </div>
         <HotelsTable hotels={hotels ?? []} />
@@ -142,7 +141,7 @@ export default async function PlatformDashboard() {
   );
 }
 
-// ── StatCard ───────────────────────────────────────────────────
+// â”€â”€ StatCard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface StatCardProps {
   icon: React.ElementType;

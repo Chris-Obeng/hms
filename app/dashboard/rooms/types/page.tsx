@@ -2,9 +2,6 @@ import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { Building2 } from "lucide-react";
 import { RoomTypesClient } from "./room-types-client";
-
-export const dynamic = "force-dynamic";
-
 export default async function RoomTypesPage() {
   const { orgId } = await auth();
 

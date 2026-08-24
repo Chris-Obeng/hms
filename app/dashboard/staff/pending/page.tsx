@@ -4,9 +4,6 @@ import { Users, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PendingStaffClient } from "./pending-client";
-
-export const dynamic = "force-dynamic";
-
 export default async function PendingStaffPage() {
   const { orgId, userId } = await auth();
 

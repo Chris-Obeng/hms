@@ -6,6 +6,8 @@ import { AppHeader } from '@/components/layout/app-header'
 import { DashboardPwaShell } from '@/components/pwa/dashboard-pwa-shell'
 import { redirect } from 'next/navigation'
 
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardLayout({
   children,
 }: {

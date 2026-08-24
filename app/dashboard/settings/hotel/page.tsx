@@ -4,9 +4,6 @@ import { Building2 } from "lucide-react";
 import { HotelSettingsClient } from "./hotel-client";
 import { BookingPageCard } from "./booking-page-card";
 import { SettingsSubHeader } from "../_components/settings-sub-header";
-
-export const dynamic = "force-dynamic";
-
 export default async function HotelSettingsPage() {
   const { orgId, userId } = await auth();
   if (!orgId || !userId) return <NoAccessState />;
@@ -39,7 +36,7 @@ export default async function HotelSettingsPage() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <SettingsSubHeader icon={Building2} title="Hotel profile" subtitle="Public information, operations, and branding" />
+      <SettingsSubHeader icon="building" title="Hotel profile" subtitle="Public information, operations, and branding" />
 
       {/* Booking page link — always visible */}
       {bookingUrl && <BookingPageCard url={bookingUrl} hotelName={hotel.name} />}

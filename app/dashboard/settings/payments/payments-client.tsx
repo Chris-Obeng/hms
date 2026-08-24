@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "@heroui/react";
-import { CheckCircle2, AlertCircle, CreditCard, Loader2, RefreshCw } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HeroSelectField } from "@/components/ui/hero-select";
@@ -160,7 +160,7 @@ export function PaymentsSettingsClient({ hotelName, initialData }: Props) {
 
   return (
     <div className="space-y-7 max-w-xl">
-      <SettingsSubHeader icon={CreditCard} title="Payments" subtitle="Payment policy and Paystack bank setup" />
+      <SettingsSubHeader icon="card" title="Payments" subtitle="Payment policy and Paystack bank setup" />
 
       {/* Payment Policy */}
       <section className="space-y-3">

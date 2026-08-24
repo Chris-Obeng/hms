@@ -3,9 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { Settings } from "lucide-react";
 import { SettingsNavigation } from "./settings-navigation";
 import { SettingsHeader } from "./settings-header";
-
-export const dynamic = "force-dynamic";
-
 export default async function SettingsPage() {
   const { orgId, userId } = await auth();
   if (!orgId || !userId) {

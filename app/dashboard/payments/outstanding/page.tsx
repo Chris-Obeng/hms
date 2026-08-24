@@ -2,9 +2,6 @@ import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { OutstandingClient } from "./outstanding-client";
-
-export const dynamic = "force-dynamic";
-
 export default async function OutstandingPage() {
   const { orgId } = await auth();
   if (!orgId) redirect("/sign-in");

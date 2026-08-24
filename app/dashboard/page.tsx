@@ -1,9 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardClient } from "./dashboard-client";
-
-export const dynamic = "force-dynamic";
-
 export default async function DashboardHomePage() {
   const { orgId } = await auth();
   const supabase = await createClient();

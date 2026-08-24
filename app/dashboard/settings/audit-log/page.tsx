@@ -1,12 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { ShieldCheck, FileClock } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { AuditLogClient } from "./audit-log-client";
 import { SettingsSubHeader } from "../_components/settings-sub-header";
-
-export const dynamic = "force-dynamic";
-
 export default async function AuditLogPage() {
   const { orgId, userId } = await auth();
   if (!orgId || !userId) redirect("/sign-in");
@@ -49,7 +46,7 @@ export default async function AuditLogPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <SettingsSubHeader icon={FileClock} title="Audit log" subtitle={`Append-only record of all staff actions — ${logs?.length ?? 0} entries`} />
+      <SettingsSubHeader icon="audit" title="Audit log" subtitle={`Append-only record of all staff actions — ${logs?.length ?? 0} entries`} />
 
       <AuditLogClient logs={logs ?? []} />
     </div>

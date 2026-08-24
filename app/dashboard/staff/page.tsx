@@ -5,9 +5,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { StaffClient } from "./staff-client";
-
-export const dynamic = "force-dynamic";
-
 export default async function StaffPage() {
   const { orgId, userId } = await auth();
 

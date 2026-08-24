@@ -4,9 +4,6 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { BookingDeepLinkClient } from "./booking-deep-link-client";
-
-export const dynamic = "force-dynamic";
-
 type Props = { params: Promise<{ id: string }> };
 
 export default async function BookingDetailPage({ params }: Props) {
