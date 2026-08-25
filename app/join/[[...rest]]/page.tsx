@@ -1,5 +1,8 @@
 import { validateInviteToken } from "@/app/actions/invitations";
 import { SignUp } from "@clerk/nextjs";
+import { auth, clerkClient } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { ProcessingInvite } from "./processing-invite";
 
 export default async function JoinPage(props: {
   searchParams: Promise<{ token?: string }>;
@@ -30,7 +33,28 @@ export default async function JoinPage(props: {
     );
   }
 
-  const { hotelName, role } = res;
+  const { hotelName, role, clerkOrgId } = res;
+
+  // Check if user already authenticated
+  const { userId } = await auth();
+  if (userId) {
+    // Check if user already member of this org
+    const clerk = await clerkClient();
+    try {
+      const memberships = await clerk.users.getOrganizationMembershipList({ userId });
+      const isMember = memberships.data.some(m => m.organization.id === clerkOrgId);
+      
+      if (isMember) {
+        // Already member, go to dashboard
+        redirect("/dashboard");
+      }
+    } catch (err) {
+      console.error("Failed to check org membership:", err);
+    }
+    
+    // Not member yet - show processing state with client-side polling
+    return <ProcessingInvite hotelName={hotelName} role={role} orgId={clerkOrgId} />;
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-muted/30 p-4 space-y-6">
@@ -46,7 +70,9 @@ export default async function JoinPage(props: {
 
       <SignUp 
         path="/join"
-        forceRedirectUrl="/dashboard" 
+        signInUrl={`/sign-in?redirect_url=${encodeURIComponent(`/join?token=${token}`)}`}
+        forceRedirectUrl={`/join?token=${token}`}
+        fallbackRedirectUrl="/dashboard"
         unsafeMetadata={{ inviteToken: token }} 
       />
     </div>

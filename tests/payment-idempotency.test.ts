@@ -27,6 +27,8 @@ function recorded() {
     paymentInserts: [] as Record<string, unknown>[],
     bookingUpdates: [] as Record<string, unknown>[],
     notificationInserts: [] as Record<string, unknown>[],
+    amountPaid: 0,
+    rpcCalls: [] as { p_booking_id: string; p_hotel_id: string; p_amount: number }[],
   };
 }
 
@@ -87,7 +89,17 @@ function makeDb() {
     return api;
   }
 
-  return { from };
+  return {
+    from,
+    rpc: (fn: string, args: { p_booking_id: string; p_hotel_id: string; p_amount: number }) => {
+      if (fn !== "add_online_payment_to_booking") {
+        return Promise.resolve({ data: null, error: { message: `unexpected rpc ${fn}` } });
+      }
+      state.rpcCalls.push(args);
+      state.amountPaid += args.p_amount;
+      return Promise.resolve({ data: state.amountPaid, error: null });
+    },
+  };
 }
 
 const BOOKING = {
@@ -172,6 +184,36 @@ describe("recordOnlinePayment — idempotency & money integrity", () => {
     expect(result.partial).toBe(true);
     expect(state.bookingUpdates[0]).toMatchObject({ status: "pending", payment_status: "partial" });
     expect(String(state.paymentInserts[0].notes)).toContain("Partial payment");
+  });
+
+  it("two partial payments accumulate — the second one confirms without losing the first", async () => {
+    const first = await recordOnlinePayment({
+      bookingId: "b-1",
+      paystackReference: "HTL-101-p1",
+      amountPaid: 300,
+      currency: "GHS",
+    });
+    if (first.outcome === "failed") throw new Error(first.error);
+    expect(first.partial).toBe(true);
+    expect(state.bookingUpdates[0]).toMatchObject({ status: "pending", payment_status: "partial" });
+
+    const second = await recordOnlinePayment({
+      bookingId: "b-1",
+      paystackReference: "HTL-101-p2",
+      amountPaid: 200,
+      currency: "GHS",
+    });
+    expect(second.outcome).toBe("recorded");
+    if (second.outcome === "failed") throw new Error(second.error);
+    expect(second.fullyPaid).toBe(true);
+    // Cumulative money (500) drives confirmation, not the last txn's amount.
+    expect(state.bookingUpdates[1]).toMatchObject({ status: "confirmed", payment_status: "paid" });
+    expect(state.rpcCalls).toEqual([
+      { p_booking_id: "b-1", p_hotel_id: "h-1", p_amount: 300 },
+      { p_booking_id: "b-1", p_hotel_id: "h-1", p_amount: 200 },
+    ]);
+    // Booking update must never overwrite the accumulated total.
+    expect(state.bookingUpdates.every((u) => !("amount_paid" in u))).toBe(true);
   });
 
   it("currency mismatch fails closed without inserting a payment", async () => {

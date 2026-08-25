@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { SiteHeader } from "@/components/landing/site-header";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { Hero } from "@/components/landing/hero";
-import { ProofSection } from "@/components/landing/proof";
-import { HowItWorks } from "@/components/landing/how-it-works";
-import { AfricaStrip } from "@/components/landing/africa-strip";
-import { FounderNote } from "@/components/landing/founder-note";
-import { PricingTeaser } from "@/components/landing/pricing-teaser";
+import { Problem } from "@/components/landing/problem";
+import { Showcase } from "@/components/landing/showcase";
+import { Capabilities } from "@/components/landing/capabilities";
+import { TrustStrip } from "@/components/landing/trust-strip";
+import { Pricing } from "@/components/landing/pricing";
+import { SocialProof } from "@/components/landing/social-proof";
+import { FinalCta } from "@/components/landing/final-cta";
 
 export const metadata: Metadata = {
   title: "Hotel management for Ghana and across Africa",
@@ -16,15 +18,17 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <div className="min-h-dvh bg-forest text-ivory selection:bg-gold/30">
+    <div data-theme="landing" className="light min-h-dvh bg-background text-foreground">
       <SiteHeader />
       <main>
         <Hero />
-        <ProofSection />
-        <HowItWorks />
-        <AfricaStrip />
-        <FounderNote />
-        <PricingTeaser />
+        <Problem />
+        <Showcase />
+        <Capabilities />
+        <TrustStrip />
+        <Pricing />
+        <SocialProof />
+        <FinalCta />
       </main>
       <SiteFooter />
     </div>

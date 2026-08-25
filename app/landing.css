@@ -1,0 +1,256 @@
+/* ═══════════════════════════════════════════════════════════════════
+   RoomLine marketing landing — scoped design system (light theme)
+
+   Scoping: every var lives under [data-theme="landing"], so the app
+   dashboard keeps its own theme untouched. Custom properties inherit
+   from the nearest ancestor, so these values win over any .dark /
+   .light class set on <html> without needing !important.
+
+   Scale laws (from design-language doc):
+   · Canvas white; ONE cool tint layer for alternating sections.
+   · Ink blue-black; body copy muted; ONE accent (brand indigo)
+     reserved for CTAs, links, focus — never decoration.
+   · Sections sit on a single spacing scale: 64px mobile / 96px desktop.
+   · Type: one family (Plus Jakarta Sans), five locked sizes.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  [data-theme="landing"] {
+    color-scheme: light;
+
+    /* ── Core palette ──────────────────────────────────────────── */
+    --background: #ffffff;
+    --foreground: oklch(0.235 0.03 262);            /* ink, blue-black */
+    --muted: oklch(0.51 0.024 260);                 /* body copy       */
+    --surface: #ffffff;
+    --surface-foreground: var(--foreground);
+    --overlay: #ffffff;
+    --overlay-foreground: var(--foreground);
+
+    /* Brand indigo — same hue as the in-app primary */
+    --accent: oklch(0.52 0.19 261);
+    --accent-foreground: #ffffff;
+
+    /* Derived tokens HeroUI computes at :root — recompute here so
+       they resolve against the landing values above. */
+    --accent-hover: oklch(0.47 0.19 261);
+    --accent-soft: oklch(0.52 0.19 261 / 0.12);
+    --accent-soft-foreground: oklch(0.42 0.17 261);
+    --background-secondary: oklch(0.985 0.003 255);
+    --background-inverse: var(--foreground);
+    --focus: var(--accent);
+    --link: var(--foreground);
+
+    --default: oklch(0.955 0.005 255);
+    --default-foreground: var(--foreground);
+
+    /* Hairlines & tinted section layer */
+    --border: oklch(0.925 0.008 253);
+    --separator: oklch(0.94 0.006 253);
+
+    /* Landing-only primitives (not HeroUI tokens) */
+    --lp-tint: oklch(0.978 0.007 250);              /* #f7f9fc cool  */
+    --lp-tint-strong: oklch(0.962 0.011 250);
+    --lp-hairline: oklch(0.918 0.008 253);
+    --lp-media-shadow:
+      0 1px 2px rgba(11, 24, 51, 0.05),
+      0 8px 24px rgba(11, 24, 51, 0.07),
+      0 32px 64px -16px rgba(11, 24, 51, 0.14);
+  }
+}
+
+@layer components {
+  /* ── Layout primitives ──────────────────────────────────────── */
+  .lp-container {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 72rem;               /* 1152px content column */
+    padding-inline: 1.25rem;
+  }
+  @media (min-width: 1024px) {
+    .lp-container { padding-inline: 2rem; }
+  }
+
+  .lp-section { padding-block: 4rem; }             /* 64px  */
+  @media (min-width: 768px) {
+    .lp-section { padding-block: 6rem; }           /* 96px  */
+  }
+
+  /* Tinted alternating section */
+  .lp-section--tint {
+    background-color: var(--lp-tint);
+  }
+
+  /* ── Type scale (locked — do not eyeball sizes elsewhere) ──── */
+  .lp-display {
+    font-size: clamp(2.5rem, 5.2vw, 3.75rem);       /* 40 → 60px */
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+    font-weight: 600;
+  }
+
+  .lp-title {
+    font-size: clamp(1.75rem, 3.2vw, 2.375rem);     /* 28 → 38px */
+    line-height: 1.12;
+    letter-spacing: -0.028em;
+    font-weight: 600;
+  }
+
+  .lp-heading {
+    font-size: 1.125rem;                            /* 18px */
+    line-height: 1.35;
+    letter-spacing: -0.015em;
+    font-weight: 600;
+  }
+
+  /* Capability/feature titles — one step above lp-heading */
+  .lp-feature-title {
+    font-size: clamp(1.25rem, 2vw, 1.5rem);         /* 20 → 24px */
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+
+  .lp-quote {
+    font-size: clamp(1.25rem, 2.4vw, 1.5rem);       /* 20 → 24px */
+    line-height: 1.5;
+    letter-spacing: -0.015em;
+    font-weight: 500;
+  }
+
+  /* Plan price — numerals only, tabular */
+  .lp-price {
+    font-size: 2rem;                                /* 32px */
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lp-lead {
+    font-size: 1.125rem;                            /* 18px */
+    line-height: 1.6;
+    color: var(--muted);
+  }
+  @media (min-width: 768px) {
+    .lp-lead { font-size: 1.1875rem; }              /* 19px */
+  }
+
+  .lp-body {
+    font-size: 1rem;                                /* 16px */
+    line-height: 1.65;
+    color: var(--muted);
+  }
+
+  .lp-small {
+    font-size: 0.875rem;                            /* 14px */
+    line-height: 1.55;
+    color: var(--muted);
+  }
+
+  .lp-eyebrow {
+    font-size: 0.8125rem;                           /* 13px */
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .lp-micro {
+    font-size: 0.8125rem;                           /* 13px */
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  /* ── Product media frame (screenshots, demo player) ─────────── */
+  .lp-frame {
+    border-radius: 1rem;
+    border: 1px solid var(--lp-hairline);
+    background: var(--surface);
+    box-shadow: var(--lp-media-shadow);
+    overflow: hidden;
+  }
+
+  .lp-frame__bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 2.75rem;
+    padding-inline: 1rem;
+    border-bottom: 1px solid var(--lp-hairline);
+    background: var(--lp-tint);
+  }
+
+  .lp-frame__dot {
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 9999px;
+    background: oklch(0.88 0.008 253);
+  }
+
+  .lp-frame__url {
+    margin-inline: auto;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--lp-hairline);
+    border-radius: 0.375rem;
+    padding: 0.25rem 0.75rem;
+  }
+
+  /* Fixed-aspect stage so the player never causes layout shift.
+     16:9 everywhere; on small phones the 16:9 composition is
+     center-cropped inside a taller 4:5 stage. */
+  .lp-stage {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: linear-gradient(
+      180deg,
+      var(--lp-tint) 0%,
+      var(--lp-tint-strong) 100%
+    );
+  }
+
+  .lp-stage__fit {
+    position: absolute;
+    inset: 0;
+  }
+
+  @media (max-width: 639px) {
+    .lp-stage { aspect-ratio: 4 / 5; }
+    .lp-stage__fit {
+      top: 50%;
+      left: 50%;
+      bottom: auto;
+      right: auto;
+      height: 100%;
+      width: auto;
+      aspect-ratio: 16 / 9;
+      transform: translate(-50%, -50%);
+    }
+  }
+
+  /* Reveal-on-scroll: translateY ≤16px fade, 300ms ease-out.
+     Applied via data-reveal; IntersectionObserver adds data-shown. */
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(16px);
+    transition:
+      opacity 300ms ease-out,
+      transform 300ms ease-out;
+  }
+  [data-reveal][data-shown="true"] {
+    opacity: 1;
+    transform: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-reveal] {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+  }
+}

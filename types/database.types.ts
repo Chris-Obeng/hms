@@ -510,6 +510,7 @@ export type Database = {
           attempt_count: number
           created_at: string
           delivered_at: string | null
+          delivered_subscription_ids: string[]
           id: string
           last_error: string | null
           locked_at: string | null
@@ -523,6 +524,7 @@ export type Database = {
           attempt_count?: number
           created_at?: string
           delivered_at?: string | null
+          delivered_subscription_ids?: string[]
           id?: string
           last_error?: string | null
           locked_at?: string | null
@@ -536,6 +538,7 @@ export type Database = {
           attempt_count?: number
           created_at?: string
           delivered_at?: string | null
+          delivered_subscription_ids?: string[]
           id?: string
           last_error?: string | null
           locked_at?: string | null
@@ -1227,6 +1230,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_online_payment_to_booking: {
+        Args: { p_amount: number; p_booking_id: string; p_hotel_id: string }
+        Returns: number
+      }
       check_room_availability: {
         Args: {
           p_check_in: string
@@ -1243,6 +1250,29 @@ export type Database = {
           status: string
         }[]
       }
+      claim_push_jobs: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempt_count: number
+          created_at: string
+          delivered_at: string | null
+          delivered_subscription_ids: string[]
+          id: string
+          last_error: string | null
+          locked_at: string | null
+          next_attempt_at: string
+          notification_id: string
+          recipient_staff_id: string
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "notification_delivery_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       expire_stale_payment_holds: { Args: never; Returns: number }
       generate_booking_reference: {
         Args: { p_hotel_id: string; p_prefix?: string }
@@ -1250,6 +1280,7 @@ export type Database = {
       }
       get_user_clerk_org_ids: { Args: never; Returns: string[] }
       get_user_hotel_ids: { Args: never; Returns: string[] }
+      prune_push_delivery_data: { Args: never; Returns: undefined }
       reconcile_pending_payments: { Args: never; Returns: number }
       record_payment_atomic: {
         Args: {
@@ -1276,6 +1307,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      user_has_staff_role: {
+        Args: { p_hotel_id: string; p_roles: string[] }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

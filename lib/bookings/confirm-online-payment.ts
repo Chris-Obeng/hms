@@ -17,6 +17,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { sendBookingConfirmation } from "@/lib/notifications/send-booking-confirmation";
+import { kickDeliveryWorker } from "@/lib/notifications/kick-delivery";
 
 export type PaymentRecording =
   | {
@@ -72,6 +73,7 @@ async function alertOncePerBooking(
     booking_id: bookingId,
     is_read: false,
   });
+  kickDeliveryWorker();
 }
 
 export async function recordOnlinePayment(
@@ -206,15 +208,39 @@ export async function recordOnlinePayment(
     };
   }
 
-  const newStatus = isFull || isOver ? "confirmed" : "pending";
-  const newPaymentStatus = isFull || isOver ? "paid" : "partial";
+  // Accumulate atomically server-side: overwriting amount_paid with this
+  // transaction's value would drop earlier partial payments from the total.
+  const { data: cumulativePaid, error: accumulateError } = await supabaseAdmin.rpc(
+    "add_online_payment_to_booking",
+    { p_booking_id: bookingId, p_hotel_id: booking.hotel_id, p_amount: amountPaid }
+  );
+
+  if (accumulateError) {
+    console.error("[payments/record] Failed to accumulate amount_paid", {
+      bookingId,
+      paystackReference,
+      error: accumulateError.message,
+    });
+  }
+
+  // Classify against money actually collected across all transactions, not
+  // just this one — two partial payments can together confirm the booking.
+  const effectiveCumulative =
+    typeof cumulativePaid === "number"
+      ? cumulativePaid
+      : Number.isFinite(Number(cumulativePaid))
+        ? Number(cumulativePaid)
+        : amountPaid;
+  const cumulativelyFull = effectiveCumulative >= expectedAmount - AMOUNT_TOLERANCE;
+
+  const newStatus = cumulativelyFull ? "confirmed" : "pending";
+  const newPaymentStatus = cumulativelyFull ? "paid" : "partial";
 
   const { error: bookingUpdateError } = await supabaseAdmin
     .from("bookings")
     .update({
       status: newStatus,
       payment_status: newPaymentStatus,
-      amount_paid: amountPaid,
       ...(wasTimeoutCancelled ? { cancelled_at: null, cancellation_reason: null } : {}),
     })
     .eq("id", bookingId)
@@ -231,16 +257,18 @@ export async function recordOnlinePayment(
   }
 
   // ── 5. Staff notifications ───────────────────────────────────
+  const balance = Math.max(0, expectedAmount - effectiveCumulative);
   const { error: notifyError } = await supabaseAdmin.from("notifications").insert({
     hotel_id: booking.hotel_id,
     type: "payment_received",
     title: isPartial ? "Partial Payment Received" : isOver ? "Payment Received (overpaid)" : "Payment Received",
     message: `Online payment of ${bookingCurrency} ${amountPaid.toFixed(2)} ${
-      isPartial ? `(partial — balance: ${(expectedAmount - amountPaid).toFixed(2)})` : "confirmed"
+      cumulativelyFull ? "confirmed" : `(balance: ${balance.toFixed(2)})`
     }`,
     booking_id: bookingId,
     is_read: false,
   });
+  kickDeliveryWorker();
   if (notifyError) {
     console.error("[payments/record] Failed to write staff notification", {
       bookingId,
@@ -249,7 +277,7 @@ export async function recordOnlinePayment(
     });
   }
 
-  if (!isFull && !isOver) return {
+  if (!cumulativelyFull) return {
     outcome: "recorded",
     bookingId,
     hotelId: booking.hotel_id,
@@ -406,5 +434,7 @@ export async function notifyStaffNewBooking(
       bookingId,
       error: error.message,
     });
+    return;
   }
+  kickDeliveryWorker();
 }

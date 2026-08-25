@@ -6,6 +6,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { format } from "date-fns";
 import { writeAuditLog } from "@/lib/audit";
 import { requireMinRole, toActionError } from "@/lib/auth";
+import { kickDeliveryWorker } from "@/lib/notifications/kick-delivery";
 import { canTransitionBooking } from "@/lib/booking-status";
 
 // ── Schemas ──────────────────────────────────────────────────────
@@ -335,7 +336,19 @@ export async function createBooking(
         created_by_staff_id: ctx.staffId,
         recipient_staff_id: staff.id,
       }));
-    if (rows.length) await supabase.from("notifications").insert(rows as never);
+    if (rows.length) {
+      const { error: notifyError } = await supabase.from("notifications").insert(rows as never);
+      if (notifyError) {
+        // Booking already persisted; losing alerts must not fail the request,
+        // but it must never fail silently either.
+        console.error("[createBooking] staff notification insert failed", {
+          bookingId: booking.id,
+          error: notifyError.message,
+        });
+      } else {
+        kickDeliveryWorker();
+      }
+    }
 
     return { success: true, bookingId: booking.id, reference: booking.reference };
   } catch (err) {

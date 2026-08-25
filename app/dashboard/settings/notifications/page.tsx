@@ -13,6 +13,7 @@ import { getNotificationTemplates } from "@/app/actions/notification-templates";
 import { NotificationTemplatesClient } from "./templates-client";
 import type { NotificationEventType, NotificationTemplate } from "@/lib/notification-templates";
 import { disableWebPush, enableWebPush } from "@/lib/push";
+import { sendTestPushAction } from "@/app/actions/push-test";
 import { SettingsSubHeader } from "../_components/settings-sub-header";
 
 // ── Event Types ────────────────────────────────────────────────────
@@ -36,6 +37,7 @@ export default function NotificationSettingsPage() {
   const [eventPrefs, setEventPrefs] = React.useState<Record<string, boolean>>({});
   const [savingEvents, setSavingEvents] = React.useState<Set<string>>(() => new Set());
   const [notifTemplates, setNotifTemplates] = React.useState<Record<NotificationEventType, NotificationTemplate> | null>(null);
+  const [sendingTest, setSendingTest] = React.useState(false);
   const eventPrefsRef = React.useRef<Record<string, boolean>>({});
   const saveQueueRef = React.useRef<Promise<void>>(Promise.resolve());
   const isMountedRef = React.useRef(false);
@@ -163,6 +165,21 @@ export default function NotificationSettingsPage() {
     }
   };
 
+  // Send a test notification through the real delivery pipeline
+  const sendTestPush = async () => {
+    setSendingTest(true);
+    try {
+      const result = await sendTestPushAction();
+      if (result.success) {
+        toast.success("Test sent — check for a browser push alert");
+      } else {
+        toast.danger(result.error || "Could not send test notification");
+      }
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
   // Test sound
   const playTestSound = () => {
     try {
@@ -272,6 +289,16 @@ export default function NotificationSettingsPage() {
               </p>
             )}
           </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-lg text-xs h-8"
+            onClick={sendTestPush}
+            disabled={!browserAlertsEnabled || sendingTest}
+          >
+            {sendingTest ? "Sending..." : "Send Test Notification"}
+          </Button>
         </CardContent>
       </Card>
 

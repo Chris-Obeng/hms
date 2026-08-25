@@ -1,21 +1,33 @@
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 
+/*
+ * Remotion product demo — the hero's signature moment.
+ * Four scenes follow one booking end-to-end: an OTA reservation lands,
+ * the calendar holds room 204, mobile money confirms, night audit closes.
+ * Light UI to match the actual product; every number Ghana-specific
+ * (GHS totals, VAT/NHIL/GETFund/levy breakdown, MTN MoMo).
+ */
+
 export const WIDTH = 1280;
 export const HEIGHT = 720;
 export const SCENE_FRAMES = 150;
 export const DURATION_IN_FRAMES = SCENE_FRAMES * 4;
 
+const INK = "#0f1c33";
+const MUTED = "#5a6a85";
+const HAIRLINE = "#e5eaf2";
+const TINT = "#f6f8fc";
+const CARD = "#ffffff";
+const ACCENT = "#3b4fd8";
+const SUCCESS = "#0e8a5f";
+const SOFT_SUCCESS = "#e7f6ef";
+
 export function ProductDemo() {
   return (
-    <div
+    <AbsoluteFill
       style={{
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
         background:
-          "radial-gradient(120% 90% at 50% 0%, rgba(212,175,55,0.10), transparent 55%), #0a0f0d",
+          "radial-gradient(120% 90% at 50% -10%, #eef2fa 0%, transparent 60%), linear-gradient(180deg, #f8fafd 0%, #f1f5fb 100%)",
         fontFamily:
           "var(--font-jakarta), system-ui, -apple-system, 'Segoe UI', sans-serif",
       }}
@@ -32,14 +44,10 @@ export function ProductDemo() {
       <SceneLayer offset={3 * SCENE_FRAMES}>
         <NightAuditScene />
       </SceneLayer>
-    </div>
+    </AbsoluteFill>
   );
 }
 
-/*
- * Scene shell: absolutely positioned full-size layer whose opacity is driven by
- * the local timeline.
- */
 function SceneLayer({
   offset,
   children,
@@ -57,7 +65,7 @@ function SceneLayer({
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const rise = interpolate(local, [0, 18], [18, 0], {
+  const rise = interpolate(local, [0, 18], [14, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
@@ -79,44 +87,27 @@ function SceneLayer({
 
 /* ── Shared bits ─────────────────────────────────────────────── */
 
-function WindowChrome({ title }: { title: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        height: 44,
-        padding: "0 16px",
-        borderBottom: "1px solid rgba(245,240,232,0.07)",
-      }}
-    >
-      <div style={{ display: "flex", gap: 7 }}>
-        <Dot color="rgba(239,68,68,0.45)" />
-        <Dot color="rgba(234,179,8,0.45)" />
-        <Dot color="rgba(34,197,94,0.45)" />
-      </div>
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
-          color: "rgba(245,240,232,0.35)",
-        }}
-      >
-        {title}
-      </span>
-      <span style={{ width: 40 }} />
-    </div>
-  );
-}
-
-function Dot({ color }: { color: string }) {
+function StepPill({ step }: { step: string }) {
   return (
     <span
-      style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: color }}
-    />
+      style={{
+        position: "absolute",
+        top: 44,
+        left: "50%",
+        transform: "translateX(-50%)",
+        fontSize: 13,
+        fontWeight: 600,
+        letterSpacing: "0.01em",
+        color: INK,
+        backgroundColor: CARD,
+        border: `1px solid ${HAIRLINE}`,
+        boxShadow: "0 2px 8px rgba(15,28,51,0.06)",
+        padding: "7px 16px",
+        borderRadius: 999,
+      }}
+    >
+      {step}
+    </span>
   );
 }
 
@@ -131,11 +122,12 @@ function StageCard({
     <div
       style={{
         width,
-        borderRadius: 20,
-        border: "1px solid rgba(245,240,232,0.09)",
-        backgroundColor: "#10151299",
+        borderRadius: 18,
+        border: `1px solid ${HAIRLINE}`,
+        backgroundColor: CARD,
         overflow: "hidden",
-        boxShadow: "0 24px 60px rgba(0,0,0,0.45)",
+        boxShadow:
+          "0 1px 2px rgba(15,28,51,0.05), 0 12px 32px rgba(15,28,51,0.08), 0 32px 64px -16px rgba(15,28,51,0.14)",
       }}
     >
       {children}
@@ -143,30 +135,51 @@ function StageCard({
   );
 }
 
-function StepPill({ step }: { step: string }) {
+function Fact({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+}) {
   return (
-    <span
+    <div
       style={{
-        position: "absolute",
-        top: 40,
-        left: "50%",
-        transform: "translateX(-50%)",
-        fontSize: 13,
-        fontWeight: 600,
-        letterSpacing: "0.02em",
-        color: "#e5c158",
-        border: "1px solid rgba(212,175,55,0.35)",
-        backgroundColor: "rgba(212,175,55,0.08)",
-        padding: "6px 14px",
-        borderRadius: 999,
+        borderRadius: 12,
+        border: `1px solid ${HAIRLINE}`,
+        backgroundColor: TINT,
+        padding: "10px 12px",
       }}
     >
-      {step}
-    </span>
+      <p
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.09em",
+          textTransform: "uppercase",
+          color: MUTED,
+        }}
+      >
+        {label}
+      </p>
+      <p
+        style={{
+          marginTop: 3,
+          fontSize: 14,
+          fontWeight: 700,
+          fontVariantNumeric: "tabular-nums",
+          color: accent ? ACCENT : INK,
+        }}
+      >
+        {value}
+      </p>
+    </div>
   );
 }
 
-/* ── Scene 1: booking lands ──────────────────────────────────── */
+/* ── Scene 1: a booking comes in ─────────────────────────────── */
 
 function BookingScene() {
   const frame = useCurrentFrame();
@@ -176,9 +189,8 @@ function BookingScene() {
   });
   return (
     <>
-      <StepPill step="A booking comes in" />
+      <StepPill step="A Booking.com reservation lands" />
       <StageCard width={520}>
-        <WindowChrome title="RoomLine · New booking" />
         <div style={{ padding: "22px 24px 26px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <span
@@ -186,21 +198,23 @@ function BookingScene() {
                 width: 46,
                 height: 46,
                 borderRadius: 14,
-                backgroundColor: "rgba(212,175,55,0.14)",
-                color: "#e5c158",
+                backgroundColor: TINT,
+                border: `1px solid ${HAIRLINE}`,
+                color: ACCENT,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 20,
+                fontSize: 17,
+                fontWeight: 700,
               }}
             >
-              KW
+              KM
             </span>
             <div>
-              <p style={{ fontSize: 17, fontWeight: 700, color: "#f5f0e8" }}>
+              <p style={{ fontSize: 17, fontWeight: 700, color: INK }}>
                 Kwabena Mensah
               </p>
-              <p style={{ fontSize: 13, color: "rgba(245,240,232,0.5)" }}>
+              <p style={{ fontSize: 13, color: MUTED }}>
                 Booked online · Ashanti Suites, Kumasi
               </p>
             </div>
@@ -209,8 +223,8 @@ function BookingScene() {
                 marginLeft: "auto",
                 fontSize: 11,
                 fontWeight: 700,
-                color: "#34d399",
-                border: "1px solid rgba(52,211,153,0.35)",
+                color: SUCCESS,
+                backgroundColor: SOFT_SUCCESS,
                 borderRadius: 999,
                 padding: "4px 10px",
               }}
@@ -232,7 +246,6 @@ function BookingScene() {
           </div>
         </div>
       </StageCard>
-      {/* notification toast sliding in */}
       <div
         style={{
           position: "absolute",
@@ -248,10 +261,12 @@ function BookingScene() {
           gap: 10,
           padding: "12px 16px",
           borderRadius: 14,
-          border: "1px solid rgba(245,240,232,0.1)",
-          backgroundColor: "#14191588",
+          border: `1px solid ${HAIRLINE}`,
+          backgroundColor: CARD,
+          boxShadow: "0 8px 24px rgba(15,28,51,0.10)",
           fontSize: 13,
-          color: "#f5f0e8",
+          fontWeight: 500,
+          color: INK,
         }}
       >
         <span
@@ -259,7 +274,7 @@ function BookingScene() {
             width: 8,
             height: 8,
             borderRadius: 999,
-            backgroundColor: "#e5c158",
+            backgroundColor: SUCCESS,
           }}
         />
         Front desk calendar updated
@@ -268,50 +283,7 @@ function BookingScene() {
   );
 }
 
-function Fact({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        borderRadius: 12,
-        border: "1px solid rgba(245,240,232,0.08)",
-        padding: "10px 12px",
-      }}
-    >
-      <p
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          color: "rgba(245,240,232,0.38)",
-        }}
-      >
-        {label}
-      </p>
-      <p
-        style={{
-          marginTop: 3,
-          fontSize: 14,
-          fontWeight: 700,
-          fontVariantNumeric: "tabular-nums",
-          color: accent ? "#e5c158" : "#f5f0e8",
-        }}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-/* ── Scene 2: calendar updates ───────────────────────────────── */
+/* ── Scene 2: the calendar fills itself ──────────────────────── */
 
 type Block = {
   room: string;
@@ -320,12 +292,12 @@ type Block = {
   span: number;
   label: string;
   sub?: string;
-  tone: "gold" | "emerald" | "neutral";
+  tone: "accent" | "emerald" | "neutral";
 };
 
 const CAL_ROWS: Block[] = [
   { room: "101", type: "Standard", colStart: 1, span: 3, label: "Ama Owusu", sub: "Paid · MoMo", tone: "emerald" },
-  { room: "102", type: "Deluxe", colStart: 3, span: 4, label: "Kwabena Mensah", sub: "Confirmed", tone: "gold" },
+  { room: "102", type: "Deluxe", colStart: 3, span: 4, label: "Kwabena Mensah", sub: "Confirmed", tone: "accent" },
   { room: "201", type: "Suite", colStart: 5, span: 2, label: "Walk-in", sub: "Cash", tone: "emerald" },
 ];
 
@@ -337,9 +309,8 @@ function CalendarScene() {
   });
   return (
     <>
-      <StepPill step="Your calendar fills itself" />
+      <StepPill step="Room 204 is held before check-in" />
       <StageCard width={620}>
-        <WindowChrome title="RoomLine · Front desk · Aug 24–30" />
         <div style={{ padding: "18px 20px 22px" }}>
           <div
             style={{
@@ -347,7 +318,7 @@ function CalendarScene() {
               gridTemplateColumns: "86px repeat(7, 1fr)",
               fontSize: 11,
               fontWeight: 600,
-              color: "rgba(245,240,232,0.4)",
+              color: MUTED,
               marginBottom: 8,
             }}
           >
@@ -371,8 +342,8 @@ function CalendarScene() {
                     gap: 0,
                   }}
                 >
-                  <span style={{ fontSize: 12, color: "rgba(245,240,232,0.55)" }}>
-                    <b style={{ color: "#f5f0e8" }}>{b.room}</b> {b.type}
+                  <span style={{ fontSize: 12, color: MUTED }}>
+                    <b style={{ color: INK }}>{b.room}</b> {b.type}
                   </span>
                   {Array.from({ length: 7 }, (_, cell) => {
                     const inBlock = cell + 1 >= b.colStart && cell + 1 < b.colStart + b.span;
@@ -384,12 +355,18 @@ function CalendarScene() {
                             height: 30,
                             margin: 2,
                             borderRadius: 8,
-                            border: "1px dashed rgba(245,240,232,0.1)",
+                            border: `1px dashed ${HAIRLINE}`,
+                            backgroundColor: TINT,
                           }}
                         />
                       );
                     }
                     const isFirst = cell + 1 === b.colStart;
+                    const toneBg =
+                      b.tone === "accent" ? "#edf0fc" : b.tone === "emerald" ? SOFT_SUCCESS : TINT;
+                    const toneBorder =
+                      b.tone === "accent" ? "#c9d2f4" : b.tone === "emerald" ? "#bfe5d6" : HAIRLINE;
+                    const toneText = b.tone === "accent" ? ACCENT : b.tone === "emerald" ? SUCCESS : MUTED;
                     return (
                       <span
                         key={cell}
@@ -404,20 +381,12 @@ function CalendarScene() {
                           fontSize: 11,
                           fontWeight: 600,
                           paddingLeft: 8,
-                          color: b.tone === "gold" ? "#e5c158" : "#34d399",
-                          backgroundColor:
-                            b.tone === "gold"
-                              ? "rgba(212,175,55,0.12)"
-                              : "rgba(52,211,153,0.1)",
-                          border:
-                            b.tone === "gold"
-                              ? "1px solid rgba(212,175,55,0.4)"
-                              : "1px solid rgba(52,211,153,0.35)",
+                          color: toneText,
+                          backgroundColor: toneBg,
+                          border: `1px solid ${toneBorder}`,
                         }}
                       >
-                        {isFirst
-                          ? `${b.label}${b.sub ? ` · ${b.sub}` : ""}`
-                          : ""}
+                        {isFirst ? `${b.label}${b.sub ? ` · ${b.sub}` : ""}` : ""}
                       </span>
                     );
                   })}
@@ -425,12 +394,11 @@ function CalendarScene() {
               );
             })}
           </div>
-          {/* highlight sweep on the new booking */}
           <div
             style={{
               marginTop: 14,
               fontSize: 12,
-              color: "rgba(245,240,232,0.5)",
+              color: MUTED,
               display: "flex",
               alignItems: "center",
               gap: 8,
@@ -441,12 +409,12 @@ function CalendarScene() {
                 width: 18,
                 height: 3,
                 borderRadius: 2,
-                backgroundColor: "#e5c158",
+                backgroundColor: ACCENT,
                 transform: `scaleX(${grow})`,
                 transformOrigin: "left",
               }}
             />
-            Room 102 held automatically for Kwabena&apos;s dates
+            No overlap — double bookings blocked automatically
           </div>
         </div>
       </StageCard>
@@ -454,7 +422,7 @@ function CalendarScene() {
   );
 }
 
-/* ── Scene 3: payment confirmed ──────────────────────────────── */
+/* ── Scene 3: money settles ──────────────────────────────────── */
 
 function PaymentScene() {
   const frame = useCurrentFrame();
@@ -464,9 +432,8 @@ function PaymentScene() {
   });
   return (
     <>
-      <StepPill step="Money settles to you" />
+      <StepPill step="MTN Mobile Money confirms in seconds" />
       <StageCard width={500}>
-        <WindowChrome title="RoomLine · Payment received" />
         <div style={{ padding: "22px 24px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <span
@@ -474,8 +441,8 @@ function PaymentScene() {
                 width: 44,
                 height: 44,
                 borderRadius: 999,
-                backgroundColor: "rgba(52,211,153,0.14)",
-                border: "1px solid rgba(52,211,153,0.4)",
+                backgroundColor: SOFT_SUCCESS,
+                border: "1px solid #bfe5d6",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -485,7 +452,7 @@ function PaymentScene() {
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path
                   d="M4 10.5l4 4 8-9"
-                  stroke="#34d399"
+                  stroke={SUCCESS}
                   strokeWidth="2.4"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -493,10 +460,10 @@ function PaymentScene() {
               </svg>
             </span>
             <div>
-              <p style={{ fontSize: 18, fontWeight: 800, color: "#f5f0e8", fontVariantNumeric: "tabular-nums" }}>
+              <p style={{ fontSize: 18, fontWeight: 800, color: INK, fontVariantNumeric: "tabular-nums" }}>
                 GHS 1,548.80
               </p>
-              <p style={{ fontSize: 13, color: "rgba(245,240,232,0.5)" }}>
+              <p style={{ fontSize: 13, color: MUTED }}>
                 MTN Mobile Money · ref 8837**** · Paystack
               </p>
             </div>
@@ -514,7 +481,7 @@ function PaymentScene() {
                   display: "flex",
                   justifyContent: "space-between",
                   fontSize: 13,
-                  color: "rgba(245,240,232,0.62)",
+                  color: MUTED,
                   fontVariantNumeric: "tabular-nums",
                 }}
               >
@@ -524,13 +491,13 @@ function PaymentScene() {
             ))}
             <div
               style={{
-                borderTop: "1px solid rgba(245,240,232,0.08)",
+                borderTop: `1px solid ${HAIRLINE}`,
                 paddingTop: 10,
                 display: "flex",
                 justifyContent: "space-between",
                 fontSize: 14,
                 fontWeight: 700,
-                color: "#f5f0e8",
+                color: INK,
               }}
             >
               <span>Lands in your account</span>
@@ -553,9 +520,8 @@ function NightAuditScene() {
   });
   return (
     <>
-      <StepPill step="Night audit closes the day" />
+      <StepPill step="One tap closes the day" />
       <StageCard width={540}>
-        <WindowChrome title="RoomLine · Night audit · Sun 23 Aug" />
         <div style={{ padding: "22px 24px 26px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
             <Fact label="Arrivals" value="6" />
@@ -566,20 +532,21 @@ function NightAuditScene() {
             style={{
               marginTop: 14,
               borderRadius: 12,
-              border: "1px solid rgba(245,240,232,0.08)",
+              border: `1px solid ${HAIRLINE}`,
               padding: "14px 16px",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(245,240,232,0.55)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: MUTED }}>
               <span>Occupancy</span>
-              <b style={{ color: "#f5f0e8" }}>82%</b>
+              <b style={{ color: INK }}>82%</b>
             </div>
             <div
               style={{
                 marginTop: 8,
                 height: 8,
                 borderRadius: 999,
-                backgroundColor: "rgba(245,240,232,0.08)",
+                backgroundColor: TINT,
+                border: `1px solid ${HAIRLINE}`,
                 overflow: "hidden",
               }}
             >
@@ -588,7 +555,7 @@ function NightAuditScene() {
                   width: `${82 * barGrow}%`,
                   height: "100%",
                   borderRadius: 999,
-                  background: "linear-gradient(90deg, #b98f22, #e5c158)",
+                  background: ACCENT,
                 }}
               />
             </div>
@@ -598,12 +565,12 @@ function NightAuditScene() {
                 display: "flex",
                 justifyContent: "space-between",
                 fontSize: 13,
-                color: "rgba(245,240,232,0.55)",
+                color: MUTED,
                 fontVariantNumeric: "tabular-nums",
               }}
             >
               <span>ADR</span>
-              <b style={{ color: "#f5f0e8" }}>GHS 512</b>
+              <b style={{ color: INK }}>GHS 512</b>
             </div>
             <div
               style={{
@@ -612,7 +579,7 @@ function NightAuditScene() {
                 justifyContent: "space-between",
                 fontSize: 15,
                 fontWeight: 800,
-                color: "#e5c158",
+                color: ACCENT,
                 fontVariantNumeric: "tabular-nums",
               }}
             >
@@ -628,15 +595,15 @@ function NightAuditScene() {
               justifyContent: "space-between",
             }}
           >
-            <span style={{ fontSize: 12, color: "rgba(245,240,232,0.45)" }}>
+            <span style={{ fontSize: 12, color: MUTED }}>
               Reports update instantly
             </span>
             <span
               style={{
                 fontSize: 13,
                 fontWeight: 700,
-                color: "#0a0f0d",
-                backgroundColor: "#e5c158",
+                color: "#ffffff",
+                backgroundColor: ACCENT,
                 borderRadius: 10,
                 padding: "8px 16px",
               }}

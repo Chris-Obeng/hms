@@ -84,6 +84,14 @@ Deno.serve(async (request) => {
           alreadyDone.add(sub.id);
           continue;
         }
+        if (status === 401 || status === 403) {
+          // Push service rejected our VAPID signature or auth headers. This is
+          // a server-side key/config problem, not a broken subscription — the
+          // sub must stay active so delivery recovers once keys are fixed.
+          lastError = `Push service rejected request (${status}). Check that the worker's VAPID_PUBLIC_KEY matches the public key used at subscribe time.`;
+          unresolved = true;
+          continue;
+        }
         // Anything else (transient 4xx/5xx, network errors): keep the
         // subscription intact and fail the job so it retries.
         lastError = cause instanceof Error ? cause.message : String(cause);
@@ -91,8 +99,27 @@ Deno.serve(async (request) => {
       }
     }
 
+    const attempts = job.attempt_count + 1;
+
     const recipientHasSubs = (subscriptions ?? []).length > 0;
     if (!recipientHasSubs && !attemptedAny) {
+      if (alreadyDone.size > 0) {
+        // Every device already received this notification on an earlier
+        // attempt and has since been disabled — the job is done, not stuck.
+        await supabase
+          .from("notification_delivery_outbox")
+          .update({
+            status: "delivered",
+            delivered_at: new Date().toISOString(),
+            attempt_count: attempts,
+            last_error: null,
+            delivered_subscription_ids: [...alreadyDone],
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", job.id);
+        delivered++;
+        continue;
+      }
       // Recipient has no active subscriptions — nothing was delivered.
       // Route through the retry path instead of faking success so the job
       // can still land if the user subscribes within the backoff window.
@@ -100,7 +127,6 @@ Deno.serve(async (request) => {
       unresolved = true;
     }
 
-    const attempts = job.attempt_count + 1;
     const doneIds = [...alreadyDone];
 
     if (!unresolved) {

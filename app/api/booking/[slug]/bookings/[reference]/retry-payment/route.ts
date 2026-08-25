@@ -58,7 +58,7 @@ export async function POST(
   const { data: booking } = await supabaseAdmin
     .from("bookings")
     .select(
-      "id, reference, status, payment_status, payment_preference, source, total_amount, currency, initiated_payment_refs, guests(email)"
+      "id, reference, status, payment_status, payment_preference, source, total_amount, amount_paid, currency, initiated_payment_refs, guests(email)"
     )
     .eq("hotel_id", hotel.id)
     .eq("reference", reference)
@@ -77,12 +77,22 @@ export async function POST(
 
   const payable =
     booking.status === "pending" &&
-    booking.payment_status === "unpaid" &&
+    (booking.payment_status === "unpaid" || booking.payment_status === "partial") &&
     booking.payment_preference === "pay_now" &&
     booking.source === "direct";
 
   if (!payable) {
     // Already paid / confirmed / not a guest online hold — nothing to retry.
+    return NextResponse.json(
+      { error: "No payment is due for this reservation." },
+      { status: 409 }
+    );
+  }
+
+  // Guests with a partial payment settle the remaining balance, not the
+  // original full total.
+  const remaining = Number(booking.total_amount) - Number(booking.amount_paid ?? 0);
+  if (!(remaining > 0)) {
     return NextResponse.json(
       { error: "No payment is due for this reservation." },
       { status: 409 }
@@ -98,7 +108,7 @@ export async function POST(
   try {
     const txn = await initializeTransaction({
       email: guest?.email ?? `${booking.reference}@bookings.local`,
-      amount: Math.round(Number(booking.total_amount) * 100),
+      amount: Math.round(remaining * 100),
       currency: booking.currency ?? hotel.currency ?? "GHS",
       reference: payRef,
       callback_url: callbackUrl,
