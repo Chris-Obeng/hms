@@ -289,32 +289,54 @@ export async function POST(
     const callbackUrl = `${req.nextUrl.origin}/${slug}/book/confirmation?bref=${booking.reference}`;
     const payRef = `${booking.reference}-${Date.now()}`;
 
-    const txn = await initializeTransaction({
-      email: data.guest_email,
-      amount: Math.round(total * 100),
-      currency: hotel.currency ?? "GHS",
-      reference: payRef,
-      callback_url: callbackUrl,
-      subaccount: hotel.paystack_subaccount_code!,
-      metadata: { booking_id: booking.id, hotel_id: hotel.id, booking_reference: booking.reference },
-    });
+    try {
+      const txn = await initializeTransaction({
+        email: data.guest_email,
+        amount: Math.round(total * 100),
+        currency: hotel.currency ?? "GHS",
+        reference: payRef,
+        callback_url: callbackUrl,
+        subaccount: hotel.paystack_subaccount_code!,
+        metadata: { booking_id: booking.id, hotel_id: hotel.id, booking_reference: booking.reference },
+      });
 
-    // Remember every reference handed to Paystack so the reconciliation sweep
-    // can verify a payment even if the guest never returns and the webhook is
-    // delayed past hold expiry.
-    await supabaseAdmin
-      .from("bookings")
-      .update({ initiated_payment_refs: [payRef] })
-      .eq("id", booking.id);
+      // Remember every reference handed to Paystack so the reconciliation sweep
+      // can verify a payment even if the guest never returns and the webhook is
+      // delayed past hold expiry.
+      await supabaseAdmin
+        .from("bookings")
+        .update({ initiated_payment_refs: [payRef] })
+        .eq("id", booking.id);
 
-    return NextResponse.json({
-      bookingId: booking.id,
-      reference: booking.reference,
-      roomsCount: data.rooms_count,
-      paymentRequired: true,
-      authorizationUrl: txn.authorization_url,
-      paymentReference: payRef,
-    });
+      return NextResponse.json({
+        bookingId: booking.id,
+        reference: booking.reference,
+        roomsCount: data.rooms_count,
+        paymentRequired: true,
+        authorizationUrl: txn.authorization_url,
+        paymentReference: payRef,
+      });
+    } catch (paystackErr) {
+      // Payment init failed — delete the payment hold booking
+      await supabaseAdmin
+        .from("bookings")
+        .delete()
+        .eq("id", booking.id);
+
+      console.error("[booking/create] Paystack init failed", paystackErr);
+      
+      // Parse Paystack error for user-friendly message
+      const errMsg = paystackErr instanceof Error ? paystackErr.message : String(paystackErr);
+      if (errMsg.includes("unsupported_currency") || errMsg.includes("Currency not supported")) {
+        return NextResponse.json({ 
+          error: `Online payment unavailable: This hotel's payment processor doesn't support ${hotel.currency ?? "GHS"} currency. Please contact the hotel directly.` 
+        }, { status: 400 });
+      }
+      
+      return NextResponse.json({ 
+        error: "Payment initialization failed. Please try again or contact the hotel directly." 
+      }, { status: 500 });
+    }
   } catch (err) {
     console.error("[booking/create]", err);
     return NextResponse.json({ error: "Unexpected error. Please try again." }, { status: 500 });
