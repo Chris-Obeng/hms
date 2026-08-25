@@ -41,7 +41,7 @@ export function ProcessingInvite({ hotelName, role, orgId }: ProcessingInvitePro
       }
     };
 
-    const interval = setInterval(checkMembership, 1000);
+    const interval = setInterval(checkMembership, 2000); // Poll every 2s to avoid rate limit
     return () => {
       active = false;
       clearInterval(interval);

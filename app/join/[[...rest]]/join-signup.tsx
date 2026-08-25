@@ -37,6 +37,7 @@ export function JoinSignUp({
         path="/join"
         signInUrl="/sign-in"
         fallbackRedirectUrl="/join/sso-callback"
+        unsafeMetadata={{ inviteToken: token }}
       />
     </div>
   );
