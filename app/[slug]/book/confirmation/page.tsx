@@ -13,6 +13,7 @@ import {
 import { CopyButton } from "@/components/booking/copy-button";
 import { PaymentVerifier } from "@/components/booking/payment-verifier";
 import { CompletePaymentPanel } from "@/components/booking/complete-payment-panel";
+import { formatCurrencyCompact } from "@/lib/format-currency";
 
 export const dynamic = "force-dynamic";
 
@@ -91,7 +92,7 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
   }
 
   const currency = booking.currency ?? hotel.currency ?? "GHS";
-  const fmtMoney = (n: number) => `${currency} ${Math.round(n).toLocaleString()}`;
+  const fmtMoney = (n: number) => formatCurrencyCompact(n, currency);
   const firstName = guestName.split(" ")[0];
   const location = [hotel.address, hotel.city].filter(Boolean).join(", ");
   const roomsCount = Math.max(1, booking.rooms_count ?? 1);

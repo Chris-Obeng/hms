@@ -28,6 +28,7 @@ import {
   TextField,
 } from "@heroui/react";
 import { RoomGallery } from "@/components/booking/room-gallery";
+import { formatCurrencyCompact } from "@/lib/format-currency";
 import { BookingDateRangePicker } from "@/components/booking/booking-date-range-picker";
 import { GuestPickerPopover } from "@/components/booking/guest-picker-popover";
 import { NumericStepper } from "@/components/booking/numeric-stepper";
@@ -233,8 +234,7 @@ export function BookingWizard({
     : 0;
   const total = subtotal + taxAmount;
 
-  const fmt = (n: number) =>
-    `${hotel.currency} ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  const fmt = (n: number) => formatCurrencyCompact(n, hotel.currency);
 
   const selectedAvailable = selectedAvail === null || selectedAvail === undefined || selectedAvail > 0;
 

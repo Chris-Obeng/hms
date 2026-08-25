@@ -47,7 +47,7 @@ const HotelProfileSchema = z.object({
   checkInTime: z.string().optional().or(z.literal("")),
   checkOutTime: z.string().optional().or(z.literal("")),
   timezone: z.string().optional().or(z.literal("")),
-  currency: z.string().optional().or(z.literal("")),
+  currency: z.enum(["GHS", "USD", "EUR", "GBP", "NGN", "ZAR", "KES", "UGX"]).default("GHS"),
   cancellationPolicy: z.string().max(500).optional().or(z.literal("")),
   taxEnabled: z.boolean().default(false),
   taxPercentage: z.number().min(0).max(100).default(0),
@@ -145,7 +145,7 @@ export async function updateHotelProfile(
         check_in_time: data.checkInTime || null,
         check_out_time: data.checkOutTime || null,
         timezone: data.timezone || null,
-        currency: data.currency || null,
+        currency: data.currency, // Required, validated by schema
         cancellation_policy: data.cancellationPolicy || null,
         settings: {
           ...existingSettings,

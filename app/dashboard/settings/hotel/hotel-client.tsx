@@ -364,37 +364,20 @@ export function HotelSettingsClient({
         </CardContent>
       </Card>
 
-      {/* Save — inline on desktop */}
-      <div className="hidden sm:flex items-center justify-between pb-8">
-        <p className="text-caption text-muted-foreground">
-          {hasChanges ? "You have unsaved changes" : staffName ? `Editing as ${staffName}` : ""}
+      {/* Save bar — always visible, sticky at bottom */}
+      <div className="sticky bottom-0 -mx-6 px-6 py-4 mt-6 bg-background/95 backdrop-blur-sm border-t border-border/60 flex items-center justify-between gap-3 z-10 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+        <p className="text-sm text-muted-foreground">
+          {saving ? "Saving changes..." : hasChanges ? "You have unsaved changes" : staffName ? `Editing as ${staffName}` : "All changes saved"}
         </p>
         <Button
           type="submit"
           disabled={saving || !values.name || !hasChanges}
-          className="text-sm rounded-xl bg-foreground text-background hover:bg-foreground/90 min-w-[140px]"
+          className="text-sm rounded-xl bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50 min-w-[140px] font-medium"
         >
           <Save className="size-3.5 mr-1.5" />
           {saving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
-
-      {/* Save — sticky bar on mobile, always reachable after long scroll */}
-      {hasChanges && (
-        <div className="sm:hidden sticky bottom-0 -mx-4 px-4 py-3 bg-background/90 backdrop-blur border-t border-border/60 flex items-center justify-between gap-3 z-10">
-          <p className="text-caption text-muted-foreground">
-            {saving ? "Saving…" : "Unsaved changes"}
-          </p>
-          <Button
-            type="submit"
-            disabled={saving || !values.name}
-            className="rounded-xl bg-foreground text-background hover:bg-foreground/90 min-w-[120px] h-9"
-          >
-            <Save className="size-3.5 mr-1.5" />
-            {saving ? "Saving..." : "Save"}
-          </Button>
-        </div>
-      )}
     </form>
   );
 }
