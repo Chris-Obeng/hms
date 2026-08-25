@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import { ToastProvider } from "@/components/toast-provider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -74,10 +75,9 @@ export default function RootLayout({
     >
       <body className="native-shell min-h-dvh flex flex-col font-sans">
         {/* ── Theme initialisation — runs before React hydrates (SSR-only), prevents FOUC ── */}
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script
+        <Script
           id="theme-init"
-          suppressHydrationWarning
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var e,l=localStorage.getItem("theme"),d="system";if(l==="dark"||l==="light")e=l;else{var m=window.matchMedia("(prefers-color-scheme: dark)");e=m.matches?"dark":"light"}document.documentElement.classList.remove("light","dark");document.documentElement.classList.add(e)}catch(t){}})()`,
           }}

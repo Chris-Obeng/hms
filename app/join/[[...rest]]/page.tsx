@@ -1,13 +1,41 @@
 import { validateInviteToken } from "@/app/actions/invitations";
-import { SignUp } from "@clerk/nextjs";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { ProcessingInvite } from "./processing-invite";
+import { JoinSignUp } from "./join-signup";
+import { getInviteTokenCookie } from "./actions";
 
 export default async function JoinPage(props: {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string; sign_up_force_redirect_url?: string }>;
+  params: Promise<{ rest?: string[] }>;
 }) {
-  const { token } = await props.searchParams;
+  const params = await props.params;
+  const searchParams = await props.searchParams;
+  
+  // Handle Clerk OAuth callback - extract token from cookie or redirect URL
+  if (params.rest?.[0] === "sso-callback") {
+    const redirectUrl = searchParams.sign_up_force_redirect_url;
+    if (redirectUrl) {
+      try {
+        const url = new URL(redirectUrl);
+        const token = url.searchParams.get("token");
+        if (token) {
+          redirect(`/join?token=${token}`);
+        }
+      } catch (err) {
+        console.error("Failed to parse redirect URL:", err);
+      }
+    }
+    // Check if token stored in cookie
+    const storedToken = await getInviteTokenCookie();
+    if (storedToken) {
+      redirect(`/join?token=${storedToken}`);
+    }
+    // Fallback if no token found
+    redirect("/join");
+  }
+
+  const { token } = searchParams;
 
   if (!token) {
     return (
@@ -56,25 +84,5 @@ export default async function JoinPage(props: {
     return <ProcessingInvite hotelName={hotelName} role={role} orgId={clerkOrgId} />;
   }
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-muted/30 p-4 space-y-6">
-      <div className="max-w-md w-full text-center space-y-2">
-        <div className="size-12 rounded-xl bg-foreground flex items-center justify-center mx-auto mb-2">
-          <span className="text-xl font-bold text-background">H</span>
-        </div>
-        <h1 className="text-xl font-bold text-foreground">Welcome to {hotelName}</h1>
-        <p className="text-sm text-muted-foreground">
-          You have been invited to join the team as <span className="font-semibold text-foreground capitalize">{role.replace("_", " ")}</span>.
-        </p>
-      </div>
-
-      <SignUp 
-        path="/join"
-        signInUrl={`/sign-in?redirect_url=${encodeURIComponent(`/join?token=${token}`)}`}
-        forceRedirectUrl={`/join?token=${token}`}
-        fallbackRedirectUrl="/dashboard"
-        unsafeMetadata={{ inviteToken: token }} 
-      />
-    </div>
-  );
+  return <JoinSignUp token={token} hotelName={hotelName} role={role} />;
 }
