@@ -3,8 +3,9 @@
 import * as React from "react";
 import Link from "next/link";
 import { Avatar } from "@heroui/react";
-import { Phone, Mail, ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Mail, Phone, UserRound } from "lucide-react";
 
+import { getInitials } from "@/lib/format";
 import type { FullBookingDetail } from "./booking-detail-types";
 
 interface BookingGuestPanelProps {
@@ -12,75 +13,94 @@ interface BookingGuestPanelProps {
 }
 
 export function BookingGuestPanel({ booking }: BookingGuestPanelProps) {
+  const guest = booking.guest;
+  const initials = getInitials(guest?.fullName);
+
   return (
-    <section className="space-y-4 border-t border-border/40 px-5 py-5" aria-labelledby="guest-details-heading">
-      <h3 id="guest-details-heading" className="text-xs font-semibold text-foreground">
-        Guest details
-      </h3>
-      <div className="flex items-center gap-3 mb-2">
-        <Avatar size="md" className="shrink-0">
-          <Avatar.Fallback className="text-sm font-semibold text-foreground">
-            {booking.guest?.fullName
-              ? booking.guest.fullName
-                  .split(" ")
-                  .map((n) => n[0])
-                  .slice(0, 2)
-                  .join("")
-                  .toUpperCase()
-              : "?"}
-          </Avatar.Fallback>
-        </Avatar>
-        <div>
-          <p className="text-sm font-semibold text-foreground">
-            {booking.guest?.fullName || "Unknown Guest"}
-          </p>
-          {booking.guest?.id && (
-            <Link
-              href={`/dashboard/customers?id=${booking.guest.id}`}
-              className="text-[11px] text-primary hover:underline flex items-center gap-1 font-medium mt-0.5"
+    <section
+      aria-labelledby="guest-details-heading"
+      className="px-4 pb-1 pt-1 sm:px-5"
+    >
+      <div className="rounded-2xl border border-border/60 bg-card p-4">
+        <div className="flex items-center gap-3">
+          <Avatar size="md" className="shrink-0 bg-primary/10">
+            <Avatar.Fallback className="text-xs font-bold text-primary">
+              {initials}
+            </Avatar.Fallback>
+          </Avatar>
+
+          <div className="min-w-0 flex-1">
+            <h3
+              id="guest-details-heading"
+              className="truncate text-sm font-semibold leading-tight text-foreground"
             >
-              View Full Profile <ArrowUpRight className="size-3" />
+              {guest?.fullName || "Unknown Guest"}
+            </h3>
+            <p className="mt-0.5 flex items-center gap-1 text-[11px] capitalize text-muted-foreground">
+              <UserRound className="size-3" />
+              Primary guest
+            </p>
+          </div>
+
+          {guest?.id && (
+            <Link
+              href={`/dashboard/customers?id=${guest.id}`}
+              className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg bg-muted/60 px-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted active:scale-[0.97]"
+            >
+              Profile
+              <ArrowUpRight className="size-3" />
             </Link>
           )}
         </div>
-      </div>
 
-      {/* Contact */}
-      <div>
-        <p className="mb-3 text-xs font-medium text-muted-foreground">
-          Contact information
-        </p>
-        <div className="space-y-2.5">
-          {booking.guest?.email ? (
-            <a
-              href={`mailto:${booking.guest.email}`}
-              className="flex items-center gap-2.5 text-sm text-foreground hover:text-primary transition-colors group"
-            >
-              <Mail className="size-3.5 text-muted-foreground/50 shrink-0" />
-              <span className="group-hover:underline">{booking.guest.email}</span>
-            </a>
+        <div className="mt-3 grid grid-cols-1 gap-2 border-t border-border/50 pt-3 sm:grid-cols-2">
+          {guest?.email ? (
+            <ContactLink href={`mailto:${guest.email}`} icon={<Mail className="size-3.5" />}>
+              <span className="truncate">{guest.email}</span>
+            </ContactLink>
           ) : (
-            <div className="flex items-center gap-2.5 text-sm">
-              <Mail className="size-3.5 text-muted-foreground/50 shrink-0" />
-              <span className="text-muted-foreground/50 italic">No email</span>
-            </div>
+            <ContactEmpty icon={<Mail className="size-3.5" />} label="No email" />
           )}
-          {booking.guest?.phone ? (
-            <a
-              href={`tel:${booking.guest.phone}`}
-              className="flex items-center gap-2.5 text-sm text-foreground hover:text-primary transition-colors group"
-            >
-              <Phone className="size-3.5 text-muted-foreground/50 shrink-0" />
-              <span className="group-hover:underline">{booking.guest.phone}</span>
-            </a>
+          {guest?.phone ? (
+            <ContactLink href={`tel:${guest.phone}`} icon={<Phone className="size-3.5" />}>
+              {guest.phone}
+            </ContactLink>
           ) : (
-            <div className="flex items-center gap-2.5 text-sm">
-              <Phone className="size-3.5 text-muted-foreground/50 shrink-0" />
-              <span className="text-muted-foreground/50 italic">No phone</span>
-            </div>
+            <ContactEmpty icon={<Phone className="size-3.5" />} label="No phone" />
           )}
         </div>
       </div>
     </section>
+  );
+}
+
+function ContactLink({
+  href,
+  icon,
+  children,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      className="group inline-flex min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] text-foreground transition-colors hover:bg-muted/60 hover:text-primary"
+    >
+      <span className="shrink-0 text-muted-foreground/60 transition-colors group-hover:text-primary">
+        {icon}
+      </span>
+      {children}
+    </a>
+  );
+}
+
+function ContactEmpty({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 px-2 py-1.5 text-[13px] italic text-muted-foreground/50">
+      <span className="shrink-0">{icon}</span>
+      {label}
+    </span>
   );
 }

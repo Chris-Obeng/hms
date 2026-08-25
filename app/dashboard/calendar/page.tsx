@@ -38,7 +38,7 @@ export default async function CalendarPage() {
   const roomTypes = (roomTypesRaw || []).map((rt) => ({
     id: rt.id,
     name: rt.name,
-    // Keep snake_case for NewBookingSheet compatibility
+    // snake_case matches the timeline's room-type payload shape
     base_price: rt.base_price,
   }));
 
@@ -47,7 +47,7 @@ export default async function CalendarPage() {
   const initialData = await getCalendarData(today, 30);
 
   // Resolve staff role for permission gating
-  const { canEdit, canBlock } = await getCurrentStaffRole();
+  const { canEdit, canBlock, canUnblock } = await getCurrentStaffRole();
 
   return (
     <div className="-mx-4 -mb-4 md:-mx-6 md:-mb-6 lg:-mx-8 lg:-mb-8 overflow-hidden">
@@ -60,6 +60,7 @@ export default async function CalendarPage() {
         hotelTimezone={hotel.timezone || "UTC"}
         canEdit={canEdit}
         canBlock={canBlock}
+        canUnblock={canUnblock}
       />
     </div>
   );

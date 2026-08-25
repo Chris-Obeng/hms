@@ -4,8 +4,13 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { BookingDeepLinkClient } from "./booking-deep-link-client";
+
 type Props = { params: Promise<{ id: string }> };
 
+/**
+ * Standalone reservation page — the canonical deep-link target (shareable,
+ * printable, restorable). Quick glance stays in the dashboard drawer.
+ */
 export default async function BookingDetailPage({ params }: Props) {
   const { id } = await params;
   const { orgId } = await auth();
@@ -24,28 +29,28 @@ export default async function BookingDetailPage({ params }: Props) {
   // Verify booking belongs to this hotel (security check before rendering)
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id, reference, guests(full_name)")
+    .select("id, reference")
     .eq("id", id)
     .eq("hotel_id", hotel.id)
     .single();
 
   if (!booking) notFound();
 
-  const guestName = (booking.guests as { full_name?: string | null } | null)?.full_name ?? "Booking";
-
   return (
-    <div className="space-y-4 max-w-3xl">
-      <div className="flex items-center gap-3">
+    <div className="mx-auto w-full max-w-5xl">
+      <div className="mb-5 flex items-center gap-3">
         <Link
           href="/dashboard/bookings"
           aria-label="Back to bookings"
-          className="inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          className="inline-flex size-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
         </Link>
-        <div>
-          <h1 className="text-page-title text-foreground">{booking.reference}</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">{guestName}</p>
+        <div className="min-w-0">
+          <h1 className="text-page-title truncate text-foreground">Reservation</h1>
+          <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+            {booking.reference}
+          </p>
         </div>
       </div>
 

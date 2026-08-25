@@ -5,6 +5,16 @@ import { createClient } from "@/lib/supabase/server";
 
 const schema = z.object({ endpoint: z.string().url(), expirationTime: z.number().nullable().optional(), keys: z.object({ p256dh: z.string().min(1), auth: z.string().min(1) }) });
 
+// Public VAPID key for service-worker re-subscription (pushsubscriptionchange).
+export async function GET() {
+  const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  if (!key) return NextResponse.json({ success: false, error: "Push not configured" }, { status: 503 });
+  return NextResponse.json(
+    { applicationServerKey: key },
+    { headers: { "cache-control": "public, max-age=3600" } }
+  );
+}
+
 export async function POST(request: Request) {
   try {
     const ctx = await requireAuth();

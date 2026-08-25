@@ -1,15 +1,10 @@
 "use client";
 
 import * as React from "react";
-import {
-  LogIn,
-  LogOut,
-  XCircle,
-  RotateCcw,
-  CheckCircle2,
-} from "lucide-react";
+import { LogIn, LogOut, XCircle, RotateCcw, BadgeCheck } from "lucide-react";
 
 import { AlertDialog, Button } from "@heroui/react";
+import { cn } from "@/lib/utils";
 import { checkInBooking, checkOutBooking } from "@/app/dashboard/actions";
 import { updateBookingStatus } from "@/app/actions/bookings";
 import type { FullBookingDetail } from "./booking-detail-types";
@@ -30,121 +25,162 @@ export function BookingActionBar({
   onAction,
 }: BookingActionBarProps) {
   const [confirmCancel, setConfirmCancel] = React.useState(false);
+
   const handleCheckIn = () =>
     onAction("check_in", "checked_in", () => checkInBooking(booking.id));
 
   const handleCheckOut = () =>
     onAction("check_out", "checked_out", () => checkOutBooking(booking.id));
 
+  const handleConfirm = () =>
+    onAction("confirm", "confirmed", () =>
+      updateBookingStatus(booking.id, "confirmed")
+    );
+
   const handleCancel = () =>
-    onAction("cancel", "cancelled", () => updateBookingStatus(booking.id, "cancelled"));
+    onAction("cancel", "cancelled", () =>
+      updateBookingStatus(booking.id, "cancelled")
+    );
 
   const handleReinstate = () =>
-    onAction("reinstate", "confirmed", () => updateBookingStatus(booking.id, "confirmed"));
+    onAction("reinstate", "confirmed", () =>
+      updateBookingStatus(booking.id, "confirmed")
+    );
 
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-border/40 bg-background px-4 py-2.5 sm:px-5">
-      {booking.status === "pending" && (
-        <Button
-          size="sm"
-          className="h-9 rounded-xl px-3.5 text-xs font-semibold"
-          onPress={() =>
-            onAction("confirm", "confirmed", () =>
-              updateBookingStatus(booking.id, "confirmed")
-            )
-          }
-          isPending={actionLoading === "confirm"}
-        >
-          <CheckCircle2 className="size-3 mr-1 shrink-0" />
-          {actionLoading === "confirm" ? "Confirming..." : "Confirm"}
-        </Button>
-      )}
-      {booking.status === "confirmed" && (
-        <Button
-          size="sm"
-          className="h-9 rounded-xl bg-emerald-600 px-3.5 text-xs font-semibold text-white hover:bg-emerald-700"
-          onPress={handleCheckIn}
-          isPending={actionLoading === "check_in"}
-        >
-          <LogIn className="size-3 mr-1 shrink-0" />
-          {actionLoading === "check_in" ? "Checking in..." : "Check In"}
-        </Button>
-      )}
-      {booking.status === "checked_in" && (
-        <Button
-          size="sm"
-          className="h-9 rounded-xl bg-foreground px-3.5 text-xs font-semibold text-background hover:bg-foreground/90"
-          onPress={handleCheckOut}
-          isPending={actionLoading === "check_out"}
-        >
-          <LogOut className="size-3 mr-1 shrink-0" />
-          {actionLoading === "check_out" ? "Checking out..." : "Check Out"}
-        </Button>
-      )}
-      {(booking.status === "confirmed" || booking.status === "pending") && (
-        <AlertDialog>
+    <>
+      <div className="flex shrink-0 items-center gap-2 border-b border-border/50 bg-muted/[0.15] px-4 py-3 sm:px-5">
+        {booking.status === "pending" && (
+          <ActionButton
+            label={actionLoading === "confirm" ? "Confirming…" : "Confirm booking"}
+            loadingLabel="Confirming…"
+            isLoading={actionLoading === "confirm"}
+            onPress={handleConfirm}
+            icon={<BadgeCheck className="size-4" />}
+            className="bg-sky-600 text-white hover:bg-sky-700"
+          />
+        )}
+        {booking.status === "confirmed" && (
+          <ActionButton
+            label="Check in guest"
+            loadingLabel="Checking in…"
+            isLoading={actionLoading === "check_in"}
+            onPress={handleCheckIn}
+            icon={<LogIn className="size-4" />}
+            className="bg-emerald-600 text-white hover:bg-emerald-700"
+          />
+        )}
+        {booking.status === "checked_in" && (
+          <ActionButton
+            label="Check out guest"
+            loadingLabel="Checking out…"
+            isLoading={actionLoading === "check_out"}
+            onPress={handleCheckOut}
+            icon={<LogOut className="size-4" />}
+            className="bg-foreground text-background hover:bg-foreground/90"
+          />
+        )}
+        {(booking.status === "cancelled" || booking.status === "no_show") && (
+          <ActionButton
+            label="Reinstate reservation"
+            loadingLabel="Reinstating…"
+            isLoading={actionLoading === "reinstate"}
+            onPress={handleReinstate}
+            icon={<RotateCcw className="size-4" />}
+            variant="outline"
+            className="border-border/70 bg-background text-foreground hover:bg-muted/60"
+          />
+        )}
+
+        {(booking.status === "confirmed" || booking.status === "pending") && (
           <Button
-            slot="open"
-            size="sm"
             variant="ghost"
-            className="ml-auto h-9 rounded-xl px-2.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            className="ml-auto h-9 rounded-xl px-3 text-xs font-medium text-muted-foreground hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
             isPending={actionLoading === "cancel"}
+            onPress={() => setConfirmCancel(true)}
           >
-            <XCircle className="size-3 mr-1 shrink-0" />
-            Cancel Booking
+            <XCircle className="size-3.5 shrink-0" />
+            Cancel
           </Button>
-          <AlertDialog.Backdrop
-            isOpen={confirmCancel}
-            onOpenChange={setConfirmCancel}
-          >
-            <AlertDialog.Container>
-              <AlertDialog.Dialog className="sm:max-w-[420px]">
-                <AlertDialog.Header>
-                  <AlertDialog.Icon status="danger" />
-                  <AlertDialog.Heading>Cancel this reservation?</AlertDialog.Heading>
-                </AlertDialog.Header>
-                <AlertDialog.Body>
-                  <p>
-                    {booking.guest?.fullName}&rsquo;s stay ({booking.reference}) will be
-                    cancelled and the room released. You can reinstate it later if needed.
-                  </p>
-                </AlertDialog.Body>
-                <AlertDialog.Footer>
-                  <Button
-                    slot="close"
-                    variant="tertiary"
-                    isDisabled={actionLoading === "cancel"}
-                  >
-                    Keep reservation
-                  </Button>
-                  <Button
-                    variant="danger"
-                    isPending={actionLoading === "cancel"}
-                    onPress={() => {
-                      setConfirmCancel(false);
-                      handleCancel();
-                    }}
-                  >
-                    Cancel reservation
-                  </Button>
-                </AlertDialog.Footer>
-              </AlertDialog.Dialog>
-            </AlertDialog.Container>
-          </AlertDialog.Backdrop>
-        </AlertDialog>
+        )}
+      </div>
+
+      <AlertDialog.Backdrop
+        isOpen={confirmCancel}
+        onOpenChange={(isOpen) => setConfirmCancel(isOpen)}
+        variant="opaque"
+      >
+        <AlertDialog.Container placement="auto" size="sm">
+          <AlertDialog.Dialog className="rounded-2xl border border-border/70 bg-card p-6 shadow-2xl">
+            <AlertDialog.Header>
+              <AlertDialog.Icon status="danger" />
+              <AlertDialog.Heading>Cancel this reservation?</AlertDialog.Heading>
+            </AlertDialog.Header>
+            <AlertDialog.Body>
+              <p>
+                {booking.guest?.fullName ?? "This guest"}&rsquo;s stay{" "}
+                <span className="font-mono text-[13px]">{booking.reference}</span> will be
+                cancelled and the room released for other bookings.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                You can reinstate it later while the dates remain free.
+              </p>
+            </AlertDialog.Body>
+            <AlertDialog.Footer>
+              <Button slot="close" variant="tertiary" isDisabled={actionLoading === "cancel"}>
+                Keep reservation
+              </Button>
+              <Button
+                variant="danger"
+                isPending={actionLoading === "cancel"}
+                onPress={() => {
+                  setConfirmCancel(false);
+                  handleCancel();
+                }}
+              >
+                Cancel reservation
+              </Button>
+            </AlertDialog.Footer>
+          </AlertDialog.Dialog>
+        </AlertDialog.Container>
+      </AlertDialog.Backdrop>
+    </>
+  );
+}
+
+function ActionButton({
+  label,
+  loadingLabel,
+  isLoading,
+  onPress,
+  icon,
+  className,
+  variant = "primary",
+}: {
+  label: string;
+  loadingLabel: string;
+  isLoading: boolean;
+  onPress: () => void;
+  icon: React.ReactNode;
+  className?: string;
+  variant?: "primary" | "outline";
+}) {
+  return (
+    <Button
+      variant={variant}
+      onPress={onPress}
+      isPending={isLoading}
+      className={cn(
+        "h-10 rounded-xl px-4 text-[13px] font-semibold transition-colors active:scale-[0.98]",
+        className
       )}
-      {booking.status === "cancelled" && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="ml-auto h-9 rounded-xl border-border/60 px-3 text-xs"
-          onPress={handleReinstate}
-          isPending={actionLoading === "reinstate"}
-        >
-          <RotateCcw className="size-3 mr-1 shrink-0" />
-          {actionLoading === "reinstate" ? "Reinstating..." : "Reinstate"}
-        </Button>
+    >
+      {isLoading ? loadingLabel : (
+        <>
+          {icon}
+          {label}
+        </>
       )}
-    </div>
+    </Button>
   );
 }

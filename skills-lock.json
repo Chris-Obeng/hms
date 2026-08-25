@@ -187,6 +187,12 @@
       "skillPath": "skills/minimalist-skill/SKILL.md",
       "computedHash": "7e88897e0371184e97a82b8d9ef080323c13f21eb067b58ef71eb05173a08ac2"
     },
+    "morphicons": {
+      "source": "kawixh/skills",
+      "sourceType": "github",
+      "skillPath": "morphicons-skill/SKILL.md",
+      "computedHash": "973079fd77331b6126cb8cea8b93066279bf8129a6a9085e359eb9f45c79ec8a"
+    },
     "next-best-practices": {
       "source": "vercel-labs/next-skills",
       "sourceType": "github",
@@ -210,6 +216,12 @@
       "sourceType": "github",
       "skillPath": "skills/powersync/SKILL.md",
       "computedHash": "65ea27ee9b920392119892e8c2d5cf23e5546aa64c8d2a8bbb792110dc1f0cc0"
+    },
+    "pwa-development": {
+      "source": "alinaqi/maggy",
+      "sourceType": "github",
+      "skillPath": "skills/pwa-development/SKILL.md",
+      "computedHash": "2219041ce92f6361ba77eb06c9a927dc7a1ba48f40ff5132321a29c4154ebc7a"
     },
     "redesign-existing-projects": {
       "source": "Leonxlnx/taste-skill",

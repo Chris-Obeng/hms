@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Button, Separator, TextArea, toast } from "@heroui/react";
-import { FileText, Edit3, Clock } from "lucide-react";
+import { Button, TextArea, toast } from "@heroui/react";
+import { Clock3, PenLine, Sparkles } from "lucide-react";
 
 import { updateBookingNotes } from "@/app/actions/bookings-detail";
 import type { FullBookingDetail } from "./booking-detail-types";
@@ -42,42 +42,44 @@ export function BookingNotesPanel({
   };
 
   return (
-    <section className="space-y-5 border-t border-border/40 px-5 py-5" aria-labelledby="reservation-notes-heading">
-      <h3 id="reservation-notes-heading" className="text-xs font-semibold text-foreground">
+    <section
+      aria-labelledby="reservation-notes-heading"
+      className="space-y-3 px-4 pb-6 pt-1 sm:px-5"
+    >
+      <h3 className="px-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
         Notes
       </h3>
-      {/* Special Requests (read-only) */}
-      <div>
-        <div className="flex items-center gap-1.5 mb-3">
-          <FileText className="size-3.5 text-muted-foreground/50" />
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Special Requests
-          </p>
-        </div>
+
+      {/* Special requests — read-only */}
+      <div className="rounded-2xl border border-border/60 bg-card p-4">
+        <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+          <Sparkles className="size-3 text-amber-500" />
+          Special requests
+        </p>
         {booking.specialRequests ? (
-          <div className="rounded-xl border border-amber-200/50 bg-amber-50/50 dark:border-amber-800/30 dark:bg-amber-950/10 p-3">
-            <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">
-              {booking.specialRequests}
-            </p>
-          </div>
+          <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/90">
+            {booking.specialRequests}
+          </p>
         ) : (
-          <p className="text-sm text-muted-foreground/50 italic">
-            No special requests from the guest.
+          <p className="text-[13px] italic text-muted-foreground/50">None</p>
+        )}
+        {booking.estimatedArrival && (
+          <p className="mt-2 flex items-center gap-1.5 border-t border-border/40 pt-2 text-xs text-muted-foreground">
+            <Clock3 className="size-3" />
+            ETA{" "}
+            <span className="font-semibold tabular-nums text-foreground">
+              {booking.estimatedArrival.slice(0, 5)}
+            </span>
           </p>
         )}
       </div>
 
-      <Separator className="opacity-40" />
-
-      {/* Internal Notes */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1.5">
-            <FileText className="size-3.5 text-muted-foreground/50" />
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Internal Notes
-            </p>
-          </div>
+      {/* Internal notes — editable */}
+      <div className="rounded-2xl border border-border/60 bg-card p-4">
+        <div className="mb-1.5 flex items-center justify-between gap-2">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+            Internal notes
+          </p>
           {!editingNotes && (
             <Button
               size="sm"
@@ -86,10 +88,10 @@ export function BookingNotesPanel({
                 setNotesDraft(booking.internalNotes || "");
                 setEditingNotes(true);
               }}
-              className="h-7 px-2 text-[10px] text-muted-foreground"
+              className="h-7 rounded-lg px-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
             >
-              <Edit3 className="size-3" />
-              {booking.internalNotes ? "Edit" : "Add Note"}
+              <PenLine className="size-3" />
+              {booking.internalNotes ? "Edit" : "Add"}
             </Button>
           )}
         </div>
@@ -99,13 +101,14 @@ export function BookingNotesPanel({
             <TextArea
               value={notesDraft}
               onChange={(e) => setNotesDraft(e.target.value)}
-              placeholder="Staff-only notes about this booking (preferences, special needs, issues)..."
-              rows={5}
+              placeholder="Staff-only notes (preferences, special needs, issues)…"
+              rows={4}
               maxLength={2000}
-              className="w-full rounded-xl border border-border/60 bg-background px-3 py-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 placeholder:text-muted-foreground resize-none"
+              autoFocus
+              className="w-full resize-none rounded-xl border border-border/60 bg-background px-3 py-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 placeholder:text-muted-foreground"
             />
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground/50">
+              <span className="text-[10px] tabular-nums text-muted-foreground/60">
                 {notesDraft.length}/2000
               </span>
               <div className="flex items-center gap-1.5">
@@ -115,8 +118,8 @@ export function BookingNotesPanel({
                     setNotesDraft(booking.internalNotes || "");
                   }}
                   size="sm"
-                  variant="ghost"
-                  className="text-[10px]"
+                  variant="tertiary"
+                  className="h-8 rounded-lg text-xs"
                 >
                   Cancel
                 </Button>
@@ -124,37 +127,23 @@ export function BookingNotesPanel({
                   onPress={handleSaveNotes}
                   isPending={savingNotes}
                   size="sm"
-                  className="text-[10px]"
+                  className="h-8 rounded-lg text-xs font-semibold"
                 >
-                  {savingNotes ? "Saving..." : "Save Notes"}
+                  {savingNotes ? "Saving…" : "Save"}
                 </Button>
               </div>
             </div>
           </div>
         ) : (
-          <p className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">
+          <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/90">
             {booking.internalNotes || (
-              <span className="text-muted-foreground/50 italic">
-                No internal notes recorded for this booking.
+              <span className="italic text-muted-foreground/50">
+                Visible to staff only
               </span>
             )}
           </p>
         )}
       </div>
-
-      {/* ETA */}
-      {booking.estimatedArrival && (
-        <>
-          <Separator className="opacity-40" />
-          <div className="flex items-center gap-2.5 text-sm">
-            <Clock className="size-3.5 text-muted-foreground/50 shrink-0" />
-            <span className="text-muted-foreground">Estimated arrival:</span>
-            <span className="font-medium text-foreground">
-              {booking.estimatedArrival.slice(0, 5)}
-            </span>
-          </div>
-        </>
-      )}
     </section>
   );
 }

@@ -23,16 +23,17 @@ const STATUS_LABELS: Record<string, string> = {
 
 /**
  * State machine for booking status changes. Maps current status → allowed
- * next statuses. checked_out and no_show are terminal. Reinstatement from
- * cancelled returns to confirmed (audit trail preserved via status history).
+ * next statuses. checked_out is terminal. Reinstatement from cancelled or
+ * no_show returns to confirmed (audit trail preserved via status history).
+ * confirmed → no_show covers same-day no-shows recorded before check-in.
  */
 export const ALLOWED_BOOKING_TRANSITIONS: Record<string, string[]> = {
-  pending: ["confirmed", "cancelled"],
-  confirmed: ["checked_in", "cancelled"],
+  pending: ["confirmed", "cancelled", "no_show"],
+  confirmed: ["checked_in", "cancelled", "no_show"],
   checked_in: ["checked_out"],
   checked_out: [],
   cancelled: ["confirmed"],
-  no_show: [],
+  no_show: ["confirmed"],
 };
 
 export function canTransitionBooking(from: string | null, to: string): boolean {

@@ -16,10 +16,12 @@ import {
   getCalendarData,
   moveBooking,
   unassignBooking,
+  type CalendarAvailabilityBlock,
   type CalendarBooking,
   type CalendarData,
   type CalendarRoom,
 } from "./actions";
+import { BlockDetailDrawer } from "./_components/block-detail-drawer";
 import type { TypeChangeRequest as DragTypeChangeRequest } from "./_components/timeline/timeline-calendar";
 import { pickBestRoom } from "./_components/timeline/auto-assign";
 import { VIEW_PRESETS, type ViewPreset } from "./_components/calendar-helpers";
@@ -40,6 +42,7 @@ interface CalendarClientProps {
   hotelTimezone: string;
   canEdit: boolean;
   canBlock: boolean;
+  canUnblock: boolean;
 }
 
 interface RoomTypeFilter {
@@ -96,7 +99,8 @@ function CalendarClientContent({
   currency,
   hotelTimezone,
   canEdit,
-  canBlock,
+  canBlock: canBlockProp,
+  canUnblock,
 }: CalendarClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -161,6 +165,7 @@ function CalendarClientContent({
     checkOut?: Date;
   } | null>(null);
   const [blockRoomOpen, setBlockRoomOpen] = React.useState(false);
+  const [selectedBlock, setSelectedBlock] = React.useState<CalendarAvailabilityBlock | null>(null);
   const [blockPrefillRoomId, setBlockPrefillRoomId] = React.useState<string | undefined>();
   const [pendingTypeChange, setPendingTypeChange] = React.useState<TypeChangeRequest | null>(null);
 
@@ -536,7 +541,7 @@ function CalendarClientContent({
         realtimeStatus={realtimeStatus}
         activeFilterCount={activeFilterCount}
         searchQuery={searchQuery}
-        canBlock={canBlock}
+        canBlock={canBlockProp}
         onNavigate={navigate}
         onToday={goToToday}
         onSelectDate={selectDate}
@@ -593,6 +598,7 @@ function CalendarClientContent({
             hotelTimezone={hotelTimezone}
             highlightIds={newBookingIds}
             onOpenBooking={openBooking}
+            onOpenBlock={setSelectedBlock}
             onChange={handleTimelineChange}
             onAutoAssign={handleAutoAssign}
             onRequestTypeChange={handleRequestTypeChange}
@@ -694,6 +700,19 @@ function CalendarClientContent({
         currency={currency}
         initialTab={detailInitialTab}
         onBookingChanged={() => queryClient.invalidateQueries({ queryKey: ["calendar", orgId, hotelId] })}
+      />
+      <BlockDetailDrawer
+        block={selectedBlock}
+        open={selectedBlock !== null}
+        onClose={() => setSelectedBlock(null)}
+        roomNumber={
+          rooms.find((r) => r.id === selectedBlock?.roomId)?.roomNumber ?? "—"
+        }
+        roomTypeName={rooms.find((r) => r.id === selectedBlock?.roomId)?.roomTypeName}
+        canUnblock={canUnblock}
+        onUnblocked={() =>
+          queryClient.invalidateQueries({ queryKey: ["calendar", orgId, hotelId] })
+        }
       />
       <BlockRoomSheet
         open={blockRoomOpen}

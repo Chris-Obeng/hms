@@ -25,10 +25,18 @@ describe("booking status transition guards", () => {
     expect(canTransitionBooking("cancelled", "checked_in")).toBe(false);
   });
 
+  it("allows no-show recording before check-in and its reinstatement", () => {
+    expect(canTransitionBooking("pending", "no_show")).toBe(true);
+    expect(canTransitionBooking("confirmed", "no_show")).toBe(true);
+    expect(canTransitionBooking("checked_in", "no_show")).toBe(false);
+    // Reinstatement from no_show returns to confirmed
+    expect(canTransitionBooking("no_show", "confirmed")).toBe(true);
+    expect(canTransitionBooking("no_show", "checked_in")).toBe(false);
+  });
+
   it("terminal statuses allow nothing", () => {
     for (const next of ["confirmed", "checked_in", "checked_out", "cancelled", "no_show", "pending"]) {
       expect(canTransitionBooking("checked_out", next)).toBe(false);
-      expect(canTransitionBooking("no_show", next)).toBe(false);
     }
   });
 

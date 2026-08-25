@@ -39,6 +39,7 @@ export type StaffRoleInfo = {
   role: StaffRole;
   canEdit: boolean;
   canBlock: boolean;
+  canUnblock: boolean;
 };
 
 /**
@@ -48,7 +49,7 @@ export type StaffRoleInfo = {
 export async function getCurrentStaffRole(): Promise<StaffRoleInfo> {
   const { orgId, userId } = await auth();
   if (!orgId || !userId) {
-    return { role: "pending", canEdit: false, canBlock: false };
+    return { role: "pending", canEdit: false, canBlock: false, canUnblock: false };
   }
 
   const supabase = await createClient();
@@ -61,14 +62,18 @@ export async function getCurrentStaffRole(): Promise<StaffRoleInfo> {
     .single();
 
   if (!profile || !profile.is_active) {
-    return { role: "pending", canEdit: false, canBlock: false };
+    return { role: "pending", canEdit: false, canBlock: false, canUnblock: false };
   }
 
   const role = profile.role as StaffRole;
   const canEdit = role === "super_admin" || role === "manager" || role === "front_desk";
-  const canBlock = role === "super_admin" || role === "manager";
+  // Front desk blocks rooms daily (maintenance, cleaning, owner stays).
+  // Removing blocks stays manager+ — enforced in deleteAvailabilityBlock and
+  // mirrored by the availability_blocks DELETE RLS policy.
+  const canBlock = canEdit;
+  const canUnblock = role === "super_admin" || role === "manager";
 
-  return { role, canEdit, canBlock };
+  return { role, canEdit, canBlock, canUnblock };
 }
 
 // ── Calendar Data ────────────────────────────────────────────────────
@@ -115,6 +120,8 @@ export interface CalendarAvailabilityBlock {
   endDate: string;
   reason: string | null;
   notes: string | null;
+  createdAt: string | null;
+  createdByName: string | null;
 }
 
 export interface CalendarData {
@@ -186,11 +193,24 @@ export async function getCalendarData(
   // 4. Availability blocks overlapping the visible window
   const { data: blocks } = await supabase
     .from("availability_blocks")
-    .select("id, room_id, start_date, end_date, reason, notes")
+    .select("id, room_id, start_date, end_date, reason, notes, created_by, created_at")
     .eq("hotel_id", hotelId)
     .lt("start_date", endDate)
     .gt("end_date", startDate)
     .order("start_date", { ascending: true });
+
+  // Resolve blocker names in one query
+  const blockCreatorIds = [...new Set((blocks || []).map((b) => b.created_by).filter(Boolean))] as string[];
+  const blockStaffMap = new Map<string, string>();
+  if (blockCreatorIds.length > 0) {
+    const { data: blockStaff } = await supabase
+      .from("staff_profiles")
+      .select("id, full_name")
+      .in("id", blockCreatorIds);
+    for (const s of blockStaff || []) {
+      if (s.full_name) blockStaffMap.set(s.id, s.full_name);
+    }
+  }
 
   // ── Map to client shapes ────────────────────────────────────────────
 
@@ -258,6 +278,8 @@ export async function getCalendarData(
     endDate: blk.end_date,
     reason: blk.reason,
     notes: blk.notes,
+    createdAt: blk.created_at ?? null,
+    createdByName: blk.created_by ? blockStaffMap.get(blk.created_by) ?? null : null,
   }));
 
   return {
@@ -580,9 +602,20 @@ export async function moveBooking(
     }
 
     // Audit trail: room moves are high-value operational events
+    // (staff_id is a uuid referencing staff_profiles, not the Clerk user id)
+    let movedByStaffId: string | null = null;
+    if (userId) {
+      const { data: staffProfile } = await supabase
+        .from("staff_profiles")
+        .select("id")
+        .eq("clerk_user_id", userId)
+        .single();
+      movedByStaffId = staffProfile?.id ?? null;
+    }
+
     void writeAuditLog(supabase, {
       hotelId,
-      staffId: userId ?? null,
+      staffId: movedByStaffId,
       action: typeChangeRequested ? "booking.room_type_change" : "booking.move",
       entityType: "booking",
       entityId: bookingId,
@@ -638,7 +671,7 @@ export async function unassignBooking(
 // ── Availability Blocks quick actions ────────────────────────────────
 /**
  * Creates an availability / maintenance block for a room.
- * PRD §9.3
+ * PRD §9.3. Front desk and above may block; removal is manager+.
  */
 export async function createAvailabilityBlock(
   roomId: string,
@@ -648,12 +681,22 @@ export async function createAvailabilityBlock(
   notes: string | null
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { supabase, hotelId } = await getHotelScopedClient();
-    
-    // Check permission
+    const { supabase, hotelId, userId } = await getHotelScopedClient();
+
     const { canBlock } = await getCurrentStaffRole();
     if (!canBlock) {
-      return { success: false, error: "Only managers and super admins can block rooms" };
+      return { success: false, error: "You don't have permission to block rooms" };
+    }
+
+    // Record which staff member created the block (staff_profiles id).
+    let createdByStaffId: string | null = null;
+    if (userId) {
+      const { data: staffProfile } = await supabase
+        .from("staff_profiles")
+        .select("id")
+        .eq("clerk_user_id", userId)
+        .single();
+      createdByStaffId = staffProfile?.id ?? null;
     }
 
     const storedRange = toStoredBlockRange(startDate, endDate);
@@ -666,9 +709,23 @@ export async function createAvailabilityBlock(
         end_date: storedRange.endDate,
         reason,
         notes,
+        created_by: createdByStaffId,
       });
 
     if (error) throw error;
+
+    void writeAuditLog(supabase, {
+      hotelId,
+      staffId: createdByStaffId,
+      action: "room.block_created",
+      entityType: "room",
+      entityId: roomId,
+      afterState: {
+        block_range: `${storedRange.startDate} → ${storedRange.endDate}`,
+        reason,
+      },
+    });
+
     return { success: true };
   } catch (err) {
     return {
@@ -679,32 +736,58 @@ export async function createAvailabilityBlock(
 }
 
 /**
- * Deletes an existing availability block.
+ * Deletes an existing availability block. Manager+ only — mirrors the
+ * availability_blocks DELETE RLS policy.
  */
 export async function deleteAvailabilityBlock(
   blockId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { supabase, hotelId } = await getHotelScopedClient();
-    
-    // Check permission
-    const { canBlock } = await getCurrentStaffRole();
-    if (!canBlock) {
-      return { success: false, error: "Only managers and super admins can delete blocks" };
+    const { supabase, hotelId, userId } = await getHotelScopedClient();
+
+    const { canUnblock } = await getCurrentStaffRole();
+    if (!canUnblock) {
+      return { success: false, error: "Only managers and super admins can remove blocks" };
     }
 
-    const { error } = await supabase
+    // Resolve the acting staff member (staff_profiles id) for audit attribution.
+    let deletedByStaffId: string | null = null;
+    if (userId) {
+      const { data: staffProfile } = await supabase
+        .from("staff_profiles")
+        .select("id")
+        .eq("clerk_user_id", userId)
+        .single();
+      deletedByStaffId = staffProfile?.id ?? null;
+    }
+
+    const { data: removed, error: fetchError } = await supabase
       .from("availability_blocks")
       .delete()
       .eq("id", blockId)
-      .eq("hotel_id", hotelId);
+      .eq("hotel_id", hotelId)
+      .select("id, room_id, start_date, end_date")
+      .single();
 
-    if (error) throw error;
+    if (fetchError) throw fetchError;
+
+    void writeAuditLog(supabase, {
+      hotelId,
+      staffId: deletedByStaffId,
+      action: "room.block_deleted",
+      entityType: "room",
+      entityId: removed?.room_id ?? blockId,
+      afterState: {
+        block_id: blockId,
+        block_range: removed ? `${removed.start_date} → ${removed.end_date}` : undefined,
+      },
+    });
+
     return { success: true };
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Failed to delete block",
+      error: err instanceof Error ? err.message : "Failed to remove block",
     };
   }
 }

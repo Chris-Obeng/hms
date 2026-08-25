@@ -1,14 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { format, startOfDay, endOfDay } from "date-fns";
-import { addDays, startOfWeek } from "date-fns";
+import { format, isToday, startOfDay, endOfDay } from "date-fns";
 import { AlertDialog, toast } from "@heroui/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
-import { CalendarClock, RotateCw } from "lucide-react";
+import { Banknote, CalendarClock, Percent, RotateCw, TrendingUp } from "lucide-react";
 
-import { Skeleton, Button } from "@heroui/react";
+import { Calendar, Skeleton, Button } from "@heroui/react";
+import type { CalendarDate } from "@internationalized/date";
+import { toCalendarDate, fromCalendarDate } from "@/lib/date-convert";
 import { DashboardHeader } from "./_components/dashboard-header";
 import { DateCard } from "./_components/date-card";
 import { OccupancyCard } from "./_components/occupancy-card";
@@ -20,7 +21,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { qk } from "@/lib/query-keys";
 import { findOverlappingBookingIds, isCheckedInStayoverOnDate, isInHouseOnDate } from "@/lib/calendar-domain";
 import { updateBookingStatus } from "@/app/actions/bookings";
-import { formatDate } from "@/lib/format";
+import { formatCurrencyCompact, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import PullToRefresh from "react-simple-pull-to-refresh";
 
@@ -42,7 +43,37 @@ const defaultEmptyStats = {
   overbookings: 0,
 };
 
-async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr: string): Promise<any> {
+type DashboardSupabase = ReturnType<typeof createClient>;
+
+interface DashboardBookingRow {
+  id: string;
+  reference: string;
+  check_in: string;
+  check_out: string;
+  status: string | null;
+  payment_status: string | null;
+  total_amount: number;
+  amount_paid: number | null;
+  outstanding_balance: number | null;
+  adults: number | null;
+  children: number | null;
+  source: string | null;
+  nights: number | null;
+  room_id: string | null;
+  created_at: string | null;
+  updated_at?: string | null;
+  special_requests: string | null;
+  internal_notes: string | null;
+  guests: { full_name: string | null; email: string | null; phone: string | null } | null;
+  rooms: { room_number: string | null } | null;
+  room_types: { name: string | null } | null;
+}
+
+async function fetchDashboardClientData(
+  supabase: DashboardSupabase,
+  hotelId: string,
+  dateStr: string
+) {
   const dayStr = dateStr;
   const today = new Date(dateStr + "T00:00:00");
 
@@ -155,15 +186,15 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
   if (todayPaymentsRes.error) throw todayPaymentsRes.error;
 
   const roomStatuses = roomsRes.data || [];
-  const outOfService = roomStatuses.filter((r: any) => r.status === "maintenance" || r.status === "out_of_service").length;
+  const outOfService = roomStatuses.filter((r) => r.status === "maintenance" || r.status === "out_of_service").length;
   const activeRooms = roomStatuses.length;
-  const occupiedRoomIds = new Set((dateBookingsRes.data || []).map((b: any) => b.room_id).filter(Boolean));
-  const blockedRoomIds = new Set((blocksRes.data || []).map((b: any) => b.room_id));
+  const occupiedRoomIds = new Set((dateBookingsRes.data || []).map((b) => b.room_id).filter(Boolean));
+  const blockedRoomIds = new Set((blocksRes.data || []).map((b) => b.room_id));
   const occupiedRooms = occupiedRoomIds.size;
   const blocked = [...blockedRoomIds].filter((id) => !occupiedRoomIds.has(id)).length;
   const availableRooms = activeRooms - occupiedRooms - outOfService - blocked;
 
-  const mapBooking = (b: any): ActivityBooking => ({
+  const mapBooking = (b: DashboardBookingRow): ActivityBooking => ({
     id: b.id,
     reference: b.reference,
     guestName: b.guests?.full_name || "Unknown",
@@ -209,23 +240,23 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
     if (!seen.has(b.id)) { uniqueBookings.push(b); seen.add(b.id); }
   }
 
-  const stayovers = (dateBookingsRes.data || []).filter((b: any) => isCheckedInStayoverOnDate({ id: b.id, roomId: b.room_id, checkIn: b.check_in, checkOut: b.check_out, status: b.status }, dayStr)).length;
+  const stayovers = (dateBookingsRes.data || []).filter((b) => isCheckedInStayoverOnDate({ id: b.id, roomId: b.room_id, checkIn: b.check_in, checkOut: b.check_out, status: b.status }, dayStr)).length;
   const inHouse = inHouseList.length;
-  const conflictIds = findOverlappingBookingIds((dateBookingsRes.data || []).map((b: any) => ({ id: b.id, roomId: b.room_id, checkIn: b.check_in, checkOut: b.check_out })));
+  const conflictIds = findOverlappingBookingIds((dateBookingsRes.data || []).map((b) => ({ id: b.id, roomId: b.room_id, checkIn: b.check_in, checkOut: b.check_out })));
   for (const booking of uniqueBookings) booking.hasConflict = conflictIds.has(booking.id);
   const overbookings = conflictIds.size;
 
-  const totalRevenueToday = todayPaymentsRes.data?.reduce((s: number, p: any) => s + (p.amount || 0), 0) || 0;
-  const roomNightsSold = uniqueBookings.reduce((s: number, b: any) => s + (b.nights || 1), 0);
+  const totalRevenueToday = todayPaymentsRes.data?.reduce((s: number, p) => s + (p.amount || 0), 0) || 0;
+  const roomNightsSold = uniqueBookings.reduce((s: number, b) => s + (b.nights || 1), 0);
   const adrToday = roomNightsSold > 0 ? Math.round(totalRevenueToday / roomNightsSold) : 0;
   const revparToday = activeRooms > 0 ? Math.round(totalRevenueToday / activeRooms) : 0;
 
   return {
     stats: {
       arrivals: arrivalsRes.data?.length || 0,
-      uncheckedInArrivals: arrivalsRes.data?.filter((b: any) => b.status === "confirmed").length || 0,
+      uncheckedInArrivals: arrivalsRes.data?.filter((b) => b.status === "confirmed").length || 0,
       departures: departuresRes.data?.length || 0,
-      pendingDepartures: departuresRes.data?.filter((b: any) => b.status !== "checked_out").length || 0,
+      pendingDepartures: departuresRes.data?.filter((b) => b.status !== "checked_out").length || 0,
       inHouse,
       stayovers,
       newBookings: recordedList.length,
@@ -248,6 +279,14 @@ async function fetchDashboardClientData(supabase: any, hotelId: string, dateStr:
       roomNightsSold,
     },
   };
+}
+
+type DashboardQueryData = Awaited<ReturnType<typeof fetchDashboardClientData>>;
+
+/** Optimistic-update rollback payload captured in onMutate. */
+interface MutationCtx {
+  previousData?: DashboardQueryData;
+  queryKey?: readonly unknown[];
 }
 
 export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
@@ -311,14 +350,17 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
         "postgres_changes",
         { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['dashboard', orgId, hotelId] });
+          queryClient.invalidateQueries({ queryKey: qk.dashboard(orgId, hotelId, dateParamStr) });
+          queryClient.invalidateQueries({
+            queryKey: qk.dashboard(orgId, hotelId, format(new Date(), "yyyy-MM-dd")),
+          });
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [hotelId, orgId, queryClient]);
+  }, [hotelId, orgId, queryClient, dateParamStr]);
 
   const handleBookingChanged = React.useCallback(() => {
     if (orgId) {
@@ -386,13 +428,13 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
       setCheckingIn((prev) => new Set(prev).add(bookingId));
       const queryKey = qk.dashboard(orgId || "", hotelId, dateParamStr);
       await queryClient.cancelQueries({ queryKey });
-      const previousData = queryClient.getQueryData(queryKey);
+      const previousData = queryClient.getQueryData<DashboardQueryData>(queryKey);
 
-      queryClient.setQueryData(queryKey, (old: any) => {
+      queryClient.setQueryData(queryKey, (old: DashboardQueryData | undefined) => {
         if (!old) return old;
         return {
           ...old,
-          bookings: old.bookings.map((b: any) =>
+          bookings: old.bookings.map((b) =>
             b.id === bookingId ? { ...b, status: "checked_in" } : b
           ),
           stats: {
@@ -406,7 +448,7 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
 
       return { previousData };
     },
-    onError: (err, bookingId, context: any) => {
+    onError: (err, bookingId, context?: MutationCtx) => {
       const queryKey = qk.dashboard(orgId || "", hotelId, dateParamStr);
       if (context?.previousData) {
         queryClient.setQueryData(queryKey, context.previousData);
@@ -470,13 +512,13 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
       setCheckingOut((prev) => new Set(prev).add(bookingId));
       const queryKey = qk.dashboard(orgId || "", hotelId, dateParamStr);
       await queryClient.cancelQueries({ queryKey });
-      const previousData = queryClient.getQueryData(queryKey);
+      const previousData = queryClient.getQueryData<DashboardQueryData>(queryKey);
 
-      queryClient.setQueryData(queryKey, (old: any) => {
+      queryClient.setQueryData(queryKey, (old: DashboardQueryData | undefined) => {
         if (!old) return old;
         return {
           ...old,
-          bookings: old.bookings.map((b: any) =>
+          bookings: old.bookings.map((b) =>
             b.id === bookingId ? { ...b, status: "checked_out" } : b
           ),
           stats: {
@@ -490,7 +532,7 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
 
       return { previousData };
     },
-    onError: (err, bookingId, context: any) => {
+    onError: (err, bookingId, context?: MutationCtx) => {
       const queryKey = qk.dashboard(orgId || "", hotelId, dateParamStr);
       if (context?.previousData) {
         queryClient.setQueryData(queryKey, context.previousData);
@@ -558,15 +600,17 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
     onMutate: async ({ bookingId, status }) => {
       const queryKey = qk.dashboard(orgId || "", hotelId, dateParamStr);
       await queryClient.cancelQueries({ queryKey });
-      const previousData = queryClient.getQueryData(queryKey);
-      queryClient.setQueryData(queryKey, (old: any) => old ? {
+      const previousData = queryClient.getQueryData<DashboardQueryData>(queryKey);
+      queryClient.setQueryData(queryKey, (old: DashboardQueryData | undefined) => old ? {
         ...old,
-        bookings: old.bookings.map((booking: any) => booking.id === bookingId ? { ...booking, status } : booking),
+        bookings: old.bookings.map((booking) => booking.id === bookingId ? { ...booking, status } : booking),
       } : old);
       return { previousData, queryKey };
     },
-    onError: (err, _variables, context: any) => {
-      if (context?.previousData) queryClient.setQueryData(context.queryKey, context.previousData);
+    onError: (err, _variables, context) => {
+      if (context?.previousData && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousData);
+      }
       toast.danger(err instanceof Error ? err.message : "Status update failed");
     },
     onSuccess: ({ status }) => toast.success(status === "cancelled" ? "Booking cancelled" : "Booking marked no-show"),
@@ -580,26 +624,26 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
     switch (activeTab) {
       case "arrivals":
         return data.bookings.filter(
-          (b: any) => b.checkIn === format(selectedDate, "yyyy-MM-dd") &&
+          (b) => b.checkIn === dateParamStr &&
             ["confirmed", "checked_in"].includes(b.status)
         );
       case "departures":
         return data.bookings.filter(
-          (b: any) => b.checkOut === format(selectedDate, "yyyy-MM-dd") &&
+          (b) => b.checkOut === dateParamStr &&
             ["confirmed", "checked_in", "checked_out"].includes(b.status)
         );
       case "in_house":
-        return data.bookings.filter((b: any) => isInHouseOnDate({ id: b.id, roomId: null, checkIn: b.checkIn, checkOut: b.checkOut, status: b.status }, dateParamStr));
+        return data.bookings.filter((b) => isInHouseOnDate({ id: b.id, roomId: null, checkIn: b.checkIn, checkOut: b.checkOut, status: b.status }, dateParamStr));
       case "bookings":
-        return data.bookings.filter((b: any) => b.createdAt?.slice(0, 10) === dateParamStr);
+        return data.bookings.filter((b) => b.createdAt?.slice(0, 10) === dateParamStr);
       case "cancellations":
-        return data.bookings.filter((b: any) => b.status === "cancelled");
+        return data.bookings.filter((b) => b.status === "cancelled");
       case "overbookings":
-        return data.bookings.filter((b: any) => b.hasConflict);
+        return data.bookings.filter((b) => b.hasConflict);
       default:
         return data.bookings;
     }
-  }, [data?.bookings, activeTab, dateParamStr]);
+  }, [data, activeTab, dateParamStr]);
 
   if (loading && !data) {
     return <DashboardSkeleton />;
@@ -627,63 +671,71 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
       maxPullDownDistance={96}
       resistance={2.5}
     >
-    <div className="space-y-6 max-w-[1600px] mx-auto">
-      {/* Cloudbeds Header Row */}
-      <div className="flex items-center justify-between pb-2 rounded-xl border border-border/50 bg-card/70 px-3 py-2">
-        <div className="hidden lg:flex items-center gap-2 text-sm font-semibold text-foreground"><CalendarClock className="size-4 text-primary" />{format(selectedDate, "EEEE, MMM d")}</div>
-        <div className="flex items-center gap-3">
+    <div className="mx-auto max-w-[1600px] space-y-5 md:space-y-6">
+      {/* ── Date header ─────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/50 bg-card px-4 py-3 shadow-xs">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span
+            aria-hidden
+            className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-foreground/70"
+          >
+            <CalendarClock className="size-4.5" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-section truncate leading-tight text-foreground">
+              {isToday(selectedDate) ? "Today" : format(selectedDate, "EEEE")}
+            </p>
+            <p className="text-caption tabular-nums text-muted-foreground">
+              {format(selectedDate, "MMMM d, yyyy")}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
             isIconOnly
             onPress={() => refetch()}
             aria-label="Refresh data"
-            className="hidden md:inline-flex size-8 rounded-lg text-muted-foreground hover:text-foreground"
+            className="size-8 min-w-8 rounded-lg text-muted-foreground hover:text-foreground"
           >
-            <RotateCw className={`size-4 ${isRefetching ? "animate-spin" : ""}`} />
+            <RotateCw className={cn("size-3.5", isRefetching && "animate-spin")} />
           </Button>
-
-          <div className="hidden md:block">
-            <DashboardHeader selectedDate={selectedDate} onDateChange={handleDateChange} />
-          </div>
+          <DashboardHeader selectedDate={selectedDate} onDateChange={handleDateChange} />
         </div>
       </div>
 
-      <MobileWeekStrip selectedDate={selectedDate} onDateChange={handleDateChange} />
+      {/* ── Mobile week view (HeroUI Calendar, 1-week grid) ─────── */}
+      <MobileWeekCalendar selectedDate={selectedDate} onDateChange={handleDateChange} />
 
-      {/* Cloudbeds Main 2-Column Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-[270px_1fr] gap-6 items-start">
-        {/* Left Column: Date Widget + Occupancy Widget */}
+      {/* ── Quick stats strip ───────────────────────────────────── */}
+      <QuickStatsStrip stats={data.quickStats} currency={currency} />
+
+      {/* ── Main 2-column grid ──────────────────────────────────── */}
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[270px_1fr] lg:gap-6">
+        {/* Left column */}
         <div className="space-y-4 lg:space-y-6">
-          <div>
-            <DateCard selectedDate={selectedDate} onDateChange={handleDateChange} />
-          </div>
-          
-          <div>
-            <OccupancyCard
-              occupancyPercent={data.occupancy.percent}
-              availableUnits={data.occupancy.availableRooms}
-              bookedUnits={data.occupancy.occupiedRooms}
-              outOfService={data.occupancy.outOfService}
-              blockedDates={data.occupancy.blocked}
-              totalRooms={data.occupancy.totalRooms}
-            />
-          </div>
+          <DateCard selectedDate={selectedDate} onDateChange={handleDateChange} />
+
+          <OccupancyCard
+            occupancyPercent={data.occupancy.percent}
+            availableUnits={data.occupancy.availableRooms}
+            bookedUnits={data.occupancy.occupiedRooms}
+            outOfService={data.occupancy.outOfService}
+            blockedDates={data.occupancy.blocked}
+            totalRooms={data.occupancy.totalRooms}
+          />
         </div>
 
-        {/* Right Column: Activity Card Container */}
-        <div className="rounded-xl border border-border/50 bg-card shadow-xs overflow-hidden">
-          <ActivityTabs
-            tabs={tabs}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
+        {/* Right column — activity */}
+        <div className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-xs">
+          <ActivityTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
           <ActivityList
             bookings={filteredBookings}
-            activeTab={activeTab}
             loading={loading}
-            currency={currency}
+            onRefresh={() => void refetch()}
             onCheckIn={(id) => {
               if (!checkingIn.has(id)) handleCheckIn(id);
             }}
@@ -787,11 +839,8 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
 
 function DashboardSkeleton() {
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-9 w-44 rounded-lg" />
-        <Skeleton className="h-9 w-48 rounded-lg" />
-      </div>
+    <div className="mx-auto max-w-[1600px] space-y-5 md:space-y-6">
+      <Skeleton className="h-16 w-full rounded-2xl" />
 
       <div className="grid grid-cols-1 lg:grid-cols-[270px_1fr] gap-6">
         <div className="space-y-6">
@@ -807,24 +856,99 @@ function DashboardSkeleton() {
   );
 }
 
-function MobileWeekStrip({ selectedDate, onDateChange }: { selectedDate: Date; onDateChange: (date: Date) => void }) {
-  const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
+// ── Mobile week calendar — HeroUI Calendar, single-week grid ───────
+
+function MobileWeekCalendar({
+  selectedDate,
+  onDateChange,
+}: {
+  selectedDate: Date;
+  onDateChange: (date: Date) => void;
+}) {
   return (
-    <div className="-mx-1 -mt-4 overflow-x-auto pb-1 md:hidden">
-      <div className="grid min-w-[350px] grid-cols-7 gap-1 rounded-xl border border-border/60 bg-card p-2 shadow-xs">
-        {Array.from({ length: 7 }, (_, index) => {
-          const day = addDays(weekStart, index);
-          const active = format(day, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd");
-          return (
-            <button key={day.toISOString()} type="button" onClick={() => onDateChange(day)}
-              className={cn("flex min-h-16 flex-col items-center justify-center rounded-lg px-1 py-2 transition-colors", active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted")}
-              aria-pressed={active}>
-              <span className="text-[10px] font-semibold uppercase">{format(day, "EEE")}</span>
-              <span className="mt-1 text-lg font-semibold tabular-nums">{format(day, "d")}</span>
-            </button>
-          );
-        })}
-      </div>
+    <div className="rounded-2xl border border-border/50 bg-card px-2 pb-3 pt-3 shadow-xs md:hidden">
+      <Calendar
+        aria-label="Select day"
+        visibleDuration={{ weeks: 1 }}
+        pageBehavior="single"
+        firstDayOfWeek="mon"
+        value={toCalendarDate(selectedDate)}
+        onChange={(date) => {
+          if (date) onDateChange(fromCalendarDate(date as CalendarDate));
+        }}
+      >
+        <Calendar.Header className="pb-1">
+          <Calendar.NavButton slot="previous" />
+          <Calendar.Heading />
+          <Calendar.NavButton slot="next" />
+        </Calendar.Header>
+        <Calendar.Grid>
+          <Calendar.GridHeader>
+            {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
+          </Calendar.GridHeader>
+          <Calendar.GridBody>
+            {(date) => <Calendar.Cell date={date} />}
+          </Calendar.GridBody>
+        </Calendar.Grid>
+      </Calendar>
+    </div>
+  );
+}
+
+// ── Today's performance strip ──────────────────────────────────────
+
+function QuickStatsStrip({
+  stats,
+  currency,
+}: {
+  stats: { adr: number; revpar: number; totalRevenue: number; roomNightsSold: number };
+  currency: string;
+}) {
+  const items = [
+    {
+      icon: Banknote,
+      label: "Revenue today",
+      value: formatCurrencyCompact(stats.totalRevenue, currency),
+      tone: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 ring-emerald-500/20",
+    },
+    {
+      icon: TrendingUp,
+      label: "ADR",
+      value: formatCurrencyCompact(stats.adr, currency),
+      tone: "text-sky-600 dark:text-sky-400 bg-sky-500/10 ring-sky-500/20",
+    },
+    {
+      icon: Percent,
+      label: "RevPAR",
+      value: formatCurrencyCompact(stats.revpar, currency),
+      tone: "text-violet-600 dark:text-violet-400 bg-violet-500/10 ring-violet-500/20",
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-3 gap-2 sm:gap-3">
+      {items.map(({ icon: Icon, label, value, tone }) => (
+        <div
+          key={label}
+          className="flex items-center gap-2.5 rounded-2xl border border-border/50 bg-card px-3 py-2.5 shadow-xs sm:gap-3 sm:px-4"
+        >
+          <span
+            aria-hidden
+            className={cn(
+              "hidden size-8 shrink-0 place-items-center rounded-lg ring-1 ring-inset sm:grid",
+              tone
+            )}
+          >
+            <Icon className="size-4" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+              {label}
+            </p>
+            <p className="text-kpi truncate tabular-nums text-foreground">{value}</p>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

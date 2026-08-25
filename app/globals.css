@@ -231,7 +231,13 @@
   }
 }
 
-/* ── Theme tokens ──────────────────────────────────────────────────── */
+/* ── Theme tokens ────────────────────────────────────────────────────
+ *
+ *  Palette direction: warm-neutral surfaces on a cool "hotel navy" brand
+ *  hue (hue ~258 oklch). Light mode stays airy and paper-like; dark mode
+ *  uses deep blue-slate surfaces. Accents (emerald/amber/violet) carry
+ *  status semantics; primary drives interactive elements.
+ * ──────────────────────────────────────────────────────────────────── */
 
 :root {
   /* ── Onboarding amber accent tokens ──────────────────────────
@@ -243,72 +249,75 @@
   --ob-accent-muted: oklch(0.78 0.18 70 / 0.15);
   --ob-accent-glow: oklch(0.78 0.18 70 / 0.06);
 
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: oklch(0.993 0.003 250);
+  --foreground: oklch(0.17 0.02 260);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.17 0.02 260);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.17 0.02 260);
+  /* Brand: confident indigo-blue */
+  --primary: oklch(0.52 0.19 261);
+  --primary-foreground: oklch(0.985 0.005 250);
+  --secondary: oklch(0.965 0.008 255);
+  --secondary-foreground: oklch(0.28 0.03 262);
+  --muted: oklch(0.962 0.007 255);
+  --muted-foreground: oklch(0.51 0.024 260);
+  --accent: oklch(0.952 0.014 255);
+  --accent-foreground: oklch(0.32 0.06 262);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --border: oklch(0.907 0.01 256);
+  --input: oklch(0.907 0.01 256);
+  --ring: oklch(0.62 0.16 261);
+  /* Charts: distinct, professional, colorblind-aware */
+  --chart-1: oklch(0.58 0.19 261);   /* brand blue    */
+  --chart-2: oklch(0.66 0.15 165);   /* emerald       */
+  --chart-3: oklch(0.78 0.14 75);    /* amber         */
+  --chart-4: oklch(0.6 0.18 300);    /* violet        */
+  --chart-5: oklch(0.64 0.19 22);    /* coral red     */
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Sidebar: soft cool-tinted panel with navy active states */
+  --sidebar: oklch(0.978 0.006 253);
+  --sidebar-foreground: oklch(0.24 0.025 261);
+  --sidebar-primary: oklch(0.52 0.19 261);
+  --sidebar-primary-foreground: oklch(0.985 0.005 250);
+  --sidebar-accent: oklch(0.94 0.016 256);
+  --sidebar-accent-foreground: oklch(0.28 0.05 262);
+  --sidebar-border: oklch(0.91 0.012 255);
+  --sidebar-ring: oklch(0.62 0.16 261);
 }
 
 .dark {
-  --background: oklch(0.13 0.01 240);
-  --foreground: oklch(0.98 0.005 240);
-  --card: oklch(0.16 0.01 240);
-  --card-foreground: oklch(0.98 0.005 240);
-  --popover: oklch(0.16 0.01 240);
-  --popover-foreground: oklch(0.98 0.005 240);
-  --primary: oklch(0.93 0.005 240);
-  --primary-foreground: oklch(0.13 0.01 240);
-  --secondary: oklch(0.21 0.01 240);
-  --secondary-foreground: oklch(0.98 0.005 240);
-  --muted: oklch(0.21 0.01 240);
-  --muted-foreground: oklch(0.68 0.01 240);
-  --accent: oklch(0.21 0.01 240);
-  --accent-foreground: oklch(0.98 0.005 240);
+  --background: oklch(0.145 0.018 262);
+  --foreground: oklch(0.97 0.006 255);
+  --card: oklch(0.185 0.02 262);
+  --card-foreground: oklch(0.97 0.006 255);
+  --popover: oklch(0.19 0.02 262);
+  --popover-foreground: oklch(0.97 0.006 255);
+  --primary: oklch(0.68 0.16 262);
+  --primary-foreground: oklch(0.14 0.03 262);
+  --secondary: oklch(0.245 0.022 261);
+  --secondary-foreground: oklch(0.97 0.006 255);
+  --muted: oklch(0.245 0.022 261);
+  --muted-foreground: oklch(0.71 0.02 258);
+  --accent: oklch(0.27 0.03 261);
+  --accent-foreground: oklch(0.97 0.006 255);
   --destructive: oklch(0.62 0.17 24);
-  --border: oklch(1 0 0 / 6%);
-  --input: oklch(1 0 0 / 8%);
-  --ring: oklch(0.68 0.01 240);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.12 0.01 240);
-  --sidebar-foreground: oklch(0.98 0.005 240);
-  --sidebar-primary: oklch(0.93 0.005 240);
-  --sidebar-primary-foreground: oklch(0.12 0.01 240);
-  --sidebar-accent: oklch(0.21 0.01 240);
-  --sidebar-accent-foreground: oklch(0.98 0.005 240);
-  --sidebar-border: oklch(1 0 0 / 6%);
-  --sidebar-ring: oklch(0.68 0.01 240);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 10%);
+  --ring: oklch(0.62 0.13 262);
+  --chart-1: oklch(0.68 0.16 262);
+  --chart-2: oklch(0.72 0.14 165);
+  --chart-3: oklch(0.82 0.13 80);
+  --chart-4: oklch(0.68 0.16 305);
+  --chart-5: oklch(0.7 0.17 22);
+  --sidebar: oklch(0.135 0.018 262);
+  --sidebar-foreground: oklch(0.97 0.006 255);
+  --sidebar-primary: oklch(0.68 0.16 262);
+  --sidebar-primary-foreground: oklch(0.14 0.03 262);
+  --sidebar-accent: oklch(0.25 0.025 261);
+  --sidebar-accent-foreground: oklch(0.97 0.006 255);
+  --sidebar-border: oklch(1 0 0 / 7%);
+  --sidebar-ring: oklch(0.62 0.13 262);
 }
 
 @layer base {
@@ -427,6 +436,27 @@
  * ────────────────────────────────────────────────────────────────────── */
 .card-default {
   @apply rounded-xl border border-border/40 bg-card shadow-sm;
+}
+
+/* ── HeroUI Switch — default blue when on (app-wide standard) ────────
+ *  HeroUI v3 exposes BEM hooks (.switch__control) with data attributes.
+ *  Blue = Tailwind default palette blue-600 / blue-500 (dark).
+ * ──────────────────────────────────────────────────────────────────── */
+.switch__control[data-selected="true"] {
+  background-color: oklch(0.546 0.245 262.881); /* blue-600 */
+  border-color: oklch(0.546 0.245 262.881);
+}
+.switch__control[data-selected="true"][data-hovered="true"],
+.switch__control[data-selected="true"]:hover {
+  background-color: oklch(0.488 0.243 264.376); /* blue-700 */
+}
+.dark .switch__control[data-selected="true"] {
+  background-color: oklch(0.623 0.214 259.815); /* blue-500 */
+  border-color: oklch(0.623 0.214 259.815);
+}
+.dark .switch__control[data-selected="true"][data-hovered="true"],
+.dark .switch__control[data-selected="true"]:hover {
+  background-color: oklch(0.546 0.245 262.881); /* blue-600 */
 }
 
 /* ── Tap-target helper ─────────────────────────────────────────────────

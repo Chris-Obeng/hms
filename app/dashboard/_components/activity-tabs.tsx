@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2, User } from "lucide-react";
+import { CheckCircle2, KeyRound, MoonStar, PlusCircle, UserRound, XOctagon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type ActivityTab =
@@ -20,6 +20,15 @@ export interface ActivityTabData {
   icon?: React.ComponentType<{ className?: string }>;
 }
 
+const TAB_ICONS: Record<ActivityTab, React.ComponentType<{ className?: string }>> = {
+  arrivals: KeyRound,
+  departures: CheckCircle2,
+  in_house: UserRound,
+  bookings: PlusCircle,
+  cancellations: XOctagon,
+  overbookings: MoonStar,
+};
+
 interface ActivityTabsProps {
   tabs: ActivityTabData[];
   activeTab: ActivityTab;
@@ -28,9 +37,15 @@ interface ActivityTabsProps {
 
 export function ActivityTabs({ tabs, activeTab, onTabChange }: ActivityTabsProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 p-4 bg-background/50 border-b border-border/40 overflow-x-auto">
+    <div className="grid grid-cols-2 gap-2 overflow-x-auto border-b border-border/40 bg-muted/[0.18] p-3 sm:grid-cols-3 lg:grid-cols-6">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.key;
+        const Icon = TAB_ICONS[tab.key];
+        const showDue =
+          typeof tab.remaining === "number" &&
+          tab.remaining > 0 &&
+          tab.remaining !== tab.count;
+
         return (
           <button
             key={tab.key}
@@ -38,40 +53,45 @@ export function ActivityTabs({ tabs, activeTab, onTabChange }: ActivityTabsProps
             onClick={() => onTabChange(tab.key)}
             aria-pressed={isActive}
             className={cn(
-              "flex flex-col justify-between p-3 min-w-[110px] h-[78px] rounded-xl border text-left transition-all duration-150 cursor-pointer outline-none",
+              "flex min-w-0 cursor-pointer flex-col justify-between gap-1 rounded-xl border p-2.5 text-left outline-none transition-all duration-150",
+              "min-h-[68px] focus-visible:ring-2 focus-visible:ring-ring",
               isActive
-                ? "bg-blue-50/50 dark:bg-blue-950/20 border-primary shadow-xs ring-1 ring-primary/30"
-                : "bg-card border-border/40 hover:border-border/80 hover:bg-accent/30"
+                ? "border-primary/30 bg-primary/[0.07] shadow-xs ring-1 ring-primary/20 dark:bg-primary/[0.12]"
+                : "border-border/40 bg-card hover:border-border hover:bg-accent/40"
             )}
           >
-            {/* Number + Badge/Icon Row */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-xl font-bold text-foreground font-mono leading-none">
+            <div className="flex w-full items-center justify-between gap-1.5">
+              <span
+                className={cn(
+                  "text-xl font-bold leading-none tabular-nums",
+                  isActive ? "text-primary" : "text-foreground/85"
+                )}
+              >
                 {tab.count}
               </span>
-
-              {/* Arrivals active badge */}
-              {tab.key === "arrivals" && tab.count > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-bold leading-none">
-                  {tab.count}
-                </span>
-              )}
-
-              {/* Departures checkmark icon */}
-              {tab.key === "departures" && (
-                <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
-              )}
-
-              {/* In-house guest icon */}
-              {tab.key === "in_house" && (
-                <User className="size-3.5 text-muted-foreground shrink-0" />
-              )}
+              <Icon
+                className={cn(
+                  "size-3.5 shrink-0",
+                  isActive ? "text-primary" : "text-muted-foreground/50"
+                )}
+              />
             </div>
 
-            {/* Label */}
-            <span className="text-xs font-semibold text-muted-foreground truncate">
-              {tab.label}
-            </span>
+            <div className="flex w-full items-center justify-between gap-1">
+              <span
+                className={cn(
+                  "truncate text-xs font-semibold",
+                  isActive ? "text-foreground" : "text-muted-foreground"
+                )}
+              >
+                {tab.label}
+              </span>
+              {showDue && (
+                <span className="shrink-0 rounded-full bg-amber-500/15 px-1.5 py-px text-[10px] font-bold tabular-nums text-amber-700 dark:text-amber-400">
+                  {tab.remaining}
+                </span>
+              )}
+            </div>
           </button>
         );
       })}
@@ -114,7 +134,7 @@ export function buildActivityTabs(data: {
     },
     {
       key: "cancellations",
-      label: "Cancelations",
+      label: "Cancellations",
       count: data.cancellations,
     },
     {

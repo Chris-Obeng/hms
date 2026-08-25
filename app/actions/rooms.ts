@@ -407,7 +407,9 @@ export async function updateRoom(id: string, input: Partial<RoomInput>) {
 // ── Availability Blocks ───────────────────────────────────────────
 
 export async function createAvailabilityBlock(input: AvailabilityBlockInput) {
-  try { await requireMinRole("manager", "block rooms"); }
+  // Front desk blocks rooms daily (maintenance, cleaning, owner stays);
+  // removing blocks stays manager+ per availability_blocks RLS policy.
+  try { await requireMinRole("front_desk", "block rooms"); }
   catch (err) { return toActionError(err); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };

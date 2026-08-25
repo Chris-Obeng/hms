@@ -149,10 +149,10 @@ export function BlockRoomSheet({
               {/* Date Range */}
               <div>
                 <p className="mb-1.5 text-label font-medium text-muted-foreground">Date Range</p>
-                <div className="rounded-xl border border-border/50 bg-background p-2">
+                <div className="rounded-2xl border border-border/50 bg-background p-3">
                   <RangeCalendar
                     aria-label="Block date range"
-                    className="mx-auto w-fit"
+                    firstDayOfWeek="mon"
                     minValue={toCalendarDate(minDate ?? new Date())}
                     value={calendarValue}
                     onChange={(range) => {
@@ -165,7 +165,23 @@ export function BlockRoomSheet({
                       setDateRange({ from, to });
                       setErrors((previous) => ({ ...previous, dates: "" }));
                     }}
-                  />
+                  >
+                    <RangeCalendar.Header className="pb-2">
+                      <RangeCalendar.NavButton slot="previous" />
+                      <RangeCalendar.Heading className="text-[15px] font-semibold tracking-tight" />
+                      <RangeCalendar.NavButton slot="next" />
+                    </RangeCalendar.Header>
+                    <RangeCalendar.Grid>
+                      <RangeCalendar.GridHeader>
+                        {(day) => (
+                          <RangeCalendar.HeaderCell>{day}</RangeCalendar.HeaderCell>
+                        )}
+                      </RangeCalendar.GridHeader>
+                      <RangeCalendar.GridBody>
+                        {(date) => <RangeCalendar.Cell date={date} />}
+                      </RangeCalendar.GridBody>
+                    </RangeCalendar.Grid>
+                  </RangeCalendar>
                 </div>
                 {dateRange?.from && dateRange?.to && (
                   <div className="mt-2 flex items-center gap-2 text-caption text-muted-foreground tabular-nums">
@@ -216,8 +232,13 @@ export function BlockRoomSheet({
               >
                 Cancel
               </Button>
-              <Button type="submit" isPending={loading} isDisabled={loading} className="rounded-xl px-5">
-                {loading ? "Saving..." : "Block Dates"}
+              <Button
+                type="submit"
+                isPending={loading}
+                isDisabled={loading}
+                className="rounded-xl px-5 font-semibold active:scale-[0.98]"
+              >
+                {loading ? "Saving…" : "Block dates"}
               </Button>
             </Drawer.Footer>
           </form>

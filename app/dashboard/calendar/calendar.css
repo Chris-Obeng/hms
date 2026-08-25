@@ -615,7 +615,21 @@
 .rl-today-column{position:absolute;top:62px;bottom:0;z-index:var(--rl-z-today);background:color-mix(in oklch,var(--primary) 5%,transparent);box-shadow:inset 1px 0 0 color-mix(in oklch,var(--primary) 22%,transparent),inset -1px 0 0 color-mix(in oklch,var(--primary) 22%,transparent);pointer-events:none}
 .rl-room-row{position:relative;left:0;width:100%;border-bottom:1px solid var(--border)}
 .rl-room-label{position:sticky;left:0;z-index:var(--rl-z-gutter);height:100%;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;padding:0 12px;background:var(--background);border-right:1px solid var(--border);box-shadow:8px 0 18px -18px color-mix(in oklch,var(--foreground) 30%,transparent)}
-.rl-room-label strong{font-size:13px}.rl-room-label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--muted-foreground)}.rl-room-label .status{width:7px;height:7px;border-radius:50%;background:#22c55e}.rl-room-label .status.maintenance,.rl-room-label .status.out_of_service{background:#64748b}
+.rl-room-label strong{font-size:13px;display:flex;align-items:center;gap:6px;min-width:0}.rl-room-label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--muted-foreground)}.rl-room-label .status{width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0}
+.rl-room-label .status.maintenance{background:#d97706}
+.rl-room-label .status.out_of_service{background:#e11d48}
+
+/* Non-bookable room flags (maintenance / out of service) — impossible to miss */
+.rl-room-flag{display:inline-flex;align-items:center;font-size:8.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;line-height:1;padding:2.5px 5px;border-radius:999px;white-space:nowrap;flex-shrink:0}
+.rl-room-flag--maintenance{color:#b45309;background:#d9770618;box-shadow:inset 0 0 0 1px #d9770638}
+.rl-room-flag--out_of_service{color:#be123c;background:#e11d4814;box-shadow:inset 0 0 0 1px #e11d4830}
+.dark .rl-room-flag--maintenance{color:#fbbf24;background:#d9770622}
+.dark .rl-room-flag--out_of_service{color:#fb7185;background:#e11d4822}
+
+/* Hatch veil across the entire row of a non-sellable room. Sits under bars,
+   blocks double-click creation visually and communicates "dead inventory". */
+.rl-oos-veil{position:absolute;inset:0;z-index:calc(var(--rl-z-bars) - 2);pointer-events:none;background:repeating-linear-gradient(135deg,transparent 0 9px,color-mix(in oklch,var(--destructive) 7%,transparent) 9px 12px)}
+.rl-room-grid.is-non-bookable .rl-drag-preview{display:none}
 .rl-room-grid{position:absolute;top:0;height:100%;background-image:linear-gradient(to right,transparent calc(100% - 1px),color-mix(in oklch,var(--border) 72%,transparent) calc(100% - 1px));background-repeat:repeat-x;transition:background-color .12s ease}
 .rl-room-row:hover .rl-room-grid{background-color:color-mix(in oklch,var(--muted) 16%,transparent)}
 
@@ -646,7 +660,11 @@
 /* Booking bars live in a slot rung above the today/weekend washes — the
    slot (not the bar) owns the z-index so hover/drag styles stay local. */
 .rl-bar-slot{z-index:var(--rl-z-bars)}
-.rl-block-bar{position:absolute;top:10px;height:32px;z-index:var(--rl-z-bars);border:1px dashed #64748b;border-radius:5px;background:repeating-linear-gradient(135deg,#64748b22 0 6px,#64748b40 6px 12px);padding:7px;color:var(--foreground);font-size:10px;text-transform:capitalize;overflow:hidden;white-space:nowrap}
+.rl-block-bar{position:absolute;top:10px;height:32px;z-index:var(--rl-z-bars);display:flex;align-items:center;gap:5px;border:1px dashed #b45309;border-radius:7px;background:repeating-linear-gradient(135deg,#f59e0b14 0 6px,#f59e0b2e 6px 12px),color-mix(in oklch,var(--background) 55%,#f59e0b08);padding:0 8px;color:color-mix(in oklch,var(--foreground) 88%,#b45309);font-size:10px;font-weight:700;text-transform:capitalize;overflow:hidden;white-space:nowrap;text-align:left;cursor:pointer;transition:box-shadow .15s ease,transform .1s ease,background-color .12s ease}
+.rl-block-bar:hover{box-shadow:0 3px 10px rgb(0 0 0 / .16),inset 0 0 0 999px #f59e0b0d;z-index:calc(var(--rl-z-bars) + 1)}
+.rl-block-bar:focus-visible{outline:2.5px solid #d97706;outline-offset:2px}
+.rl-block-lock{width:11px;height:11px;flex-shrink:0;opacity:.75}
+.dark .rl-block-bar{border-color:#f59e0b99;background:repeating-linear-gradient(135deg,#f59e0b1c 0 6px,#f59e0b36 6px 12px),color-mix(in oklch,var(--card) 70%,transparent);color:#fcd34d}
 
 /* Live drop-target ghost rendered inside the grid while dragging. */
 .rl-drag-preview{position:absolute;top:0;z-index:var(--rl-z-preview);display:flex;align-items:flex-start;justify-content:center;padding-top:3px;pointer-events:none}

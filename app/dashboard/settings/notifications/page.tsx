@@ -90,6 +90,18 @@ export default function NotificationSettingsPage() {
       setNotificationPermission(Notification.permission);
       const alerts = localStorage.getItem("RoomLine_browser_notifications_enabled") === "true";
       setBrowserAlertsEnabled(alerts && Notification.permission === "granted");
+
+      // Source of truth is the actual service worker subscription;
+      // localStorage can drift after browser cleanup or re-install.
+      navigator.serviceWorker?.ready
+        .then(async (reg) => {
+          const sub = await reg.pushManager.getSubscription();
+          if (!isMountedRef.current) return;
+          const active = Boolean(sub) && Notification.permission === "granted";
+          setBrowserAlertsEnabled(active);
+          localStorage.setItem("RoomLine_browser_notifications_enabled", String(active));
+        })
+        .catch(() => {});
     }, 0);
 
     return () => {

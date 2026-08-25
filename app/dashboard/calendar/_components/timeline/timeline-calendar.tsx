@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
-import { AlertTriangle, BedDouble, GripVertical, Wand2 } from "lucide-react";
+import { AlertTriangle, BedDouble, GripVertical, Lock, Wand2 } from "lucide-react";
 import { Button, Tooltip } from "@heroui/react";
 import { cn } from "@/lib/utils";
 import type { CalendarAvailabilityBlock, CalendarBooking, CalendarRoom } from "../../actions";
@@ -76,6 +76,7 @@ type Props = {
   /** Bookings to pulse (recently created). */
   highlightIds?: Set<string>;
   onOpenBooking(id: string): void;
+  onOpenBlock?(block: CalendarAvailabilityBlock): void;
   onCreate(room: CalendarRoom, date: string): void;
   onChange(booking: CalendarBooking, roomId: string | null, checkIn: string, checkOut: string): Promise<void>;
   onAutoAssign(bookingId: string): void;
@@ -240,38 +241,66 @@ interface RowProps {
   days: number;
   highlightIds: Set<string> | null;
   onOpenBooking(id: string): void;
+  onOpenBlock?(block: CalendarAvailabilityBlock): void;
   onCreate(room: CalendarRoom, date: string): void;
 }
 
-const RoomRow = React.memo(function RoomRow({ room, bookings, blocks, conflicts, canEdit, start, days, highlightIds, onOpenBooking, onCreate }: RowProps) {
+/** Rooms in these states cannot take any booking — the row is hatched and
+ *  creation/drops are rejected. */
+const NON_BOOKABLE = new Set(["maintenance", "out_of_service"]);
+
+const RoomRow = React.memo(function RoomRow({ room, bookings, blocks, conflicts, canEdit, start, days, highlightIds, onOpenBooking, onOpenBlock, onCreate }: RowProps) {
+  const notBookable = NON_BOOKABLE.has(room.status ?? "");
   return (
     <div className="rl-room-row" style={{ height: ROW_HEIGHT }}>
-      <div className="rl-room-label" style={{ width: ROOM_COLUMN_WIDTH }}>
-        <strong>{room.roomNumber}</strong>
+      <div className="rl-room-label" style={{ width: ROOM_COLUMN_WIDTH }} data-status={room.status}>
+        <strong>
+          {room.roomNumber}
+          {notBookable && (
+            <span className={`rl-room-flag rl-room-flag--${room.status}`}>
+              {room.status === "maintenance" ? "Maintenance" : "Out of order"}
+            </span>
+          )}
+        </strong>
         <span>{room.roomTypeName}</span>
         <i className={`status ${room.status}`} />
       </div>
       <div
-        className="rl-room-grid"
+        className={cn("rl-room-grid", notBookable && "is-non-bookable")}
         style={{ left: ROOM_COLUMN_WIDTH, width: days * DAY_WIDTH, backgroundSize: `${DAY_WIDTH}px 100%` }}
         onDoubleClick={(e) => {
+          if (notBookable) return; // no creation on maintenance / OOS rooms
           const box = e.currentTarget.getBoundingClientRect();
           onCreate(room, columnToDate(Math.floor((e.clientX - box.left) / DAY_WIDTH), start));
         }}
       >
+        {notBookable && (
+          <div
+            aria-hidden
+            className="rl-oos-veil"
+            title={room.status === "maintenance" ? "Room under maintenance — not sellable" : "Room out of service — not sellable"}
+          />
+        )}
         {blocks.map((block) => {
           const g = bookingGeometry(block.startDate, block.endDate, start);
           const clipped = clampBarGeometry(g, days);
           if (!clipped.visible) return null;
           return (
-            <div
+            <button
               key={block.id}
+              type="button"
               className="rl-block-bar"
               style={{ left: clipped.left, width: clipped.width }}
-              title={`${block.reason ?? "Blocked"}: ${block.startDate} to ${block.endDate}`}
+              title="View block details"
+              aria-label={`Blocked room, ${block.reason?.replaceAll("_", " ") || "unspecified reason"}, ${block.startDate} to ${block.endDate}. View details.`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenBlock?.(block);
+              }}
             >
-              {block.reason?.replaceAll("_", " ") ?? "Blocked"}
-            </div>
+              <Lock aria-hidden className="rl-block-lock" />
+              <span>{block.reason?.replaceAll("_", " ") || "Blocked"}</span>
+            </button>
           );
         })}
         {bookings.map((b) => {
@@ -293,7 +322,7 @@ const RoomRow = React.memo(function RoomRow({ room, bookings, blocks, conflicts,
   );
 });
 
-export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, canEdit, hotelTimezone, highlightIds, onOpenBooking, onCreate, onChange, onAutoAssign, onRequestTypeChange }: Props) {
+export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, canEdit, hotelTimezone, highlightIds, onOpenBooking, onOpenBlock, onCreate, onChange, onAutoAssign, onRequestTypeChange }: Props) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const trayRef = React.useRef<HTMLDivElement>(null);
   const [activeDrag, setActiveDrag] = React.useState<DragState | null>(null);
@@ -595,6 +624,7 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
                       days={days}
                       highlightIds={highlightIds ?? null}
                       onOpenBooking={guardedOpenBooking}
+                      onOpenBlock={onOpenBlock}
                       onCreate={onCreate}
                     />
                   </div>

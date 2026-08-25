@@ -2,20 +2,29 @@
 
 import * as React from "react";
 import {
-  Moon,
-  User,
   MessageSquareText,
-  ChevronRight,
   ChevronDown,
+  ChevronRight,
   MoreVertical,
-  Search,
-  ArrowUpDown,
+  RotateCw,
 } from "lucide-react";
+import { MorphIcon, type IconInput } from "morphicons/react";
+import { AlertDialog, Button, Dropdown, Skeleton } from "@heroui/react";
+
 import { cn } from "@/lib/utils";
 import { formatDate, getNights } from "@/lib/format";
+import { getStatusLabel } from "@/lib/booking-status";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Button, Dropdown, Skeleton } from "@heroui/react";
-import { ActivityTab } from "./activity-tabs";
+
+// ── Morphicon geometry (module scope — stable refs for plan caches) ──
+const SEARCH_ICON: IconInput = [
+  ["circle", { cx: "11", cy: "11", r: "8" }],
+  ["path", { d: "m21 21-4.34-4.34" }],
+];
+const CLOSE_ICON: IconInput = [
+  ["path", { d: "M18 6 6 18" }],
+  ["path", { d: "m6 6 12 12" }],
+];
 
 export interface ActivityBooking {
   id: string;
@@ -42,32 +51,36 @@ export interface ActivityBooking {
 
 interface ActivityListProps {
   bookings: ActivityBooking[];
-  activeTab: ActivityTab;
   loading?: boolean;
-  currency?: string;
   onCheckIn?: (bookingId: string) => void;
   onCheckOut?: (bookingId: string) => void;
   onCancel?: (bookingId: string) => void;
   onNoShow?: (bookingId: string) => void;
   onViewDetails?: (booking: ActivityBooking) => void;
   onTakePayment?: (booking: ActivityBooking) => void;
+  onRefresh?: () => void;
 }
+
+type PendingConfirm =
+  | { kind: "cancel"; booking: ActivityBooking }
+  | { kind: "noshow"; booking: ActivityBooking }
+  | null;
 
 export function ActivityList({
   bookings,
-  activeTab,
   loading = false,
-  currency = "GHS",
   onCheckIn,
   onCheckOut,
   onCancel,
   onNoShow,
   onViewDetails,
   onTakePayment,
+  onRefresh,
 }: ActivityListProps) {
   const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [searchOpen, setSearchOpen] = React.useState(false);
+  const [pendingConfirm, setPendingConfirm] = React.useState<PendingConfirm>(null);
 
   const filteredBookings = React.useMemo(() => {
     let list = bookings;
@@ -84,9 +97,19 @@ export function ActivityList({
     return list;
   }, [bookings, searchQuery]);
 
+  const requestCancel = (b: ActivityBooking) => setPendingConfirm({ kind: "cancel", booking: b });
+  const requestNoShow = (b: ActivityBooking) => setPendingConfirm({ kind: "noshow", booking: b });
+
+  const confirmPending = () => {
+    if (!pendingConfirm) return;
+    if (pendingConfirm.kind === "cancel") onCancel?.(pendingConfirm.booking.id);
+    else onNoShow?.(pendingConfirm.booking.id);
+    setPendingConfirm(null);
+  };
+
   if (loading) {
     return (
-      <div className="p-6 space-y-3">
+      <div className="space-y-3 p-6">
         <Skeleton className="h-10 w-full rounded-xl" />
         <Skeleton className="h-16 w-full rounded-xl" />
         <Skeleton className="h-16 w-full rounded-xl" />
@@ -95,114 +118,158 @@ export function ActivityList({
     );
   }
 
+  const rowProps = { onCheckIn, onCheckOut, onCancel: requestCancel, onNoShow: requestNoShow, onViewDetails, onTakePayment };
+
   return (
     <div className="space-y-0">
-      {/* Activity Card Top Bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border/40">
-        <h2 className="text-lg font-bold text-foreground">Activity</h2>
-        <div className="flex items-center gap-2">
+      {/* Top bar */}
+      <div className="flex items-center justify-between border-b border-border/40 px-4 py-3.5 sm:px-6 sm:py-4">
+        <h2 className="text-section text-foreground">Activity</h2>
+        <div className="flex items-center gap-1.5">
           {searchOpen ? (
             <input
               type="text"
-              placeholder="Filter activity..."
+              placeholder="Filter guest, room, reference…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               autoFocus
               onBlur={() => {
                 if (!searchQuery) setSearchOpen(false);
               }}
-              className="h-8 px-3 rounded-lg border border-border/60 text-xs bg-background outline-none focus:ring-1 focus:ring-primary w-48"
+              className="h-8 w-44 rounded-lg border border-border/60 bg-background px-3 text-xs outline-none transition-all focus:w-56 focus:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 sm:w-52"
             />
           ) : (
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
-              title="Search activity"
+              aria-label="Search activity"
+              className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
             >
-              <Search className="size-4" />
+              <MorphIcon icon={SEARCH_ICON} size={16} strokeWidth={2} />
+            </button>
+          )}
+          {searchOpen && (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => {
+                setSearchQuery("");
+                setSearchOpen(false);
+              }}
+              className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+            >
+              <MorphIcon icon={CLOSE_ICON} size={16} strokeWidth={2} />
             </button>
           )}
 
-          <Dropdown>
-            <Dropdown.Trigger
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer outline-none"
-              aria-label="Options"
+          {onRefresh && (
+            <Button
+              variant="ghost"
+              isIconOnly
+              onPress={onRefresh}
+              aria-label="Refresh activity"
+              className="size-8 min-w-8 rounded-lg text-muted-foreground hover:text-foreground"
             >
-              <MoreVertical className="size-4" />
-            </Dropdown.Trigger>
-            <Dropdown.Popover placement="bottom end">
-              <Dropdown.Menu className="w-40">
-                <Dropdown.Item key="export">Export List</Dropdown.Item>
-                <Dropdown.Item key="refresh">Refresh Table</Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown.Popover>
-          </Dropdown>
+              <RotateCw className="size-3.5" />
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Empty State */}
+      {/* Empty state */}
       {filteredBookings.length === 0 ? (
-        <div className="py-16 text-center text-muted-foreground text-sm">
-          No records found for this view.
+        <div className="py-16 text-center text-sm text-muted-foreground">
+          No records found{searchQuery ? ` for “${searchQuery}”` : " for this view"}.
         </div>
       ) : isMobile ? (
-        <div className="p-4 space-y-3">
+        <div className="space-y-3 p-4">
           {filteredBookings.map((b) => (
-            <MobileBookingRow
-              key={b.id}
-              booking={b}
-              onCheckIn={onCheckIn}
-              onCheckOut={onCheckOut}
-              onCancel={onCancel}
-              onNoShow={onNoShow}
-              onViewDetails={onViewDetails}
-              onTakePayment={onTakePayment}
-            />
+            <MobileBookingRow key={b.id} booking={b} {...rowProps} />
           ))}
         </div>
       ) : (
-        /* Desktop Table matching Cloudbeds */
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="border-b border-border/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70 bg-muted/10">
-                <th className="py-3 px-6">
-                  <div className="flex items-center gap-1.5 cursor-pointer hover:text-foreground">
-                    <span>Guest</span>
-                    <ArrowUpDown className="size-3 text-muted-foreground/50" />
-                  </div>
-                </th>
-                <th className="py-3 px-4">
-                  <div className="flex items-center gap-1.5 cursor-pointer hover:text-foreground">
-                    <span>Accommodation</span>
-                    <ArrowUpDown className="size-3 text-muted-foreground/50" />
-                  </div>
-                </th>
-                <th className="py-3 px-4">Stay</th>
-                <th className="py-3 px-6 whitespace-nowrap">Status</th>
+              <tr className="border-b border-border/40 bg-muted/[0.14] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="px-6 py-3">Guest</th>
+                <th className="px-4 py-3">Accommodation</th>
+                <th className="px-4 py-3">Stay</th>
+                <th className="whitespace-nowrap px-6 py-3">Status &amp; actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/30 text-sm">
               {filteredBookings.map((b) => (
-                <DesktopBookingRow
-                  key={b.id}
-                  booking={b}
-                  onCheckIn={onCheckIn}
-                  onCheckOut={onCheckOut}
-                  onCancel={onCancel}
-                  onNoShow={onNoShow}
-                  onViewDetails={onViewDetails}
-                  onTakePayment={onTakePayment}
-                />
+                <DesktopBookingRow key={b.id} booking={b} {...rowProps} />
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      {/* Destructive confirmation — replaces brittle window.confirm */}
+      <AlertDialog.Backdrop
+        variant="opaque"
+        isOpen={pendingConfirm !== null}
+        onOpenChange={(isOpen) => !isOpen && setPendingConfirm(null)}
+      >
+        <AlertDialog.Container placement="auto" size="sm">
+          <AlertDialog.Dialog className="rounded-2xl border border-border/70 bg-card p-6 shadow-2xl">
+            <AlertDialog.Header>
+              <AlertDialog.Icon status={pendingConfirm?.kind === "noshow" ? "warning" : "danger"} />
+              <AlertDialog.Heading>
+                {pendingConfirm?.kind === "noshow"
+                  ? "Mark as no-show?"
+                  : "Cancel this reservation?"}
+              </AlertDialog.Heading>
+            </AlertDialog.Header>
+            <AlertDialog.Body>
+              <p>
+                {pendingConfirm?.booking.guestName}&rsquo;s stay{" "}
+                <span className="font-mono text-[13px]">{pendingConfirm?.booking.reference}</span>{" "}
+                will be marked as{" "}
+                <strong className="font-semibold">
+                  {pendingConfirm?.kind === "noshow" ? "no-show" : "cancelled"}
+                </strong>
+                .
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {pendingConfirm?.kind === "noshow"
+                  ? "The room is released back to inventory. This is reported for the night audit."
+                  : "The room is released and can be rebooked immediately."}
+              </p>
+            </AlertDialog.Body>
+            <AlertDialog.Footer>
+              <Button slot="close" variant="tertiary">
+                Keep
+              </Button>
+              <Button
+                variant={pendingConfirm?.kind === "noshow" ? "primary" : "danger"}
+                className={
+                  pendingConfirm?.kind === "noshow"
+                    ? "bg-amber-600 text-white hover:bg-amber-700"
+                    : undefined
+                }
+                onPress={confirmPending}
+              >
+                {pendingConfirm?.kind === "noshow" ? "Mark no-show" : "Cancel reservation"}
+              </Button>
+            </AlertDialog.Footer>
+          </AlertDialog.Dialog>
+        </AlertDialog.Container>
+      </AlertDialog.Backdrop>
     </div>
   );
 }
+
+type RowHandlers = {
+  onCheckIn?: (id: string) => void;
+  onCheckOut?: (id: string) => void;
+  onCancel?: (b: ActivityBooking) => void;
+  onNoShow?: (b: ActivityBooking) => void;
+  onViewDetails?: (b: ActivityBooking) => void;
+  onTakePayment?: (b: ActivityBooking) => void;
+};
 
 function DesktopBookingRow({
   booking,
@@ -212,143 +279,100 @@ function DesktopBookingRow({
   onNoShow,
   onViewDetails,
   onTakePayment,
-}: {
-  booking: ActivityBooking;
-  onCheckIn?: (id: string) => void;
-  onCheckOut?: (id: string) => void;
-  onCancel?: (id: string) => void;
-  onNoShow?: (id: string) => void;
-  onViewDetails?: (b: ActivityBooking) => void;
-  onTakePayment?: (b: ActivityBooking) => void;
-}) {
+}: { booking: ActivityBooking } & RowHandlers) {
   const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
   const totalGuests = (booking.adults || 1) + (booking.children || 0);
-
-  // Generate room code prefix like Cloudbeds e.g. QUE(2) or KIN(15)
   const roomLabel = booking.roomNumber
     ? `Room ${booking.roomNumber}`
-    : booking.roomType || "Unassigned Room";
+    : booking.roomType || "Unassigned";
 
   return (
     <tr
       onClick={() => onViewDetails?.(booking)}
-      className="hover:bg-muted/20 transition-colors cursor-pointer group"
+      className="group cursor-pointer transition-colors hover:bg-muted/25"
     >
       {/* Guest */}
-      <td className="py-3.5 px-6 align-top">
+      <td className="px-6 py-3.5 align-top">
         <div className="flex flex-col">
-          <div className="flex items-center gap-1.5">
-            <span className="font-bold text-foreground text-sm">
-              {booking.guestName}
-            </span>
-            {booking.hasNotes && <MessageSquareText className="size-3.5 shrink-0 text-amber-600" aria-label="Booking has notes or special requests" />}
-          </div>
-          <span className="text-[11px] font-mono text-muted-foreground/60 mt-0.5">
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <span className="truncate">{booking.guestName}</span>
+            {booking.hasNotes && (
+              <MessageSquareText
+                className="size-3.5 shrink-0 text-amber-500"
+                aria-label="Booking has notes or special requests"
+              />
+            )}
+          </span>
+          <span className="mt-0.5 font-mono text-[11px] text-muted-foreground/60">
             {booking.reference}
           </span>
         </div>
       </td>
 
       {/* Accommodation */}
-      <td className="py-3.5 px-4 align-top">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-1 text-sm font-medium text-foreground">
-            <span>{roomLabel}</span>
-            <ChevronRight className="size-3.5 text-muted-foreground/40 shrink-0" />
-          </div>
-        </div>
+      <td className="px-4 py-3.5 align-top">
+        <span className="flex items-center gap-1 text-sm font-medium text-foreground">
+          {roomLabel}
+          <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground/60" />
+        </span>
+        {!booking.roomNumber && booking.roomType && (
+          <span className="text-[11px] text-muted-foreground/60">Unassigned</span>
+        )}
       </td>
 
       {/* Stay */}
-      <td className="py-3.5 px-4 align-top">
+      <td className="px-4 py-3.5 align-top">
         <div className="flex flex-col gap-1">
-          <div className="text-xs font-medium text-foreground font-mono">
-            {formatDate(booking.checkIn, "dd/MM/yyyy")} - {formatDate(booking.checkOut, "dd/MM/yyyy")}
+          <div className="font-mono text-xs font-medium tabular-nums text-foreground">
+            {formatDate(booking.checkIn, "dd MMM")} – {formatDate(booking.checkOut, "dd MMM")}
           </div>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
-            <span className="flex items-center gap-1">
-              <span className="font-semibold text-foreground">{nights}</span>
-              <Moon className="size-3" />
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="font-semibold text-foreground">{totalGuests}</span>
-              <User className="size-3" />
-            </span>
+          <div className="flex items-center gap-3 font-mono text-xs tabular-nums text-muted-foreground">
+            <span>{nights}n</span>
+            <span>{totalGuests} guests</span>
           </div>
         </div>
       </td>
 
-      {/* Status & Actions */}
-      <td className="py-3.5 px-6 align-top whitespace-nowrap">
-        <div className="flex items-center gap-3 whitespace-nowrap">
-          {booking.paymentStatus !== "paid" && <button type="button" onClick={(e) => { e.stopPropagation(); onTakePayment?.(booking); }} className="rounded-lg border border-[#ff6b4a] px-3 py-1.5 text-xs font-semibold text-[#e95738] transition-colors hover:bg-[#fff1ed] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6b4a]/40">Take payment</button>}
-          {/* Main Check-In / Check-Out split button matching Cloudbeds */}
-          {booking.status === "confirmed" && onCheckIn ? (
-            <div className="inline-flex rounded-lg overflow-hidden border border-emerald-600 bg-emerald-600 text-white text-xs font-semibold shadow-xs">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCheckIn(booking.id);
-                }}
-                className="px-3 py-1.5 hover:bg-emerald-700 transition-colors"
-              >
-                Check-in
-              </button>
-              <div className="w-[1px] bg-emerald-700" />
-              <Dropdown>
-                <Dropdown.Trigger
-                  onClick={(e) => e.stopPropagation()}
-                  className="px-1.5 py-1.5 hover:bg-emerald-700 transition-colors cursor-pointer outline-none"
-                  aria-label="Check-in options"
-                >
-                  <ChevronDown className="size-3.5" />
-                </Dropdown.Trigger>
-                <Dropdown.Popover placement="bottom end">
-                  <Dropdown.Menu className="w-36 text-xs" onAction={(key) => {
-                    if (key === "cancel" && window.confirm(`Cancel booking ${booking.reference}?`)) onCancel?.(booking.id);
-                    if (key === "noshow" && window.confirm(`Mark booking ${booking.reference} as no-show?`)) onNoShow?.(booking.id);
-                  }}>
-                    <Dropdown.Item key="cancel">Cancel Booking</Dropdown.Item>
-                    <Dropdown.Item key="noshow">Mark No-Show</Dropdown.Item>
-                  </Dropdown.Menu>
-                </Dropdown.Popover>
-              </Dropdown>
-            </div>
-          ) : booking.status === "checked_in" && onCheckOut ? (
-            <div className="inline-flex rounded-lg overflow-hidden border border-slate-800 bg-slate-800 text-white text-xs font-semibold shadow-xs">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCheckOut(booking.id);
-                }}
-                className="px-3 py-1.5 hover:bg-slate-700 transition-colors"
-              >
-                Check-out
-              </button>
-              <div className="w-[1px] bg-slate-700" />
-              <Dropdown>
-                <Dropdown.Trigger
-                  onClick={(e) => e.stopPropagation()}
-                  className="px-1.5 py-1.5 hover:bg-slate-700 transition-colors cursor-pointer outline-none"
-                  aria-label="Check-out options"
-                >
-                  <ChevronDown className="size-3.5" />
-                </Dropdown.Trigger>
-                <Dropdown.Popover placement="bottom end">
-                  <Dropdown.Menu className="w-36 text-xs">
-                    <Dropdown.Item key="extend">Extend Stay</Dropdown.Item>
-                  </Dropdown.Menu>
-                </Dropdown.Popover>
-              </Dropdown>
-            </div>
-          ) : (
-            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground capitalize">
-              {booking.status.replace("_", " ")}
-            </span>
+      {/* Status & actions */}
+      <td className="whitespace-nowrap px-6 py-3.5 align-top">
+        <div className="flex items-center justify-end gap-2.5 whitespace-nowrap">
+          {booking.paymentStatus !== "paid" && booking.status !== "cancelled" && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTakePayment?.(booking);
+              }}
+              className="rounded-lg border border-amber-500/40 px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 dark:border-amber-500/30 dark:text-amber-400"
+            >
+              Take payment
+            </button>
           )}
-
+          {booking.status === "confirmed" && onCheckIn ? (
+            <SplitAction
+              tone="emerald"
+              mainLabel="Check-in"
+              onMain={(e) => {
+                e.stopPropagation();
+                onCheckIn(booking.id);
+              }}
+              items={[
+                { key: "cancel", label: "Cancel booking", onSelect: () => onCancel?.(booking) },
+                { key: "noshow", label: "Mark no-show", onSelect: () => onNoShow?.(booking) },
+              ]}
+            />
+          ) : booking.status === "checked_in" && onCheckOut ? (
+            <SplitAction
+              tone="indigo"
+              mainLabel="Check-out"
+              onMain={(e) => {
+                e.stopPropagation();
+                onCheckOut(booking.id);
+              }}
+            />
+          ) : (
+            <StatusChip status={booking.status} />
+          )}
         </div>
       </td>
     </tr>
@@ -363,63 +387,197 @@ function MobileBookingRow({
   onNoShow,
   onViewDetails,
   onTakePayment,
-}: {
-  booking: ActivityBooking;
-  onCheckIn?: (id: string) => void;
-  onCheckOut?: (id: string) => void;
-  onCancel?: (id: string) => void;
-  onNoShow?: (id: string) => void;
-  onViewDetails?: (b: ActivityBooking) => void;
-  onTakePayment?: (b: ActivityBooking) => void;
-}) {
+}: { booking: ActivityBooking } & RowHandlers) {
   return (
     <div
       onClick={() => onViewDetails?.(booking)}
-      className="p-4 rounded-lg border border-border/60 bg-card shadow-xs space-y-2.5 cursor-pointer active:bg-muted/20 transition-colors"
+      className="cursor-pointer space-y-2.5 rounded-2xl border border-border/50 bg-card p-4 shadow-xs transition-colors active:bg-muted/30"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <span className={cn(
-            "block text-[10px] font-bold uppercase text-nowrap mb-1",
-            booking.status === "checked_in" ? "text-emerald-600" :
-            booking.status === "confirmed" ? "text-blue-600" :
-            booking.status === "cancelled" || booking.status === "no_show" ? "text-rose-600" :
-            "text-muted-foreground"
-          )}>{booking.status.replace("_", " ")}</span>
-          <span className="flex items-center gap-1.5 font-semibold text-foreground text-base"><span className="truncate">{booking.guestName}</span>{booking.hasNotes && <MessageSquareText className="size-3.5 shrink-0 text-amber-600" aria-label="Booking has notes or special requests" />}</span>
+          <span
+            className={cn(
+              "mb-1 block text-[10px] font-bold uppercase tracking-wide",
+              statusTextTone(booking.status)
+            )}
+          >
+            {getStatusLabel(booking.status ?? "")}
+          </span>
+          <span className="flex items-center gap-1.5 text-base font-semibold text-foreground">
+            <span className="truncate">{booking.guestName}</span>
+            {booking.hasNotes && (
+              <MessageSquareText
+                className="size-3.5 shrink-0 text-amber-500"
+                aria-label="Booking has notes"
+              />
+            )}
+          </span>
         </div>
-        <span className="text-xs font-mono text-muted-foreground">{booking.reference}</span>
+        <span className="font-mono text-xs text-muted-foreground">{booking.reference}</span>
       </div>
-      <div className="text-xs text-muted-foreground">
-        {booking.roomType || "Unassigned"} • {formatDate(booking.checkIn, "dd/MM/yyyy")} - {formatDate(booking.checkOut, "dd/MM/yyyy")}
+      <div className="text-xs tabular-nums text-muted-foreground">
+        {booking.roomNumber ? `Room ${booking.roomNumber}` : booking.roomType || "Unassigned"}
+        {" · "}
+        {formatDate(booking.checkIn, "dd MMM")} – {formatDate(booking.checkOut, "dd MMM")}
       </div>
-      <div className="flex items-center pt-2 gap-2">
-        {booking.paymentStatus !== "paid" && <Button size="sm" variant="tertiary" className="h-9 flex-1 border border-[#ff6b4a] text-xs font-semibold text-[#e95738] hover:bg-[#fff1ed]" onPress={() => onTakePayment?.(booking)}>Take payment</Button>}
-        {booking.status === "confirmed" && onCheckIn && (
-          <Button size="sm" className="flex-1 bg-emerald-600 text-white text-xs h-9 font-semibold" onPress={() => onCheckIn(booking.id)}>
-            Check-in
+      <div className="flex items-center gap-2 pt-1.5">
+        {booking.paymentStatus !== "paid" && booking.status !== "cancelled" && (
+          <Button
+            size="sm"
+            variant="tertiary"
+            className="h-9 flex-1 rounded-xl border border-amber-500/40 text-xs font-semibold text-amber-700 hover:bg-muted/50 dark:border-amber-500/30 dark:text-amber-400"
+            onPress={() => onTakePayment?.(booking)}
+          >
+            Pay
           </Button>
         )}
+        {booking.status === "confirmed" && onCheckIn && (
+          <>
+            <Button
+              size="sm"
+              onPress={() => onCheckIn(booking.id)}
+              className="h-9 flex-1 rounded-xl bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700"
+            >
+              Check-in
+            </Button>
+            <Dropdown>
+              <Dropdown.Trigger
+                aria-label="More actions"
+                className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-xl border border-border text-muted-foreground outline-none"
+              >
+                <MoreVertical className="size-4" />
+              </Dropdown.Trigger>
+              <Dropdown.Popover placement="bottom end">
+                <Dropdown.Menu
+                  onAction={(key) => {
+                    if (key === "cancel") onCancel?.(booking);
+                    if (key === "noshow") onNoShow?.(booking);
+                  }}
+                >
+                  <Dropdown.Item key="cancel">Cancel booking</Dropdown.Item>
+                  <Dropdown.Item key="noshow">Mark no-show</Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+          </>
+        )}
         {booking.status === "checked_in" && onCheckOut && (
-          <Button size="sm" className="flex-1 bg-foreground text-background text-xs h-9 font-semibold" onPress={() => onCheckOut(booking.id)}>
+          <Button
+            size="sm"
+            onPress={() => onCheckOut(booking.id)}
+            className="h-9 flex-1 rounded-xl bg-foreground text-xs font-semibold text-background hover:bg-foreground/90"
+          >
             Check-out
           </Button>
         )}
-        {booking.status === "confirmed" && (
-          <Dropdown>
-            <Dropdown.Trigger className="size-9 grid place-items-center rounded-lg border border-border text-muted-foreground"><MoreVertical className="size-4" /></Dropdown.Trigger>
-            <Dropdown.Popover placement="bottom end">
-              <Dropdown.Menu onAction={(key) => {
-                if (key === "cancel" && window.confirm(`Cancel booking ${booking.reference}?`)) onCancel?.(booking.id);
-                if (key === "noshow" && window.confirm(`Mark booking ${booking.reference} as no-show?`)) onNoShow?.(booking.id);
-              }}>
-                <Dropdown.Item key="cancel">Cancel Booking</Dropdown.Item>
-                <Dropdown.Item key="noshow">Mark No-Show</Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown.Popover>
-          </Dropdown>
+        {!["confirmed", "checked_in"].includes(booking.status) && (
+          <StatusChip status={booking.status} className="ml-auto" />
         )}
       </div>
     </div>
   );
+}
+
+// ── Shared bits ────────────────────────────────────────────────────
+
+function SplitAction({
+  mainLabel,
+  tone,
+  onMain,
+  items,
+}: {
+  mainLabel: string;
+  tone: "emerald" | "indigo";
+  onMain: (e: React.MouseEvent) => void;
+  items?: Array<{ key: string; label: string; onSelect: () => void }>;
+}) {
+  const tones = {
+    emerald: "border-emerald-600 bg-emerald-600 hover:bg-emerald-700",
+    indigo: "border-slate-800 bg-slate-800 hover:bg-slate-900",
+  };
+  return (
+    <div
+      className={cn(
+        "inline-flex overflow-hidden rounded-lg border text-xs font-semibold text-white divide-x divide-white/20",
+        tones[tone]
+      )}
+    >
+      <button
+        type="button"
+        onClick={onMain}
+        className="px-3 py-1.5 transition-colors active:brightness-95"
+      >
+        {mainLabel}
+      </button>
+      {items && items.length > 0 && (
+        <Dropdown>
+          <Dropdown.Trigger
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`${mainLabel} options`}
+            className="cursor-pointer px-1.5 py-1.5 outline-none active:brightness-95"
+          >
+            <ChevronDown className="size-3.5" />
+          </Dropdown.Trigger>
+          <Dropdown.Popover placement="bottom end">
+            <Dropdown.Menu
+              onAction={(key) => {
+                const item = items.find((i) => i.key === key);
+                if (item) item.onSelect();
+              }}
+              className="w-40 text-xs"
+            >
+              {items.map((item) => (
+                <Dropdown.Item key={item.key}>{item.label}</Dropdown.Item>
+              ))}
+            </Dropdown.Menu>
+          </Dropdown.Popover>
+        </Dropdown>
+      )}
+    </div>
+  );
+}
+
+export function StatusChip({ status, className }: { status: string; className?: string }) {
+  return (
+    <span
+      className={cn(
+        "rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ring-1 ring-inset",
+        chipTone(status),
+        className
+      )}
+    >
+      {getStatusLabel(status ?? "")}
+    </span>
+  );
+}
+
+function chipTone(status: string): string {
+  switch (status) {
+    case "checked_in":
+      return "bg-emerald-500/10 text-emerald-700 ring-emerald-500/25 dark:text-emerald-400";
+    case "confirmed":
+      return "bg-sky-500/10 text-sky-700 ring-sky-500/25 dark:text-sky-400";
+    case "pending":
+      return "bg-violet-500/10 text-violet-700 ring-violet-500/25 dark:text-violet-400";
+    case "cancelled":
+      return "bg-red-500/10 text-red-600 ring-red-500/25 dark:text-red-400";
+    case "no_show":
+      return "bg-rose-500/10 text-rose-600 ring-rose-500/25 dark:text-rose-400";
+    default:
+      return "bg-muted text-muted-foreground ring-border";
+  }
+}
+
+function statusTextTone(status: string): string {
+  switch (status) {
+    case "checked_in":
+      return "text-emerald-600 dark:text-emerald-400";
+    case "confirmed":
+      return "text-sky-600 dark:text-sky-400";
+    case "cancelled":
+    case "no_show":
+      return "text-red-500 dark:text-red-400";
+    default:
+      return "text-muted-foreground";
+  }
 }

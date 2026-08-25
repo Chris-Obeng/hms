@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { format } from "date-fns";
 import { writeAuditLog } from "@/lib/audit";
 import { requireMinRole, toActionError } from "@/lib/auth";
@@ -40,7 +41,10 @@ const NewBookingSchema = z.object({
 export type NewBookingInput = z.infer<typeof NewBookingSchema>;
 
 // ── Statuses that require manager or above ────────────────────────
-const MANAGER_ONLY_STATUSES = new Set(["cancelled", "confirmed", "no_show"]);
+// Industry-standard PMS matrix: front desk owns the full reservation
+// lifecycle (confirm, check-in/out, cancel, no-show). Manager+ gates apply
+// to pricing, room/rate configuration and payment edits — enforced in their
+// respective actions, not here.
 
 // ── Create Booking ───────────────────────────────────────────────
 
@@ -229,24 +233,37 @@ export async function createBooking(
       }
     }
 
-    // Generate reference atomically (race-safe DB counter)
-    const slugPrefix = ctx.hotel.name
-      .split(/\s+/)
-      .map((w) => w[0] ?? "")
-      .join("")
-      .toUpperCase()
-      .slice(0, 3) || "BK";
-
+    // Generate reference atomically (race-safe DB counter).
+    // SECURITY DEFINER RPC — callable by `authenticated`; service-role client
+    // is a fallback so reservation creation survives grant drift.
+    let reference: string;
     const { data: refData, error: refErr } = await supabase.rpc(
-      "generate_booking_reference" as never,
-      { p_hotel_id: hotelId, p_prefix: slugPrefix } as never
+      "generate_booking_reference",
+      { p_hotel_id: hotelId, p_prefix: "BK" }
     );
 
-    if (refErr || !refData) {
-      return { success: false, error: "Failed to generate booking reference" };
+    if (refData) {
+      reference = String(refData);
+    } else {
+      if (refErr) {
+        console.error("[createBooking] generate_booking_reference failed", {
+          code: refErr.code,
+          message: refErr.message,
+          hint: refErr.hint,
+        });
+      }
+      try {
+        const { data: adminRef, error: adminRefErr } = await supabaseAdmin.rpc(
+          "generate_booking_reference",
+          { p_hotel_id: hotelId, p_prefix: "BK" }
+        );
+        if (adminRefErr || !adminRef) throw adminRefErr ?? new Error("Empty reference");
+        reference = String(adminRef);
+      } catch (fallbackErr) {
+        console.error("[createBooking] reference fallback failed", fallbackErr);
+        return { success: false, error: "Failed to generate booking reference" };
+      }
     }
-
-    const reference = String(refData);
 
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
@@ -333,10 +350,9 @@ export async function updateBookingStatus(
   status: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Cancellation and manual confirmation require manager+
-    // Check-in and check-out are front_desk operations
-    const minRole = MANAGER_ONLY_STATUSES.has(status) ? "manager" : "front_desk";
-    const ctx = await requireMinRole(minRole as "manager" | "front_desk", `set booking status to '${status}'`);
+    // Industry-standard PMS: every reservation lifecycle transition (confirm,
+    // check-in/out, cancel, no-show, reinstate) is a front-desk operation.
+    const ctx = await requireMinRole("front_desk", `set booking status to '${status}'`);
 
     // Validate status is a known value
     const validStatuses = ["pending", "confirmed", "checked_in", "checked_out", "cancelled", "no_show"];

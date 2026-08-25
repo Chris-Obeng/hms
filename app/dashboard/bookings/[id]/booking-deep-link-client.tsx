@@ -1,21 +1,23 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "@heroui/react";
-import { Loader2, AlertCircle } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast, Skeleton } from "@heroui/react";
+import { AlertCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+
 import {
   getFullBookingDetail,
-  type FullBookingDetail,
 } from "@/app/actions/bookings-detail";
 import { BookingActionBar } from "@/components/bookings/_components/booking-action-bar";
 import { BookingOverviewPanel } from "@/components/bookings/_components/booking-overview-panel";
 import { BookingPaymentsPanel } from "@/components/bookings/_components/booking-payments-panel";
 import { BookingNotesPanel } from "@/components/bookings/_components/booking-notes-panel";
 import { BookingGuestPanel } from "@/components/bookings/_components/booking-guest-panel";
-import { getStatusLabel, STATUS_COLORS } from "@/lib/booking-status";
-import { formatDateTime } from "@/lib/format";
-import { Badge } from "@/components/ui/badge";
+import {
+  BookingStatusPill,
+  ReferenceChip,
+} from "@/components/bookings/_components/booking-status-pill";
+import { formatCurrency, formatDateFull, getNights } from "@/lib/format";
 
 interface Props {
   bookingId: string;
@@ -23,132 +25,205 @@ interface Props {
 }
 
 export function BookingDeepLinkClient({ bookingId, currency }: Props) {
-  const [booking, setBooking] = React.useState<FullBookingDetail | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [activeTab, setActiveTab] = React.useState("overview");
   const [actionLoading, setActionLoading] = React.useState<string | null>(null);
 
-  async function loadBooking() {
-    const result = await getFullBookingDetail(bookingId);
-    if (result.success) {
-      setBooking(result.booking);
-    } else {
-      toast.danger(result.error);
-    }
-  }
+  const {
+    data: booking,
+    isLoading: loading,
+    refetch: loadBooking,
+  } = useQuery({
+    queryKey: ["bookingDetail", bookingId],
+    queryFn: async () => {
+      const result = await getFullBookingDetail(bookingId);
+      if (!result.success) throw new Error(result.error);
+      return result.booking;
+    },
+    retry: false,
+  });
 
   React.useEffect(() => {
-    let cancelled = false;
-    getFullBookingDetail(bookingId).then((result) => {
-      if (cancelled) return;
-      if (result.success) {
-        setBooking(result.booking);
-      } else {
-        toast.danger(result.error);
-      }
-      setLoading(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [bookingId]);
+    if (!loading && !booking) {
+      // Surface load failures once the first fetch settles.
+      toast.danger("Failed to load reservation");
+    }
+  }, [loading, booking]);
 
-  function handleAction(
-    action: string,
-    _optimisticStatus: string,
-    actionFn: () => Promise<{ success: boolean; error?: string }>
-  ) {
-    setActionLoading(action);
-    actionFn()
-      .then((result: { success: boolean; error?: string }) => {
-        if (result?.success) {
+  const handleAction = React.useCallback(
+    async (
+      action: string,
+      _optimisticStatus: string,
+      actionFn: () => Promise<{ success: boolean; error?: string }>
+    ) => {
+      setActionLoading(action);
+      try {
+        const result = await actionFn();
+        if (result.success) {
           toast.success(
-            action === "check_in" ? "Guest checked in" :
-            action === "check_out" ? "Guest checked out" :
-            action === "cancel" ? "Booking cancelled" :
-            action === "reinstate" ? "Booking reinstated" :
-            action === "confirm" ? "Booking confirmed" : "Status updated"
+            action === "check_in"
+              ? "Guest checked in"
+              : action === "check_out"
+                ? "Guest checked out"
+                : action === "cancel"
+                  ? "Reservation cancelled"
+                  : action === "reinstate"
+                    ? "Reservation reinstated"
+                    : "Reservation confirmed"
           );
-          loadBooking();
+          await loadBooking();
         } else {
-          toast.danger(result?.error ?? "Action failed");
+          toast.danger(result.error ?? "Action failed");
         }
-      })
-      .catch(() => toast.danger("Action failed"))
-      .finally(() => setActionLoading(null));
-  }
+      } catch {
+        toast.danger("Action failed");
+      } finally {
+        setActionLoading(null);
+      }
+    },
+    [loadBooking]
+  );
 
-  if (loading) {
+  if (loading && !booking) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      <div className="space-y-4">
+        <Skeleton className="h-44 w-full rounded-3xl" />
+        <Skeleton className="h-16 w-full rounded-2xl" />
+        <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
+          <Skeleton className="h-72 rounded-3xl" />
+          <div className="space-y-4">
+            <Skeleton className="h-40 rounded-3xl" />
+            <Skeleton className="h-48 rounded-3xl" />
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!booking) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <AlertCircle className="size-8 text-muted-foreground/40 mb-3" />
-        <p className="text-sm text-muted-foreground">Booking not found or access denied.</p>
+      <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 py-20 text-center">
+        <AlertCircle className="mb-3 size-8 text-muted-foreground/30" />
+        <p className="text-sm font-semibold text-foreground">
+          Reservation not found
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          It may have been removed, or you don&apos;t have access to it.
+        </p>
       </div>
     );
   }
 
-  const statusColor = STATUS_COLORS[booking.status ?? ""] ?? "bg-gray-100 text-gray-600";
+  const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
 
   return (
-    <div className="space-y-4">
-      {/* Status + action bar */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <Badge className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border-0 ${statusColor}`}>
-          {getStatusLabel(booking.status ?? "")}
-        </Badge>
-        <p className="text-xs text-muted-foreground">
-          Created {formatDateTime(booking.createdAt)}
-          {booking.createdBy?.fullName ? ` by ${booking.createdBy.fullName}` : ""}
-        </p>
-      </div>
+    <div className="space-y-5">
+      {/* ═══ Summary hero ═══ */}
+      <section
+        aria-label="Reservation summary"
+        className="overflow-hidden rounded-3xl border border-border/60 bg-card shadow-xs"
+      >
+        <div className="p-5 sm:p-6">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <BookingStatusPill status={booking.status} />
+            <ReferenceChip reference={booking.reference} />
+          </div>
 
-      <BookingActionBar
-        booking={booking}
-        actionLoading={actionLoading}
-        onAction={handleAction}
-      />
+          <h2 className="mt-3 truncate text-2xl font-bold tracking-tight text-foreground sm:text-[28px]">
+            {booking.guest?.fullName || "Unknown Guest"}
+          </h2>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
-        <TabsList className="h-9 rounded-xl bg-muted/50 p-1 w-full sm:w-auto">
-          {["overview", "payments", "guest", "notes"].map((tab) => (
-            <TabsTrigger
-              key={tab}
-              value={tab}
-              className="rounded-lg px-3 text-xs capitalize data-[state=active]:bg-background data-[state=active]:shadow-sm"
-            >
-              {tab}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+          <p className="mt-1 text-sm tabular-nums text-muted-foreground">
+            {formatDateFull(booking.checkIn)} → {formatDateFull(booking.checkOut)}
+            <span className="mx-1.5 text-muted-foreground/40">·</span>
+            {nights} {nights === 1 ? "night" : "nights"}
+            {booking.room?.roomNumber && (
+              <>
+                <span className="mx-1.5 text-muted-foreground/40">·</span>
+                Room {booking.room.roomNumber}
+              </>
+            )}
+          </p>
 
-        <div className="mt-4 rounded-xl border border-border/60 bg-card p-5">
-          <TabsContent value="overview" className="mt-0">
+          <div className="mt-4 flex flex-wrap items-baseline gap-x-6 gap-y-2 border-t border-border/50 pt-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+                Total
+              </p>
+              <p className="text-kpi text-foreground">
+                {formatCurrency(booking.totalAmount, currency)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+                Paid
+              </p>
+              <p className="text-kpi text-emerald-600 dark:text-emerald-400">
+                {formatCurrency(booking.amountPaid || 0, currency)}
+              </p>
+            </div>
+            {(booking.outstandingBalance ?? 0) > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+                  Due
+                </p>
+                <p className="text-kpi text-destructive">
+                  {formatCurrency(booking.outstandingBalance ?? 0, currency)}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <BookingActionBar
+          booking={booking}
+          actionLoading={actionLoading}
+          onAction={handleAction}
+        />
+      </section>
+
+      {/* ═══ Detail grid ═══ */}
+      <div className="grid items-start gap-5 lg:grid-cols-[1fr_22rem]">
+        <div className="space-y-5">
+          <CardShell title="Stay details">
             <BookingOverviewPanel booking={booking} />
-          </TabsContent>
-          <TabsContent value="payments" className="mt-0">
+          </CardShell>
+          <CardShell title="Payments">
             <BookingPaymentsPanel
               booking={booking}
               currency={currency}
               onRefresh={loadBooking}
             />
-          </TabsContent>
-          <TabsContent value="guest" className="mt-0">
-            <BookingGuestPanel booking={booking} />
-          </TabsContent>
-          <TabsContent value="notes" className="mt-0">
-            <BookingNotesPanel booking={booking} onRefresh={loadBooking} />
-          </TabsContent>
+          </CardShell>
         </div>
-      </Tabs>
+
+        <div className="space-y-5">
+          <CardShell title="Guest">
+            <BookingGuestPanel booking={booking} />
+          </CardShell>
+          <CardShell title="Notes">
+            <BookingNotesPanel booking={booking} onRefresh={loadBooking} />
+          </CardShell>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function CardShell({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      aria-label={title}
+      className="rounded-3xl border border-border/60 bg-card shadow-xs"
+    >
+      <h3 className="border-b border-border/40 px-5 py-3.5 text-section text-foreground">
+        {title}
+      </h3>
+      {children}
+    </section>
   );
 }
