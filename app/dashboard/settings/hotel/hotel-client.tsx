@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateHotelProfile } from "@/app/actions/settings";
 import { saveHotelImageUrl } from "@/app/actions/upload";
 import { ImageUpload } from "@/components/ui/image-upload";
+import type { SupportedCurrency } from "@/lib/format-currency";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -29,7 +30,7 @@ interface HotelSettingsClientProps {
     checkInTime: string;
     checkOutTime: string;
     timezone: string;
-    currency: string;
+    currency: SupportedCurrency;
     cancellationPolicy: string;
     taxEnabled: boolean;
     taxPercentage: number;
@@ -259,7 +260,7 @@ export function HotelSettingsClient({
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                 Currency
               </label>
-              <HeroSelectField value={values.currency} onValueChange={(v) => set("currency", v)} options={[["GHS", "GHS (Ghana Cedi)"], ["NGN", "NGN (Nigerian Naira)"], ["USD", "USD (US Dollar)"], ["EUR", "EUR (Euro)"], ["GBP", "GBP (British Pound)"]].map(([value, label]) => ({ value, label }))} placeholder="Select currency..." ariaLabel="Currency" />
+              <HeroSelectField value={values.currency} onValueChange={(v) => set("currency", v as SupportedCurrency)} options={[["GHS", "GHS (Ghana Cedi)"], ["NGN", "NGN (Nigerian Naira)"], ["USD", "USD (US Dollar)"], ["EUR", "EUR (Euro)"], ["GBP", "GBP (British Pound)"]].map(([value, label]) => ({ value, label }))} placeholder="Select currency..." ariaLabel="Currency" />
             </div>
           </div>
           <div>

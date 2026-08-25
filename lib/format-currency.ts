@@ -5,6 +5,10 @@
  * falls back to symbol map for unsupported locales.
  */
 
+/** Supported currency codes (ISO 4217) */
+export const SUPPORTED_CURRENCIES = ["GHS", "USD", "EUR", "GBP", "NGN", "ZAR", "KES", "UGX"] as const;
+export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
+
 const CURRENCY_SYMBOLS: Record<string, string> = {
   GHS: "₵",
   USD: "$",

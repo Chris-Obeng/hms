@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { SUPPORTED_CURRENCIES, type SupportedCurrency } from "@/lib/format-currency";
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ const HotelProfileSchema = z.object({
   checkInTime: z.string().optional().or(z.literal("")),
   checkOutTime: z.string().optional().or(z.literal("")),
   timezone: z.string().optional().or(z.literal("")),
-  currency: z.enum(["GHS", "USD", "EUR", "GBP", "NGN", "ZAR", "KES", "UGX"]).default("GHS"),
+  currency: z.enum(SUPPORTED_CURRENCIES).default("GHS"),
   cancellationPolicy: z.string().max(500).optional().or(z.literal("")),
   taxEnabled: z.boolean().default(false),
   taxPercentage: z.number().min(0).max(100).default(0),
@@ -90,7 +91,7 @@ export async function getHotelProfile(): Promise<
         checkInTime: data.check_in_time || "",
         checkOutTime: data.check_out_time || "",
         timezone: data.timezone || "",
-        currency: data.currency || "",
+        currency: (data.currency as SupportedCurrency) || "GHS",
         cancellationPolicy: data.cancellation_policy || "",
         logoUrl: data.logo_url,
         coverImageUrl: data.cover_image_url,
