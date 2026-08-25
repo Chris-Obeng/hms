@@ -5,7 +5,7 @@ import { format, isToday, startOfDay, endOfDay } from "date-fns";
 import { AlertDialog, toast } from "@heroui/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
-import { Banknote, CalendarClock, Percent, RotateCw, TrendingUp } from "lucide-react";
+import { CalendarClock, RotateCw } from "lucide-react";
 
 import { Calendar, Skeleton, Button } from "@heroui/react";
 import type { CalendarDate } from "@internationalized/date";
@@ -709,9 +709,6 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
       {/* ── Mobile week view (HeroUI Calendar, 1-week grid) ─────── */}
       <MobileWeekCalendar selectedDate={selectedDate} onDateChange={handleDateChange} />
 
-      {/* ── Quick stats strip ───────────────────────────────────── */}
-      <QuickStatsStrip stats={data.quickStats} currency={currency} />
-
       {/* ── Main 2-column grid ──────────────────────────────────── */}
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[270px_1fr] lg:gap-6">
         {/* Left column */}
@@ -895,60 +892,4 @@ function MobileWeekCalendar({
   );
 }
 
-// ── Today's performance strip ──────────────────────────────────────
-
-function QuickStatsStrip({
-  stats,
-  currency,
-}: {
-  stats: { adr: number; revpar: number; totalRevenue: number; roomNightsSold: number };
-  currency: string;
-}) {
-  const items = [
-    {
-      icon: Banknote,
-      label: "Revenue today",
-      value: formatCurrencyCompact(stats.totalRevenue, currency),
-      tone: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 ring-emerald-500/20",
-    },
-    {
-      icon: TrendingUp,
-      label: "ADR",
-      value: formatCurrencyCompact(stats.adr, currency),
-      tone: "text-sky-600 dark:text-sky-400 bg-sky-500/10 ring-sky-500/20",
-    },
-    {
-      icon: Percent,
-      label: "RevPAR",
-      value: formatCurrencyCompact(stats.revpar, currency),
-      tone: "text-violet-600 dark:text-violet-400 bg-violet-500/10 ring-violet-500/20",
-    },
-  ];
-
-  return (
-    <div className="grid grid-cols-3 gap-2 sm:gap-3">
-      {items.map(({ icon: Icon, label, value, tone }) => (
-        <div
-          key={label}
-          className="flex items-center gap-2.5 rounded-2xl border border-border/50 bg-card px-3 py-2.5 shadow-xs sm:gap-3 sm:px-4"
-        >
-          <span
-            aria-hidden
-            className={cn(
-              "hidden size-8 shrink-0 place-items-center rounded-lg ring-1 ring-inset sm:grid",
-              tone
-            )}
-          >
-            <Icon className="size-4" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/80">
-              {label}
-            </p>
-            <p className="text-kpi truncate tabular-nums text-foreground">{value}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+// (QuickStatsStrip removed - Revenue/ADR/RevPAR KPIs only in Night Audit)
