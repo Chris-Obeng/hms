@@ -12,8 +12,37 @@ export default async function JoinPage(props: {
   const params = await props.params;
   const searchParams = await props.searchParams;
   
-  // Handle Clerk OAuth callback - extract token from cookie or redirect URL
+  // Handle Clerk OAuth callback - check auth state first
   if (params.rest?.[0] === "sso-callback") {
+    const { userId } = await auth();
+    
+    if (userId) {
+      // User just signed up/in via OAuth - check if they have org membership
+      const storedToken = await getInviteTokenCookie();
+      if (storedToken) {
+        // Validate token to get org info
+        const res = await validateInviteToken(storedToken);
+        if (res.success) {
+          const clerk = await clerkClient();
+          try {
+            const memberships = await clerk.users.getOrganizationMembershipList({ userId });
+            const isMember = memberships.data.some(m => m.organization.id === res.clerkOrgId);
+            
+            if (isMember) {
+              // Already added by webhook - go to dashboard
+              redirect("/dashboard");
+            } else {
+              // Not member yet - show processing UI
+              redirect(`/join/processing?orgId=${res.clerkOrgId}&hotel=${encodeURIComponent(res.hotelName)}&role=${res.role}`);
+            }
+          } catch (err) {
+            console.error("Failed to check membership:", err);
+          }
+        }
+      }
+    }
+    
+    // Not authenticated or no token - try to extract token and redirect
     const redirectUrl = searchParams.sign_up_force_redirect_url;
     if (redirectUrl) {
       try {
@@ -26,7 +55,6 @@ export default async function JoinPage(props: {
         console.error("Failed to parse redirect URL:", err);
       }
     }
-    // Check if token stored in cookie
     const storedToken = await getInviteTokenCookie();
     if (storedToken) {
       redirect(`/join?token=${storedToken}`);
@@ -36,6 +64,19 @@ export default async function JoinPage(props: {
   }
 
   const { token } = searchParams;
+
+  // Check if user already authenticated (from OAuth callback)
+  const { userId } = await auth();
+  
+  // If authenticated and no token in URL, check cookie
+  if (userId && !token) {
+    const storedToken = await getInviteTokenCookie();
+    if (storedToken) {
+      // Try to get org info from cookie token without validating (might be used)
+      // Just check membership directly
+      redirect("/dashboard");
+    }
+  }
 
   if (!token) {
     return (
@@ -51,6 +92,11 @@ export default async function JoinPage(props: {
   const res = await validateInviteToken(token);
 
   if (!res.success) {
+    // If token already used and user is authenticated, redirect to dashboard
+    if (userId && res.error === "Invitation link has already been used") {
+      redirect("/dashboard");
+    }
+    
     return (
       <div className="flex items-center justify-center min-h-screen bg-muted/30 p-4">
         <div className="max-w-md w-full bg-card border border-border/60 rounded-xl p-6 shadow-sm text-center space-y-2">
@@ -63,8 +109,7 @@ export default async function JoinPage(props: {
 
   const { hotelName, role, clerkOrgId } = res;
 
-  // Check if user already authenticated
-  const { userId } = await auth();
+  // userId already fetched above
   if (userId) {
     // Check if user already member of this org
     const clerk = await clerkClient();
