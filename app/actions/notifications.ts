@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, toActionError } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export interface NotificationItem {
@@ -58,9 +58,8 @@ export async function fetchNotificationsAction(
       data: (data ?? []) as NotificationItem[], 
       unreadCount: count ?? 0 
     };
-  } catch (error: any) {
-    console.error("fetchNotificationsAction error:", error);
-    return { success: false, error: error.message || "Failed to fetch notifications" };
+  } catch (err) {
+    return toActionError(err, { action: "notifications.fetch", hotelId });
   }
 }
 
@@ -87,9 +86,8 @@ export async function markAllReadAction(
     }
 
     return { success: true };
-  } catch (error: any) {
-    console.error("markAllReadAction error:", error);
-    return { success: false, error: error.message || "Failed to mark all as read" };
+  } catch (err) {
+    return toActionError(err, { action: "notifications.markAllRead", hotelId });
   }
 }
 
@@ -107,8 +105,8 @@ export async function clearReadNotificationsAction(hotelId: string) {
       .or(visibleToStaff(ctx.staffId));
     if (error) return { success: false as const, error: error.message };
     return { success: true as const };
-  } catch (error) {
-    return { success: false as const, error: error instanceof Error ? error.message : "Failed to clear notifications" };
+  } catch (err) {
+    return toActionError(err, { action: "notifications.clearRead", hotelId });
   }
 }
 
@@ -136,8 +134,7 @@ export async function markSingleReadAction(
     }
 
     return { success: true };
-  } catch (error: any) {
-    console.error("markSingleReadAction error:", error);
-    return { success: false, error: error.message || "Failed to mark notification as read" };
+  } catch (err) {
+    return toActionError(err, { action: "notifications.markSingleRead" });
   }
 }

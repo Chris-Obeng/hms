@@ -229,6 +229,21 @@ describe("recordOnlinePayment — idempotency & money integrity", () => {
     expect(state.notificationInserts.some((n) => n.type === "payment_failed")).toBe(true);
   });
 
+  it("carries a machine-stable dedupe key on the review alert", async () => {
+    await recordOnlinePayment({
+      bookingId: "b-1",
+      paystackReference: "HTL-101-usd",
+      amountPaid: 500,
+      currency: "USD",
+    });
+
+    // The unique index is on (booking_id, dedupe_key), so the key — not the
+    // title — is what makes the webhook and the verify fallback alert once.
+    const alert = state.notificationInserts.find((n) => n.type === "payment_failed");
+    expect(alert?.dedupe_key).toBe("payment-review:currency-mismatch");
+    expect(alert?.booking_id).toBe("b-1");
+  });
+
   it("non-positive amount is rejected outright", async () => {
     const result = await recordOnlinePayment({
       bookingId: "b-1",

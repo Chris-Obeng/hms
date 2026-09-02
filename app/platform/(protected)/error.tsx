@@ -3,6 +3,7 @@
 import { RouteError } from "@/components/errors/route-error";
 
 export default function PlatformError({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
@@ -12,6 +13,8 @@ export default function PlatformError({
     <RouteError
       title="Couldn't load the admin console"
       description="Hotel data was not changed. Retry to continue."
+      error={error}
+      boundary="platform-protected"
       reset={reset}
     />
   );

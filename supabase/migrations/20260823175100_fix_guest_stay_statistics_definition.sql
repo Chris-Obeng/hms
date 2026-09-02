@@ -64,8 +64,8 @@ BEGIN
     FROM unnest(v_guest_ids) AS u(gid)
     LEFT JOIN (
            SELECT b.guest_id,
-                  COUNT(*)                               AS stays,
-                  SUM(b.amount_paid)                     AS spend,
+                  COUNT(*)                              AS stays,
+                  SUM(b.amount_paid)                    AS spend,
                   MAX(COALESCE(b.check_out, b.check_in)) AS last_stay
              FROM public.bookings b
             WHERE b.guest_id = ANY (v_guest_ids)

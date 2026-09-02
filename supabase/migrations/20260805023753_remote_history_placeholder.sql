@@ -1,2 +1,0 @@
--- Restored migration-history placeholder.
--- Remote migration content was already applied before this repository snapshot.

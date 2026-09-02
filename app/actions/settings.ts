@@ -2,6 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import { can } from "@/lib/roles";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { SUPPORTED_CURRENCIES, type SupportedCurrency } from "@/lib/format-currency";
@@ -30,7 +31,7 @@ async function getHotelScopedClient() {
     .eq("clerk_org_id", orgId)
     .single();
 
-  const isSuperAdmin = currentUser?.role === "super_admin";
+  const isSuperAdmin = can(currentUser?.role, "settings:manage");
 
   return { supabase, hotelId: hotel.id, hotel, userId, isSuperAdmin };
 }

@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { getNightAuditData } from "./actions";
+import { can } from "@/lib/roles";
+import { getNightAuditData, getRateDrift } from "./actions";
 import { NightAuditClient } from "./night-audit-client";
 import { Moon } from "lucide-react";
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -16,8 +17,9 @@ export default async function NightAuditPage({
   const supabase = await createClient();
   const params = await searchParams;
 
-  const [summary, staffResult] = await Promise.all([
+  const [summary, rateDrift, staffResult] = await Promise.all([
     getNightAuditData(DATE_RE.test(params.date ?? "") ? params.date : undefined),
+    getRateDrift(),
     userId
       ? supabase
           .from("staff_profiles")
@@ -29,10 +31,14 @@ export default async function NightAuditPage({
   ]);
 
   const role = (staffResult.data?.role as string | null) ?? null;
-  const canRunAudit = role === "manager" || role === "super_admin";
+  const canRunAudit = can(role, "night_audit:run");
 
   return (
-    <NightAuditClient initialSummary={summary} canRunAudit={canRunAudit} />
+    <NightAuditClient
+      initialSummary={summary}
+      canRunAudit={canRunAudit}
+      rateDrift={rateDrift}
+    />
   );
 }
 

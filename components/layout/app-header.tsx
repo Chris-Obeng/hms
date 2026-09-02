@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useUser, useAuth, useClerk } from "@clerk/nextjs";
 import { useTheme } from "@/components/theme-provider";
@@ -35,6 +36,7 @@ import { formatRelativeTime } from "@/lib/format";
 import { useSidebar } from "@/components/ui/sidebar";
 
 import { createClient } from "@/lib/supabase/client";
+import { onRealtimeStatus } from "@/lib/observability/realtime";
 import {
   fetchNotificationsAction,
   markAllReadAction,
@@ -244,6 +246,12 @@ export function AppHeader({
 
         authInterval = setInterval(refreshRealtimeAuth, 45_000);
 
+        const reportStatus = onRealtimeStatus({
+          label: "notifications",
+          hotelId: hId,
+          table: "notifications",
+        });
+
         function handleStatus(status: string, err?: unknown) {
           if (status === "SUBSCRIBED") {
             resubscribeAttempts = 0;
@@ -252,6 +260,11 @@ export function AppHeader({
           if (status !== "CHANNEL_ERROR" && status !== "TIMED_OUT") return;
 
           console.warn(`Realtime notifications: ${status}`, err ?? "");
+          // Reported once per outage rather than once per retry: the loop below
+          // makes up to five attempts on the same broken channel.
+          if (resubscribeAttempts === 0) {
+            reportStatus(status, err instanceof Error ? err : undefined);
+          }
           if (!active || resubscribeAttempts >= 5) return;
           resubscribeAttempts += 1;
 
@@ -393,9 +406,11 @@ export function AppHeader({
             className="group flex min-w-0 items-center gap-2 text-left cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded-lg p-0.5"
           >
             {hotelLogoUrl ? (
-              <img
+              <Image
                 src={hotelLogoUrl}
                 alt={hotelName || "Hotel"}
+                width={28}
+                height={28}
                 className="size-7 shrink-0 rounded-lg object-cover"
               />
             ) : (

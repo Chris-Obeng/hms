@@ -323,6 +323,19 @@
 .availability-rate-cell.is-daily { color: #155fbd; font-weight: 650; }
 .availability-rate-cell.is-today { box-shadow: inset 2px 0 #1683e8, inset -2px 0 #1683e8; }
 .rate-dot { position: absolute; right: 7px; top: 7px; width: 6px; height: 6px; border-radius: 99px; background: #1683e8; }
+/* Rate-plan restrictions on the date. The badges sit under the price rather than
+   beside it: the number is what staff scan for, and a cell only reserves the
+   strip's height when it has something to put there. */
+.availability-rate-cell.has-restrictions { padding-bottom: 15px; }
+.rate-restrictions { position: absolute; bottom: 3px; left: 0; right: 0; display: flex; justify-content: center; gap: 3px; pointer-events: none; }
+.rate-restriction { border-radius: 4px; padding: 0 3px; font-size: 9px; font-weight: 700; line-height: 13px; letter-spacing: 0.02em; background: #fdf0dd; color: #8a5a12; }
+.rate-restriction.is-cta, .rate-restriction.is-ctd { background: #e7effc; color: #17457f; }
+.rate-restriction.is-stop { background: #fde3e3; color: #9d1b1b; }
+.rate-restriction.is-more { background: #eef1f5; color: #6c7681; }
+/* Stop sell closes the date outright, so the rate below it is academic. */
+.availability-rate-cell.is-stop-sell { background: #fff6f6; }
+.availability-rate-cell.is-stop-sell strong { text-decoration: line-through; text-decoration-color: rgba(157, 27, 27, 0.55); }
+.availability-rate-cell.is-stop-sell:hover { background: #fdeeee; }
 .availability-rate-meta { min-height: 28px; display: flex; align-items: center; justify-content: center; gap: 8px; border-right: 1px solid #dce3eb; color: #7a8490; font-size: 10px; background: #fafbfd; }
 @media (max-width: 767px) {
   .availability-page { padding: 12px; }

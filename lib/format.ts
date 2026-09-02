@@ -11,26 +11,30 @@
 
 import { format, parseISO } from "date-fns";
 
+import { DEFAULT_CURRENCY, formatMajor } from "./money";
+
+/**
+ * Formats a major-unit amount for display.
+ *
+ * Delegates to `lib/money` so the exponent table is the single source of truth:
+ * fraction digits come from the currency rather than being hardcoded to 2, which
+ * is what made `UGX` render as `USh 1,200.00`. `options` is still spread last,
+ * so callers that need a specific Intl behaviour keep working.
+ *
+ * For anything new, prefer `formatMoney` from `lib/money` and keep the amount in
+ * integer minor units until the moment it is rendered.
+ */
 export function formatCurrency(
   amount: number,
-  currency = "GHS",
+  currency = DEFAULT_CURRENCY,
   options: Intl.NumberFormatOptions = {}
 ): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-    ...options,
-  }).format(amount);
+  return formatMajor(amount, currency, { intl: options });
 }
 
 /** Currency without decimals — for dashboards and charts. */
-export function formatCurrencyCompact(amount: number, currency = "GHS"): string {
-  return formatCurrency(amount, currency, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
+export function formatCurrencyCompact(amount: number, currency = DEFAULT_CURRENCY): string {
+  return formatMajor(amount, currency, { showDecimals: false });
 }
 
 // ── Dates ────────────────────────────────────────────────────────

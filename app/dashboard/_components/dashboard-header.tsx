@@ -5,7 +5,7 @@ import { format, addDays, subDays, isToday } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, Calendar, Popover } from "@heroui/react";
-import { today, getLocalTimeZone, CalendarDate } from "@internationalized/date";
+import { CalendarDate } from "@internationalized/date";
 
 // ── helpers ────────────────────────────────────────────────────
 

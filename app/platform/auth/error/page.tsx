@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function PlatformAuthErrorPage({
@@ -18,12 +19,12 @@ export default async function PlatformAuthErrorPage({
             <p className="text-sm text-white/50">
               {error ? decodeURIComponent(error) : "An unexpected error occurred. Please try signing in again."}
             </p>
-            <a
+            <Link
               href="/platform/sign-in"
               className="inline-block mt-4 text-sm text-white/70 hover:text-white underline underline-offset-2 transition-colors"
             >
               Back to sign in
-            </a>
+            </Link>
           </CardContent>
         </Card>
       </div>

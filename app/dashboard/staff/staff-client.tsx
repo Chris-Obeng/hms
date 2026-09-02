@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "@heroui/react";
 import {
   Search,
@@ -24,7 +23,7 @@ import { formatDate, getInitials } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Table,
@@ -119,19 +118,23 @@ const ROLE_OPTIONS = [
 // ── Component ──────────────────────────────────────────────────────
 
 export function StaffClient({ data, currentUserId, isSuperAdmin }: StaffClientProps) {
-  const router = useRouter();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [localData, setLocalData] = React.useState(data);
+  const [syncedData, setSyncedData] = React.useState(data);
+
+  // Re-sync when the server sends fresh rows. Adjusting state during render
+  // rather than from an effect re-renders before the browser paints, so the
+  // stale list is never shown for a frame.
+  if (data !== syncedData) {
+    setSyncedData(data);
+    setLocalData(data);
+  }
 
   // ── Invite Link States ──────────────────────────────────────────
   const [isInviteOpen, setIsInviteOpen] = React.useState(false);
   const [inviteRole, setInviteRole] = React.useState<"super_admin" | "manager" | "front_desk" | "read_only">("front_desk");
   const [inviteLink, setInviteLink] = React.useState("");
   const [isGenerating, setIsGenerating] = React.useState(false);
-
-  React.useEffect(() => {
-    setLocalData(data);
-  }, [data]);
 
   const filtered = React.useMemo(() => {
     if (!searchQuery.trim()) return localData;

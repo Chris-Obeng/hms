@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/rate-limit";
+import { captureSupabaseError, flushSentry } from "@/lib/observability/sentry";
+import { bookingReferenceParam, hotelSlugParam } from "@/lib/validation/params";
 
 export async function GET(
   req: NextRequest,
@@ -18,10 +20,10 @@ export async function GET(
   const { slug, reference } = await params;
 
   // Validate inputs before any DB query
-  if (!/^[a-z0-9.-]{1,253}$/i.test(slug)) {
+  if (!hotelSlugParam.safeParse(slug).success) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (!/^[A-Z0-9-]{3,30}$/.test(reference)) {
+  if (!bookingReferenceParam.safeParse(reference).success) {
     return NextResponse.json({ error: "Booking not found" }, { status: 404 });
   }
 
@@ -43,7 +45,7 @@ export async function GET(
   const hotel = hotelQuery.data;
   if (!hotel) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const { data: booking } = await supabaseAdmin
+  const { data: booking, error: bookingErr } = await supabaseAdmin
     .from("bookings")
     .select(
       "id, reference, status, payment_status, check_in, check_out, nights, total_amount, currency, guests(full_name, email, phone), room_types(name)"
@@ -52,7 +54,23 @@ export async function GET(
     .eq("reference", reference)
     .single();
 
-  if (!booking) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+  if (!booking) {
+    // PGRST116 is "no rows": either a typo or reference enumeration, both of which
+    // the 404 handles and neither of which is worth an event. Any other code means
+    // a guest with a valid reference is being told their booking does not exist.
+    if (bookingErr && bookingErr.code !== "PGRST116") {
+      captureSupabaseError(bookingErr, "bookings.select.guest_lookup", {
+        scope: "booking-funnel",
+        step: "confirm",
+        level: "error",
+        hotelId: hotel.id,
+        reference,
+        tags: { "hotel.slug": slug },
+      });
+      await flushSentry();
+    }
+    return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+  }
 
   // Type-narrow the nested relations returned by Supabase
   const guest = booking.guests as { full_name?: string | null; email?: string | null; phone?: string | null } | null;

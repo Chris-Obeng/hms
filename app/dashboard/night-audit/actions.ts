@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { writeAuditLog } from "@/lib/audit";
+import { captureError, captureSupabaseError } from "@/lib/observability/sentry";
 import {
   computeNightAuditSummary,
   type NightAuditSummary,
@@ -164,6 +165,123 @@ export async function executeNightAudit(
 
     return { success: true, message: `Day ${dayStr} closed` };
   } catch (err) {
-    return toActionError(err);
+    return toActionError(err, { action: "night-audit.executeNightAudit" });
+  }
+}
+
+// ── Rate drift ─────────────────────────────────────────────────────
+
+/**
+ * One booking whose per-night rates do not add up to the room revenue stored on
+ * the booking, or whose recorded night count is wrong.
+ *
+ * The field names are the column names `public.booking_nights_drift(uuid)`
+ * returns, so this type reads as the report's contract rather than as a view of
+ * it. Money is integer minor units throughout — see lib/money.ts.
+ */
+export interface RateDriftRow {
+  booking_id: string;
+  reference: string;
+  check_in: string;
+  check_out: string;
+  status: string | null;
+  currency: string;
+  nights_expected: number;
+  nights_recorded: number;
+  room_revenue_minor: number;
+  nights_total_minor: number;
+  difference_minor: number;
+}
+
+export interface RateDriftReport {
+  /** Rows to show, most recent stay first, capped at DRIFT_DISPLAY_LIMIT. */
+  rows: RateDriftRow[];
+  /** Bookings drifting in total, which can exceed `rows.length`. */
+  total: number;
+  /**
+   * True when the report could not be read at all. The UI hides the section
+   * instead of rendering it empty, so "nothing to reconcile" can never be
+   * confused with "never checked".
+   */
+  unavailable: boolean;
+}
+
+/**
+ * A drift row is an exception, not a listing: a hotel with hundreds of them has
+ * a systemic problem that a longer list would not help anyone fix. The count is
+ * reported in full so the cap is never mistaken for the whole picture.
+ */
+const DRIFT_DISPLAY_LIMIT = 25;
+
+/** PostgREST and Postgres codes for "this function is not in this database". */
+const MISSING_FUNCTION_CODES = new Set(["PGRST202", "42883"]);
+
+/**
+ * Bookings whose recorded nights do not reconcile with their room revenue.
+ *
+ * Deliberately not a constraint: a manual discount, a comped night or a tax
+ * adjustment are all legitimate reasons for the two figures to differ, and a
+ * CHECK would start rejecting valid front-desk edits. Night Audit already has a
+ * human reviewing the day's figures, so this is the list that gets put in front
+ * of them.
+ *
+ * Degrades to `unavailable` rather than throwing. Close-of-day must not be
+ * blocked by a reconciliation aid, and until the migration carrying
+ * booking_nights reaches a given database the function genuinely is not there.
+ */
+export async function getRateDrift(): Promise<RateDriftReport> {
+  const empty: RateDriftReport = { rows: [], total: 0, unavailable: true };
+
+  try {
+    const { supabase, hotelId } = await getHotelScope();
+
+    // types/database.types.ts is generated against the remote project, which has
+    // not been migrated yet, so its Functions map does not know this function.
+    // Drop the cast once db:types has been regenerated from a project carrying
+    // migration 20260831160000 — same gap as lib/pricing/nightly-rates.ts.
+    const rpc = supabase.rpc as unknown as (
+      fn: "booking_nights_drift",
+      params: { p_hotel_id: string }
+    ) => Promise<{
+      data: RateDriftRow[] | null;
+      error: { message: string; code?: string | null } | null;
+    }>;
+
+    const { data, error } = await rpc("booking_nights_drift", { p_hotel_id: hotelId });
+
+    if (error) {
+      // A database without the migration is an expected state, not an incident.
+      if (!MISSING_FUNCTION_CODES.has(error.code ?? "")) {
+        captureSupabaseError(error, "booking_nights_drift", {
+          hotelId,
+          tags: { "action.name": "night-audit.getRateDrift" },
+          level: "warning",
+        });
+      }
+      return empty;
+    }
+
+    const rows = (data ?? []).map((row) => ({
+      ...row,
+      // int8 arrives as a JSON number from PostgREST, but a string from some
+      // versions. Coerce once here so no caller has to think about it.
+      room_revenue_minor: Number(row.room_revenue_minor),
+      nights_total_minor: Number(row.nights_total_minor),
+      difference_minor: Number(row.difference_minor),
+    }));
+
+    return {
+      rows: rows.slice(0, DRIFT_DISPLAY_LIMIT),
+      total: rows.length,
+      unavailable: false,
+    };
+  } catch (err) {
+    captureError(err, {
+      scope: "server-action",
+      level: "warning",
+      tags: { "action.name": "night-audit.getRateDrift" },
+      fingerprint: ["server-action", "night-audit.getRateDrift"],
+    });
+    return empty;
   }
 }

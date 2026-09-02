@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, toActionError } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export interface SearchResult {
@@ -90,7 +90,7 @@ export async function searchGlobal(
       console.error("Booking reference search error:", bookingsByRefError);
     } else if (bookingsByRef) {
       for (const b of bookingsByRef) {
-        const guestName = b.guests ? (b.guests as any).full_name : "";
+        const guestName = b.guests?.full_name ?? "";
         allBookingsMap.set(b.id, {
           id: `booking-${b.id}`,
           type: "booking",
@@ -122,7 +122,7 @@ export async function searchGlobal(
       } else if (bookingsByGuest) {
         for (const b of bookingsByGuest) {
           if (!allBookingsMap.has(b.id)) {
-            const guestName = b.guests ? (b.guests as any).full_name : "";
+            const guestName = b.guests?.full_name ?? "";
             allBookingsMap.set(b.id, {
               id: `booking-${b.id}`,
               type: "booking",
@@ -164,8 +164,7 @@ export async function searchGlobal(
     }
 
     return { success: true, data: results };
-  } catch (error: any) {
-    console.error("Global search server action error:", error);
-    return { success: false, error: error.message || "Search failed" };
+  } catch (err) {
+    return toActionError(err, { action: "search.global" });
   }
 }

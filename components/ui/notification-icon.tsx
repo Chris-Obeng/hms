@@ -28,7 +28,6 @@ interface NotificationIconProps
     "color" | "onDrag" | "onDragStart" | "onDragEnd" | "onAnimationStart" | "onAnimationEnd" | "onAnimationIteration"
   > {
   size?: number;
-  duration?: number;
   isAnimated?: boolean;
   color?: string;
 }
@@ -56,7 +55,6 @@ const NotificationIcon = forwardRef<NotificationIconHandle, NotificationIconProp
       onMouseLeave,
       className,
       size = 24,
-      duration = 1,
       isAnimated = true,
       color,
       ...props

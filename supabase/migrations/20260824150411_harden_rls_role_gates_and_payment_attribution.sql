@@ -2,18 +2,14 @@
 -- 1. notification_logs: enable RLS (deny-all for client roles; service_role bypasses RLS)
 -- 2. Role-aware destructive operations: restrictive policies require manager+ for
 --    DELETE on rooms/room_types/guests/payments/availability_blocks and direct
---    UPDATE on payments. Restrictive policies AND-combine with the existing
---    permissive org-isolation policies, tightening them without replacing them.
+--    UPDATE on payments.
 -- 3. record_payment_atomic: bind recorded_by to the caller's JWT when a staff
---    JWT is present (prevents attribution fraud); service-role/webhook callers
---    keep the explicit parameter fallback.
+--    JWT is present; service-role/webhook callers keep the explicit parameter fallback.
 -- 4. Missing FK indexes flagged by the performance advisor.
 -- 5. Init-plan optimization for policies that re-evaluate auth.* per row.
 
--- ── 1. notification_logs ────────────────────────────────────────────────
 ALTER TABLE public.notification_logs ENABLE ROW LEVEL SECURITY;
 
--- ── 2. Role helper + restrictive policies ───────────────────────────────
 CREATE OR REPLACE FUNCTION public.user_has_staff_role(p_hotel_id uuid, p_roles text[])
 RETURNS boolean
 LANGUAGE sql
@@ -59,7 +55,6 @@ CREATE POLICY payments_direct_update_requires_manager
   USING (public.user_has_staff_role(hotel_id, ARRAY['super_admin'::text, 'manager'::text]))
   WITH CHECK (public.user_has_staff_role(hotel_id, ARRAY['super_admin'::text, 'manager'::text]));
 
--- ── 3. record_payment_atomic: JWT-bound attribution ─────────────────────
 CREATE OR REPLACE FUNCTION public.record_payment_atomic(p_hotel_id uuid, p_booking_id uuid, p_amount numeric, p_method text, p_notes text, p_currency text, p_recorded_by uuid)
  RETURNS TABLE(payment_id uuid, payment_status text)
  LANGUAGE plpgsql
@@ -98,7 +93,6 @@ BEGIN
     RAISE EXCEPTION 'Payment amount must be positive';
   END IF;
 
-  -- Insert the payment row
   INSERT INTO public.payments (
     hotel_id, booking_id, amount, method, status,
     paid_at, notes, currency, recorded_by
@@ -109,7 +103,6 @@ BEGIN
   )
   RETURNING id INTO v_payment_id;
 
-  -- Atomically increment amount_paid and recompute payment_status
   UPDATE public.bookings
   SET
     amount_paid    = COALESCE(amount_paid, 0) + p_amount,
@@ -132,14 +125,12 @@ BEGIN
 END;
 $function$;
 
--- ── 4. Missing FK indexes ────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_push_subscriptions_hotel_id
   ON public.push_subscriptions(hotel_id);
 
 CREATE INDEX IF NOT EXISTS idx_staff_profiles_granted_by
   ON public.staff_profiles(granted_by);
 
--- ── 5. Init-plan wrapping for per-row auth evaluation ───────────────────
 DROP POLICY IF EXISTS push_subscriptions_self_select ON public.push_subscriptions;
 CREATE POLICY push_subscriptions_self_select
   ON public.push_subscriptions FOR SELECT TO authenticated

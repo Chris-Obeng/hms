@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
-import { requireAuth, requireMinRole, toActionError } from "@/lib/auth";
+import { requireAuth, requireMinRole } from "@/lib/auth";
+import { can } from "@/lib/roles";
 
 // ── Get Hotel ID Helper ──────────────────────────────────────────
 
@@ -140,7 +141,7 @@ export async function getFullBookingDetail(
       .map((p) => p.recorded_by)
       .filter(Boolean) as string[];
 
-    let staffMap = new Map<string, string>();
+    const staffMap = new Map<string, string>();
     if (recordedByIds.length > 0) {
       const { data: staff } = await supabase
         .from("staff_profiles")
@@ -399,9 +400,9 @@ export async function getCurrentUserRole(): Promise<StaffRoleInfo> {
     }
 
     const role = profile.role || "pending";
-    const canEdit = role === "super_admin" || role === "manager" || role === "front_desk";
-    const canManageStaff = role === "super_admin";
-    const canManageSettings = role === "super_admin";
+    const canEdit = can(role, "booking:edit");
+    const canManageStaff = can(role, "staff:manage");
+    const canManageSettings = can(role, "settings:manage");
 
     return { role, canEdit, canManageStaff, canManageSettings };
   } catch {

@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -628,6 +628,7 @@ export type Database = {
           booking_id: string | null
           created_at: string | null
           created_by_staff_id: string | null
+          dedupe_key: string | null
           hotel_id: string
           id: string
           is_read: boolean | null
@@ -643,6 +644,7 @@ export type Database = {
           booking_id?: string | null
           created_at?: string | null
           created_by_staff_id?: string | null
+          dedupe_key?: string | null
           hotel_id: string
           id?: string
           is_read?: boolean | null
@@ -658,6 +660,7 @@ export type Database = {
           booking_id?: string | null
           created_at?: string | null
           created_by_staff_id?: string | null
+          dedupe_key?: string | null
           hotel_id?: string
           id?: string
           is_read?: boolean | null
@@ -1105,6 +1108,7 @@ export type Database = {
           hotel_id: string
           id: string
           name: string
+          priority: number
           start_date: string
           updated_at: string
         }
@@ -1114,6 +1118,7 @@ export type Database = {
           hotel_id: string
           id?: string
           name: string
+          priority?: number
           start_date: string
           updated_at?: string
         }
@@ -1123,6 +1128,7 @@ export type Database = {
           hotel_id?: string
           id?: string
           name?: string
+          priority?: number
           start_date?: string
           updated_at?: string
         }
@@ -1304,6 +1310,17 @@ export type Database = {
           p_room_type_id: string
         }
         Returns: number
+      }
+      room_type_available_counts: {
+        Args: {
+          p_from: string
+          p_room_type_ids: string[]
+          p_to: string
+        }
+        Returns: {
+          available: number
+          room_type_id: string
+        }[]
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }

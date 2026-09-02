@@ -17,11 +17,13 @@ import { ActivityTabs, buildActivityTabs, type ActivityTab } from "./_components
 import { ActivityList, type ActivityBooking } from "./_components/activity-list";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import { createClient } from "@/lib/supabase/client";
+import { onRealtimeStatus } from "@/lib/observability/realtime";
+import { createCoalescer } from "@/lib/realtime/coalesce";
 import { writeAuditLog } from "@/lib/audit";
 import { qk } from "@/lib/query-keys";
 import { findOverlappingBookingIds, isCheckedInStayoverOnDate, isInHouseOnDate } from "@/lib/calendar-domain";
 import { updateBookingStatus } from "@/app/actions/bookings";
-import { formatCurrencyCompact, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import PullToRefresh from "react-simple-pull-to-refresh";
 
@@ -344,20 +346,26 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
   React.useEffect(() => {
     if (!orgId) return;
     const supabase = createClient();
+    // A night audit or group check-in changes many bookings at once, and each
+    // change arrives as its own event. Invalidate once the burst settles.
+    const refresh = createCoalescer();
     const channel = supabase
       .channel(`hotel:${hotelId}:dashboard`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
-        () => {
+        () => refresh.schedule(() => {
           queryClient.invalidateQueries({ queryKey: qk.dashboard(orgId, hotelId, dateParamStr) });
           queryClient.invalidateQueries({
             queryKey: qk.dashboard(orgId, hotelId, format(new Date(), "yyyy-MM-dd")),
           });
-        },
+        }),
       )
-      .subscribe();
+      .subscribe(
+        onRealtimeStatus({ label: "dashboard", hotelId, orgId, table: "bookings" }),
+      );
     return () => {
+      refresh.cancel();
       supabase.removeChannel(channel);
     };
   }, [hotelId, orgId, queryClient, dateParamStr]);

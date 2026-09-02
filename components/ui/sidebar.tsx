@@ -4,7 +4,7 @@ import * as React from "react"
 import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
-import { Drawer, useOverlayState } from "@heroui/react"
+import { Drawer } from "@heroui/react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
@@ -689,12 +689,17 @@ export {
   SidebarHeader,
   SidebarContent,
   SidebarFooter,
+  SidebarInput,
   SidebarGroup,
+  SidebarGroupAction,
   SidebarGroupLabel,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
+  SidebarMenuAction,
+  SidebarMenuBadge,
   SidebarMenuButton,
+  SidebarMenuSkeleton,
   SidebarMenuSub,
   SidebarMenuSubItem,
   SidebarMenuSubButton,

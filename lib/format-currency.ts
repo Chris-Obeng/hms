@@ -1,72 +1,42 @@
 /**
- * Currency formatting utilities for multi-currency support.
- * 
- * Production-grade: Uses Intl.NumberFormat for locale-aware formatting,
- * falls back to symbol map for unsupported locales.
+ * lib/format-currency.ts
+ *
+ * Compatibility shim. The implementation now lives in `lib/money.ts`, which owns
+ * the ISO 4217 exponent table, the symbol map and the Intl builder.
+ *
+ * This module used to carry a second `formatCurrency` whose third parameter was
+ * `{ showDecimals, locale }` while `lib/format.ts` took `Intl.NumberFormatOptions`
+ * — two incompatible signatures under one name, and two copies of the currency
+ * list that could drift. The `{ showDecimals, locale }` shape is preserved here so
+ * existing call sites keep compiling; new code should import from `lib/money` or
+ * `lib/format`.
  */
 
-/** Supported currency codes (ISO 4217) */
-export const SUPPORTED_CURRENCIES = ["GHS", "USD", "EUR", "GBP", "NGN", "ZAR", "KES", "UGX"] as const;
-export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
+import {
+  DEFAULT_CURRENCY,
+  formatMajor,
+  type FormatMoneyOptions,
+} from "./money";
 
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  GHS: "₵",
-  USD: "$",
-  EUR: "€",
-  GBP: "£",
-  NGN: "₦",
-  ZAR: "R",
-  KES: "KSh",
-  UGX: "USh",
-  XOF: "CFA", // West African CFA franc
-  XAF: "FCFA", // Central African CFA franc
-};
+export {
+  SUPPORTED_CURRENCIES,
+  type SupportedCurrency,
+  getCurrencySymbol,
+} from "./money";
 
-/**
- * Format amount with currency symbol.
- * Uses browser's Intl.NumberFormat when available for proper locale formatting.
- * Falls back to custom symbol + basic formatting for unsupported currencies.
- */
+/** Formats an amount with its currency symbol. Decimals follow the currency. */
 export function formatCurrency(
   amount: number,
-  currencyCode: string = "GHS",
-  options?: { showDecimals?: boolean; locale?: string }
+  currencyCode: string = DEFAULT_CURRENCY,
+  options?: Pick<FormatMoneyOptions, "showDecimals" | "locale">
 ): string {
-  const { showDecimals = true, locale = "en-GH" } = options ?? {};
-
-  // Try native formatting first (respects locale decimal/grouping rules)
-  try {
-    return new Intl.NumberFormat(locale, {
-      style: "currency",
-      currency: currencyCode,
-      minimumFractionDigits: showDecimals ? 2 : 0,
-      maximumFractionDigits: showDecimals ? 2 : 0,
-    }).format(amount);
-  } catch {
-    // Fallback if currency not supported by Intl (unlikely but safe)
-    const symbol = CURRENCY_SYMBOLS[currencyCode] ?? currencyCode;
-    const formatted = amount.toLocaleString(undefined, {
-      minimumFractionDigits: showDecimals ? 2 : 0,
-      maximumFractionDigits: showDecimals ? 2 : 0,
-    });
-    return `${symbol}${formatted}`;
-  }
+  return formatMajor(amount, currencyCode, options);
 }
 
-/**
- * Get currency symbol only (no amount).
- */
-export function getCurrencySymbol(currencyCode: string = "GHS"): string {
-  return CURRENCY_SYMBOLS[currencyCode] ?? currencyCode;
-}
-
-/**
- * Format currency for display in compact form (no decimals, uses symbol).
- * Example: formatCurrencyCompact(1234, "GHS") → "₵1,234"
- */
+/** No decimals, for dashboards and charts: `1234` → `₵1,234`. */
 export function formatCurrencyCompact(
   amount: number,
-  currencyCode: string = "GHS"
+  currencyCode: string = DEFAULT_CURRENCY
 ): string {
-  return formatCurrency(amount, currencyCode, { showDecimals: false });
+  return formatMajor(amount, currencyCode, { showDecimals: false });
 }

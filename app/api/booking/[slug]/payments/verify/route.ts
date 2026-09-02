@@ -2,7 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { verifyTransaction } from "@/lib/paystack";
 import { recordOnlinePayment } from "@/lib/bookings/confirm-online-payment";
+import { fromMinor } from "@/lib/money";
 import { rateLimit } from "@/lib/rate-limit";
+import {
+  captureError,
+  captureIssue,
+  captureSupabaseError,
+  flushSentry,
+} from "@/lib/observability/sentry";
+import { hotelSlugParam, paystackReferenceParam } from "@/lib/validation/params";
 
 /**
  * GET /api/booking/[slug]/payments/verify?reference=<paystackRef>
@@ -33,16 +41,37 @@ export async function GET(
   }
 
   const { slug } = await params;
-  const reference = req.nextUrl.searchParams.get("reference");
 
-  if (!reference) {
+  // Both values are parsed against the shared allowlists in lib/validation, not
+  // re-checked with an inline regex: the reference is interpolated into a
+  // Paystack URL path and the slug into a PostgREST filter, so "what a valid
+  // reference is" must have exactly one definition across the routes that
+  // accept one.
+  const parsedReference = paystackReferenceParam.safeParse(
+    req.nextUrl.searchParams.get("reference")
+  );
+
+  if (!parsedReference.success) {
     return NextResponse.json({ error: "Missing reference" }, { status: 400 });
   }
 
-  // Validate slug format before touching the DB
-  if (!/^[a-z0-9.-]{1,253}$/i.test(slug)) {
+  const reference = parsedReference.data;
+
+  if (!hotelSlugParam.safeParse(slug).success) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
+
+  /**
+   * Whether Paystack has already told us this transaction succeeded.
+   *
+   * This is what separates "the verify call itself broke" from "money is
+   * captured and RoomLine failed to record it". Before this flag, every throw in
+   * the block below — including a Paystack timeout during an outage, which is
+   * already reported by paystackFetch — was captured as `fatal`, so the one
+   * severity reserved for lost money also fired for problems that cost nothing
+   * and resolve on the guest's next refresh.
+   */
+  let paymentConfirmed = false;
 
   try {
     // Resolve hotel — two separate parameterized queries (no .or() interpolation)
@@ -74,6 +103,9 @@ export async function GET(
       return NextResponse.json({ verified: false, status: txn.status });
     }
 
+    // From here on the guest's card has been charged.
+    paymentConfirmed = true;
+
     // Parse booking metadata embedded in the transaction
     const metadata =
       typeof txn.metadata === "string"
@@ -96,6 +128,14 @@ export async function GET(
       .maybeSingle();
 
     if (ownershipError) {
+      captureSupabaseError(ownershipError, "bookings.select.ownership", {
+        scope: "booking-funnel",
+        step: "payment_verify",
+        hotelId: hotel.id,
+        bookingId,
+        reference,
+        tags: { "hotel.slug": slug },
+      });
       throw new Error(`Ownership lookup failed: ${ownershipError.message}`);
     }
 
@@ -106,18 +146,38 @@ export async function GET(
         bookingHotelId: ownership?.hotel_id ?? null,
         bookingId,
       });
+      // Either a guest verifying a reference against the wrong hotel's site, or a
+      // deliberate cross-tenant probe. Both are worth seeing; the tag says which.
+      captureIssue("Payment verify blocked: booking belongs to another hotel", {
+        scope: "booking-funnel",
+        step: "payment_verify",
+        level: "error",
+        hotelId: hotel.id,
+        bookingId,
+        reference,
+        tags: {
+          "hotel.slug": slug,
+          "verify.reason": ownership ? "hotel-mismatch" : "booking-missing",
+        },
+        fingerprint: ["booking-funnel", "verify-cross-tenant"],
+      });
       return NextResponse.json({ verified: false, error: "Invalid request" }, { status: 403 });
     }
 
     // ── Shared, race-safe recording pipeline (same as webhook) ──
     const subaccountData = txn.subaccount as Record<string, unknown> | null | undefined;
 
+    // Paystack reports the amount in the transaction currency's smallest unit.
+    // Dividing by a fixed 100 understates a zero-decimal charge a hundredfold and
+    // would leave the booking looking underpaid.
+    const txnCurrency = typeof txn.currency === "string" ? txn.currency : hotel.currency;
+
     const result = await recordOnlinePayment({
       bookingId,
       paystackReference: reference,
       paystackId: txn.id != null ? String(txn.id) : null,
-      amountPaid: txn.amount / 100, // pesewas → major units
-      currency: typeof txn.currency === "string" ? txn.currency : hotel.currency,
+      amountPaid: fromMinor(txn.amount, txnCurrency),
+      currency: txnCurrency,
       subaccountCode: (subaccountData?.account_code as string | null) ?? null,
     });
 
@@ -136,9 +196,36 @@ export async function GET(
     }
   } catch (err) {
     console.error("[payment/verify]", err instanceof Error ? err.message : err);
+    // The guest is told to contact the hotel, so this is the last chance to learn
+    // that a paid booking was never confirmed.
+    //
+    // `fatal` is reserved for the case that actually deserves a page: Paystack
+    // confirmed the charge and the recording pipeline still failed, which means
+    // real money exists with no payment row behind it. Anything that broke before
+    // that confirmation is a failed lookup or an upstream outage — serious, but
+    // no money has moved, so it is graded `error` and grouped separately.
+    captureError(err, {
+      scope: "booking-funnel",
+      step: "payment_verify",
+      level: paymentConfirmed ? "fatal" : "error",
+      reference,
+      tags: {
+        "hotel.slug": slug,
+        "verify.payment_confirmed": paymentConfirmed,
+      },
+      fingerprint: [
+        "booking-funnel",
+        "verify-failed",
+        paymentConfirmed ? "after-charge" : "before-charge",
+      ],
+    });
     return NextResponse.json(
       { verified: false, error: "Verification failed. Please contact the hotel." },
       { status: 500 }
     );
+  } finally {
+    // Guest-facing payment path on a serverless isolate: flush before the
+    // response resolves or the event is lost.
+    await flushSentry();
   }
 }

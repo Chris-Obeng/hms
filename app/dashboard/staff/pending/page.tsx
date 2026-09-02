@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import { can } from "@/lib/roles";
 import { Users, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,7 @@ export default async function PendingStaffPage() {
     .eq("clerk_org_id", orgId)
     .single();
 
-  const isSuperAdmin = currentUser?.role === "super_admin";
+  const isSuperAdmin = can(currentUser?.role, "staff:manage");
 
   // Fetch pending staff
   const { data: pending } = await supabase

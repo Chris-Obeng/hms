@@ -9,6 +9,11 @@ import {
   resolvePublicRoomPrices,
   getDefaultBookingDates,
 } from "@/lib/pricing/resolve-public-price";
+import {
+  fetchStayRestrictions,
+  type RoomTypeStayRestrictions,
+} from "@/lib/bookings/stay-restrictions";
+import { captureError, captureSupabaseError } from "@/lib/observability/sentry";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +51,7 @@ function RoomGrid({
   hotelCurrency,
   priceMap,
   availMap,
+  restrictionMap,
   checkIn,
   checkOut,
   datesSelected,
@@ -58,6 +64,7 @@ function RoomGrid({
   hotelCurrency: string;
   priceMap: Map<string, { displayPrice: number }>;
   availMap: Map<string, number>;
+  restrictionMap: Map<string, RoomTypeStayRestrictions>;
   checkIn?: string;
   checkOut?: string;
   datesSelected: boolean;
@@ -93,6 +100,9 @@ function RoomGrid({
             checkIn={checkIn}
             checkOut={checkOut}
             availableCount={datesSelected ? (availMap.get(rt.id) ?? 0) : null}
+            restrictionReason={
+              datesSelected ? (restrictionMap.get(rt.id)?.reason ?? null) : null
+            }
             datesSelected={datesSelected}
             adults={adults}
             childGuests={childGuests}
@@ -134,7 +144,7 @@ export default async function RoomsPage({ params, searchParams }: Props) {
   const pricingCheckIn = check_in ?? defaultCheckIn;
   const pricingCheckOut = check_out ?? defaultCheckOut;
 
-  const [resolvedPrices, availResults] = await Promise.all([
+  const [resolvedPrices, availResult, restrictionMap] = await Promise.all([
     ids.length
       ? resolvePublicRoomPrices(
           hotel.id,
@@ -143,25 +153,60 @@ export default async function RoomsPage({ params, searchParams }: Props) {
           pricingCheckOut
         )
       : Promise.resolve([]),
-    datesSelected && roomTypes
-      ? Promise.all(
-          roomTypes.map(async (rt) => {
-            const { data } = await supabaseAdmin.rpc(
-              "room_type_available_count",
-              {
-                p_room_type_id: rt.id,
-                p_check_in: check_in,
-                p_check_out: check_out,
-              }
-            );
-            return { id: rt.id, count: data ?? 0 };
-          })
+    datesSelected && ids.length
+      ? // One RPC for the whole page instead of one per room type.
+        supabaseAdmin.rpc("room_type_available_counts", {
+          p_room_type_ids: ids,
+          p_from: check_in!,
+          p_to: check_out!,
+        })
+      : Promise.resolve({ data: [], error: null }),
+    // Free rooms do not make a stay sellable: the rate plan may be closed to
+    // arrival on the date, or want more nights than the guest asked for. Caught
+    // rather than thrown because the booking write is guarded either way, so a
+    // failed read costs the guest an explanation here, not a wrong sale.
+    datesSelected && ids.length
+      ? fetchStayRestrictions(hotel.id, ids, check_in!, check_out!).catch(
+          (error: unknown) => {
+            captureError(error, {
+              scope: "booking-funnel",
+              step: "search",
+              level: "warning",
+              hotelId: hotel.id,
+              tags: { "hotel.slug": slug, read: "room_type_stay_restrictions" },
+              contexts: {
+                stay: { check_in: check_in ?? null, check_out: check_out ?? null },
+              },
+            });
+            return new Map<string, RoomTypeStayRestrictions>();
+          }
         )
-      : Promise.resolve([]),
+      : Promise.resolve(new Map<string, RoomTypeStayRestrictions>()),
   ]);
 
+  // Silence here would render every room as sold out, which looks like a fully
+  // booked hotel rather than a broken query. Report it and let the page degrade.
+  if (availResult.error) {
+    captureSupabaseError(availResult.error, "rpc.room_type_available_counts", {
+      scope: "booking-funnel",
+      step: "search",
+      level: "error",
+      hotelId: hotel.id,
+      tags: { "hotel.slug": slug },
+      contexts: {
+        availability: {
+          total_room_types: ids.length,
+          check_in: check_in ?? null,
+          check_out: check_out ?? null,
+        },
+      },
+    });
+  }
+
   const priceMap = new Map(resolvedPrices.map((p) => [p.roomTypeId, p]));
-  const availMap = new Map(availResults.map((r) => [r.id, r.count]));
+  const availMap = new Map(
+    (availResult.data ?? []).map((row) => [row.room_type_id, row.available])
+  );
 
   const nights =
     datesSelected
@@ -171,15 +216,19 @@ export default async function RoomsPage({ params, searchParams }: Props) {
         )
       : null;
 
+  // Bookable means both halves: rooms free, and the rate plan willing to sell
+  // this window. Everything else drops into the section below the fold, which
+  // says why per card rather than lumping a minimum stay in with sold out.
+  const bookable = (id: string) =>
+    (availMap.get(id) ?? 0) > 0 && (restrictionMap.get(id)?.sellable ?? true);
+
   const availableRooms =
     datesSelected && roomTypes
-      ? roomTypes.filter((rt) => (availMap.get(rt.id) ?? 0) > 0)
+      ? roomTypes.filter((rt) => bookable(rt.id))
       : (roomTypes ?? []);
 
-  const soldOutRooms =
-    datesSelected && roomTypes
-      ? roomTypes.filter((rt) => (availMap.get(rt.id) ?? 0) === 0)
-      : [];
+  const unavailableRooms =
+    datesSelected && roomTypes ? roomTypes.filter((rt) => !bookable(rt.id)) : [];
 
   const partyBits: string[] = [];
   if (adults) {
@@ -286,6 +335,7 @@ export default async function RoomsPage({ params, searchParams }: Props) {
               hotelCurrency={currency}
               priceMap={priceMap}
               availMap={availMap}
+              restrictionMap={restrictionMap}
               checkIn={check_in}
               checkOut={check_out}
               datesSelected={datesSelected}
@@ -294,7 +344,7 @@ export default async function RoomsPage({ params, searchParams }: Props) {
               roomsParam={rooms}
             />
 
-            {datesSelected && soldOutRooms.length > 0 && (
+            {datesSelected && unavailableRooms.length > 0 && (
               <section aria-labelledby="sold-out-heading">
                 <div className="flex items-center gap-3 mb-5">
                   <h2
@@ -306,11 +356,12 @@ export default async function RoomsPage({ params, searchParams }: Props) {
                   <div className="flex-1 h-px bg-[var(--bk-line)]" />
                 </div>
                 <RoomGrid
-                  rooms={soldOutRooms}
+                  rooms={unavailableRooms}
                   slug={slug}
                   hotelCurrency={currency}
                   priceMap={priceMap}
                   availMap={availMap}
+                  restrictionMap={restrictionMap}
                   checkIn={check_in}
                   checkOut={check_out}
                   datesSelected={datesSelected}

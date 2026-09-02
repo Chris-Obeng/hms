@@ -2,6 +2,7 @@
 
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import { can } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
 
@@ -28,7 +29,7 @@ async function getHotelScopedClient() {
     .eq("clerk_org_id", orgId)
     .single();
 
-  const isSuperAdmin = currentUser?.role === "super_admin";
+  const isSuperAdmin = can(currentUser?.role, "staff:manage");
   const currentStaffId = currentUser?.id ?? null;
   const currentStaffName = currentUser?.full_name ?? null;
 

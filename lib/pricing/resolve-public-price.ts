@@ -4,24 +4,31 @@
  * Public pricing resolver — shared by public booking routes AND admin booking
  * sheet (via the authenticated wrapper in app/actions/pricing.ts).
  *
- * Override priority (highest → lowest):
- *   1. daily_rate_overrides   — exact date match
- *   2. seasonal_rate_overrides — date range, weekend_price if applicable
- *   3. room_types.base_price / weekend_price — hotel default
+ * The precedence rules no longer live here. `public.resolve_nightly_rates()`
+ * owns them (supabase/migrations/20260831030000_resolve_nightly_rates.sql):
+ *
+ *   1. daily_rate_overrides    — (rate_plan_id, date, occupancy)
+ *   2. seasonal_rate_overrides — highest-priority season covering the night;
+ *                               weekend_price_minor on Fri/Sat when set
+ *   3. room_types.base_price_minor / weekend_price_minor — hotel default
+ *
+ * A winning season with no override row for the room type falls through to the
+ * room's own price, not to the next season down — see the migration comment.
+ *
+ * This module is the TypeScript face of that function: it shapes rows into the
+ * ResolvedRoomPrice contract the booking funnel and the staff sheet already
+ * consume. One resolver in SQL is what lets booking creation, the night audit
+ * and later channel-manager pushes quote the same number the guest was shown.
  *
  * Uses supabaseAdmin so unauthenticated public pages can resolve prices
  * without a Clerk/Supabase session.
  */
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { fromMinor } from "@/lib/money";
+import { fetchNightlyRates } from "@/lib/pricing/nightly-rates";
 
 // ── Internal helpers ─────────────────────────────────────────────
-
-function isWeekendNight(dateStr: string): boolean {
-  // Fri (5) and Sat (6) in UTC — consistent across time zones
-  const dow = new Date(dateStr + "T12:00:00Z").getUTCDay();
-  return dow === 5 || dow === 6;
-}
 
 /** YYYY-MM-DD strings for each night of a stay: check_in … check_out - 1 */
 function buildNightDates(checkIn: string, checkOut: string): string[] {
@@ -76,143 +83,101 @@ export interface ResolvedRoomPrice {
   nights: ResolvedNight[];
 }
 
+/** Which rate plan and occupancy to price. Both default in SQL. */
+export interface RateSelector {
+  /**
+   * Plan to price. Falls back to each room type's default plan when omitted or
+   * when the plan belongs to a different room type.
+   */
+  ratePlanId?: string | null;
+  /** Occupancy tier of the override rows to use. 0 means "any occupancy". */
+  occupancy?: number;
+}
+
 /**
  * Resolve override-aware prices for one or more room types across a stay.
  *
  * Safe for unauthenticated callers — uses supabaseAdmin, no session required.
  * Also used by the authenticated staff server action (getResolvedRatesForBooking).
+ *
+ * Rows come back one per (room type, night); a room type with no row — because
+ * it belongs to another hotel, or does not exist — resolves to zero, which is
+ * what the previous in-process implementation did too.
  */
 export async function resolvePublicRoomPrices(
   hotelId: string,
   roomTypeIds: string[],
   checkIn: string,
-  checkOut: string
+  checkOut: string,
+  selector: RateSelector = {}
 ): Promise<ResolvedRoomPrice[]> {
   if (!roomTypeIds.length) return [];
 
   const nightDates = buildNightDates(checkIn, checkOut);
   if (!nightDates.length) return [];
 
-  // All three queries in parallel
-  const [roomTypesRes, seasonsRes, dailyRes] = await Promise.all([
+  // The resolver owns every price. room_types is read only for base_price, which
+  // is what hasOverride compares against — a night priced at the room's own rate
+  // is not an override even when it came back tagged 'base'.
+  const [rows, roomTypesRes] = await Promise.all([
+    fetchNightlyRates({
+      p_hotel_id: hotelId,
+      p_room_type_ids: roomTypeIds,
+      p_from: checkIn,
+      p_to: checkOut,
+      p_rate_plan_id: selector.ratePlanId ?? null,
+      p_occupancy: selector.occupancy ?? 0,
+    }),
     supabaseAdmin
       .from("room_types")
-      .select("id, base_price, weekend_price")
+      .select("id, base_price")
       .eq("hotel_id", hotelId)
       .in("id", roomTypeIds),
-
-    supabaseAdmin
-      .from("seasonal_rates")
-      .select(
-        `id, name, start_date, end_date,
-         overrides:seasonal_rate_overrides (
-           room_type_id, base_price, weekend_price
-         )`
-      )
-      .eq("hotel_id", hotelId)
-      // Seasons that overlap the requested range
-      .lte("start_date", checkOut)
-      .gte("end_date", checkIn),
-
-    supabaseAdmin
-      .from("daily_rate_overrides")
-      .select("room_type_id, date, price")
-      .eq("hotel_id", hotelId)
-      .in("room_type_id", roomTypeIds)
-      .gte("date", checkIn)
-      .lt("date", checkOut), // check-out night is not a stay night
   ]);
 
-  const roomTypes = roomTypesRes.data ?? [];
-  const seasons = seasonsRes.data ?? [];
-  const dailyOverrides = dailyRes.data ?? [];
-
-  // ── Build lookup Maps for O(1) resolution ───────────────────────
-  // Map: "roomTypeId" → room type row
-  const roomTypeMap = new Map(roomTypes.map((r) => [r.id, r]));
-
-  // Map: "roomTypeId_date" → daily override price
-  const dailyOverrideMap = new Map(
-    dailyOverrides.map((d) => [`${d.room_type_id}_${d.date}`, Number(d.price)])
-  );
-
-  // ── Overlap tie-breaking: latest start_date wins ─────────────────
-  const sortedSeasons = [...seasons].sort((a, b) =>
-    b.start_date.localeCompare(a.start_date)
-  );
-
-  // Warn on overlapping season pairs (data integrity, migrated data)
-  for (let i = 0; i < sortedSeasons.length; i++) {
-    for (let j = i + 1; j < sortedSeasons.length; j++) {
-      const a = sortedSeasons[i];
-      const b = sortedSeasons[j];
-      if (a.start_date <= b.end_date && a.end_date >= b.start_date) {
-        console.warn(
-          `[pricing/public] Overlapping seasons: "${a.name}" (${a.start_date}–${a.end_date}) ` +
-          `overlaps "${b.name}" (${b.start_date}–${b.end_date}). ` +
-          `"${a.name}" wins (latest start_date).`
-        );
-      }
-    }
+  if (roomTypesRes.error) {
+    throw new Error(`room_types lookup failed: ${roomTypesRes.error.message}`);
   }
 
-  // Map: "seasonId_roomTypeId" → override
-  const seasonOverrideMap = new Map<
-    string,
-    { base_price: number; weekend_price: number | null }
-  >();
-  for (const s of seasons) {
-    for (const ov of (s.overrides as { room_type_id: string; base_price: number; weekend_price: number | null }[] ?? [])) {
-      seasonOverrideMap.set(`${s.id}_${ov.room_type_id}`, {
-        base_price: Number(ov.base_price),
-        weekend_price: ov.weekend_price != null ? Number(ov.weekend_price) : null,
-      });
-    }
+  const basePriceById = new Map(
+    (roomTypesRes.data ?? []).map((r) => [r.id, Number(r.base_price)])
+  );
+
+  const nightsByRoomType = new Map<string, ResolvedNight[]>();
+  const minorByRoomType = new Map<string, { total: number; currency: string }>();
+
+  for (const row of rows) {
+    const minor = Number(row.rate_minor);
+    const night: ResolvedNight = {
+      date: row.stay_date,
+      price: fromMinor(minor, row.currency),
+      source: row.source,
+      ...(row.season_name ? { seasonName: row.season_name } : {}),
+    };
+
+    const nights = nightsByRoomType.get(row.room_type_id);
+    if (nights) nights.push(night);
+    else nightsByRoomType.set(row.room_type_id, [night]);
+
+    const acc = minorByRoomType.get(row.room_type_id);
+    if (acc) acc.total += minor;
+    else minorByRoomType.set(row.room_type_id, { total: minor, currency: row.currency });
   }
 
   return roomTypeIds.map((rtId) => {
-    const rt = roomTypeMap.get(rtId);
+    // Sum in minor units so a long stay cannot drift by a fraction of a pesewa.
+    const acc = minorByRoomType.get(rtId);
+    const resolvedNights =
+      nightsByRoomType.get(rtId) ??
+      nightDates.map((date) => ({ date, price: 0, source: "base" as const }));
 
-    const resolvedNights: ResolvedNight[] = nightDates.map((date) => {
-      const weekend = isWeekendNight(date);
-
-      // Priority 1 — daily override
-      const dailyPrice = dailyOverrideMap.get(`${rtId}_${date}`);
-      if (dailyPrice !== undefined) {
-        return { date, price: dailyPrice, source: "daily" as const };
-      }
-
-      // Priority 2 — seasonal override (latest-start wins on overlap)
-      const season = sortedSeasons.find(
-        (s) => s.start_date <= date && s.end_date >= date
-      );
-      const seasonOverride = season
-        ? seasonOverrideMap.get(`${season.id}_${rtId}`)
-        : undefined;
-
-      if (season && seasonOverride) {
-        const price = weekend
-          ? (seasonOverride.weekend_price ?? seasonOverride.base_price)
-          : seasonOverride.base_price;
-        return { date, price, source: "seasonal" as const, seasonName: season.name };
-      }
-
-      // Priority 3 — base / weekend price
-      const price = rt
-        ? weekend
-          ? Number(rt.weekend_price ?? rt.base_price)
-          : Number(rt.base_price)
-        : 0;
-      return { date, price, source: "base" as const };
-    });
-
-    const subtotal = resolvedNights.reduce((sum, n) => sum + n.price, 0);
+    const subtotal = acc ? fromMinor(acc.total, acc.currency) : 0;
     const nightCount = resolvedNights.length || 1;
     const avgNightlyRate = Math.round((subtotal / nightCount) * 100) / 100;
 
+    const basePrice = basePriceById.get(rtId) ?? 0;
     // First-night rate is the industry-standard display price
-    const displayPrice = resolvedNights[0]?.price ?? Number(rt?.base_price ?? 0);
-    const basePrice = Number(rt?.base_price ?? 0);
+    const displayPrice = resolvedNights[0]?.price ?? basePrice;
     const hasOverride = displayPrice !== basePrice;
 
     return { roomTypeId: rtId, displayPrice, hasOverride, subtotal, avgNightlyRate, nights: resolvedNights };
@@ -227,7 +192,8 @@ export async function resolvePublicNightlyTotal(
   hotelId: string,
   roomTypeId: string,
   checkIn: string,
-  checkOut: string
+  checkOut: string,
+  selector: RateSelector = {}
 ): Promise<{
   subtotal: number;
   avgNightlyRate: number;
@@ -239,7 +205,8 @@ export async function resolvePublicNightlyTotal(
     hotelId,
     [roomTypeId],
     checkIn,
-    checkOut
+    checkOut,
+    selector
   );
   if (!result) {
     return { subtotal: 0, avgNightlyRate: 0, displayPrice: 0, hasOverride: false, nights: [] };

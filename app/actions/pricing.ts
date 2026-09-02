@@ -4,12 +4,25 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { requireMinRole, requireAuth, toActionError } from "@/lib/auth";
+import { writeAuditLog } from "@/lib/audit";
+import { fromMinor } from "@/lib/money";
+import { fetchNightlyRates, nextDay } from "@/lib/pricing/nightly-rates";
+import {
+  fetchRestrictionFlags,
+  type RestrictionFlags,
+} from "@/lib/pricing/rate-restrictions";
+import { captureError } from "@/lib/observability/sentry";
 
 // Schemas for input validation
 const SeasonalRateSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Start date must be YYYY-MM-DD"),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "End date must be YYYY-MM-DD"),
+  // Higher wins where seasons overlap. Two seasons may cover the same night as
+  // long as their priorities differ — that is how a conference week sits inside
+  // a summer season. Capped well below integer range so a UI stepper cannot
+  // produce a value the DB would have to widen a column to store.
+  priority: z.coerce.number().int().min(0).max(1000).default(0),
 });
 
 const SeasonalOverrideSchema = z.object({
@@ -34,22 +47,19 @@ const DailyOverrideDeleteSchema = z.object({
 // min(1) is enforced here — callers must NOT early-return before this parse
 const BulkDailyOverrideDeleteSchema = z.array(DailyOverrideDeleteSchema).min(1).max(500);
 
-// Weekend rate nights are property-configurable. Default follows common hotel practice:
-// Friday and Saturday nights (the nights with highest leisure demand).
-function isWeekend(dateStr: string, weekendDays: number[] = [5, 6]): boolean {
-  const date = new Date(dateStr + "T12:00:00");
-  const day = date.getDay();
-  return weekendDays.includes(day);
-}
-
 // ── Seasonal Rates CRUD ──────────────────────────────────────────────
 
-export async function createSeasonalRate(name: string, startDate: string, endDate: string) {
+export async function createSeasonalRate(
+  name: string,
+  startDate: string,
+  endDate: string,
+  priority: number = 0
+) {
   try {
     const ctx = await requireMinRole("manager", "create seasonal rates");
     const hotelId = ctx.hotelId;
 
-    SeasonalRateSchema.parse({ name, startDate, endDate });
+    const parsed = SeasonalRateSchema.parse({ name, startDate, endDate, priority });
 
     if (startDate > endDate) {
       return { success: false, error: "Start date must be before or equal to end date" };
@@ -57,11 +67,16 @@ export async function createSeasonalRate(name: string, startDate: string, endDat
 
     const supabase = await createClient();
 
-    // Check for overlaps in app layer for user-friendly messaging
+    // Overlap at a DIFFERENT priority is legal and intended — that is how a
+    // conference week is priced inside a summer season. Only overlap at the SAME
+    // priority is ambiguous, and `seasonal_rates_no_same_priority_overlap`
+    // rejects it. This pre-check exists purely to name the offending season in
+    // the error instead of surfacing a raw 23P01.
     const { data: overlaps, error: overlapErr } = await supabase
       .from("seasonal_rates")
       .select("id, name")
       .eq("hotel_id", hotelId)
+      .eq("priority", parsed.priority)
       .or(`and(start_date.lte.${endDate},end_date.gte.${startDate})`);
 
     if (overlapErr) throw overlapErr;
@@ -69,7 +84,7 @@ export async function createSeasonalRate(name: string, startDate: string, endDat
     if (overlaps && overlaps.length > 0) {
       return {
         success: false,
-        error: `Date range overlaps with existing season: "${overlaps[0].name}"`,
+        error: `Overlaps "${overlaps[0].name}", which has the same priority (${parsed.priority}). Give one of them a higher priority to layer them, or change the dates.`,
       };
     }
 
@@ -80,25 +95,47 @@ export async function createSeasonalRate(name: string, startDate: string, endDat
         name,
         start_date: startDate,
         end_date: endDate,
+        priority: parsed.priority,
       })
       .select()
       .single();
 
     if (error) throw error;
 
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
+      action: "rate.season_created",
+      entityType: "seasonal_rate",
+      entityId: data.id,
+      afterState: {
+        name,
+        start_date: startDate,
+        end_date: endDate,
+        priority: parsed.priority,
+      },
+    });
+
     revalidatePath("/dashboard/rooms/pricing");
     return { success: true, data };
   } catch (err) {
-    return toActionError(err);
+    return toActionError(err, { action: "pricing.createSeasonalRate" });
   }
 }
 
-export async function updateSeasonalRate(id: string, name: string, startDate: string, endDate: string) {
+export async function updateSeasonalRate(
+  id: string,
+  name: string,
+  startDate: string,
+  endDate: string,
+  priority: number = 0
+) {
   try {
     const ctx = await requireMinRole("manager", "update seasonal rates");
     const hotelId = ctx.hotelId;
 
-    SeasonalRateSchema.parse({ name, startDate, endDate });
+    const parsed = SeasonalRateSchema.parse({ name, startDate, endDate, priority });
 
     if (startDate > endDate) {
       return { success: false, error: "Start date must be before or equal to end date" };
@@ -106,10 +143,11 @@ export async function updateSeasonalRate(id: string, name: string, startDate: st
 
     const supabase = await createClient();
 
-    // Ensure the seasonal rate belongs to this hotel
+    // Ensure the seasonal rate belongs to this hotel.
+    // Selects the mutable columns too — they are the audit trail's before_state.
     const { data: existingRate, error: findErr } = await supabase
       .from("seasonal_rates")
-      .select("id")
+      .select("id, name, start_date, end_date, priority")
       .eq("id", id)
       .eq("hotel_id", hotelId)
       .single();
@@ -118,11 +156,13 @@ export async function updateSeasonalRate(id: string, name: string, startDate: st
       return { success: false, error: "Seasonal rate not found or access denied" };
     }
 
-    // Check overlaps excluding this specific season
+    // Same-priority overlap only — see createSeasonalRate. Excludes this season,
+    // which of course overlaps itself.
     const { data: overlaps, error: overlapErr } = await supabase
       .from("seasonal_rates")
       .select("id, name")
       .eq("hotel_id", hotelId)
+      .eq("priority", parsed.priority)
       .neq("id", id)
       .or(`and(start_date.lte.${endDate},end_date.gte.${startDate})`);
 
@@ -131,7 +171,7 @@ export async function updateSeasonalRate(id: string, name: string, startDate: st
     if (overlaps && overlaps.length > 0) {
       return {
         success: false,
-        error: `Date range overlaps with existing season: "${overlaps[0].name}"`,
+        error: `Overlaps "${overlaps[0].name}", which has the same priority (${parsed.priority}). Give one of them a higher priority to layer them, or change the dates.`,
       };
     }
 
@@ -141,6 +181,7 @@ export async function updateSeasonalRate(id: string, name: string, startDate: st
         name,
         start_date: startDate,
         end_date: endDate,
+        priority: parsed.priority,
       })
       .eq("id", id)
       .select()
@@ -148,10 +189,31 @@ export async function updateSeasonalRate(id: string, name: string, startDate: st
 
     if (error) throw error;
 
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
+      action: "rate.season_updated",
+      entityType: "seasonal_rate",
+      entityId: id,
+      beforeState: {
+        name: existingRate.name,
+        start_date: existingRate.start_date,
+        end_date: existingRate.end_date,
+        priority: existingRate.priority,
+      },
+      afterState: {
+        name,
+        start_date: startDate,
+        end_date: endDate,
+        priority: parsed.priority,
+      },
+    });
+
     revalidatePath("/dashboard/rooms/pricing");
     return { success: true, data };
   } catch (err) {
-    return toActionError(err);
+    return toActionError(err, { action: "pricing.updateSeasonalRate" });
   }
 }
 
@@ -166,7 +228,7 @@ export async function duplicateSeasonalRate(id: string) {
     const { data: source, error: fetchErr } = await supabase
       .from("seasonal_rates")
       .select(`
-        name, start_date, end_date,
+        name, start_date, end_date, priority,
         overrides:seasonal_rate_overrides (
           room_type_id, base_price, weekend_price
         )
@@ -180,8 +242,10 @@ export async function duplicateSeasonalRate(id: string) {
     }
 
     // Auto-shift the copied range to start the day after the source end_date,
-    // preserving the same duration. This avoids the no_overlapping_seasons
-    // exclusion constraint (daterange '[]' — both endpoints inclusive).
+    // preserving the same duration. This is a product choice, not a constraint
+    // workaround: "duplicate Summer" almost always means "price the next window
+    // the same way", and a copy left on the source dates at the source priority
+    // would simply be a duplicate the resolver could not order.
     const sourceStart = new Date(source.start_date + "T12:00:00");
     const sourceEnd   = new Date(source.end_date   + "T12:00:00");
     const durationMs  = sourceEnd.getTime() - sourceStart.getTime();
@@ -201,6 +265,9 @@ export async function duplicateSeasonalRate(id: string) {
         name: `Copy of ${source.name}`,
         start_date: newStartStr,
         end_date: newEndStr,
+        // Same layer as the source: a copy that outranked its original would
+        // silently reprice any season it overlaps.
+        priority: source.priority,
       })
       .select()
       .single();
@@ -209,7 +276,7 @@ export async function duplicateSeasonalRate(id: string) {
       if (insertErr.code === "23P01" || insertErr.message?.includes("overlap")) {
         return {
           success: false,
-          error: `Cannot duplicate: the auto-shifted range (${newStartStr} – ${newEndStr}) still overlaps an existing season. Please adjust your seasons to leave a gap first.`,
+          error: `Cannot duplicate: the copied range (${newStartStr} – ${newEndStr}) overlaps another season at the same priority (${source.priority}). Change that season's priority or dates, then duplicate again.`,
         };
       }
       throw insertErr;
@@ -217,7 +284,7 @@ export async function duplicateSeasonalRate(id: string) {
 
     // Copy overrides if any
     if (source.overrides && source.overrides.length > 0) {
-      const overrideRows = source.overrides.map((ov: any) => ({
+      const overrideRows = source.overrides.map((ov) => ({
         seasonal_rate_id: newSeason.id,
         room_type_id: ov.room_type_id as string,
         base_price: Number(ov.base_price),
@@ -231,10 +298,33 @@ export async function duplicateSeasonalRate(id: string) {
       if (ovErr) throw ovErr;
     }
 
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
+      action: "rate.season_duplicated",
+      entityType: "seasonal_rate",
+      entityId: newSeason.id,
+      beforeState: {
+        source_season_id: id,
+        name: source.name,
+        start_date: source.start_date,
+        end_date: source.end_date,
+        priority: source.priority,
+      },
+      afterState: {
+        name: newSeason.name,
+        start_date: newStartStr,
+        end_date: newEndStr,
+        priority: newSeason.priority,
+        overrides_copied: source.overrides?.length ?? 0,
+      },
+    });
+
     revalidatePath("/dashboard/rooms/pricing");
     return { success: true, data: newSeason };
   } catch (err) {
-    return toActionError(err);
+    return toActionError(err, { action: "pricing.duplicateSeasonalRate" });
   }
 }
 
@@ -245,15 +335,22 @@ export async function deleteSeasonalRate(id: string) {
 
     const supabase = await createClient();
 
-    // Ensure it belongs to this hotel
-    const { error: checkError } = await supabase
+    // Ensure it belongs to this hotel, and capture what is about to be lost.
+    // seasonal_rate_overrides cascades on delete, so the child rows only exist
+    // in the audit trail once this returns.
+    const { data: existingRate, error: checkError } = await supabase
       .from("seasonal_rates")
-      .select("id")
+      .select(`
+        id, name, start_date, end_date,
+        overrides:seasonal_rate_overrides (
+          room_type_id, base_price, weekend_price
+        )
+      `)
       .eq("id", id)
       .eq("hotel_id", hotelId)
       .single();
 
-    if (checkError) {
+    if (checkError || !existingRate) {
       return { success: false, error: "Seasonal rate not found or access denied" };
     }
 
@@ -264,10 +361,25 @@ export async function deleteSeasonalRate(id: string) {
 
     if (error) throw error;
 
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
+      action: "rate.season_deleted",
+      entityType: "seasonal_rate",
+      entityId: id,
+      beforeState: {
+        name: existingRate.name,
+        start_date: existingRate.start_date,
+        end_date: existingRate.end_date,
+        overrides: existingRate.overrides ?? [],
+      },
+    });
+
     revalidatePath("/dashboard/rooms/pricing");
     return { success: true };
   } catch (err) {
-    return toActionError(err);
+    return toActionError(err, { action: "pricing.deleteSeasonalRate" });
   }
 }
 
@@ -287,8 +399,10 @@ export async function upsertSeasonalRateOverride(
 
     const supabase = await createClient();
 
-    // Double check seasonal rate and room type ownership
-    const [seasonCheck, roomTypeCheck] = await Promise.all([
+    // Double check seasonal rate and room type ownership.
+    // The third read is the audit trail's before_state: a rate change is only
+    // meaningful in the log if the previous price is recorded next to the new one.
+    const [seasonCheck, roomTypeCheck, existingOverride] = await Promise.all([
       supabase
         .from("seasonal_rates")
         .select("id")
@@ -301,6 +415,12 @@ export async function upsertSeasonalRateOverride(
         .eq("id", roomTypeId)
         .eq("hotel_id", hotelId)
         .single(),
+      supabase
+        .from("seasonal_rate_overrides")
+        .select("base_price, weekend_price")
+        .eq("seasonal_rate_id", seasonalRateId)
+        .eq("room_type_id", roomTypeId)
+        .maybeSingle(),
     ]);
 
     if (seasonCheck.error || !seasonCheck.data || roomTypeCheck.error || !roomTypeCheck.data) {
@@ -324,10 +444,34 @@ export async function upsertSeasonalRateOverride(
 
     if (error) throw error;
 
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
+      action: "rate.season_override_upserted",
+      entityType: "seasonal_rate_override",
+      entityId: data.id,
+      beforeState: existingOverride.data
+        ? {
+            base_price: Number(existingOverride.data.base_price),
+            weekend_price:
+              existingOverride.data.weekend_price != null
+                ? Number(existingOverride.data.weekend_price)
+                : null,
+          }
+        : null,
+      afterState: {
+        seasonal_rate_id: seasonalRateId,
+        room_type_id: roomTypeId,
+        base_price: basePrice,
+        weekend_price: weekendPrice || null,
+      },
+    });
+
     revalidatePath("/dashboard/rooms/pricing");
     return { success: true, data };
   } catch (err) {
-    return toActionError(err);
+    return toActionError(err, { action: "pricing.upsertSeasonalRateOverride" });
   }
 }
 
@@ -342,15 +486,25 @@ export async function upsertDailyRateOverride(roomTypeId: string, date: string, 
 
     const supabase = await createClient();
 
-    // Verify room type ownership
-    const { error: rtCheck } = await supabase
-      .from("room_types")
-      .select("id")
-      .eq("id", roomTypeId)
-      .eq("hotel_id", hotelId)
-      .single();
+    // Verify room type ownership, and read the current price in the same round
+    // trip — it is the audit trail's before_state.
+    const [rtCheck, existingOverride] = await Promise.all([
+      supabase
+        .from("room_types")
+        .select("id")
+        .eq("id", roomTypeId)
+        .eq("hotel_id", hotelId)
+        .single(),
+      supabase
+        .from("daily_rate_overrides")
+        .select("price")
+        .eq("hotel_id", hotelId)
+        .eq("room_type_id", roomTypeId)
+        .eq("date", date)
+        .maybeSingle(),
+    ]);
 
-    if (rtCheck) {
+    if (rtCheck.error) {
       return { success: false, error: "Access denied or invalid room type" };
     }
 
@@ -370,10 +524,23 @@ export async function upsertDailyRateOverride(roomTypeId: string, date: string, 
 
     if (error) throw error;
 
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
+      action: "rate.daily_override_upserted",
+      entityType: "daily_rate_override",
+      entityId: data.id,
+      beforeState: existingOverride.data
+        ? { price: Number(existingOverride.data.price) }
+        : null,
+      afterState: { room_type_id: roomTypeId, date, price },
+    });
+
     revalidatePath("/dashboard/rooms/pricing");
     return { success: true, data };
   } catch (err) {
-    return toActionError(err);
+    return toActionError(err, { action: "pricing.upsertDailyRateOverride" });
   }
 }
 
@@ -384,20 +551,39 @@ export async function deleteDailyRateOverride(roomTypeId: string, date: string) 
 
     const supabase = await createClient();
 
-    // Verify ownership and delete
-    const { error } = await supabase
+    // Verify ownership and delete. `.select()` on a delete returns the removed
+    // rows, so the audit trail gets a before_state without an extra round trip.
+    const { data: deleted, error } = await supabase
       .from("daily_rate_overrides")
       .delete()
       .eq("hotel_id", hotelId)
       .eq("room_type_id", roomTypeId)
-      .eq("date", date);
+      .eq("date", date)
+      .select("id, price");
 
     if (error) throw error;
 
+    // A no-op delete (already cleared) is not an audit event.
+    if (deleted && deleted.length > 0) {
+      await writeAuditLog(supabase, {
+        hotelId,
+        staffId: ctx.staffId,
+        staffName: ctx.staffName,
+        action: "rate.daily_override_deleted",
+        entityType: "daily_rate_override",
+        entityId: deleted[0].id,
+        beforeState: {
+          room_type_id: roomTypeId,
+          date,
+          price: Number(deleted[0].price),
+        },
+      });
+    }
+
     revalidatePath("/dashboard/rooms/pricing");
-    return { success: true };
+    return { success: true as const };
   } catch (err) {
-    return toActionError(err);
+    return toActionError(err, { action: "pricing.deleteDailyRateOverride" });
   }
 }
 
@@ -438,10 +624,32 @@ export async function bulkUpsertDailyRateOverrides(
 
     if (error) throw error;
 
+    // One summary row, never one per date: before_state/after_state are
+    // GIN-indexed, so logging a 500-date bulk edit row-by-row would write 500
+    // index entries for a single staff action.
+    const sortedDates = overrides.map((o) => o.date).sort();
+    const prices = overrides.map((o) => o.price);
+
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
+      action: "rate.daily_override_bulk_upserted",
+      entityType: "daily_rate_override",
+      afterState: {
+        room_type_ids: uniqueRoomTypeIds,
+        date_from: sortedDates[0],
+        date_to: sortedDates[sortedDates.length - 1],
+        row_count: data?.length ?? overrides.length,
+        price_min: Math.min(...prices),
+        price_max: Math.max(...prices),
+      },
+    });
+
     revalidatePath("/dashboard/rooms/pricing");
     return { success: true, data };
   } catch (err) {
-    return toActionError(err);
+    return toActionError(err, { action: "pricing.bulkUpsertDailyRateOverrides" });
   }
 }
 
@@ -464,13 +672,32 @@ export async function bulkDeleteDailyRateOverrides(
     );
     query = query.or(filterStrings.join(","));
 
-    const { error } = await query;
+    const { data: deleted, error } = await query.select("room_type_id, date, price");
     if (error) throw error;
 
+    // One summary row for the whole clear, matching the bulk upsert above.
+    if (deleted && deleted.length > 0) {
+      const sortedDates = deleted.map((row) => row.date).sort();
+
+      await writeAuditLog(supabase, {
+        hotelId,
+        staffId: ctx.staffId,
+        staffName: ctx.staffName,
+        action: "rate.daily_override_bulk_deleted",
+        entityType: "daily_rate_override",
+        beforeState: {
+          room_type_ids: Array.from(new Set(deleted.map((row) => row.room_type_id))),
+          date_from: sortedDates[0],
+          date_to: sortedDates[sortedDates.length - 1],
+          row_count: deleted.length,
+        },
+      });
+    }
+
     revalidatePath("/dashboard/rooms/pricing");
-    return { success: true };
+    return { success: true as const };
   } catch (err) {
-    return toActionError(err);
+    return toActionError(err, { action: "pricing.bulkDeleteDailyRateOverrides" });
   }
 }
 
@@ -570,7 +797,7 @@ export async function getResolvedRatesForBooking(
       },
     };
   } catch (err) {
-    return toActionError(err);
+    return toActionError(err, { action: "pricing.getResolvedRatesForBooking" });
   }
 }
 
@@ -583,6 +810,14 @@ export interface ResolvedPriceCell {
   source: "daily" | "seasonal" | "base";
   seasonName?: string;
   isWeekend: boolean;
+  /**
+   * The rate plan's controls for this date, or null when the date restricts
+   * nothing — which is most of them, so the field is absent far more often than
+   * it is set. It rides along with the rate because it is read on the plan that
+   * priced the cell: a badge resolved separately could end up describing a
+   * different plan than the number beside it.
+   */
+  restrictions?: RestrictionFlags | null;
 }
 
 export async function getResolvedRates(
@@ -592,204 +827,79 @@ export async function getResolvedRates(
 ) {
   try {
     const ctx = await requireAuth();
-    const hotelId = ctx.hotelId;
 
-    const supabase = await createClient();
+    if (!roomTypeIds.length) return { success: true as const, data: [] };
 
-    // Fetch in parallel
-    const [roomTypesRes, seasonsRes, dailyOverridesRes] = await Promise.all([
-      supabase
-        .from("room_types")
-        .select("id, name, base_price, weekend_price")
-        .eq("hotel_id", hotelId)
-        .in("id", roomTypeIds),
-      supabase
-        .from("seasonal_rates")
-        .select(`
-          id,
-          name,
-          start_date,
-          end_date,
-          overrides:seasonal_rate_overrides (
-            room_type_id,
-            base_price,
-            weekend_price
-          )
-        `)
-        .eq("hotel_id", hotelId)
-        .or(`and(start_date.lte.${endDate},end_date.gte.${startDate})`),
-      supabase
-        .from("daily_rate_overrides")
-        .select("room_type_id, date, price")
-        .eq("hotel_id", hotelId)
-        .in("room_type_id", roomTypeIds)
-        .gte("date", startDate)
-        .lte("date", endDate),
-    ]);
+    // The rate matrix is an inclusive grid — every column through endDate gets a
+    // cell — while the resolver speaks in stay nights, where the last date is a
+    // check-out. nextDay bridges the two.
+    const rows = await fetchNightlyRates({
+      p_hotel_id: ctx.hotelId,
+      p_room_type_ids: roomTypeIds,
+      p_from: startDate,
+      p_to: nextDay(endDate),
+      // The matrix shows the rates a guest booking the default plan at default
+      // occupancy would be quoted. Plan- or occupancy-specific overrides belong
+      // to the rate plan screens, not to this grid.
+      p_rate_plan_id: null,
+      p_occupancy: 0,
+    });
 
-    if (roomTypesRes.error) throw roomTypesRes.error;
-    if (seasonsRes.error) throw seasonsRes.error;
-    if (dailyOverridesRes.error) throw dailyOverridesRes.error;
+    // Restrictions hang off the rate plan, and the resolver has already told us
+    // which plan priced each night, so the whole window is one range scan with no
+    // second plan lookup — and the badge is guaranteed to describe the plan whose
+    // number it sits beside.
+    //
+    // Fail-soft. A grid that renders without badges is a far smaller failure than
+    // one that does not render at all, and nothing here is a gate: the guest
+    // funnel is refused by `bookings_restrictions_guard` whatever this read did.
+    const restrictions = await fetchRestrictionFlags(
+      ctx.hotelId,
+      rows.flatMap((row) => (row.rate_plan_id ? [row.rate_plan_id] : [])),
+      startDate,
+      endDate
+    ).catch((error: unknown) => {
+      captureError(error, {
+        scope: "server-action",
+        level: "warning",
+        hotelId: ctx.hotelId,
+        tags: { action: "pricing.getResolvedRates", read: "rate_restrictions" },
+        contexts: { window: { from: startDate, to: endDate } },
+      });
+      return new Map<string, RestrictionFlags>();
+    });
 
-    const roomTypes = roomTypesRes.data || [];
-    const seasons = seasonsRes.data || [];
-    const dailyOverrides = dailyOverridesRes.data || [];
-
-    const resolvedCells: ResolvedPriceCell[] = [];
-
-    // ── Build lookup Maps for O(1) access ─────────────────────────
-    // Map: "roomTypeId" → roomType row
-    const roomTypeMap = new Map(roomTypes.map((r) => [r.id, r]));
-
-    // Map: "roomTypeId_date" → daily override price
-    const dailyOverrideMap = new Map(
-      dailyOverrides.map((d) => [`${d.room_type_id}_${d.date}`, d.price])
-    );
-
-    // ── Detect overlapping seasons (data integrity warning) ────────
-    // Overlap is blocked on create/update but may exist in migrated data.
-    // Tie-break: season with the latest start_date wins (most specific).
-    // Warn once per overlap pair so callers can surface it in logs.
-    const sortedSeasons = [...seasons].sort((a, b) =>
-      b.start_date.localeCompare(a.start_date)
-    );
-
-    // Detect and log overlapping season pairs
-    for (let i = 0; i < sortedSeasons.length; i++) {
-      for (let j = i + 1; j < sortedSeasons.length; j++) {
-        const a = sortedSeasons[i];
-        const b = sortedSeasons[j];
-        if (a.start_date <= b.end_date && a.end_date >= b.start_date) {
-          console.warn(
-            `[pricing] Overlapping seasons detected: "${a.name}" (${a.start_date}–${a.end_date}) ` +
-            `overlaps "${b.name}" (${b.start_date}–${b.end_date}). ` +
-            `"${a.name}" wins (latest start_date).`
-          );
-        }
-      }
+    const byRoomType = new Map<string, ResolvedPriceCell[]>();
+    for (const row of rows) {
+      const cell: ResolvedPriceCell = {
+        roomTypeId: row.room_type_id,
+        date: row.stay_date,
+        price: fromMinor(Number(row.rate_minor), row.currency),
+        source: row.source,
+        // A season name on a cell the season did not price is the UI's cue to
+        // render "season active, no rate configured". A daily override outranks
+        // the season outright, so it reports no season at all — same as before
+        // the resolver moved into SQL.
+        seasonName:
+          row.source === "daily" ? undefined : (row.active_season_name ?? undefined),
+        isWeekend: row.is_weekend,
+        restrictions: row.rate_plan_id
+          ? (restrictions.get(`${row.rate_plan_id}_${row.stay_date}`) ?? null)
+          : null,
+      };
+      const bucket = byRoomType.get(cell.roomTypeId);
+      if (bucket) bucket.push(cell);
+      else byRoomType.set(cell.roomTypeId, [cell]);
     }
 
-    // Map: "date" → winning season (latest start_date wins on overlap)
-    // Pre-build this map for every date in the range so inner loop is O(1).
-    const dateList: string[] = [];
-    {
-      const current = new Date(startDate + "T12:00:00");
-      const end = new Date(endDate + "T12:00:00");
-      while (current <= end) {
-        dateList.push(current.toISOString().split("T")[0]);
-        current.setDate(current.getDate() + 1);
-      }
-    }
-
-    // For each date, pick the first season in sortedSeasons that covers it
-    // (sortedSeasons is already sorted latest-start first → tie-break applied)
-    const dateSeason = new Map<string, typeof sortedSeasons[number]>();
-    for (const dateStr of dateList) {
-      const win = sortedSeasons.find(
-        (s) => s.start_date <= dateStr && s.end_date >= dateStr
-      );
-      if (win) dateSeason.set(dateStr, win);
-    }
-
-    // Map: "seasonId_roomTypeId" → override { base_price, weekend_price }
-    const seasonOverrideMap = new Map<
-      string,
-      { base_price: number; weekend_price: number | null }
-    >();
-    for (const season of seasons) {
-      for (const ov of season.overrides ?? []) {
-        seasonOverrideMap.set(`${season.id}_${ov.room_type_id}`, {
-          base_price: Number(ov.base_price),
-          weekend_price: ov.weekend_price != null ? Number(ov.weekend_price) : null,
-        });
-      }
-    }
-
-    // ── Resolve each cell ──────────────────────────────────────────
-    const configuredWeekendDays = Array.isArray(ctx.hotel.settings.weekend_days)
-      ? ctx.hotel.settings.weekend_days.filter((day): day is number => Number.isInteger(day) && day >= 0 && day <= 6)
-      : [5, 6];
-    const weekendDays = configuredWeekendDays.length > 0 ? configuredWeekendDays : [5, 6];
-
-    for (const roomTypeId of roomTypeIds) {
-      const roomType = roomTypeMap.get(roomTypeId);
-      if (!roomType) continue;
-
-      for (const dateStr of dateList) {
-        const weekend = isWeekend(dateStr, weekendDays);
-
-        // 1. Daily override
-        const dailyPrice = dailyOverrideMap.get(`${roomTypeId}_${dateStr}`);
-        if (dailyPrice !== undefined) {
-          resolvedCells.push({
-            roomTypeId,
-            date: dateStr,
-            price: Number(dailyPrice),
-            source: "daily",
-            isWeekend: weekend,
-          });
-          continue;
-        }
-
-        // 2. Seasonal rate (tie-broken: latest start_date wins)
-        const season = dateSeason.get(dateStr);
-        const seasonalOverride = season
-          ? seasonOverrideMap.get(`${season.id}_${roomTypeId}`)
-          : undefined;
-
-        if (season && seasonalOverride) {
-          const price = weekend
-            ? (seasonalOverride.weekend_price ?? seasonalOverride.base_price)
-            : seasonalOverride.base_price;
-
-          resolvedCells.push({
-            roomTypeId,
-            date: dateStr,
-            price,
-            source: "seasonal",
-            seasonName: season.name,
-            isWeekend: weekend,
-          });
-          continue;
-        }
-
-        // 3. Season active but no override configured for this room type
-        // Still falls through to base price — but tag source so the UI
-        // can render a "season active / unconfigured" visual cue.
-        if (season && !seasonalOverride) {
-          const price = weekend
-            ? (Number(roomType.weekend_price) || Number(roomType.base_price))
-            : Number(roomType.base_price);
-
-          resolvedCells.push({
-            roomTypeId,
-            date: dateStr,
-            price,
-            source: "base",
-            seasonName: season.name,        // non-null = season active, no override
-            isWeekend: weekend,
-          });
-          continue;
-        }
-
-        // 4. Fallback — base / weekend price
-        const price = weekend
-          ? (Number(roomType.weekend_price) || Number(roomType.base_price))
-          : Number(roomType.base_price);
-
-        resolvedCells.push({
-          roomTypeId,
-          date: dateStr,
-          price,
-          source: "base",
-          isWeekend: weekend,
-        });
-      }
-    }
+    // Callers key off roomTypeId, but keeping the requested order means a caller
+    // that iterates instead of looking up still renders its rows the way it
+    // asked for them.
+    const resolvedCells = roomTypeIds.flatMap((id) => byRoomType.get(id) ?? []);
 
     return { success: true as const, data: resolvedCells };
   } catch (err) {
-    return toActionError(err);
+    return toActionError(err, { action: "pricing.getResolvedRates" });
   }
 }
 
@@ -891,6 +1001,6 @@ export async function getOccupancyByDate(
 
     return { success: true, data };
   } catch (err) {
-    return toActionError(err);
+    return toActionError(err, { action: "pricing.getOccupancyByDate" });
   }
 }

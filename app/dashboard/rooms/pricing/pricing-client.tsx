@@ -79,6 +79,23 @@ interface PricingClientProps {
   }[];
 }
 
+interface SeasonOverrideRow {
+  id: string;
+  room_type_id: string;
+  base_price: number;
+  weekend_price: number | null;
+}
+
+interface SeasonRow {
+  id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  /** Higher wins where seasons cover the same night. See lib/pricing/season-layering.ts. */
+  priority: number;
+  overrides: SeasonOverrideRow[];
+}
+
 function isWeekend(dateStr: string): boolean {
   const date = new Date(dateStr + "T12:00:00");
   const day = date.getDay();
@@ -114,7 +131,10 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
   const [seasonName, setSeasonName] = useState("");
   const [seasonStart, setSeasonStart] = useState<Date | undefined>(undefined);
   const [seasonEnd, setSeasonEnd] = useState<Date | undefined>(undefined);
-  const [selectedSeasonForOverrides, setSelectedSeasonForOverrides] = useState<any>(null);
+  // Layer for overlapping seasons — higher wins. Held as a string because it is
+  // bound to a text input; coerced once, below, before it reaches the action.
+  const [seasonPriority, setSeasonPriority] = useState("0");
+  const [selectedSeasonForOverrides, setSelectedSeasonForOverrides] = useState<SeasonRow | null>(null);
   const [seasonalOverrides, setSeasonalOverrides] = useState<Record<string, { basePrice: string; weekendPrice: string }>>({});
   
   // Single/Bulk daily price edit state
@@ -183,6 +203,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
           name,
           start_date,
           end_date,
+          priority,
           overrides:seasonal_rate_overrides (
             id,
             room_type_id,
@@ -191,6 +212,9 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
           )
         `)
         .eq("hotel_id", hotelId)
+        // Highest layer first, then chronological — the same order the resolver
+        // reads, so the timeline and the table show which season actually wins.
+        .order("priority", { ascending: false })
         .order("start_date", { ascending: true });
 
       if (error) throw error;
@@ -239,7 +263,19 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
   const [applyAllBase, setApplyAllBase] = useState("");
   const [applyAllWeekend, setApplyAllWeekend] = useState("");
 
-  // Client-side overlap validation helper
+  // An empty or unparseable input means layer 0 — the same value the server
+  // action's schema defaults to, so the two never disagree.
+  const seasonPriorityValue = useMemo(() => {
+    const parsed = Number.parseInt(seasonPriority, 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? Math.min(parsed, 1000) : 0;
+  }, [seasonPriority]);
+
+  // Client-side overlap validation helper.
+  // Only SAME-priority overlap is a problem, and it is the only shape the DB
+  // rejects (seasonal_rates_no_same_priority_overlap) — two seasons on one layer
+  // leave the resolver with no way to order them. Overlap across different
+  // priorities is the layering feature itself (a conference week inside a summer
+  // season), so it must not be blocked here.
   const clientOverlapSeason = useMemo(() => {
     if (!seasonStart || !seasonEnd) return null;
     const startStr = seasonStart.toISOString().split("T")[0];
@@ -248,9 +284,10 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
     return seasons.find((s) => {
       // Skip check if editing same season
       if (editSeasonId && s.id === editSeasonId) return false;
+      if (s.priority !== seasonPriorityValue) return false;
       return startStr <= s.end_date && endStr >= s.start_date;
     });
-  }, [seasonStart, seasonEnd, seasons, editSeasonId]);
+  }, [seasonStart, seasonEnd, seasons, editSeasonId, seasonPriorityValue]);
 
   // ── Mutations ──────────────────────────────────────────────────────
 
@@ -262,17 +299,20 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
       }
       const startStr = seasonStart.toISOString().split("T")[0];
       const endStr = seasonEnd.toISOString().split("T")[0];
-      const res = await createSeasonalRate(seasonName, startStr, endStr);
+      const res = await createSeasonalRate(seasonName, startStr, endStr, seasonPriorityValue);
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
     onSuccess: () => {
       toast.success("Season created successfully");
       queryClient.invalidateQueries({ queryKey: qk.pricingSeasons(orgId, hotelId) });
+      // The rate grid labels every night with the season covering it, so a new
+      // season changes those cells even before any override is configured.
+      queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), startDateStr, endDateStr) });
       setNewSeasonOpen(false);
       resetSeasonForm();
     },
-    onError: (err: any) => {
+    onError: (err) => {
       toast.danger(err.message || "Failed to create season");
     },
   });
@@ -285,7 +325,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
       }
       const startStr = seasonStart.toISOString().split("T")[0];
       const endStr = seasonEnd.toISOString().split("T")[0];
-      const res = await updateSeasonalRate(editSeasonId, seasonName, startStr, endStr);
+      const res = await updateSeasonalRate(editSeasonId, seasonName, startStr, endStr, seasonPriorityValue);
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
@@ -296,7 +336,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
       setEditSeasonId(null);
       resetSeasonForm();
     },
-    onError: (err: any) => {
+    onError: (err) => {
       toast.danger(err.message || "Failed to update season");
     },
   });
@@ -306,7 +346,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
     mutationFn: async (id: string) => {
       const res = await deleteSeasonalRate(id);
       if (!res.success) {
-        throw new Error((res as any).error || "Failed to delete season");
+        throw new Error(res.error || "Failed to delete season");
       }
     },
     onSuccess: () => {
@@ -314,7 +354,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
       queryClient.invalidateQueries({ queryKey: qk.pricingSeasons(orgId, hotelId) });
       queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), startDateStr, endDateStr) });
     },
-    onError: (err: any) => {
+    onError: (err) => {
       toast.danger(err.message || "Failed to delete season");
     },
   });
@@ -324,15 +364,17 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
     mutationFn: async (id: string) => {
       const res = await duplicateSeasonalRate(id);
       if (!res.success) {
-        throw new Error((res as any).error || "Failed to duplicate season");
+        throw new Error(res.error || "Failed to duplicate season");
       }
       return res.data;
     },
     onSuccess: () => {
       toast.success("Season duplicated — update the name and dates as needed.");
       queryClient.invalidateQueries({ queryKey: qk.pricingSeasons(orgId, hotelId) });
+      // The copy inherits the source's override rows, so resolved rates move too.
+      queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), startDateStr, endDateStr) });
     },
-    onError: (err: any) => {
+    onError: (err) => {
       toast.danger(err.message || "Failed to duplicate season");
     },
   });
@@ -383,7 +425,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
       queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), startDateStr, endDateStr) });
       setSeasonDetailOpen(false);
     },
-    onError: (err: any) => {
+    onError: (err) => {
       toast.danger(err.message || "Failed to save seasonal overrides");
     },
   });
@@ -424,7 +466,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
       toast.success("Price updated");
       setEditingCell(null);
     },
-    onError: (err: any, variables, context) => {
+    onError: (err, variables, context) => {
       toast.danger(err.message || "Failed to update price");
       // Rollback
       if (context?.previousRates) {
@@ -443,7 +485,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
     mutationFn: async ({ roomTypeId, date }: { roomTypeId: string; date: string }) => {
       const res = await deleteDailyRateOverride(roomTypeId, date);
       if (!res.success) {
-        throw new Error((res as any).error || "Failed to clear daily override");
+        throw new Error(res.error || "Failed to clear daily override");
       }
     },
     onSuccess: () => {
@@ -451,7 +493,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
       setEditingCell(null);
       queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), startDateStr, endDateStr) });
     },
-    onError: (err: any) => {
+    onError: (err) => {
       toast.danger(err.message || "Failed to clear override");
     },
   });
@@ -466,7 +508,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
       }));
       const res = await bulkUpsertDailyRateOverrides(upserts);
       if (!res.success) {
-        throw new Error((res as any).error || "Failed to save bulk prices");
+        throw new Error(res.error || "Failed to save bulk prices");
       }
     },
     onSuccess: () => {
@@ -475,7 +517,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
       clearSelection();
       queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), startDateStr, endDateStr) });
     },
-    onError: (err: any) => {
+    onError: (err) => {
       toast.danger(err.message || "Failed to save bulk prices");
     },
   });
@@ -489,7 +531,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
       }));
       const res = await bulkDeleteDailyRateOverrides(deletes);
       if (!res.success) {
-        throw new Error((res as any).error || "Failed to clear overrides");
+        throw new Error(res.error || "Failed to clear overrides");
       }
     },
     onSuccess: () => {
@@ -497,7 +539,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
       clearSelection();
       queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), startDateStr, endDateStr) });
     },
-    onError: (err: any) => {
+    onError: (err) => {
       toast.danger(err.message || "Failed to clear overrides");
     },
   });
@@ -508,16 +550,18 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
     setSeasonName("");
     setSeasonStart(undefined);
     setSeasonEnd(undefined);
+    setSeasonPriority("0");
   };
 
-  const handleOpenEditSeason = (season: any) => {
+  const handleOpenEditSeason = (season: SeasonRow) => {
     setEditSeasonId(season.id);
     setSeasonName(season.name);
     setSeasonStart(new Date(season.start_date + "T12:00:00"));
     setSeasonEnd(new Date(season.end_date + "T12:00:00"));
+    setSeasonPriority(String(season.priority));
   };
 
-  const handleOpenOverrides = (season: any) => {
+  const handleOpenOverrides = (season: SeasonRow) => {
     setSelectedSeasonForOverrides(season);
     setApplyAllBase("");
     setApplyAllWeekend("");
@@ -525,7 +569,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
     // Prefill form
     const overridesMap: Record<string, { basePrice: string; weekendPrice: string }> = {};
     roomTypes.forEach((rt) => {
-      const match = season.overrides?.find((o: any) => o.room_type_id === rt.id);
+      const match = season.overrides?.find((o) => o.room_type_id === rt.id);
       overridesMap[rt.id] = {
         basePrice: match ? String(match.base_price) : "",
         weekendPrice: match && match.weekend_price ? String(match.weekend_price) : "",
@@ -833,14 +877,36 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
                     </DateRangePicker.Popover>
                   </DateRangePicker>
 
+                  <div className="space-y-1">
+                    <label htmlFor="season-priority" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Priority
+                    </label>
+                    <Input
+                      id="season-priority"
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={1000}
+                      step={1}
+                      value={seasonPriority}
+                      onChange={(e) => setSeasonPriority(e.target.value)}
+                      aria-describedby="season-priority-hint"
+                    />
+                    <p id="season-priority-hint" className="text-[11px] leading-relaxed text-muted-foreground">
+                      Higher wins when two seasons cover the same night — put a conference
+                      week above the summer season it sits inside. Seasons may only overlap
+                      if their priorities differ. Leave at 0 for an ordinary season.
+                    </p>
+                  </div>
+
                   {/* Overlaps warning */}
                   {clientOverlapSeason && (
                     <Alert status="danger" className="rounded-lg border border-danger/20 shadow-none">
                       <Alert.Indicator />
                       <Alert.Content>
-                        <Alert.Title>Date range overlaps</Alert.Title>
+                        <Alert.Title>Overlaps a season on the same layer</Alert.Title>
                         <Alert.Description>
-                          {clientOverlapSeason.name} runs from {clientOverlapSeason.start_date} to {clientOverlapSeason.end_date}. Choose non-overlapping dates.
+                          {clientOverlapSeason.name} runs {clientOverlapSeason.start_date} to {clientOverlapSeason.end_date} at priority {clientOverlapSeason.priority}. Give this season a different priority to layer them, or change the dates.
                         </Alert.Description>
                       </Alert.Content>
                     </Alert>
@@ -1231,7 +1297,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
                                     <span className="absolute top-1 right-1 size-1.5 rounded-full bg-amber-500 dark:bg-amber-400 animate-in zoom-in duration-300 cursor-help" />
                                   } />
                                   <TooltipContent side="top" className="text-xs max-w-[180px]">
-                                    Season "{cell?.seasonName}" is active but no rate is configured for this room type. Using base price.
+                                    Season &ldquo;{cell?.seasonName}&rdquo; is active but no rate is configured for this room type. Using base price.
                                   </TooltipContent>
                                 </Tooltip>
                               )}
@@ -1432,6 +1498,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
                               <TooltipContent side="top" className="text-xs">
                                 <div className="font-bold">{season.name}</div>
                                 <div className="text-muted-foreground">{season.start_date} &ndash; {season.end_date}</div>
+                                <div className="text-muted-foreground">Priority {season.priority}</div>
                                 {isActive && <div className="text-emerald-400 font-semibold">Active now</div>}
                               </TooltipContent>
                             </Tooltip>
@@ -1445,17 +1512,25 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
                           .map((s) => ({ start: s.start_date, end: s.end_date }))
                           .sort((a, b) => a.start.localeCompare(b.start));
                         const gaps: { from: string; to: string }[] = [];
-                        for (let i = 0; i + 1 < covered.length; i++) {
-                          const gapStart = new Date(covered[i].end + "T12:00:00");
-                          gapStart.setDate(gapStart.getDate() + 1);
-                          const gapEnd = new Date(covered[i + 1].start + "T12:00:00");
-                          gapEnd.setDate(gapEnd.getDate() - 1);
-                          if (gapStart <= gapEnd) {
-                            gaps.push({
-                              from: gapStart.toISOString().split("T")[0],
-                              to: gapEnd.toISOString().split("T")[0],
-                            });
+                        // Sweep with a running furthest end date. Seasons may now
+                        // overlap and nest, so comparing each season only against
+                        // the next one by start date would report a gap that an
+                        // earlier, longer season already covers.
+                        let reach: string | null = null;
+                        for (const period of covered) {
+                          if (reach !== null && period.start > reach) {
+                            const gapStart = new Date(reach + "T12:00:00");
+                            gapStart.setDate(gapStart.getDate() + 1);
+                            const gapEnd = new Date(period.start + "T12:00:00");
+                            gapEnd.setDate(gapEnd.getDate() - 1);
+                            if (gapStart <= gapEnd) {
+                              gaps.push({
+                                from: gapStart.toISOString().split("T")[0],
+                                to: gapEnd.toISOString().split("T")[0],
+                              });
+                            }
                           }
+                          if (reach === null || period.end > reach) reach = period.end;
                         }
                         if (gaps.length === 0) return null;
                         return (
@@ -1480,6 +1555,19 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
                       <TableHead className="font-bold text-foreground">Season Name</TableHead>
                       <TableHead className="font-bold text-foreground">Start Date</TableHead>
                       <TableHead className="font-bold text-foreground">End Date</TableHead>
+                      <TableHead className="font-bold text-foreground">
+                        <Tooltip>
+                          <TooltipTrigger render={
+                            <span className="inline-flex items-center gap-1 cursor-help">
+                              Priority
+                              <Info className="size-3 text-muted-foreground" />
+                            </span>
+                          } />
+                          <TooltipContent side="top" className="max-w-[240px] text-xs">
+                            Where two seasons cover the same night, the higher priority wins. Seasons may only overlap if their priorities differ.
+                          </TooltipContent>
+                        </Tooltip>
+                      </TableHead>
                       <TableHead className="font-bold text-foreground">Status</TableHead>
                       <TableHead className="font-bold text-foreground text-center">Room Rates Covered</TableHead>
                       <TableHead className="text-right font-bold text-foreground">Actions</TableHead>
@@ -1493,6 +1581,11 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
                           <TableCell className="font-semibold text-foreground">{season.name}</TableCell>
                           <TableCell className="text-muted-foreground">{season.start_date}</TableCell>
                           <TableCell className="text-muted-foreground">{season.end_date}</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+                              {season.priority}
+                            </span>
+                          </TableCell>
                           <TableCell>{getSeasonStatus(season.start_date, season.end_date)}</TableCell>
                           <TableCell className="text-center font-medium">
                             <Badge variant={coveredCount === roomTypes.length ? "default" : "outline"} className={cn(
@@ -1553,7 +1646,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
                                   <div className="space-y-2.5">
                                     <div className="text-xs font-bold text-foreground">Are you absolutely sure?</div>
                                     <p className="text-[10px] text-muted-foreground leading-normal">
-                                      This will permanently delete "{season.name}" and revert rates to default.
+                                      This will permanently delete &ldquo;{season.name}&rdquo; and revert rates to default.
                                     </p>
                                     <div className="flex items-center gap-2 justify-end">
                                       <Button size="sm" variant="ghost" className="h-7 text-xs px-2 border border-border">No</Button>
@@ -1590,7 +1683,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
           <SheetHeader className="border-b border-border/40 pb-4">
             <SheetTitle className="text-xl font-bold text-foreground">Configure Season Rates</SheetTitle>
             <SheetDescription>
-              Set base and weekend prices for "{selectedSeasonForOverrides?.name}". Unconfigured room types will remain on default pricing.
+              Set base and weekend prices for &ldquo;{selectedSeasonForOverrides?.name}&rdquo;. Unconfigured room types will remain on default pricing.
             </SheetDescription>
           </SheetHeader>
 

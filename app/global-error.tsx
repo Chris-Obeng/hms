@@ -10,7 +10,12 @@
  * Triggered by: errors in layout.tsx, ClerkProvider, TooltipProvider, or
  * any provider that wraps the entire app. Errors inside page-level components
  * are caught by the closer error.tsx boundaries first.
+ *
+ * Every error reaching here has taken the whole app down for that user, so it is
+ * reported to Sentry unconditionally.
  */
+
+import { useBoundaryReport } from "@/components/errors/use-boundary-report";
 
 export default function GlobalError({
   error,
@@ -19,6 +24,8 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useBoundaryReport(error, "global");
+
   return (
     <html lang="en">
       <body

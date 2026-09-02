@@ -12,6 +12,8 @@ import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer
 import { HeroSelectField } from "@/components/ui/hero-select";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { onRealtimeStatus } from "@/lib/observability/realtime";
+import { createCoalescer } from "@/lib/realtime/coalesce";
 
 interface PaymentRow {
   id: string;
@@ -67,15 +69,18 @@ export function TransactionsClient({ data, currency, hotelId }: { data: PaymentR
 
   React.useEffect(() => {
     const supabase = createClient();
+    // A single folio settlement can write several payment rows; refresh once per burst.
+    const refresh = createCoalescer();
     const channel = supabase
       .channel(`hotel:${hotelId}:transactions`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payments", filter: `hotel_id=eq.${hotelId}` },
-        () => refreshRef.current(),
+        () => refresh.schedule(() => refreshRef.current()),
       )
-      .subscribe();
+      .subscribe(onRealtimeStatus({ label: "transactions", hotelId, table: "payments" }));
     return () => {
+      refresh.cancel();
       supabase.removeChannel(channel);
     };
   }, [hotelId]);

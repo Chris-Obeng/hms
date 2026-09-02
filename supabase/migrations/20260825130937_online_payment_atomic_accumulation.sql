@@ -1,9 +1,3 @@
--- Atomic online-payment accumulation. The webhook previously overwrote
--- bookings.amount_paid with the latest transaction's value, so a booking that
--- received two online payments while still pending lost the first amount from
--- the running total. Increment server-side and return the new cumulative sum
--- so callers can classify confirmation state against money actually collected.
-
 CREATE OR REPLACE FUNCTION public.add_online_payment_to_booking(
   p_booking_id uuid,
   p_hotel_id uuid,

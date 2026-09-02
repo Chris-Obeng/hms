@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import { can } from "@/lib/roles";
 import { Building2 } from "lucide-react";
 import { HotelSettingsClient } from "./hotel-client";
 import { BookingPageCard } from "./booking-page-card";
@@ -26,7 +27,7 @@ export default async function HotelSettingsPage() {
     .eq("clerk_org_id", orgId)
     .single();
 
-  const isSuperAdmin = currentUser?.role === "super_admin";
+  const isSuperAdmin = can(currentUser?.role, "settings:manage");
 
   const base = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? "localhost:3000";
   const bookingUrl = hotel.custom_domain

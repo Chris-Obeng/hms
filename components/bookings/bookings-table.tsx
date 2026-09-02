@@ -53,6 +53,8 @@ import { NewBookingModal } from "@/components/bookings/new-booking-modal";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import { updateBookingStatus } from "@/app/actions/bookings";
 import { createClient } from "@/lib/supabase/client";
+import { onRealtimeStatus } from "@/lib/observability/realtime";
+import { createCoalescer } from "@/lib/realtime/coalesce";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -367,15 +369,18 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
   React.useEffect(() => {
     if (!hotelId) return;
     const supabase = createClient();
+    // Bulk operations emit one event per booking row; refresh once per burst.
+    const refresh = createCoalescer();
     const channel = supabase
       .channel(`hotel:${hotelId}:bookings-list`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
-        () => refreshRef.current(),
+        () => refresh.schedule(() => refreshRef.current()),
       )
-      .subscribe();
+      .subscribe(onRealtimeStatus({ label: "bookings-list", hotelId, table: "bookings" }));
     return () => {
+      refresh.cancel();
       supabase.removeChannel(channel);
     };
   }, [hotelId]);

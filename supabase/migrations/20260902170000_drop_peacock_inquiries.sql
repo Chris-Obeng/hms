@@ -1,0 +1,27 @@
+-- Remove the Peacock Mansion lead-capture table.
+--
+-- peacock_inquiries was never RoomLine's. It backed a showroom site's contact
+-- form and was namespaced into this schema so it could be lifted out into its own
+-- project later. It is being removed instead: no application code reads or writes
+-- it, it holds no PMS data, and the hosted project's schema does not contain it.
+--
+-- Two facts shape the shape of this migration.
+--
+-- First, the creating version 20260825134904 is in the hosted project's migration
+-- ledger even though the table is absent from its schema, so the local file for
+-- that version stays exactly where it is. Deleting it would leave a remote
+-- history row with no counterpart in the repository -- the precise drift the
+-- migration recovery work was undertaken to end. Create-then-drop is the honest
+-- record of what happened, and it is cheap.
+--
+-- Second, IF EXISTS is load-bearing rather than decorative. Locally the table is
+-- present and is dropped; on the hosted project the statement finds nothing and
+-- succeeds anyway. One file therefore leaves both databases in the same final
+-- state, which is what lets `supabase db reset` be trusted to reproduce
+-- production again.
+--
+-- The insert policy and the created_at index belong to the table and go with it.
+-- Nothing else depends on it -- no foreign key, no view -- so no CASCADE is given
+-- here on purpose: a plain DROP fails loudly if some later object ever does.
+
+DROP TABLE IF EXISTS public.peacock_inquiries;

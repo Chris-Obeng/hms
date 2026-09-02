@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import { can } from "@/lib/roles";
 import { redirect } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import { AuditLogClient } from "./audit-log-client";
@@ -25,7 +26,7 @@ export default async function AuditLogPage() {
     .eq("clerk_org_id", orgId)
     .single();
 
-  if (staff?.role !== "super_admin") {
+  if (!can(staff?.role, "audit:read")) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
         <ShieldCheck className="size-10 text-muted-foreground/30 mb-3" />
