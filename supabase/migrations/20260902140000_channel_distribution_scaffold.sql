@@ -311,6 +311,9 @@ CREATE POLICY channel_properties_delete_requires_owner ON public.channel_propert
   AS RESTRICTIVE FOR DELETE TO authenticated
   USING (public.user_role_at_least(hotel_id, 'super_admin'));
 
+-- Default privileges (20260831150000_privilege_parity.sql) hand anon ALL on new
+-- tables; there is no anon database path in this app, so the residue goes.
+REVOKE ALL ON public.channel_properties FROM PUBLIC, anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.channel_properties TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.channel_properties TO service_role;
 
@@ -345,6 +348,7 @@ CREATE POLICY channel_room_type_mappings_delete_requires_owner
   AS RESTRICTIVE FOR DELETE TO authenticated
   USING (public.user_role_at_least(hotel_id, 'super_admin'));
 
+REVOKE ALL ON public.channel_room_type_mappings FROM PUBLIC, anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.channel_room_type_mappings TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.channel_room_type_mappings TO service_role;
 
@@ -379,6 +383,7 @@ CREATE POLICY channel_rate_plan_mappings_delete_requires_owner
   AS RESTRICTIVE FOR DELETE TO authenticated
   USING (public.user_role_at_least(hotel_id, 'super_admin'));
 
+REVOKE ALL ON public.channel_rate_plan_mappings FROM PUBLIC, anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.channel_rate_plan_mappings TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.channel_rate_plan_mappings TO service_role;
 

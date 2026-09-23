@@ -12,6 +12,20 @@ import {
   type RestrictionFlags,
 } from "@/lib/pricing/rate-restrictions";
 import { captureError } from "@/lib/observability/sentry";
+import type { Database } from "@/types/database.types";
+
+type GeneratedSeasonalOverrideInsert =
+  Database["public"]["Tables"]["seasonal_rate_overrides"]["Insert"];
+type PendingSeasonalOverrideInsert = GeneratedSeasonalOverrideInsert & {
+  hotel_id: string;
+};
+
+// Remove after db:types includes migration 20260830163000.
+function forGeneratedSchema(
+  row: PendingSeasonalOverrideInsert
+): GeneratedSeasonalOverrideInsert {
+  return row;
+}
 
 // Schemas for input validation
 const SeasonalRateSchema = z.object({
@@ -284,12 +298,15 @@ export async function duplicateSeasonalRate(id: string) {
 
     // Copy overrides if any
     if (source.overrides && source.overrides.length > 0) {
-      const overrideRows = source.overrides.map((ov) => ({
-        seasonal_rate_id: newSeason.id,
-        room_type_id: ov.room_type_id as string,
-        base_price: Number(ov.base_price),
-        weekend_price: ov.weekend_price != null ? Number(ov.weekend_price) : null,
-      }));
+      const overrideRows = source.overrides.map((ov) =>
+        forGeneratedSchema({
+          hotel_id: hotelId,
+          seasonal_rate_id: newSeason.id,
+          room_type_id: ov.room_type_id as string,
+          base_price: Number(ov.base_price),
+          weekend_price: ov.weekend_price != null ? Number(ov.weekend_price) : null,
+        })
+      );
 
       const { error: ovErr } = await supabase
         .from("seasonal_rate_overrides")
@@ -431,12 +448,13 @@ export async function upsertSeasonalRateOverride(
     const { data, error } = await supabase
       .from("seasonal_rate_overrides")
       .upsert(
-        {
+        forGeneratedSchema({
+          hotel_id: hotelId,
           seasonal_rate_id: seasonalRateId,
           room_type_id: roomTypeId,
           base_price: basePrice,
           weekend_price: weekendPrice || null,
-        },
+        }),
         { onConflict: "seasonal_rate_id,room_type_id" }
       )
       .select()

@@ -85,3 +85,7 @@ nul
 
 # Playwright session state + screenshots
 .playwright/
+
+# session artifacts
+/*.log
+.claude/worktrees/

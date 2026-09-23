@@ -8,8 +8,6 @@ export const dynamic = "force-dynamic";
 
 export default async function DeactivatedPage() {
   const { orgId, userId } = await auth();
-
-  // If not logged in, redirect to sign-in
   if (!userId || !orgId) {
     redirect("/sign-in");
   }
@@ -93,7 +91,7 @@ export default async function DeactivatedPage() {
           </SignOutButton>
 
           <a
-            href="mailto:support@RoomLine.pro"
+            href="#"
             className="flex h-10 w-full items-center justify-center rounded-xl border border-border bg-secondary px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
             Contact Support

@@ -130,6 +130,10 @@ CREATE POLICY rate_restrictions_delete_requires_manager ON public.rate_restricti
 -- Table privileges arrive from Supabase default privileges on the hosted project
 -- but not in a database rebuilt from migrations alone, so state them. The public
 -- widget reads restrictions through the service-role client, so anon needs none.
+-- The default privileges installed by 20260831150000_privilege_parity.sql hand
+-- anon ALL on every table created after it. This app has no anon database path,
+-- so the residue is revoked rather than left for RLS alone to cover.
+REVOKE ALL ON public.rate_restrictions FROM PUBLIC, anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.rate_restrictions TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.rate_restrictions TO service_role;
 
@@ -344,10 +348,9 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  v_rate_plan_id := public.effective_rate_plan_id(NEW.hotel_id, NEW.room_type_id);
+  v_rate_plan_id := NEW.rate_plan_id;
 
-  -- A room type with no rate plan has no restrictions to break. It also has no
-  -- price, which unpriced_stay in create_booking_atomic already rejects.
+  -- Legacy rows can remain planless; atomic booking always stores one.
   IF v_rate_plan_id IS NULL THEN
     RETURN NEW;
   END IF;
@@ -396,10 +399,8 @@ COMMENT ON TRIGGER bookings_restrictions_guard ON public.bookings IS
 -- room_type_available_counts exists. A guest polling dates costs one round trip
 -- for the whole room list, whatever the hotel's size.
 --
--- The plan is resolved per room type here, not passed in, because bookings
--- carries no rate_plan_id — the widget quotes whichever plan
--- effective_rate_plan_id picks, which is the plan resolve_nightly_rates priced
--- the stay with and the plan the INSERT guard will check.
+-- Booking writes store the plan selected by resolve_nightly_rates. This trigger
+-- reads that same authority rather than independently choosing a default plan.
 
 CREATE OR REPLACE FUNCTION public.room_type_stay_restrictions(
   p_hotel_id      uuid,

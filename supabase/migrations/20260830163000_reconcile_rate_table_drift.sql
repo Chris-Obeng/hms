@@ -62,6 +62,125 @@ EXCEPTION
   WHEN duplicate_object OR duplicate_table THEN NULL;
 END $$;
 
+-- Hosted overrides already use UUID identifiers. Clean replay reaches this
+-- migration with bigint identities, so converge that source without touching
+-- existing hosted UUID values.
+DO $identifiers$
+DECLARE
+  v_table text;
+  v_type text;
+BEGIN
+  FOREACH v_table IN ARRAY ARRAY[
+    'seasonal_rate_overrides',
+    'daily_rate_overrides'
+  ]
+  LOOP
+    SELECT data_type
+      INTO v_type
+      FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name = v_table
+       AND column_name = 'id';
+
+    IF v_type = 'bigint' THEN
+      EXECUTE format(
+        'ALTER TABLE public.%I ALTER COLUMN id DROP IDENTITY IF EXISTS',
+        v_table
+      );
+      EXECUTE format(
+        'ALTER TABLE public.%I ALTER COLUMN id DROP DEFAULT',
+        v_table
+      );
+      EXECUTE format(
+        'ALTER TABLE public.%I ALTER COLUMN id TYPE uuid USING gen_random_uuid()',
+        v_table
+      );
+    ELSIF v_type IS DISTINCT FROM 'uuid' THEN
+      RAISE EXCEPTION 'unsupported %.id type: %', v_table, v_type;
+    END IF;
+
+    EXECUTE format(
+      'ALTER TABLE public.%I ALTER COLUMN id SET DEFAULT gen_random_uuid()',
+      v_table
+    );
+    EXECUTE format(
+      'DROP SEQUENCE IF EXISTS public.%I',
+      v_table || '_id_seq'
+    );
+  END LOOP;
+END
+$identifiers$;
+
+-- Production predates the tenant key on seasonal overrides. Derive it from the
+-- owning season, reject broken parent links, then make tenant identity structural.
+ALTER TABLE public.seasonal_rate_overrides
+  ADD COLUMN IF NOT EXISTS hotel_id uuid;
+
+UPDATE public.seasonal_rate_overrides o
+   SET hotel_id = sr.hotel_id
+  FROM public.seasonal_rates sr
+ WHERE sr.id = o.seasonal_rate_id
+   AND o.hotel_id IS NULL;
+
+DO $integrity$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+      FROM public.seasonal_rate_overrides o
+      LEFT JOIN public.seasonal_rates sr ON sr.id = o.seasonal_rate_id
+     WHERE sr.id IS NULL OR o.hotel_id IS DISTINCT FROM sr.hotel_id
+  ) THEN
+    RAISE EXCEPTION
+      'seasonal_rate_overrides contains rows without a tenant-consistent seasonal_rates parent';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+      FROM public.seasonal_rate_overrides o
+      LEFT JOIN public.room_types rt
+        ON rt.id = o.room_type_id AND rt.hotel_id = o.hotel_id
+     WHERE rt.id IS NULL
+  ) THEN
+    RAISE EXCEPTION
+      'seasonal_rate_overrides contains rows without a tenant-consistent room_types parent';
+  END IF;
+END
+$integrity$;
+
+ALTER TABLE public.seasonal_rate_overrides
+  ALTER COLUMN hotel_id SET NOT NULL;
+
+ALTER TABLE public.seasonal_rate_overrides
+  DROP CONSTRAINT IF EXISTS seasonal_rate_overrides_seasonal_rate_id_fkey;
+
+DO $$
+BEGIN
+  ALTER TABLE public.seasonal_rate_overrides
+    ADD CONSTRAINT seasonal_rate_overrides_seasonal_rate_fk
+      FOREIGN KEY (seasonal_rate_id, hotel_id)
+      REFERENCES public.seasonal_rates (id, hotel_id)
+      ON DELETE CASCADE;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table THEN NULL;
+END $$;
+
+-- The hosted table also predates the tenant-bound room-type key. Drop both the
+-- hosted single-column name and clean-replay composite name before rebuilding it.
+ALTER TABLE public.seasonal_rate_overrides
+  DROP CONSTRAINT IF EXISTS seasonal_rate_overrides_room_type_id_fkey,
+  DROP CONSTRAINT IF EXISTS seasonal_rate_overrides_room_type_fk;
+
+DO $$
+BEGIN
+  ALTER TABLE public.seasonal_rate_overrides
+    ADD CONSTRAINT seasonal_rate_overrides_room_type_fk
+      FOREIGN KEY (room_type_id, hotel_id)
+      REFERENCES public.room_types (id, hotel_id)
+      ON DELETE CASCADE;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table THEN NULL;
+END $$;
+
 -- -----------------------------------------------------------------------------
 -- 3. Remove the duplicate slug uniqueness on room_types.
 --
@@ -245,12 +364,9 @@ $repair$;
 -- Applied to INSERT/UPDATE/DELETE only: reading rates stays open to all staff
 -- of the hotel, because the front desk has to quote a price to take a booking.
 --
--- `seasonal_rate_overrides` has no `hotel_id` column, so its owning hotel is
--- reached through the parent season — the same indirection its existing
--- permissive policies already use.
---
--- Follows the house pattern established in
--- `20260824150411_harden_rls_role_gates_and_payment_attribution.sql`.
+-- `seasonal_rate_overrides.hotel_id` is reconciled from its owning season above.
+-- These existing gates keep deriving through that parent; composite FK proves
+-- parent and child tenant keys cannot disagree.
 -- -----------------------------------------------------------------------------
 
 -- seasonal_rates -------------------------------------------------------------

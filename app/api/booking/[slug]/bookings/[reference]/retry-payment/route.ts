@@ -142,12 +142,41 @@ async function handleRetryPayment(
   const callbackUrl = `${req.nextUrl.origin}/${slug}/book/confirmation?bref=${booking.reference}`;
   const payRef = `${booking.reference}-r${Date.now()}`;
 
+  const attemptCurrency = booking.currency ?? hotel.currency ?? "GHS";
+  const amountMinor = toMinor(remaining, attemptCurrency);
+
   try {
+    // Durable payment intent BEFORE the reference reaches Paystack: the
+    // settlement RPC rejects any reference without a matching attempt, so a
+    // guest who pays ahead of this row would be charged and then refused.
+    // A failed insert throws into the catch below — nothing was handed off.
+    const { error: attemptErr } = await supabaseAdmin
+      .from("payment_attempts")
+      .insert({
+        hotel_id: hotel.id,
+        booking_id: booking.id,
+        paystack_reference: payRef,
+        amount_minor: amountMinor,
+        currency: attemptCurrency,
+        expected_subaccount_code: hotel.paystack_subaccount_code,
+        metadata: {
+          booking_id: booking.id,
+          hotel_id: hotel.id,
+          booking_reference: booking.reference,
+        },
+        status: "initialized",
+        initialized_at: new Date().toISOString(),
+      });
+
+    if (attemptErr) {
+      throw new Error(`payment_attempts insert failed: ${attemptErr.message}`);
+    }
+
     const txn = await initializeTransaction({
       email: guest?.email ?? `${booking.reference}@bookings.local`,
       // Convert with the currency the booking was created in, not a fixed ×100.
-      amount: toMinor(remaining, booking.currency ?? hotel.currency),
-      currency: booking.currency ?? hotel.currency ?? "GHS",
+      amount: amountMinor,
+      currency: attemptCurrency,
       reference: payRef,
       callback_url: callbackUrl,
       subaccount: hotel.paystack_subaccount_code,

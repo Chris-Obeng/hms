@@ -23,11 +23,9 @@
 --    worse than one, so the function returns `before`/`after` blocks for the
 --    caller to fold into the audit row it was already writing.
 --
--- 2. A night a human priced by hand (`source = 'manual'`) is not the
---    resolver's to overwrite. Such a night is kept as it stands when it still
---    falls inside the new window and the room type has not changed. On a type
---    change everything re-resolves: the price of a suite is not the price of a
---    double, however it was set.
+-- 2. A night a human priced by hand (`source = 'manual'`) is kept only while it
+--    remains inside the new window and both room type and authoritative plan are
+--    unchanged. Changing either pricing authority re-resolves every night.
 --
 -- Failure model matches `create_booking_atomic` exactly -- P0001 with a stable
 -- machine code in DETAIL for policy, native SQLSTATE for integrity -- so the
@@ -71,8 +69,10 @@ DECLARE
   v_payment_status  text;
   v_amount_paid     numeric;
   v_old_type_id     uuid;
+  v_old_plan_id     uuid;
   v_before          jsonb;
   v_type_changed    boolean;
+  v_plan_changed    boolean;
   v_new_payment_status text;
 
   v_settings        jsonb;
@@ -81,14 +81,22 @@ DECLARE
   v_tax_bps         integer := 0;
   v_nights          integer;
   v_night_count     integer;
-  v_min_rate        bigint;
+  v_distinct_date_count integer;
+  v_out_of_range_count integer;
+  v_invalid_rate_count integer;
+  v_null_plan_count integer;
+  v_null_currency_count integer;
+  v_currency_count  integer;
   v_unit_minor      bigint;
   v_subtotal_minor  bigint;
   v_tax_minor       bigint;
   v_total_minor     bigint;
   v_room_rate       numeric;
   v_nights_json     jsonb;
+  v_resolved_json   jsonb;
   v_kept            integer := 0;
+  v_plan_count      integer;
+  v_resolved_plan_id uuid;
   v_constraint      text;
   v_occupied_by     text;
 BEGIN
@@ -106,12 +114,13 @@ BEGIN
   SELECT b.status, b.payment_status, COALESCE(b.amount_paid, 0),
          b.check_in, b.check_out, b.room_type_id, b.room_id,
          GREATEST(COALESCE(b.rooms_count, 1), 1)::smallint,
-         b.room_type_id,
+         b.rate_plan_id, b.rate_plan_id, b.room_type_id,
          jsonb_build_object(
            'check_in',     b.check_in,
            'check_out',    b.check_out,
            'room_id',      b.room_id,
            'room_type_id', b.room_type_id,
+           'rate_plan_id', b.rate_plan_id,
            'rooms_count',  b.rooms_count,
            'nights',       b.nights,
            'currency',     b.currency,
@@ -123,7 +132,7 @@ BEGIN
            'payment_status', b.payment_status)
     INTO v_status, v_payment_status, v_amount_paid,
          v_check_in, v_check_out, v_room_type_id, v_room_id, v_rooms_count,
-         v_old_type_id, v_before
+         v_rate_plan_id, v_old_plan_id, v_old_type_id, v_before
     FROM public.bookings b
    WHERE b.id = v_booking_id
      AND b.hotel_id = v_hotel_id
@@ -142,18 +151,12 @@ BEGIN
       USING ERRCODE = 'P0001', DETAIL = 'booking_not_open', HINT = v_status;
   END IF;
 
-  -- The rate plan and occupancy the stay was sold under live on its nights, not
-  -- on the booking row, so they are carried forward from there. Without this a
-  -- drag-move would silently re-price a negotiated stay onto the default plan.
-  -- Nights that disagree with each other -- not a state this system can write --
-  -- fall back to the hotel default rather than to an arbitrary one of them.
-  SELECT (array_agg(DISTINCT bn.rate_plan_id))[1],
-         (array_agg(DISTINCT bn.occupancy))[1]
-    INTO v_rate_plan_id, v_occupancy
+  -- Occupancy is historical pricing input, so preserve it from consistent nights.
+  SELECT (array_agg(DISTINCT bn.occupancy))[1]
+    INTO v_occupancy
     FROM public.booking_nights bn
    WHERE bn.booking_id = v_booking_id
-  HAVING count(DISTINCT bn.rate_plan_id) <= 1
-     AND count(DISTINCT bn.occupancy) <= 1;
+  HAVING count(DISTINCT bn.occupancy) <= 1;
 
   v_occupancy := COALESCE(v_occupancy, 0);
 
@@ -195,6 +198,33 @@ BEGIN
 
   v_nights       := v_check_out - v_check_in;
   v_type_changed := v_room_type_id IS DISTINCT FROM v_old_type_id;
+  v_plan_changed := v_rate_plan_id IS DISTINCT FROM v_old_plan_id;
+
+  -- Existence and tenancy, deliberately not `is_active`: a stay already sold on
+  -- a type that has since been retired must still be movable. Whether staff may
+  -- *choose* a retired type is the caller's rule, and it enforces it.
+  PERFORM 1
+     FROM public.room_types rt
+    WHERE rt.id = v_room_type_id
+      AND rt.hotel_id = v_hotel_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'room type % does not belong to hotel %', v_room_type_id, v_hotel_id
+      USING ERRCODE = 'P0001', DETAIL = 'room_type_not_found';
+  END IF;
+
+  -- Booking authority is retained unless payload explicitly names another plan.
+  PERFORM 1
+    FROM public.rate_plans rp
+   WHERE rp.id = v_rate_plan_id
+     AND rp.hotel_id = v_hotel_id
+     AND rp.room_type_id = v_room_type_id
+     AND (rp.is_active OR NOT v_plan_changed);
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'rate plan % is not valid for room type %',
+      v_rate_plan_id, v_room_type_id
+      USING ERRCODE = 'P0001', DETAIL = 'rate_plan_not_found';
+  END IF;
 
   SELECT h.settings, public.hotel_currency(h.id)
     INTO v_settings, v_hotel_currency
@@ -212,19 +242,6 @@ BEGIN
   IF (v_settings->>'tax_enabled')::boolean IS TRUE
      AND jsonb_typeof(v_settings->'tax_percentage') = 'number' THEN
     v_tax_bps := round((v_settings->>'tax_percentage')::numeric * 100)::integer;
-  END IF;
-
-  -- Existence and tenancy, deliberately not `is_active`: a stay already sold on
-  -- a type that has since been retired must still be movable. Whether staff may
-  -- *choose* a retired type is the caller's rule, and it enforces it.
-  PERFORM 1
-     FROM public.room_types rt
-    WHERE rt.id = v_room_type_id
-      AND rt.hotel_id = v_hotel_id;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'room type % does not belong to hotel %', v_room_type_id, v_hotel_id
-      USING ERRCODE = 'P0001', DETAIL = 'room_type_not_found';
   END IF;
 
   IF v_room_id IS NOT NULL THEN
@@ -273,12 +290,32 @@ BEGIN
   -- A kept night must match the hotel's currency: the resolver always returns
   -- that currency, and a night left over from a currency change would otherwise
   -- poison the total it feeds.
+  -- Tests may opt into one transaction-local pg_temp resolver. SECURITY DEFINER
+  -- calls from application roles cannot activate this owner-session-only seam.
+  IF session_user = current_user
+     AND current_setting('roomline.rate_resolver', true)
+           = 'pg_temp.malformed_nightly_rates' THEN
+    EXECUTE format(
+      'SELECT jsonb_agg(to_jsonb(r) ORDER BY r.stay_date)
+       FROM pg_temp.malformed_nightly_rates($1, $2, $3, $4, $5, $6) r')
+      INTO v_resolved_json
+      USING v_hotel_id, ARRAY[v_room_type_id], v_check_in, v_check_out,
+            v_rate_plan_id, v_occupancy;
+  ELSE
+    SELECT jsonb_agg(to_jsonb(r) ORDER BY r.stay_date)
+      INTO v_resolved_json
+      FROM public.resolve_nightly_rates(
+             v_hotel_id, ARRAY[v_room_type_id], v_check_in, v_check_out,
+             v_rate_plan_id, v_occupancy) r;
+  END IF;
+
   WITH kept AS (
     SELECT bn.stay_date, bn.rate_minor, bn.currency, bn.rate_plan_id,
            bn.occupancy, bn.source, bn.seasonal_rate_id, bn.season_name
       FROM public.booking_nights bn
      WHERE bn.booking_id = v_booking_id
        AND NOT v_type_changed
+       AND NOT v_plan_changed
        AND bn.source = 'manual'
        AND bn.currency = v_hotel_currency
        AND bn.stay_date >= v_check_in
@@ -287,9 +324,10 @@ BEGIN
   resolved AS (
     SELECT r.stay_date, r.rate_minor, r.currency, r.rate_plan_id,
            r.occupancy, r.source, r.seasonal_rate_id, r.season_name
-      FROM public.resolve_nightly_rates(
-             v_hotel_id, ARRAY[v_room_type_id], v_check_in, v_check_out,
-             v_rate_plan_id, v_occupancy) r
+      FROM jsonb_to_recordset(COALESCE(v_resolved_json, '[]'::jsonb)) AS r(
+             stay_date date, rate_minor bigint, currency text, rate_plan_id uuid,
+             occupancy smallint, source text, seasonal_rate_id uuid,
+             season_name text)
      WHERE NOT EXISTS (SELECT 1 FROM kept k WHERE k.stay_date = r.stay_date)
   ),
   merged AS (
@@ -307,17 +345,38 @@ BEGIN
            'seasonal_rate_id', m.seasonal_rate_id,
            'season_name',      m.season_name) ORDER BY m.stay_date),
          count(*)::integer,
+         count(DISTINCT m.stay_date)::integer,
+         count(*) FILTER (
+           WHERE m.stay_date < v_check_in
+              OR m.stay_date >= v_check_out)::integer,
+         count(*) FILTER (
+           WHERE m.rate_minor IS NULL OR m.rate_minor <= 0)::integer,
+         count(*) FILTER (WHERE m.rate_plan_id IS NULL)::integer,
+         count(*) FILTER (WHERE m.currency IS NULL)::integer,
+         count(DISTINCT m.currency)::integer,
          COALESCE(sum(m.rate_minor), 0),
-         min(m.rate_minor),
          min(m.currency),
-         count(*) FILTER (WHERE m.source = 'manual')::integer
-    INTO v_nights_json, v_night_count, v_unit_minor, v_min_rate, v_currency, v_kept
+         count(*) FILTER (WHERE m.source = 'manual')::integer,
+         (array_agg(DISTINCT m.rate_plan_id))[1],
+         count(DISTINCT m.rate_plan_id)::integer
+    INTO v_nights_json, v_night_count, v_distinct_date_count,
+         v_out_of_range_count, v_invalid_rate_count, v_null_plan_count,
+         v_null_currency_count, v_currency_count, v_unit_minor, v_currency,
+         v_kept, v_resolved_plan_id, v_plan_count
     FROM merged m;
 
-  -- Same gate as create_booking_atomic: a stay with a gap in its rates, or with
-  -- a zero night in it, is not a stay anyone can be charged for.
-  IF v_night_count <> v_nights OR COALESCE(v_min_rate, 0) <= 0 THEN
-    RAISE EXCEPTION 'room type % has no usable rate for % night(s) from %',
+  -- Same gate as creation: exact dates, positive rates, one plan and currency.
+  IF v_night_count <> v_nights
+     OR v_distinct_date_count <> v_nights
+     OR v_out_of_range_count <> 0
+     OR v_invalid_rate_count <> 0
+     OR v_null_plan_count <> 0
+     OR v_null_currency_count <> 0
+     OR v_currency_count <> 1
+     OR v_currency IS DISTINCT FROM v_hotel_currency
+     OR v_plan_count <> 1
+     OR v_resolved_plan_id IS DISTINCT FROM v_rate_plan_id THEN
+    RAISE EXCEPTION 'room type % has no consistent usable rate for % night(s) from %',
       v_room_type_id, v_nights, v_check_in
       USING ERRCODE = 'P0001', DETAIL = 'unpriced_stay';
   END IF;
@@ -354,6 +413,7 @@ BEGIN
        SET check_in       = v_check_in,
            check_out      = v_check_out,
            room_type_id   = v_room_type_id,
+           rate_plan_id   = v_rate_plan_id,
            room_id        = v_room_id,
            rooms_count    = v_rooms_count,
            room_rate      = v_room_rate,
@@ -436,6 +496,7 @@ BEGIN
                         'check_out', v_check_out,
                         'room_id', v_room_id,
                         'room_type_id', v_room_type_id,
+                        'rate_plan_id', v_rate_plan_id,
                         'rooms_count', v_rooms_count,
                         'nights', v_nights,
                         'currency', v_currency,
@@ -449,10 +510,10 @@ END;
 $fn$;
 
 COMMENT ON FUNCTION public.reprice_booking_stay(jsonb) IS
-  'Moves a booked stay window, room or room type and re-resolves its nightly '
-  'rates, money and booking_nights in one transaction. Payload keys are '
-  'presence-sensitive: an absent key leaves the column alone, and room_id null '
-  'unassigns. booking_id and hotel_id are required, and a booking belonging to '
+  'Moves a booked stay window, room, room type, or explicitly selected rate plan '
+  'and re-resolves its nightly rates, money and booking_nights in one transaction. '
+  'Payload keys are presence-sensitive: an absent key leaves the column alone, '
+  'and room_id null unassigns. booking_id and hotel_id are required, and a booking '
   'another hotel is reported as booking_not_found. Writes no audit row -- it '
   'returns before/after blocks for the caller to audit under the acting staff '
   'member, which a SECURITY DEFINER function cannot resolve.';

@@ -14,6 +14,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      ari_sync_outbox: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          date_from: string
+          date_to: string
+          hotel_id: string
+          id: string
+          last_error: string | null
+          locked_at: string | null
+          next_attempt_at: string
+          rate_plan_id: string | null
+          room_type_id: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          date_from: string
+          date_to: string
+          hotel_id: string
+          id?: string
+          last_error?: string | null
+          locked_at?: string | null
+          next_attempt_at?: string
+          rate_plan_id?: string | null
+          room_type_id?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          date_from?: string
+          date_to?: string
+          hotel_id?: string
+          id?: string
+          last_error?: string | null
+          locked_at?: string | null
+          next_attempt_at?: string
+          rate_plan_id?: string | null
+          room_type_id?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ari_sync_outbox_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -129,6 +188,72 @@ export type Database = {
           },
         ]
       }
+      booking_nights: {
+        Row: {
+          booking_id: string
+          created_at: string
+          currency: string
+          hotel_id: string
+          id: string
+          occupancy: number
+          rate_minor: number
+          rate_plan_id: string | null
+          rooms_count: number
+          season_name: string | null
+          seasonal_rate_id: string | null
+          source: string
+          stay_date: string
+          updated_at: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          currency: string
+          hotel_id: string
+          id?: string
+          occupancy?: number
+          rate_minor: number
+          rate_plan_id?: string | null
+          rooms_count?: number
+          season_name?: string | null
+          seasonal_rate_id?: string | null
+          source: string
+          stay_date: string
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          currency?: string
+          hotel_id?: string
+          id?: string
+          occupancy?: number
+          rate_minor?: number
+          rate_plan_id?: string | null
+          rooms_count?: number
+          season_name?: string | null
+          seasonal_rate_id?: string | null
+          source?: string
+          stay_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_nights_booking_hotel_fk"
+            columns: ["booking_id", "hotel_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id", "hotel_id"]
+          },
+          {
+            foreignKeyName: "booking_nights_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_reference_counters: {
         Row: {
           hotel_id: string
@@ -161,6 +286,7 @@ export type Database = {
           amount_paid: number | null
           cancellation_reason: string | null
           cancelled_at: string | null
+          channel_provider: string | null
           check_in: string
           check_in_at: string | null
           check_out: string
@@ -170,6 +296,7 @@ export type Database = {
           created_by: string | null
           currency: string | null
           estimated_arrival: string | null
+          external_booking_id: string | null
           guest_id: string | null
           hotel_id: string
           id: string
@@ -179,6 +306,7 @@ export type Database = {
           outstanding_balance: number | null
           payment_preference: string | null
           payment_status: string | null
+          rate_plan_id: string | null
           reference: string
           room_id: string | null
           room_rate: number
@@ -197,6 +325,7 @@ export type Database = {
           amount_paid?: number | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
+          channel_provider?: string | null
           check_in: string
           check_in_at?: string | null
           check_out: string
@@ -206,6 +335,7 @@ export type Database = {
           created_by?: string | null
           currency?: string | null
           estimated_arrival?: string | null
+          external_booking_id?: string | null
           guest_id?: string | null
           hotel_id: string
           id?: string
@@ -215,6 +345,7 @@ export type Database = {
           outstanding_balance?: number | null
           payment_preference?: string | null
           payment_status?: string | null
+          rate_plan_id?: string | null
           reference: string
           room_id?: string | null
           room_rate: number
@@ -233,6 +364,7 @@ export type Database = {
           amount_paid?: number | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
+          channel_provider?: string | null
           check_in?: string
           check_in_at?: string | null
           check_out?: string
@@ -242,6 +374,7 @@ export type Database = {
           created_by?: string | null
           currency?: string | null
           estimated_arrival?: string | null
+          external_booking_id?: string | null
           guest_id?: string | null
           hotel_id?: string
           id?: string
@@ -251,6 +384,7 @@ export type Database = {
           outstanding_balance?: number | null
           payment_preference?: string | null
           payment_status?: string | null
+          rate_plan_id?: string | null
           reference?: string
           room_id?: string | null
           room_rate?: number
@@ -287,6 +421,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bookings_rate_plan_hotel_fk"
+            columns: ["rate_plan_id", "hotel_id"]
+            isOneToOne: false
+            referencedRelation: "rate_plans"
+            referencedColumns: ["id", "hotel_id"]
+          },
+          {
             foreignKeyName: "bookings_room_id_fkey"
             columns: ["room_id"]
             isOneToOne: false
@@ -302,13 +443,200 @@ export type Database = {
           },
         ]
       }
+      channel_credentials: {
+        Row: {
+          api_key_ref: string
+          channel_property_id: string
+          created_at: string
+          hotel_id: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          api_key_ref: string
+          channel_property_id: string
+          created_at?: string
+          hotel_id: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          api_key_ref?: string
+          channel_property_id?: string
+          created_at?: string
+          hotel_id?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_credentials_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_credentials_property_fkey"
+            columns: ["channel_property_id", "hotel_id"]
+            isOneToOne: false
+            referencedRelation: "channel_properties"
+            referencedColumns: ["id", "hotel_id"]
+          },
+        ]
+      }
+      channel_properties: {
+        Row: {
+          created_at: string
+          external_property_id: string
+          hotel_id: string
+          id: string
+          is_enabled: boolean
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          external_property_id: string
+          hotel_id: string
+          id?: string
+          is_enabled?: boolean
+          provider: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          external_property_id?: string
+          hotel_id?: string
+          id?: string
+          is_enabled?: boolean
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_properties_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_rate_plan_mappings: {
+        Row: {
+          channel_property_id: string
+          created_at: string
+          external_rate_plan_id: string
+          hotel_id: string
+          id: string
+          rate_plan_id: string
+          updated_at: string
+        }
+        Insert: {
+          channel_property_id: string
+          created_at?: string
+          external_rate_plan_id: string
+          hotel_id: string
+          id?: string
+          rate_plan_id: string
+          updated_at?: string
+        }
+        Update: {
+          channel_property_id?: string
+          created_at?: string
+          external_rate_plan_id?: string
+          hotel_id?: string
+          id?: string
+          rate_plan_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_rate_plan_mappings_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_rate_plan_mappings_property_fkey"
+            columns: ["channel_property_id", "hotel_id"]
+            isOneToOne: false
+            referencedRelation: "channel_properties"
+            referencedColumns: ["id", "hotel_id"]
+          },
+          {
+            foreignKeyName: "channel_rate_plan_mappings_rate_plan_fkey"
+            columns: ["rate_plan_id", "hotel_id"]
+            isOneToOne: false
+            referencedRelation: "rate_plans"
+            referencedColumns: ["id", "hotel_id"]
+          },
+        ]
+      }
+      channel_room_type_mappings: {
+        Row: {
+          channel_property_id: string
+          created_at: string
+          external_room_type_id: string
+          hotel_id: string
+          id: string
+          room_type_id: string
+          updated_at: string
+        }
+        Insert: {
+          channel_property_id: string
+          created_at?: string
+          external_room_type_id: string
+          hotel_id: string
+          id?: string
+          room_type_id: string
+          updated_at?: string
+        }
+        Update: {
+          channel_property_id?: string
+          created_at?: string
+          external_room_type_id?: string
+          hotel_id?: string
+          id?: string
+          room_type_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_room_type_mappings_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_room_type_mappings_property_fkey"
+            columns: ["channel_property_id", "hotel_id"]
+            isOneToOne: false
+            referencedRelation: "channel_properties"
+            referencedColumns: ["id", "hotel_id"]
+          },
+          {
+            foreignKeyName: "channel_room_type_mappings_room_type_fkey"
+            columns: ["room_type_id", "hotel_id"]
+            isOneToOne: false
+            referencedRelation: "room_types"
+            referencedColumns: ["id", "hotel_id"]
+          },
+        ]
+      }
       daily_rate_overrides: {
         Row: {
           created_at: string
           date: string
           hotel_id: string
           id: string
+          occupancy: number
           price: number
+          price_minor: number
+          rate_plan_id: string
           room_type_id: string
           updated_at: string
         }
@@ -317,7 +645,10 @@ export type Database = {
           date: string
           hotel_id: string
           id?: string
+          occupancy?: number
           price: number
+          price_minor: number
+          rate_plan_id: string
           room_type_id: string
           updated_at?: string
         }
@@ -326,7 +657,10 @@ export type Database = {
           date?: string
           hotel_id?: string
           id?: string
+          occupancy?: number
           price?: number
+          price_minor?: number
+          rate_plan_id?: string
           room_type_id?: string
           updated_at?: string
         }
@@ -337,6 +671,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hotels"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_rate_overrides_rate_plan_fk"
+            columns: ["rate_plan_id", "hotel_id"]
+            isOneToOne: false
+            referencedRelation: "rate_plans"
+            referencedColumns: ["id", "hotel_id"]
           },
           {
             foreignKeyName: "daily_rate_overrides_room_type_id_fkey"
@@ -702,6 +1043,75 @@ export type Database = {
           },
         ]
       }
+      payment_attempts: {
+        Row: {
+          amount_minor: number
+          booking_id: string
+          created_at: string
+          currency: string
+          expected_subaccount_code: string
+          hotel_id: string
+          id: string
+          initialized_at: string | null
+          metadata: Json
+          paystack_id: string | null
+          paystack_reference: string
+          provider_response: Json | null
+          settled_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_minor: number
+          booking_id: string
+          created_at?: string
+          currency: string
+          expected_subaccount_code: string
+          hotel_id: string
+          id?: string
+          initialized_at?: string | null
+          metadata?: Json
+          paystack_id?: string | null
+          paystack_reference: string
+          provider_response?: Json | null
+          settled_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_minor?: number
+          booking_id?: string
+          created_at?: string
+          currency?: string
+          expected_subaccount_code?: string
+          hotel_id?: string
+          id?: string
+          initialized_at?: string | null
+          metadata?: Json
+          paystack_id?: string | null
+          paystack_reference?: string
+          provider_response?: Json | null
+          settled_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_attempts_booking_hotel_fk"
+            columns: ["booking_id", "hotel_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id", "hotel_id"]
+          },
+          {
+            foreignKeyName: "payment_attempts_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -762,11 +1172,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "payments_booking_id_fkey"
-            columns: ["booking_id"]
+            foreignKeyName: "payments_booking_hotel_fk"
+            columns: ["booking_id", "hotel_id"]
             isOneToOne: false
             referencedRelation: "bookings"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "hotel_id"]
           },
           {
             foreignKeyName: "payments_hotel_id_fkey"
@@ -934,10 +1344,153 @@ export type Database = {
           },
         ]
       }
+      rate_plans: {
+        Row: {
+          auto_rate_settings: Json | null
+          code: string
+          created_at: string
+          currency: string | null
+          derived_rules: Json | null
+          hotel_id: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          meal_type: string
+          parent_rate_plan_id: string | null
+          rate_mode: string
+          room_type_id: string
+          sell_mode: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          auto_rate_settings?: Json | null
+          code: string
+          created_at?: string
+          currency?: string | null
+          derived_rules?: Json | null
+          hotel_id: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          meal_type?: string
+          parent_rate_plan_id?: string | null
+          rate_mode?: string
+          room_type_id: string
+          sell_mode?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          auto_rate_settings?: Json | null
+          code?: string
+          created_at?: string
+          currency?: string | null
+          derived_rules?: Json | null
+          hotel_id?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          meal_type?: string
+          parent_rate_plan_id?: string | null
+          rate_mode?: string
+          room_type_id?: string
+          sell_mode?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rate_plans_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rate_plans_parent_fk"
+            columns: ["parent_rate_plan_id", "hotel_id"]
+            isOneToOne: false
+            referencedRelation: "rate_plans"
+            referencedColumns: ["id", "hotel_id"]
+          },
+          {
+            foreignKeyName: "rate_plans_room_type_fk"
+            columns: ["room_type_id", "hotel_id"]
+            isOneToOne: false
+            referencedRelation: "room_types"
+            referencedColumns: ["id", "hotel_id"]
+          },
+        ]
+      }
+      rate_restrictions: {
+        Row: {
+          closed_to_arrival: boolean
+          closed_to_departure: boolean
+          created_at: string
+          date: string
+          hotel_id: string
+          id: string
+          max_stay: number | null
+          min_stay: number | null
+          min_stay_arrival: number | null
+          min_stay_through: number | null
+          rate_plan_id: string
+          stop_sell: boolean
+          updated_at: string
+        }
+        Insert: {
+          closed_to_arrival?: boolean
+          closed_to_departure?: boolean
+          created_at?: string
+          date: string
+          hotel_id: string
+          id?: string
+          max_stay?: number | null
+          min_stay?: number | null
+          min_stay_arrival?: number | null
+          min_stay_through?: number | null
+          rate_plan_id: string
+          stop_sell?: boolean
+          updated_at?: string
+        }
+        Update: {
+          closed_to_arrival?: boolean
+          closed_to_departure?: boolean
+          created_at?: string
+          date?: string
+          hotel_id?: string
+          id?: string
+          max_stay?: number | null
+          min_stay?: number | null
+          min_stay_arrival?: number | null
+          min_stay_through?: number | null
+          rate_plan_id?: string
+          stop_sell?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rate_restrictions_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rate_restrictions_rate_plan_fk"
+            columns: ["rate_plan_id", "hotel_id"]
+            isOneToOne: false
+            referencedRelation: "rate_plans"
+            referencedColumns: ["id", "hotel_id"]
+          },
+        ]
+      }
       room_types: {
         Row: {
           amenities: Json | null
           base_price: number
+          base_price_minor: number
           bed_configuration: string | null
           created_at: string | null
           description: string | null
@@ -953,10 +1506,12 @@ export type Database = {
           sort_order: number | null
           updated_at: string | null
           weekend_price: number | null
+          weekend_price_minor: number | null
         }
         Insert: {
           amenities?: Json | null
           base_price: number
+          base_price_minor: number
           bed_configuration?: string | null
           created_at?: string | null
           description?: string | null
@@ -972,10 +1527,12 @@ export type Database = {
           sort_order?: number | null
           updated_at?: string | null
           weekend_price?: number | null
+          weekend_price_minor?: number | null
         }
         Update: {
           amenities?: Json | null
           base_price?: number
+          base_price_minor?: number
           bed_configuration?: string | null
           created_at?: string | null
           description?: string | null
@@ -991,6 +1548,7 @@ export type Database = {
           sort_order?: number | null
           updated_at?: string | null
           weekend_price?: number | null
+          weekend_price_minor?: number | null
         }
         Relationships: [
           {
@@ -1012,7 +1570,7 @@ export type Database = {
           notes: string | null
           room_number: string
           room_type_id: string
-          status: string | null
+          status: string
           updated_at: string | null
         }
         Insert: {
@@ -1024,7 +1582,7 @@ export type Database = {
           notes?: string | null
           room_number: string
           room_type_id: string
-          status?: string | null
+          status?: string
           updated_at?: string | null
         }
         Update: {
@@ -1036,7 +1594,7 @@ export type Database = {
           notes?: string | null
           room_number?: string
           room_type_id?: string
-          status?: string | null
+          status?: string
           updated_at?: string | null
         }
         Relationships: [
@@ -1059,45 +1617,67 @@ export type Database = {
       seasonal_rate_overrides: {
         Row: {
           base_price: number
+          base_price_minor: number
           created_at: string
+          hotel_id: string
           id: string
+          occupancy: number
+          rate_plan_id: string
           room_type_id: string
           seasonal_rate_id: string
           updated_at: string
           weekend_price: number | null
+          weekend_price_minor: number | null
         }
         Insert: {
           base_price: number
+          base_price_minor: number
           created_at?: string
+          hotel_id: string
           id?: string
+          occupancy?: number
+          rate_plan_id: string
           room_type_id: string
           seasonal_rate_id: string
           updated_at?: string
           weekend_price?: number | null
+          weekend_price_minor?: number | null
         }
         Update: {
           base_price?: number
+          base_price_minor?: number
           created_at?: string
+          hotel_id?: string
           id?: string
+          occupancy?: number
+          rate_plan_id?: string
           room_type_id?: string
           seasonal_rate_id?: string
           updated_at?: string
           weekend_price?: number | null
+          weekend_price_minor?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "seasonal_rate_overrides_room_type_id_fkey"
-            columns: ["room_type_id"]
+            foreignKeyName: "seasonal_rate_overrides_rate_plan_fk"
+            columns: ["rate_plan_id", "hotel_id"]
             isOneToOne: false
-            referencedRelation: "room_types"
-            referencedColumns: ["id"]
+            referencedRelation: "rate_plans"
+            referencedColumns: ["id", "hotel_id"]
           },
           {
-            foreignKeyName: "seasonal_rate_overrides_seasonal_rate_id_fkey"
-            columns: ["seasonal_rate_id"]
+            foreignKeyName: "seasonal_rate_overrides_room_type_fk"
+            columns: ["room_type_id", "hotel_id"]
+            isOneToOne: false
+            referencedRelation: "room_types"
+            referencedColumns: ["id", "hotel_id"]
+          },
+          {
+            foreignKeyName: "seasonal_rate_overrides_seasonal_rate_fk"
+            columns: ["seasonal_rate_id", "hotel_id"]
             isOneToOne: false
             referencedRelation: "seasonal_rates"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "hotel_id"]
           },
         ]
       }
@@ -1236,9 +1816,61 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      abort_unpaid_booking: {
+        Args: { p_booking_id: string; p_reason: string }
+        Returns: undefined
+      }
       add_online_payment_to_booking: {
         Args: { p_amount: number; p_booking_id: string; p_hotel_id: string }
         Returns: number
+      }
+      ari_distribution_active: {
+        Args: { p_hotel_id: string }
+        Returns: boolean
+      }
+      ari_snapshot: {
+        Args: {
+          p_from: string
+          p_hotel_id: string
+          p_room_type_ids?: string[]
+          p_to: string
+        }
+        Returns: {
+          availability: number
+          closed_to_arrival: boolean
+          closed_to_departure: boolean
+          currency: string
+          max_stay: number
+          min_stay: number
+          min_stay_arrival: number
+          min_stay_through: number
+          occupancy: number
+          rate_minor: number
+          rate_plan_id: string
+          room_type_id: string
+          stay_date: string
+          stop_sell: boolean
+        }[]
+      }
+      backfill_booking_nights: {
+        Args: { p_hotel_id?: string }
+        Returns: number
+      }
+      booking_nights_drift: {
+        Args: { p_hotel_id: string }
+        Returns: {
+          booking_id: string
+          check_in: string
+          check_out: string
+          currency: string
+          difference_minor: number
+          nights_expected: number
+          nights_recorded: number
+          nights_total_minor: number
+          reference: string
+          room_revenue_minor: number
+          status: string
+        }[]
       }
       check_room_availability: {
         Args: {
@@ -1255,6 +1887,31 @@ export type Database = {
           reference: string
           status: string
         }[]
+      }
+      claim_ari_jobs: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempt_count: number
+          created_at: string
+          date_from: string
+          date_to: string
+          hotel_id: string
+          id: string
+          last_error: string | null
+          locked_at: string | null
+          next_attempt_at: string
+          rate_plan_id: string | null
+          room_type_id: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ari_sync_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       claim_push_jobs: {
         Args: { p_limit?: number }
@@ -1279,14 +1936,55 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      create_booking_atomic: { Args: { p_payload: Json }; Returns: Json }
+      currency_exponent: { Args: { p_currency: string }; Returns: number }
+      effective_rate_plan_id: {
+        Args: {
+          p_hotel_id: string
+          p_rate_plan_id?: string
+          p_room_type_id: string
+        }
+        Returns: string
+      }
+      enqueue_ari_dirty: {
+        Args: {
+          p_from: string
+          p_hotel_id: string
+          p_rate_plan_id?: string
+          p_room_type_id?: string
+          p_to: string
+        }
+        Returns: undefined
+      }
       expire_stale_payment_holds: { Args: never; Returns: number }
+      from_minor: {
+        Args: { p_currency: string; p_minor: number }
+        Returns: number
+      }
       generate_booking_reference: {
         Args: { p_hotel_id: string; p_prefix?: string }
         Returns: string
       }
       get_user_clerk_org_ids: { Args: never; Returns: string[] }
       get_user_hotel_ids: { Args: never; Returns: string[] }
+      hotel_currency: { Args: { p_hotel_id: string }; Returns: string }
       prune_push_delivery_data: { Args: never; Returns: undefined }
+      prune_rate_and_ari_data: {
+        Args: { p_batch_limit?: number; p_prune_history?: boolean }
+        Returns: {
+          capped: boolean
+          relation: string
+          rows_deleted: number
+        }[]
+      }
+      rate_and_ari_retention_preview: {
+        Args: never
+        Returns: {
+          oldest: string
+          relation: string
+          rows_eligible: number
+        }[]
+      }
       reconcile_pending_payments: { Args: never; Returns: number }
       record_payment_atomic: {
         Args: {
@@ -1303,6 +2001,47 @@ export type Database = {
           payment_status: string
         }[]
       }
+      reprice_booking_stay: { Args: { p_payload: Json }; Returns: Json }
+      resolve_nightly_rates: {
+        Args: {
+          p_from: string
+          p_hotel_id: string
+          p_occupancy?: number
+          p_rate_plan_id?: string
+          p_room_type_ids: string[]
+          p_to: string
+        }
+        Returns: {
+          active_season_name: string
+          active_seasonal_rate_id: string
+          currency: string
+          is_weekend: boolean
+          occupancy: number
+          rate_minor: number
+          rate_plan_id: string
+          room_type_id: string
+          season_name: string
+          seasonal_rate_id: string
+          source: string
+          stay_date: string
+        }[]
+      }
+      room_type_availability_by_date: {
+        Args: {
+          p_exclude_booking_id?: string
+          p_from: string
+          p_room_type_ids: string[]
+          p_to: string
+        }
+        Returns: {
+          available: number
+          blocked: number
+          booked: number
+          capacity: number
+          room_type_id: string
+          stay_date: string
+        }[]
+      }
       room_type_available_count: {
         Args: {
           p_check_in: string
@@ -1312,22 +2051,70 @@ export type Database = {
         Returns: number
       }
       room_type_available_counts: {
-        Args: {
-          p_from: string
-          p_room_type_ids: string[]
-          p_to: string
-        }
+        Args: { p_from: string; p_room_type_ids: string[]; p_to: string }
         Returns: {
           available: number
           room_type_id: string
         }[]
       }
+      room_type_stay_restrictions: {
+        Args: {
+          p_check_in: string
+          p_check_out: string
+          p_hotel_id: string
+          p_room_type_ids: string[]
+        }
+        Returns: {
+          rate_plan_id: string
+          room_type_id: string
+          violations: string[]
+        }[]
+      }
+      settle_online_payment_atomic: {
+        Args: {
+          p_amount_minor: number
+          p_booking_id: string
+          p_currency: string
+          p_hotel_id: string
+          p_metadata: Json
+          p_paystack_id: string
+          p_paystack_reference: string
+          p_subaccount_code: string
+        }
+        Returns: {
+          already_recorded: boolean
+          amount_paid_minor: number
+          booking_id: string
+          booking_status: string
+          partial_payment: boolean
+          payment_status: string
+          result: string
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      staff_role_level: { Args: { p_role: string }; Returns: number }
+      stay_restriction_violations: {
+        Args: {
+          p_check_in: string
+          p_check_out: string
+          p_rate_plan_id: string
+        }
+        Returns: string[]
+      }
+      to_minor: {
+        Args: { p_amount: number; p_currency: string }
+        Returns: number
+      }
       user_has_staff_role: {
         Args: { p_hotel_id: string; p_roles: string[] }
         Returns: boolean
       }
+      user_role_at_least: {
+        Args: { p_hotel_id: string; p_min_role: string }
+        Returns: boolean
+      }
+      user_role_level: { Args: { p_hotel_id: string }; Returns: number }
     }
     Enums: {
       [_ in never]: never
@@ -1346,12 +2133,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1375,11 +2162,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1400,11 +2187,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1425,11 +2212,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1442,11 +2229,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

@@ -7,9 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { CalendarClock, RotateCw } from "lucide-react";
 
-import { Calendar, Skeleton, Button } from "@heroui/react";
-import type { CalendarDate } from "@internationalized/date";
-import { toCalendarDate, fromCalendarDate } from "@/lib/date-convert";
+import { Skeleton, Button } from "@heroui/react";
 import { DashboardHeader } from "./_components/dashboard-header";
 import { DateCard } from "./_components/date-card";
 import { OccupancyCard } from "./_components/occupancy-card";
@@ -680,8 +678,8 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
       resistance={2.5}
     >
     <div className="mx-auto max-w-[1600px] space-y-5 md:space-y-6">
-      {/* ── Date header ─────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/50 bg-card px-4 py-3 shadow-xs">
+      {/* ── Date header (desktop only) ──────────────────────────── */}
+      <div className="hidden md:flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/50 bg-card px-4 py-3 shadow-xs">
         <div className="flex min-w-0 items-center gap-2.5">
           <span
             aria-hidden
@@ -714,7 +712,7 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
         </div>
       </div>
 
-      {/* ── Mobile week view (HeroUI Calendar, 1-week grid) ─────── */}
+      {/* ── Mobile week strip ────────────────────────────────────── */}
       <MobileWeekCalendar selectedDate={selectedDate} onDateChange={handleDateChange} />
 
       {/* ── Main 2-column grid ──────────────────────────────────── */}
@@ -861,7 +859,7 @@ function DashboardSkeleton() {
   );
 }
 
-// ── Mobile week calendar — HeroUI Calendar, single-week grid ───────
+// ── Mobile week calendar — custom week strip ──────────────────────
 
 function MobileWeekCalendar({
   selectedDate,
@@ -870,32 +868,101 @@ function MobileWeekCalendar({
   selectedDate: Date;
   onDateChange: (date: Date) => void;
 }) {
+  const weekDays = React.useMemo(() => {
+    // Get Monday of the week containing selectedDate
+    const dayOfWeek = selectedDate.getDay(); // 0=Sun
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // shift to Monday
+    const monday = new Date(selectedDate);
+    monday.setDate(monday.getDate() + diff);
+
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return d;
+    });
+  }, [selectedDate]);
+
+  const goToPrevWeek = React.useCallback(() => {
+    const prev = new Date(selectedDate);
+    prev.setDate(prev.getDate() - 7);
+    onDateChange(prev);
+  }, [selectedDate, onDateChange]);
+
+  const goToNextWeek = React.useCallback(() => {
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + 7);
+    onDateChange(next);
+  }, [selectedDate, onDateChange]);
+
+  const rangeLabel = `${format(weekDays[0], "MMMM d")} \u2013 ${format(weekDays[6], "d, yyyy")}`;
+
   return (
-    <div className="rounded-2xl border border-border/50 bg-card px-2 pb-3 pt-3 shadow-xs md:hidden">
-      <Calendar
-        aria-label="Select day"
-        visibleDuration={{ weeks: 1 }}
-        pageBehavior="single"
-        firstDayOfWeek="mon"
-        value={toCalendarDate(selectedDate)}
-        onChange={(date) => {
-          if (date) onDateChange(fromCalendarDate(date as CalendarDate));
-        }}
-      >
-        <Calendar.Header className="pb-1">
-          <Calendar.NavButton slot="previous" />
-          <Calendar.Heading />
-          <Calendar.NavButton slot="next" />
-        </Calendar.Header>
-        <Calendar.Grid>
-          <Calendar.GridHeader>
-            {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
-          </Calendar.GridHeader>
-          <Calendar.GridBody>
-            {(date) => <Calendar.Cell date={date} />}
-          </Calendar.GridBody>
-        </Calendar.Grid>
-      </Calendar>
+    <div className="rounded-2xl border border-border/50 bg-card shadow-xs md:hidden">
+      {/* Week range header with nav */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-2">
+        <button
+          type="button"
+          onClick={goToPrevWeek}
+          aria-label="Previous week"
+          className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <span className="text-sm font-semibold text-foreground tracking-tight">
+          {rangeLabel}
+        </span>
+        <button
+          type="button"
+          onClick={goToNextWeek}
+          aria-label="Next week"
+          className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Day strip */}
+      <div className="grid grid-cols-7 gap-1 px-3 pb-3">
+        {weekDays.map((day) => {
+          const isSel = startOfDay(day).getTime() === startOfDay(selectedDate).getTime();
+          const isTod = isToday(day);
+          return (
+            <button
+              key={day.toISOString()}
+              type="button"
+              onClick={() => onDateChange(day)}
+              className={cn(
+                "flex flex-col items-center gap-1 rounded-xl py-2 transition-all cursor-pointer",
+                isSel
+                  ? "bg-foreground text-background shadow-sm"
+                  : isTod
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <span className={cn(
+                "text-[11px] font-medium uppercase tracking-wide",
+                isSel ? "text-background/70" : isTod ? "text-primary/80" : "text-muted-foreground"
+              )}>
+                {format(day, "EEE")}
+              </span>
+              <span className={cn(
+                "text-base font-bold tabular-nums leading-none",
+                isSel ? "text-background" : isTod ? "text-primary" : "text-foreground"
+              )}>
+                {format(day, "d")}
+              </span>
+              {isTod && !isSel && (
+                <span className="mt-0.5 size-1 rounded-full bg-primary" />
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

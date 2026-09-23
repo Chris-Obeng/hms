@@ -15,7 +15,7 @@ import { RoomStepper } from "./_components/room-stepper";
 import "./onboarding.css";
 
 
-// ─── Constants ─────────────────────────────────────────────────────────────────
+// Constants
 
 const STORAGE_KEY = "RoomLine_onboarding_data";
 

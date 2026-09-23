@@ -46,7 +46,7 @@ import {
 } from "@/app/actions/notifications";
 import { toast } from "@heroui/react";
 
-// ── Props ──────────────────────────────────────────────────────
+// Props
 
 export interface AppHeaderProps {
   hotelName?: string;
@@ -56,11 +56,10 @@ export interface AppHeaderProps {
   notificationCount?: number;
   roomTypes?: { id: string; name: string; base_price: number }[];
   currency?: string;
-  /** Kept for API compatibility — not rendered in the header */
   bookingUrl?: string;
 }
 
-// ── Notification type icon ─────────────────────────────────────
+// Notification type icon
 
 function NotifIcon({ type }: { type: string | null }) {
   const base =
@@ -93,7 +92,7 @@ function NotifIcon({ type }: { type: string | null }) {
   }
 }
 
-// ── Component ───────────────────────────────────────────────────
+// Component
 
 export function AppHeader({
   hotelName,
@@ -121,11 +120,11 @@ export function AppHeader({
 
   void _bookingUrl;
 
-  // ── HeroUI-native overlay state for the command palette ──────
+  // ── HeroUI-native overlay state for the command palette
   const searchState = useOverlayState();
   const [newBookingOpen, setNewBookingOpen] = React.useState(false);
 
-  // ── Audio ────────────────────────────────────────────────────
+  // ── Audio
   const bellRef = React.useRef<NotificationIconHandle>(null);
   const chimeRef = React.useRef<HTMLAudioElement | null>(null);
 
@@ -149,7 +148,7 @@ export function AppHeader({
     }
   }, []);
 
-  // ── Notifications ────────────────────────────────────────────
+  // Notifications
   const [liveCount, setLiveCount] = React.useState(notificationCount);
   const [notifications, setNotifications] = React.useState<NotificationItem[]>(
     [],
@@ -208,7 +207,7 @@ export function AppHeader({
     return () => window.cancelAnimationFrame(frame);
   }, [notificationCount]);
 
-  // ── Realtime subscription ────────────────────────────────────
+  //  Realtime subscription
   React.useEffect(() => {
     if (!hotelId || !isLoaded) return;
     const hId = hotelId;
@@ -361,7 +360,7 @@ export function AppHeader({
     };
   }, [hotelId, staffId, isLoaded, getToken, playChime, fetchNotifications]);
 
-  // ── ⌘K shortcut ─────────────────────────────────────────────
+  // ⌘K shortcut
   React.useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -373,7 +372,7 @@ export function AppHeader({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [searchState]);
 
-  // ── Render ───────────────────────────────────────────────────
+  // Render
 
   return (
     <>
@@ -385,7 +384,7 @@ export function AppHeader({
           "px-3 md:px-4 lg:px-6",
         )}
       >
-        {/* ── Left ─────────────────────────────────────────── */}
+        {/*  Left  */}
         <div className="flex min-w-0 items-center gap-2.5">
           {/* Sidebar toggle — HeroUI ghost icon button */}
           <Button
@@ -424,7 +423,7 @@ export function AppHeader({
           </button>
         </div>
 
-        {/* ── Center: search trigger ────────────────────────── */}
+        {/*  Center: search trigger  */}
         {/* Desktop: full pill search bar */}
         <div className="mx-auto hidden max-w-lg flex-1 justify-center md:flex">
           <button
@@ -448,7 +447,7 @@ export function AppHeader({
           </button>
         </div>
 
-        {/* ── Right: actions ────────────────────────────────── */}
+        {/* ── Right: actions  */}
         <div className="flex shrink-0 items-center gap-1.5">
 
           {/* Mobile-only: search icon button */}
@@ -642,7 +641,7 @@ export function AppHeader({
         </div>
       </header>
 
-      {/* ── Global Search command palette ─────────────────────── */}
+      {/*  Global Search command palette  */}
       <GlobalSearch state={searchState} />
       <NewBookingModal
         open={newBookingOpen}

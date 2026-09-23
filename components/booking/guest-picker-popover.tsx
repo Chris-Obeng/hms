@@ -48,24 +48,27 @@ export function GuestPickerPopover({
 
   return (
     <Popover isOpen={open} onOpenChange={setOpen}>
-      <Popover.Trigger
-        className={cn(
-          "flex items-center gap-2 sm:gap-2.5 h-12 sm:h-[52px] px-3 sm:px-3.5 rounded-xl bg-background/90 border border-border/80 hover:border-primary shadow-xs hover:shadow-sm text-left cursor-pointer outline-none transition-all w-full min-w-0",
-          className
-        )}
-        aria-label="Select number of guests and rooms"
-      >
-        <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
-          <Users className="size-4" />
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
-            Guests & Rooms
-          </span>
-          <span className="text-xs font-semibold text-foreground truncate">
-            {summaryText}
-          </span>
-        </div>
+      <Popover.Trigger>
+        <button
+          type="button"
+          className={cn(
+            "flex items-center gap-2 sm:gap-2.5 h-12 sm:h-[52px] px-3 sm:px-3.5 rounded-xl bg-background/90 border border-border/80 hover:border-primary shadow-xs hover:shadow-sm text-left cursor-pointer outline-none transition-all w-full min-w-0",
+            className
+          )}
+          aria-label="Select number of guests and rooms"
+        >
+          <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
+            <Users className="size-4" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+              Guests & Rooms
+            </span>
+            <span className="text-xs font-semibold text-foreground truncate">
+              {summaryText}
+            </span>
+          </div>
+        </button>
       </Popover.Trigger>
 
       <Popover.Content

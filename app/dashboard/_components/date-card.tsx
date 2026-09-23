@@ -44,9 +44,14 @@ export function DateCard({ selectedDate, onDateChange }: DateCardProps) {
 
         <div className="flex items-center gap-1.5 mt-1">
           <Popover isOpen={calendarOpen} onOpenChange={setCalendarOpen}>
-            <Popover.Trigger className="flex items-center gap-1.5 text-sm font-semibold text-foreground/80 hover:text-primary transition-colors cursor-pointer outline-none">
-              <span>{format(selectedDate, "MMMM")}</span>
-              <CalendarIcon className="size-3.5 text-muted-foreground/70" />
+            <Popover.Trigger>
+              <button
+                type="button"
+                className="flex items-center gap-1.5 text-sm font-semibold text-foreground/80 hover:text-primary transition-colors cursor-pointer outline-none"
+              >
+                <span>{format(selectedDate, "MMMM")}</span>
+                <CalendarIcon className="size-3.5 text-muted-foreground/70" />
+              </button>
             </Popover.Trigger>
             <Popover.Content placement="bottom start" className="p-0 w-auto border-border/60">
               <Popover.Dialog className="outline-none p-3">

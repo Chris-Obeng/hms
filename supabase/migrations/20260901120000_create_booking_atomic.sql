@@ -107,22 +107,31 @@ DECLARE
   v_internal_notes    text     := NULLIF(btrim(COALESCE(p_payload->>'internal_notes', '')), '');
   v_arrival_text      text     := NULLIF(btrim(COALESCE(p_payload->>'estimated_arrival', '')), '');
   v_created_by        uuid     := NULLIF(p_payload->>'created_by', '')::uuid;
-  v_arrival           time;
-  v_currency          text;
-  v_settings          jsonb;
-  v_tax_bps           integer  := 0;
-  v_nights            integer;
-  v_night_count       integer;
-  v_available         integer;
-  v_min_rate          bigint;
-  v_unit_minor        bigint;
-  v_subtotal_minor    bigint;
-  v_tax_minor         bigint;
-  v_total_minor       bigint;
-  v_reference         text;
-  v_booking_id        uuid;
-  v_guest_created     boolean  := false;
-  v_nights_json       jsonb;
+  v_arrival            time;
+  v_currency           text;
+  v_hotel_currency     text;
+  v_settings           jsonb;
+  v_tax_bps            integer  := 0;
+  v_nights             integer;
+  v_night_count        integer;
+  v_distinct_date_count integer;
+  v_out_of_range_count integer;
+  v_invalid_rate_count integer;
+  v_null_plan_count    integer;
+  v_null_currency_count integer;
+  v_currency_count     integer;
+  v_available          integer;
+  v_unit_minor         bigint;
+  v_subtotal_minor     bigint;
+  v_tax_minor          bigint;
+  v_total_minor        bigint;
+  v_reference          text;
+  v_booking_id         uuid;
+  v_guest_created      boolean  := false;
+  v_nights_json        jsonb;
+  v_resolved_plan_id   uuid;
+  v_plan_count         integer;
+  v_requested_plan_id  uuid := v_rate_plan_id;
 BEGIN
   -- === Validation. Nothing below here writes until the guest block. ==========
   IF v_hotel_id IS NULL OR v_room_type_id IS NULL
@@ -149,7 +158,7 @@ BEGIN
   v_nights := v_check_out - v_check_in;
 
   SELECT h.settings, public.hotel_currency(h.id)
-    INTO v_settings, v_currency
+    INTO v_settings, v_hotel_currency
     FROM public.hotels h
    WHERE h.id = v_hotel_id;
 
@@ -163,6 +172,22 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'room type % does not belong to hotel %', v_room_type_id, v_hotel_id
       USING ERRCODE = 'P0001', DETAIL = 'room_type_not_found';
+  END IF;
+
+  -- New bookings can select only an active plan belonging to this room type.
+  -- Historical repricing validates separately because a stored plan may retire.
+  IF v_requested_plan_id IS NOT NULL THEN
+    PERFORM 1
+      FROM public.rate_plans rp
+     WHERE rp.id = v_requested_plan_id
+       AND rp.hotel_id = v_hotel_id
+       AND rp.room_type_id = v_room_type_id
+       AND rp.is_active;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'rate plan % is not valid for room type %',
+        v_requested_plan_id, v_room_type_id
+        USING ERRCODE = 'P0001', DETAIL = 'rate_plan_not_found';
+    END IF;
   END IF;
 
   -- Tax mirrors the application check exactly: it applies only when
@@ -251,38 +276,88 @@ BEGIN
   END IF;
 
   -- === Pricing. Resolved once; the same rows feed the money and the nights. ===
-  SELECT jsonb_agg(
-           jsonb_build_object(
-             'stay_date',        r.stay_date,
-             'rate_minor',       r.rate_minor,
-             'currency',         r.currency,
-             'rate_plan_id',     r.rate_plan_id,
-             'occupancy',        r.occupancy,
-             'source',           r.source,
-             'seasonal_rate_id', r.seasonal_rate_id,
-             'season_name',      r.season_name,
-             'is_weekend',       r.is_weekend)
-           ORDER BY r.stay_date)
-    INTO v_nights_json
-    FROM public.resolve_nightly_rates(
-           v_hotel_id, ARRAY[v_room_type_id], v_check_in, v_check_out,
-           v_rate_plan_id, v_occupancy) r;
+  -- Tests may opt into one transaction-local pg_temp resolver. SECURITY DEFINER
+  -- calls from application roles cannot activate this owner-session-only seam.
+  IF session_user = current_user
+     AND current_setting('roomline.rate_resolver', true)
+           = 'pg_temp.malformed_nightly_rates' THEN
+    EXECUTE format(
+      'SELECT jsonb_agg(jsonb_build_object(
+         ''stay_date'', r.stay_date,
+         ''rate_minor'', r.rate_minor,
+         ''currency'', r.currency,
+         ''rate_plan_id'', r.rate_plan_id,
+         ''occupancy'', r.occupancy,
+         ''source'', r.source,
+         ''seasonal_rate_id'', r.seasonal_rate_id,
+         ''season_name'', r.season_name,
+         ''is_weekend'', r.is_weekend) ORDER BY r.stay_date)
+       FROM pg_temp.malformed_nightly_rates($1, $2, $3, $4, $5, $6) r')
+      INTO v_nights_json
+      USING v_hotel_id, ARRAY[v_room_type_id], v_check_in, v_check_out,
+            v_rate_plan_id, v_occupancy;
+  ELSE
+    SELECT jsonb_agg(
+             jsonb_build_object(
+               'stay_date',        r.stay_date,
+               'rate_minor',       r.rate_minor,
+               'currency',         r.currency,
+               'rate_plan_id',     r.rate_plan_id,
+               'occupancy',        r.occupancy,
+               'source',           r.source,
+               'seasonal_rate_id', r.seasonal_rate_id,
+               'season_name',      r.season_name,
+               'is_weekend',       r.is_weekend)
+             ORDER BY r.stay_date)
+      INTO v_nights_json
+      FROM public.resolve_nightly_rates(
+             v_hotel_id, ARRAY[v_room_type_id], v_check_in, v_check_out,
+             v_rate_plan_id, v_occupancy) r;
+  END IF;
 
   SELECT count(*)::integer,
+         count(DISTINCT (n->>'stay_date')::date)::integer,
+         count(*) FILTER (
+           WHERE (n->>'stay_date')::date < v_check_in
+              OR (n->>'stay_date')::date >= v_check_out)::integer,
+         count(*) FILTER (
+           WHERE (n->>'rate_minor') IS NULL
+              OR (n->>'rate_minor')::bigint <= 0)::integer,
+         count(*) FILTER (WHERE (n->>'rate_plan_id') IS NULL)::integer,
+         count(*) FILTER (WHERE (n->>'currency') IS NULL)::integer,
+         count(DISTINCT n->>'currency')::integer,
          COALESCE(sum((n->>'rate_minor')::bigint), 0),
-         min((n->>'rate_minor')::bigint),
-         min(n->>'currency')
-    INTO v_night_count, v_unit_minor, v_min_rate, v_currency
+         min(n->>'currency'),
+         (array_agg(DISTINCT (n->>'rate_plan_id')::uuid))[1],
+         count(DISTINCT (n->>'rate_plan_id')::uuid)::integer
+    INTO v_night_count, v_distinct_date_count, v_out_of_range_count,
+         v_invalid_rate_count, v_null_plan_count, v_null_currency_count,
+         v_currency_count, v_unit_minor, v_currency,
+         v_resolved_plan_id, v_plan_count
     FROM jsonb_array_elements(COALESCE(v_nights_json, '[]'::jsonb)) n;
 
-  -- A stay that is not fully priced must not become a booking. resolve_nightly_
-  -- rates generates one row per night from the date series, so a short count or
-  -- a zero rate means a room type with no base price rather than a gap in the
-  -- series — either way the reservation would carry a total nobody can defend.
-  IF v_night_count <> v_nights OR COALESCE(v_min_rate, 0) <= 0 THEN
-    RAISE EXCEPTION 'room type % has no usable rate for % night(s) from %',
+  -- A stay must contain exactly its requested dates under one plan and currency.
+  IF v_night_count <> v_nights
+     OR v_distinct_date_count <> v_nights
+     OR v_out_of_range_count <> 0
+     OR v_invalid_rate_count <> 0
+     OR v_null_plan_count <> 0
+     OR v_null_currency_count <> 0
+     OR v_currency_count <> 1
+     OR v_currency IS DISTINCT FROM v_hotel_currency
+     OR v_plan_count <> 1 OR v_resolved_plan_id IS NULL THEN
+    RAISE EXCEPTION 'room type % has no consistent usable rate for % night(s) from %',
       v_room_type_id, v_nights, v_check_in
       USING ERRCODE = 'P0001', DETAIL = 'unpriced_stay';
+  END IF;
+
+  v_rate_plan_id := v_resolved_plan_id;
+
+  IF v_requested_plan_id IS NOT NULL
+     AND v_rate_plan_id IS DISTINCT FROM v_requested_plan_id THEN
+    RAISE EXCEPTION 'rate plan % is not valid for room type %',
+      v_requested_plan_id, v_room_type_id
+      USING ERRCODE = 'P0001', DETAIL = 'rate_plan_not_found';
   END IF;
 
   v_subtotal_minor := v_unit_minor * v_rooms_count;
@@ -333,13 +408,13 @@ BEGIN
   -- nights and outstanding_balance are GENERATED ALWAYS columns and must never
   -- appear in an insert list.
   INSERT INTO public.bookings (
-    hotel_id, reference, guest_id, room_id, room_type_id,
+    hotel_id, reference, guest_id, room_id, room_type_id, rate_plan_id,
     check_in, check_out, adults, children, rooms_count,
     room_rate, subtotal, tax_amount, total_amount, currency,
     status, payment_status, payment_preference, source,
     special_requests, internal_notes, estimated_arrival, created_by
   ) VALUES (
-    v_hotel_id, v_reference, v_guest_id, v_room_id, v_room_type_id,
+    v_hotel_id, v_reference, v_guest_id, v_room_id, v_room_type_id, v_rate_plan_id,
     v_check_in, v_check_out, v_adults, v_children, v_rooms_count,
     public.from_minor(round(v_unit_minor::numeric / v_night_count)::bigint, v_currency),
     public.from_minor(v_subtotal_minor, v_currency),
@@ -371,6 +446,7 @@ BEGIN
     'guest_id',       v_guest_id,
     'guest_created',  v_guest_created,
     'room_id',        v_room_id,
+    'rate_plan_id',   v_rate_plan_id,
     'currency',       v_currency,
     'night_count',    v_night_count,
     'room_rate',      public.from_minor(round(v_unit_minor::numeric / v_night_count)::bigint, v_currency),
@@ -438,6 +514,16 @@ BEGIN
   IF v_amount_paid > 0 THEN
     RAISE EXCEPTION 'booking % has been paid and cannot be aborted', p_booking_id
       USING ERRCODE = 'P0001', DETAIL = 'booking_paid';
+  END IF;
+
+  -- amount_paid only moves when a payment lands, but the rows are the
+  -- reconciliation trail: payments and payment_attempts both cascade with the
+  -- booking, so deleting here would destroy the evidence of a charge that a
+  -- late webhook still has to settle. A booking with any payment row is a
+  -- refund problem, not a delete problem.
+  IF EXISTS (SELECT 1 FROM public.payments p WHERE p.booking_id = p_booking_id) THEN
+    RAISE EXCEPTION 'booking % has payment rows and cannot be aborted', p_booking_id
+      USING ERRCODE = 'P0001', DETAIL = 'booking_has_payments';
   END IF;
 
   SELECT count(*)::integer INTO v_nights

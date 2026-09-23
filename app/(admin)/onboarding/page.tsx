@@ -113,7 +113,7 @@ function clearDraft() {
   } catch {}
 }
 
-// ─── Validation ────────────────────────────────────────────────────────────────
+// Validation
 // Messages written for an exhausted owner reading once, at midnight, on a phone.
 
 type FieldErrors = Partial<Record<keyof DraftData, string>>;
@@ -139,7 +139,7 @@ function validateStep(step: number, d: DraftData): FieldErrors {
   return errors;
 }
 
-// ─── Constants ─────────────────────────────────────────────────────────────────
+// Constants
 
 const HOTEL_TYPE_OPTIONS = [
   { value: "Hotel", label: "Hotel" },
@@ -202,7 +202,7 @@ const COUNTRY_TO_REGION: Record<string, string> = {
   Australia: "AU", "New Zealand": "NZ",
 };
 
-// ─── Motion variants ───────────────────────────────────────────────────────────
+// Motion variants
 
 const slideVariants = {
   initial: (dir: number) => ({ opacity: 0, x: dir * 24, filter: "blur(4px)" }),
@@ -212,7 +212,7 @@ const slideVariants = {
 
 const TRANSITION = { duration: 0.32, ease: [0.32, 0.72, 0, 1] as const };
 
-// ─── Step metadata ─────────────────────────────────────────────────────────────
+// Step metadata
 
 const STEP_META = [
   {
@@ -229,7 +229,7 @@ const STEP_META = [
   },
 ];
 
-// ─── Loading skeleton ──────────────────────────────────────────────────────────
+//  Loading skeleton
 
 function LoadingSkeleton() {
   return (
@@ -248,7 +248,7 @@ function LoadingSkeleton() {
   );
 }
 
-// ─── Summary icons (inline SVG — no emoji) ─────────────────────────────────────
+// Summary icons (inline SVG — no emoji)
 
 function SummaryIconBuilding() {
   return (
@@ -290,7 +290,7 @@ function SummaryIconGlobe() {
   );
 }
 
-// ─── Page ──────────────────────────────────────────────────────────────────────
+// Page
 
 export default function OnboardingPage() {
   const { isLoaded, setActive, createOrganization, userMemberships } =
@@ -484,7 +484,7 @@ export default function OnboardingPage() {
         Skip to main content
       </a>
 
-      {/* ── LEFT SIDEBAR ───────────────────────────────────────────────────────── */}
+      {/* LEFT SIDEBAR  */}
       <aside className="onboarding-sidebar" aria-label="Onboarding information">
         <div className="onboarding-sidebar-texture" aria-hidden="true" />
 
@@ -553,7 +553,7 @@ export default function OnboardingPage() {
         </div>
       </aside>
 
-      {/* ── RIGHT CONTENT AREA ─────────────────────────────────────────────────── */}
+      {/* RIGHT CONTENT AREA  */}
       <main className="onboarding-content">
         {/* Mobile header */}
         <div
@@ -620,7 +620,7 @@ export default function OnboardingPage() {
             {/* Step content with animations */}
             <div className="overflow-hidden">
               <AnimatePresence mode="wait" custom={direction} initial={false}>
-                {/* ── Step 1: Property Details ──────────────────────────────────── */}
+                {/* ── Step 1: Property Details  */}
                 {step === 1 && (
                   <motion.div
                     key="step-1"
@@ -685,7 +685,7 @@ export default function OnboardingPage() {
                   </motion.div>
                 )}
 
-                {/* ── Step 2: Location & Contact ────────────────────────────────── */}
+                {/*  Step 2: Location & Contact  */}
                 {step === 2 && (
                   <motion.div
                     key="step-2"
@@ -792,7 +792,7 @@ export default function OnboardingPage() {
                   </motion.div>
                 )}
 
-                {/* ── Step 3: Review & Launch ───────────────────────────────────── */}
+                {/* ── Step 3: Review & Launch  */}
                 {step === 3 && (
                   <motion.div
                     key="step-3"

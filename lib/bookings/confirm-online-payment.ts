@@ -7,15 +7,24 @@
  * work; the other short-circuits.
  *
  * Guarantees:
- * - Idempotent on payments.paystack_reference (UNIQUE constraint). A concurrent
- *   duplicate insert fails with 23505 and is reported as `already_recorded`.
- * - Staff notifications + guest confirmation email fire only after the money
- *   is captured — never on booking creation for pay-online flows.
- * - Partial / over / mismatched amounts are recorded with audit notes; the
- *   hotel is alerted instead of the guest receiving a false confirmation.
+ * - Settlement is one locking RPC, `settle_online_payment_atomic`
+ *   (supabase/migrations/20260911041418_atomic_online_payment_settlement.sql):
+ *   it locks the booking, validates the durable payment attempt and the
+ *   Paystack identity against it, inserts or loads the payment row,
+ *   reconciles the balance from the successful-payment ledger, and
+ *   transitions statuses — atomically, with no split writes on this side.
+ * - Replay-safe: a duplicate delivery re-enters the RPC (so a stale booking
+ *   projection is repaired rather than skipped) and is reported as
+ *   `already_recorded` without re-notifying anyone.
+ * - Staff notifications + guest confirmation email fire only when the RPC
+ *   reports a durable confirmed transition — never on booking creation for
+ *   pay-online flows, and never on replay.
+ * - Currency mismatches fail closed before any write; the hotel is alerted
+ *   instead of the guest receiving a false confirmation.
  */
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { fromMinor, toMinor } from "@/lib/money";
 import { sendBookingConfirmation } from "@/lib/notifications/send-booking-confirmation";
 import { kickDeliveryWorker } from "@/lib/notifications/kick-delivery";
 import {
@@ -63,23 +72,40 @@ interface RecordOnlinePaymentInput {
 }
 
 /**
- * Slack, in major units, when comparing what Paystack captured against what the
- * booking expects.
- *
- * It exists because both sides of the comparison were floats derived from
- * `amount / 100`, so an exact match could not be relied on. The conversion now
- * goes through `lib/money`, which makes the comparison exact for any amount that
- * was computed on this side — but a real charge can still differ by a minor unit
- * for reasons outside this codebase (a gateway-side fee split, a currency whose
- * exponent Paystack and RoomLine disagree on, an amount edited in the Paystack
- * dashboard).
- *
- * So the branch stays for one release and reports whenever it actually absorbs a
- * difference. If the reports stay empty, the tolerance can be dropped and the
- * comparison made exact; tightening a live payment path before that evidence
- * exists risks rejecting real money.
+ * Substrings of the SQL exception messages `settle_online_payment_atomic`
+ * raises when the captured money contradicts the durable record — identity,
+ * currency, amount, subaccount, or a colliding Paystack reference/transaction
+ * id. Redelivering the identical payload can never change those answers, so
+ * they are permanent: the hotel is alerted for manual review and the webhook
+ * stops the retry loop. Anything not on this list (the attempt not being
+ * initialized yet, a lock timeout, a connection drop) is treated as transient
+ * and answered with a 500 so Paystack redelivers.
  */
-const AMOUNT_TOLERANCE = 0.01;
+const PERMANENT_SETTLEMENT_FAILURES = [
+  "invalid settlement identity",
+  "booking not found or hotel mismatch",
+  "payment attempt identity mismatch",
+  "currency mismatch",
+  "amount mismatch",
+  "subaccount mismatch",
+  "Paystack reference collision",
+  "Paystack transaction ID collision",
+] as const;
+
+/**
+ * Row shape of `settle_online_payment_atomic` (RETURNS TABLE arrives as an
+ * array over PostgREST). `amount_paid_minor` is a Postgres bigint, so it is
+ * accepted as number or string and narrowed with `Number(...)` at the boundary.
+ */
+interface SettlementRow {
+  result: "recorded" | "already_recorded";
+  booking_id: string;
+  amount_paid_minor: number | string;
+  payment_status: string;
+  booking_status: string;
+  partial_payment: boolean;
+  already_recorded: boolean;
+}
 
 /**
  * Insert a manual-review alert at most once per booking and dedupe key.
@@ -156,7 +182,7 @@ export async function recordOnlinePayment(
   // ── 1. Load the booking ──────────────────────────────────────
   const { data: booking, error: bookingError } = await supabaseAdmin
     .from("bookings")
-    .select("id, hotel_id, total_amount, currency, status, payment_status, cancellation_reason")
+    .select("id, hotel_id, reference, total_amount, currency, status, payment_status, cancellation_reason")
     .eq("id", bookingId)
     .maybeSingle();
 
@@ -223,131 +249,116 @@ export async function recordOnlinePayment(
     return { outcome: "failed", error: "Currency mismatch", retryable: false };
   }
 
-  // ── 2. Classify the amount ───────────────────────────────────
-  const delta = Math.abs(amountPaid - expectedAmount);
-  const isFull = delta <= AMOUNT_TOLERANCE;
-  const isOver = amountPaid > expectedAmount + AMOUNT_TOLERANCE;
-
-  if (delta > 0 && delta <= AMOUNT_TOLERANCE) {
-    // The tolerance is doing real work: the two amounts differ and this payment is
-    // being treated as full anyway. Recorded at `info` because the outcome is
-    // correct and no one needs paging — it is the evidence for whether the
-    // tolerance can be removed. See AMOUNT_TOLERANCE.
-    captureIssue("Payment amount matched only within tolerance", {
-      scope: "payments",
-      level: "info",
-      bookingId,
-      reference: paystackReference,
-      contexts: {
-        payment: {
-          amount_paid: amountPaid,
-          expected_amount: expectedAmount,
-          delta,
-          currency: bookingCurrency,
-        },
+  // ── 2. Settle in one locking RPC ─────────────────────────────
+  // The RPC locks the booking, validates the durable payment attempt and the
+  // Paystack identity against it, writes or loads the payment row, reconciles
+  // the balance from the successful-payment ledger, and transitions statuses —
+  // atomically. A duplicate delivery re-enters it on purpose: a stale booking
+  // projection gets repaired rather than skipped.
+  const { data: settleData, error: settleError } = await supabaseAdmin.rpc(
+    "settle_online_payment_atomic",
+    {
+      p_booking_id: bookingId,
+      p_hotel_id: booking.hotel_id,
+      p_paystack_reference: paystackReference,
+      p_paystack_id: input.paystackId ?? "",
+      p_amount_minor: toMinor(amountPaid, bookingCurrency),
+      p_currency: bookingCurrency,
+      p_subaccount_code: input.subaccountCode ?? "",
+      p_metadata: {
+        booking_id: bookingId,
+        hotel_id: booking.hotel_id,
+        booking_reference: booking.reference,
       },
-      fingerprint: ["payments", "amount-within-tolerance"],
-    });
-  }
-  const isPartial = !isFull && !isOver && amountPaid < expectedAmount;
-
-  if (!isFull && !isPartial && !isOver) {
-    console.error("[payments/record] Unexpected amount", {
-      bookingId,
-      amountPaid,
-      expectedAmount,
-      paystackReference,
-    });
-    // Unreachable by the arithmetic above — reaching it means the classification
-    // rules drifted, so the amount is neither full, partial nor over.
-    captureIssue("Payment amount unclassifiable", {
-      scope: "payments",
-      level: "error",
-      hotelId: booking.hotel_id,
-      bookingId,
-      reference: paystackReference,
-      contexts: { payment: { amountPaid, expectedAmount, currency: bookingCurrency } },
-      fingerprint: ["payments", "amount-unclassifiable"],
-    });
-    await alertOncePerBooking(
-      booking.hotel_id,
-      bookingId,
-      "payment_failed",
-      "payment-review:amount-invalid",
-      "⚠️ Payment Amount Invalid",
-      `Payment ${paystackReference}: received ${amountPaid.toFixed(2)}, expected ${expectedAmount.toFixed(2)}. Manual review required.`
-    );
-    return { outcome: "failed", error: "Unexpected amount", retryable: false };
-  }
-
-  // ── 3. Persist the payment (UNIQUE ref = race-safe idempotency) ──
-  let notes: string | null = null;
-  if (isPartial) {
-    notes = `Partial payment: received ${amountPaid.toFixed(2)}, expected ${expectedAmount.toFixed(2)}`;
-  } else if (isOver) {
-    notes = `Overpayment: received ${amountPaid.toFixed(2)}, expected ${expectedAmount.toFixed(2)}`;
-  }
-
-  const { error: paymentInsertError } = await supabaseAdmin.from("payments").insert({
-    hotel_id: booking.hotel_id,
-    booking_id: bookingId,
-    amount: amountPaid,
-    currency: bookingCurrency,
-    method: "card",
-    status: "success",
-    paystack_reference: paystackReference,
-    paystack_id: input.paystackId ? String(input.paystackId) : null,
-    paystack_subaccount: input.subaccountCode ?? null,
-    paid_at: new Date().toISOString(),
-    notes,
-  });
-
-  if (paymentInsertError) {
-    if (paymentInsertError.code === "23505") {
-      // Webhook + verify raced; the winner already did everything below.
-      return {
-        outcome: "already_recorded",
-        bookingId,
-        hotelId: booking.hotel_id,
-        fullyPaid: isFull || isOver,
-        partial: isPartial,
-      };
     }
-    // Money captured but not persisted → caller should signal retry (500).
-    // Highest-severity state in this module: the guest has been charged and
-    // RoomLine holds no record of it.
-    captureSupabaseError(paymentInsertError, "payments.insert", {
+  );
+
+  if (settleError) {
+    const permanent = PERMANENT_SETTLEMENT_FAILURES.some((m) =>
+      settleError.message.includes(m)
+    );
+    if (permanent) {
+      // The captured money contradicts the durable record — redelivery can never
+      // change that answer, so the hotel is alerted for manual review and the
+      // caller (webhook) stops the retry loop by answering 200.
+      captureIssue("Online payment settlement rejected", {
+        scope: "payments",
+        level: "fatal",
+        hotelId: booking.hotel_id,
+        bookingId,
+        reference: paystackReference,
+        contexts: {
+          payment: { amountPaid, expectedAmount, currency: bookingCurrency },
+          settlement: { reason: settleError.message },
+        },
+        fingerprint: ["payments", "settlement-rejected"],
+      });
+      await alertOncePerBooking(
+        booking.hotel_id,
+        bookingId,
+        "payment_failed",
+        "payment-review:settlement-rejected",
+        "⚠️ Payment Needs Manual Review",
+        `Payment ${paystackReference} could not be settled automatically: ${settleError.message}. Money may be captured — review manually.`
+      );
+    } else {
+      // Transient (attempt not initialized yet, lock timeout, connection drop):
+      // a 500 asks Paystack to redeliver the identical payload.
+      captureSupabaseError(settleError, "rpc.settle_online_payment_atomic", {
+        scope: "payments",
+        level: "fatal",
+        hotelId: booking.hotel_id,
+        bookingId,
+        reference: paystackReference,
+        contexts: {
+          payment: { amountPaid, expectedAmount, currency: bookingCurrency },
+        },
+      });
+    }
+    return {
+      outcome: "failed",
+      error: `Settlement failed: ${settleError.message}`,
+      retryable: !permanent,
+    };
+  }
+
+  // RETURNS TABLE arrives as an array over PostgREST.
+  const row = (Array.isArray(settleData) ? settleData[0] : settleData) as
+    | SettlementRow
+    | undefined;
+
+  if (!row) {
+    captureIssue("Settlement RPC returned no row", {
       scope: "payments",
       level: "fatal",
       hotelId: booking.hotel_id,
       bookingId,
       reference: paystackReference,
-      contexts: {
-        payment: { amountPaid, expectedAmount, currency: bookingCurrency, notes },
-      },
+      fingerprint: ["payments", "settlement-empty"],
     });
+    return { outcome: "failed", error: "Settlement returned no row", retryable: true };
+  }
+
+  const totalPaid = fromMinor(Number(row.amount_paid_minor), bookingCurrency);
+  const fullyPaid = row.payment_status === "paid";
+  const partial = !fullyPaid && row.partial_payment;
+
+  if (row.already_recorded || row.result === "already_recorded") {
+    // Retry or the other path beat us here. Idempotency working as designed —
+    // never re-notify.
     return {
-      outcome: "failed",
-      error: `Failed to record payment: ${paymentInsertError.message}`,
-      // The guest is charged and RoomLine holds no record — a retry is the only
-      // automated chance of closing that gap.
-      retryable: true,
+      outcome: "already_recorded",
+      bookingId,
+      hotelId: booking.hotel_id,
+      fullyPaid,
+      partial,
     };
   }
 
-  // ── 4. Update booking state ──────────────────────────────────
-  // Money is truth: a captured payment confirms a pending hold. A hold the
-  // 30-min expiry cron cancelled while the payment was still in flight must
-  // come back to life (guest closed the browser, webhook landed late). Any
-  // other cancelled/terminal state keeps its state — we still record the
-  // money above and alert the hotel instead of silently resurrecting.
-  const wasTimeoutCancelled =
-    booking.status === "cancelled" &&
-    booking.cancellation_reason === "payment_timeout";
-
-  if (booking.status !== "pending" && !wasTimeoutCancelled) {
-    // Recorded, but no state change and no guest confirmation — a human has to
-    // decide whether this is a refund, a duplicate charge or a stale link.
+  // Money is recorded. A booking that is no longer active (staff-cancelled,
+  // no-show) keeps its state by RPC design — the payment lands, a human decides
+  // what it means, and nobody is notified as if the booking came back.
+  if (row.booking_status !== "pending" && row.booking_status !== "confirmed") {
     captureIssue("Payment on non-active booking", {
       scope: "payments",
       level: "error",
@@ -355,18 +366,18 @@ export async function recordOnlinePayment(
       bookingId,
       reference: paystackReference,
       tags: {
-        "booking.status": booking.status,
-        "booking.payment_status": booking.payment_status,
+        "booking.status": row.booking_status,
+        "booking.payment_status": row.payment_status,
       },
       contexts: {
         payment: { amountPaid, expectedAmount, currency: bookingCurrency },
         booking: {
-          status: booking.status,
-          payment_status: booking.payment_status,
+          status: row.booking_status,
+          payment_status: row.payment_status,
           cancellation_reason: booking.cancellation_reason,
         },
       },
-      fingerprint: ["payments", "non-active-booking", booking.status ?? "unknown"],
+      fingerprint: ["payments", "non-active-booking", row.booking_status ?? "unknown"],
     });
     await alertOncePerBooking(
       booking.hotel_id,
@@ -374,102 +385,26 @@ export async function recordOnlinePayment(
       "payment_failed",
       "payment-review:non-active-booking",
       "⚠️ Payment on Non-Active Booking",
-      `Payment ${paystackReference} succeeded but booking status is "${booking.status}". Money recorded — review manually.`
+      `Payment ${paystackReference} succeeded but booking status is "${row.booking_status}". Money recorded — review manually.`
     );
     return {
       outcome: "recorded",
       bookingId,
       hotelId: booking.hotel_id,
-      fullyPaid: isFull || isOver,
-      partial: isPartial,
+      fullyPaid,
+      partial,
       bookingStateUnchanged: true,
     };
   }
 
-  // Accumulate atomically server-side: overwriting amount_paid with this
-  // transaction's value would drop earlier partial payments from the total.
-  const { data: cumulativePaid, error: accumulateError } = await supabaseAdmin.rpc(
-    "add_online_payment_to_booking",
-    { p_booking_id: bookingId, p_hotel_id: booking.hotel_id, p_amount: amountPaid }
-  );
-
-  if (accumulateError) {
-    console.error("[payments/record] Failed to accumulate amount_paid", {
-      bookingId,
-      paystackReference,
-      error: accumulateError.message,
-    });
-    // Silent financial drift: the payment row exists but bookings.amount_paid
-    // never moved, so the balance shown to staff is wrong from here on.
-    captureSupabaseError(accumulateError, "rpc.add_online_payment_to_booking", {
-      scope: "payments",
-      level: "fatal",
-      hotelId: booking.hotel_id,
-      bookingId,
-      reference: paystackReference,
-      contexts: { payment: { amountPaid, expectedAmount, currency: bookingCurrency } },
-    });
-  }
-
-  // Classify against money actually collected across all transactions, not
-  // just this one — two partial payments can together confirm the booking.
-  const effectiveCumulative =
-    typeof cumulativePaid === "number"
-      ? cumulativePaid
-      : Number.isFinite(Number(cumulativePaid))
-        ? Number(cumulativePaid)
-        : amountPaid;
-  const cumulativelyFull = effectiveCumulative >= expectedAmount - AMOUNT_TOLERANCE;
-
-  const newStatus = cumulativelyFull ? "confirmed" : "pending";
-  const newPaymentStatus = cumulativelyFull ? "paid" : "partial";
-
-  const { error: bookingUpdateError } = await supabaseAdmin
-    .from("bookings")
-    .update({
-      status: newStatus,
-      payment_status: newPaymentStatus,
-      ...(wasTimeoutCancelled ? { cancelled_at: null, cancellation_reason: null } : {}),
-    })
-    .eq("id", bookingId)
-    .eq("hotel_id", booking.hotel_id);
-
-  if (bookingUpdateError) {
-    // Payment row persisted — never 500 past this point or a Paystack retry
-    // would short-circuit at the UNIQUE check and lose these side effects.
-    console.error("[payments/record] Payment recorded but booking update failed", {
-      bookingId,
-      paystackReference,
-      error: bookingUpdateError.message,
-    });
-    // Guest paid; booking still reads pending/cancelled. Needs a human before the
-    // arrival date, so it is reported at the same severity as a lost payment row.
-    captureSupabaseError(bookingUpdateError, "bookings.update", {
-      scope: "payments",
-      level: "fatal",
-      hotelId: booking.hotel_id,
-      bookingId,
-      reference: paystackReference,
-      tags: { "booking.target_status": newStatus },
-      contexts: {
-        payment: { amountPaid, cumulative: effectiveCumulative, expectedAmount },
-        booking: {
-          from_status: booking.status,
-          to_status: newStatus,
-          to_payment_status: newPaymentStatus,
-        },
-      },
-    });
-  }
-
-  // ── 5. Staff notifications ───────────────────────────────────
-  const balance = Math.max(0, expectedAmount - effectiveCumulative);
+  // ── 3. Staff payment notification ────────────────────────────
+  const balance = Math.max(0, expectedAmount - totalPaid);
   const { error: notifyError } = await supabaseAdmin.from("notifications").insert({
     hotel_id: booking.hotel_id,
     type: "payment_received",
-    title: isPartial ? "Partial Payment Received" : isOver ? "Payment Received (overpaid)" : "Payment Received",
+    title: partial ? "Partial Payment Received" : "Payment Received",
     message: `Online payment of ${bookingCurrency} ${amountPaid.toFixed(2)} ${
-      cumulativelyFull ? "confirmed" : `(balance: ${balance.toFixed(2)})`
+      fullyPaid ? "confirmed" : `(balance: ${balance.toFixed(2)})`
     }`,
     booking_id: bookingId,
     is_read: false,
@@ -492,19 +427,21 @@ export async function recordOnlinePayment(
     });
   }
 
-  if (!cumulativelyFull) return {
-    outcome: "recorded",
-    bookingId,
-    hotelId: booking.hotel_id,
-    fullyPaid: false,
-    partial: true,
-  };
+  if (!(fullyPaid && row.booking_status === "confirmed")) {
+    return {
+      outcome: "recorded",
+      bookingId,
+      hotelId: booking.hotel_id,
+      fullyPaid,
+      partial,
+    };
+  }
 
   // Fully paid → this is the moment the booking becomes real for the hotel.
   // Fan out the same "new online booking" alert used by pay-at-check-in.
   await notifyStaffNewBooking(booking.hotel_id, bookingId);
 
-  // ── 6. Guest confirmation email/push ─────────────────────────
+  // ── 4. Guest confirmation email/push ─────────────────────────
   try {
     const [fullBookingResult, hotelResult] = await Promise.all([
       supabaseAdmin

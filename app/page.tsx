@@ -13,7 +13,7 @@ import { FinalCta } from "@/components/landing/final-cta";
 export const metadata: Metadata = {
   title: "Hotel management for Ghana and across Africa",
   description:
-    "RoomLine puts bookings, payments, housekeeping and night audit on one screen. Built for guesthouses and hotels in Ghana — mobile money, cash and card included.",
+    "RoomLine puts bookings, payments, housekeeping and night audit on one screen. Built for Hotels in Ghana — mobile money, cash and card included.",
 };
 
 export default function HomePage() {

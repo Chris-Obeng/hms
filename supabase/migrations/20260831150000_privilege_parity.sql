@@ -114,6 +114,7 @@ $grants$;
 GRANT EXECUTE ON FUNCTION public.get_user_hotel_ids()               TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_clerk_org_ids()           TO authenticated;
 GRANT EXECUTE ON FUNCTION public.user_role_at_least(uuid, text)     TO authenticated;
+GRANT EXECUTE ON FUNCTION public.user_has_staff_role(uuid, text[])  TO authenticated;
 GRANT EXECUTE ON FUNCTION public.generate_booking_reference(uuid, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.record_payment_atomic(uuid, uuid, numeric, text, text, text, uuid)
   TO authenticated;
@@ -145,6 +146,8 @@ BEGIN
      THEN problems := problems || 'authenticated cannot execute get_user_clerk_org_ids()'; END IF;
   IF NOT has_function_privilege('authenticated', 'public.user_role_at_least(uuid, text)', 'EXECUTE')
      THEN problems := problems || 'authenticated cannot execute user_role_at_least()'; END IF;
+  IF NOT has_function_privilege('authenticated', 'public.user_has_staff_role(uuid, text[])', 'EXECUTE')
+     THEN problems := problems || 'authenticated cannot execute user_has_staff_role()'; END IF;
   IF NOT has_function_privilege('authenticated', 'public.generate_booking_reference(uuid, text)', 'EXECUTE')
      THEN problems := problems || 'authenticated cannot execute generate_booking_reference()'; END IF;
   IF NOT has_function_privilege('authenticated',
@@ -164,8 +167,12 @@ BEGIN
     END LOOP;
   END LOOP;
 
-  -- Serial columns are useless without sequence USAGE.
-  IF NOT has_sequence_privilege('authenticated', 'public.daily_rate_overrides_id_seq', 'USAGE')
+  -- UUID-backed production tables have no identity sequence; clean replays do.
+  IF to_regclass('public.daily_rate_overrides_id_seq') IS NOT NULL
+     AND NOT has_sequence_privilege(
+       'authenticated',
+       'public.daily_rate_overrides_id_seq',
+       'USAGE')
      THEN problems := problems || 'authenticated lacks USAGE on daily_rate_overrides_id_seq'; END IF;
 
   -- service_role runs every admin-client RPC.

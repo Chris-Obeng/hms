@@ -271,8 +271,13 @@ BEGIN
       AND has_table_privilege('authenticated', 'public.daily_rate_overrides', 'SELECT')
       AND has_table_privilege('authenticated', 'public.daily_rate_overrides', 'INSERT')
       AND has_table_privilege('authenticated', 'public.daily_rate_overrides', 'DELETE')
-      AND has_sequence_privilege('authenticated', 'public.daily_rate_overrides_id_seq', 'USAGE')
+      AND (to_regclass('public.daily_rate_overrides_id_seq') IS NULL
+           OR has_sequence_privilege(
+             'authenticated',
+             'public.daily_rate_overrides_id_seq',
+             'USAGE'))
       AND has_function_privilege('authenticated', 'public.get_user_hotel_ids()', 'EXECUTE')
+      AND has_function_privilege('authenticated', 'public.user_has_staff_role(uuid, text[])', 'EXECUTE')
       AND has_function_privilege('authenticated', 'public.user_role_at_least(uuid, text)', 'EXECUTE'))
   THEN
     RAISE EXCEPTION 'authenticated is missing privileges the dashboard needs; see supabase/migrations/20260831150000_privilege_parity.sql';

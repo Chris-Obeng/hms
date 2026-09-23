@@ -29,6 +29,8 @@ BEGIN;
 \set rmA    'd2d2d2d2-0000-4000-8000-00000000000a'
 \set rmB    'd2d2d2d2-0000-4000-8000-00000000000b'
 \set rmC    'd2d2d2d2-0000-4000-8000-00000000000c'
+\set planS  'd4d4d4d4-0000-4000-8000-000000000001'
+\set planS2 'd4d4d4d4-0000-4000-8000-000000000002'
 
 INSERT INTO public.hotels (id, slug, name, clerk_org_id, currency, settings) VALUES
   (:'hotel', 'reprice-probe', 'Reprice Probe', 'org_reprice_probe', 'GHS',
@@ -57,6 +59,12 @@ INSERT INTO public.rooms (hotel_id, room_type_id, room_number, status) VALUES
   (:'hotel', :'rtS', 'S-202', 'available'),
   (:'hotel', :'rtZ', 'Z-301', 'available');
 
+INSERT INTO public.rate_plans
+  (id, hotel_id, room_type_id, title, code, currency, is_default, is_active)
+VALUES
+  (:'planS', :'hotel', :'rtD', 'Selected Reprice', 'RSEL', 'GHS', false, true),
+  (:'planS2', :'hotel', :'rtS', 'Suite Replacement', 'SREP', 'GHS', false, true);
+
 -- DO blocks cannot hand a value to the next one, so the reservations this probe
 -- drags around are parked here by name.
 CREATE TEMP TABLE reprice_ids (k text PRIMARY KEY, v uuid) ON COMMIT DROP;
@@ -74,6 +82,7 @@ BEGIN
     'hotel_id',     'd0d0d0d0-0000-4000-8000-00000000000a',
     'room_type_id', 'd1d1d1d1-0000-4000-8000-000000000001',
     'room_id',      'd2d2d2d2-0000-4000-8000-00000000000a',
+    'rate_plan_id', 'd4d4d4d4-0000-4000-8000-000000000001',
     'check_in',     (current_date + 20)::text,
     'check_out',    (current_date + 23)::text,
     'adults', 2, 'rooms_count', 2, 'status', 'confirmed',
@@ -194,7 +203,16 @@ BEGIN
       v_n, v_lo, v_hi, v_off;
   END IF;
 
-  RAISE NOTICE 'PASS 1: a moved stay is re-resolved, re-priced and re-nighted';
+  IF v_row.rate_plan_id IS DISTINCT FROM
+       'd4d4d4d4-0000-4000-8000-000000000001'::uuid
+     OR EXISTS (
+       SELECT 1 FROM public.booking_nights bn
+       WHERE bn.booking_id = v_id
+         AND bn.rate_plan_id IS DISTINCT FROM v_row.rate_plan_id) THEN
+    RAISE EXCEPTION 'FAIL 1f: ordinary repricing changed selected plan or night authority';
+  END IF;
+
+  RAISE NOTICE 'PASS 1: a moved stay retains its plan and is re-resolved, re-priced and re-nighted';
 END $$;
 
 -- =============================================================================
@@ -249,7 +267,16 @@ BEGIN
       v_manual, v_rest;
   END IF;
 
-  RAISE NOTICE 'PASS 2: a hand-priced night survives a same-type move';
+  IF v_row.rate_plan_id IS DISTINCT FROM
+       'd4d4d4d4-0000-4000-8000-000000000001'::uuid
+     OR EXISTS (
+       SELECT 1 FROM public.booking_nights bn
+       WHERE bn.booking_id = v_id
+         AND bn.rate_plan_id IS DISTINCT FROM v_row.rate_plan_id) THEN
+    RAISE EXCEPTION 'FAIL 2d: same-type move changed booking or manual-night plan authority';
+  END IF;
+
+  RAISE NOTICE 'PASS 2: a hand-priced night survives a same-type move under the stored plan';
 END $$;
 
 -- =============================================================================
@@ -265,11 +292,19 @@ DECLARE
   v_out jsonb;
   v_row public.bookings;
   v_off integer;
+  v_new_plan uuid;
 BEGIN
+  SELECT rp.id INTO v_new_plan
+  FROM public.rate_plans rp
+  WHERE rp.hotel_id = 'd0d0d0d0-0000-4000-8000-00000000000a'
+    AND rp.room_type_id = 'd1d1d1d1-0000-4000-8000-000000000002'
+    AND rp.is_default;
+
   v_out := public.reprice_booking_stay(jsonb_build_object(
     'booking_id',   v_id,
     'hotel_id',     'd0d0d0d0-0000-4000-8000-00000000000a',
     'room_type_id', 'd1d1d1d1-0000-4000-8000-000000000002',
+    'rate_plan_id', v_new_plan,
     'room_id',      NULL));
 
   IF (v_out->>'type_changed')::boolean IS NOT TRUE
@@ -296,16 +331,20 @@ BEGIN
 
   IF v_row.room_id IS NOT NULL
      OR v_row.check_in <> current_date + 26 OR v_row.check_out <> current_date + 29
-     OR v_row.total_amount <> 6075.00 THEN
-    RAISE EXCEPTION 'FAIL 3c: booking row wrong -- room %, % to %, total %',
-      v_row.room_id, v_row.check_in, v_row.check_out, v_row.total_amount;
+     OR v_row.total_amount <> 6075.00
+     OR v_row.rate_plan_id IS DISTINCT FROM v_new_plan THEN
+    RAISE EXCEPTION 'FAIL 3c: booking row wrong -- room %, % to %, total %, plan %',
+      v_row.room_id, v_row.check_in, v_row.check_out, v_row.total_amount,
+      v_row.rate_plan_id;
   END IF;
 
-  SELECT count(*) FILTER (WHERE source <> 'base' OR rate_minor <> 90000)
+  SELECT count(*) FILTER (
+           WHERE source <> 'base' OR rate_minor <> 90000
+              OR rate_plan_id IS DISTINCT FROM v_new_plan)
     INTO v_off FROM public.booking_nights WHERE booking_id = v_id;
 
   IF v_off <> 0 THEN
-    RAISE EXCEPTION 'FAIL 3d: % night(s) kept a price the new type never had', v_off;
+    RAISE EXCEPTION 'FAIL 3d: % night(s) kept old type pricing or plan authority', v_off;
   END IF;
 
   RAISE NOTICE 'PASS 3: a type change re-resolves every night and unassigns the room';
@@ -383,7 +422,21 @@ DECLARE
   v_want   text;
   v_detail text;
   v_hint   text;
+  v_double_plan uuid;
+  v_zero_plan uuid;
 BEGIN
+  SELECT rp.id INTO v_double_plan
+  FROM public.rate_plans rp
+  WHERE rp.hotel_id = 'd0d0d0d0-0000-4000-8000-00000000000a'
+    AND rp.room_type_id = 'd1d1d1d1-0000-4000-8000-000000000001'
+    AND rp.is_default;
+
+  SELECT rp.id INTO v_zero_plan
+  FROM public.rate_plans rp
+  WHERE rp.hotel_id = 'd0d0d0d0-0000-4000-8000-00000000000a'
+    AND rp.room_type_id = 'd1d1d1d1-0000-4000-8000-000000000003'
+    AND rp.is_default;
+
   FOREACH v_case IN ARRAY ARRAY[
     'invalid_payload', 'invalid_date_range', 'invalid_rooms_count',
     'room_type_not_found', 'booking_not_found', 'cross_tenant',
@@ -415,6 +468,7 @@ BEGIN
           WHEN 'room_not_bookable' THEN
             v_base || jsonb_build_object(
               'room_type_id', 'd1d1d1d1-0000-4000-8000-000000000001',
+              'rate_plan_id', v_double_plan,
               'room_id',      'd2d2d2d2-0000-4000-8000-00000000000c')
           -- The room the stay sat in before its type changed belongs to the old
           -- type, so keeping it is refused rather than silently accepted.
@@ -423,13 +477,15 @@ BEGIN
           WHEN 'room_conflict' THEN
             v_base || jsonb_build_object(
               'room_type_id', 'd1d1d1d1-0000-4000-8000-000000000001',
+              'rate_plan_id', v_double_plan,
               'room_id',      'd2d2d2d2-0000-4000-8000-00000000000b',
               'check_in',     (current_date + 40)::text,
               'check_out',    (current_date + 43)::text)
           ELSE
             v_base || jsonb_build_object(
               'booking_id',   (SELECT v FROM reprice_ids WHERE k = 'b4'),
-              'room_type_id', 'd1d1d1d1-0000-4000-8000-000000000003')
+              'room_type_id', 'd1d1d1d1-0000-4000-8000-000000000003',
+              'rate_plan_id', v_zero_plan)
         END);
     EXCEPTION WHEN sqlstate 'P0001' THEN
       GET STACKED DIAGNOSTICS v_detail = PG_EXCEPTION_DETAIL, v_hint = PG_EXCEPTION_HINT;
@@ -477,7 +533,14 @@ DECLARE
   v_before_nights text;
   v_after_nights  text;
   v_detail        text;
+  v_zero_plan     uuid;
 BEGIN
+  SELECT rp.id INTO v_zero_plan
+  FROM public.rate_plans rp
+  WHERE rp.hotel_id = 'd0d0d0d0-0000-4000-8000-00000000000a'
+    AND rp.room_type_id = 'd1d1d1d1-0000-4000-8000-000000000003'
+    AND rp.is_default;
+
   SELECT to_jsonb(x) INTO v_before_row FROM (
     SELECT b.check_in, b.check_out, b.room_id, b.room_type_id, b.rooms_count,
            b.nights, b.currency, b.room_rate, b.subtotal, b.tax_amount,
@@ -500,7 +563,8 @@ BEGIN
     PERFORM public.reprice_booking_stay(jsonb_build_object(
       'booking_id',   v_id,
       'hotel_id',     'd0d0d0d0-0000-4000-8000-00000000000a',
-      'room_type_id', 'd1d1d1d1-0000-4000-8000-000000000003'));
+      'room_type_id', 'd1d1d1d1-0000-4000-8000-000000000003',
+      'rate_plan_id', v_zero_plan));
   EXCEPTION WHEN sqlstate 'P0001' THEN
     GET STACKED DIAGNOSTICS v_detail = PG_EXCEPTION_DETAIL;
   END;
@@ -534,5 +598,232 @@ BEGIN
   RAISE NOTICE 'PASS 6: a refused edit leaves the reservation and its nights untouched';
 END;
 $$;
+
+-- =============================================================================
+-- 7. Plan changes are explicit and validated. Ordinary repricing retains the
+--    booking authority; an explicit compatible plan updates booking and nights.
+-- =============================================================================
+DO $$
+DECLARE
+  v_id uuid := (SELECT v FROM reprice_ids WHERE k = 'b1');
+  v_replacement_plan uuid := 'd4d4d4d4-0000-4000-8000-000000000002';
+  v_old_plan uuid;
+  v_row public.bookings;
+  v_detail text;
+  v_manual_date date;
+  v_expected_rate bigint;
+  v_expected_source text;
+BEGIN
+  SELECT b.rate_plan_id, b.check_in
+    INTO v_old_plan, v_manual_date
+  FROM public.bookings b
+  WHERE b.id = v_id;
+
+  IF v_old_plan IS NULL OR v_old_plan = v_replacement_plan THEN
+    RAISE EXCEPTION 'FIXTURE 7: replacement plan does not change authority';
+  END IF;
+
+  UPDATE public.booking_nights
+     SET source = 'manual', rate_minor = 12345
+   WHERE booking_id = v_id AND stay_date = v_manual_date;
+
+  IF NOT EXISTS (
+       SELECT 1 FROM public.booking_nights bn
+       WHERE bn.booking_id = v_id
+         AND bn.stay_date = v_manual_date
+         AND bn.rate_minor = 12345
+         AND bn.source = 'manual'
+         AND bn.rate_plan_id = v_old_plan) THEN
+    RAISE EXCEPTION 'FIXTURE 7: manual night was not established under old plan';
+  END IF;
+
+  SELECT r.rate_minor, r.source
+    INTO v_expected_rate, v_expected_source
+  FROM public.resolve_nightly_rates(
+    'd0d0d0d0-0000-4000-8000-00000000000a',
+    ARRAY['d1d1d1d1-0000-4000-8000-000000000002'::uuid],
+    v_manual_date, v_manual_date + 1, v_replacement_plan, 0) r;
+
+  IF v_expected_rate IS NULL OR v_expected_source IS NULL
+     OR v_expected_source = 'manual' THEN
+    RAISE EXCEPTION 'FIXTURE 7: replacement plan returned no usable resolver row';
+  END IF;
+
+  PERFORM public.reprice_booking_stay(jsonb_build_object(
+    'booking_id', v_id,
+    'hotel_id', 'd0d0d0d0-0000-4000-8000-00000000000a',
+    'rate_plan_id', v_replacement_plan));
+
+  SELECT * INTO v_row FROM public.bookings WHERE id = v_id;
+  IF v_row.room_type_id IS DISTINCT FROM
+       'd1d1d1d1-0000-4000-8000-000000000002'::uuid
+     OR v_row.rate_plan_id IS DISTINCT FROM v_replacement_plan
+     OR EXISTS (
+       SELECT 1 FROM public.booking_nights bn
+       WHERE bn.booking_id = v_id
+         AND bn.rate_plan_id IS DISTINCT FROM v_replacement_plan) THEN
+    RAISE EXCEPTION 'FAIL 7a: same-type plan change did not update booking and nights';
+  END IF;
+
+  IF NOT EXISTS (
+       SELECT 1 FROM public.booking_nights bn
+       WHERE bn.booking_id = v_id
+         AND bn.stay_date = v_manual_date
+         AND bn.rate_minor = v_expected_rate
+         AND bn.source = v_expected_source
+         AND bn.source <> 'manual'
+         AND bn.rate_plan_id = v_replacement_plan) THEN
+    RAISE EXCEPTION 'FAIL 7b: replacement plan did not re-resolve manual night';
+  END IF;
+
+  v_detail := '<accepted>';
+  BEGIN
+    PERFORM public.reprice_booking_stay(jsonb_build_object(
+      'booking_id', v_id,
+      'hotel_id', 'd0d0d0d0-0000-4000-8000-00000000000a',
+      'rate_plan_id', 'e2e2e2e2-0000-4000-8000-0000000000ff'));
+  EXCEPTION WHEN sqlstate 'P0001' THEN
+    GET STACKED DIAGNOSTICS v_detail = PG_EXCEPTION_DETAIL;
+  END;
+
+  IF v_detail IS DISTINCT FROM 'rate_plan_not_found' THEN
+    RAISE EXCEPTION 'FAIL 7c: invalid plan produced %', v_detail;
+  END IF;
+  RAISE NOTICE 'PASS 7: same-type plan replacement re-resolves manual nights under new authority';
+END $$;
+
+-- =============================================================================
+-- 8. An inactive stored plan remains historical authority whether omitted or
+--    repeated explicitly. Changing authority still requires an active plan.
+-- =============================================================================
+DO $$
+DECLARE
+  v_id uuid := (SELECT v FROM reprice_ids WHERE k = 'b1');
+  v_plan uuid;
+  v_other_plan uuid;
+  v_detail text := '<accepted>';
+BEGIN
+  SELECT b.rate_plan_id INTO v_plan FROM public.bookings b WHERE b.id = v_id;
+  SELECT rp.id INTO v_other_plan
+  FROM public.rate_plans rp
+  WHERE rp.hotel_id = 'd0d0d0d0-0000-4000-8000-00000000000a'
+    AND rp.room_type_id = 'd1d1d1d1-0000-4000-8000-000000000002'
+    AND rp.id <> v_plan
+  ORDER BY rp.is_default DESC, rp.id
+  LIMIT 1;
+
+  IF v_plan IS NULL OR v_other_plan IS NULL THEN
+    RAISE EXCEPTION 'FIXTURE 8: inactive-plan authorities are missing';
+  END IF;
+
+  UPDATE public.rate_plans SET is_active = false
+  WHERE id IN (v_plan, v_other_plan);
+
+  PERFORM public.reprice_booking_stay(jsonb_build_object(
+    'booking_id', v_id,
+    'hotel_id', 'd0d0d0d0-0000-4000-8000-00000000000a'));
+
+  IF (SELECT b.rate_plan_id FROM public.bookings b WHERE b.id = v_id)
+       IS DISTINCT FROM v_plan
+     OR EXISTS (SELECT 1 FROM public.booking_nights bn
+                WHERE bn.booking_id = v_id
+                  AND bn.rate_plan_id IS DISTINCT FROM v_plan) THEN
+    RAISE EXCEPTION 'FAIL 8a: omitted inactive stored plan lost authority';
+  END IF;
+
+  PERFORM public.reprice_booking_stay(jsonb_build_object(
+    'booking_id', v_id,
+    'hotel_id', 'd0d0d0d0-0000-4000-8000-00000000000a',
+    'rate_plan_id', v_plan));
+
+  IF (SELECT b.rate_plan_id FROM public.bookings b WHERE b.id = v_id)
+       IS DISTINCT FROM v_plan
+     OR EXISTS (SELECT 1 FROM public.booking_nights bn
+                WHERE bn.booking_id = v_id
+                  AND bn.rate_plan_id IS DISTINCT FROM v_plan) THEN
+    RAISE EXCEPTION 'FAIL 8b: repeated inactive stored plan lost authority';
+  END IF;
+
+  BEGIN
+    PERFORM public.reprice_booking_stay(jsonb_build_object(
+      'booking_id', v_id,
+      'hotel_id', 'd0d0d0d0-0000-4000-8000-00000000000a',
+      'rate_plan_id', v_other_plan));
+  EXCEPTION WHEN sqlstate 'P0001' THEN
+    GET STACKED DIAGNOSTICS v_detail = PG_EXCEPTION_DETAIL;
+  END;
+
+  IF v_detail IS DISTINCT FROM 'rate_plan_not_found' THEN
+    RAISE EXCEPTION 'FAIL 8c: changed inactive plan produced %', v_detail;
+  END IF;
+
+  UPDATE public.rate_plans SET is_active = true
+  WHERE id IN (v_plan, v_other_plan);
+  RAISE NOTICE 'PASS 8: inactive stored authority survives omission and explicit repetition';
+END $$;
+
+-- =============================================================================
+-- 9. Duplicate/missing resolver dates are rejected as unpriced_stay. Temporary
+--    resolver seam leaves public resolver object and privileges untouched.
+-- =============================================================================
+CREATE FUNCTION pg_temp.malformed_nightly_rates(
+  p_hotel_id uuid, p_room_type_ids uuid[], p_from date, p_to date,
+  p_rate_plan_id uuid, p_occupancy smallint
+)
+RETURNS TABLE (
+  room_type_id uuid, rate_plan_id uuid, stay_date date, occupancy smallint,
+  rate_minor bigint, currency text, source text, seasonal_rate_id uuid,
+  season_name text, is_weekend boolean, active_seasonal_rate_id uuid,
+  active_season_name text
+)
+LANGUAGE sql
+STABLE
+AS $fn$
+  SELECT r.room_type_id, r.rate_plan_id,
+         CASE WHEN r.stay_date = p_from + 1 THEN p_from ELSE r.stay_date END,
+         r.occupancy, r.rate_minor, r.currency, r.source, r.seasonal_rate_id,
+         r.season_name, r.is_weekend, r.active_seasonal_rate_id,
+         r.active_season_name
+  FROM public.resolve_nightly_rates(
+    p_hotel_id, p_room_type_ids, p_from, p_to, p_rate_plan_id, p_occupancy) r
+$fn$;
+
+DO $$
+DECLARE
+  v_id uuid := (SELECT v FROM reprice_ids WHERE k = 'b1');
+  v_detail text := '<accepted>';
+  v_before_row jsonb;
+  v_after_row jsonb;
+  v_before_nights text;
+  v_after_nights text;
+BEGIN
+  SELECT to_jsonb(b) INTO v_before_row FROM public.bookings b WHERE b.id = v_id;
+  SELECT string_agg(row_to_json(bn)::text, '|' ORDER BY bn.stay_date)
+    INTO v_before_nights
+  FROM public.booking_nights bn WHERE bn.booking_id = v_id;
+  PERFORM set_config('roomline.rate_resolver',
+                     'pg_temp.malformed_nightly_rates', true);
+
+  BEGIN
+    PERFORM public.reprice_booking_stay(jsonb_build_object(
+      'booking_id', v_id,
+      'hotel_id', 'd0d0d0d0-0000-4000-8000-00000000000a'));
+  EXCEPTION WHEN sqlstate 'P0001' THEN
+    GET STACKED DIAGNOSTICS v_detail = PG_EXCEPTION_DETAIL;
+  END;
+  PERFORM set_config('roomline.rate_resolver', '', true);
+
+  SELECT to_jsonb(b) INTO v_after_row FROM public.bookings b WHERE b.id = v_id;
+  SELECT string_agg(row_to_json(bn)::text, '|' ORDER BY bn.stay_date)
+    INTO v_after_nights
+  FROM public.booking_nights bn WHERE bn.booking_id = v_id;
+
+  IF v_detail IS DISTINCT FROM 'unpriced_stay'
+     OR v_after_row IS DISTINCT FROM v_before_row
+     OR v_after_nights IS DISTINCT FROM v_before_nights THEN
+    RAISE EXCEPTION 'FAIL 8: malformed date set produced % or changed booking', v_detail;
+  END IF;
+  RAISE NOTICE 'PASS 9: repricing rejects duplicate/missing resolver dates without writes';
+END $$;
 
 ROLLBACK;

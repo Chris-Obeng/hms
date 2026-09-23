@@ -17,6 +17,40 @@
 -- constraint would start rejecting valid staff edits. Drift is reported to a
 -- human in Night Audit instead -- see public.booking_nights_drift below.
 
+-- Booking-level plan is current pricing authority. Night rows below remain
+-- immutable provenance; repricing reads this column rather than inferring a plan
+-- from historical rows.
+ALTER TABLE public.bookings
+  ADD COLUMN IF NOT EXISTS rate_plan_id uuid;
+
+UPDATE public.bookings b
+SET rate_plan_id = (
+  SELECT rp.id
+  FROM public.rate_plans rp
+  WHERE rp.hotel_id = b.hotel_id
+    AND rp.room_type_id = b.room_type_id
+    AND rp.is_active
+  ORDER BY rp.is_default DESC, rp.created_at, rp.id
+  LIMIT 1
+)
+WHERE b.rate_plan_id IS NULL
+  AND b.room_type_id IS NOT NULL;
+
+DO $$
+BEGIN
+  ALTER TABLE public.bookings
+    ADD CONSTRAINT bookings_rate_plan_hotel_fk
+      FOREIGN KEY (rate_plan_id, hotel_id)
+      REFERENCES public.rate_plans (id, hotel_id) ON DELETE RESTRICT;
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
+END $$;
+
+COMMENT ON COLUMN public.bookings.rate_plan_id IS
+  'Authoritative rate plan for pricing, restrictions, and repricing. Nullable only for legacy bookings without a resolvable room-type plan.';
+
+CREATE INDEX IF NOT EXISTS bookings_rate_plan_idx
+  ON public.bookings (rate_plan_id) WHERE rate_plan_id IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS public.booking_nights (
   id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   hotel_id         uuid        NOT NULL REFERENCES public.hotels(id) ON DELETE CASCADE,

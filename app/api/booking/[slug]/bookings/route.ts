@@ -408,6 +408,32 @@ export async function POST(
     const payRef = `${booking.reference}-${Date.now()}`;
 
     try {
+      // Durable payment intent BEFORE the reference reaches Paystack: the
+      // settlement RPC rejects any reference without a matching attempt, so a
+      // guest who pays ahead of this row would be charged and then refused.
+      // On failure the catch below aborts the hold; nothing was handed off.
+      const { error: attemptErr } = await supabaseAdmin
+        .from("payment_attempts")
+        .insert({
+          hotel_id: hotel.id,
+          booking_id: booking.booking_id,
+          paystack_reference: payRef,
+          amount_minor: booking.total_minor,
+          currency: booking.currency,
+          expected_subaccount_code: hotel.paystack_subaccount_code!,
+          metadata: {
+            booking_id: booking.booking_id,
+            hotel_id: hotel.id,
+            booking_reference: booking.reference,
+          },
+          status: "initialized",
+          initialized_at: new Date().toISOString(),
+        });
+
+      if (attemptErr) {
+        throw new Error(`payment_attempts insert failed: ${attemptErr.message}`);
+      }
+
       const txn = await initializeTransaction({
         email: data.guest_email,
         // Minor units for the booking's own currency, taken from the row the
