@@ -41,6 +41,7 @@ interface PendingStaffClientProps {
 export function PendingStaffClient({ data }: PendingStaffClientProps) {
   const router = useRouter();
   const [localData, setLocalData] = React.useState(data);
+  const [syncedData, setSyncedData] = React.useState(data);
   const [loadingId, setLoadingId] = React.useState<string | null>(null);
   const [approveRole, setApproveRole] = React.useState<"front_desk" | "manager" | "read_only">("front_desk");
   const [approveDialogOpen, setApproveDialogOpen] = React.useState(false);
@@ -48,9 +49,13 @@ export function PendingStaffClient({ data }: PendingStaffClientProps) {
   const [rejectDialogOpen, setRejectDialogOpen] = React.useState(false);
   const [rejectTarget, setRejectTarget] = React.useState<PendingStaffRow | null>(null);
 
-  React.useEffect(() => {
+  // Re-sync when the server sends fresh rows after `router.refresh()`. Adjusting
+  // state during render rather than from an effect re-renders before the browser
+  // paints, so the stale list is never shown for a frame.
+  if (data !== syncedData) {
+    setSyncedData(data);
     setLocalData(data);
-  }, [data]);
+  }
 
   const handleApprove = async () => {
     if (!approveTarget) return;

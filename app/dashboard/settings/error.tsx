@@ -3,6 +3,7 @@
 import { RouteError } from "@/components/errors/route-error";
 
 export default function SettingsError({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
@@ -12,6 +13,8 @@ export default function SettingsError({
     <RouteError
       title="Couldn't load settings"
       description="Your changes are safe. Retry to continue."
+      error={error}
+      boundary="dashboard-settings"
       reset={reset}
     />
   );

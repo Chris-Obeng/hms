@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { requireAuth, requireMinRole, toActionError } from "@/lib/auth";
 import { slugify } from "@/lib/utils";
 import { toStoredBlockRange } from "@/lib/calendar-domain";
+import { toRoomTypeInsert } from "@/lib/supabase/trigger-derived";
 
 // ── Schemas ──────────────────────────────────────────────────────────
 
@@ -147,7 +148,7 @@ export async function getRoomType(id: string) {
 
 export async function createRoomType(input: RoomTypeInput) {
   try { await requireMinRole("manager", "create room types"); }
-  catch (err) { return toActionError(err); }
+  catch (err) { return toActionError(err, { action: "rooms.createRoomType" }); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };
 
@@ -165,7 +166,7 @@ export async function createRoomType(input: RoomTypeInput) {
   const data = parsed.data;
   const supabase = await createClient();
 
-  const { error, data: newRoomType } = await supabase.from("room_types").insert({
+  const { error, data: newRoomType } = await supabase.from("room_types").insert(toRoomTypeInsert({
     hotel_id: result.hotelId,
     name: data.name,
     slug: data.slug || slugify(data.name),
@@ -179,7 +180,7 @@ export async function createRoomType(input: RoomTypeInput) {
     amenities: data.amenities,
     is_active: data.isActive,
     sort_order: data.sortOrder,
-  }).select("id").single();
+  })).select("id").single();
 
   if (error) return { success: false as const, error: error.message };
 
@@ -189,7 +190,7 @@ export async function createRoomType(input: RoomTypeInput) {
 
 export async function updateRoomType(id: string, input: RoomTypeInput) {
   try { await requireMinRole("manager", "update room types"); }
-  catch (err) { return toActionError(err); }
+  catch (err) { return toActionError(err, { action: "rooms.updateRoomType" }); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };
 
@@ -234,7 +235,7 @@ export async function updateRoomType(id: string, input: RoomTypeInput) {
 
 export async function toggleRoomTypeActive(id: string, isActive: boolean) {
   try { await requireMinRole("manager", "toggle room type active status"); }
-  catch (err) { return toActionError(err); }
+  catch (err) { return toActionError(err, { action: "rooms.toggleRoomTypeActive" }); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };
 
@@ -253,7 +254,7 @@ export async function toggleRoomTypeActive(id: string, isActive: boolean) {
 
 export async function deleteRoomType(id: string) {
   try { await requireMinRole("super_admin", "delete room types"); }
-  catch (err) { return toActionError(err); }
+  catch (err) { return toActionError(err, { action: "rooms.deleteRoomType" }); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };
 
@@ -324,7 +325,7 @@ export async function getRooms() {
 
 export async function createRoom(input: RoomInput) {
   try { await requireMinRole("manager", "create rooms"); }
-  catch (err) { return toActionError(err); }
+  catch (err) { return toActionError(err, { action: "rooms.createRoom" }); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };
 
@@ -360,7 +361,7 @@ export async function createRoom(input: RoomInput) {
 
 export async function updateRoomStatus(id: string, status: string) {
   try { await requireMinRole("front_desk", "update room status"); }
-  catch (err) { return toActionError(err); }
+  catch (err) { return toActionError(err, { action: "rooms.updateRoomStatus" }); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };
 
@@ -379,7 +380,7 @@ export async function updateRoomStatus(id: string, status: string) {
 
 export async function updateRoom(id: string, input: Partial<RoomInput>) {
   try { await requireMinRole("manager", "update rooms"); }
-  catch (err) { return toActionError(err); }
+  catch (err) { return toActionError(err, { action: "rooms.updateRoom" }); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };
 
@@ -410,7 +411,7 @@ export async function createAvailabilityBlock(input: AvailabilityBlockInput) {
   // Front desk blocks rooms daily (maintenance, cleaning, owner stays);
   // removing blocks stays manager+ per availability_blocks RLS policy.
   try { await requireMinRole("front_desk", "block rooms"); }
-  catch (err) { return toActionError(err); }
+  catch (err) { return toActionError(err, { action: "rooms.createAvailabilityBlock" }); }
   const result = await getHotelId();
   if ("error" in result) return { success: false as const, error: result.error };
 

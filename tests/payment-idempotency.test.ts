@@ -1,14 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-const insertErrorHolder = { value: null as { code: string; message: string } | null };
-const bookingUpdateErrorHolder = { value: null as { message: string } | null };
-
 vi.mock("@/lib/supabase/admin", () => ({ supabaseAdmin: makeDb() }));
 vi.mock("@/lib/notifications/send-booking-confirmation", () => ({
   sendBookingConfirmation: vi.fn(async () => ({ success: true, channel: "email" })),
 }));
 
 import { recordOnlinePayment } from "@/lib/bookings/confirm-online-payment";
+import { sendBookingConfirmation } from "@/lib/notifications/send-booking-confirmation";
 
 // ── Fake supabaseAdmin ─────────────────────────────────────────────
 
@@ -22,13 +20,24 @@ interface DbConfig {
 
 let dbConfig: DbConfig = {};
 
+interface SettlementCall {
+  p_booking_id: string;
+  p_hotel_id: string;
+  p_paystack_reference: string;
+  p_paystack_id: string;
+  p_amount_minor: number;
+  p_currency: string;
+  p_subaccount_code: string;
+  p_metadata: Record<string, string>;
+}
+
 function recorded() {
   return {
-    paymentInserts: [] as Record<string, unknown>[],
-    bookingUpdates: [] as Record<string, unknown>[],
     notificationInserts: [] as Record<string, unknown>[],
-    amountPaid: 0,
-    rpcCalls: [] as { p_booking_id: string; p_hotel_id: string; p_amount: number }[],
+    amountPaidMinor: 0,
+    settledReferences: new Set<string>(),
+    rpcFunctions: [] as string[],
+    rpcCalls: [] as SettlementCall[],
   };
 }
 
@@ -62,18 +71,8 @@ function makeDb() {
 
     api.insert = (rows: Record<string, unknown> | Record<string, unknown>[]) => {
       const list = Array.isArray(rows) ? rows : [rows];
-      if (table === "payments") state.paymentInserts.push(...list);
-      else if (table === "notifications") state.notificationInserts.push(...list);
-      return { error: table === "payments" ? insertErrorHolder.value : null };
-    };
-
-    api.update = (patch: Record<string, unknown>) => {
-      if (table === "bookings") state.bookingUpdates.push(patch);
-      const eqResult = () =>
-        Promise.resolve({ data: null, error: bookingUpdateErrorHolder.value });
-      return {
-        eq: () => ({ eq: eqResult }),
-      };
+      if (table === "notifications") state.notificationInserts.push(...list);
+      return { error: null };
     };
 
     // Bare await (e.g. staff_profiles recipient lookup) resolves a list
@@ -91,13 +90,38 @@ function makeDb() {
 
   return {
     from,
-    rpc: (fn: string, args: { p_booking_id: string; p_hotel_id: string; p_amount: number }) => {
-      if (fn !== "add_online_payment_to_booking") {
+    rpc: (fn: string, args: SettlementCall) => {
+      state.rpcFunctions.push(fn);
+      if (fn !== "settle_online_payment_atomic") {
         return Promise.resolve({ data: null, error: { message: `unexpected rpc ${fn}` } });
       }
+
       state.rpcCalls.push(args);
-      state.amountPaid += args.p_amount;
-      return Promise.resolve({ data: state.amountPaid, error: null });
+      const alreadyRecorded = state.settledReferences.has(args.p_paystack_reference);
+      if (!alreadyRecorded) {
+        state.settledReferences.add(args.p_paystack_reference);
+        state.amountPaidMinor += args.p_amount_minor;
+      }
+
+      const activeBooking =
+        dbConfig.booking?.status === "pending" ||
+        (dbConfig.booking?.status === "cancelled" &&
+          dbConfig.booking?.cancellation_reason === "payment_timeout");
+      const totalMinor = Number(dbConfig.booking?.total_amount ?? 0) * 100;
+      const paid = state.amountPaidMinor >= totalMinor;
+
+      return Promise.resolve({
+        data: [{
+          result: alreadyRecorded ? "already_recorded" : "recorded",
+          booking_id: args.p_booking_id,
+          amount_paid_minor: state.amountPaidMinor,
+          payment_status: paid ? "paid" : "partial",
+          booking_status: activeBooking ? (paid ? "confirmed" : "pending") : dbConfig.booking?.status,
+          partial_payment: !paid,
+          already_recorded: alreadyRecorded,
+        }],
+        error: null,
+      });
     },
   };
 }
@@ -130,8 +154,7 @@ function reset(
 
 beforeEach(() => {
   state = recorded();
-  insertErrorHolder.value = null;
-  bookingUpdateErrorHolder.value = null;
+  vi.mocked(sendBookingConfirmation).mockClear();
   reset();
 });
 
@@ -147,29 +170,41 @@ describe("recordOnlinePayment — idempotency & money integrity", () => {
 
     expect(result.outcome).toBe("recorded");
     expect(result).toMatchObject({ fullyPaid: true, partial: false });
-    expect(state.paymentInserts).toHaveLength(1);
-    expect(state.paymentInserts[0]).toMatchObject({
-      booking_id: "b-1",
-      amount: 500,
-      status: "success",
-      paystack_reference: "HTL-101-1720000000",
+    expect(state.rpcCalls).toHaveLength(1);
+    expect(state.rpcCalls[0]).toMatchObject({
+      p_booking_id: "b-1",
+      p_hotel_id: "h-1",
+      p_paystack_reference: "HTL-101-1720000000",
+      p_paystack_id: "12345",
+      p_amount_minor: 50000,
+      p_currency: "GHS",
+      p_metadata: {
+        booking_id: "b-1",
+        hotel_id: "h-1",
+        booking_reference: "HTL-101",
+      },
     });
-    expect(state.bookingUpdates[0]).toMatchObject({ status: "confirmed", payment_status: "paid" });
   });
 
-  it("duplicate delivery (webhook retry racing verify) short-circuits as already_recorded", async () => {
-    insertErrorHolder.value = { code: "23505", message: "duplicate key value violates unique constraint \"payments_paystack_reference_key\"" };
-
-    const result = await recordOnlinePayment({
+  it("duplicate delivery still settles so stale booking projections can be repaired", async () => {
+    const payment = {
       bookingId: "b-1",
       paystackReference: "HTL-101-1720000000",
+      paystackId: "12345",
       amountPaid: 500,
       currency: "GHS",
-    });
+    };
+    await recordOnlinePayment(payment);
+    vi.mocked(sendBookingConfirmation).mockClear();
+
+    const result = await recordOnlinePayment(payment);
 
     expect(result.outcome).toBe("already_recorded");
-    expect(state.bookingUpdates).toHaveLength(0);
-    expect(state.notificationInserts).toHaveLength(0);
+    expect(state.rpcFunctions).toEqual([
+      "settle_online_payment_atomic",
+      "settle_online_payment_atomic",
+    ]);
+    expect(sendBookingConfirmation).not.toHaveBeenCalled();
   });
 
   it("partial payment keeps booking pending and marks payment_status partial", async () => {
@@ -182,8 +217,8 @@ describe("recordOnlinePayment — idempotency & money integrity", () => {
 
     if (result.outcome === "failed") throw new Error(result.error);
     expect(result.partial).toBe(true);
-    expect(state.bookingUpdates[0]).toMatchObject({ status: "pending", payment_status: "partial" });
-    expect(String(state.paymentInserts[0].notes)).toContain("Partial payment");
+    expect(state.rpcCalls[0]).toMatchObject({ p_amount_minor: 20000 });
+    expect(sendBookingConfirmation).not.toHaveBeenCalled();
   });
 
   it("two partial payments accumulate — the second one confirms without losing the first", async () => {
@@ -195,7 +230,6 @@ describe("recordOnlinePayment — idempotency & money integrity", () => {
     });
     if (first.outcome === "failed") throw new Error(first.error);
     expect(first.partial).toBe(true);
-    expect(state.bookingUpdates[0]).toMatchObject({ status: "pending", payment_status: "partial" });
 
     const second = await recordOnlinePayment({
       bookingId: "b-1",
@@ -206,14 +240,8 @@ describe("recordOnlinePayment — idempotency & money integrity", () => {
     expect(second.outcome).toBe("recorded");
     if (second.outcome === "failed") throw new Error(second.error);
     expect(second.fullyPaid).toBe(true);
-    // Cumulative money (500) drives confirmation, not the last txn's amount.
-    expect(state.bookingUpdates[1]).toMatchObject({ status: "confirmed", payment_status: "paid" });
-    expect(state.rpcCalls).toEqual([
-      { p_booking_id: "b-1", p_hotel_id: "h-1", p_amount: 300 },
-      { p_booking_id: "b-1", p_hotel_id: "h-1", p_amount: 200 },
-    ]);
-    // Booking update must never overwrite the accumulated total.
-    expect(state.bookingUpdates.every((u) => !("amount_paid" in u))).toBe(true);
+    expect(state.rpcCalls.map((call) => call.p_amount_minor)).toEqual([30000, 20000]);
+    expect(sendBookingConfirmation).toHaveBeenCalledTimes(1);
   });
 
   it("currency mismatch fails closed without inserting a payment", async () => {
@@ -225,8 +253,23 @@ describe("recordOnlinePayment — idempotency & money integrity", () => {
     });
 
     expect(result.outcome).toBe("failed");
-    expect(state.paymentInserts).toHaveLength(0);
+    expect(state.rpcCalls).toHaveLength(0);
     expect(state.notificationInserts.some((n) => n.type === "payment_failed")).toBe(true);
+  });
+
+  it("carries a machine-stable dedupe key on the review alert", async () => {
+    await recordOnlinePayment({
+      bookingId: "b-1",
+      paystackReference: "HTL-101-usd",
+      amountPaid: 500,
+      currency: "USD",
+    });
+
+    // The unique index is on (booking_id, dedupe_key), so the key — not the
+    // title — is what makes the webhook and the verify fallback alert once.
+    const alert = state.notificationInserts.find((n) => n.type === "payment_failed");
+    expect(alert?.dedupe_key).toBe("payment-review:currency-mismatch");
+    expect(alert?.booking_id).toBe("b-1");
   });
 
   it("non-positive amount is rejected outright", async () => {
@@ -236,7 +279,7 @@ describe("recordOnlinePayment — idempotency & money integrity", () => {
       amountPaid: 0,
     });
     expect(result.outcome).toBe("failed");
-    expect(state.paymentInserts).toHaveLength(0);
+    expect(state.rpcCalls).toHaveLength(0);
   });
 
   it("late webhook after hold expiry resurrects a payment_timeout cancellation", async () => {
@@ -251,12 +294,8 @@ describe("recordOnlinePayment — idempotency & money integrity", () => {
 
     if (result.outcome === "failed") throw new Error(result.error);
     expect(result.fullyPaid).toBe(true);
-    expect(state.bookingUpdates[0]).toMatchObject({
-      status: "confirmed",
-      payment_status: "paid",
-      cancelled_at: null,
-      cancellation_reason: null,
-    });
+    expect(state.rpcCalls).toHaveLength(1);
+    expect(sendBookingConfirmation).toHaveBeenCalledTimes(1);
   });
 
   it("payment landing on a staff-cancelled booking records money but never flips state", async () => {
@@ -271,8 +310,8 @@ describe("recordOnlinePayment — idempotency & money integrity", () => {
 
     expect(result.outcome).toBe("recorded");
     expect((result as { bookingStateUnchanged?: boolean }).bookingStateUnchanged).toBe(true);
-    expect(state.bookingUpdates).toHaveLength(0);
-    expect(state.paymentInserts).toHaveLength(1);
+    expect(state.rpcCalls).toHaveLength(1);
+    expect(sendBookingConfirmation).not.toHaveBeenCalled();
     expect(state.notificationInserts.some((n) => n.type === "payment_failed")).toBe(true);
   });
 

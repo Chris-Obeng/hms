@@ -19,6 +19,12 @@ interface RoomCardProps {
   checkIn?: string;
   checkOut?: string;
   availableCount?: number | null;
+  /**
+   * Why the rate plan will not sell this window, already written for a guest.
+   * Independent of availableCount: a room type can have every room free and
+   * still be closed to arrival, or need more nights than the guest asked for.
+   */
+  restrictionReason?: string | null;
   datesSelected?: boolean;
   /** Party context carried through to the booking wizard. */
   adults?: string;
@@ -38,6 +44,7 @@ export function RoomCard({
   checkIn,
   checkOut,
   availableCount,
+  restrictionReason,
   datesSelected,
   adults,
   childGuests,
@@ -61,13 +68,17 @@ export function RoomCard({
     availableCount !== null &&
     availableCount !== undefined &&
     availableCount === 0;
+  // Both mean the guest cannot book these dates, so they share the dimmed card
+  // and the dead Book button. The copy differs: a minimum stay is something the
+  // guest can act on, sold out is not.
+  const isBlocked = isSoldOut || !!restrictionReason;
 
   return (
     <>
       <Card
         variant="default"
         className={`group overflow-hidden rounded-2xl border border-[var(--bk-line)] bg-[var(--bk-surface)] shadow-[var(--bk-shadow)] transition-all duration-300 hover:shadow-[var(--bk-shadow-lg)] hover:border-[var(--bk-line-strong)] h-full flex flex-col ${
-          isSoldOut ? "opacity-70" : ""
+          isBlocked ? "opacity-70" : ""
         }`}
       >
         <div
@@ -122,6 +133,13 @@ export function RoomCard({
                 >
                   Sold out
                 </Chip>
+              ) : restrictionReason ? (
+                <Chip
+                  variant="secondary"
+                  className="bg-rose-700 text-white text-[10px] font-semibold px-2 py-0.5"
+                >
+                  Unavailable
+                </Chip>
               ) : availableCount <= 2 ? (
                 <Chip
                   variant="secondary"
@@ -150,6 +168,12 @@ export function RoomCard({
             {shortDescription && (
               <p className="text-xs text-[var(--bk-muted)] line-clamp-2 leading-relaxed">
                 {shortDescription}
+              </p>
+            )}
+
+            {restrictionReason && (
+              <p className="text-xs font-medium text-[var(--bk-danger)] leading-relaxed">
+                {restrictionReason}
               </p>
             )}
 
@@ -184,7 +208,7 @@ export function RoomCard({
               </div>
             </div>
 
-            {!isSoldOut ? (
+            {!isBlocked ? (
               <Button
                 variant="primary"
                 size="sm"
@@ -200,7 +224,7 @@ export function RoomCard({
                 isDisabled
                 className="h-10 sm:h-9 px-4 rounded-xl text-xs font-semibold shrink-0"
               >
-                Sold out
+                {isSoldOut ? "Sold out" : "Unavailable"}
               </Button>
             )}
           </div>

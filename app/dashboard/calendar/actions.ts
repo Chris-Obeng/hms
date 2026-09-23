@@ -2,10 +2,16 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import { can } from "@/lib/roles";
 import { parseISO, addDays, format } from "date-fns";
 import { toStoredBlockRange } from "@/lib/calendar-domain";
 import { businessToday } from "@/lib/business-date";
 import { writeAuditLog } from "@/lib/audit";
+import { captureIssue } from "@/lib/observability/sentry";
+import {
+  repriceBookingStay,
+  type BookingRejection,
+} from "@/lib/bookings/create-booking-atomic";
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -66,12 +72,12 @@ export async function getCurrentStaffRole(): Promise<StaffRoleInfo> {
   }
 
   const role = profile.role as StaffRole;
-  const canEdit = role === "super_admin" || role === "manager" || role === "front_desk";
+  const canEdit = can(role, "calendar:edit");
   // Front desk blocks rooms daily (maintenance, cleaning, owner stays).
   // Removing blocks stays manager+ — enforced in deleteAvailabilityBlock and
   // mirrored by the availability_blocks DELETE RLS policy.
-  const canBlock = canEdit;
-  const canUnblock = role === "super_admin" || role === "manager";
+  const canBlock = can(role, "availability:block");
+  const canUnblock = can(role, "availability:unblock");
 
   return { role, canEdit, canBlock, canUnblock };
 }
@@ -465,6 +471,44 @@ export type MoveBookingResult =
   | { success: false; error: string };
 
 /**
+ * Staff-facing copy for a `reprice_booking_stay` rejection. Front desk needs to
+ * know what to do next, so the two codes that carry a HINT spend it: the status
+ * that closed the stay, and the name of whoever is already in the room.
+ */
+function moveRejectionMessage(rejection: BookingRejection): string {
+  switch (rejection.code) {
+    // The room went to someone else between the availability check and the
+    // write. Both room-overlap constraints and the room-type inventory guard
+    // land here; the old substring match on `bookings_no_room_overlap` caught
+    // only the first of the three.
+    case "inventory_conflict":
+      return "Room is no longer available — another booking was just placed";
+    case "room_conflict":
+      return rejection.hint
+        ? `Room is occupied by ${rejection.hint} for those dates`
+        : "Room is occupied for those dates";
+    case "booking_not_found":
+      return "Booking not found";
+    case "booking_not_open":
+      return `Cannot move a ${(rejection.hint ?? "closed").replace("_", " ")} booking`;
+    case "room_not_bookable":
+      return "That room cannot take this stay — check its type and status";
+    case "room_type_not_found":
+      return "Room type not found";
+    case "invalid_date_range":
+      return "Check-out must be after check-in";
+    case "invalid_rooms_count":
+      return "That number of rooms cannot be booked";
+    // The new window has no rate for at least one night, so there is no price to
+    // move the stay to. A pricing gap, not a staff mistake.
+    case "unpriced_stay":
+      return "No rate is set for one or more of those nights — set pricing first";
+    default:
+      return rejection.message || "Move failed";
+  }
+}
+
+/**
  * Moves a booking to a different room and/or date range.
  * Used by drag-and-drop move and resize operations.
  * Validates room type compatibility and availability before applying.
@@ -472,6 +516,13 @@ export type MoveBookingResult =
  * `roomTypeId` opts in to an explicit room type change (upgrade/downgrade).
  * When provided, the booking's room_type_id is rewritten and the usual
  * "type mismatch" guard is bypassed for the target room.
+ *
+ * The write itself goes through `reprice_booking_stay`, so the stay's nightly
+ * rates, its totals and its payment status are re-derived for the new window in
+ * the same transaction that moves it. The guards below stay in front of that
+ * call: they enforce the rules the SQL deliberately leaves to the caller (an
+ * active room type, the business-date past-date rule, room status) and they
+ * produce the copy front desk can act on.
  */
 export async function moveBooking(
   bookingId: string,
@@ -576,29 +627,44 @@ export async function moveBooking(
       }
     }
 
-    // Build update payload (only changed fields)
-    const payload: Partial<{
-      room_id: string | null;
-      check_in: string;
-      check_out: string;
-      room_type_id: string | null;
-    }> = {};
-    if (updates.roomId !== undefined) payload.room_id = newRoomId;
-    if (updates.checkIn !== undefined) payload.check_in = newCheckIn;
-    if (updates.checkOut !== undefined) payload.check_out = newCheckOut;
-    if (typeChangeRequested) payload.room_type_id = updates.roomTypeId as string;
+    // The booking row, its nightly rates and its money move together. A bare
+    // `.update()` here left `booking_nights` describing dates the stay no longer
+    // occupied and a total priced for the window it had left, so a moved stay
+    // could sit marked paid while underpaid. `reprice_booking_stay` re-resolves
+    // the nights and rewrites both in one transaction, or rejects and leaves
+    // every one of them as it was.
+    //
+    // Key *presence* is the instruction: an absent key means "leave this field
+    // alone" and `room_id: null` means "unassign". Never normalise an unsent
+    // field to null, or `{ room_id: updates.roomId ?? null }` would quietly turn
+    // every date-only move into an unassignment.
+    const repriced = await repriceBookingStay({
+      booking_id: bookingId,
+      hotel_id: hotelId,
+      ...(updates.roomId !== undefined ? { room_id: newRoomId } : {}),
+      ...(updates.checkIn !== undefined ? { check_in: newCheckIn } : {}),
+      ...(updates.checkOut !== undefined ? { check_out: newCheckOut } : {}),
+      ...(typeChangeRequested ? { room_type_id: updates.roomTypeId as string } : {}),
+    });
 
-    const { error } = await supabase
-      .from("bookings")
-      .update(payload)
-      .eq("id", bookingId)
-      .eq("hotel_id", hotelId);
-
-    if (error) {
-      if (error.message?.includes("bookings_no_room_overlap")) {
-        return { success: false, error: "Room is no longer available — another booking was just placed" };
+    if (!repriced.ok) {
+      // Three of the codes cannot be reached from here: this action always sends
+      // both ids and has already resolved the hotel, and `unknown` means the
+      // function raised something no caller has a name for. They are bugs rather
+      // than front-desk mistakes, so they are reported. The rest are ordinary
+      // operational answers and would only be noise.
+      const { code, sqlstate, message, hint } = repriced.rejection;
+      if (code === "invalid_payload" || code === "hotel_not_found" || code === "unknown") {
+        captureIssue(`reprice_booking_stay rejected: ${code}`, {
+          scope: "server-action",
+          hotelId,
+          bookingId,
+          level: "error",
+          tags: { rejection: code, sqlstate },
+          contexts: { rejection: { message, hint } },
+        });
       }
-      return { success: false, error: error.message };
+      return { success: false, error: moveRejectionMessage(repriced.rejection) };
     }
 
     // Audit trail: room moves are high-value operational events
@@ -613,19 +679,21 @@ export async function moveBooking(
       movedByStaffId = staffProfile?.id ?? null;
     }
 
-    void writeAuditLog(supabase, {
+    await writeAuditLog(supabase, {
       hotelId,
       staffId: movedByStaffId,
       action: typeChangeRequested ? "booking.room_type_change" : "booking.move",
       entityType: "booking",
       entityId: bookingId,
-      beforeState: {
-        room_id: booking.room_id,
-        room_type_id: booking.room_type_id,
-        check_in: booking.check_in,
-        check_out: booking.check_out,
+      // The function's own snapshots, taken either side of the write under the
+      // row lock it held, so the trail records the money the move actually cost
+      // rather than the fields the caller happened to send.
+      beforeState: repriced.stay.before,
+      afterState: {
+        ...repriced.stay.after,
+        nights_kept: repriced.stay.nights_kept,
+        type_changed: repriced.stay.type_changed,
       },
-      afterState: payload,
     });
 
     return { success: true };
@@ -714,7 +782,7 @@ export async function createAvailabilityBlock(
 
     if (error) throw error;
 
-    void writeAuditLog(supabase, {
+    await writeAuditLog(supabase, {
       hotelId,
       staffId: createdByStaffId,
       action: "room.block_created",
@@ -771,7 +839,7 @@ export async function deleteAvailabilityBlock(
 
     if (fetchError) throw fetchError;
 
-    void writeAuditLog(supabase, {
+    await writeAuditLog(supabase, {
       hotelId,
       staffId: deletedByStaffId,
       action: "room.block_deleted",

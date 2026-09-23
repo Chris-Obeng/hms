@@ -9,6 +9,7 @@ import { keepPreviousData, QueryClient, QueryClientProvider, useQuery, useQueryC
 import { useAuth } from "@clerk/nextjs";
 import { qk } from "@/lib/query-keys";
 import { createClient } from "@/lib/supabase/client";
+import { onRealtimeStatus } from "@/lib/observability/realtime";
 import { NewBookingModal } from "@/components/bookings/new-booking-modal";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import {
@@ -254,13 +255,24 @@ function CalendarClientContent({
       }
     };
 
-    const handleStatus = (status: string) => {
+    const reportStatus = onRealtimeStatus({
+      label: "calendar",
+      hotelId,
+      orgId,
+      table: "bookings,availability_blocks",
+    });
+
+    const handleStatus = (status: string, err?: Error) => {
       setRealtimeStatus(status === "SUBSCRIBED" ? "live" : "reconnecting");
       if (status === "SUBSCRIBED") {
         resubscribeAttempts = 0;
         return;
       }
       if (status !== "CHANNEL_ERROR" && status !== "TIMED_OUT") return;
+      // Reported once per outage rather than once per retry: the loop below
+      // makes up to five attempts on the same broken channel, and each would
+      // otherwise be its own event.
+      if (resubscribeAttempts === 0) reportStatus(status, err);
       if (cancelled || resubscribeAttempts >= 5) return;
       resubscribeAttempts += 1;
       retryTimer = window.setTimeout(async () => {

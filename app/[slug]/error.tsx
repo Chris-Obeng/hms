@@ -1,15 +1,26 @@
 "use client";
 
+import { useParams } from "next/navigation";
+
+import { useBoundaryReport } from "@/components/errors/use-boundary-report";
+
 /**
  * Guest-facing error boundary for the public booking site. Uses the booking
  * theme tokens so it matches light and dark hotel branding.
+ *
+ * Tagged with the hotel slug, which is what makes "this one hotel's site is
+ * broken" distinguishable from "the booking site is broken" in Sentry.
  */
 export default function BookingSiteError({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const params = useParams<{ slug?: string }>();
+  useBoundaryReport(error, "booking-site", { "hotel.slug": params?.slug });
+
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center booking-safe-x px-6 text-center">
       <div

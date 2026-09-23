@@ -83,13 +83,6 @@ export async function getDashboardData(dateStr?: string): Promise<DashboardData>
 
   // ── Parallel Queries ────────────────────────────────────────
 
-  // Total rooms
-  const { count: totalRooms } = await supabase
-    .from("rooms")
-    .select("*", { count: "exact", head: true })
-    .eq("hotel_id", hotelId)
-    .eq("is_active", true);
-
   // Room breakdown
   const { data: roomStatuses } = await supabase
     .from("rooms")

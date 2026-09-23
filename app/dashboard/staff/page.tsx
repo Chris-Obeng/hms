@@ -1,9 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import { can } from "@/lib/roles";
 import { Users } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 import { StaffClient } from "./staff-client";
 export default async function StaffPage() {
   const { orgId, userId } = await auth();
@@ -32,7 +32,7 @@ export default async function StaffPage() {
     .eq("clerk_org_id", orgId)
     .single();
 
-  const isSuperAdmin = currentUser?.role === "super_admin";
+  const isSuperAdmin = can(currentUser?.role, "staff:manage");
 
   // Fetch all staff for this hotel
   const { data: staff } = await supabase

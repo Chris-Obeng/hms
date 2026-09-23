@@ -4,6 +4,8 @@ import { SidebarProvider, Sidebar } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/app-sidebar-overlay'
 import { AppHeader } from '@/components/layout/app-header'
 import { DashboardPwaShell } from '@/components/pwa/dashboard-pwa-shell'
+import { SentryStaffContext } from '@/components/observability/sentry-staff-context'
+import { identifyStaff } from '@/lib/observability/sentry'
 import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
@@ -59,6 +61,15 @@ export default async function DashboardLayout({
     redirect('/deactivated?reason=staff')
   }
 
+  // Tenant scope for anything this request reports to Sentry. Ids and role only.
+  identifyStaff({
+    staffId: staff.id,
+    userId,
+    role: staff.role,
+    hotelId: hotel.id,
+    orgId,
+  })
+
   // Update last_login_at — fire-and-forget
   if (userId) {
     supabase
@@ -91,6 +102,14 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider defaultOpen={false}>
+      {/* Same tenant scope as identifyStaff above, for browser-side events */}
+      <SentryStaffContext
+        hotelId={hotel.id}
+        orgId={orgId}
+        staffId={staff.id}
+        role={staff.role}
+      />
+
       {/* Overlay sidebar — floats above content, no layout shift */}
       <Sidebar side="left">
         <AppSidebar hotelName={hotel.name} />

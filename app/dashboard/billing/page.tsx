@@ -121,7 +121,6 @@ export default async function BillingPage() {
                 {planOrder.map((plan) => {
                   const val = feature[plan];
                   const isCurrentPlan = plan === currentPlan;
-                  const isLocked = !val && planOrder.indexOf(plan) > currentIndex;
                   return (
                     <td
                       key={plan}
@@ -200,7 +199,7 @@ export default async function BillingPage() {
         <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
           <p className="text-xs text-muted-foreground">
             <Check className="size-3 inline-block mr-1 text-emerald-600" />
-            You're on the <strong>Professional</strong> plan — you have access to all RoomLine features.
+            You&rsquo;re on the <strong>Professional</strong> plan — you have access to all RoomLine features.
           </p>
         </div>
       )}

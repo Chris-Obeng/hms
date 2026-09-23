@@ -2,6 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import { can } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import {
   getPaystackBanks,
@@ -39,10 +40,10 @@ async function getSuperAdminHotel() {
     .eq("clerk_user_id", userId)
     .eq("clerk_org_id", orgId)
     .single();
-  if (staff?.role !== "super_admin" && staff?.role !== "manager") {
+  if (!staff || !can(staff.role, "payments:configure")) {
     throw new Error("Insufficient permissions");
   }
-  return { supabase, hotel, orgId, isSuperAdmin: staff.role === "super_admin" };
+  return { supabase, hotel, orgId, isSuperAdmin: can(staff.role, "payments:manage_credentials") };
 }
 
 // ── Banks list (cached in Next.js fetch cache) ────────────────────

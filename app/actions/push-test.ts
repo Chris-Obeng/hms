@@ -21,6 +21,6 @@ export async function sendTestPushAction(): Promise<{ success: boolean; error?: 
     kickDeliveryWorker();
     return { success: true };
   } catch (err) {
-    return toActionError(err);
+    return toActionError(err, { action: "push.sendTestPush" });
   }
 }

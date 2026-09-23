@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createSubaccount,
+  endpointLabel,
   getPaystackBanks,
   initializeTransaction,
   paystackFetch,
@@ -173,5 +174,20 @@ describe("transactions", () => {
     const res = await verifyTransaction("ref 3");
     expect(res.status).toBe("success");
     expect(lastCall().url).toBe("https://api.paystack.co/transaction/verify/ref%203");
+  });
+});
+
+
+describe("endpointLabel", () => {
+  it("keeps literal segments that contain an underscore", () => {
+    expect(endpointLabel("/transaction/charge_authorization")).toBe("/transaction/charge_authorization");
+  });
+
+  it("collapses reference segments so failures group per endpoint", () => {
+    expect(endpointLabel("/transaction/verify/RL-8H2K91")).toBe("/transaction/verify/:id");
+  });
+
+  it("drops the query string, which can carry an account number", () => {
+    expect(endpointLabel("/bank/resolve?account_number=0123456789&bank_code=058")).toBe("/bank/resolve");
   });
 });

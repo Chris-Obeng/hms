@@ -28,9 +28,11 @@ export async function POST(req: Request) {
   }
 
   const body = await req.text()
-  let payload: unknown
+  // Shape check only — the verified event below is what we actually consume.
+  // Parsing here turns a malformed body into a clear 400 instead of a
+  // confusing signature-verification failure.
   try {
-    payload = JSON.parse(body)
+    JSON.parse(body)
   } catch (err) {
     console.error('[webhook] failed to parse Clerk webhook body as JSON:', err)
     return new Response('Invalid JSON body', { status: 400 })

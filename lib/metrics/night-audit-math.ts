@@ -2,7 +2,14 @@
  * Pure night-audit math. No DB, no "use server" — the seam that reports and
  * tests exercise. app/dashboard/night-audit/actions.ts fetches rows and calls
  * computeNightAuditSummary().
+ *
+ * Every money figure is accumulated in the hotel's minor units and converted
+ * back once, at the end. A night audit is the report a hotel reconciles its cash
+ * drawer against, so a totalPaymentsToday that is a pesewa off the sum of the
+ * payment rows is a figure someone has to chase.
  */
+
+import { fromMinor, sumMinor, toMinor } from "@/lib/money";
 
 export interface NightAuditSummary {
   auditDate: string;
@@ -50,6 +57,16 @@ export interface NightAuditInputs {
 
 const UNSALEABLE = new Set(["maintenance", "out_of_service"]);
 
+/**
+ * Row money as minor units. Amounts arrive typed `unknown` because PostgREST can
+ * hand a numeric back as a string; anything that is not a finite number counts
+ * as zero rather than turning the whole total into NaN.
+ */
+function minorOf(value: unknown, currency: string): number {
+  const n = typeof value === "number" ? value : Number(value ?? 0);
+  return Number.isFinite(n) ? toMinor(n, currency) : 0;
+}
+
 /** Embedded joins may arrive as an object or a single-element array */
 function joinField<T extends string>(value: unknown, field: T): string | null {
   const row = Array.isArray(value) ? value[0] : value;
@@ -62,6 +79,7 @@ function joinField<T extends string>(value: unknown, field: T): string | null {
 }
 
 export function computeNightAuditSummary(input: NightAuditInputs): NightAuditSummary {
+  const currency = input.currency || "GHS";
   const rooms = input.rooms ?? [];
   const totalRooms = rooms.length;
   const occupiedRooms = rooms.filter((r) => r.status === "occupied").length;
@@ -87,22 +105,37 @@ export function computeNightAuditSummary(input: NightAuditInputs): NightAuditSum
     })),
   ];
 
-  const methodMap = new Map<string, { count: number; amount: number }>();
-  let totalPaymentsToday = 0;
+  const methodMap = new Map<string, { count: number; amountMinor: number }>();
+  const paymentMinors: number[] = [];
   for (const p of input.payments ?? []) {
     const key = p.method || "other";
-    const cur = methodMap.get(key) ?? { count: 0, amount: 0 };
-    methodMap.set(key, { count: cur.count + 1, amount: cur.amount + Number(p.amount || 0) });
-    totalPaymentsToday += Number(p.amount || 0);
+    const minor = minorOf(p.amount, currency);
+    const cur = methodMap.get(key) ?? { count: 0, amountMinor: 0 };
+    methodMap.set(key, { count: cur.count + 1, amountMinor: cur.amountMinor + minor });
+    paymentMinors.push(minor);
   }
+  const totalPaymentsMinor = sumMinor(paymentMinors);
   const paymentsByMethod = Array.from(methodMap.entries())
-    .map(([method, v]) => ({ method, count: v.count, amount: v.amount }))
-    .sort((a, b) => b.amount - a.amount);
+    .map(([method, v]) => ({ method, count: v.count, amountMinor: v.amountMinor }))
+    .sort((a, b) => b.amountMinor - a.amountMinor)
+    .map(({ method, count, amountMinor }) => ({
+      method,
+      count,
+      amount: fromMinor(amountMinor, currency),
+    }));
 
-  const estimatedRoomRevenue = (input.occupiedBookings ?? []).reduce((sum, b) => {
-    const nightly = Number(b.total_amount || 0) / Math.max(1, Number(b.nights || 1));
-    return sum + nightly;
-  }, 0);
+  // Each stay contributes one night's share of its own total. Rounding that
+  // share to the minor unit before summing differs from summing exact fractions
+  // by under a minor unit per stay, and the three figures derived from it are
+  // reported in whole currency units anyway.
+  const estimatedRoomRevenueMinor = sumMinor(
+    (input.occupiedBookings ?? []).map((b) => {
+      const raw = Number(b.nights ?? 1);
+      const nights = Number.isFinite(raw) && raw >= 1 ? raw : 1;
+      return Math.round(minorOf(b.total_amount, currency) / nights);
+    })
+  );
+  const estimatedRoomRevenue = fromMinor(estimatedRoomRevenueMinor, currency);
 
   const adrToday =
     occupiedRooms > 0 ? Math.round(estimatedRoomRevenue / occupiedRooms) : 0;
@@ -124,7 +157,7 @@ export function computeNightAuditSummary(input: NightAuditInputs): NightAuditSum
 
   return {
     auditDate: input.auditDate,
-    currency: input.currency || "GHS",
+    currency,
     totalRooms,
     occupiedRooms,
     vacantRooms,
@@ -133,7 +166,7 @@ export function computeNightAuditSummary(input: NightAuditInputs): NightAuditSum
     pendingArrivals: input.pendingArrivals.length,
     pendingDepartures: input.pendingDepartures.length,
     inHouseCount: input.inHouseCount,
-    totalPaymentsToday: Math.round(totalPaymentsToday * 100) / 100,
+    totalPaymentsToday: fromMinor(totalPaymentsMinor, currency),
     paymentsByMethod,
     estimatedRoomRevenue: Math.round(estimatedRoomRevenue),
     adrToday,

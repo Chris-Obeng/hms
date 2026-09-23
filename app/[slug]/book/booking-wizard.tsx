@@ -150,6 +150,13 @@ export function BookingWizard({
     displayPrice: number;
     subtotal: number | null;
     availableCount: number | null;
+    /**
+     * Why the rate plan will not sell this window, already written for a guest by
+     * the API. Separate from availableCount because free rooms and a sellable
+     * stay are two different questions: a three-night minimum leaves the room
+     * bookable, just not for these dates.
+     */
+    restrictionReason: string | null;
   };
   const [resolvedPrices, setResolvedPrices] = React.useState<
     Record<string, ResolvedPrice>
@@ -181,15 +188,20 @@ export function BookingWizard({
             subtotal: typeof room.subtotal === "number" ? room.subtotal : null,
             availableCount:
               typeof room.availableCount === "number" ? room.availableCount : null,
+            restrictionReason:
+              typeof room.restrictionReason === "string" ? room.restrictionReason : null,
           };
         }
         setResolvedPrices(map);
 
-        // Deselect if chosen room sold out for new dates
+        // Deselect if the chosen room is sold out or no longer sellable for the
+        // new dates. Dropping the selection here is what stops a guest carrying a
+        // restricted stay all the way to payment for the write to refuse it.
         setSelectedRoom((prev) => {
           if (!prev) return prev;
-          const count = map[prev.id]?.availableCount;
-          if (count === 0) return null;
+          const resolved = map[prev.id];
+          if (resolved?.availableCount === 0) return null;
+          if (resolved?.restrictionReason) return null;
           return prev;
         });
       } finally {
@@ -291,15 +303,14 @@ export function BookingWizard({
     return `${selectedDialCode} …`;
   }, [selectedDialCode]);
 
+  // Anything the guest cannot book for these dates sinks to the bottom, whether
+  // the rooms are gone or the rate plan is closed for the window.
   const sortedRooms = React.useMemo(() => {
-    return [...roomTypes].sort((a, b) => {
-      const aCount = resolvedPrices[a.id]?.availableCount;
-      const bCount = resolvedPrices[b.id]?.availableCount;
-      const aSold = aCount === 0 ? 1 : 0;
-      const bSold = bCount === 0 ? 1 : 0;
-      if (aSold !== bSold) return aSold - bSold;
-      return 0;
-    });
+    const unbookable = (id: string) => {
+      const resolved = resolvedPrices[id];
+      return resolved?.availableCount === 0 || resolved?.restrictionReason ? 1 : 0;
+    };
+    return [...roomTypes].sort((a, b) => unbookable(a.id) - unbookable(b.id));
   }, [roomTypes, resolvedPrices]);
 
   async function handleConfirm() {
@@ -480,7 +491,9 @@ export function BookingWizard({
                   <div className="space-y-3" role="radiogroup" aria-label="Room type">
                     {sortedRooms.map((rt) => {
                       const avail = resolvedPrices[rt.id]?.availableCount ?? null;
-                      const soldOut = avail === 0;
+                      const restrictionReason =
+                        resolvedPrices[rt.id]?.restrictionReason ?? null;
+                      const blocked = avail === 0 || restrictionReason !== null;
                       return (
                         <RoomOptionCard
                           key={rt.id}
@@ -492,8 +505,9 @@ export function BookingWizard({
                           }
                           priceLoading={priceLoading}
                           availableCount={avail}
+                          restrictionReason={restrictionReason}
                           onSelect={() => {
-                            if (!soldOut) setSelectedRoom(rt);
+                            if (!blocked) setSelectedRoom(rt);
                           }}
                           onPhotos={(e) => {
                             e.stopPropagation();
@@ -1061,6 +1075,7 @@ function RoomOptionCard({
   displayPrice,
   priceLoading,
   availableCount,
+  restrictionReason,
   onSelect,
   onPhotos,
 }: {
@@ -1070,25 +1085,32 @@ function RoomOptionCard({
   displayPrice: number;
   priceLoading: boolean;
   availableCount: number | null;
+  /** Rate plan reason this window cannot be sold, already guest-facing. */
+  restrictionReason: string | null;
   onSelect: () => void;
   onPhotos: (e: React.MouseEvent) => void;
 }) {
   const img = room.images[0]?.url ?? null;
   const soldOut = availableCount === 0;
+  // Sold out and restricted are both unbookable, so they share every
+  // interaction and affordance, but they are told apart in the copy: "sold out"
+  // is a dead end, a minimum stay is something the guest can act on by moving
+  // their dates.
+  const blocked = soldOut || restrictionReason !== null;
   const scarce =
-    availableCount !== null && availableCount > 0 && availableCount <= 2;
+    !blocked && availableCount !== null && availableCount > 0 && availableCount <= 2;
 
   return (
     <div
       role="radio"
       aria-checked={selected}
-      aria-disabled={soldOut || undefined}
-      tabIndex={soldOut ? -1 : 0}
+      aria-disabled={blocked || undefined}
+      tabIndex={blocked ? -1 : 0}
       onClick={() => {
-        if (!soldOut) onSelect();
+        if (!blocked) onSelect();
       }}
       onKeyDown={(e) => {
-        if (soldOut) return;
+        if (blocked) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onSelect();
@@ -1096,8 +1118,9 @@ function RoomOptionCard({
       }}
       data-selected={selected}
       data-sold-out={soldOut ? "true" : "false"}
+      data-blocked={blocked ? "true" : "false"}
       className={`booking-room-option p-3 sm:p-4 touch-manipulation ${
-        soldOut ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+        blocked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
       }`}
     >
       <div className="flex items-start gap-3 sm:gap-3.5">
@@ -1148,12 +1171,22 @@ function RoomOptionCard({
                     Sold out
                   </span>
                 )}
+                {!soldOut && restrictionReason !== null && (
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--bk-danger)]">
+                    Unavailable
+                  </span>
+                )}
                 {scarce && (
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--bk-accent)]">
                     Only {availableCount} left
                   </span>
                 )}
               </div>
+              {restrictionReason !== null && (
+                <p className="text-xs text-[var(--bk-danger)] mt-1 leading-relaxed">
+                  {restrictionReason}
+                </p>
+              )}
               {room.bedConfiguration && (
                 <p className="text-xs text-[var(--bk-muted)] mt-0.5 line-clamp-1">
                   {room.bedConfiguration}
@@ -1205,7 +1238,7 @@ function RoomOptionCard({
         </div>
 
         {/* Selection indicator */}
-        {!soldOut && (
+        {!blocked && (
           <div
             className={`mt-0.5 size-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
               selected

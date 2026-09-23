@@ -2,6 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { can } from "@/lib/roles";
 import { headers } from "next/headers";
 import crypto from "crypto";
 
@@ -22,7 +23,7 @@ export async function createShareableInvite(
       .eq("clerk_org_id", orgId)
       .single();
 
-    if (userError || !currentUser || !currentUser.is_active || currentUser.role !== "super_admin") {
+    if (userError || !currentUser || !currentUser.is_active || !can(currentUser.role, "staff:invite")) {
       return { success: false, error: "Only active super admins can invite staff" };
     }
 

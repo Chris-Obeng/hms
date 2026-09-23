@@ -399,7 +399,8 @@
   box-shadow: inset 0 0 0 1px var(--bk-accent);
 }
 
-.booking-room-option[data-sold-out="true"] {
+/* Sold out or closed by a rate plan restriction: unbookable either way. */
+.booking-room-option[data-blocked="true"] {
   border-style: dashed;
 }
 

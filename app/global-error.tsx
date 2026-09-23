@@ -1,16 +1,6 @@
 "use client";
 
-/**
- * app/global-error.tsx
- *
- * Catches unhandled errors thrown inside the root layout (app/layout.tsx).
- * This is the last error boundary — it replaces the entire HTML shell, so
- * it MUST include <html> and <body> tags.
- *
- * Triggered by: errors in layout.tsx, ClerkProvider, TooltipProvider, or
- * any provider that wraps the entire app. Errors inside page-level components
- * are caught by the closer error.tsx boundaries first.
- */
+import { useBoundaryReport } from "@/components/errors/use-boundary-report";
 
 export default function GlobalError({
   error,
@@ -19,6 +9,8 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useBoundaryReport(error, "global");
+
   return (
     <html lang="en">
       <body

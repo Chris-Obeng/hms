@@ -19,17 +19,20 @@ import {
   ChevronRight,
   Clock3,
   Lock,
+  Scale,
   ShieldCheck,
   Users,
 } from "lucide-react";
 import { AlertDialog, Button, Chip, ProgressBar, toast } from "@heroui/react";
-import { NightAuditSummary, executeNightAudit } from "./actions";
-import { formatCurrency, formatCurrencyCompact, formatDateTime } from "@/lib/format";
+import { NightAuditSummary, RateDriftReport, executeNightAudit } from "./actions";
+import { formatCurrency, formatCurrencyCompact, formatDate, formatDateTime } from "@/lib/format";
+import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 interface NightAuditClientProps {
   initialSummary: NightAuditSummary;
   canRunAudit: boolean;
+  rateDrift: RateDriftReport;
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -84,7 +87,11 @@ function StatTile({
 
 // ── Main ───────────────────────────────────────────────────────────
 
-export function NightAuditClient({ initialSummary, canRunAudit }: NightAuditClientProps) {
+export function NightAuditClient({
+  initialSummary,
+  canRunAudit,
+  rateDrift,
+}: NightAuditClientProps) {
   const router = useRouter();
   const [summary, setSummary] = React.useState(initialSummary);
   const [syncedSummary, setSyncedSummary] = React.useState(initialSummary);
@@ -109,6 +116,7 @@ export function NightAuditClient({ initialSummary, canRunAudit }: NightAuditClie
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const viewingToday = summary.auditDate === todayStr;
   const hasUnresolved = summary.unresolvedBookings.length > 0;
+  const hasDrift = !rateDrift.unavailable && rateDrift.rows.length > 0;
 
   const handleRunAudit = async () => {
     try {
@@ -378,6 +386,75 @@ export function NightAuditClient({ initialSummary, canRunAudit }: NightAuditClie
                 </li>
               ))}
             </ul>
+          </div>
+        </div>
+      )}
+
+      {/* ── Rate reconciliation (nights vs booking room charge) ── */}
+      {hasDrift && (
+        <div className="card-default p-4">
+          <div className="flex items-start gap-3">
+            <div className="p-1.5 rounded-lg bg-muted/20 shrink-0">
+              <Scale className="size-4 text-muted-foreground" />
+            </div>
+            <div className="min-w-0 w-full">
+              <p className="text-sm font-semibold text-foreground">
+                Rate reconciliation ({rateDrift.total})
+              </p>
+              <p className="text-caption text-muted-foreground mt-0.5">
+                The nightly rates recorded on these bookings do not add up to the room charge.
+                A discount, a comped night or a tax adjustment explains most of them — closing
+                the day is not blocked.
+              </p>
+
+              <ul className="mt-3 divide-y divide-border/50 rounded-xl border border-border/60 bg-background overflow-hidden">
+                {rateDrift.rows.map((row) => (
+                  <li
+                    key={row.booking_id}
+                    className="px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 hover:bg-accent/30 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1 basis-44">
+                      <p className="text-sm font-medium text-foreground truncate">{row.reference}</p>
+                      <p className="text-caption text-muted-foreground truncate">
+                        {formatDate(row.check_in)} — {formatDate(row.check_out)}
+                      </p>
+                    </div>
+                    <Chip
+                      size="sm"
+                      color={row.nights_recorded === row.nights_expected ? "default" : "warning"}
+                      variant="soft"
+                      className="shrink-0"
+                    >
+                      {row.nights_recorded}/{row.nights_expected} nights
+                    </Chip>
+                    <p
+                      className={cn(
+                        "text-sm font-semibold tabular-nums shrink-0",
+                        row.difference_minor < 0
+                          ? "text-amber-600 dark:text-amber-400"
+                          : "text-foreground"
+                      )}
+                      title="Recorded nights minus the room charge on the booking"
+                    >
+                      {row.difference_minor > 0 ? "+" : ""}
+                      {formatMoney(row.difference_minor, row.currency)}
+                    </p>
+                    <a
+                      href={`/dashboard/bookings/${row.booking_id}`}
+                      className="text-xs font-medium text-gold hover:underline shrink-0 py-1"
+                    >
+                      Open →
+                    </a>
+                  </li>
+                ))}
+              </ul>
+
+              {rateDrift.total > rateDrift.rows.length && (
+                <p className="text-caption text-muted-foreground mt-2">
+                  Showing the {rateDrift.rows.length} most recent of {rateDrift.total}.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}

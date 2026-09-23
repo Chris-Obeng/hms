@@ -1,21 +1,34 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useBoundaryReport } from "@/components/errors/use-boundary-report";
 
 /**
  * Shared route-segment error boundary body. Route-level error.tsx files stay
  * thin and pass context-specific copy. Rendered inside the segment's layout,
  * so surrounding chrome (sidebar/header) stays alive.
+ *
+ * `error` and `boundary` are required, not optional: a boundary that renders a
+ * message without reporting the error is how a production failure disappears.
+ * `boundary` is the segment name used to tag and group the Sentry issue.
  */
 export function RouteError({
   title,
   description,
+  error,
+  boundary,
+  tags,
   reset,
 }: {
   title: string;
   description?: string;
+  error: Error & { digest?: string };
+  boundary: string;
+  tags?: Record<string, string | null | undefined>;
   reset: () => void;
 }) {
+  useBoundaryReport(error, boundary, tags);
+
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
       <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-destructive/10">

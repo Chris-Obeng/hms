@@ -31,6 +31,7 @@ interface ThemeProviderProps {
 
 const STORAGE_KEY = "theme";
 const THEMES = ["light", "dark"] as const;
+const DEFAULT_THEMES: string[] = [...THEMES];
 const SYSTEM_DARK = "(prefers-color-scheme: dark)";
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -90,6 +91,37 @@ function freezeTransitions(nonce?: string) {
   });
 }
 
+// ── External stores ────────────────────────────────────────────
+//
+// The system colour scheme and "has hydration finished" both live in the browser
+// rather than in React. Reading them through `useSyncExternalStore` makes the
+// value available during render, with an explicit server snapshot so the
+// hydration pass still matches the streamed markup — no mirroring state in an
+// effect, and no extra commit-then-repaint on mount.
+
+function subscribeToSystemTheme(onStoreChange: () => void) {
+  const mql = window.matchMedia(SYSTEM_DARK);
+  mql.addEventListener("change", onStoreChange);
+  return () => mql.removeEventListener("change", onStoreChange);
+}
+
+function getServerSystemTheme(): "dark" | "light" {
+  return "light";
+}
+
+// Hydration happens exactly once, so there is nothing to subscribe to.
+function subscribeToNothing() {
+  return () => {};
+}
+
+function getHydrated() {
+  return true;
+}
+
+function getNotHydrated() {
+  return false;
+}
+
 // ── Context ────────────────────────────────────────────────────
 
 const ThemeCtx = React.createContext<UseThemeProps | undefined>(undefined);
@@ -102,14 +134,17 @@ export function ThemeProvider({
   defaultTheme = "system",
   enableSystem = true,
   storageKey = STORAGE_KEY,
-  themes = ["light", "dark"],
+  themes = DEFAULT_THEMES,
   forcedTheme,
   disableTransitionOnChange = false,
   enableColorScheme = true,
   value,
   nonce,
 }: ThemeProviderProps) {
-  const attrList = Array.isArray(attribute) ? attribute : [attribute];
+  const attrList = React.useMemo(
+    () => (Array.isArray(attribute) ? attribute : [attribute]),
+    [attribute],
+  );
 
   const [theme, setThemeRaw] = React.useState<string>(() =>
     typeof window === "undefined"
@@ -117,28 +152,22 @@ export function ThemeProvider({
       : getStoredTheme(storageKey, defaultTheme),
   );
 
-  const [systemTheme, setSystemTheme] = React.useState<"dark" | "light">("light");
-  const [mounted, setMounted] = React.useState(false);
-
-  // ── Hydrate from localStorage on mount ──────────────────────────
-  React.useEffect(() => {
-    if (forcedTheme) return;
-    const stored = getStoredTheme(storageKey, defaultTheme);
-    setThemeRaw(stored);
-    setMounted(true);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   // ── Track system preference ─────────────────────────────────────
-  React.useEffect(() => {
-    if (!enableSystem) return;
-    const mql = window.matchMedia(SYSTEM_DARK);
-    const handler = (e: MediaQueryListEvent) => {
-      setSystemTheme(e.matches ? "dark" : "light");
-    };
-    mql.addEventListener("change", handler);
-    setSystemTheme(mql.matches ? "dark" : "light");
-    return () => mql.removeEventListener("change", handler);
-  }, [enableSystem]);
+  const liveSystemTheme = React.useSyncExternalStore(
+    subscribeToSystemTheme,
+    getSystemTheme,
+    getServerSystemTheme,
+  );
+  const systemTheme = enableSystem ? liveSystemTheme : "light";
+
+  // `theme`'s initializer reads localStorage, which the server cannot do, so
+  // consumers are handed `undefined` until hydration has finished and the two
+  // renders are guaranteed to agree.
+  const mounted = React.useSyncExternalStore(
+    subscribeToNothing,
+    getHydrated,
+    getNotHydrated,
+  );
 
   // ── Apply theme to <html> ───────────────────────────────────────
   React.useEffect(() => {

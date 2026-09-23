@@ -35,6 +35,8 @@ import { HeroSelectField } from "@/components/ui/hero-select";
 import { HeroTablePagination } from "@/components/ui/hero-table-pagination";
 import { type RoomInput } from "@/app/actions/rooms";
 import { createClient } from "@/lib/supabase/client";
+import { onRealtimeStatus } from "@/lib/observability/realtime";
+import { createCoalescer } from "@/lib/realtime/coalesce";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { qk } from "@/lib/query-keys";
@@ -239,17 +241,22 @@ export function RoomsDirectory({ data, roomTypes, hotelId }: RoomsDirectoryProps
   React.useEffect(() => {
     if (!orgId) return;
     const supabase = createClient();
+    // Housekeeping sweeps and bulk status changes touch many rooms at once.
+    const refresh = createCoalescer();
     const channel = supabase
       .channel(`hotel:${hotelId}:rooms-directory`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "rooms", filter: `hotel_id=eq.${hotelId}` },
-        () => {
+        () => refresh.schedule(() => {
           queryClient.invalidateQueries({ queryKey: qk.rooms(orgId, hotelId) });
-        },
+        }),
       )
-      .subscribe();
+      .subscribe(
+        onRealtimeStatus({ label: "rooms-directory", hotelId, orgId, table: "rooms" }),
+      );
     return () => {
+      refresh.cancel();
       supabase.removeChannel(channel);
     };
   }, [hotelId, orgId, queryClient]);

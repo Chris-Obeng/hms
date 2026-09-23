@@ -23,6 +23,7 @@ import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import type { StaffRole } from "@/lib/roles";
 import { ROLE_LEVEL } from "@/lib/roles";
+import { captureError, flushSentry, identifyStaff } from "@/lib/observability/sentry";
 
 export type { StaffRole };
 
@@ -104,6 +105,16 @@ export async function requireAuth(): Promise<AuthContext> {
   if (!staff || !staff.is_active) {
     throw new AuthError("Your account is not active. Contact your manager.", "INACTIVE");
   }
+
+  // Attach the actor to every Sentry event raised later in this request. Only the
+  // opaque staff id, the role and the tenant ids — never the staff member's name.
+  identifyStaff({
+    staffId: staff.id,
+    userId,
+    role: (staff.role ?? "pending") as StaffRole,
+    hotelId: hotel.id,
+    orgId,
+  });
 
   return {
     orgId,
@@ -217,15 +228,61 @@ export function canPerformAction(role: StaffRole, minRole: StaffRole): boolean {
 /**
  * Convert an AuthError (or any error) to a standard server-action failure response.
  *
+ * Every unexpected failure is reported to Sentry here, because this is the one
+ * funnel every staff-facing server action catches into: without it, a broken
+ * action returns `{ success: false }`, the UI shows a toast, and nothing is
+ * recorded anywhere. `AuthError` is excluded on purpose — an unauthenticated or
+ * forbidden call is the guard working, not a defect.
+ *
+ * Async because it flushes before returning. A server action runs in the same
+ * serverless invocation as the response, and the invocation can be frozen the
+ * moment the action resolves — so a captured-but-unflushed event is simply lost.
+ * The wait is bounded to 2s and only ever happens on a path that already failed.
+ *
+ * `action` is required rather than optional. When it was optional, call sites
+ * omitted it and every failing action in the product collapsed into one Sentry
+ * issue titled `server-action / unknown`, because `action` is also the
+ * fingerprint. Making it required is what keeps one broken action equal to one
+ * issue.
+ *
+ * @param err   The caught value.
+ * @param meta  Call-site detail. `action` (e.g. "bookings.update") is the tag and
+ *              the fingerprint; the ids are optional refinements.
+ *
  * @example
  *   } catch (err) {
- *     return toActionError(err);
+ *     return toActionError(err, { action: "bookings.create", hotelId });
  *   }
  */
-export function toActionError(err: unknown): { success: false; error: string } {
+export async function toActionError(
+  err: unknown,
+  meta: {
+    action: string;
+    hotelId?: string | null;
+    orgId?: string | null;
+    bookingId?: string | null;
+    role?: StaffRole | null;
+  }
+): Promise<{ success: false; error: string }> {
   if (err instanceof AuthError) {
     return { success: false, error: err.message };
   }
+
+  captureError(err, {
+    scope: "server-action",
+    level: "error",
+    hotelId: meta.hotelId,
+    orgId: meta.orgId,
+    bookingId: meta.bookingId,
+    role: meta.role,
+    tags: { "action.name": meta.action },
+    // Group by action rather than by message, so one broken action is one issue
+    // however many different rows it fails on.
+    fingerprint: ["server-action", meta.action],
+  });
+
+  await flushSentry();
+
   return {
     success: false,
     error: err instanceof Error ? err.message : "An unexpected error occurred",

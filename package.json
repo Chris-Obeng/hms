@@ -15,6 +15,17 @@
     "db:reset": "supabase db reset",
     "db:diff": "supabase db diff",
     "db:pull": "supabase db pull",
+    "db:test": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/oversell_guard.sql",
+    "db:test:rates": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/resolve_nightly_rates.sql",
+    "db:test:roles": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/role_ladder.sql",
+    "db:test:atomic": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/create_booking_atomic.sql",
+    "db:test:nights": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/booking_nights.sql",
+    "db:test:reprice": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/reprice_booking_stay.sql",
+    "db:test:restrictions": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/rate_restrictions.sql",
+    "db:test:channel": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/channel_distribution.sql",
+    "db:test:retention": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/rate_retention.sql",
+    "db:test:settle": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/settle_online_payment_atomic.sql",
+    "db:parity-fixture": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -q -t -A -v ON_ERROR_STOP=1 -f - < supabase/tests/pricing_parity_fixture.sql > tests/fixtures/pricing-parity.jsonl",
     "icons": "node scripts/generate-pwa-icons.mjs"
   },
   "dependencies": {
@@ -26,6 +37,7 @@
     "@heroui/styles": "^3.2.2",
     "@internationalized/date": "^3.12.2",
     "@remotion/player": "^4.0.515",
+    "@sentry/nextjs": "^10.72.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.1",
     "@tanstack/react-query": "^5.101.2",
@@ -76,7 +88,7 @@
     "shadcn": "^4.11.0",
     "sharp": "^0.35.3",
     "tailwindcss": "^4",
-    "typescript": "^5",
+    "typescript": "6.0.3",
     "vitest": "3.2.4"
   }
 }

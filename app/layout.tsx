@@ -74,7 +74,6 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="native-shell min-h-dvh flex flex-col font-sans">
-        {/* ── Theme initialisation — runs before React hydrates (SSR-only), prevents FOUC ── */}
         <Script
           id="theme-init"
           strategy="beforeInteractive"

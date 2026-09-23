@@ -14,7 +14,7 @@ export default function OfflinePage() {
       </div>
       <h1 className="text-page-title text-foreground">You&apos;re offline</h1>
       <p className="text-body text-muted-foreground mt-2 max-w-sm">
-        RoomLine needs a connection for live bookings and calendar data. Cached pages may still load when you reconnect.
+        RoomLine needs a connection for live bookings and calendar data.
       </p>
       <div className="mt-8 flex flex-col sm:flex-row gap-3 w-full max-w-xs">
         <Button

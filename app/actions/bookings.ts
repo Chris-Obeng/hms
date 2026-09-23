@@ -2,10 +2,15 @@
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
-import { format } from "date-fns";
+import { createBookingAtomic, type BookingRejection } from "@/lib/bookings/create-booking-atomic";
 import { writeAuditLog } from "@/lib/audit";
-import { requireMinRole, toActionError } from "@/lib/auth";
+import { canPerformAction, requireMinRole, toActionError } from "@/lib/auth";
+import {
+  fetchStayRestrictions,
+  staffStayRestrictionMessage,
+  type RoomTypeStayRestrictions,
+} from "@/lib/bookings/stay-restrictions";
+import { captureError } from "@/lib/observability/sentry";
 import { kickDeliveryWorker } from "@/lib/notifications/kick-delivery";
 import { canTransitionBooking } from "@/lib/booking-status";
 
@@ -37,6 +42,9 @@ const NewBookingSchema = z.object({
   source: z.enum(["direct", "manual", "phone", "walk_in"]),
   paymentPreference: z.enum(["pay_now", "pay_at_checkin"]),
   internalNotes: z.string().max(2000).optional().or(z.literal("")),
+  // A manager who has read the restriction and still wants the stay sets this.
+  // Absent or false, a restricted stay is refused with the reason.
+  overrideRestrictions: z.coerce.boolean().optional(),
 });
 
 export type NewBookingInput = z.infer<typeof NewBookingSchema>;
@@ -52,6 +60,78 @@ export type NewBookingInput = z.infer<typeof NewBookingSchema>;
 export type CreateBookingResult =
   | { success: true; bookingId: string; reference: string }
   | { success: false; error: string; fieldErrors?: Record<string, string[]> };
+
+/**
+ * Staff-facing copy for a `create_booking_atomic` rejection.
+ *
+ * The function's own messages are written for staff but name raw UUIDs, which is
+ * useless at the front desk, so each machine code gets a curated sentence.
+ * Classification is by code, never by message text, so the SQL stays free to
+ * reword itself. `unknown` falls through to the raw message: if a grant or a
+ * migration is missing, an operator who can read the real error is better served
+ * than one who gets a shrug.
+ */
+function rejectionMessage(
+  rejection: BookingRejection,
+  stay: { checkIn: string; checkOut: string }
+): string {
+  switch (rejection.code) {
+    // Either the count came up short before the write, or the inventory guard
+    // (23P01) caught two desks racing for the last room of the type.
+    case "no_availability":
+    case "inventory_conflict":
+      return "Not enough rooms of that type are available for those dates. Refresh availability and try again.";
+
+    // HINT names the occupying guest, so the desk still sees who has the room.
+    case "room_conflict":
+      return `Room already booked by ${rejection.hint ?? "another guest"} (${stay.checkIn} → ${stay.checkOut})`;
+
+    case "room_not_bookable":
+      return "That room cannot be booked — check that it is not under maintenance and belongs to the selected room type.";
+
+    case "room_type_not_found":
+      return "Room type not found";
+
+    case "guest_not_found":
+      return "That guest does not belong to this hotel";
+
+    // The desk gets the real reason: part of the stay has no published rate.
+    // Hidden behind "unavailable" this silently loses every booking in the range.
+    case "unpriced_stay":
+      console.error("[createBooking] stay has no published rate", rejection.message);
+      return "No rate is published for part of those dates. Set a rate for the stay, then try again.";
+
+    case "invalid_date_range":
+      return "Check-out must be after check-in";
+
+    case "invalid_guest_name":
+      return "Guest name is required";
+
+    case "invalid_estimated_arrival":
+      return "Estimated arrival is not a valid time — try 14:30";
+
+    case "invalid_rooms_count":
+      return "That number of rooms cannot be booked";
+
+    case "hotel_not_found":
+      return "Hotel not found";
+
+    // Defensive. The guard is armed only for a direct stay with no created_by,
+    // and every staff write carries one, so the pre-check below is what a desk
+    // actually hits. This case exists so a future unattributed insert path
+    // reports the reason instead of the raw SQL sentence.
+    case "stay_restrictions":
+      return `This stay breaks the rate plan's restrictions (${rejection.hint ?? "no detail"}).`;
+
+    default:
+      console.error("[createBooking] create_booking_atomic rejected", {
+        code: rejection.code,
+        sqlstate: rejection.sqlstate,
+        message: rejection.message,
+      });
+      return `Failed to create booking: ${rejection.message}`;
+  }
+}
 
 export async function createBooking(
   formData: NewBookingInput
@@ -75,16 +155,6 @@ export async function createBooking(
     const data = parsed.data;
     const hotelId = ctx.hotelId;
 
-    // Verify room type belongs to this hotel
-    const { data: roomType } = await supabase
-      .from("room_types")
-      .select("id, name, base_price")
-      .eq("id", data.roomTypeId)
-      .eq("hotel_id", hotelId)
-      .single();
-
-    if (!roomType) return { success: false, error: "Room type not found" };
-
     // Validate dates
     const checkIn = new Date(data.checkIn);
     const checkOut = new Date(data.checkOut);
@@ -93,108 +163,6 @@ export async function createBooking(
     }
     if (checkOut <= checkIn) {
       return { success: false, error: "Check-out must be after check-in" };
-    }
-
-    // Find or create guest
-    let guestId = data.guestId;
-
-    if (!guestId) {
-      if (data.guestEmail) {
-        const { data: g } = await supabase
-          .from("guests")
-          .select("id")
-          .eq("hotel_id", hotelId)
-          .eq("email", data.guestEmail)
-          .maybeSingle();
-        if (g) guestId = g.id;
-      }
-
-      if (!guestId && data.guestPhone) {
-        const { data: g } = await supabase
-          .from("guests")
-          .select("id")
-          .eq("hotel_id", hotelId)
-          .eq("phone", data.guestPhone)
-          .maybeSingle();
-        if (g) guestId = g.id;
-      }
-
-      if (!guestId) {
-        const { data: newGuest, error: guestError } = await supabase
-          .from("guests")
-          .insert({
-            hotel_id: hotelId,
-            full_name: data.guestName,
-            email: data.guestEmail || null,
-            phone: data.guestPhone || null,
-            nationality: data.nationality || null,
-          })
-          .select("id")
-          .single();
-
-        if (guestError || !newGuest) {
-          return { success: false, error: "Failed to create guest" };
-        }
-        guestId = newGuest.id;
-      } else if (data.nationality) {
-        await supabase
-          .from("guests")
-          .update({ nationality: data.nationality })
-          .eq("id", guestId)
-          .eq("hotel_id", hotelId);
-      }
-    }
-
-    // ── Server-side pricing recomputation ─────────────────────────────
-    // NEVER trust client-sent roomRate/subtotal/totalAmount.
-    // Always recompute from override tables + hotel tax settings.
-    const checkInStr = format(checkIn, "yyyy-MM-dd");
-    const checkOutStr = format(checkOut, "yyyy-MM-dd");
-
-    const { resolvePublicNightlyTotal } = await import("@/lib/pricing/resolve-public-price");
-    const resolved = await resolvePublicNightlyTotal(
-      hotelId,
-      data.roomTypeId,
-      checkInStr,
-      checkOutStr
-    );
-
-    const taxEnabled = ctx.hotel.settings.tax_enabled === true;
-    const taxPercentage =
-      taxEnabled && typeof ctx.hotel.settings.tax_percentage === "number"
-        ? ctx.hotel.settings.tax_percentage
-        : 0;
-    const computedSubtotal = resolved.subtotal;
-    const computedTaxAmount =
-      taxPercentage > 0
-        ? Math.round(computedSubtotal * (taxPercentage / 100) * 100) / 100
-        : 0;
-    const computedTotal = Math.round((computedSubtotal + computedTaxAmount) * 100) / 100;
-    // Average nightly rate stored as room_rate (used for reporting, not pricing)
-    const computedRoomRate = resolved.avgNightlyRate;
-
-    // Category booking still needs date-level inventory protection. A room
-    // marked "available" now may overlap another reservation on these dates.
-    const { data: candidateRooms } = await supabase
-      .from("rooms")
-      .select("id, room_number, status")
-      .eq("hotel_id", hotelId)
-      .eq("room_type_id", data.roomTypeId)
-      .not("status", "in", "(maintenance,out_of_service)");
-    if (!candidateRooms?.length) return { success: false, error: "No rooms available for this room type" };
-    const candidateIds = candidateRooms.map((room) => room.id);
-    const { data: overlaps } = await supabase
-      .from("bookings")
-      .select("room_id")
-      .eq("hotel_id", hotelId)
-      .in("room_id", candidateIds)
-      .in("status", ["pending", "confirmed", "checked_in"])
-      .lt("check_in", checkOutStr)
-      .gt("check_out", checkInStr);
-    const occupiedIds = new Set((overlaps ?? []).map((booking) => booking.room_id).filter(Boolean));
-    const eligibleRoom = candidateRooms.find((room) => !occupiedIds.has(room.id));
-    if (!eligibleRoom && !data.roomId) {
-      return { success: false, error: "No rooms available for selected dates" };
     }
 
     // Room assignment availability check
@@ -213,94 +181,97 @@ export async function createBooking(
       if (room.room_type_id !== data.roomTypeId) {
         return { success: false, error: "Room type mismatch" };
       }
+    }
 
-      const { data: conflicts } = await supabase
-        .from("bookings")
-        .select("id, reference, guests(full_name), check_in, check_out")
-        .eq("hotel_id", hotelId)
-        .eq("room_id", data.roomId)
-        .in("status", ["pending", "confirmed", "checked_in"])
-        .lt("check_in", checkOutStr)
-        .gt("check_out", checkInStr)
-        .limit(1);
+    // Rate plan restrictions. The database guard is armed only for an
+    // unattributed direct stay — the public widget — because a desk has to be
+    // able to sell a closed date with a guest standing in front of it. That makes
+    // this the gate for staff, and it is deliberately a soft one: the reason is
+    // named, and a manager can go through it with an audit row behind them.
+    let restricted: RoomTypeStayRestrictions | undefined;
+    try {
+      restricted = (
+        await fetchStayRestrictions(hotelId, [data.roomTypeId], data.checkIn, data.checkOut)
+      ).get(data.roomTypeId);
+    } catch (error) {
+      // A failed restriction read must not stop the desk from taking a booking.
+      // Reported and then ignored: the stay is still written, and the only cost
+      // is that a closed date goes unflagged on this one attempt.
+      captureError(error, {
+        scope: "server-action",
+        hotelId,
+        role: ctx.role,
+        level: "warning",
+        tags: { action: "createBooking", read: "room_type_stay_restrictions" },
+      });
+    }
 
-      if (conflicts && conflicts.length > 0) {
-        const conflict = conflicts[0];
-        const guestInfo = conflict.guests as { full_name?: string | null } | null;
+    const violated = restricted && !restricted.sellable ? restricted : null;
+    if (violated) {
+      const reason = staffStayRestrictionMessage(violated.restrictions);
+      if (!data.overrideRestrictions) {
         return {
           success: false,
-          error: `Room already booked by ${guestInfo?.full_name ?? conflict.reference} (${conflict.check_in} → ${conflict.check_out})`,
+          error: `Rate plan restrictions block this stay: ${reason}. A manager can override this.`,
+        };
+      }
+      if (!canPerformAction(ctx.role, "manager")) {
+        return {
+          success: false,
+          error: `Rate plan restrictions block this stay: ${reason}. Only a manager or above can override it.`,
         };
       }
     }
 
-    // Generate reference atomically (race-safe DB counter).
-    // SECURITY DEFINER RPC — callable by `authenticated`; service-role client
-    // is a fallback so reservation creation survives grant drift.
-    let reference: string;
-    const { data: refData, error: refErr } = await supabase.rpc(
-      "generate_booking_reference",
-      { p_hotel_id: hotelId, p_prefix: "BK" }
-    );
+    // One transaction resolves the guest, generates the reference, prices every
+    // night, picks a free room and passes the inventory gate, then writes
+    // `bookings` and `booking_nights` together. The rates stored against the stay
+    // are the numbers the stay was priced at by construction, and a rejection
+    // leaves no orphan guest and no half-built reservation behind.
+    //
+    // The function runs on the service-role client, so RLS is not a second gate
+    // on this write. `hotelId` comes from `requireMinRole` and never from the
+    // submitted form, and `create_booking_atomic` independently re-checks that
+    // the room type, the room and any supplied guest all belong to that hotel —
+    // strictly more tenancy checking than the RLS-scoped insert it replaces.
+    const created = await createBookingAtomic({
+      hotel_id: hotelId,
+      room_type_id: data.roomTypeId,
+      check_in: data.checkIn,
+      check_out: data.checkOut,
+      adults: data.adults,
+      children: data.children,
+      status: data.paymentPreference === "pay_now" ? "pending" : "confirmed",
+      payment_status: "unpaid",
+      payment_preference: data.paymentPreference,
+      source: data.source,
+      // A desk booking holds a numbered room from the moment it is taken. The
+      // function picks the lowest-numbered free room of the type, and leaves
+      // room_id null rather than failing a valid reservation if none is free.
+      assign_room: true,
+      room_id: data.roomId ?? null,
+      guest_id: data.guestId ?? null,
+      guest_name: data.guestName,
+      guest_email: data.guestEmail ?? "",
+      guest_phone: data.guestPhone ?? "",
+      nationality: data.nationality ?? null,
+      special_requests: data.specialRequests ?? null,
+      internal_notes: data.internalNotes ?? null,
+      estimated_arrival: data.estimatedArrival ?? null,
+      created_by: ctx.staffId,
+    });
 
-    if (refData) {
-      reference = String(refData);
-    } else {
-      if (refErr) {
-        console.error("[createBooking] generate_booking_reference failed", {
-          code: refErr.code,
-          message: refErr.message,
-          hint: refErr.hint,
-        });
-      }
-      try {
-        const { data: adminRef, error: adminRefErr } = await supabaseAdmin.rpc(
-          "generate_booking_reference",
-          { p_hotel_id: hotelId, p_prefix: "BK" }
-        );
-        if (adminRefErr || !adminRef) throw adminRefErr ?? new Error("Empty reference");
-        reference = String(adminRef);
-      } catch (fallbackErr) {
-        console.error("[createBooking] reference fallback failed", fallbackErr);
-        return { success: false, error: "Failed to generate booking reference" };
-      }
-    }
-
-    const { data: booking, error: bookingError } = await supabase
-      .from("bookings")
-      .insert({
-        hotel_id: hotelId,
-        reference,
-        guest_id: guestId,
-        room_type_id: data.roomTypeId,
-        // Hold a real room at creation. Existing GiST exclusion constraint is
-        // then final authority against concurrent overlapping reservations.
-        room_id: data.roomId ?? eligibleRoom?.id ?? null,
-        check_in: checkInStr,
-        check_out: checkOutStr,
-        adults: data.adults,
-        children: data.children,
-        room_rate: computedRoomRate,
-        subtotal: computedSubtotal,
-        tax_amount: computedTaxAmount,
-        total_amount: computedTotal,
-        estimated_arrival: data.estimatedArrival || null,
-        special_requests: data.specialRequests || null,
-        source: data.source,
-        payment_preference: data.paymentPreference,
-        status: data.paymentPreference === "pay_now" ? "pending" : "confirmed",
-        payment_status: "unpaid",
-        internal_notes: data.internalNotes || null,
-      })
-      .select("id, reference")
-      .single();
-
-    if (bookingError || !booking) {
+    if (!created.ok) {
       return {
         success: false,
-        error: `Failed to create booking: ${bookingError?.message ?? "Unknown error"}`,
+        error: rejectionMessage(created.rejection, {
+          checkIn: data.checkIn,
+          checkOut: data.checkOut,
+        }),
       };
     }
+
+    const booking = created.booking;
 
     await writeAuditLog(supabase, {
       hotelId,
@@ -308,15 +279,40 @@ export async function createBooking(
       staffName: ctx.staffName,
       action: "booking.created",
       entityType: "booking",
-      entityId: booking.id,
+      entityId: booking.booking_id,
       afterState: {
         reference: booking.reference,
         source: data.source,
         payment_preference: data.paymentPreference,
         check_in: data.checkIn,
         check_out: data.checkOut,
+        room_id: booking.room_id,
+        total_amount: booking.total_amount,
       },
     });
+
+    // A second row, only when a manager sold through a restriction. Separate
+    // from booking.created on purpose: this is the row a revenue manager filters
+    // on when a closed date still sold, and it carries the violation codes
+    // verbatim so the decision can be read back without re-deriving it.
+    if (violated) {
+      await writeAuditLog(supabase, {
+        hotelId,
+        staffId: ctx.staffId,
+        staffName: ctx.staffName,
+        action: "rate.restriction_overridden",
+        entityType: "booking",
+        entityId: booking.booking_id,
+        afterState: {
+          reference: booking.reference,
+          room_type_id: data.roomTypeId,
+          rate_plan_id: violated.ratePlanId,
+          check_in: data.checkIn,
+          check_out: data.checkOut,
+          violations: violated.restrictions.map((restriction) => restriction.raw),
+        },
+      });
+    }
 
     // Fan out internal alert per staff preference. Creator excluded by design.
     const { data: recipients } = await supabase
@@ -332,7 +328,7 @@ export async function createBooking(
         type: "new_booking",
         title: "New booking created",
         message: `${booking.reference} added by ${ctx.staffName ?? "staff"}`,
-        booking_id: booking.id,
+        booking_id: booking.booking_id,
         created_by_staff_id: ctx.staffId,
         recipient_staff_id: staff.id,
       }));
@@ -342,7 +338,7 @@ export async function createBooking(
         // Booking already persisted; losing alerts must not fail the request,
         // but it must never fail silently either.
         console.error("[createBooking] staff notification insert failed", {
-          bookingId: booking.id,
+          bookingId: booking.booking_id,
           error: notifyError.message,
         });
       } else {
@@ -350,9 +346,9 @@ export async function createBooking(
       }
     }
 
-    return { success: true, bookingId: booking.id, reference: booking.reference };
+    return { success: true, bookingId: booking.booking_id, reference: booking.reference };
   } catch (err) {
-    return toActionError(err);
+    return toActionError(err, { action: "bookings.createBooking" });
   }
 }
 

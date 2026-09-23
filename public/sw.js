@@ -3,7 +3,7 @@
  * static caching. Served from the root scope by definition.
  */
 
-const VERSION = "v3";
+const VERSION = "v4";
 const CACHE_STATIC = `rl-static-${VERSION}`;
 const CACHE_IMAGES = `rl-images-${VERSION}`;
 const CACHE_AVAILABILITY = `rl-availability-${VERSION}`;
@@ -52,8 +52,13 @@ async function cacheFirst(request, cacheName) {
   const response = await fetch(request);
   if (response && response.ok) {
     const cache = await caches.open(cacheName);
-    cache.put(request, response.clone());
-    trimCache(cacheName, 128);
+    // Deliberately not awaited: the response goes back to the page immediately
+    // and the cache write settles behind it. Trimming is chained onto the put so
+    // it cannot race the entry it was meant to keep.
+    cache
+      .put(request, response.clone())
+      .then(() => trimCache(cacheName, 128))
+      .catch(() => {});
   }
   return response;
 }
@@ -63,9 +68,13 @@ async function staleWhileRevalidate(request, cacheName) {
   const network = fetch(request)
     .then((response) => {
       if (response && response.ok) {
-        const cache = caches.open(cacheName).then((c) => c.put(request, response.clone()));
-        trimCache(cacheName, 64);
-        return response;
+        const clone = response.clone();
+        // Same fire-and-forget write as `cacheFirst`, for the same reason.
+        caches
+          .open(cacheName)
+          .then((cache) => cache.put(request, clone))
+          .then(() => trimCache(cacheName, 64))
+          .catch(() => {});
       }
       return response;
     })

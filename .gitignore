@@ -32,6 +32,27 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...except the placeholder template, which is meant to be committed.
+!.env.example
+
+# agent tooling. Blanket-ignoring .agents and .claude hid edits to the skill
+# packs that are committed here, so only the machine-local parts are ignored.
+.agents/prompts/
+.agents/rules/
+.agents/workflows/
+.agents/skills/*
+!.agents/skills/clerk-nextjs-patterns/
+!.agents/skills/clerk-orgs/
+!.agents/skills/supabase/
+!.agents/skills/supabase-postgres-best-practices/
+.claude/settings.local.json
+
+#other dirs
+.opencode
+.codex
+.fallow
+.heroui-docs
+.kiro
 
 # vercel
 .vercel
@@ -64,3 +85,7 @@ nul
 
 # Playwright session state + screenshots
 .playwright/
+
+# session artifacts
+/*.log
+.claude/worktrees/

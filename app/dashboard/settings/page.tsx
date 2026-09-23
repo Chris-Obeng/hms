@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import { can } from "@/lib/roles";
 import { Settings } from "lucide-react";
 import { SettingsNavigation } from "./settings-navigation";
 import { SettingsHeader } from "./settings-header";
@@ -17,8 +18,8 @@ export default async function SettingsPage() {
     .eq("clerk_org_id", orgId)
     .single();
 
-  const isSuperAdmin = currentUser?.role === "super_admin";
-  const canView = currentUser?.role && currentUser.role !== "pending";
+  const isSuperAdmin = can(currentUser?.role, "settings:manage");
+  const canView = can(currentUser?.role, "settings:view");
 
   if (!canView) {
     return <NoAccessState />;

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { captureError } from "@/lib/observability/sentry";
 
 /**
  * Rate limiting for public endpoints.
@@ -58,6 +59,29 @@ const upstashEnabled = Boolean(redisUrl && redisToken);
 // each carries its own prefix + limiter config, so cache them.
 const limiters = new Map<string, Ratelimit>();
 
+/**
+ * Shared in-memory record of identifiers Upstash has already blocked.
+ *
+ * A blocked identifier is exactly the case that repeats: someone hammering the
+ * booking endpoint keeps hitting the same bucket, and without this every one of
+ * those requests costs a Redis round trip that can only return "still blocked".
+ * With it, the block is answered locally.
+ *
+ * Declared at module scope on purpose — the SDK caches nothing useful if the Map
+ * is created per invocation, which is the documented pitfall.
+ */
+const ephemeralCache = new Map<string, number>();
+
+/**
+ * How long to wait for Upstash before failing open.
+ *
+ * The SDK default is 5s, which is 5s of a guest staring at a spinner during a
+ * Redis brownout before the fail-open path is even reached. A limiter decision is
+ * worth ~1s and no more; past that, letting the request through is the cheaper
+ * mistake.
+ */
+const LIMITER_TIMEOUT_MS = 1000;
+
 function getLimiter(name: string, limit: number, windowSeconds: number): Ratelimit {
   const key = `${name}:${limit}:${windowSeconds}`;
   const existing = limiters.get(key);
@@ -67,6 +91,8 @@ function getLimiter(name: string, limit: number, windowSeconds: number): Ratelim
     redis: new Redis({ url: redisUrl!, token: redisToken! }),
     limiter: Ratelimit.slidingWindow(limit, `${windowSeconds} s`),
     prefix: `rl:${name}`,
+    ephemeralCache,
+    timeout: LIMITER_TIMEOUT_MS,
   });
   limiters.set(key, limiter);
   return limiter;
@@ -134,6 +160,34 @@ export async function rateLimit(
   } catch (err) {
     // Limiter outage must not take the booking funnel down — fail open.
     console.error(`[rate-limit] Upstash unavailable for "${options.name}":`, err);
+    reportLimiterOutage(options.name, err);
     return { ok: true, remaining: options.limit - 1, retryAfterSeconds: 60 };
   }
+}
+
+/**
+ * Reports a limiter outage, at most once per bucket per 5 minutes per instance.
+ *
+ * Failing open is the right trade for a guest checkout, but it means every public
+ * endpoint is unthrottled while it lasts — reference enumeration and repeated
+ * Paystack initialisations included — so it must not be silent. The throttle is
+ * what keeps an hour-long Upstash outage from turning into one Sentry event per
+ * request on a path that allows 60 requests per minute per guest.
+ */
+const OUTAGE_REPORT_INTERVAL_MS = 5 * 60 * 1000;
+const lastOutageReport = new Map<string, number>();
+
+function reportLimiterOutage(name: string, err: unknown): void {
+  const now = Date.now();
+  const previous = lastOutageReport.get(name) ?? 0;
+  if (now - previous < OUTAGE_REPORT_INTERVAL_MS) return;
+  lastOutageReport.set(name, now);
+
+  captureError(err, {
+    scope: "rate-limit",
+    level: "error",
+    tags: { "ratelimit.bucket": name, "ratelimit.failed_open": true },
+    // One issue for the outage, not one per bucket: the cause is the same store.
+    fingerprint: ["rate-limit", "upstash-unavailable"],
+  });
 }

@@ -2,6 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import { can } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import {
   DEFAULT_TEMPLATES,
@@ -34,7 +35,7 @@ async function getSuperAdmin() {
     .eq("clerk_org_id", orgId)
     .single();
 
-  if (staff?.role !== "super_admin") throw new Error("Super Admin only");
+  if (!can(staff?.role, "notification_templates:manage")) throw new Error("Super Admin only");
 
   return { supabase, hotelId: hotel.id, settings: (hotel.settings ?? {}) as Record<string, unknown> };
 }

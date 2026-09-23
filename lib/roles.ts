@@ -1,8 +1,9 @@
 /**
  * lib/roles.ts
  *
- * Staff role hierarchy shared by server guards (lib/auth.ts) and client UI
- * gating (settings navigation). Pure data only — no server imports.
+ * Staff role hierarchy and the capability map that every role gate reads from.
+ * Shared by server guards (lib/auth.ts), server actions, and client UI gating.
+ * Pure data only — no server imports.
  */
 
 export type StaffRole = "super_admin" | "manager" | "front_desk" | "read_only" | "pending";
@@ -18,4 +19,63 @@ export const ROLE_LEVEL: Record<StaffRole, number> = {
 
 export function roleAtLeast(role: string | null | undefined, min: StaffRole): boolean {
   return (ROLE_LEVEL[(role ?? "pending") as StaffRole] ?? 0) >= ROLE_LEVEL[min];
+}
+
+/**
+ * The strongest role. A holder of this role clears every capability below by
+ * construction, because `can()` is a level comparison and no capability can be
+ * declared above the top of the ladder. `tests/roles.test.ts` asserts it.
+ */
+export const HIGHEST_ROLE: StaffRole = "super_admin";
+
+/**
+ * Every gated action in the app, mapped to the weakest role allowed to perform
+ * it. This is the authorization surface: features ask for a capability, never
+ * for a role, so a role comparison cannot drift from one call site to the next.
+ *
+ * Mirrored in SQL by `public.user_role_at_least()` (see the RESTRICTIVE policies
+ * in supabase/migrations). Keep the two ladders in step.
+ */
+export const CAPABILITY_MIN_ROLE = {
+  /** Read the settings area at all (any assigned role except pending). */
+  "settings:view":                 "read_only",
+  /** Edit a booking: dates, rooms, guest details, status. */
+  "booking:edit":                  "front_desk",
+  /** Move or resize a reservation on the calendar. */
+  "calendar:edit":                 "front_desk",
+  /** Block a room for maintenance, cleaning or an owner stay. */
+  "availability:block":            "front_desk",
+  /** Remove an existing availability block. */
+  "availability:unblock":          "manager",
+  /** Change rates, plans and daily overrides. */
+  "pricing:manage":                "manager",
+  /** Configure payment settings (channels, surcharges, payout account). */
+  "payments:configure":            "manager",
+  /** Close the business day. */
+  "night_audit:run":               "manager",
+  /** Read the hotel audit log. */
+  "audit:read":                    "super_admin",
+  /** Add, deactivate, or re-role staff. */
+  "staff:manage":                  "super_admin",
+  /** Send a staff invitation. */
+  "staff:invite":                  "super_admin",
+  /** Change hotel profile, policies, and integration settings. */
+  "settings:manage":               "super_admin",
+  /** Reveal or rotate payment provider credentials. */
+  "payments:manage_credentials":   "super_admin",
+  /** Edit guest-facing notification templates. */
+  "notification_templates:manage": "super_admin",
+} as const satisfies Record<string, StaffRole>;
+
+export type Capability = keyof typeof CAPABILITY_MIN_ROLE;
+
+/**
+ * Authorization check for a single capability.
+ *
+ * Prefer this over comparing `role` to a literal: a hand-rolled
+ * `role === "super_admin" || role === "manager"` restates the ladder and can
+ * silently omit a role when the ladder changes.
+ */
+export function can(role: string | null | undefined, capability: Capability): boolean {
+  return roleAtLeast(role, CAPABILITY_MIN_ROLE[capability]);
 }

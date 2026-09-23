@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/rate-limit";
+import { captureSupabaseError, flushSentry } from "@/lib/observability/sentry";
+import { bookingReferenceParam, hotelSlugParam } from "@/lib/validation/params";
 
 export async function GET(
   req: NextRequest,
@@ -15,16 +17,22 @@ export async function GET(
   }
 
   const { slug } = await params;
-  const reference = req.nextUrl.searchParams.get("reference");
-
   // Validate before the value reaches the ICS body and the Content-Disposition
   // header — unvalidated input there allows header/calendar content injection.
-  if (!reference || !/^[A-Z0-9-]{3,30}$/.test(reference)) {
+  // The parsed value is used from here on, so a missing param cannot reach the
+  // query as `null`.
+  const parsedReference = bookingReferenceParam.safeParse(
+    req.nextUrl.searchParams.get("reference"),
+  );
+
+  if (!parsedReference.success) {
     return new NextResponse("Missing reference", { status: 400 });
   }
 
+  const reference = parsedReference.data;
+
   // Resolve hotel — use separate eq() calls (never .or() with interpolated slug).
-  if (!/^[a-z0-9.-]{1,253}$/i.test(slug)) {
+  if (!hotelSlugParam.safeParse(slug).success) {
     return new NextResponse("Hotel not found", { status: 404 });
   }
 
@@ -46,7 +54,7 @@ export async function GET(
 
   if (!hotel) return new NextResponse("Hotel not found", { status: 404 });
 
-  const { data: booking } = await supabaseAdmin
+  const { data: booking, error: bookingErr } = await supabaseAdmin
     .from("bookings")
     .select(
       "reference, check_in, check_out, nights, guests(full_name, email), room_types(name)"
@@ -55,7 +63,23 @@ export async function GET(
     .eq("reference", reference)
     .single();
 
-  if (!booking) return new NextResponse("Booking not found", { status: 404 });
+  if (!booking) {
+    // PGRST116 is "no rows": a stale link or a mistyped reference, which the 404
+    // already answers. Any other code means a guest holding a real booking cannot
+    // add their stay to their calendar. The guest's name is deliberately not sent.
+    if (bookingErr && bookingErr.code !== "PGRST116") {
+      captureSupabaseError(bookingErr, "bookings.select.calendar", {
+        scope: "booking-funnel",
+        step: "confirm",
+        level: "error",
+        hotelId: hotel.id,
+        reference,
+        tags: { "hotel.slug": slug },
+      });
+      await flushSentry();
+    }
+    return new NextResponse("Booking not found", { status: 404 });
+  }
 
   const guestName =
     (booking.guests as { full_name?: string | null } | null)?.full_name ?? "Guest";

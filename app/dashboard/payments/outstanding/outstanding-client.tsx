@@ -6,6 +6,8 @@ import { Eye, AlertCircle } from "lucide-react";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { onRealtimeStatus } from "@/lib/observability/realtime";
+import { createCoalescer } from "@/lib/realtime/coalesce";
 
 interface OutstandingRow {
   id: string;
@@ -42,20 +44,26 @@ export function OutstandingClient({
   // Realtime subscription — refresh on any booking or payment change for this hotel
   React.useEffect(() => {
     const supabase = createClient();
+    // One folio operation writes several rows; coalesce the burst into a single refresh.
+    const refresh = createCoalescer();
+    const scheduleRefresh = () => refresh.schedule(() => refreshRef.current());
     const channel = supabase
       .channel(`hotel:${hotelId}:outstanding`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
-        () => refreshRef.current(),
+        scheduleRefresh,
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payments", filter: `hotel_id=eq.${hotelId}` },
-        () => refreshRef.current(),
+        scheduleRefresh,
       )
-      .subscribe();
+      .subscribe(
+        onRealtimeStatus({ label: "outstanding", hotelId, table: "bookings,payments" }),
+      );
     return () => {
+      refresh.cancel();
       supabase.removeChannel(channel);
     };
   }, [hotelId]);
