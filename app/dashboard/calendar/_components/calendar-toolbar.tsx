@@ -34,7 +34,7 @@ function NavButtonGroup({ onNavigate, onToday }: Pick<CalendarToolbarProps, "onN
     <ButtonGroup variant="outline" size="sm">
       <Tooltip delay={NAV_TOOLTIP_DELAY}>
         <Tooltip.Trigger>
-          <Button isIconOnly aria-label="Previous period" onPress={() => onNavigate(-1)} className="size-8">
+          <Button isIconOnly aria-label="Previous period" onPress={() => onNavigate(-1)} className="tap-target">
             <ChevronLeft className="size-3.5" />
           </Button>
         </Tooltip.Trigger>
@@ -42,7 +42,7 @@ function NavButtonGroup({ onNavigate, onToday }: Pick<CalendarToolbarProps, "onN
       </Tooltip>
       <Tooltip delay={NAV_TOOLTIP_DELAY}>
         <Tooltip.Trigger>
-          <Button aria-label="Jump to today" onPress={onToday} className="h-8 px-2.5 text-xs font-semibold tabular-nums">
+          <Button aria-label="Jump to today" onPress={onToday} className="tap-target h-8 px-2.5 text-xs font-semibold tabular-nums">
             Today
           </Button>
         </Tooltip.Trigger>
@@ -50,7 +50,7 @@ function NavButtonGroup({ onNavigate, onToday }: Pick<CalendarToolbarProps, "onN
       </Tooltip>
       <Tooltip delay={NAV_TOOLTIP_DELAY}>
         <Tooltip.Trigger>
-          <Button isIconOnly aria-label="Next period" onPress={() => onNavigate(1)} className="size-8">
+          <Button isIconOnly aria-label="Next period" onPress={() => onNavigate(1)} className="tap-target">
             <ChevronRight className="size-3.5" />
           </Button>
         </Tooltip.Trigger>
@@ -214,7 +214,7 @@ function FiltersButton({ activeFilterCount, onOpenFilters }: Pick<CalendarToolba
           isIconOnly
           aria-label={`Filters${activeFilterCount > 0 ? ` (${activeFilterCount} active)` : ""}`}
           onPress={onOpenFilters}
-          className={cn("relative size-8", activeFilterCount > 0 && "border-primary/40 text-primary")}
+          className={cn("tap-target relative", activeFilterCount > 0 && "border-primary/40 text-primary")}
         >
           <SlidersHorizontal className="size-3.5" />
           {activeFilterCount > 0 && (
@@ -233,7 +233,7 @@ function BlockRoomButton({ onBlockRoom }: Pick<CalendarToolbarProps, "onBlockRoo
   return (
     <Tooltip delay={NAV_TOOLTIP_DELAY}>
       <Tooltip.Trigger>
-        <Button variant="outline" size="sm" isIconOnly aria-label="Block room" onPress={onBlockRoom} className="size-8">
+        <Button variant="outline" size="sm" isIconOnly aria-label="Block room" onPress={onBlockRoom} className="tap-target">
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none" className="size-3.5" aria-hidden>
             <rect x="1" y="1" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
             <line x1="3.5" y1="7.5" x2="11.5" y2="7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -295,7 +295,7 @@ export function CalendarToolbar(props: CalendarToolbarProps) {
           <NavButtonGroup onNavigate={props.onNavigate} onToday={props.onToday} />
           <FiltersButton activeFilterCount={props.activeFilterCount} onOpenFilters={props.onOpenFilters} />
           {canBlock && <BlockRoomButton onBlockRoom={props.onBlockRoom} />}
-          <Button size="sm" isIconOnly aria-label="New reservation" onPress={onNewBooking} className="size-9">
+          <Button size="sm" isIconOnly aria-label="New reservation" onPress={onNewBooking} className="tap-target">
             <Plus className="size-4" />
           </Button>
         </div>

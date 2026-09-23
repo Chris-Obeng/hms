@@ -1,4 +1,10 @@
-// Calendar helper constants and pure formatting functions.
+/** Statuses that never occupy a room. Shared by the timeline, auto-assign and
+ *  drop validation so the taxonomy evolves in exactly one place. */
+export const TERMINAL_BOOKING_STATUSES = ["cancelled", "checked_out", "no_show"] as const;
+export const TERMINAL_BOOKING_STATUS_SET: ReadonlySet<string> = new Set(TERMINAL_BOOKING_STATUSES);
+
+/** Room states that cannot take bookings (row hatching, drop/create guards). */
+export const NON_BOOKABLE_ROOM_STATUSES: ReadonlySet<string> = new Set(["maintenance", "out_of_service"]);
 
 export function isManualLikeSource(source: string | null | undefined): boolean {
   return source === "manual" || source === "phone" || source === "walk_in";
@@ -72,3 +78,12 @@ export const BLOCK_REASONS = [
   { value: "renovation", label: "Renovation" },
   { value: "other", label: "Other" },
 ] as const;
+
+/** Display labels keyed by stored reason value. Includes the legacy values
+ *  (`cleaning`, `hold`) written by older clients, so historic rows still
+ *  render a friendly label instead of raw text. */
+export const BLOCK_REASON_LABELS: Record<string, string> = {
+  ...Object.fromEntries(BLOCK_REASONS.map(({ value, label }) => [value, label])),
+  cleaning: "Deep cleaning",
+  hold: "Operational hold",
+};

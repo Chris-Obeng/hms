@@ -3,15 +3,37 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { can } from "@/lib/roles";
+import { z } from "zod";
 import { parseISO, addDays, format } from "date-fns";
 import { toStoredBlockRange } from "@/lib/calendar-domain";
 import { businessToday } from "@/lib/business-date";
 import { writeAuditLog } from "@/lib/audit";
 import { captureIssue } from "@/lib/observability/sentry";
+import { isoDateParam } from "@/lib/validation/params";
 import {
   repriceBookingStay,
   type BookingRejection,
 } from "@/lib/bookings/create-booking-atomic";
+
+// ── Input validation ────────────────────────────────────────────────────────
+// Bundled server actions are directly invocable, so every client-supplied
+// value is validated here before it reaches PostgREST. Caps mirror the CHECK
+// constraints in 20260923120000_bookings_role_gates.sql.
+
+const uuidParam = z.uuid();
+/** Visible calendar window. VIEW_PRESETS top out at 30; 45 leaves headroom. */
+const calendarDaysParam = z.number().int().min(1).max(45);
+const blockReasonParam = z.string().trim().min(1).max(50);
+const blockNotesParam = z.string().trim().max(2000).nullable();
+
+/** Raw PostgREST/Postgres text must never reach the client (M7): report the
+ *  detail, return copy staff can act on. */
+function reportCalendarFailure(
+  message: string,
+  meta: { hotelId?: string | null; bookingId?: string | null; tags?: Record<string, string | number | boolean | null | undefined>; contexts?: Record<string, Record<string, unknown>> },
+): void {
+  captureIssue(message, { scope: "server-action", level: "error", ...meta });
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -146,15 +168,37 @@ export async function getCalendarData(
   startDate: string,
   days: number
 ): Promise<CalendarData> {
+  // Validate before touching the DB: an unbounded `days` would dump the full
+  // booking history (guest PII included) to any active staff member (M2), and
+  // a malformed date would produce a nonsense window.
+  if (!isoDateParam.safeParse(startDate).success) {
+    throw new Error("Invalid calendar start date");
+  }
+  if (!calendarDaysParam.safeParse(days).success) {
+    throw new Error("Invalid calendar window");
+  }
+
   const { supabase, hotelId } = await getHotelScopedClient();
 
   // Calculate the end of the visible window
   const endDate = format(addDays(parseISO(startDate), days), "yyyy-MM-dd");
 
+  // A failed query must surface as a thrown error (H4): returning `?? []`
+  // renders an empty grid that is indistinguishable from a zero-room hotel.
+  const failLoad = (step: string, error: { message?: string; code?: string }): never => {
+    reportCalendarFailure(`getCalendarData: ${step} query failed`, {
+      hotelId,
+      tags: { step, code: error.code },
+      contexts: { supabase: { message: error.message } },
+    });
+    throw new Error("Failed to load calendar data");
+  };
+
+  // 1. Room types for this hotel
   // Parallel queries ──────────────────────────────────────────────────
 
   // 1. Room types for this hotel
-  const { data: roomTypes } = await supabase
+  const { data: roomTypes, error: roomTypesError } = await supabase
     .from("room_types")
     .select("id, name, slug, base_price, sort_order")
     .eq("hotel_id", hotelId)
@@ -162,8 +206,10 @@ export async function getCalendarData(
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
 
+  if (roomTypesError) failLoad("room_types", roomTypesError);
+
   // 2. Rooms ordered by type then number
-  const { data: rooms } = await supabase
+  const { data: rooms, error: roomsError } = await supabase
     .from("rooms")
     .select(`
       id, room_number, floor, status,
@@ -173,12 +219,14 @@ export async function getCalendarData(
     .eq("is_active", true)
     .order("room_number", { ascending: true });
 
+  if (roomsError) failLoad("rooms", roomsError);
+
   // 3. Bookings overlapping the visible window (assigned + unassigned).
   //    ALL statuses are returned so scrolling into history still shows
   //    past stays (checked_out / cancelled / no_show render muted and are
   //    not draggable). Window bounds keep the payload proportional to what
   //    is actually on screen.
-  const { data: bookings } = await supabase
+  const { data: bookings, error: bookingsError } = await supabase
     .from("bookings")
     .select(`
       id, reference,
@@ -196,8 +244,10 @@ export async function getCalendarData(
     .gt("check_out", startDate)
     .order("check_in", { ascending: true });
 
+  if (bookingsError) failLoad("bookings", bookingsError);
+
   // 4. Availability blocks overlapping the visible window
-  const { data: blocks } = await supabase
+  const { data: blocks, error: blocksError } = await supabase
     .from("availability_blocks")
     .select("id, room_id, start_date, end_date, reason, notes, created_by, created_at")
     .eq("hotel_id", hotelId)
@@ -205,14 +255,25 @@ export async function getCalendarData(
     .gt("end_date", startDate)
     .order("start_date", { ascending: true });
 
+  if (blocksError) failLoad("availability_blocks", blocksError);
+
   // Resolve blocker names in one query
   const blockCreatorIds = [...new Set((blocks || []).map((b) => b.created_by).filter(Boolean))] as string[];
   const blockStaffMap = new Map<string, string>();
   if (blockCreatorIds.length > 0) {
-    const { data: blockStaff } = await supabase
+    const { data: blockStaff, error: blockStaffError } = await supabase
       .from("staff_profiles")
       .select("id, full_name")
       .in("id", blockCreatorIds);
+    // Degraded-only failure: blocks still render, just without creator names.
+    if (blockStaffError) {
+      captureIssue("getCalendarData: staff_profiles enrichment failed", {
+        scope: "server-action",
+        level: "warning",
+        hotelId,
+        contexts: { supabase: { message: blockStaffError.message, code: blockStaffError.code } },
+      });
+    }
     for (const s of blockStaff || []) {
       if (s.full_name) blockStaffMap.set(s.id, s.full_name);
     }
@@ -307,9 +368,19 @@ export interface AvailabilityConflict {
   status: string;
 }
 
+export interface AvailabilityBlockConflict {
+  startDate: string;
+  endDate: string;
+  reason: string | null;
+}
+
 export interface AvailabilityCheckResult {
   available: boolean;
   conflicts: AvailabilityConflict[];
+  /** H2: reprice_booking_stay does NOT consult availability_blocks, so this
+   *  app-layer check is the only enforcement against booking into a blocked
+   *  room. Callers must surface these the same way as booking conflicts. */
+  blocks: AvailabilityBlockConflict[];
 }
 
 /**
@@ -333,7 +404,7 @@ export async function checkRoomAvailability(
     .single();
 
   if (!room) {
-    return { available: false, conflicts: [] };
+    return { available: false, conflicts: [], blocks: [] };
   }
 
   // Find overlapping active bookings for this room
@@ -363,9 +434,27 @@ export async function checkRoomAvailability(
     status: (c.status as string) ?? "",
   }));
 
+  // Overlapping availability blocks (maintenance, owner use, ...). Blocks are
+  // stored as [start_date, end_date) with end_date = blocked end day + 1, so
+  // the same half-open overlap test applies.
+  const { data: blockRows } = await supabase
+    .from("availability_blocks")
+    .select("start_date, end_date, reason")
+    .eq("hotel_id", hotelId)
+    .eq("room_id", roomId)
+    .lt("start_date", checkOut)
+    .gt("end_date", checkIn);
+
+  const mappedBlocks: AvailabilityBlockConflict[] = (blockRows ?? []).map((b) => ({
+    startDate: b.start_date as string,
+    endDate: b.end_date as string,
+    reason: (b.reason as string | null) ?? null,
+  }));
+
   return {
-    available: mapped.length === 0,
+    available: mapped.length === 0 && mappedBlocks.length === 0,
     conflicts: mapped,
+    blocks: mappedBlocks,
   };
 }
 
@@ -388,7 +477,20 @@ export async function assignBookingToRoom(
   roomId: string
 ): Promise<AssignResult> {
   try {
-    const { supabase, hotelId } = await getHotelScopedClient();
+    const { supabase, hotelId, userId } = await getHotelScopedClient();
+
+    // H1: bundled server actions are directly invocable — hiding the toolbar
+    // affordance from read_only staff is not a control, the capability check
+    // must live here. Mirrors the restrictive bookings UPDATE RLS policy.
+    const { role } = await getCurrentStaffRole();
+    if (!can(role, "calendar:edit")) {
+      return { success: false, error: "You don't have permission to assign rooms" };
+    }
+
+    // M9: untrusted client input
+    if (!uuidParam.safeParse(bookingId).success || !uuidParam.safeParse(roomId).success) {
+      return { success: false, error: "Invalid booking or room" };
+    }
 
     // Fetch booking with its room_type_id and dates
     const { data: booking } = await supabase
@@ -433,6 +535,16 @@ export async function assignBookingToRoom(
     );
 
     if (!availability.available) {
+      // Blocks first: a maintenance block is the more actionable answer than a
+      // "booked by" conflict when both overlap.
+      const block = availability.blocks[0];
+      if (block) {
+        const reasonLabel = block.reason ? ` — ${block.reason.replaceAll("_", " ")}` : "";
+        return {
+          success: false,
+          error: `Room is blocked ${block.startDate} → ${block.endDate}${reasonLabel}`,
+        };
+      }
       const conflict = availability.conflicts[0];
       return {
         success: false,
@@ -452,15 +564,46 @@ export async function assignBookingToRoom(
       if (error.message?.includes("bookings_no_room_overlap")) {
         return { success: false, error: "Room is no longer available — another booking was just placed" };
       }
-      return { success: false, error: error.message };
+      // M7: raw PostgREST text (constraint names, schema internals) must not
+      // reach staff — report the detail, return generic copy.
+      reportCalendarFailure("assignBookingToRoom: update failed", {
+        hotelId,
+        bookingId,
+        tags: { code: error.code },
+        contexts: { supabase: { message: error.message } },
+      });
+      return { success: false, error: "Could not assign the room — try again" };
     }
+
+    // M5: assignment is an operational event worth an audit trail (moves have
+    // one; this path was silent).
+    let assignedByStaffId: string | null = null;
+    if (userId) {
+      const { data: staffProfile } = await supabase
+        .from("staff_profiles")
+        .select("id")
+        .eq("clerk_user_id", userId)
+        .single();
+      assignedByStaffId = staffProfile?.id ?? null;
+    }
+
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId: assignedByStaffId,
+      action: "booking.room_assigned",
+      entityType: "booking",
+      entityId: bookingId,
+      beforeState: { room_id: booking.room_id },
+      afterState: { room_id: roomId },
+    });
 
     return { success: true };
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Assignment failed",
-    };
+    reportCalendarFailure("assignBookingToRoom: unexpected failure", {
+      bookingId,
+      contexts: { error: { message: err instanceof Error ? err.message : String(err) } },
+    });
+    return { success: false, error: "Assignment failed — try again" };
   }
 }
 
@@ -535,6 +678,31 @@ export async function moveBooking(
 ): Promise<MoveBookingResult> {
   try {
     const { supabase, hotelId, hotel, userId } = await getHotelScopedClient();
+
+    // H1: bundled server actions are directly invocable — the capability check
+    // must live server-side, not just in the toolbar. Mirrors the restrictive
+    // bookings UPDATE RLS policy.
+    const { role } = await getCurrentStaffRole();
+    if (!can(role, "calendar:edit")) {
+      return { success: false, error: "You don't have permission to move bookings" };
+    }
+
+    // M9: untrusted client input
+    if (!uuidParam.safeParse(bookingId).success) {
+      return { success: false, error: "Invalid booking" };
+    }
+    if (updates.roomId !== undefined && !uuidParam.safeParse(updates.roomId).success) {
+      return { success: false, error: "Invalid room" };
+    }
+    if (updates.roomTypeId !== undefined && !uuidParam.safeParse(updates.roomTypeId).success) {
+      return { success: false, error: "Invalid room type" };
+    }
+    if (
+      (updates.checkIn !== undefined && !isoDateParam.safeParse(updates.checkIn).success) ||
+      (updates.checkOut !== undefined && !isoDateParam.safeParse(updates.checkOut).success)
+    ) {
+      return { success: false, error: "Invalid dates" };
+    }
 
     // Fetch current booking
     const { data: booking } = await supabase
@@ -619,6 +787,16 @@ export async function moveBooking(
       );
 
       if (!availability.available) {
+        // Blocks first: a maintenance block is the more actionable answer than
+        // a booking conflict when both overlap (H2).
+        const block = availability.blocks[0];
+        if (block) {
+          const reasonLabel = block.reason ? ` — ${block.reason.replaceAll("_", " ")}` : "";
+          return {
+            success: false,
+            error: `Room is blocked ${block.startDate} → ${block.endDate}${reasonLabel}`,
+          };
+        }
         const conflict = availability.conflicts[0];
         return {
           success: false,
@@ -698,10 +876,11 @@ export async function moveBooking(
 
     return { success: true };
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Move failed",
-    };
+    reportCalendarFailure("moveBooking: unexpected failure", {
+      bookingId,
+      contexts: { error: { message: err instanceof Error ? err.message : String(err) } },
+    });
+    return { success: false, error: "Move failed — try again" };
   }
 }
 
@@ -718,7 +897,32 @@ export async function unassignBooking(
   bookingId: string
 ): Promise<UnassignResult> {
   try {
-    const { supabase, hotelId } = await getHotelScopedClient();
+    const { supabase, hotelId, userId } = await getHotelScopedClient();
+
+    // H1: bundled server actions are directly invocable — capability check
+    // must live server-side. Mirrors the restrictive bookings UPDATE RLS policy.
+    const { role } = await getCurrentStaffRole();
+    if (!can(role, "calendar:edit")) {
+      return { success: false, error: "You don't have permission to unassign rooms" };
+    }
+
+    if (!uuidParam.safeParse(bookingId).success) {
+      return { success: false, error: "Invalid booking" };
+    }
+
+    // M5: guard the status before clearing room_id — unassigning a finished or
+    // cancelled stay wipes the room attribution its audit trail relies on.
+    const { data: booking } = await supabase
+      .from("bookings")
+      .select("id, status, room_id")
+      .eq("id", bookingId)
+      .eq("hotel_id", hotelId)
+      .single();
+
+    if (!booking) return { success: false, error: "Booking not found" };
+    if (booking.status === "cancelled" || booking.status === "checked_out" || booking.status === "no_show") {
+      return { success: false, error: `Cannot unassign a ${booking.status} booking` };
+    }
 
     const { error } = await supabase
       .from("bookings")
@@ -726,13 +930,43 @@ export async function unassignBooking(
       .eq("id", bookingId)
       .eq("hotel_id", hotelId);
 
-    if (error) return { success: false, error: error.message };
+    if (error) {
+      reportCalendarFailure("unassignBooking: update failed", {
+        hotelId,
+        bookingId,
+        tags: { code: error.code },
+        contexts: { supabase: { message: error.message } },
+      });
+      return { success: false, error: "Could not unassign the room — try again" };
+    }
+
+    let unassignedByStaffId: string | null = null;
+    if (userId) {
+      const { data: staffProfile } = await supabase
+        .from("staff_profiles")
+        .select("id")
+        .eq("clerk_user_id", userId)
+        .single();
+      unassignedByStaffId = staffProfile?.id ?? null;
+    }
+
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId: unassignedByStaffId,
+      action: "booking.room_unassigned",
+      entityType: "booking",
+      entityId: bookingId,
+      beforeState: { room_id: booking.room_id },
+      afterState: { room_id: null },
+    });
+
     return { success: true };
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Unassign failed",
-    };
+    reportCalendarFailure("unassignBooking: unexpected failure", {
+      bookingId,
+      contexts: { error: { message: err instanceof Error ? err.message : String(err) } },
+    });
+    return { success: false, error: "Unassign failed — try again" };
   }
 }
 
@@ -756,6 +990,23 @@ export async function createAvailabilityBlock(
       return { success: false, error: "You don't have permission to block rooms" };
     }
 
+    // M9: untrusted client input. Caps mirror the CHECK constraints in
+    // 20260923120000_bookings_role_gates.sql.
+    const parsedReason = blockReasonParam.safeParse(reason);
+    const parsedNotes = blockNotesParam.safeParse(notes);
+    if (
+      !uuidParam.safeParse(roomId).success ||
+      !isoDateParam.safeParse(startDate).success ||
+      !isoDateParam.safeParse(endDate).success ||
+      !parsedReason.success ||
+      !parsedNotes.success
+    ) {
+      return { success: false, error: "Invalid block details" };
+    }
+    if (endDate < startDate) {
+      return { success: false, error: "End date must be on or after the start date" };
+    }
+
     // Record which staff member created the block (staff_profiles id).
     let createdByStaffId: string | null = null;
     if (userId) {
@@ -768,6 +1019,30 @@ export async function createAvailabilityBlock(
     }
 
     const storedRange = toStoredBlockRange(startDate, endDate);
+
+    // H2: a block over nights with active reservations leaves guests booked
+    // into a room marked out of service. Reject and name the first conflict so
+    // staff can move or cancel it first.
+    const { data: overlapping } = await supabase
+      .from("bookings")
+      .select("id, reference, check_in, check_out")
+      .eq("hotel_id", hotelId)
+      .eq("room_id", roomId)
+      .in("status", ["pending", "confirmed", "checked_in"])
+      .lt("check_in", storedRange.endDate)
+      .gt("check_out", storedRange.startDate)
+      .order("check_in", { ascending: true })
+      .limit(3);
+
+    if (overlapping && overlapping.length > 0) {
+      const first = overlapping[0];
+      const count = overlapping.length >= 3 ? "3+" : `${overlapping.length}`;
+      return {
+        success: false,
+        error: `Room has ${count} reservation(s) in this window — first: ${first.reference} (${first.check_in} → ${first.check_out}). Move or cancel it first.`,
+      };
+    }
+
     const { error } = await supabase
       .from("availability_blocks")
       .insert({
@@ -775,12 +1050,19 @@ export async function createAvailabilityBlock(
         room_id: roomId,
         start_date: storedRange.startDate,
         end_date: storedRange.endDate,
-        reason,
-        notes,
+        reason: parsedReason.data,
+        notes: parsedNotes.data && parsedNotes.data.length > 0 ? parsedNotes.data : null,
         created_by: createdByStaffId,
       });
 
-    if (error) throw error;
+    if (error) {
+      reportCalendarFailure("createAvailabilityBlock: insert failed", {
+        hotelId,
+        tags: { code: error.code },
+        contexts: { supabase: { message: error.message } },
+      });
+      return { success: false, error: "Could not create the block — try again" };
+    }
 
     await writeAuditLog(supabase, {
       hotelId,
@@ -796,12 +1078,137 @@ export async function createAvailabilityBlock(
 
     return { success: true };
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Failed to create block",
-    };
+    reportCalendarFailure("createAvailabilityBlock: unexpected failure", {
+      contexts: { error: { message: err instanceof Error ? err.message : String(err) } },
+    });
+    return { success: false, error: "Failed to create block" };
   }
 }
+/**
+ * Updates an existing availability block's dates, reason and notes (H6).
+ * Same permission as creating (front desk+); removal stays manager+.
+ */
+export async function updateAvailabilityBlock(
+  blockId: string,
+  updates: { startDate: string; endDate: string; reason: string; notes: string | null }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { supabase, hotelId, userId } = await getHotelScopedClient();
+
+    const { canBlock } = await getCurrentStaffRole();
+    if (!canBlock) {
+      return { success: false, error: "You don't have permission to edit blocks" };
+    }
+
+    const parsedReason = blockReasonParam.safeParse(updates.reason);
+    const parsedNotes = blockNotesParam.safeParse(updates.notes);
+    if (
+      !uuidParam.safeParse(blockId).success ||
+      !isoDateParam.safeParse(updates.startDate).success ||
+      !isoDateParam.safeParse(updates.endDate).success ||
+      !parsedReason.success ||
+      !parsedNotes.success
+    ) {
+      return { success: false, error: "Invalid block details" };
+    }
+    if (updates.endDate < updates.startDate) {
+      return { success: false, error: "End date must be on or after the start date" };
+    }
+
+    // Fetch the existing block (hotel-scoped) for the room id and audit trail.
+    const { data: existing } = await supabase
+      .from("availability_blocks")
+      .select("id, room_id, start_date, end_date, reason, notes")
+      .eq("id", blockId)
+      .eq("hotel_id", hotelId)
+      .single();
+
+    if (!existing) return { success: false, error: "Block not found" };
+
+    const storedRange = toStoredBlockRange(updates.startDate, updates.endDate);
+
+    // Same guard as createAvailabilityBlock (H2): never stretch a block over
+    // an active reservation.
+    const { data: overlapping } = await supabase
+      .from("bookings")
+      .select("id, reference, check_in, check_out")
+      .eq("hotel_id", hotelId)
+      .eq("room_id", existing.room_id)
+      .in("status", ["pending", "confirmed", "checked_in"])
+      .lt("check_in", storedRange.endDate)
+      .gt("check_out", storedRange.startDate)
+      .order("check_in", { ascending: true })
+      .limit(3);
+
+    if (overlapping && overlapping.length > 0) {
+      const first = overlapping[0];
+      const count = overlapping.length >= 3 ? "3+" : `${overlapping.length}`;
+      return {
+        success: false,
+        error: `Room has ${count} reservation(s) in this window — first: ${first.reference} (${first.check_in} → ${first.check_out}). Move or cancel it first.`,
+      };
+    }
+
+    const { error } = await supabase
+      .from("availability_blocks")
+      .update({
+        start_date: storedRange.startDate,
+        end_date: storedRange.endDate,
+        reason: parsedReason.data,
+        notes: parsedNotes.data && parsedNotes.data.length > 0 ? parsedNotes.data : null,
+      })
+      .eq("id", blockId)
+      .eq("hotel_id", hotelId);
+
+    if (error) {
+      reportCalendarFailure("updateAvailabilityBlock: update failed", {
+        hotelId,
+        tags: { code: error.code },
+        contexts: { supabase: { message: error.message } },
+      });
+      return { success: false, error: "Could not update the block — try again" };
+    }
+
+    let updatedByStaffId: string | null = null;
+    if (userId) {
+      const { data: staffProfile } = await supabase
+        .from("staff_profiles")
+        .select("id")
+        .eq("clerk_user_id", userId)
+        .single();
+      updatedByStaffId = staffProfile?.id ?? null;
+    }
+
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId: updatedByStaffId,
+      action: "room.block_updated",
+      entityType: "room",
+      entityId: existing.room_id,
+      beforeState: {
+        block_id: blockId,
+        block_range: `${existing.start_date} → ${existing.end_date}`,
+        reason: existing.reason,
+        notes: existing.notes,
+      },
+      afterState: {
+        block_id: blockId,
+        block_range: `${storedRange.startDate} → ${storedRange.endDate}`,
+        reason: parsedReason.data,
+        notes: parsedNotes.data,
+      },
+    });
+
+    return { success: true };
+  } catch (err) {
+    reportCalendarFailure("updateAvailabilityBlock: unexpected failure", {
+      contexts: { error: { message: err instanceof Error ? err.message : String(err) } },
+    });
+    return { success: false, error: "Failed to update block" };
+  }
+}
+
+
 
 /**
  * Deletes an existing availability block. Manager+ only — mirrors the
@@ -837,7 +1244,19 @@ export async function deleteAvailabilityBlock(
       .select("id, room_id, start_date, end_date")
       .single();
 
-    if (fetchError) throw fetchError;
+    if (fetchError) {
+      // PostgREST signals "no row matched" with PGRST116 on .single() — that
+      // is a staff-facing answer, everything else is a bug to report (M7).
+      if (fetchError.code === "PGRST116") {
+        return { success: false, error: "Block not found" };
+      }
+      reportCalendarFailure("deleteAvailabilityBlock: delete failed", {
+        hotelId,
+        tags: { code: fetchError.code },
+        contexts: { supabase: { message: fetchError.message } },
+      });
+      return { success: false, error: "Could not remove the block — try again" };
+    }
 
     await writeAuditLog(supabase, {
       hotelId,
@@ -853,10 +1272,10 @@ export async function deleteAvailabilityBlock(
 
     return { success: true };
   } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Failed to remove block",
-    };
+    reportCalendarFailure("deleteAvailabilityBlock: unexpected failure", {
+      contexts: { error: { message: err instanceof Error ? err.message : String(err) } },
+    });
+    return { success: false, error: "Failed to remove block" };
   }
 }
 

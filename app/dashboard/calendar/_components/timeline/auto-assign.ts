@@ -1,8 +1,6 @@
 import type { CalendarBooking, CalendarRoom } from "../../actions";
+import { NON_BOOKABLE_ROOM_STATUSES, TERMINAL_BOOKING_STATUS_SET } from "../calendar-helpers";
 import { rangeOverlaps } from "./timeline-geometry";
-
-const EXCLUDED_STATUSES = new Set(["cancelled", "checked_out", "no_show"]);
-const OUT_OF_SERVICE = new Set(["maintenance", "out_of_service"]);
 
 export interface AutoAssignContext {
   rooms: CalendarRoom[];
@@ -29,19 +27,19 @@ export function pickBestRoom(booking: CalendarBooking, context: AutoAssignContex
 
   const activeByRoom = new Map<string, number>();
   for (const other of context.bookings) {
-    if (other.id === booking.id || !other.roomId || EXCLUDED_STATUSES.has(other.status)) continue;
+    if (other.id === booking.id || !other.roomId || TERMINAL_BOOKING_STATUS_SET.has(other.status)) continue;
     activeByRoom.set(other.roomId, (activeByRoom.get(other.roomId) ?? 0) + 1);
   }
 
   const candidates: RoomCandidate[] = [];
   for (const room of context.rooms) {
     if (room.roomTypeId !== booking.roomTypeId) continue;
-    if (OUT_OF_SERVICE.has(room.status)) continue;
+    if (NON_BOOKABLE_ROOM_STATUSES.has(room.status)) continue;
     const hasOverlap = context.bookings.some(
       (other) =>
         other.id !== booking.id &&
         other.roomId === room.id &&
-        !EXCLUDED_STATUSES.has(other.status) &&
+        !TERMINAL_BOOKING_STATUS_SET.has(other.status) &&
         rangeOverlaps(booking.checkIn, booking.checkOut, other.checkIn, other.checkOut),
     );
     if (hasOverlap) continue;

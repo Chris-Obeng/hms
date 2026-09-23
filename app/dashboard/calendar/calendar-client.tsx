@@ -1,17 +1,17 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { addDays, format, parseISO } from "date-fns";
-import { CalendarDays, Plus, X } from "lucide-react";
+import { CalendarDays, Plus, RefreshCw, TriangleAlert, X } from "lucide-react";
 import { AlertDialog, Button, Chip, Drawer, Switch, toast } from "@heroui/react";
-import { keepPreviousData, QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { qk } from "@/lib/query-keys";
 import { createClient } from "@/lib/supabase/client";
 import { onRealtimeStatus } from "@/lib/observability/realtime";
-import { NewBookingModal } from "@/components/bookings/new-booking-modal";
-import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
+import { getQueryClient } from "@/components/providers";
 import {
   assignBookingToRoom,
   getCalendarData,
@@ -22,16 +22,35 @@ import {
   type CalendarData,
   type CalendarRoom,
 } from "./actions";
-import { BlockDetailDrawer } from "./_components/block-detail-drawer";
 import type { TypeChangeRequest as DragTypeChangeRequest } from "./_components/timeline/timeline-calendar";
 import { pickBestRoom } from "./_components/timeline/auto-assign";
 import { VIEW_PRESETS, type ViewPreset } from "./_components/calendar-helpers";
 import { businessToday } from "@/lib/business-date";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { BlockRoomSheet } from "./_components/block-room-sheet";
 import { CalendarToolbar } from "./_components/calendar-toolbar";
 import { TimelineCalendar } from "./_components/timeline/timeline-calendar";
 import "./calendar.css";
+
+// ── Lazy overlays (L6) ──────────────────────────────────────────────────
+// Rarely-mounted heavy surfaces (multi-step form, two drawers, one sheet).
+// Splitting them keeps the timeline's initial chunk small; ssr:false is
+// safe because they only render after user interaction.
+const NewBookingModal = dynamic(
+  () => import("@/components/bookings/new-booking-modal").then((mod) => mod.NewBookingModal),
+  { ssr: false },
+);
+const BookingDetailDrawer = dynamic(
+  () => import("@/components/bookings/booking-detail-drawer").then((mod) => mod.BookingDetailDrawer),
+  { ssr: false },
+);
+const BlockDetailDrawer = dynamic(
+  () => import("./_components/block-detail-drawer").then((mod) => mod.BlockDetailDrawer),
+  { ssr: false },
+);
+const BlockRoomSheet = dynamic(
+  () => import("./_components/block-room-sheet").then((mod) => mod.BlockRoomSheet),
+  { ssr: false },
+);
 
 interface CalendarClientProps {
   initialData: CalendarData;
@@ -72,19 +91,11 @@ function withinSeededRange(startDate: Date, days: number, seededStart: Date, see
 }
 
 export function CalendarClient(props: CalendarClientProps) {
-  // This boundary makes CalendarClient safe when rendered in isolated route
-  // previews, error recoveries, or layouts that do not inherit app providers.
-  const [queryClient] = React.useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 30 * 1000,
-            refetchOnWindowFocus: false,
-          },
-        },
-      }),
-  );
+  // Share the app-wide QueryClient singleton (M1): a calendar-scoped client
+  // silently duplicated every cached query under the same keys. In isolated
+  // previews without app providers, getQueryClient() still returns the one
+  // stable browser client, so this boundary remains safe.
+  const [queryClient] = React.useState(() => getQueryClient());
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -106,6 +117,14 @@ function CalendarClientContent({
   const router = useRouter();
   const queryClient = useQueryClient();
   const { orgId } = useAuth();
+
+  // Calendar mutations move money + occupancy, so dashboard KPIs and any open
+  // booking-detail view would serve stale numbers without these (M1).
+  const invalidateCalendarData = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["calendar", orgId, hotelId] });
+    void queryClient.invalidateQueries({ queryKey: ["dashboard", orgId, hotelId] });
+    void queryClient.invalidateQueries({ queryKey: ["bookingDetail"] });
+  }, [queryClient, orgId, hotelId]);
 
   // Property business date — the single anchor for seeding, the default view
   // window, and the "today" marker. Never derived from the device clock.
@@ -129,7 +148,7 @@ function CalendarClientContent({
     [days, seededRange, startDate],
   );
 
-  const { data: calendarData, isFetching } = useQuery({
+  const { data: calendarData, isFetching, isError, error, refetch } = useQuery({
     queryKey: qk.calendar(orgId || "", hotelId, dateStr, days),
     queryFn: () => getCalendarData(dateStr, days),
     enabled: !!orgId,
@@ -153,6 +172,9 @@ function CalendarClientContent({
   const [sourceFilters, setSourceFilters] = React.useState<string[]>([]);
   const [showFilters, setShowFilters] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
+  // Defer so each keystroke stays responsive while the timeline re-filters
+  // and re-renders hundreds of bars (M8).
+  const deferredSearchQuery = React.useDeferredValue(searchQuery);
   const [realtimeStatus, setRealtimeStatus] = React.useState<"live" | "reconnecting">("reconnecting");
 
   const [selectedBookingId, setSelectedBookingId] = React.useState<string | null>(null);
@@ -166,6 +188,7 @@ function CalendarClientContent({
     checkOut?: Date;
   } | null>(null);
   const [blockRoomOpen, setBlockRoomOpen] = React.useState(false);
+  const [editingBlock, setEditingBlock] = React.useState<CalendarAvailabilityBlock | null>(null);
   const [selectedBlock, setSelectedBlock] = React.useState<CalendarAvailabilityBlock | null>(null);
   const [blockPrefillRoomId, setBlockPrefillRoomId] = React.useState<string | undefined>();
   const [pendingTypeChange, setPendingTypeChange] = React.useState<TypeChangeRequest | null>(null);
@@ -184,9 +207,9 @@ function CalendarClientContent({
           (!b.roomId || filteredRooms.some((r) => r.id === b.roomId)) &&
           (!statusFilters.length || statusFilters.includes(b.status)) &&
           (!sourceFilters.length || sourceFilters.includes(b.source ?? "")) &&
-          (!searchQuery.trim() || `${b.guestName} ${b.reference} ${b.roomNumber}`.toLowerCase().includes(searchQuery.toLowerCase())),
+          (!deferredSearchQuery.trim() || `${b.guestName} ${b.reference} ${b.roomNumber}`.toLowerCase().includes(deferredSearchQuery.toLowerCase())),
       ),
-    [bookings, filteredRooms, searchQuery, sourceFilters, statusFilters],
+    [bookings, deferredSearchQuery, filteredRooms, sourceFilters, statusFilters],
   );
 
   // ── New-booking highlight animation ────────────────────────────────
@@ -234,6 +257,10 @@ function CalendarClientContent({
         queryKey: ["calendar", orgId, hotelId],
         refetchType: "active",
       });
+      // Bookings feed dashboard KPIs and the detail drawer too (M1); only
+      // active observers refetch, so idle views cost nothing.
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", orgId, hotelId], refetchType: "active" });
+      void queryClient.invalidateQueries({ queryKey: ["bookingDetail"], refetchType: "active" });
     };
 
     const batchRefresh = () => {
@@ -373,6 +400,23 @@ function CalendarClientContent({
     setNewBookingPrefill(prefill);
     setNewBookingOpen(true);
   }, [canEdit]);
+
+  // Edit handoff (H6): the detail drawer closes itself, then asks us to
+  // reopen the block sheet in edit mode with this block prefilled.
+  const openBlockEditor = React.useCallback((block: CalendarAvailabilityBlock) => {
+    setEditingBlock(block);
+    setBlockRoomOpen(true);
+  }, []);
+
+  // Clear the edit target whenever the sheet closes so the next open via the
+  // toolbar always starts in create mode.
+  const handleBlockSheetOpenChange = React.useCallback((open: boolean) => {
+    setBlockRoomOpen(open);
+    if (!open) {
+      setEditingBlock(null);
+      setBlockPrefillRoomId(undefined);
+    }
+  }, []);
 
   // Stable identity keeps RoomRow's React.memo intact across parent renders
   // (search keystrokes, filter toggles) — an inline arrow would defeat it.
@@ -561,6 +605,7 @@ function CalendarClientContent({
         onSearchQueryChange={setSearchQuery}
         onOpenFilters={() => setShowFilters(true)}
         onBlockRoom={() => {
+          setEditingBlock(null);
           setBlockPrefillRoomId(undefined);
           setBlockRoomOpen(true);
         }}
@@ -599,7 +644,21 @@ function CalendarClientContent({
           </div>
         )}
 
-        {filteredRooms.length > 0 ? (
+        {isError ? (
+          <div className="flex h-[500px] flex-col items-center justify-center px-6 text-center" role="alert">
+            <div className="mb-5 flex size-14 items-center justify-center rounded-2xl bg-danger/10">
+              <TriangleAlert className="size-7 text-danger" />
+            </div>
+            <h3 className="mb-1.5 text-base font-bold text-foreground">Calendar failed to load</h3>
+            <p className="mb-5 max-w-md text-sm text-muted-foreground">
+              {error instanceof Error ? error.message : "Something went wrong while loading the calendar."}
+            </p>
+            <Button variant="outline" size="sm" onPress={() => void refetch()}>
+              <RefreshCw className="size-4" />
+              Retry
+            </Button>
+          </div>
+        ) : filteredRooms.length > 0 ? (
           <TimelineCalendar
             startDate={startDate}
             days={days}
@@ -679,8 +738,7 @@ function CalendarClientContent({
               </p>
               <p>
                 Stay {pendingTypeChange ? format(parseISO(pendingTypeChange.checkIn), "MMM d") : ""} –{" "}
-                {pendingTypeChange ? format(parseISO(pendingTypeChange.checkOut), "MMM d") : ""}. The rate is not
-                recalculated automatically — review the folio afterwards.
+                {pendingTypeChange ? format(parseISO(pendingTypeChange.checkOut), "MMM d") : ""}. The room rate changes from the next night: nights already posted keep their original rate; the new type&rsquo;s rate applies from the first unposted night. Review the folio afterwards.
               </p>
             </AlertDialog.Body>
             <AlertDialog.Footer className="flex items-center justify-end gap-2.5 pt-3">
@@ -711,7 +769,7 @@ function CalendarClientContent({
         }}
         currency={currency}
         initialTab={detailInitialTab}
-        onBookingChanged={() => queryClient.invalidateQueries({ queryKey: ["calendar", orgId, hotelId] })}
+        onBookingChanged={invalidateCalendarData}
       />
       <BlockDetailDrawer
         block={selectedBlock}
@@ -722,17 +780,18 @@ function CalendarClientContent({
         }
         roomTypeName={rooms.find((r) => r.id === selectedBlock?.roomId)?.roomTypeName}
         canUnblock={canUnblock}
-        onUnblocked={() =>
-          queryClient.invalidateQueries({ queryKey: ["calendar", orgId, hotelId] })
-        }
+        canEditBlocks={canBlockProp}
+        onEdit={openBlockEditor}
+        onUnblocked={invalidateCalendarData}
       />
       <BlockRoomSheet
         open={blockRoomOpen}
-        onOpenChange={setBlockRoomOpen}
+        onOpenChange={handleBlockSheetOpenChange}
         rooms={rooms}
         prefillRoomId={blockPrefillRoomId}
+        editBlock={editingBlock}
         minDate={parseISO(businessDateKey)}
-        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["calendar", orgId, hotelId] })}
+        onSuccess={invalidateCalendarData}
       />
       <NewBookingModal
         open={newBookingOpen}
@@ -740,7 +799,7 @@ function CalendarClientContent({
           setNewBookingOpen(open);
           if (!open) {
             setNewBookingPrefill(null);
-            queryClient.invalidateQueries({ queryKey: ["calendar", orgId, hotelId] });
+            invalidateCalendarData();
           }
         }}
         roomTypes={roomTypes}
@@ -842,7 +901,7 @@ function FilterDrawer({
           className="flex h-[85dvh] max-h-[85dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-background shadow-[0_-24px_80px_rgb(0_0_0/0.35)] md:h-dvh md:max-h-dvh md:w-[min(21rem,100vw)] md:rounded-none md:border-l md:border-border/70 md:shadow-[-24px_0_80px_rgb(0_0_0/0.18)]"
         >
           {isMobile && <Drawer.Handle className="mt-2.5 shrink-0" />}
-          <Drawer.CloseTrigger className="absolute right-3.5 top-3.5 z-10 inline-flex size-8 items-center justify-center rounded-full bg-muted/70 text-muted-foreground shadow-xs backdrop-blur transition-all hover:bg-muted hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+          <Drawer.CloseTrigger className="absolute right-3.5 top-3.5 z-10 inline-flex size-11 items-center justify-center rounded-full bg-muted/70 text-muted-foreground shadow-xs backdrop-blur transition-all hover:bg-muted hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
 
           <Drawer.Header className="shrink-0 flex-col items-start gap-1 border-b border-border/50 px-5 pb-4 pr-14 pt-12">
             <Drawer.Heading id="calendar-filters-title" className="text-section text-foreground">
@@ -870,10 +929,10 @@ function FilterDrawer({
           </Drawer.Body>
 
           <Drawer.Footer className="flex shrink-0 items-center justify-between gap-2 border-t border-border/50 bg-muted/10 px-5 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3">
-            <Button variant="ghost" size="sm" onPress={onClear} className="min-h-9 font-medium text-primary">
+            <Button variant="ghost" size="sm" onPress={onClear} className="min-h-11 font-medium text-primary">
               Reset all
             </Button>
-            <Button size="sm" slot="close" onPress={() => onOpenChange(false)} className="min-h-9 min-w-24">
+            <Button size="sm" slot="close" onPress={() => onOpenChange(false)} className="min-h-11 min-w-24">
               Done
             </Button>
           </Drawer.Footer>

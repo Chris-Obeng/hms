@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { businessToday } from "@/lib/business-date";
@@ -42,9 +43,20 @@ export default async function CalendarPage() {
     base_price: rt.base_price,
   }));
 
-  // Fetch initial calendar data (property business date + 30 days)
+  // Fetch initial calendar data (property business date + 30 days). A seed
+  // failure must never blank the whole route (H4) — degrade to a retryable
+  // error state instead of throwing past any boundary.
   const today = businessToday(hotel.timezone || "UTC");
-  const initialData = await getCalendarData(today, 30);
+  let initialData: Awaited<ReturnType<typeof getCalendarData>> | null = null;
+  try {
+    initialData = await getCalendarData(today, 30);
+  } catch (error) {
+    console.error("[calendar] initial data load failed:", error);
+  }
+
+  if (!initialData) {
+    return <CalendarLoadErrorState />;
+  }
 
   // Resolve staff role for permission gating
   const { canEdit, canBlock, canUnblock } = await getCurrentStaffRole();
@@ -62,6 +74,28 @@ export default async function CalendarPage() {
         canBlock={canBlock}
         canUnblock={canUnblock}
       />
+    </div>
+  );
+}
+
+function CalendarLoadErrorState() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
+      <div className="size-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+        <svg className="size-6 text-red-500/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+        </svg>
+      </div>
+      <h2 className="text-lg font-semibold text-foreground">Calendar could not be loaded</h2>
+      <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+        Something went wrong while loading bookings and rooms. This is usually temporary — try again.
+      </p>
+      <Link
+        href="/dashboard/calendar"
+        className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+      >
+        Retry
+      </Link>
     </div>
   );
 }

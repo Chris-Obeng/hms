@@ -9,20 +9,14 @@ import {
   KeyRound,
   LockOpen,
   NotebookPen,
+  Pencil,
   UserRound,
 } from "lucide-react";
 
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsCompactScreen } from "@/hooks/use-mobile";
 import { deleteAvailabilityBlock, type CalendarAvailabilityBlock } from "../actions";
 import { formatDateFull } from "@/lib/format";
-
-const REASON_LABELS: Record<string, string> = {
-  maintenance: "Maintenance",
-  cleaning: "Deep cleaning",
-  owner_use: "Owner stay",
-  renovation: "Renovation",
-  hold: "Operational hold",
-};
+import { BLOCK_REASON_LABELS } from "./calendar-helpers";
 
 interface BlockDetailDrawerProps {
   block: CalendarAvailabilityBlock | null;
@@ -31,6 +25,8 @@ interface BlockDetailDrawerProps {
   open: boolean;
   onClose: () => void;
   canUnblock: boolean;
+  canEditBlocks: boolean;
+  onEdit: (block: CalendarAvailabilityBlock) => void;
   onUnblocked: () => void;
 }
 
@@ -41,9 +37,11 @@ export function BlockDetailDrawer({
   open,
   onClose,
   canUnblock,
+  canEditBlocks,
+  onEdit,
   onUnblocked,
 }: BlockDetailDrawerProps) {
-  const isMobile = useIsMobile();
+  const isMobile = useIsCompactScreen();
   const [confirming, setConfirming] = React.useState(false);
   const [removing, setRemoving] = React.useState(false);
 
@@ -63,7 +61,7 @@ export function BlockDetailDrawer({
   };
 
   const reasonLabel = block?.reason
-    ? REASON_LABELS[block.reason] ?? block.reason.replaceAll("_", " ")
+    ? BLOCK_REASON_LABELS[block.reason] ?? block.reason.replaceAll("_", " ")
     : "Blocked";
 
   return (
@@ -85,7 +83,7 @@ export function BlockDetailDrawer({
           {isMobile && <Drawer.Handle className="mt-2.5 shrink-0" />}
           <Drawer.CloseTrigger
             className="
-              absolute right-4 top-4 z-30 grid size-8 place-items-center rounded-full
+              absolute right-3 top-3 z-30 grid size-11 place-items-center rounded-full
               bg-muted/70 text-muted-foreground shadow-xs backdrop-blur transition-all
               hover:bg-muted hover:text-foreground active:scale-95
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
@@ -167,7 +165,7 @@ export function BlockDetailDrawer({
                         </p>
                       </div>
                     )}
-                    {block.reason && !REASON_LABELS[block.reason] && (
+                    {block.reason && !BLOCK_REASON_LABELS[block.reason] && (
                       <div className="flex items-center gap-2 px-1 text-[11px] capitalize text-muted-foreground">
                         <Hammer className="size-3" />
                         Category: {block.reason.replaceAll("_", " ")}
@@ -179,15 +177,35 @@ export function BlockDetailDrawer({
 
               {/* ═══ Footer action ═══ */}
               <Drawer.Footer className="shrink-0 border-t border-border/50 bg-muted/[0.15] px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">
-                {canUnblock ? (
-                  <Button
-                    onPress={() => setConfirming(true)}
-                    isDisabled={removing}
-                    className="h-11 w-full rounded-xl bg-red-600 text-[13px] font-semibold text-white transition-colors hover:bg-red-700 active:scale-[0.99]"
-                  >
-                    <LockOpen className="size-4" />
-                    Unblock room
-                  </Button>
+                {canEditBlocks || canUnblock ? (
+                  <div className="flex w-full gap-2">
+                    {canEditBlocks && (
+                      <Button
+                        variant="outline"
+                        onPress={() => {
+                          if (block) {
+                            onClose();
+                            onEdit(block);
+                          }
+                        }}
+                        isDisabled={removing}
+                        className="h-11 flex-1 rounded-xl text-[13px] font-semibold"
+                      >
+                        <Pencil className="size-4" />
+                        Edit block
+                      </Button>
+                    )}
+                    {canUnblock && (
+                      <Button
+                        onPress={() => setConfirming(true)}
+                        isDisabled={removing}
+                        className="h-11 flex-1 rounded-xl bg-red-600 text-[13px] font-semibold text-white transition-colors hover:bg-red-700 active:scale-[0.99]"
+                      >
+                        <LockOpen className="size-4" />
+                        Unblock room
+                      </Button>
+                    )}
+                  </div>
                 ) : (
                   <p className="w-full text-center text-[11px] text-muted-foreground">
                     Only managers and super admins can remove blocks.

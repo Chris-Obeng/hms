@@ -18,6 +18,8 @@ export type AuditAction =
   | "booking.notes_updated"
   | "booking.status_changed"
   | "booking.move"
+  | "booking.room_assigned"
+  | "booking.room_unassigned"
   | "booking.room_type_change"
   | "booking.aborted_unpaid"
   // Payments
@@ -34,6 +36,7 @@ export type AuditAction =
   | "hotel.paystack_configured"
   // Rooms
   | "room.block_created"
+  | "room.block_updated"
   | "room.block_deleted"
   | "room.status_changed"
   | "room.note_updated"

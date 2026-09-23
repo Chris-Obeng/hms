@@ -22,7 +22,7 @@ import { Button, Tooltip } from "@heroui/react";
 import { cn } from "@/lib/utils";
 import type { CalendarAvailabilityBlock, CalendarBooking, CalendarRoom } from "../../actions";
 import { businessToday } from "@/lib/business-date";
-import { getBookingBarColor, isManualLikeSource } from "../calendar-helpers";
+import { getBookingBarColor, isManualLikeSource, NON_BOOKABLE_ROOM_STATUSES, TERMINAL_BOOKING_STATUS_SET } from "../calendar-helpers";
 import {
   bookingGeometry,
   clampBarGeometry,
@@ -83,9 +83,6 @@ type Props = {
   onRequestTypeChange(request: TypeChangeRequest): void;
 };
 
-const EXCLUDED_STATUSES = new Set(["cancelled", "checked_out", "no_show"]);
-const TERMINAL_DRAG_BLOCKED = ["cancelled", "checked_out", "no_show"];
-
 /** Extract the client point from a pointer/mouse/touch activation event. */
 function eventClientPoint(event: Event | null): { x: number; y: number } | null {
   if (!event) return null;
@@ -140,7 +137,7 @@ function BookingBar({
 }) {
   // Terminal statuses are historical records — visible when scrolling back,
   // never movable.
-  const editable = canEdit && !TERMINAL_DRAG_BLOCKED.includes(booking.status);
+  const editable = canEdit && !TERMINAL_BOOKING_STATUS_SET.has(booking.status);
   const drag = useDraggable({ id: `booking:${booking.id}`, disabled: !editable, data: { kind: "booking", bookingId: booking.id } satisfies DragData });
   const left = useDraggable({ id: `left:${booking.id}`, disabled: !editable, data: { kind: "resize-left", bookingId: booking.id } satisfies DragData });
   const right = useDraggable({ id: `right:${booking.id}`, disabled: !editable, data: { kind: "resize-right", bookingId: booking.id } satisfies DragData });
@@ -247,7 +244,12 @@ interface RowProps {
 
 /** Rooms in these states cannot take any booking — the row is hatched and
  *  creation/drops are rejected. */
-const NON_BOOKABLE = new Set(["maintenance", "out_of_service"]);
+const NON_BOOKABLE = NON_BOOKABLE_ROOM_STATUSES;
+
+/** Shared empty arrays so rooms with nothing scheduled keep stable props and
+ *  stay memoized through unrelated renders (search keystrokes, drag moves). */
+const EMPTY_BOOKINGS: CalendarBooking[] = [];
+const EMPTY_BLOCKS: CalendarAvailabilityBlock[] = [];
 
 const RoomRow = React.memo(function RoomRow({ room, bookings, blocks, conflicts, canEdit, start, days, highlightIds, onOpenBooking, onOpenBlock, onCreate }: RowProps) {
   const notBookable = NON_BOOKABLE.has(room.status ?? "");
@@ -365,7 +367,7 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
 
   // Tray is operational: only bookings that can still be placed.
   const unassigned = React.useMemo(
-    () => bookings.filter((b) => !b.roomId && !EXCLUDED_STATUSES.has(b.status)),
+    () => bookings.filter((b) => !b.roomId && !TERMINAL_BOOKING_STATUS_SET.has(b.status)),
     [bookings],
   );
   const bookingById = React.useMemo(() => new Map(bookings.map((b) => [b.id, b])), [bookings]);
@@ -394,7 +396,7 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
   const findConflictInRoom = React.useCallback(
     (roomId: string, checkIn: string, checkOut: string, excludeId: string): string | null => {
       for (const other of assignedByRoom.get(roomId) ?? []) {
-        if (other.id === excludeId || EXCLUDED_STATUSES.has(other.status)) continue;
+        if (other.id === excludeId || TERMINAL_BOOKING_STATUS_SET.has(other.status)) continue;
         if (rangeOverlaps(checkIn, checkOut, other.checkIn, other.checkOut)) return other.guestName || other.reference;
       }
       return null;
@@ -412,7 +414,7 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
       const roomTypeChanged = !!booking.roomTypeId && room.roomTypeId !== booking.roomTypeId;
       let error: string | null = null;
       if (checkOut <= checkIn) error = "Check-out must be after check-in";
-      else if (TERMINAL_DRAG_BLOCKED.includes(booking.status)) error = `Cannot move ${booking.status.replaceAll("_", " ")} booking`;
+      else if (TERMINAL_BOOKING_STATUS_SET.has(booking.status)) error = `Cannot move ${booking.status.replaceAll("_", " ")} booking`;
       else if (["maintenance", "out_of_service"].includes(room.status)) error = `Room is ${room.status.replaceAll("_", " ")}`;
       else if (checkIn < todayKey && !isManualLikeSource(booking.source) && booking.status !== "checked_in") error = "Cannot schedule in the past";
       else {
@@ -616,8 +618,8 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
                   <div key={room.id} style={{ position: "absolute", top: v.start, left: 0, width: "100%", height: ROW_HEIGHT }}>
                     <RoomRow
                       room={room}
-                      bookings={assignedByRoom.get(room.id) ?? []}
-                      blocks={blocksByRoom.get(room.id) ?? []}
+                      bookings={assignedByRoom.get(room.id) ?? EMPTY_BOOKINGS}
+                      blocks={blocksByRoom.get(room.id) ?? EMPTY_BLOCKS}
                       conflicts={conflicts}
                       canEdit={canEdit}
                       start={start}
