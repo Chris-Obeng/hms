@@ -185,9 +185,43 @@ export interface VerifiedPaystackTransaction {
   reference: string;
   currency: string;
   id?: number | string;
-  subaccount?: { account_code: string };
+  /**
+   * Present when the charge was split to a subaccount. Paystack names the
+   * field `subaccount_code` in both the verify response and webhook payloads;
+   * when the charge was NOT split the key holds an empty object or is absent.
+   * An `account_code` key has been observed on some account configurations, so
+   * extractSubaccountCode below reads both — never index this object directly.
+   */
+  subaccount?: {
+    subaccount_code?: string | null;
+    account_code?: string | null;
+  } | null;
   customer: { email: string };
   metadata?: string;
+}
+
+/**
+ * Extracts the subaccount code from a Paystack transaction payload — verify
+ * response or webhook `event.data`.
+ *
+ * Returns null when the charge carried no subaccount (Paystack then sends
+ * `subaccount: {}` or omits the key) or when the value is not a usable string.
+ * Downstream, a null here means "unverifiable settlement identity", which the
+ * settlement RPC deliberately classifies as a permanent, manually-reviewed
+ * failure rather than auto-confirming money whose split destination we cannot
+ * confirm.
+ */
+export function extractSubaccountCode(txn: {
+  subaccount?: unknown;
+}): string | null {
+  const sub = txn.subaccount;
+  if (typeof sub !== "object" || sub === null) return null;
+  const record = sub as Record<string, unknown>;
+  for (const key of ["subaccount_code", "account_code"] as const) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim().length > 0) return value;
+  }
+  return null;
 }
 
 export async function verifyTransaction(reference: string): Promise<VerifiedPaystackTransaction> {

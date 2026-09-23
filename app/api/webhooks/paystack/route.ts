@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordOnlinePayment } from "@/lib/bookings/confirm-online-payment";
+import { extractSubaccountCode } from "@/lib/paystack";
 import { fromMinor } from "@/lib/money";
 import { createHmac, timingSafeEqual } from "crypto";
 import { rateLimit } from "@/lib/rate-limit";
@@ -199,7 +200,6 @@ async function handleWebhook(req: NextRequest) {
   }
 
   // ── 3. Shared, race-safe recording pipeline ──────────────────
-  const subaccountData = txn.subaccount as Record<string, unknown> | null | undefined;
 
   // Paystack sends the charged amount as an integer in the transaction currency's
   // smallest unit. Validate it before converting: `fromMinor` throws on a
@@ -236,7 +236,7 @@ async function handleWebhook(req: NextRequest) {
     paystackId: txn.id != null ? String(txn.id) : null,
     amountPaid,
     currency: txnCurrency,
-    subaccountCode: (subaccountData?.account_code as string | null) ?? null,
+    subaccountCode: extractSubaccountCode(txn),
   });
 
   switch (result.outcome) {

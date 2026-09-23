@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { requireAuth, requireMinRole, toActionError } from "@/lib/auth";
 import { slugify } from "@/lib/utils";
 import { toStoredBlockRange } from "@/lib/calendar-domain";
+import { toRoomTypeInsert } from "@/lib/supabase/trigger-derived";
 
 // ── Schemas ──────────────────────────────────────────────────────────
 
@@ -165,7 +166,7 @@ export async function createRoomType(input: RoomTypeInput) {
   const data = parsed.data;
   const supabase = await createClient();
 
-  const { error, data: newRoomType } = await supabase.from("room_types").insert({
+  const { error, data: newRoomType } = await supabase.from("room_types").insert(toRoomTypeInsert({
     hotel_id: result.hotelId,
     name: data.name,
     slug: data.slug || slugify(data.name),
@@ -179,7 +180,7 @@ export async function createRoomType(input: RoomTypeInput) {
     amenities: data.amenities,
     is_active: data.isActive,
     sort_order: data.sortOrder,
-  }).select("id").single();
+  })).select("id").single();
 
   if (error) return { success: false as const, error: error.message };
 

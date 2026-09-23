@@ -12,20 +12,10 @@ import {
   type RestrictionFlags,
 } from "@/lib/pricing/rate-restrictions";
 import { captureError } from "@/lib/observability/sentry";
-import type { Database } from "@/types/database.types";
-
-type GeneratedSeasonalOverrideInsert =
-  Database["public"]["Tables"]["seasonal_rate_overrides"]["Insert"];
-type PendingSeasonalOverrideInsert = GeneratedSeasonalOverrideInsert & {
-  hotel_id: string;
-};
-
-// Remove after db:types includes migration 20260830163000.
-function forGeneratedSchema(
-  row: PendingSeasonalOverrideInsert
-): GeneratedSeasonalOverrideInsert {
-  return row;
-}
+import {
+  toDailyOverrideInsert,
+  toSeasonalOverrideInsert,
+} from "@/lib/supabase/trigger-derived";
 
 // Schemas for input validation
 const SeasonalRateSchema = z.object({
@@ -299,7 +289,7 @@ export async function duplicateSeasonalRate(id: string) {
     // Copy overrides if any
     if (source.overrides && source.overrides.length > 0) {
       const overrideRows = source.overrides.map((ov) =>
-        forGeneratedSchema({
+        toSeasonalOverrideInsert({
           hotel_id: hotelId,
           seasonal_rate_id: newSeason.id,
           room_type_id: ov.room_type_id as string,
@@ -448,7 +438,7 @@ export async function upsertSeasonalRateOverride(
     const { data, error } = await supabase
       .from("seasonal_rate_overrides")
       .upsert(
-        forGeneratedSchema({
+        toSeasonalOverrideInsert({
           hotel_id: hotelId,
           seasonal_rate_id: seasonalRateId,
           room_type_id: roomTypeId,
@@ -529,12 +519,12 @@ export async function upsertDailyRateOverride(roomTypeId: string, date: string, 
     const { data, error } = await supabase
       .from("daily_rate_overrides")
       .upsert(
-        {
+        toDailyOverrideInsert({
           hotel_id: hotelId,
           room_type_id: roomTypeId,
           date,
           price,
-        },
+        }),
         { onConflict: "room_type_id,date" }
       )
       .select()
@@ -628,12 +618,14 @@ export async function bulkUpsertDailyRateOverrides(
       return { success: false, error: "Access denied: One or more room types are invalid" };
     }
 
-    const rowsToUpsert = overrides.map((o) => ({
-      hotel_id: hotelId,
-      room_type_id: o.roomTypeId,
-      date: o.date,
-      price: o.price,
-    }));
+    const rowsToUpsert = overrides.map((o) =>
+      toDailyOverrideInsert({
+        hotel_id: hotelId,
+        room_type_id: o.roomTypeId,
+        date: o.date,
+        price: o.price,
+      })
+    );
 
     const { data, error } = await supabase
       .from("daily_rate_overrides")

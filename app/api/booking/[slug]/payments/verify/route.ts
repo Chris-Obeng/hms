@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { verifyTransaction } from "@/lib/paystack";
+import { verifyTransaction, extractSubaccountCode } from "@/lib/paystack";
 import { recordOnlinePayment } from "@/lib/bookings/confirm-online-payment";
 import { fromMinor } from "@/lib/money";
 import { rateLimit } from "@/lib/rate-limit";
@@ -165,8 +165,6 @@ export async function GET(
     }
 
     // ── Shared, race-safe recording pipeline (same as webhook) ──
-    const subaccountData = txn.subaccount as Record<string, unknown> | null | undefined;
-
     // Paystack reports the amount in the transaction currency's smallest unit.
     // Dividing by a fixed 100 understates a zero-decimal charge a hundredfold and
     // would leave the booking looking underpaid.
@@ -178,7 +176,7 @@ export async function GET(
       paystackId: txn.id != null ? String(txn.id) : null,
       amountPaid: fromMinor(txn.amount, txnCurrency),
       currency: txnCurrency,
-      subaccountCode: (subaccountData?.account_code as string | null) ?? null,
+      subaccountCode: extractSubaccountCode(txn),
     });
 
     switch (result.outcome) {
