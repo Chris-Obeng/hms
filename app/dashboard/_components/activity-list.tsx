@@ -44,6 +44,7 @@ export interface ActivityBooking {
   totalAmount: number;
   source: string;
   createdAt?: string | null;
+  cancelledAt?: string | null;
   hasConflict?: boolean;
   roomDirty?: boolean;
   hasNotes?: boolean;

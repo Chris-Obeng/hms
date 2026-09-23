@@ -1,4 +1,5 @@
 import { addDays, format, parseISO } from "date-fns";
+import { businessDate } from "./business-date";
 
 export type DateRange = { startDate: string; endDate: string };
 
@@ -40,6 +41,27 @@ export function isInHouseOnDate(booking: BookingStay, date: string): boolean {
 
 export function isCheckedInStayoverOnDate(booking: BookingStay, date: string): boolean {
   return booking.status === "checked_in" && isStayoverOnDate(booking, date);
+}
+
+/**
+ * Cancellations feeds are keyed on the cancellation event date
+ * (`cancelled_at`), never `updated_at`: post-cancellation writes (payment
+ * settlement, expiry jobs, sync backfills) bump `updated_at` and would
+ * otherwise resurrect old cancellations into the current day's view.
+ * `cancelledAt` is an ISO timestamptz; the day boundary is resolved in the
+ * property timezone (`timeZone`, default UTC) so the business day matches
+ * the hotel's calendar, not the viewer's device clock.
+ */
+export function isCancelledOnDate(
+  booking: { status: string | null; cancelledAt: string | null | undefined },
+  date: string,
+  timeZone: string = "UTC",
+): boolean {
+  return (
+    booking.status === "cancelled" &&
+    !!booking.cancelledAt &&
+    businessDate(timeZone, new Date(booking.cancelledAt)) === date
+  );
 }
 
 export function findOverlappingBookingIds(stays: RoomStay[]): Set<string> {

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format, isToday, startOfDay, endOfDay } from "date-fns";
+import { format, isToday, startOfDay } from "date-fns";
 import { AlertDialog, toast } from "@heroui/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
@@ -19,7 +19,8 @@ import { onRealtimeStatus } from "@/lib/observability/realtime";
 import { createCoalescer } from "@/lib/realtime/coalesce";
 import { writeAuditLog } from "@/lib/audit";
 import { qk } from "@/lib/query-keys";
-import { findOverlappingBookingIds, isCheckedInStayoverOnDate, isInHouseOnDate } from "@/lib/calendar-domain";
+import { findOverlappingBookingIds, isCancelledOnDate, isCheckedInStayoverOnDate, isInHouseOnDate } from "@/lib/calendar-domain";
+import { businessDate, businessDayBounds, businessToday } from "@/lib/business-date";
 import { updateBookingStatus } from "@/app/actions/bookings";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,8 @@ interface DashboardClientProps {
   hotelId: string;
   hotelName: string;
   currency: string;
+  /** Property timezone — day boundaries follow the hotel's calendar, not the device clock. */
+  hotelTimezone: string;
 }
 
 const defaultEmptyStats = {
@@ -61,7 +64,7 @@ interface DashboardBookingRow {
   nights: number | null;
   room_id: string | null;
   created_at: string | null;
-  updated_at?: string | null;
+  cancelled_at?: string | null;
   special_requests: string | null;
   internal_notes: string | null;
   guests: { full_name: string | null; email: string | null; phone: string | null } | null;
@@ -72,10 +75,14 @@ interface DashboardBookingRow {
 async function fetchDashboardClientData(
   supabase: DashboardSupabase,
   hotelId: string,
-  dateStr: string
+  dateStr: string,
+  timeZone: string
 ) {
   const dayStr = dateStr;
-  const today = new Date(dateStr + "T00:00:00");
+  // Timestamp-day queries (created_at / cancelled_at / paid_at) use the
+  // property's business-day bounds — the same rule the tab predicates apply —
+  // so badge counts and list contents can never diverge on non-UTC devices.
+  const dayBounds = businessDayBounds(dateStr, timeZone);
 
   const [
     roomsRes,
@@ -136,20 +143,20 @@ async function fetchDashboardClientData(
         guests(full_name, email, phone), rooms(room_number), room_types(name)
       `)
       .eq("hotel_id", hotelId)
-      .gte("created_at", startOfDay(today).toISOString())
-      .lte("created_at", endOfDay(today).toISOString())
+      .gte("created_at", dayBounds.startISO)
+      .lt("created_at", dayBounds.endISO)
       .order("created_at", { ascending: false }),
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, updated_at, special_requests, internal_notes,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, cancelled_at, special_requests, internal_notes,
         guests(full_name, email, phone), rooms(room_number), room_types(name)
       `)
       .eq("hotel_id", hotelId)
       .eq("status", "cancelled")
-      .gte("updated_at", startOfDay(today).toISOString())
-      .lte("updated_at", endOfDay(today).toISOString())
-      .order("updated_at", { ascending: false }),
+      .gte("cancelled_at", dayBounds.startISO)
+      .lt("cancelled_at", dayBounds.endISO)
+      .order("cancelled_at", { ascending: false }),
     supabase
       .from("bookings")
       .select(`
@@ -171,8 +178,8 @@ async function fetchDashboardClientData(
       .select("amount")
       .eq("hotel_id", hotelId)
       .eq("status", "success")
-      .gte("paid_at", startOfDay(today).toISOString())
-      .lte("paid_at", endOfDay(today).toISOString())
+      .gte("paid_at", dayBounds.startISO)
+      .lt("paid_at", dayBounds.endISO)
   ]);
 
   if (roomsRes.error) throw roomsRes.error;
@@ -211,7 +218,8 @@ async function fetchDashboardClientData(
     paymentStatus: b.payment_status || "unpaid",
     totalAmount: b.total_amount,
     source: b.source || "direct",
-    createdAt: b.created_at || null,
+    createdAt: b.created_at ?? null,
+    cancelledAt: b.cancelled_at ?? null,
     hasConflict: false,
     hasNotes: Boolean(b.special_requests?.trim() || b.internal_notes?.trim()),
   });
@@ -289,11 +297,15 @@ interface MutationCtx {
   queryKey?: readonly unknown[];
 }
 
-export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
+export function DashboardClient({ hotelId, currency, hotelTimezone }: DashboardClientProps) {
   const queryClient = useQueryClient();
   const { orgId, userId } = useAuth();
 
-  const [selectedDate, setSelectedDate] = React.useState(new Date());
+  // Open on the property's business day, not the device's: a remote viewer in
+  // another timezone still lands on the hotel's current date. Constructing a
+  // device-local midnight keeps format(selectedDate, "yyyy-MM-dd") an exact
+  // round-trip of that date string.
+  const [selectedDate, setSelectedDate] = React.useState(() => new Date(`${businessToday(hotelTimezone)}T00:00:00`));
   const [activeTab, setActiveTab] = React.useState<ActivityTab>("arrivals");
   const [selectedBookingId, setSelectedBookingId] = React.useState<string | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
@@ -333,7 +345,7 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
     queryKey: qk.dashboard(orgId || "", hotelId, dateParamStr),
     queryFn: () => {
       const supabase = createClient();
-      return fetchDashboardClientData(supabase, hotelId, dateParamStr);
+      return fetchDashboardClientData(supabase, hotelId, dateParamStr, hotelTimezone);
     },
     enabled: !!orgId,
     refetchInterval: 60000,
@@ -607,10 +619,34 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
       const queryKey = qk.dashboard(orgId || "", hotelId, dateParamStr);
       await queryClient.cancelQueries({ queryKey });
       const previousData = queryClient.getQueryData<DashboardQueryData>(queryKey);
-      queryClient.setQueryData(queryKey, (old: DashboardQueryData | undefined) => old ? {
-        ...old,
-        bookings: old.bookings.map((booking) => booking.id === bookingId ? { ...booking, status } : booking),
-      } : old);
+      queryClient.setQueryData(queryKey, (old: DashboardQueryData | undefined) => {
+        if (!old) return old;
+        // Keep the badge in sync with the list predicate below: count the
+        // cancellation only when its event date lands on the viewed business
+        // day (property timezone), and never double-count an already-listed
+        // row. The generic delta also covers a future reinstate direction.
+        const nowIso = new Date().toISOString();
+        let cancellationsDelta = 0;
+        const bookings = old.bookings.map((booking) => {
+          if (booking.id !== bookingId) return booking;
+          const wasCounted = isCancelledOnDate(
+            { status: booking.status, cancelledAt: booking.cancelledAt },
+            dateParamStr,
+            hotelTimezone,
+          );
+          const next = { ...booking, status, cancelledAt: status === "cancelled" ? nowIso : booking.cancelledAt };
+          cancellationsDelta +=
+            (isCancelledOnDate(next, dateParamStr, hotelTimezone) ? 1 : 0) - (wasCounted ? 1 : 0);
+          return next;
+        });
+        return {
+          ...old,
+          bookings,
+          stats: cancellationsDelta === 0
+            ? old.stats
+            : { ...old.stats, cancellations: Math.max(0, old.stats.cancellations + cancellationsDelta) },
+        };
+      });
       return { previousData, queryKey };
     },
     onError: (err, _variables, context) => {
@@ -641,15 +677,17 @@ export function DashboardClient({ hotelId, currency }: DashboardClientProps) {
       case "in_house":
         return data.bookings.filter((b) => isInHouseOnDate({ id: b.id, roomId: null, checkIn: b.checkIn, checkOut: b.checkOut, status: b.status }, dateParamStr));
       case "bookings":
-        return data.bookings.filter((b) => b.createdAt?.slice(0, 10) === dateParamStr);
+        // Same rule as the badge query: the creation day is resolved in the
+        // property timezone, not by slicing the UTC ISO string.
+        return data.bookings.filter((b) => !!b.createdAt && businessDate(hotelTimezone, new Date(b.createdAt)) === dateParamStr);
       case "cancellations":
-        return data.bookings.filter((b) => b.status === "cancelled");
+        return data.bookings.filter((b) => isCancelledOnDate({ status: b.status, cancelledAt: b.cancelledAt }, dateParamStr, hotelTimezone));
       case "overbookings":
         return data.bookings.filter((b) => b.hasConflict);
       default:
         return data.bookings;
     }
-  }, [data, activeTab, dateParamStr]);
+  }, [data, activeTab, dateParamStr, hotelTimezone]);
 
   if (loading && !data) {
     return <DashboardSkeleton />;
