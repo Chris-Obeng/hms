@@ -380,13 +380,14 @@ function CalendarClientContent({
       setViewPreset(preset);
       // A window still anchored on today (initial load / Today) re-anchors
       // for the new span, so narrow presets never strand today outside it.
-      setStartDate((previous) =>
-        previous.getTime() === addDays(parseISO(businessDateKey), -pastLeadDays(days)).getTime()
-          ? addDays(parseISO(businessDateKey), -pastLeadDays(VIEW_PRESETS.find((p) => p.label === preset)?.days ?? 14))
-          : previous,
-      );
+      if (startDate.getTime() !== addDays(parseISO(businessDateKey), -pastLeadDays(days)).getTime()) return;
+      const nextDays = VIEW_PRESETS.find((p) => p.label === preset)?.days ?? 14;
+      setStartDate(addDays(parseISO(businessDateKey), -pastLeadDays(nextDays)));
+      // The lead-in changes with the span, so a stale scrollLeft would clamp
+      // and hide today behind the room gutter — re-assert the scroll anchor.
+      setTodayAnchor((n) => n + 1);
     },
-    [businessDateKey, days],
+    [businessDateKey, days, startDate],
   );
 
   const clearFilters = React.useCallback(() => {

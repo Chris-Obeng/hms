@@ -392,13 +392,13 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
   const virtualizer = useVirtualizer({ count: rooms.length, getScrollElement: () => scrollRef.current, estimateSize: () => ROW_HEIGHT, overscan: 10 });
   const dates = React.useMemo(() => Array.from({ length: days }, (_, i) => addDays(startDate, i)), [startDate, days]);
 
-  // Column indices that fall on Sat/Sun — the weekend wash is painted by
-  // dedicated full-height overlays styled via [data-dow] in calendar.css.
+  // Column indices that fall on Sat/Sun. Header cells get the wash via
+  // [data-dow] in calendar.css; these indices drive the full-height overlays.
   const weekendColumns = React.useMemo(
     () =>
-      dates.reduce<Array<{ index: number; dow: number }>>((acc, d, index) => {
+      dates.reduce<number[]>((acc, d, index) => {
         const dow = d.getDay();
-        if (dow === 0 || dow === 6) acc.push({ index, dow });
+        if (dow === 0 || dow === 6) acc.push(index);
         return acc;
       }, []),
     [dates],
@@ -612,11 +612,10 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
             </div>
             {/* Full-height weekend wash — sits BELOW the today tint and every
                 booking/block bar (see z-scale in calendar.css). */}
-            {weekendColumns.map(({ index, dow }) => (
+            {weekendColumns.map((index) => (
               <div
                 key={index}
                 className="rl-weekend-column"
-                data-dow={dow}
                 style={{ left: ROOM_COLUMN_WIDTH + index * DAY_WIDTH, width: DAY_WIDTH }}
                 aria-hidden
               />
