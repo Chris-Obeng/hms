@@ -47,13 +47,22 @@ export function getBookingBarColor(
   }
 }
 
+/** Operational zoom levels — nothing below a week: hotel planning happens
+ *  in week-plus horizons, and sub-week views only added dropdown noise. */
 export const VIEW_PRESETS = [
-  { label: "Day", days: 1 },
-  { label: "3 Day", days: 3 },
   { label: "Week", days: 7 },
   { label: "2 Wks", days: 14 },
   { label: "Month", days: 30 },
 ] as const;
+
+/** Days of past context rendered before the business date, so the timeline
+ *  opens anchored on today while previous dates stay one scroll away — no
+ *  date-picker round trip. Capped at half the view so the narrowest preset
+ *  (Week) keeps today inside the window. */
+export const PAST_LEAD_MAX_DAYS = 7;
+export function pastLeadDays(viewDays: number): number {
+  return Math.min(PAST_LEAD_MAX_DAYS, Math.floor(viewDays / 2));
+}
 
 export type ViewPreset = (typeof VIEW_PRESETS)[number]["label"];
 

@@ -10,10 +10,6 @@
   --cal-grid: color-mix(in oklch, var(--border) 55%, transparent);
   --cal-text: var(--foreground);
   --cal-muted: var(--muted-foreground);
-  --cal-today-bg: color-mix(in oklch, var(--primary) 6%, transparent);
-  --cal-today-hdr-bg: color-mix(in oklch, var(--primary) 9%, transparent);
-  --cal-today-line: var(--primary);
-  --cal-weekend: color-mix(in oklch, var(--foreground) 2%, transparent);
   --cal-header: color-mix(in oklch, var(--muted) 35%, var(--card));
   --cal-accent: var(--primary);
   --cal-radius: 6px;
@@ -70,11 +66,12 @@
 }
 
 /* Custom RoomLine room-rack. One scroll surface keeps sticky axes aligned. */
-/* Stacking scale (lowest → highest). Today's tint must NEVER sit above a
-   booking/block bar, so every layer gets an explicit rung:
-   cells(0) < today(2) < weekend wash(3) < booking/block bars(10) <
+/* Stacking scale (lowest → highest). Today must win over the weekend wash
+   when they coincide, and neither tint may EVER sit above a booking/block
+   bar, so every layer gets an explicit rung:
+   cells(0) < weekend wash(2) < today(3) < booking/block bars(10) <
    room gutter(20) < drag preview(25) < sticky header(30) < tray(35) < corner(40). */
-.rl-timeline-shell{height:100%;min-height:420px;position:relative;display:flex;flex-direction:column;background:var(--background);--rl-z-cells:0;--rl-z-today:2;--rl-z-weekend:3;--rl-z-bars:10;--rl-z-gutter:20;--rl-z-preview:25;--rl-z-header:30;--rl-z-tray:35;--rl-z-corner:40}
+.rl-timeline-shell{height:100%;min-height:420px;position:relative;display:flex;flex-direction:column;background:var(--background);--rl-z-cells:0;--rl-z-weekend:2;--rl-z-today:3;--rl-z-bars:10;--rl-z-gutter:20;--rl-z-preview:25;--rl-z-header:30;--rl-z-tray:35;--rl-z-corner:40}
 .rl-timeline-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
 .rl-timeline-canvas{position:relative;min-height:100%}
 .rl-timeline-header{position:sticky;top:0;z-index:var(--rl-z-header);display:flex;height:62px;width:max-content;background:color-mix(in oklch,var(--background) 96%,var(--muted));border-bottom:1px solid color-mix(in oklch,var(--border) 80%,var(--foreground) 6%)}
@@ -85,12 +82,19 @@
 .rl-date{height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border-right:1px solid color-mix(in oklch,var(--border) 72%,transparent);font-size:11px;color:var(--muted-foreground)}
 .rl-date strong{font-size:11.5px;font-weight:650;color:var(--foreground);letter-spacing:.01em}
 .rl-date span{font-size:10.5px;opacity:.85}
-.rl-date[data-dow="6"],.rl-date[data-dow="0"]{background:color-mix(in oklch,var(--muted) 30%,transparent)}
-.rl-date[data-dow="6"] strong,.rl-date[data-dow="0"] strong{color:color-mix(in oklch,var(--foreground) 82%,var(--muted-foreground))}
-.rl-date.today{background:color-mix(in oklch,var(--primary) 9%,transparent);box-shadow:inset 0 3px 0 var(--primary)}
-.rl-date.today strong{color:var(--primary)}
-.rl-weekend-column{position:absolute;top:62px;bottom:0;z-index:var(--rl-z-weekend);background:color-mix(in oklch,var(--muted) 30%,transparent);pointer-events:none}
-.rl-today-column{position:absolute;top:62px;bottom:0;z-index:var(--rl-z-today);background:color-mix(in oklch,var(--primary) 5%,transparent);box-shadow:inset 1px 0 0 color-mix(in oklch,var(--primary) 22%,transparent),inset -1px 0 0 color-mix(in oklch,var(--primary) 22%,transparent);pointer-events:none}
+/* Weekend: a quiet graphite wash. Hue-free (foreground-mixed) so it reads
+   clean on any brand palette and lifts correctly in dark mode, where the
+   foreground is white. Recessive by design — weekends frame, today shouts. */
+.rl-date[data-dow="6"],.rl-date[data-dow="0"]{background:color-mix(in oklch,var(--foreground) 5%,transparent)}
+.rl-date[data-dow="6"] strong,.rl-date[data-dow="0"] strong{color:color-mix(in oklch,var(--foreground) 78%,var(--muted-foreground))}
+/* Today: the single column allowed to demand attention. Accent top bar,
+   tinted header, and the date wears a filled accent pill — the today
+   signature people know from Apple Calendar. */
+.rl-date.today{background:color-mix(in oklch,var(--primary) 12%,transparent);box-shadow:inset 0 3px 0 var(--primary)}
+.rl-date.today strong{color:var(--primary);font-weight:700}
+.rl-date.today span{background:var(--primary);color:var(--primary-foreground);opacity:1;font-weight:650;letter-spacing:.01em;line-height:1.5;padding:0 8px;border-radius:999px}
+.rl-weekend-column{position:absolute;top:62px;bottom:0;z-index:var(--rl-z-weekend);background:color-mix(in oklch,var(--foreground) 3%,transparent);pointer-events:none}
+.rl-today-column{position:absolute;top:62px;bottom:0;z-index:var(--rl-z-today);background:color-mix(in oklch,var(--primary) 7%,transparent);box-shadow:inset 1px 0 0 color-mix(in oklch,var(--primary) 30%,transparent),inset -1px 0 0 color-mix(in oklch,var(--primary) 30%,transparent);pointer-events:none}
 .rl-room-row{position:relative;left:0;width:100%;border-bottom:1px solid var(--border)}
 .rl-room-label{position:sticky;left:0;z-index:var(--rl-z-gutter);height:100%;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;padding:0 12px;background:var(--background);border-right:1px solid var(--border);box-shadow:8px 0 18px -18px color-mix(in oklch,var(--foreground) 30%,transparent)}
 .rl-room-label strong{font-size:13px;display:flex;align-items:center;gap:6px;min-width:0}.rl-room-label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--muted-foreground)}.rl-room-label .status{width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0}

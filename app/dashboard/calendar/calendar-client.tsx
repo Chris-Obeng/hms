@@ -24,7 +24,7 @@ import {
 } from "./actions";
 import type { TypeChangeRequest as DragTypeChangeRequest } from "./_components/timeline/timeline-calendar";
 import { pickBestRoom } from "./_components/timeline/auto-assign";
-import { VIEW_PRESETS, type ViewPreset } from "./_components/calendar-helpers";
+import { PAST_LEAD_MAX_DAYS, VIEW_PRESETS, pastLeadDays, type ViewPreset } from "./_components/calendar-helpers";
 import { businessToday } from "@/lib/business-date";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CalendarToolbar } from "./_components/calendar-toolbar";
@@ -130,12 +130,22 @@ function CalendarClientContent({
   // window, and the "today" marker. Never derived from the device clock.
   const businessDateKey = businessToday(hotelTimezone);
 
-  // Seeded window mirrors the server payload exactly ([businessDate, +30]),
-  // so the first paint can only reuse data anchored to the requested range.
-  const [seededRange] = React.useState(() => ({ start: parseISO(businessDateKey), days: 30 }));
-  const [startDate, setStartDate] = React.useState(() => parseISO(businessDateKey));
+  // Seeded window mirrors the server payload exactly
+  // ([businessDate − PAST_LEAD_MAX_DAYS, +30 + PAST_LEAD_MAX_DAYS]), so the
+  // first paint can only reuse data anchored to the requested range.
+  const [seededRange] = React.useState(() => ({
+    start: addDays(parseISO(businessDateKey), -PAST_LEAD_MAX_DAYS),
+    days: 30 + PAST_LEAD_MAX_DAYS,
+  }));
   const [viewPreset, setViewPreset] = React.useState<ViewPreset>("2 Wks");
   const days = VIEW_PRESETS.find((preset) => preset.label === viewPreset)?.days ?? 14;
+  // The window opens a few days BEFORE the business date and the timeline
+  // scrolls today to the left edge: refresh lands on the current date, yet
+  // past dates stay one scroll away — no date-picker round trip.
+  const [startDate, setStartDate] = React.useState(() => addDays(parseISO(businessDateKey), -pastLeadDays(days)));
+  // Asserted on mount and by the Today control; the timeline scrolls to the
+  // today column only when this changes, never on manual navigation.
+  const [todayAnchor, setTodayAnchor] = React.useState(0);
 
   const dateStr = format(startDate, "yyyy-MM-dd");
 
@@ -358,8 +368,26 @@ function CalendarClientContent({
     },
     [days],
   );
-  const goToToday = React.useCallback(() => setStartDate(new Date()), []);
+  // Anchor on the business date (never the device clock) with the past
+  // lead-in, then re-assert the scroll anchor so the jump lands on today.
+  const goToToday = React.useCallback(() => {
+    setStartDate(addDays(parseISO(businessDateKey), -pastLeadDays(days)));
+    setTodayAnchor((n) => n + 1);
+  }, [businessDateKey, days]);
   const selectDate = React.useCallback((date: Date) => setStartDate(date), []);
+  const changeViewPreset = React.useCallback(
+    (preset: ViewPreset) => {
+      setViewPreset(preset);
+      // A window still anchored on today (initial load / Today) re-anchors
+      // for the new span, so narrow presets never strand today outside it.
+      setStartDate((previous) =>
+        previous.getTime() === addDays(parseISO(businessDateKey), -pastLeadDays(days)).getTime()
+          ? addDays(parseISO(businessDateKey), -pastLeadDays(VIEW_PRESETS.find((p) => p.label === preset)?.days ?? 14))
+          : previous,
+      );
+    },
+    [businessDateKey, days],
+  );
 
   const clearFilters = React.useCallback(() => {
     setRoomTypeFilters((previous) => previous.map((filter) => ({ ...filter, visible: true })));
@@ -601,7 +629,7 @@ function CalendarClientContent({
         onNavigate={navigate}
         onToday={goToToday}
         onSelectDate={selectDate}
-        onViewPresetChange={setViewPreset}
+        onViewPresetChange={changeViewPreset}
         onSearchQueryChange={setSearchQuery}
         onOpenFilters={() => setShowFilters(true)}
         onBlockRoom={() => {
@@ -667,6 +695,7 @@ function CalendarClientContent({
             blocks={availabilityBlocks}
             canEdit={canEdit}
             hotelTimezone={hotelTimezone}
+            todayAnchor={todayAnchor}
             highlightIds={newBookingIds}
             onOpenBooking={openBooking}
             onOpenBlock={setSelectedBlock}

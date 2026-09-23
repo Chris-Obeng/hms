@@ -73,6 +73,10 @@ type Props = {
   canEdit: boolean;
   /** Property timezone — drives the business date used by the past-drop rule and today marker. */
   hotelTimezone: string;
+  /** Asserted on mount and by the Today control — the only moments the
+   *  scrollport may jump to the today column. Manual navigation, filtering
+   *  and realtime updates never touch the user's scroll position. */
+  todayAnchor?: number;
   /** Bookings to pulse (recently created). */
   highlightIds?: Set<string>;
   onOpenBooking(id: string): void;
@@ -324,7 +328,7 @@ const RoomRow = React.memo(function RoomRow({ room, bookings, blocks, conflicts,
   );
 });
 
-export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, canEdit, hotelTimezone, highlightIds, onOpenBooking, onOpenBlock, onCreate, onChange, onAutoAssign, onRequestTypeChange }: Props) {
+export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, canEdit, hotelTimezone, todayAnchor = 0, highlightIds, onOpenBooking, onOpenBlock, onCreate, onChange, onAutoAssign, onRequestTypeChange }: Props) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const trayRef = React.useRef<HTMLDivElement>(null);
   const [activeDrag, setActiveDrag] = React.useState<DragState | null>(null);
@@ -342,6 +346,19 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
   const todayKey = businessToday(hotelTimezone);
   const todayColumn = dateToColumn(todayKey, start);
   const todayColumnVisible = todayColumn >= 0 && todayColumn < days;
+
+  // Scroll the today column to the left edge only when the anchor is
+  // (re)asserted — first paint and the Today button. Runs before paint so
+  // the user never sees the pre-anchor scroll position.
+  React.useLayoutEffect(() => {
+    const scroller = scrollRef.current;
+    if (scroller && todayColumnVisible) {
+      scroller.scrollLeft = todayColumn * DAY_WIDTH;
+    }
+    // todayColumn/todayColumnVisible are derived; re-running on them would
+    // hijack scrolling on every navigation — anchor assertions only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todayAnchor]);
   const conflicts = React.useMemo(() => findTimelineConflicts(bookings), [bookings]);
 
   const assignedByRoom = React.useMemo(() => {
@@ -593,8 +610,8 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
                 ))}
               </div>
             </div>
-            {/* Full-height weekend wash — sits ABOVE the today tint and BELOW
-                every booking/block bar (see z-scale in calendar.css). */}
+            {/* Full-height weekend wash — sits BELOW the today tint and every
+                booking/block bar (see z-scale in calendar.css). */}
             {weekendColumns.map(({ index, dow }) => (
               <div
                 key={index}
@@ -604,7 +621,7 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
                 aria-hidden
               />
             ))}
-            {/* Full-height today marker — one element, sits under bars. */}
+            {/* Full-height today marker — one element, above the weekend wash, under bars. */}
             {todayColumnVisible && (
               <div className="rl-today-column" style={{ left: ROOM_COLUMN_WIDTH + todayColumn * DAY_WIDTH, width: DAY_WIDTH }} aria-hidden />
             )}

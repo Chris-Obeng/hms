@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { addDays, format, parseISO } from "date-fns";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { businessToday } from "@/lib/business-date";
 import { CalendarClient } from "./calendar-client";
 import { getCalendarData, getCurrentStaffRole } from "./actions";
+import { PAST_LEAD_MAX_DAYS } from "./_components/calendar-helpers";
 export const metadata = {
   title: "Calendar | RoomLine",
 };
@@ -43,13 +45,16 @@ export default async function CalendarPage() {
     base_price: rt.base_price,
   }));
 
-  // Fetch initial calendar data (property business date + 30 days). A seed
-  // failure must never blank the whole route (H4) — degrade to a retryable
-  // error state instead of throwing past any boundary.
+  // Fetch initial calendar data. The window opens PAST_LEAD_MAX_DAYS before
+  // the business date so the client anchors the scrollport on today while
+  // past dates stay one scroll away — one widened seed, no extra fetch. A
+  // seed failure must never blank the whole route (H4) — degrade to a
+  // retryable error state instead of throwing past any boundary.
   const today = businessToday(hotel.timezone || "UTC");
+  const seedStart = format(addDays(parseISO(today), -PAST_LEAD_MAX_DAYS), "yyyy-MM-dd");
   let initialData: Awaited<ReturnType<typeof getCalendarData>> | null = null;
   try {
-    initialData = await getCalendarData(today, 30);
+    initialData = await getCalendarData(seedStart, 30 + PAST_LEAD_MAX_DAYS);
   } catch (error) {
     console.error("[calendar] initial data load failed:", error);
   }
