@@ -170,13 +170,36 @@ export async function GET(
     // would leave the booking looking underpaid.
     const txnCurrency = typeof txn.currency === "string" ? txn.currency : hotel.currency;
 
+    // Same guard as the webhook: a charge with no readable subaccount code is
+    // refused by the RPC as unverifiable (permanent). Capture the payload
+    // anomaly here too, with the same fingerprint so both entry points group
+    // into one Sentry issue instead of one per route. Shape only, no values.
+    const subaccountCode = extractSubaccountCode(txn);
+    if (!subaccountCode) {
+      captureIssue("Paystack charge has no readable subaccount_code", {
+        scope: "booking-funnel",
+        step: "payment_verify",
+        bookingId,
+        reference,
+        tags: { "hotel.slug": slug },
+        contexts: {
+          paystack: {
+            subaccount_key_present: "subaccount" in txn,
+            subaccount_type: txn.subaccount === null ? "null" : typeof txn.subaccount,
+            txn_id_present: txn.id != null,
+          },
+        },
+        fingerprint: ["paystack", "subaccount-unverifiable"],
+      });
+    }
+
     const result = await recordOnlinePayment({
       bookingId,
       paystackReference: reference,
       paystackId: txn.id != null ? String(txn.id) : null,
       amountPaid: fromMinor(txn.amount, txnCurrency),
       currency: txnCurrency,
-      subaccountCode: extractSubaccountCode(txn),
+      subaccountCode,
     });
 
     switch (result.outcome) {

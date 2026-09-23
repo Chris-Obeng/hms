@@ -230,13 +230,35 @@ async function handleWebhook(req: NextRequest) {
   // zero-decimal charge is not divided by 100 into a hundredth of itself.
   const amountPaid = fromMinor(rawAmount, txnCurrency);
 
+  // A successful split charge must name its subaccount. If none is readable,
+  // the RPC below will refuse settlement as unverifiable (permanent) — capture
+  // the payload anomaly here so the *cause* is searchable, not only the
+  // downstream "settlement rejected" effect. Shape only, never field values.
+  const subaccountCode = extractSubaccountCode(txn);
+  if (!subaccountCode) {
+    captureIssue("Paystack charge has no readable subaccount_code", {
+      scope: "paystack-webhook",
+      step: "payment_webhook",
+      bookingId,
+      reference: paystackRef,
+      contexts: {
+        paystack: {
+          subaccount_key_present: "subaccount" in txn,
+          subaccount_type: txn.subaccount === null ? "null" : typeof txn.subaccount,
+          txn_id_present: txn.id != null,
+        },
+      },
+      fingerprint: ["paystack", "subaccount-unverifiable"],
+    });
+  }
+
   const result = await recordOnlinePayment({
     bookingId,
     paystackReference: paystackRef,
     paystackId: txn.id != null ? String(txn.id) : null,
     amountPaid,
     currency: txnCurrency,
-    subaccountCode: extractSubaccountCode(txn),
+    subaccountCode,
   });
 
   switch (result.outcome) {
