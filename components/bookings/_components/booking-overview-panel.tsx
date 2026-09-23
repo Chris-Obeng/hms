@@ -62,7 +62,7 @@ export function BookingOverviewPanel({ booking }: BookingOverviewPanelProps) {
           />
         </div>
 
-        {(booking.checkInAt || booking.checkOutAt || booking.cancelledAt) && (
+        {(booking.checkInAt || booking.checkOutAt || (booking.status === "cancelled" && booking.cancelledAt)) && (
           <div className="mt-3 space-y-1 border-t border-border/50 pt-2.5 text-[11px] text-muted-foreground">
             {booking.checkInAt && (
               <p className="flex items-center gap-1.5">
@@ -76,7 +76,7 @@ export function BookingOverviewPanel({ booking }: BookingOverviewPanelProps) {
                 Checked out {formatDateTime(booking.checkOutAt)}
               </p>
             )}
-            {booking.cancelledAt && (
+            {booking.status === "cancelled" && booking.cancelledAt && (
               <p className="flex items-center gap-1.5">
                 <XCircle className="size-3 text-red-500" />
                 Cancelled {formatDateTime(booking.cancelledAt)}

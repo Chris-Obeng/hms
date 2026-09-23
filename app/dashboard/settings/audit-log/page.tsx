@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import { AuditLogClient } from "./audit-log-client";
 import { SettingsSubHeader } from "../_components/settings-sub-header";
+import { fetchAuditLogPage } from "@/lib/audit-feed";
+
 export default async function AuditLogPage() {
   const { orgId, userId } = await auth();
   if (!orgId || !userId) redirect("/sign-in");
@@ -38,18 +40,31 @@ export default async function AuditLogPage() {
     );
   }
 
-  const { data: logs } = await supabase
-    .from("audit_logs")
-    .select("id, action, entity_type, entity_id, staff_name, before_state, after_state, created_at")
-    .eq("hotel_id", hotel.id)
-    .order("created_at", { ascending: false })
-    .limit(500);
+  // First day-window only — older days stream in on scroll via the
+  // fetchAuditLogDays server action. The exact count feeds the subtitle.
+  const [initialPage, countResult] = await Promise.all([
+    fetchAuditLogPage(hotel.id, null),
+    supabase
+      .from("audit_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("hotel_id", hotel.id),
+  ]);
+
+  const total = countResult.count ?? 0;
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <SettingsSubHeader icon="audit" title="Audit log" subtitle={`Append-only record of all staff actions — ${logs?.length ?? 0} entries`} />
+      <SettingsSubHeader
+        icon="audit"
+        title="Audit log"
+        subtitle={`Append-only record of all staff actions — ${total.toLocaleString()} ${total === 1 ? "entry" : "entries"}`}
+      />
 
-      <AuditLogClient logs={logs ?? []} />
+      <AuditLogClient
+        initialDays={initialPage.days}
+        initialCursor={initialPage.nextCursor}
+        initialHasMore={initialPage.hasMore}
+      />
     </div>
   );
 }

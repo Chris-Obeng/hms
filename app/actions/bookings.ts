@@ -398,6 +398,12 @@ export async function updateBookingStatus(
         ...(status === "checked_in" ? { check_in_at: new Date().toISOString() } : {}),
         ...(status === "checked_out" ? { check_out_at: new Date().toISOString() } : {}),
         ...(status === "cancelled" ? { cancelled_at: new Date().toISOString() } : {}),
+        // Reinstating (cancelled → confirmed) clears the cancellation audit
+        // fields, matching the settlement RPC's resurrection path — a stale
+        // cancelled_at on a live booking would misreport in detail views.
+        ...(before.status === "cancelled" && status !== "cancelled"
+          ? { cancelled_at: null, cancellation_reason: null }
+          : {}),
       })
       .eq("id", bookingId)
       .eq("hotel_id", ctx.hotelId);

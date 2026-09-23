@@ -11,7 +11,7 @@ export default async function DashboardHomePage() {
 
   const { data: hotel, error: hotelError } = await supabase
     .from("hotels")
-    .select("id, name, currency, logo_url")
+    .select("id, name, currency, logo_url, timezone")
     .eq("clerk_org_id", orgId)
     .limit(1)
     .maybeSingle();
@@ -20,7 +20,7 @@ export default async function DashboardHomePage() {
     return <NoHotelState />;
   }
 
-  return <DashboardClient hotelId={hotel.id} hotelName={hotel.name} currency={hotel.currency || "GHS"} />;
+  return <DashboardClient hotelId={hotel.id} hotelName={hotel.name} currency={hotel.currency || "GHS"} hotelTimezone={hotel.timezone || "UTC"} />;
 }
 
 function NoHotelState() {
