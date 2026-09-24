@@ -40,6 +40,7 @@ export type AuditAction =
   | "room.block_deleted"
   | "room.status_changed"
   | "room.note_updated"
+  | "room.updated"
   // Night Audit
   | "night_audit.completed"
   // Rates & pricing

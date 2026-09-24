@@ -319,7 +319,6 @@ function DrawerContent({
           <Field label="Location">
             {[profile.city, profile.country].filter(Boolean).join(", ") || "—"}
           </Field>
-          <Field label="Plan"><span className="capitalize">{profile.plan ?? "—"}</span></Field>
           <Field label="Status"><StatusChip status={profile.status} /></Field>
           <Field label="Created">{formatDateTime(profile.created_at)}</Field>
           <Field label="Paystack account">

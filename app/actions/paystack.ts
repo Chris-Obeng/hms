@@ -30,7 +30,7 @@ async function getSuperAdminHotel() {
   const supabase = await createClient();
   const { data: hotel } = await supabase
     .from("hotels")
-    .select("id, name, email, paystack_subaccount_code, paystack_bank_code, paystack_account_number, paystack_business_name, paystack_settlement_schedule, settings, plan, currency")
+    .select("id, name, email, paystack_subaccount_code, paystack_bank_code, paystack_account_number, paystack_business_name, paystack_settlement_schedule, settings, currency")
     .eq("clerk_org_id", orgId)
     .single();
   if (!hotel) throw new Error("Hotel not found");
@@ -165,7 +165,6 @@ export async function getPaymentsSettings() {
         businessName: hotel.paystack_business_name,
         settlementSchedule: hotel.paystack_settlement_schedule ?? "auto",
         paymentPolicy: (settings.payment_policy as PaymentPolicy) ?? "choice",
-        plan: hotel.plan,
         currency: hotel.currency ?? "GHS",
       },
     };

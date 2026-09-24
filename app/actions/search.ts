@@ -158,7 +158,7 @@ export async function searchGlobal(
           type: "room",
           label: `Room ${room.room_number}`,
           subLabel: `Status: ${statusLabel}`,
-          url: `/dashboard/rooms/directory?search=${room.room_number}`,
+          url: `/dashboard/rooms?search=${room.room_number}`,
         });
       }
     }

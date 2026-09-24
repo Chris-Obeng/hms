@@ -195,7 +195,6 @@ export function OversightTable({
                 <Table.Header>
                   <Table.Column isRowHeader>Hotel</Table.Column>
                   <Table.Column>Status</Table.Column>
-                  <Table.Column>Plan</Table.Column>
                   <Table.Column>Occupancy today</Table.Column>
                   <Table.Column>GMV · 30 days</Table.Column>
                   <Table.Column>Outstanding</Table.Column>
@@ -212,9 +211,6 @@ export function OversightTable({
                         <RowLink row={row} onOpen={() => setSelectedHotelId(row.id)} />
                       </Table.Cell>
                       <Table.Cell><StatusChip status={row.status} /></Table.Cell>
-                      <Table.Cell>
-                        <span className="capitalize text-muted-foreground">{row.plan ?? "—"}</span>
-                      </Table.Cell>
                       <Table.Cell><OccupancyCell row={row} /></Table.Cell>
                       <Table.Cell>
                         <MoneyCell totals={row.gmv} />
@@ -284,7 +280,7 @@ export function OversightTable({
                   </div>
                 </div>
                 <p className="text-[11px] text-muted-foreground tabular-nums">
-                  Created {formatDate(row.created_at, "dd MMM yyyy")} · {row.plan ? <span className="capitalize">{row.plan}</span> : "—"}
+                  Created {formatDate(row.created_at, "dd MMM yyyy")}
                 </p>
               </button>
             ))

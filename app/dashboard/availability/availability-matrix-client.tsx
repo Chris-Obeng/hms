@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 import { onRealtimeStatus } from "@/lib/observability/realtime";
 import { createCoalescer } from "@/lib/realtime/coalesce";
 import { deleteDailyRateOverride, getResolvedRates, upsertDailyRateOverride, type ResolvedPriceCell as ResolvedRate } from "@/app/actions/pricing";
-import { restrictionMarkers } from "@/lib/pricing/rate-restrictions";
+import { restrictionMarkers } from "@/lib/pricing/restriction-markers";
 import "./availability.css";
 
 export type AvailabilityMatrixData = {

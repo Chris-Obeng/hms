@@ -25,7 +25,9 @@ const RoomTypeSchema = z.object({
     label: z.string(),
   })).default([]),
   isActive: z.boolean().default(true),
-  sortOrder: z.coerce.number().int().default(0),
+  // Ordering is managed via reorderRoomTypes; creates append and updates
+  // preserve the current position unless an explicit value is provided.
+  sortOrder: z.coerce.number().int().optional(),
 });
 
 const RoomSchema = z.object({
@@ -44,6 +46,8 @@ const AvailabilityBlockSchema = z.object({
   reason: z.enum(["maintenance", "deep_cleaning", "owner_use", "renovation", "other"]),
   notes: z.string().max(500).optional().or(z.literal("")),
 });
+
+const ReorderRoomTypesSchema = z.array(z.string().uuid()).min(1).max(500);
 
 export type RoomTypeInput = z.infer<typeof RoomTypeSchema>;
 export type RoomInput = z.infer<typeof RoomSchema>;
@@ -109,43 +113,6 @@ export async function getRoomTypes() {
   };
 }
 
-export async function getRoomType(id: string) {
-  const result = await getHotelId();
-  if ("error" in result) return { success: false as const, error: result.error };
-
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("room_types")
-    .select("*")
-    .eq("id", id)
-    .eq("hotel_id", result.hotelId)
-    .single();
-
-  if (error) return { success: false as const, error: error.message };
-  if (!data) return { success: false as const, error: "Room type not found" };
-
-  return {
-    success: true as const,
-    data: {
-      id: data.id,
-      hotelId: data.hotel_id,
-      name: data.name,
-      slug: data.slug,
-      shortDescription: data.short_description,
-      description: data.description,
-      bedConfiguration: data.bed_configuration,
-      maxAdults: data.max_adults,
-      maxChildren: data.max_children,
-      basePrice: data.base_price,
-      weekendPrice: data.weekend_price,
-      amenities: data.amenities as { icon: string; label: string }[] | null,
-      images: data.images as { url: string; caption: string; order: number }[] | null,
-      isActive: data.is_active,
-      sortOrder: data.sort_order,
-    },
-  };
-}
-
 export async function createRoomType(input: RoomTypeInput) {
   try { await requireMinRole("manager", "create room types"); }
   catch (err) { return toActionError(err, { action: "rooms.createRoomType" }); }
@@ -166,6 +133,17 @@ export async function createRoomType(input: RoomTypeInput) {
   const data = parsed.data;
   const supabase = await createClient();
 
+  // New types always append to the end; staff then arrange them with the
+  // reorder control, which is far clearer than editing a magic number.
+  const { data: lastType } = await supabase
+    .from("room_types")
+    .select("sort_order")
+    .eq("hotel_id", result.hotelId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextSortOrder = (lastType?.sort_order ?? -1) + 1;
+
   const { error, data: newRoomType } = await supabase.from("room_types").insert(toRoomTypeInsert({
     hotel_id: result.hotelId,
     name: data.name,
@@ -179,12 +157,12 @@ export async function createRoomType(input: RoomTypeInput) {
     weekend_price: data.weekendPrice || null,
     amenities: data.amenities,
     is_active: data.isActive,
-    sort_order: data.sortOrder,
+    sort_order: nextSortOrder,
   })).select("id").single();
 
   if (error) return { success: false as const, error: error.message };
 
-  revalidatePath("/dashboard/rooms/types");
+  revalidatePath("/dashboard/rooms");
   return { success: true as const, id: newRoomType.id };
 }
 
@@ -222,14 +200,58 @@ export async function updateRoomType(id: string, input: RoomTypeInput) {
       weekend_price: data.weekendPrice || null,
       amenities: data.amenities,
       is_active: data.isActive,
-      sort_order: data.sortOrder,
+      // sort_order is only written when explicitly provided so edits never
+      // reshuffle the staff-defined calendar order.
+      ...(data.sortOrder !== undefined ? { sort_order: data.sortOrder } : {}),
     })
     .eq("id", id)
     .eq("hotel_id", result.hotelId);
 
   if (error) return { success: false as const, error: error.message };
 
-  revalidatePath("/dashboard/rooms/types");
+  revalidatePath("/dashboard/rooms");
+  return { success: true as const };
+}
+
+/**
+ * Persists the staff-defined display order for room types. `orderedIds` must
+ * cover exactly the hotel's current room types — this guards against a stale
+ * client silently reordering around types added/removed in another tab.
+ */
+export async function reorderRoomTypes(orderedIds: string[]) {
+  try { await requireMinRole("manager", "reorder room types"); }
+  catch (err) { return toActionError(err, { action: "rooms.reorderRoomTypes" }); }
+  const result = await getHotelId();
+  if ("error" in result) return { success: false as const, error: result.error };
+
+  const parsed = ReorderRoomTypesSchema.safeParse(orderedIds);
+  if (!parsed.success) return { success: false as const, error: "Invalid room type order" };
+
+  const supabase = await createClient();
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("room_types")
+    .select("id")
+    .eq("hotel_id", result.hotelId);
+  if (fetchError) return { success: false as const, error: fetchError.message };
+
+  const existingIds = new Set((existing ?? []).map((row) => row.id));
+  const coversAll =
+    existingIds.size === parsed.data.length &&
+    parsed.data.every((id) => existingIds.has(id));
+  if (!coversAll) {
+    return { success: false as const, error: "The room type list has changed. Refresh and try again." };
+  }
+
+  // Single atomic bulk write: a partial failure can't leave order half-applied.
+  const { error } = await supabase.rpc("reorder_room_types", {
+    p_hotel_id: result.hotelId,
+    p_ordered_ids: parsed.data,
+  });
+  if (error) return { success: false as const, error: error.message };
+
+  revalidatePath("/dashboard/rooms");
+  revalidatePath("/dashboard/calendar");
   return { success: true as const };
 }
 
@@ -248,7 +270,7 @@ export async function toggleRoomTypeActive(id: string, isActive: boolean) {
 
   if (error) return { success: false as const, error: error.message };
 
-  revalidatePath("/dashboard/rooms/types");
+  revalidatePath("/dashboard/rooms");
   return { success: true as const };
 }
 
@@ -267,7 +289,7 @@ export async function deleteRoomType(id: string) {
 
   if (error) return { success: false as const, error: error.message };
 
-  revalidatePath("/dashboard/rooms/types");
+  revalidatePath("/dashboard/rooms");
   return { success: true as const };
 }
 
@@ -355,7 +377,7 @@ export async function createRoom(input: RoomInput) {
 
   if (error) return { success: false as const, error: error.message };
 
-  revalidatePath("/dashboard/rooms/directory");
+  revalidatePath("/dashboard/rooms");
   return { success: true as const };
 }
 
@@ -374,7 +396,7 @@ export async function updateRoomStatus(id: string, status: string) {
 
   if (error) return { success: false as const, error: error.message };
 
-  revalidatePath("/dashboard/rooms/directory");
+  revalidatePath("/dashboard/rooms");
   return { success: true as const };
 }
 
@@ -401,7 +423,7 @@ export async function updateRoom(id: string, input: Partial<RoomInput>) {
 
   if (error) return { success: false as const, error: error.message };
 
-  revalidatePath("/dashboard/rooms/directory");
+  revalidatePath("/dashboard/rooms");
   return { success: true as const };
 }
 
@@ -444,7 +466,7 @@ export async function createAvailabilityBlock(input: AvailabilityBlockInput) {
 
   if (error) return { success: false as const, error: error.message };
 
-  revalidatePath("/dashboard/rooms/directory");
+  revalidatePath("/dashboard/rooms");
   revalidatePath("/dashboard/calendar");
   return { success: true as const };
 }

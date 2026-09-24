@@ -78,7 +78,7 @@ export async function saveRoomImages(
       .eq("id", roomTypeId)
       .eq("hotel_id", hotelId);
     if (error) throw error;
-    revalidatePath("/dashboard/rooms/types");
+    revalidatePath("/dashboard/rooms");
     revalidatePath(`/dashboard/rooms/types/${roomTypeId}`);
     // Booking pages are force-dynamic so they always fetch fresh — no cache to bust
     return { success: true };

@@ -73,14 +73,8 @@ export default async function SettingsPage() {
     },
     {
       title: "Workspace administration",
-      description: "Manage subscription, staff access, and accountability.",
+      description: "Manage staff access and accountability.",
       items: [
-        {
-          icon: "settings" as const,
-          label: "Billing & plan",
-          description: "Your current plan, features, and upgrade options",
-          href: "/dashboard/billing",
-        },
         {
           icon: "users" as const,
           label: "Staff",

@@ -14,7 +14,6 @@ const COLUMNS = [
     heading: "For hotels",
     links: [
       { label: "Sign in", href: "/sign-in" },
-      { label: "Pricing", href: "#pricing" },
       { label: "Set up your hotel", href: "/onboarding" },
     ],
   },

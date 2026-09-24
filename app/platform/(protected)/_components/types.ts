@@ -4,7 +4,6 @@ export interface HotelRow {
   slug: string;
   city: string | null;
   country: string | null;
-  plan: string | null;
   status: string | null;
   currency: string;
   created_at: string;

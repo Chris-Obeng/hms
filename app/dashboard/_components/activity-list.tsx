@@ -442,14 +442,11 @@ function MobileBookingRow({
               Check-in
             </Button>
             <Dropdown>
-              <Dropdown.Trigger>
-                <button
-                  type="button"
-                  aria-label="More actions"
-                  className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-xl border border-border text-muted-foreground outline-none hover:bg-muted/50 transition-colors"
-                >
-                  <MoreVertical className="size-4" />
-                </button>
+              <Dropdown.Trigger
+                aria-label="More actions"
+                className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-xl border border-border text-muted-foreground outline-none hover:bg-muted/50 transition-colors"
+              >
+                <MoreVertical className="size-4" />
               </Dropdown.Trigger>
               <Dropdown.Popover placement="bottom end">
                 <Dropdown.Menu
@@ -515,15 +512,11 @@ function SplitAction({
       </button>
       {items && items.length > 0 && (
         <Dropdown>
-          <Dropdown.Trigger>
-            <button
-              type="button"
-              onClick={(e) => e.stopPropagation()}
-              aria-label={`${mainLabel} options`}
-              className="cursor-pointer px-1.5 py-1.5 outline-none active:brightness-95"
-            >
-              <ChevronDown className="size-3.5" />
-            </button>
+          <Dropdown.Trigger
+            aria-label={`${mainLabel} options`}
+            className="cursor-pointer px-1.5 py-1.5 outline-none active:brightness-95"
+          >
+            <ChevronDown className="size-3.5" />
           </Dropdown.Trigger>
           <Dropdown.Popover placement="bottom end">
             <Dropdown.Menu

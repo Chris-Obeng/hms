@@ -6,7 +6,6 @@ import { Problem } from "@/components/landing/problem";
 import { Showcase } from "@/components/landing/showcase";
 import { Capabilities } from "@/components/landing/capabilities";
 import { TrustStrip } from "@/components/landing/trust-strip";
-import { Pricing } from "@/components/landing/pricing";
 import { SocialProof } from "@/components/landing/social-proof";
 import { FinalCta } from "@/components/landing/final-cta";
 
@@ -26,7 +25,6 @@ export default function HomePage() {
         <Showcase />
         <Capabilities />
         <TrustStrip />
-        <Pricing />
         <SocialProof />
         <FinalCta />
       </main>

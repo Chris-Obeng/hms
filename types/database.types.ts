@@ -773,7 +773,6 @@ export type Database = {
           paystack_settlement_schedule: string | null
           paystack_subaccount_code: string | null
           phone: string | null
-          plan: string | null
           settings: Json | null
           slug: string
           status: string | null
@@ -805,7 +804,6 @@ export type Database = {
           paystack_settlement_schedule?: string | null
           paystack_subaccount_code?: string | null
           phone?: string | null
-          plan?: string | null
           settings?: Json | null
           slug: string
           status?: string | null
@@ -837,7 +835,6 @@ export type Database = {
           paystack_settlement_schedule?: string | null
           paystack_subaccount_code?: string | null
           phone?: string | null
-          plan?: string | null
           settings?: Json | null
           slug?: string
           status?: string | null
@@ -2000,6 +1997,10 @@ export type Database = {
           payment_id: string
           payment_status: string
         }[]
+      }
+      reorder_room_types: {
+        Args: { p_hotel_id: string; p_ordered_ids: string[] }
+        Returns: undefined
       }
       reprice_booking_stay: { Args: { p_payload: Json }; Returns: Json }
       resolve_nightly_rates: {

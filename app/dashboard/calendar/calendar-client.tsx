@@ -764,7 +764,7 @@ function CalendarClientContent({
               bookings between rooms, resize to change dates, and create new bookings by clicking on empty cells.
             </p>
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onPress={() => router.push("/dashboard/rooms/types")}>
+              <Button variant="outline" size="sm" onPress={() => router.push("/dashboard/rooms")}>
                 Set up rooms
               </Button>
               <Button variant="primary" size="sm" onPress={() => router.push("/dashboard/rooms/types/new")} className={linkButtonCn}>

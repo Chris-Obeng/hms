@@ -135,7 +135,6 @@ export interface Hotel360Result {
     slug: string;
     city: string | null;
     country: string | null;
-    plan: string | null;
     status: string | null;
     currency: string;
     created_at: string;
@@ -189,7 +188,7 @@ export async function getHotel360(hotelId: string): Promise<Hotel360Result> {
     const { data: hotel } = await supabaseAdmin
       .from("hotels")
       .select(
-        "id, name, slug, city, country, plan, status, currency, created_at, custom_domain, clerk_org_id, paystack_business_name"
+        "id, name, slug, city, country, status, currency, created_at, custom_domain, clerk_org_id, paystack_business_name"
       )
       .eq("id", hotelId)
       .single();
@@ -339,7 +338,6 @@ export async function getHotel360(hotelId: string): Promise<Hotel360Result> {
         slug: hotel.slug,
         city: hotel.city,
         country: hotel.country,
-        plan: hotel.plan,
         status: hotel.status,
         currency: hotel.currency ?? "GHS",
         created_at: hotel.created_at ?? "",

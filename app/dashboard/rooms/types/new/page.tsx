@@ -24,7 +24,6 @@ export default function NewRoomTypePage() {
       weekendPrice: values.weekendPrice ? Number(values.weekendPrice) : undefined,
       amenities: toAmenityObjects(values.selectedAmenities),
       isActive: values.isActive,
-      sortOrder: values.sortOrder,
     });
 
     if (result.success) {

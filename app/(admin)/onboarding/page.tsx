@@ -1062,7 +1062,7 @@ function CompletionScreen({ name, slug }: { name: string; slug: string | null })
               </div>
               <button
                 type="button"
-                onClick={() => router.push("/dashboard/rooms/types")}
+                onClick={() => router.push("/dashboard/rooms")}
                 className="onboarding-button-primary shrink-0"
               >
                 Go to dashboard

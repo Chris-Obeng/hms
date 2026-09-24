@@ -8,12 +8,9 @@ import {
   CalendarDays,
   Users,
   DoorOpen,
-  BedDouble,
   LifeBuoy,
-  Receipt,
   BarChart3,
   Settings,
-  Shield,
   Moon,
   LayoutDashboard,
   BookOpen,
@@ -101,17 +98,14 @@ const navGroups: NavGroup[] = [
   {
     title: "Rooms",
     items: [
-      { title: "Room Types", url: "/dashboard/rooms/types", icon: DoorOpen },
-      { title: "Directory", url: "/dashboard/rooms/directory", icon: BedDouble },
-      { title: "Inventory", url: "/dashboard/availability", icon: DollarSign },
+      { title: "Rooms", url: "/dashboard/rooms", icon: DoorOpen },
+      { title: "Availability", url: "/dashboard/availability", icon: DollarSign },
     ],
   },
   {
     title: "Operations",
     items: [
       { title: "Night Audit", url: "/dashboard/night-audit", icon: Moon },
-      { title: "Billing", url: "/dashboard/billing", icon: Receipt },
-      { title: "Staff", url: "/dashboard/staff", icon: Shield },
     ],
   },
   {
@@ -319,7 +313,9 @@ export function AppSidebar({ hotelName }: { hotelName?: string }) {
   const { openUserProfile } = useClerk();
 
   const isCollapsed = !isMobile && state === "collapsed";
-  const selectedKeys = React.useMemo(() => new Set([pathname]), [pathname]);
+  // Any /dashboard/rooms/* sub-route (room-type detail, legacy redirects) counts as "Rooms"
+  const activePath = pathname.startsWith("/dashboard/rooms/") ? "/dashboard/rooms" : pathname;
+  const selectedKeys = React.useMemo(() => new Set([activePath]), [activePath]);
 
   const prevPathname = React.useRef(pathname);
   const lastNavRef = React.useRef<string | null>(null);
@@ -449,7 +445,7 @@ export function AppSidebar({ hotelName }: { hotelName?: string }) {
                             "text-sidebar-foreground/70 outline-hidden transition-[color,background-color] duration-150",
                             "ring-sidebar-ring focus-visible:ring-2",
                             "hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground",
-                            pathname === item.url &&
+                            activePath === item.url &&
                               "bg-sidebar-foreground/10 text-sidebar-foreground font-medium"
                           )}
                         >

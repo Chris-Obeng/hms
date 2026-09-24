@@ -17,7 +17,7 @@ export function FinalCta() {
             >
               Get started
             </Link>
-            <p className="lp-micro">Setup takes minutes. See pricing before you commit.</p>
+            <p className="lp-micro">Setup takes minutes.</p>
           </div>
         </Reveal>
       </div>

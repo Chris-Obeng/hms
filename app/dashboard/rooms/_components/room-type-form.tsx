@@ -25,7 +25,6 @@ export interface RoomTypeFormValues {
   weekendPrice: string;
   selectedAmenities: string[];
   isActive: boolean;
-  sortOrder: number;
 }
 
 export interface RoomTypeFormProps {
@@ -44,10 +43,12 @@ export interface RoomTypeFormProps {
   submitLabel: string;
   submittingLabel: string;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   errors: Record<string, string>;
   isModal?: boolean;
   onCancel?: () => void;
+  /** ISO currency code shown as the price prefix (defaults to GHS) */
+  currency?: string;
 }
 
 // ── Default Values ─────────────────────────────────────────────
@@ -64,7 +65,6 @@ const DEFAULT_VALUES: RoomTypeFormValues = {
   weekendPrice: "",
   selectedAmenities: [],
   isActive: true,
-  sortOrder: 0,
 };
 
 // ── Section wrapper ────────────────────────────────────────────
@@ -117,6 +117,7 @@ export function RoomTypeForm({
   errors,
   isModal = false,
   onCancel,
+  currency = "GHS",
 }: RoomTypeFormProps) {
   const framed = !isModal;
   const [submitting, setSubmitting] = React.useState(false);
@@ -203,14 +204,16 @@ export function RoomTypeForm({
       {!isModal && (
         <div className="flex items-center gap-4">
           <Link
-            href="/dashboard/rooms/types"
+            href="/dashboard/rooms"
             className="inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             <ArrowLeft className="size-4" />
           </Link>
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
+            {subtitle && (
+              <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
+            )}
           </div>
         </div>
       )}
@@ -331,7 +334,7 @@ export function RoomTypeForm({
               </label>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground/60">
-                  GHS
+                  {currency}
                 </span>
                 <Input
                   id="rt-base-price"
@@ -355,7 +358,7 @@ export function RoomTypeForm({
               </label>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground/60">
-                  GHS
+                  {currency}
                 </span>
                 <Input
                   id="rt-weekend-price"
@@ -472,20 +475,6 @@ export function RoomTypeForm({
               </Switch.Content>
             </Switch>
           </div>
-
-          <div>
-            <label htmlFor="rt-sort-order" className="mb-1.5 block text-xs font-medium text-muted-foreground">
-              Sort order
-            </label>
-            <Input
-              id="rt-sort-order"
-              type="number"
-              min="0"
-              value={values.sortOrder}
-              onChange={(e) => set("sortOrder", Number(e.target.value))}
-              className="h-9 w-24 rounded-xl"
-            />
-          </div>
         </FormSection>
 
         {/* Actions */}
@@ -495,7 +484,7 @@ export function RoomTypeForm({
               Cancel
             </Button>
           ) : (
-            <Link href="/dashboard/rooms/types">
+            <Link href="/dashboard/rooms">
               <Button variant="ghost" type="button" className="rounded-xl text-sm">
                 Cancel
               </Button>
@@ -534,7 +523,7 @@ function PhotosCard({
           <div className="flex items-center gap-2">
             <span>Photos</span>
             {images.length === 0 && (
-              <span className="text-caption bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
+              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-1.5 py-0.5 text-caption font-medium text-amber-700 dark:text-amber-300">
                 No photos yet
               </span>
             )}
@@ -550,7 +539,7 @@ function PhotosCard({
                 if (r.success) toast.success("Photos saved");
                 else toast.danger(r.error ?? "Failed to save photos");
               }}
-              className="text-xs font-medium text-foreground hover:opacity-70 transition-opacity disabled:opacity-40"
+              className="-my-1 min-h-8 rounded-lg px-2 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
             >
               {savingImages ? "Saving…" : "Save Photos"}
             </button>
@@ -558,11 +547,6 @@ function PhotosCard({
         </Card.Title>
       </Card.Header>
       <Card.Content>
-        {images.length === 0 && (
-          <p className="text-xs text-amber-700/70 mb-3 bg-amber-50 rounded-lg px-3 py-2">
-            Rooms with photos get 3× more bookings. Add at least 3 photos.
-          </p>
-        )}
         <RoomImagesUpload
           hotelId={hotelId}
           roomTypeId={roomTypeId}

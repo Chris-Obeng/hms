@@ -136,7 +136,7 @@ async function HotelsSection({ searchParams }: { searchParams: SearchParams }) {
   let query = supabaseAdmin
     .from("hotels")
     .select(
-      "id, name, slug, city, country, plan, status, currency, created_at",
+      "id, name, slug, city, country, status, currency, created_at",
       { count: "exact" }
     )
     .order("created_at", { ascending: false });
@@ -223,7 +223,6 @@ async function HotelsSection({ searchParams }: { searchParams: SearchParams }) {
       slug: h.slug,
       city: h.city,
       country: h.country,
-      plan: h.plan,
       status: h.status,
       currency: h.currency ?? "GHS",
       created_at: h.created_at ?? "",

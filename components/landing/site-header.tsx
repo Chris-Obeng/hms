@@ -3,7 +3,6 @@ import Link from "next/link";
 const NAV_ITEMS = [
   { href: "#how-it-works", label: "How it works" },
   { href: "#features", label: "Features" },
-  { href: "#pricing", label: "Pricing" },
 ] as const;
 
 export function SiteHeader() {
