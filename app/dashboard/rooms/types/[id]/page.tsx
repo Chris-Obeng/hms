@@ -49,7 +49,7 @@ export default async function EditRoomTypePage({
   const { data: roomType } = await supabase
     .from("room_types")
     .select(
-      "id, name, slug, short_description, description, bed_configuration, max_adults, max_children, base_price, weekend_price, amenities, images, is_active, sort_order"
+      "id, name, slug, short_description, description, bed_configuration, max_adults, max_children, base_price, weekend_price, amenities, images, is_active"
     )
     .eq("id", id)
     .eq("hotel_id", hotel.id)
@@ -74,7 +74,6 @@ export default async function EditRoomTypePage({
     weekendPrice: roomType.weekend_price?.toString() ?? "",
     selectedAmenities: amenities.map((a) => a.label),
     isActive: roomType.is_active ?? true,
-    sortOrder: roomType.sort_order ?? 0,
   };
 
   return (
