@@ -231,7 +231,9 @@ export async function fetchStayRestrictions(
   const result = new Map<string, RoomTypeStayRestrictions>();
   if (roomTypeIds.length === 0) return result;
 
-  const rpc = supabaseAdmin.rpc as unknown as (
+  // Bound explicitly: `supabaseAdmin.rpc` uses `this.rest` internally, so a
+  // detached reference crashes with `undefined.rest` at call time.
+  const rpc = supabaseAdmin.rpc.bind(supabaseAdmin) as unknown as (
     fn: "room_type_stay_restrictions",
     params: {
       p_hotel_id: string;

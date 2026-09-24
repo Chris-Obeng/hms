@@ -61,7 +61,9 @@ export interface ResolverArgs {
  * only safe direction for a rate.
  */
 export async function fetchNightlyRates(args: ResolverArgs): Promise<NightlyRateRow[]> {
-  const rpc = supabaseAdmin.rpc as unknown as (
+  // Bound explicitly: `supabaseAdmin.rpc` uses `this.rest` internally, so a
+  // detached reference crashes with `undefined.rest` at call time.
+  const rpc = supabaseAdmin.rpc.bind(supabaseAdmin) as unknown as (
     fn: "resolve_nightly_rates",
     params: ResolverArgs
   ) => Promise<{

@@ -16,12 +16,14 @@ import {
   assignBookingToRoom,
   getCalendarData,
   moveBooking,
+  previewRoomTypeMove,
   unassignBooking,
   type CalendarAvailabilityBlock,
   type CalendarBooking,
   type CalendarData,
   type CalendarRoom,
 } from "./actions";
+import { formatMoney } from "@/lib/money";
 import type { TypeChangeRequest as DragTypeChangeRequest } from "./_components/timeline/timeline-calendar";
 import { pickBestRoom } from "./_components/timeline/auto-assign";
 import { PAST_LEAD_MAX_DAYS, VIEW_PRESETS, pastLeadDays, type ViewPreset } from "./_components/calendar-helpers";
@@ -202,6 +204,43 @@ function CalendarClientContent({
   const [selectedBlock, setSelectedBlock] = React.useState<CalendarAvailabilityBlock | null>(null);
   const [blockPrefillRoomId, setBlockPrefillRoomId] = React.useState<string | undefined>();
   const [pendingTypeChange, setPendingTypeChange] = React.useState<TypeChangeRequest | null>(null);
+  /** The dialog's price choice. "keep" is the industry default (Opera/Mews):
+   *  the agreed rate survives the move unless the desk explicitly reprices. */
+  const [typeChangeRateChoice, setTypeChangeRateChoice] = React.useState<"keep" | "reprice">("keep");
+
+  // Quote both price choices for the pending cross-type move. The numbers come
+  // from the same resolvers the write path uses, so the dialog's reprice
+  // figure is the figure the move will store.
+  const typeChangePreviewQuery = useQuery({
+    queryKey: [
+      "calendar-move-preview",
+      hotelId,
+      pendingTypeChange?.bookingId ?? null,
+      pendingTypeChange?.toRoomTypeId ?? null,
+      pendingTypeChange?.checkIn ?? null,
+      pendingTypeChange?.checkOut ?? null,
+    ],
+    enabled: pendingTypeChange !== null,
+    staleTime: 0,
+    retry: 1,
+    queryFn: async () => {
+      const request = pendingTypeChange;
+      if (!request) throw new Error("No pending move");
+      const result = await previewRoomTypeMove(request.bookingId, request.toRoomTypeId, request.checkIn, request.checkOut);
+      if (!result.success) throw new Error(result.error);
+      return result.preview;
+    },
+  });
+
+  const typeChangePreview = typeChangePreviewQuery.data ?? null;
+  const typeChangePreviewBusy = pendingTypeChange !== null && typeChangePreviewQuery.isPending;
+  /** No active plan on the target type blocks the move whichever price is chosen. */
+  const typeChangeBlocked = typeChangePreview?.noRatePlan === true;
+  const repriceUnavailable =
+    typeChangePreviewBusy ||
+    typeChangePreviewQuery.isError ||
+    typeChangeBlocked ||
+    (typeChangePreview?.unpricedNights ?? 0) > 0;
 
   const visibleRoomTypeIds = React.useMemo(
     () => new Set(roomTypeFilters.filter((filter) => filter.visible).map((filter) => filter.id)),
@@ -470,6 +509,8 @@ function CalendarClientContent({
       checkIn: string,
       checkOut: string,
       roomTypeIdOverride?: string,
+      /** Cross-type moves only: the dialog's "Keep current rate" choice. */
+      keepRates?: boolean,
     ) => {
       if (!canEdit) {
         toast.danger("No permission to update bookings");
@@ -504,6 +545,7 @@ function CalendarClientContent({
               checkIn,
               checkOut,
               ...(roomTypeIdOverride ? { roomTypeId: roomTypeIdOverride } : {}),
+              ...(keepRates ? { keepRates: true } : {}),
             })
           : await unassignBooking(booking.id);
         // Toast discipline (Opera/Mews style): the moved bar IS the success
@@ -522,6 +564,8 @@ function CalendarClientContent({
       const booking = bookings.find((item) => item.id === request.bookingId);
       const room = rooms.find((item) => item.id === request.roomId);
       if (!booking || !room) return;
+      // Every new drag re-asks the price question from the safe default.
+      setTypeChangeRateChoice("keep");
       setPendingTypeChange({
         ...request,
         guestName: booking.guestName ?? booking.reference,
@@ -532,13 +576,14 @@ function CalendarClientContent({
     [bookings, rooms],
   );
 
-  const confirmTypeChange = React.useCallback(() => {    const request = pendingTypeChange;
+  const confirmTypeChange = React.useCallback(() => {
+    const request = pendingTypeChange;
     if (!request) return;
     setPendingTypeChange(null);
     const booking = bookings.find((item) => item.id === request.bookingId);
     if (!booking) return;
-    void handleTimelineChange(booking, request.roomId, request.checkIn, request.checkOut, request.toRoomTypeId);
-  }, [bookings, handleTimelineChange, pendingTypeChange]);
+    void handleTimelineChange(booking, request.roomId, request.checkIn, request.checkOut, request.toRoomTypeId, typeChangeRateChoice === "keep");
+  }, [bookings, handleTimelineChange, pendingTypeChange, typeChangeRateChoice]);
 
   /** Smart auto-assignment: best vacant, type-matched, conflict-free room.
    *  Optimistic — the chip leaves the tray immediately; toast only on failure. */
@@ -768,8 +813,77 @@ function CalendarClientContent({
               </p>
               <p>
                 Stay {pendingTypeChange ? format(parseISO(pendingTypeChange.checkIn), "MMM d") : ""} –{" "}
-                {pendingTypeChange ? format(parseISO(pendingTypeChange.checkOut), "MMM d") : ""}. The room rate changes from the next night: nights already posted keep their original rate; the new type&rsquo;s rate applies from the first unposted night. Review the folio afterwards.
+                {pendingTypeChange ? format(parseISO(pendingTypeChange.checkOut), "MMM d") : ""}. Choose what happens to the rate:
               </p>
+              <div role="radiogroup" aria-label="Rate for the moved stay" className="space-y-2 pt-0.5">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={typeChangeRateChoice === "keep"}
+                  onClick={() => setTypeChangeRateChoice("keep")}
+                  className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                    typeChangeRateChoice === "keep"
+                      ? "border-primary bg-primary/8 ring-1 ring-primary/25"
+                      : "border-border bg-background hover:border-foreground/25 hover:bg-muted/35"
+                  }`}
+                >
+                  <span className="flex-1">
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="font-medium text-foreground">Keep current rate</span>
+                      {typeChangePreview && (
+                        <span className="shrink-0 font-semibold tabular-nums text-foreground">
+                          {formatMoney(typeChangePreview.currentTotalMinor, typeChangePreview.currency)}
+                        </span>
+                      )}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      Every night keeps the price already on the booking — only the room changes.
+                    </span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={typeChangeRateChoice === "reprice"}
+                  disabled={repriceUnavailable}
+                  onClick={() => setTypeChangeRateChoice("reprice")}
+                  className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-55 ${
+                    typeChangeRateChoice === "reprice"
+                      ? "border-primary bg-primary/8 ring-1 ring-primary/25"
+                      : "border-border bg-background hover:border-foreground/25 hover:bg-muted/35"
+                  }`}
+                >
+                  <span className="flex-1">
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="font-medium text-foreground">Reprice at {pendingTypeChange?.toTypeName} rate</span>
+                      {typeChangePreview?.repriceTotalMinor != null && (
+                        <span className="shrink-0 font-semibold tabular-nums text-foreground">
+                          {formatMoney(typeChangePreview.repriceTotalMinor, typeChangePreview.currency)}
+                        </span>
+                      )}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {typeChangePreviewBusy
+                        ? `Checking ${pendingTypeChange?.toTypeName} rates…`
+                        : typeChangePreviewQuery.isError
+                          ? "Couldn't preview the new rate — confirming will re-check it."
+                          : typeChangeBlocked
+                            ? `${pendingTypeChange?.toTypeName} has no active rate plan — set one up before moving bookings onto it.`
+                            : (typeChangePreview?.unpricedNights ?? 0) > 0
+                              ? `No rate is set for ${typeChangePreview?.unpricedNights} of those nights — set pricing first.`
+                              : typeChangePreview
+                                ? `All nights are re-rated at the ${pendingTypeChange?.toTypeName} rate${typeChangePreview.manualNights > 0 ? ` — ${typeChangePreview.manualNights} hand-priced night${typeChangePreview.manualNights === 1 ? "" : "s"} will lose their custom price` : ""}.`
+                                : `All nights are re-rated at the ${pendingTypeChange?.toTypeName} rate.`}
+                    </span>
+                  </span>
+                </button>
+              </div>
+              {typeChangeBlocked && (
+                <p className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                  <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                  This move cannot go ahead either way until {pendingTypeChange?.toTypeName} has an active rate plan.
+                </p>
+              )}
             </AlertDialog.Body>
             <AlertDialog.Footer className="flex items-center justify-end gap-2.5 pt-3">
               <Button
@@ -781,7 +895,8 @@ function CalendarClientContent({
               </Button>
               <Button
                 onPress={confirmTypeChange}
-                className="h-10 cursor-pointer rounded-xl bg-amber-600 px-5 font-semibold text-white shadow-xs transition-all hover:bg-amber-700 active:scale-[0.98]"
+                isDisabled={typeChangePreviewBusy || typeChangeBlocked || (typeChangeRateChoice === "reprice" && repriceUnavailable)}
+                className="h-10 cursor-pointer rounded-xl bg-amber-600 px-5 font-semibold text-white shadow-xs transition-all hover:bg-amber-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55"
               >
                 Confirm type change
               </Button>

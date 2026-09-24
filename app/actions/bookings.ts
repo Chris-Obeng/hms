@@ -92,6 +92,10 @@ function rejectionMessage(
     case "room_type_not_found":
       return "Room type not found";
 
+    // No active plan on the type means there is nothing to price the stay on.
+    case "rate_plan_not_found":
+      return "That room type has no active rate plan — create one, then try again.";
+
     case "guest_not_found":
       return "That guest does not belong to this hotel";
 

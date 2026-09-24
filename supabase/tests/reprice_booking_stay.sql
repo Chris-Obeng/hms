@@ -826,4 +826,238 @@ BEGIN
   RAISE NOTICE 'PASS 9: repricing rejects duplicate/missing resolver dates without writes';
 END $$;
 
+-- =============================================================================
+-- 10. A type move cannot keep the booking's own plan -- plans name one type --
+--     so when the payload does not name one, authority re-anchors through the
+--     same resolver the quote path uses and lands on the new type's default.
+--     Before the re-anchor this exact payload rejected as rate_plan_not_found,
+--     which is the bug the calendar's cross-section drag surfaced.
+--     b1 sits on the suite's non-default replacement plan from section 7, so
+--     nothing it carries is sellable for a double.
+--     400.00 x 3 = 1200.00 per room; x 2 = 2400.00; +12.5% = 2700.00
+-- =============================================================================
+DO $$
+DECLARE
+  v_id          uuid := (SELECT v FROM reprice_ids WHERE k = 'b1');
+  v_out         jsonb;
+  v_row         public.bookings;
+  v_off         integer;
+  v_double_plan uuid;
+BEGIN
+  SELECT rp.id INTO v_double_plan
+  FROM public.rate_plans rp
+  WHERE rp.hotel_id = 'd0d0d0d0-0000-4000-8000-00000000000a'
+    AND rp.room_type_id = 'd1d1d1d1-0000-4000-8000-000000000001'
+    AND rp.is_default;
+
+  v_out := public.reprice_booking_stay(jsonb_build_object(
+    'booking_id',   v_id,
+    'hotel_id',     'd0d0d0d0-0000-4000-8000-00000000000a',
+    'room_type_id', 'd1d1d1d1-0000-4000-8000-000000000001'));
+
+  IF (v_out->>'type_changed')::boolean IS NOT TRUE
+     OR (v_out->>'nights_kept')::integer <> 0
+     OR (v_out->>'night_count')::integer <> 3
+     OR (v_out->>'subtotal_minor')::bigint <> 240000
+     OR (v_out->>'tax_minor')::bigint <> 30000
+     OR (v_out->>'total_minor')::bigint <> 270000 THEN
+    RAISE EXCEPTION 'FAIL 10a: re-anchored type change wrong -- %',
+      v_out - 'nights' - 'before' - 'after';
+  END IF;
+
+  SELECT * INTO v_row FROM public.bookings WHERE id = v_id;
+
+  IF v_row.room_type_id <> 'd1d1d1d1-0000-4000-8000-000000000001'
+     OR v_row.rate_plan_id IS DISTINCT FROM v_double_plan
+     OR v_row.room_id IS NOT NULL
+     OR v_row.total_amount <> 2700.00 THEN
+    RAISE EXCEPTION 'FAIL 10b: booking row wrong -- type %, plan %, room %, total %',
+      v_row.room_type_id, v_row.rate_plan_id, v_row.room_id, v_row.total_amount;
+  END IF;
+
+  SELECT count(*) FILTER (
+           WHERE source <> 'base' OR rate_minor <> 40000
+              OR rate_plan_id IS DISTINCT FROM v_double_plan)
+    INTO v_off FROM public.booking_nights WHERE booking_id = v_id;
+
+  IF v_off <> 0 THEN
+    RAISE EXCEPTION 'FAIL 10c: % night(s) kept suite pricing or plan authority', v_off;
+  END IF;
+
+  RAISE NOTICE 'PASS 10: a type change without a plan re-anchors to the new type''s default';
+END;
+$$;
+
+-- =============================================================================
+-- 11. The re-anchor names a real gap rather than papering over it: a type with
+--     no active plan has nothing to sell on, and the move is still refused as
+--     rate_plan_not_found instead of being repriced against nothing. The comped
+--     type's plan is switched off for the attempt and back on in the same block,
+--     so the refusal changes nothing.
+-- =============================================================================
+DO $$
+DECLARE
+  v_id     uuid := (SELECT v FROM reprice_ids WHERE k = 'b1');
+  v_detail text;
+BEGIN
+  UPDATE public.rate_plans SET is_active = false
+   WHERE hotel_id = 'd0d0d0d0-0000-4000-8000-00000000000a'
+     AND room_type_id = 'd1d1d1d1-0000-4000-8000-000000000003';
+
+  BEGIN
+    PERFORM public.reprice_booking_stay(jsonb_build_object(
+      'booking_id',   v_id,
+      'hotel_id',     'd0d0d0d0-0000-4000-8000-00000000000a',
+      'room_type_id', 'd1d1d1d1-0000-4000-8000-000000000003'));
+  EXCEPTION WHEN sqlstate 'P0001' THEN
+    GET STACKED DIAGNOSTICS v_detail = PG_EXCEPTION_DETAIL;
+  END;
+
+  UPDATE public.rate_plans SET is_active = true
+   WHERE hotel_id = 'd0d0d0d0-0000-4000-8000-00000000000a'
+     AND room_type_id = 'd1d1d1d1-0000-4000-8000-000000000003';
+
+  IF v_detail IS DISTINCT FROM 'rate_plan_not_found' THEN
+    RAISE EXCEPTION 'FAIL 11: type with no active plan produced %',
+      COALESCE(v_detail, '<no detail>');
+  END IF;
+
+  RAISE NOTICE 'PASS 11: a type with no active plan still rejects as rate_plan_not_found';
+END;
+$$;
+
+-- =============================================================================
+-- 12. `keep_rates` freezes the agreed price through a type change: b1, sitting
+--     on the double at 400.00/night after section 10, moves to the suite
+--     (900.00/night) and keeps 400.00 -- every in-window night carries across
+--     as a hand-priced row stamped with the suite's re-anchored plan, so the
+--     one-plan gate still sees a single authority.
+--     400.00 x 3 x 2 = 2400.00; +12.5% = 2700.00. A plain reprice would land
+--     on 5400.00 + 12.5% = 6075.00, so the frozen figures prove the freeze.
+-- =============================================================================
+DO $$
+DECLARE
+  v_id         uuid := (SELECT v FROM reprice_ids WHERE k = 'b1');
+  v_out        jsonb;
+  v_row        public.bookings;
+  v_off        integer;
+  v_suite_plan uuid;
+BEGIN
+  v_suite_plan := public.effective_rate_plan_id(
+    'd0d0d0d0-0000-4000-8000-00000000000a',
+    'd1d1d1d1-0000-4000-8000-000000000002', NULL);
+
+  v_out := public.reprice_booking_stay(jsonb_build_object(
+    'booking_id',   v_id,
+    'hotel_id',     'd0d0d0d0-0000-4000-8000-00000000000a',
+    'room_type_id', 'd1d1d1d1-0000-4000-8000-000000000002',
+    'keep_rates',   true));
+
+  IF (v_out->>'type_changed')::boolean IS NOT TRUE
+     OR (v_out->>'nights_kept')::integer <> 3
+     OR (v_out->>'night_count')::integer <> 3
+     OR (v_out->>'subtotal_minor')::bigint <> 240000
+     OR (v_out->>'tax_minor')::bigint <> 30000
+     OR (v_out->>'total_minor')::bigint <> 270000 THEN
+    RAISE EXCEPTION 'FAIL 12a: frozen type change wrong -- %',
+      v_out - 'nights' - 'before' - 'after';
+  END IF;
+
+  SELECT * INTO v_row FROM public.bookings WHERE id = v_id;
+
+  IF v_row.room_type_id <> 'd1d1d1d1-0000-4000-8000-000000000002'
+     OR v_row.rate_plan_id IS DISTINCT FROM v_suite_plan
+     OR v_row.room_id IS NOT NULL
+     OR v_row.total_amount <> 2700.00 THEN
+    RAISE EXCEPTION 'FAIL 12b: booking row wrong -- type %, plan %, room %, total %',
+      v_row.room_type_id, v_row.rate_plan_id, v_row.room_id, v_row.total_amount;
+  END IF;
+
+  SELECT count(*) FILTER (
+           WHERE source <> 'manual' OR rate_minor <> 40000
+              OR rate_plan_id IS DISTINCT FROM v_suite_plan)
+    INTO v_off FROM public.booking_nights WHERE booking_id = v_id;
+
+  IF v_off <> 0 THEN
+    RAISE EXCEPTION 'FAIL 12c: % night(s) not frozen as manual on the suite plan', v_off;
+  END IF;
+
+  RAISE NOTICE 'PASS 12: keep_rates freezes the agreed price through a type change';
+END;
+$$;
+
+-- =============================================================================
+-- 13. Two boundaries of the flag. (a) It is the one value-read key, so a
+--     non-boolean is a caller bug named invalid_payload -- and the booking is
+--     untouched. (b) The freeze is one move, not a permanent state: a later
+--     plain reprice re-resolves the hand-priced rows back onto the plan's
+--     rates, because a type change re-resolves every night.
+-- =============================================================================
+DO $$
+DECLARE
+  v_id           uuid := (SELECT v FROM reprice_ids WHERE k = 'b1');
+  v_detail       text;
+  v_before_row   jsonb;
+  v_after_row    jsonb;
+  v_before_night text;
+  v_after_night  text;
+  v_out          jsonb;
+  v_off          integer;
+  v_double_plan  uuid;
+BEGIN
+  SELECT to_jsonb(b) INTO v_before_row FROM public.bookings b WHERE b.id = v_id;
+  SELECT string_agg(row_to_json(bn)::text, '|' ORDER BY bn.stay_date)
+    INTO v_before_night
+  FROM public.booking_nights bn WHERE bn.booking_id = v_id;
+
+  BEGIN
+    PERFORM public.reprice_booking_stay(jsonb_build_object(
+      'booking_id', v_id,
+      'hotel_id',   'd0d0d0d0-0000-4000-8000-00000000000a',
+      'keep_rates', 'yes'));
+  EXCEPTION WHEN sqlstate 'P0001' THEN
+    GET STACKED DIAGNOSTICS v_detail = PG_EXCEPTION_DETAIL;
+  END;
+
+  SELECT to_jsonb(b) INTO v_after_row FROM public.bookings b WHERE b.id = v_id;
+  SELECT string_agg(row_to_json(bn)::text, '|' ORDER BY bn.stay_date)
+    INTO v_after_night
+  FROM public.booking_nights bn WHERE bn.booking_id = v_id;
+
+  IF v_detail IS DISTINCT FROM 'invalid_payload: keep_rates'
+     OR v_after_row IS DISTINCT FROM v_before_row
+     OR v_after_night IS DISTINCT FROM v_before_night THEN
+    RAISE EXCEPTION 'FAIL 13a: non-boolean keep_rates produced % or changed booking', v_detail;
+  END IF;
+
+  SELECT rp.id INTO v_double_plan
+  FROM public.rate_plans rp
+  WHERE rp.hotel_id = 'd0d0d0d0-0000-4000-8000-00000000000a'
+    AND rp.room_type_id = 'd1d1d1d1-0000-4000-8000-000000000001'
+    AND rp.is_default;
+
+  v_out := public.reprice_booking_stay(jsonb_build_object(
+    'booking_id',   v_id,
+    'hotel_id',     'd0d0d0d0-0000-4000-8000-00000000000a',
+    'room_type_id', 'd1d1d1d1-0000-4000-8000-000000000001'));
+
+  IF (v_out->>'type_changed')::boolean IS NOT TRUE
+     OR (v_out->>'nights_kept')::integer <> 0
+     OR (v_out->>'total_minor')::bigint <> 270000 THEN
+    RAISE EXCEPTION 'FAIL 13b: thaw wrong -- %', v_out - 'nights' - 'before' - 'after';
+  END IF;
+
+  SELECT count(*) FILTER (
+           WHERE source <> 'base' OR rate_minor <> 40000
+              OR rate_plan_id IS DISTINCT FROM v_double_plan)
+    INTO v_off FROM public.booking_nights WHERE booking_id = v_id;
+
+  IF v_off <> 0 THEN
+    RAISE EXCEPTION 'FAIL 13c: % night(s) stayed frozen after a plain reprice', v_off;
+  END IF;
+
+  RAISE NOTICE 'PASS 13: a non-boolean keep_rates rejects by name, and a later reprice thaws the freeze';
+END;
+$$;
+
 ROLLBACK;

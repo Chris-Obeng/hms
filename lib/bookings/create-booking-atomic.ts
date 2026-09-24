@@ -110,6 +110,7 @@ export type CreateBookingResult = {
  */
 const REJECTION_CODES = [
   "invalid_payload",
+  "invalid_payload: keep_rates",
   "invalid_date_range",
   "invalid_rooms_count",
   "invalid_guest_name",
@@ -121,6 +122,7 @@ const REJECTION_CODES = [
   "booking_not_open",
   "no_availability",
   "unpriced_stay",
+  "rate_plan_not_found",
   "room_not_bookable",
   "room_conflict",
   "booking_paid",
@@ -182,7 +184,9 @@ export async function createBookingAtomic(
 ): Promise<
   { ok: true; booking: CreateBookingResult } | { ok: false; rejection: BookingRejection }
 > {
-  const rpc = supabaseAdmin.rpc as unknown as (
+  // Bound explicitly: `supabaseAdmin.rpc` uses `this.rest` internally, so a
+  // detached reference crashes with `undefined.rest` at call time.
+  const rpc = supabaseAdmin.rpc.bind(supabaseAdmin) as unknown as (
     fn: "create_booking_atomic",
     params: { p_payload: CreateBookingPayload }
   ) => Promise<{ data: CreateBookingResult | null; error: RpcError | null }>;
@@ -217,7 +221,9 @@ export async function abortUnpaidBooking(
   bookingId: string,
   reason: string
 ): Promise<{ ok: true } | { ok: false; rejection: BookingRejection }> {
-  const rpc = supabaseAdmin.rpc as unknown as (
+  // Bound explicitly: `supabaseAdmin.rpc` uses `this.rest` internally, so a
+  // detached reference crashes with `undefined.rest` at call time.
+  const rpc = supabaseAdmin.rpc.bind(supabaseAdmin) as unknown as (
     fn: "abort_unpaid_booking",
     params: { p_booking_id: string; p_reason: string }
   ) => Promise<{ data: null; error: RpcError | null }>;
@@ -250,6 +256,13 @@ export type RepriceBookingPayload = {
   rooms_count?: number;
   rate_plan_id?: string | null;
   occupancy?: number;
+  /**
+   * The one value-read key: `true` freezes the booked price through the move —
+   * every night inside the new window carries across at its current rate as a
+   * hand-priced row on the stay's (re-anchored) plan. Absent and false are the
+   * same default: reprice.
+   */
+  keep_rates?: boolean;
 };
 
 /**
@@ -278,11 +291,16 @@ export type RepriceBookingResult = {
   booking_id: string;
   night_count: number;
   /**
-   * Nights a human had priced by hand (`source = 'manual'`) that still fell
-   * inside the new window, so the resolver left them at their set rate.
+   * Nights that kept their booked price: hand-priced nights (`source =
+   * 'manual'`) that still fell inside the new window, plus — under
+   * `keep_rates` — every in-window night, which becomes hand-priced.
    */
   nights_kept: number;
-  /** True when the room type moved, which re-resolves every night and drops the room. */
+  /**
+   * True when the room type moved, which re-resolves every night. The room is
+   * not dropped implicitly: the payload must name a target-type room or
+   * `room_id: null`, or the call rejects `room_not_bookable`.
+   */
   type_changed: boolean;
   currency: string;
   subtotal_minor: number;
@@ -308,7 +326,9 @@ export async function repriceBookingStay(
 ): Promise<
   { ok: true; stay: RepriceBookingResult } | { ok: false; rejection: BookingRejection }
 > {
-  const rpc = supabaseAdmin.rpc as unknown as (
+  // Bound explicitly: `supabaseAdmin.rpc` uses `this.rest` internally, so a
+  // detached reference crashes with `undefined.rest` at call time.
+  const rpc = supabaseAdmin.rpc.bind(supabaseAdmin) as unknown as (
     fn: "reprice_booking_stay",
     params: { p_payload: RepriceBookingPayload }
   ) => Promise<{ data: RepriceBookingResult | null; error: RpcError | null }>;

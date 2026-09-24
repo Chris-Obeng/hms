@@ -180,7 +180,9 @@ export async function fetchRestrictionFlags(
   const planIds = [...new Set(ratePlanIds)];
   if (!planIds.length) return flags;
 
-  const table = supabaseAdmin.from as unknown as (
+  // Bound explicitly: `supabaseAdmin.from` uses `this.rest` internally, so a
+  // detached reference crashes with `undefined.rest` at call time.
+  const table = supabaseAdmin.from.bind(supabaseAdmin) as unknown as (
     relation: "rate_restrictions"
   ) => { select: (columns: string) => RestrictionFilter };
 

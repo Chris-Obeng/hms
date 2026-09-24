@@ -4,12 +4,15 @@ import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { can } from "@/lib/roles";
 import { z } from "zod";
-import { parseISO, addDays, format } from "date-fns";
+import { parseISO, addDays, differenceInCalendarDays, format } from "date-fns";
 import { toStoredBlockRange } from "@/lib/calendar-domain";
 import { businessToday } from "@/lib/business-date";
 import { writeAuditLog } from "@/lib/audit";
 import { captureIssue } from "@/lib/observability/sentry";
 import { isoDateParam } from "@/lib/validation/params";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { fetchNightlyRates } from "@/lib/pricing/nightly-rates";
+import { applyBps, percentToBps, toMinor } from "@/lib/money";
 import {
   repriceBookingStay,
   type BookingRejection,
@@ -642,6 +645,11 @@ function moveRejectionMessage(rejection: BookingRejection): string {
       return "Check-out must be after check-in";
     case "invalid_rooms_count":
       return "That number of rooms cannot be booked";
+    // The target type has no active rate plan at all — the one gap "keep the
+    // rate" cannot bridge either, because the plan is the stay's pricing
+    // authority, not just its price source.
+    case "rate_plan_not_found":
+      return "That room type has no active rate plan — create one for it first";
     // The new window has no rate for at least one night, so there is no price to
     // move the stay to. A pricing gap, not a staff mistake.
     case "unpriced_stay":
@@ -674,6 +682,9 @@ export async function moveBooking(
     checkIn?: string;
     checkOut?: string;
     roomTypeId?: string;
+    /** The type-change dialog's "Keep current rate" choice: freeze the booked
+     *  price through the move instead of repricing at the target type's rate. */
+    keepRates?: boolean;
   }
 ): Promise<MoveBookingResult> {
   try {
@@ -823,6 +834,7 @@ export async function moveBooking(
       ...(updates.checkIn !== undefined ? { check_in: newCheckIn } : {}),
       ...(updates.checkOut !== undefined ? { check_out: newCheckOut } : {}),
       ...(typeChangeRequested ? { room_type_id: updates.roomTypeId as string } : {}),
+      ...(updates.keepRates ? { keep_rates: true } : {}),
     });
 
     if (!repriced.ok) {
@@ -881,6 +893,174 @@ export async function moveBooking(
       contexts: { error: { message: err instanceof Error ? err.message : String(err) } },
     });
     return { success: false, error: "Move failed — try again" };
+  }
+}
+
+// ── Move Price Preview (room-type change dialog) ────────────────────────────
+
+export type RoomTypeMovePreview = {
+  currency: string;
+  /** Nights in the window being previewed. */
+  nights: number;
+  /** The booking's current total, minor units. */
+  currentTotalMinor: number;
+  /** Total if repriced at the target type's rate; null when unpriceable. */
+  repriceTotalMinor: number | null;
+  /** Hand-priced nights inside the window that a reprice would overwrite. */
+  manualNights: number;
+  /** Nights with no usable rate at the target type — a reprice would reject. */
+  unpricedNights: number;
+  /** The target type has no active rate plan, so even a keep-rate move rejects. */
+  noRatePlan: boolean;
+};
+
+export type PreviewRoomTypeMoveResult =
+  | { success: true; preview: RoomTypeMovePreview }
+  | { success: false; error: string };
+
+/**
+ * Quotes the two ways a room-type move can land, so the calendar dialog offers
+ * the industry-standard choice instead of repricing blindly: keep the booked
+ * rate (every in-window night frozen) or reprice at the new type's rate. The
+ * numbers come from the same plan resolver, the same nightly-rates resolver
+ * and the same tax formula `reprice_booking_stay` uses, so the previewed
+ * reprice total is the total the move will store.
+ *
+ * Advisory only: the move re-derives everything under the booking's row lock,
+ * so a rate change between preview and confirm can still shift the outcome.
+ */
+export async function previewRoomTypeMove(
+  bookingId: string,
+  toRoomTypeId: string,
+  checkIn: string,
+  checkOut: string
+): Promise<PreviewRoomTypeMoveResult> {
+  try {
+    const { supabase, hotelId, hotel } = await getHotelScopedClient();
+
+    // Same capability as the move itself — a preview still reads folio money.
+    const { role } = await getCurrentStaffRole();
+    if (!can(role, "calendar:edit")) {
+      return { success: false, error: "You don't have permission to move bookings" };
+    }
+
+    if (!uuidParam.safeParse(bookingId).success || !uuidParam.safeParse(toRoomTypeId).success) {
+      return { success: false, error: "Invalid booking or room type" };
+    }
+    if (!isoDateParam.safeParse(checkIn).success || !isoDateParam.safeParse(checkOut).success) {
+      return { success: false, error: "Invalid dates" };
+    }
+    if (checkOut <= checkIn) {
+      return { success: false, error: "Check-out must be after check-in" };
+    }
+
+    const { data: booking } = await supabase
+      .from("bookings")
+      .select("id, room_type_id, rate_plan_id, status, rooms_count, total_amount, currency")
+      .eq("id", bookingId)
+      .eq("hotel_id", hotelId)
+      .single();
+
+    if (!booking) return { success: false, error: "Booking not found" };
+    if (booking.status === "cancelled" || booking.status === "checked_out" || booking.status === "no_show") {
+      return { success: false, error: `Cannot move a ${booking.status} booking` };
+    }
+
+    const currency = booking.currency ?? hotel.currency;
+
+    // Occupancy is historical pricing input carried on the nights; mirror the
+    // function's read so the quote prices the same occupancy the move would.
+    const { data: nightRow } = await supabase
+      .from("booking_nights")
+      .select("occupancy")
+      .eq("booking_id", bookingId)
+      .limit(1)
+      .maybeSingle();
+
+    // Hand-priced nights inside the new window: what a reprice would overwrite.
+    const { count: manualNights } = await supabase
+      .from("booking_nights")
+      .select("stay_date", { count: "exact", head: true })
+      .eq("booking_id", bookingId)
+      .eq("source", "manual")
+      .gte("stay_date", checkIn)
+      .lt("stay_date", checkOut);
+
+    // The plan the stay would re-anchor to — the same resolver the write path
+    // and the quote path are pinned to. Not yet in the generated types, hence
+    // the cast (same gap fetchNightlyRates documents).
+    const planRpc = supabaseAdmin.rpc.bind(supabaseAdmin) as unknown as (
+      fn: "effective_rate_plan_id",
+      params: { p_hotel_id: string; p_room_type_id: string; p_rate_plan_id: string | null }
+    ) => Promise<{ data: string | null; error: { message: string } | null }>;
+    const { data: planId, error: planError } = await planRpc("effective_rate_plan_id", {
+      p_hotel_id: hotelId,
+      p_room_type_id: toRoomTypeId,
+      p_rate_plan_id: booking.rate_plan_id,
+    });
+    if (planError) throw new Error(`effective_rate_plan_id failed: ${planError.message}`);
+
+    const nights = differenceInCalendarDays(parseISO(checkOut), parseISO(checkIn));
+
+    const preview: RoomTypeMovePreview = {
+      currency,
+      nights,
+      currentTotalMinor: toMinor(Number(booking.total_amount ?? 0), currency),
+      repriceTotalMinor: null,
+      manualNights: manualNights ?? 0,
+      unpricedNights: 0,
+      noRatePlan: !planId,
+    };
+
+    // No plan on the target type: the move rejects as rate_plan_not_found
+    // whichever price choice the operator makes — the dialog needs to know.
+    if (!planId) return { success: true, preview };
+
+    const rates = await fetchNightlyRates({
+      p_hotel_id: hotelId,
+      p_room_type_ids: [toRoomTypeId],
+      p_from: checkIn,
+      p_to: checkOut,
+      p_rate_plan_id: planId,
+      p_occupancy: nightRow?.occupancy ?? 0,
+    });
+
+    const pricedDates = new Set(
+      rates.filter((r) => Number(r.rate_minor) > 0).map((r) => r.stay_date)
+    );
+    preview.unpricedNights = Math.max(0, nights - pricedDates.size);
+
+    if (preview.unpricedNights === 0) {
+      const subtotalMinor =
+        rates.reduce((sum, r) => sum + Number(r.rate_minor), 0) *
+        Math.max(1, Number(booking.rooms_count ?? 1));
+
+      // Tax exactly as reprice_booking_stay computes it: enabled flag plus a
+      // percentage turned into basis points on the subtotal. The two must
+      // never disagree about what a stay costs.
+      const { data: hotelRow } = await supabase
+        .from("hotels")
+        .select("settings")
+        .eq("id", hotelId)
+        .single();
+      const settings = (hotelRow?.settings ?? {}) as {
+        tax_enabled?: boolean;
+        tax_percentage?: number;
+      };
+      const taxBps =
+        settings.tax_enabled === true && typeof settings.tax_percentage === "number"
+          ? percentToBps(settings.tax_percentage)
+          : 0;
+      preview.repriceTotalMinor = subtotalMinor + applyBps(subtotalMinor, taxBps);
+    }
+
+    return { success: true, preview };
+  } catch (err) {
+    reportCalendarFailure("previewRoomTypeMove: unexpected failure", {
+      bookingId,
+      contexts: { error: { message: err instanceof Error ? err.message : String(err) } },
+    });
+    return { success: false, error: "Could not preview the move — try again" };
   }
 }
 

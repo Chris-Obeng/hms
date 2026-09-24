@@ -239,7 +239,9 @@ export async function getRateDrift(): Promise<RateDriftReport> {
     // not been migrated yet, so its Functions map does not know this function.
     // Drop the cast once db:types has been regenerated from a project carrying
     // migration 20260831160000 — same gap as lib/pricing/nightly-rates.ts.
-    const rpc = supabase.rpc as unknown as (
+    // Bound explicitly: `supabase.rpc` uses `this.rest` internally, so a
+    // detached reference crashes with `undefined.rest` at call time.
+    const rpc = supabase.rpc.bind(supabase) as unknown as (
       fn: "booking_nights_drift",
       params: { p_hotel_id: string }
     ) => Promise<{
