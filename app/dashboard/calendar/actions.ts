@@ -966,7 +966,7 @@ export async function previewRoomTypeMove(
       return { success: false, error: `Cannot move a ${booking.status} booking` };
     }
 
-    const currency = booking.currency ?? hotel.currency;
+    const currency = booking.currency ?? hotel.currency ?? "GHS";
 
     // Occupancy is historical pricing input carried on the nights; mirror the
     // function's read so the quote prices the same occupancy the move would.
