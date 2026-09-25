@@ -33,6 +33,30 @@ function fmtDate(iso: string) {
   }
 }
 
+/** "2 adults" / "2 adults, 1 child" — per-line occupancy on a grouped booking. */
+function occupancyLabel(adults: number, children: number) {
+  const a = `${adults} adult${adults !== 1 ? "s" : ""}`;
+  if (children > 0) return `${a}, ${children} child${children !== 1 ? "ren" : ""}`;
+  return a;
+}
+
+/** One sibling line of a reservation group, as this page reads it. */
+type GroupLine = {
+  id: string;
+  reference: string;
+  check_in: string;
+  check_out: string;
+  nights: number | null;
+  subtotal: number | null;
+  tax_amount: number | null;
+  total_amount: number | null;
+  adults: number | null;
+  children: number | null;
+  rooms_count: number | null;
+  payment_status: string | null;
+  room_types: { name?: string | null } | null;
+};
+
 type Props = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, SearchParamValue>>;
@@ -60,13 +84,44 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
   const { data: booking } = await supabaseAdmin
     .from("bookings")
     .select(
-      "id, reference, status, payment_status, payment_preference, cancellation_reason, check_in, check_out, nights, subtotal, tax_amount, total_amount, currency, rooms_count, guests(full_name, email), room_types(name)"
+      "id, reference, group_id, status, payment_status, payment_preference, cancellation_reason, check_in, check_out, nights, subtotal, tax_amount, total_amount, currency, rooms_count, guests(full_name, email), room_types(name)"
     )
     .eq("hotel_id", hotel.id)
     .eq("reference", reference)
     .single();
 
   if (!booking) notFound();
+
+  // ── Reservation group ────────────────────────────────────────
+  // A multi-room reservation is N sibling `bookings` rows sharing one group_id;
+  // the URL reference is the anchor's, so `booking` is the anchor. group_id NULL
+  // is an ordinary single-room booking — `lines` stays empty and the page renders
+  // exactly as it always has.
+  const groupId = booking.group_id;
+  const isGroup = groupId != null;
+  let lines: GroupLine[] = [];
+  if (groupId != null) {
+    const { data: groupRows } = await supabaseAdmin
+      .from("bookings")
+      .select(
+        "id, reference, check_in, check_out, nights, subtotal, tax_amount, total_amount, adults, children, rooms_count, payment_status, room_types(name)"
+      )
+      .eq("hotel_id", hotel.id)
+      .eq("group_id", groupId)
+      .order("created_at", { ascending: true });
+    lines = (groupRows as GroupLine[] | null) ?? [];
+  }
+
+  // Group money is the sum across lines; a single-room booking uses its own row.
+  const sumSubtotal = isGroup
+    ? lines.reduce((s, l) => s + (l.subtotal ?? l.total_amount ?? 0), 0)
+    : booking.subtotal ?? booking.total_amount ?? 0;
+  const sumTax = isGroup
+    ? lines.reduce((s, l) => s + (l.tax_amount ?? 0), 0)
+    : booking.tax_amount ?? 0;
+  const sumTotal = isGroup
+    ? lines.reduce((s, l) => s + (l.total_amount ?? 0), 0)
+    : booking.total_amount ?? 0;
 
   const guestName =
     (booking.guests as { full_name?: string | null } | null)?.full_name ?? "Guest";
@@ -76,7 +131,10 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
     (booking.room_types as { name?: string | null } | null)?.name ?? "Room";
 
   // ── Resolve the guest-facing state ───────────────────────────
-  const fullyPaid = booking.payment_status === "paid";
+  // A group is fully paid only when every line is; a single booking uses its own.
+  const fullyPaid = isGroup
+    ? lines.length > 0 && lines.every((l) => l.payment_status === "paid")
+    : booking.payment_status === "paid";
   let state: BookingState;
   if (booking.status === "confirmed" || booking.status === "checked_in" || fullyPaid) {
     state = "confirmed";
@@ -95,7 +153,9 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
   const fmtMoney = (n: number) => formatCurrencyCompact(n, currency);
   const firstName = guestName.split(" ")[0];
   const location = [hotel.address, hotel.city].filter(Boolean).join(", ");
-  const roomsCount = Math.max(1, booking.rooms_count ?? 1);
+  const roomsCount = isGroup
+    ? lines.reduce((s, l) => s + Math.max(1, l.rooms_count ?? 1), 0)
+    : Math.max(1, booking.rooms_count ?? 1);
   const calendarUrl = `/api/booking/${slug}/calendar?reference=${reference}`;
 
   const heading =
@@ -171,7 +231,7 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
             <CompletePaymentPanel
               slug={slug}
               reference={booking.reference}
-              amountLabel={fmtMoney(booking.total_amount ?? 0)}
+              amountLabel={fmtMoney(sumTotal)}
             />
           )}
 
@@ -238,40 +298,77 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
 
           {/* ── Stay summary ── */}
           {state !== "expired" && state !== "cancelled" && (
-            <div className="booking-surface p-5 text-sm space-y-2.5">
+            <div className="booking-surface p-5 text-sm space-y-3">
               <Row label="Guest" value={guestName} />
-              <Row label="Room" value={roomsCount > 1 ? `${roomsCount} × ${roomName}` : roomName} />
-              <Row
-                label="Check-in"
-                value={`${fmtDate(booking.check_in)}${
-                  hotel.check_in_time ? ` from ${hotel.check_in_time}` : ""
-                }`}
-              />
-              <Row
-                label="Check-out"
-                value={`${fmtDate(booking.check_out)}${
-                  hotel.check_out_time ? ` by ${hotel.check_out_time}` : ""
-                }`}
-              />
-              <Row
-                label="Duration"
-                value={`${booking.nights} night${
-                  (booking.nights ?? 1) !== 1 ? "s" : ""
-                }`}
-              />
-              <div className="border-t border-[var(--bk-line)] pt-2.5 space-y-2.5">
-                <Row
-                  label={`Rate${roomsCount > 1 ? ` × ${roomsCount} rooms` : ""}`}
-                  value={fmtMoney(booking.subtotal ?? booking.total_amount ?? 0)}
-                />
-                {(booking.tax_amount ?? 0) > 0 && (
-                  <Row label="Taxes & fees" value={fmtMoney(booking.tax_amount ?? 0)} />
+
+              {isGroup ? (
+                <div className="border-t border-[var(--bk-line)] pt-3 space-y-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--bk-muted)]">
+                    {roomsCount} room{roomsCount !== 1 ? "s" : ""}
+                  </p>
+                  {lines.map((l) => {
+                    const name =
+                      (l.room_types as { name?: string | null } | null)?.name ?? "Room";
+                    const qty = Math.max(1, l.rooms_count ?? 1);
+                    const n = l.nights ?? 1;
+                    return (
+                      <div key={l.id} className="flex justify-between gap-4 items-start">
+                        <div className="min-w-0">
+                          <p className="text-[var(--bk-ink)] font-medium">
+                            {qty > 1 ? `${qty} × ${name}` : name}
+                          </p>
+                          <p className="text-xs text-[var(--bk-muted)] mt-0.5">
+                            {fmtDate(l.check_in)} – {fmtDate(l.check_out)} · {n} night
+                            {n !== 1 ? "s" : ""} · {occupancyLabel(l.adults ?? 1, l.children ?? 0)}
+                          </p>
+                        </div>
+                        <span className="text-right booking-price text-[var(--bk-ink)] shrink-0">
+                          {fmtMoney(l.total_amount ?? 0)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <>
+                  <Row label="Room" value={roomsCount > 1 ? `${roomsCount} × ${roomName}` : roomName} />
+                  <Row
+                    label="Check-in"
+                    value={`${fmtDate(booking.check_in)}${
+                      hotel.check_in_time ? ` from ${hotel.check_in_time}` : ""
+                    }`}
+                  />
+                  <Row
+                    label="Check-out"
+                    value={`${fmtDate(booking.check_out)}${
+                      hotel.check_out_time ? ` by ${hotel.check_out_time}` : ""
+                    }`}
+                  />
+                  <Row
+                    label="Duration"
+                    value={`${booking.nights} night${
+                      (booking.nights ?? 1) !== 1 ? "s" : ""
+                    }`}
+                  />
+                </>
+              )}
+              <div className="border-t border-[var(--bk-line)] pt-3 space-y-2.5">
+                {isGroup ? (
+                  <Row label="Subtotal" value={fmtMoney(sumSubtotal)} />
+                ) : (
+                  <Row
+                    label={`Rate${roomsCount > 1 ? ` × ${roomsCount} rooms` : ""}`}
+                    value={fmtMoney(sumSubtotal)}
+                  />
                 )}
-                <Row label="Total" value={fmtMoney(booking.total_amount ?? 0)} bold />
+                {sumTax > 0 && (
+                  <Row label="Taxes & fees" value={fmtMoney(sumTax)} />
+                )}
+                <Row label="Total" value={fmtMoney(sumTotal)} bold />
                 <Row
                   label="Payment"
                   value={
-                    booking.payment_status === "paid"
+                    fullyPaid
                       ? "Paid online"
                       : booking.payment_status === "partial"
                         ? "Partially paid"

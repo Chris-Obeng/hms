@@ -50,6 +50,10 @@ export function PaymentRow({ payment, currency }: { payment: PaymentRecord; curr
           </span>
         </div>
 
+        {payment.roomLabel && (
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground/80">{payment.roomLabel}</p>
+        )}
+
         <div className="mt-0.5 flex items-center justify-between gap-2">
           <p className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
             <span className="truncate">{formatDateTime(payment.createdAt)}</span>

@@ -32,34 +32,58 @@ export function BookingPaymentsPanel({
   >("cash");
   const [paymentNotes, setPaymentNotes] = React.useState("");
   const [savingPayment, setSavingPayment] = React.useState(false);
+  // Grouped reservations credit a chosen line — record_payment_atomic settles one
+  // booking id, so posting a group amount to the anchor would leave siblings unpaid.
+  const [selectedLineId, setSelectedLineId] = React.useState("");
 
-  const amountPaid = booking?.amountPaid || 0;
-  const outstandingBalance = booking
-    ? Math.max(0, booking.outstandingBalance ?? booking.totalAmount - amountPaid)
-    : 0;
-  const isFullyPaid = outstandingBalance <= 0 && booking.totalAmount > 0;
+  const group = booking.group;
+  // Group money is the SUM across sibling lines; a single booking uses its own row.
+  const totalDue = group ? group.total : booking.totalAmount;
+  const amountPaid = group ? group.amountPaid : booking?.amountPaid || 0;
+  const outstandingBalance = group
+    ? Math.max(0, group.outstanding)
+    : Math.max(0, booking.outstandingBalance ?? booking.totalAmount - amountPaid);
+  const isFullyPaid = outstandingBalance <= 0 && totalDue > 0;
   const paidPercent =
-    booking.totalAmount > 0
-      ? Math.min(100, Math.round((amountPaid / booking.totalAmount) * 100))
-      : 0;
+    totalDue > 0 ? Math.min(100, Math.round((amountPaid / totalDue) * 100)) : 0;
+
+  // Lines that can still take a manual payment (grouped reservations only).
+  const payableLines = group
+    ? group.lines.filter(
+        (l) => l.outstanding > 0 && !["cancelled", "checked_out"].includes(l.status ?? "")
+      )
+    : [];
 
   const openPaymentForm = () => {
-    const suggested = booking?.outstandingBalance
-      ? String(Math.round(booking.outstandingBalance * 100) / 100)
-      : "";
-    setPaymentAmount(suggested);
+    if (group) {
+      const first = payableLines[0];
+      setSelectedLineId(first?.id ?? "");
+      setPaymentAmount(first ? String(Math.round(first.outstanding * 100) / 100) : "");
+    } else {
+      const suggested = booking?.outstandingBalance
+        ? String(Math.round(booking.outstandingBalance * 100) / 100)
+        : "";
+      setPaymentAmount(suggested);
+    }
     setPaymentMethod("cash");
     setPaymentNotes("");
     setShowPaymentForm(true);
   };
 
+  const onSelectLine = (id: string) => {
+    setSelectedLineId(id);
+    const line = group?.lines.find((l) => l.id === id);
+    if (line) setPaymentAmount(String(Math.round(line.outstanding * 100) / 100));
+  };
+
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!booking.id || !paymentAmount) return;
+    const targetId = group ? selectedLineId : booking.id;
+    if (!targetId || !paymentAmount) return;
 
     setSavingPayment(true);
     const result = await recordPayment({
-      bookingId: booking.id,
+      bookingId: targetId,
       amount: parseFloat(paymentAmount),
       method: paymentMethod,
       notes: paymentNotes,
@@ -104,11 +128,11 @@ export function BookingPaymentsPanel({
         </div>
 
         <p className="mt-1 text-kpi text-foreground">
-          {formatCurrency(isFullyPaid ? booking.totalAmount : outstandingBalance, currency)}
+          {formatCurrency(isFullyPaid ? totalDue : outstandingBalance, currency)}
         </p>
         {!isFullyPaid && (
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            of {formatCurrency(booking.totalAmount, currency)} total
+            of {formatCurrency(totalDue, currency)} total
           </p>
         )}
 
@@ -124,7 +148,7 @@ export function BookingPaymentsPanel({
         </div>
 
         <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border/50 pt-3 text-[11px] tabular-nums">
-          <MiniStat label="Total" value={formatCurrency(booking.totalAmount, currency)} strong />
+          <MiniStat label="Total" value={formatCurrency(totalDue, currency)} strong />
           <MiniStat label="Paid" value={formatCurrency(amountPaid, currency)} className="text-emerald-600 dark:text-emerald-400" />
           <MiniStat
             label="Due"
@@ -135,14 +159,59 @@ export function BookingPaymentsPanel({
 
         <p className="mt-2.5 flex items-center justify-between text-[11px] text-muted-foreground/80">
           <span>
-            {booking.roomRate
-              ? `${formatCurrency(booking.roomRate, currency)}/night`
-              : "—"}{" "}
-            · {formatCurrency(booking.subtotal, currency)} +{" "}
-            {booking.taxAmount ? formatCurrency(booking.taxAmount, currency) : "0"} tax
+            {group ? (
+              <>
+                {group.totalRooms} {group.totalRooms === 1 ? "room" : "rooms"} ·{" "}
+                {formatCurrency(group.subtotal, currency)} +{" "}
+                {formatCurrency(group.taxAmount, currency)} tax
+              </>
+            ) : (
+              <>
+                {booking.roomRate
+                  ? `${formatCurrency(booking.roomRate, currency)}/night`
+                  : "—"}{" "}
+                · {formatCurrency(booking.subtotal, currency)} +{" "}
+                {booking.taxAmount ? formatCurrency(booking.taxAmount, currency) : "0"} tax
+              </>
+            )}
           </span>
         </p>
       </section>
+
+      {/* ── Per-line charges (grouped reservations) ─────────────── */}
+      {group && (
+        <section aria-label="Charges by room" className="overflow-hidden rounded-2xl border border-border/50 bg-card/40">
+          <p className="border-b border-border/40 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+            Charges by room
+          </p>
+          <div className="divide-y divide-border/40 px-4">
+            {group.lines.map((l) => {
+              const qty = Math.max(1, l.roomsCount ?? 1);
+              const linePaid = l.outstanding <= 0 && l.totalAmount > 0;
+              return (
+                <div key={l.id} className="flex items-start justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-medium text-foreground">
+                      {qty > 1 ? `${qty} × ` : ""}
+                      {l.roomTypeName ?? "Room"}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {linePaid ? (
+                        <span className="text-emerald-600 dark:text-emerald-400">Paid</span>
+                      ) : (
+                        <>{formatCurrency(l.outstanding, currency)} due</>
+                      )}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-[13px] font-semibold tabular-nums text-foreground">
+                    {formatCurrency(l.totalAmount, currency)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* ── Record payment ──────────────────────────────────────── */}
       {showPaymentForm ? (
@@ -161,6 +230,23 @@ export function BookingPaymentsPanel({
               <X className="size-3.5" />
             </button>
           </div>
+
+          {group && (
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                Apply to room *
+              </label>
+              <HeroSelectField
+                value={selectedLineId}
+                onValueChange={onSelectLine}
+                options={payableLines.map((l) => ({
+                  value: l.id,
+                  label: `${l.roomTypeName ?? "Room"} · ${formatCurrency(l.outstanding, currency)} due`,
+                }))}
+                ariaLabel="Room line to credit"
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -219,7 +305,7 @@ export function BookingPaymentsPanel({
               type="submit"
               size="sm"
               isPending={savingPayment}
-              isDisabled={!paymentAmount || Number(paymentAmount) <= 0}
+              isDisabled={!paymentAmount || Number(paymentAmount) <= 0 || (!!group && !selectedLineId)}
               className="h-9 rounded-xl bg-foreground px-4 text-xs font-semibold text-background hover:bg-foreground/90 active:scale-[0.98]"
             >
               {savingPayment ? "Recording…" : "Record payment"}

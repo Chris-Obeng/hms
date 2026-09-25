@@ -160,6 +160,71 @@ async function alertOncePerBooking(
   kickDeliveryWorker();
 }
 
+/**
+ * Best-effort mirror of RoomLine's platform fee onto the settled payment row.
+ *
+ * The fee was computed at initialize and stashed in the attempt metadata as
+ * `platform_fee_minor` (charge-currency subunits). Paystack realises it at
+ * settlement through the split, so this only records it on `payments.platform_fee`
+ * for reporting. Idempotent and self-healing: fills the column only while NULL,
+ * so a replay repairs a prior miss and never double-writes. A zero/absent fee is
+ * left NULL — the column was never written before the fee feature. Never throws:
+ * the money is already recorded and this must not fail settlement.
+ *
+ * `attemptReference` is the raw reference the single `payment_attempts` row is
+ * keyed by; `paymentReference` is the `payments` row to stamp — the raw reference
+ * for a single room, the anchor's derived `<raw>::<groupId>` for a group.
+ */
+async function recordPlatformFee(
+  attemptReference: string,
+  paymentReference: string,
+  currency: string,
+  hotelId: string,
+  bookingId: string
+): Promise<void> {
+  try {
+    const { data: attempt, error: attemptError } = await supabaseAdmin
+      .from("payment_attempts")
+      .select("metadata")
+      .eq("paystack_reference", attemptReference)
+      .maybeSingle();
+
+    if (attemptError || !attempt) return;
+
+    const metadata = attempt.metadata as { platform_fee_minor?: number | string } | null;
+    const feeMinor = Number(metadata?.platform_fee_minor ?? 0);
+    if (!Number.isFinite(feeMinor) || feeMinor <= 0) return;
+
+    const feeMajor = fromMinor(feeMinor, currency);
+
+    // Only ever fills a NULL, so a replay heals a prior miss without double-writing.
+    const { error: updateError } = await supabaseAdmin
+      .from("payments")
+      .update({ platform_fee: feeMajor })
+      .eq("paystack_reference", paymentReference)
+      .is("platform_fee", null);
+
+    if (updateError) {
+      captureSupabaseError(updateError, "payments.update.platform_fee", {
+        scope: "payments",
+        level: "warning",
+        hotelId,
+        bookingId,
+        reference: paymentReference,
+        fingerprint: ["payments", "platform-fee-record-failed"],
+      });
+    }
+  } catch (err) {
+    captureError(err, {
+      scope: "payments",
+      hotelId,
+      bookingId,
+      reference: paymentReference,
+      fingerprint: ["payments", "platform-fee-record-threw"],
+    });
+  }
+}
+
 export async function recordOnlinePayment(
   input: RecordOnlinePaymentInput
 ): Promise<PaymentRecording> {
@@ -342,6 +407,17 @@ export async function recordOnlinePayment(
   const totalPaid = fromMinor(Number(row.amount_paid_minor), bookingCurrency);
   const fullyPaid = row.payment_status === "paid";
   const partial = !fullyPaid && row.partial_payment;
+
+  // Mirror the platform fee onto the settled payments row (reporting only —
+  // Paystack already split the money). Runs before every return below, so a
+  // replay that lands on already_recorded still heals a prior miss.
+  await recordPlatformFee(
+    paystackReference,
+    paystackReference,
+    bookingCurrency,
+    booking.hotel_id,
+    bookingId
+  );
 
   if (row.already_recorded || row.result === "already_recorded") {
     // Retry or the other path beat us here. Idempotency working as designed —
@@ -555,13 +631,395 @@ export async function recordOnlinePayment(
   };
 }
 
+interface RecordOnlineGroupPaymentInput {
+  /** Anchor booking id; equals `bookings.group_id` for every line. */
+  groupId: string;
+  /** Raw group reference the single attempt is keyed by (no `::` suffix). */
+  paystackReference: string;
+  paystackId?: string | null;
+  /** Major units. The one charge covers the whole group total. */
+  amountPaid: number;
+  currency?: string | null;
+  subaccountCode?: string | null;
+}
+
+/**
+ * Permanent-failure substrings for `settle_online_group_payment_atomic`. Same
+ * contradictions as the single settler plus the group's own "reservation group
+ * not found" wording; "payment attempt is not initialized" is deliberately
+ * absent so a webhook that races ahead of the attempt commit still retries.
+ */
+const GROUP_PERMANENT_SETTLEMENT_FAILURES = [
+  "invalid settlement identity",
+  "reservation group not found or hotel mismatch",
+  "payment attempt identity mismatch",
+  "currency mismatch",
+  "amount mismatch",
+  "subaccount mismatch",
+  "Paystack reference collision",
+  "Paystack transaction ID collision",
+] as const;
+
+/**
+ * Group sibling of `recordOnlinePayment`: records ONE verified Paystack charge
+ * against a whole reservation group by delegating to
+ * `settle_online_group_payment_atomic`, which splits it into one payments row
+ * per line (real `paystack_id` on the anchor only, derived per-line references)
+ * and flips every line pending → confirmed. Same idempotency, currency guard and
+ * permanent-vs-transient mapping as the single path; the charge equals the sum
+ * of the lines' totals (validated inside the RPC), never the anchor's own total.
+ */
+export async function recordOnlineGroupPayment(
+  input: RecordOnlineGroupPaymentInput
+): Promise<PaymentRecording> {
+  const { groupId, paystackReference, amountPaid } = input;
+
+  if (!(amountPaid > 0)) {
+    captureIssue("Group payment with non-positive amount", {
+      scope: "payments",
+      level: "error",
+      bookingId: groupId,
+      reference: paystackReference,
+      contexts: { payment: { amountPaid, currency: input.currency ?? null } },
+      fingerprint: ["payments", "group-non-positive-amount"],
+    });
+    return { outcome: "failed", error: "Non-positive amount", retryable: false };
+  }
+
+  // ── 1. Load the anchor row (id = group_id) ───────────────────
+  // group_id itself is not selected: it is unread here — the RPC validates the
+  // group — so there is nothing to gain from loading it.
+  const { data: anchor, error: anchorError } = await supabaseAdmin
+    .from("bookings")
+    .select("id, hotel_id, reference, currency")
+    .eq("id", groupId)
+    .maybeSingle();
+
+  if (anchorError) {
+    captureSupabaseError(anchorError, "bookings.select.group_anchor", {
+      scope: "payments",
+      bookingId: groupId,
+      reference: paystackReference,
+    });
+    return {
+      outcome: "failed",
+      error: `Group anchor lookup failed: ${anchorError.message}`,
+      retryable: true,
+    };
+  }
+  if (!anchor) {
+    captureIssue("Group payment for unknown anchor", {
+      scope: "payments",
+      level: "error",
+      bookingId: groupId,
+      reference: paystackReference,
+      contexts: { payment: { amountPaid, currency: input.currency ?? null } },
+      fingerprint: ["payments", "group-anchor-not-found"],
+    });
+    return { outcome: "failed", error: "Reservation group not found", retryable: false };
+  }
+
+  const hotelId = anchor.hotel_id;
+  const groupCurrency = anchor.currency ?? "GHS";
+
+  // Currency guard — mirror the single path; a mismatch is manual review.
+  if (input.currency && input.currency !== groupCurrency) {
+    captureIssue("Group payment currency mismatch", {
+      scope: "payments",
+      level: "error",
+      hotelId,
+      bookingId: groupId,
+      reference: paystackReference,
+      tags: { "payment.currency": input.currency },
+      contexts: {
+        payment: { amountPaid, received: input.currency, expected: groupCurrency },
+      },
+      fingerprint: ["payments", "group-currency-mismatch"],
+    });
+    await alertOncePerBooking(
+      hotelId,
+      groupId,
+      "payment_failed",
+      "payment-review:group-currency-mismatch",
+      "⚠️ Payment Currency Mismatch",
+      `Group payment ${paystackReference} used currency ${input.currency} but reservation expects ${groupCurrency}. Manual review required.`
+    );
+    return { outcome: "failed", error: "Currency mismatch", retryable: false };
+  }
+
+  // ── 2. Split-settle the whole group in one locking RPC ───────
+  const { data: settleData, error: settleError } = await supabaseAdmin.rpc(
+    "settle_online_group_payment_atomic",
+    {
+      p_group_id: groupId,
+      p_hotel_id: hotelId,
+      p_paystack_reference: paystackReference,
+      p_paystack_id: input.paystackId ?? "",
+      p_amount_minor: toMinor(amountPaid, groupCurrency),
+      p_currency: groupCurrency,
+      p_subaccount_code: input.subaccountCode ?? "",
+      p_metadata: {
+        group_id: groupId,
+        hotel_id: hotelId,
+        group_reference: anchor.reference,
+      },
+    }
+  );
+
+  if (settleError) {
+    const permanent = GROUP_PERMANENT_SETTLEMENT_FAILURES.some((m) =>
+      settleError.message.includes(m)
+    );
+    if (permanent) {
+      captureIssue("Online group settlement rejected", {
+        scope: "payments",
+        level: "fatal",
+        hotelId,
+        bookingId: groupId,
+        reference: paystackReference,
+        contexts: {
+          payment: { amountPaid, currency: groupCurrency },
+          settlement: { reason: settleError.message },
+        },
+        fingerprint: ["payments", "group-settlement-rejected"],
+      });
+      await alertOncePerBooking(
+        hotelId,
+        groupId,
+        "payment_failed",
+        "payment-review:group-settlement-rejected",
+        "⚠️ Payment Needs Manual Review",
+        `Group payment ${paystackReference} could not be settled automatically: ${settleError.message}. Money may be captured — review manually.`
+      );
+    } else {
+      captureSupabaseError(settleError, "rpc.settle_online_group_payment_atomic", {
+        scope: "payments",
+        level: "fatal",
+        hotelId,
+        bookingId: groupId,
+        reference: paystackReference,
+        contexts: { payment: { amountPaid, currency: groupCurrency } },
+      });
+    }
+    return {
+      outcome: "failed",
+      error: `Group settlement failed: ${settleError.message}`,
+      retryable: !permanent,
+    };
+  }
+
+  const row = settleData?.[0];
+
+  if (!row) {
+    captureIssue("Group settlement RPC returned no row", {
+      scope: "payments",
+      level: "fatal",
+      hotelId,
+      bookingId: groupId,
+      reference: paystackReference,
+      fingerprint: ["payments", "group-settlement-empty"],
+    });
+    return { outcome: "failed", error: "Settlement returned no row", retryable: true };
+  }
+
+  const allConfirmed = row.all_confirmed === true;
+
+  // Group fee lives on the anchor's payments row only (derived `<raw>::<groupId>`
+  // reference); the single attempt is keyed by the raw group reference. Runs
+  // before every return, so a replay on already_recorded still self-heals.
+  await recordPlatformFee(
+    paystackReference,
+    `${paystackReference}::${groupId}`,
+    groupCurrency,
+    hotelId,
+    groupId
+  );
+
+  if (row.already_recorded || row.result === "already_recorded") {
+    // Retry, or the other path won the race. Never re-notify.
+    return {
+      outcome: "already_recorded",
+      bookingId: groupId,
+      hotelId,
+      fullyPaid: allConfirmed,
+      partial: false,
+    };
+  }
+
+  // ── 3. Staff payment notification (one per group) ────────────
+  const totalPaid = fromMinor(Number(row.amount_paid_minor), groupCurrency);
+
+  // Rooms label = SUM(max(1, rooms_count)) across the group, not the line count.
+  const { data: roomCountRows } = await supabaseAdmin
+    .from("bookings")
+    .select("rooms_count")
+    .eq("group_id", groupId)
+    .eq("hotel_id", hotelId);
+  const roomsTotal = (roomCountRows ?? []).reduce(
+    (sum, r) => sum + Math.max(1, r.rooms_count ?? 1),
+    0
+  );
+  const roomsLabel =
+    roomsTotal > 0
+      ? `${roomsTotal} ${roomsTotal === 1 ? "room" : "rooms"}`
+      : `${row.line_count} rooms`;
+
+  const { error: notifyError } = await supabaseAdmin.from("notifications").insert({
+    hotel_id: hotelId,
+    type: "payment_received",
+    title: "Payment Received",
+    message: `Online payment of ${groupCurrency} ${totalPaid.toFixed(2)} for ${roomsLabel} ${allConfirmed ? "confirmed" : "recorded"}`,
+    booking_id: groupId,
+    is_read: false,
+  });
+  kickDeliveryWorker();
+  if (notifyError) {
+    captureSupabaseError(notifyError, "notifications.insert.group", {
+      scope: "notifications",
+      level: "warning",
+      hotelId,
+      bookingId: groupId,
+      reference: paystackReference,
+      tags: { "notification.type": "payment_received" },
+    });
+  }
+
+  // A line that was no longer active keeps its state by RPC design, so the group
+  // did not fully confirm. Money is recorded; a human decides what it means.
+  if (!allConfirmed) {
+    captureIssue("Group payment did not fully confirm", {
+      scope: "payments",
+      level: "error",
+      hotelId,
+      bookingId: groupId,
+      reference: paystackReference,
+      contexts: { settlement: { line_count: row.line_count, all_confirmed: false } },
+      fingerprint: ["payments", "group-not-all-confirmed"],
+    });
+    await alertOncePerBooking(
+      hotelId,
+      groupId,
+      "payment_failed",
+      "payment-review:group-not-all-confirmed",
+      "⚠️ Group Payment Needs Review",
+      `Group payment ${paystackReference} recorded but not every room confirmed. Money recorded — review manually.`
+    );
+    return {
+      outcome: "recorded",
+      bookingId: groupId,
+      hotelId,
+      fullyPaid: false,
+      partial: false,
+      bookingStateUnchanged: true,
+    };
+  }
+
+  // Fully confirmed → the reservation is real. One staff fan-out (rooms summary
+  // instead of a single room type) and one guest confirmation for the group.
+  await notifyStaffNewBooking(hotelId, groupId, roomsLabel);
+
+  // ── 4. Guest confirmation (one email, group summary) ─────────
+  try {
+    const [anchorFullResult, hotelResult] = await Promise.all([
+      supabaseAdmin
+        .from("bookings")
+        .select("id, reference, check_in, check_out, nights, guests(full_name, email, phone)")
+        .eq("id", groupId)
+        .single(),
+      supabaseAdmin
+        .from("hotels")
+        .select("name, currency, check_in_time, check_out_time, phone, address")
+        .eq("id", hotelId)
+        .single(),
+    ]);
+
+    const anchorFull = anchorFullResult.data;
+    const hotel = hotelResult.data;
+
+    if (anchorFull && hotel) {
+      const guest = anchorFull.guests as
+        | { full_name?: string; email?: string; phone?: string }
+        | null;
+
+      const result = await sendBookingConfirmation({
+        hotelId,
+        bookingId: anchorFull.id,
+        config: { hotelName: hotel.name, currency: hotel.currency ?? "GHS" },
+        booking: {
+          guestName: guest?.full_name ?? "Guest",
+          guestEmail: guest?.email,
+          reference: anchorFull.reference,
+          roomName: roomsLabel,
+          checkIn: anchorFull.check_in,
+          checkOut: anchorFull.check_out,
+          nights: anchorFull.nights ?? 1,
+          totalAmount: totalPaid,
+          checkInTime: hotel.check_in_time,
+          checkOutTime: hotel.check_out_time,
+          hotelPhone: hotel.phone,
+          hotelAddress: hotel.address,
+        },
+      });
+
+      if (!result.success) {
+        captureIssue("Group guest confirmation send failed", {
+          scope: "notifications",
+          level: "error",
+          hotelId,
+          bookingId: groupId,
+          reference: anchorFull.reference,
+          tags: { "notification.channel": result.channel },
+          contexts: { notification: { channel: result.channel, error: result.error } },
+          fingerprint: ["notifications", "group-guest-confirmation-failed"],
+        });
+      }
+    } else {
+      captureSupabaseError(anchorFullResult.error, "bookings.select.group_confirmation", {
+        scope: "notifications",
+        hotelId,
+        bookingId: groupId,
+        reference: paystackReference,
+      });
+      captureSupabaseError(hotelResult.error, "hotels.select.group_confirmation", {
+        scope: "notifications",
+        hotelId,
+        bookingId: groupId,
+        reference: paystackReference,
+      });
+    }
+  } catch (err) {
+    // Swallowed: the payment is recorded and the group confirmed; a notification
+    // fault must not fail the webhook. Reported instead.
+    captureError(err, {
+      scope: "notifications",
+      hotelId,
+      bookingId: groupId,
+      reference: paystackReference,
+      fingerprint: ["notifications", "group-guest-confirmation-threw"],
+    });
+  }
+
+  return {
+    outcome: "recorded",
+    bookingId: groupId,
+    hotelId,
+    fullyPaid: true,
+    partial: false,
+  };
+}
+
+
 /**
  * Fan out an in-app (+ push via existing triggers) "new online booking"
  * notification to every eligible active staff member of the hotel.
+ *
+ * `roomsSummary` overrides the single room-type label for a multi-room
+ * reservation (e.g. "3 rooms"); omitted, the single-room path is unchanged.
  */
 export async function notifyStaffNewBooking(
   hotelId: string,
-  bookingId: string
+  bookingId: string,
+  roomsSummary?: string
 ): Promise<void> {
   const [bookingResult, hotelResult] = await Promise.all([
     supabaseAdmin
@@ -644,7 +1102,7 @@ export async function notifyStaffNewBooking(
       created_by_staff_id: null,
       type: "new_booking",
       title: "New online booking",
-      message: `${booking.reference} · ${guest?.full_name ?? "Guest"} · ${roomType?.name ?? "Room"} · ${booking.check_in} → ${booking.check_out}`,
+      message: `${booking.reference} · ${guest?.full_name ?? "Guest"} · ${roomsSummary ?? roomType?.name ?? "Room"} · ${booking.check_in} → ${booking.check_out}`,
       booking_id: bookingId,
       is_read: false,
     }));

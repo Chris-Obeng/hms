@@ -131,6 +131,8 @@ export interface CalendarBooking {
   roomNumber: string | null;
   roomTypeId: string | null;
   roomTypeName: string | null;
+  groupId: string | null;
+  roomsCount: number | null;
   checkIn: string;
   checkOut: string;
   nights: number | null;
@@ -239,6 +241,7 @@ export async function getCalendarData(
       estimated_arrival, special_requests,
       room_id,
       room_type_id,
+      group_id, rooms_count,
       guests(full_name, email, phone),
       rooms(room_number, room_types!inner(name))
     `)
@@ -328,6 +331,8 @@ export async function getCalendarData(
     roomNumber: ((row.rooms as Record<string, unknown> | null)?.room_number as string | null) ?? null,
     roomTypeId: (row.room_type_id as string | null) ?? null,
     roomTypeName: (((row.rooms as Record<string, unknown> | null)?.room_types as Record<string, unknown>)?.name as string | null) ?? null,
+    groupId: (row.group_id as string | null) ?? null,
+    roomsCount: (row.rooms_count as number | null) ?? null,
     checkIn: row.check_in as string,
     checkOut: row.check_out as string,
     nights: (row.nights as number | null) ?? null,

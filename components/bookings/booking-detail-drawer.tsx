@@ -179,6 +179,11 @@ export function BookingDetailDrawer({
                 <div className="flex w-full min-w-0 items-center gap-2.5">
                   <BookingStatusPill status={booking.status} className="shrink-0" />
                   <ReferenceChip reference={booking.reference} className="min-w-0" />
+                  {(booking.group?.totalRooms ?? booking.roomsCount ?? 0) > 1 && (
+                    <span className="shrink-0 rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-semibold text-foreground/80">
+                      {booking.group?.totalRooms ?? booking.roomsCount} rooms
+                    </span>
+                  )}
                 </div>
                 <Drawer.Heading className="w-full truncate text-xl font-bold leading-tight tracking-tight text-foreground">
                   {booking.guest?.fullName || "Unknown Guest"}

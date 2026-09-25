@@ -320,7 +320,7 @@ export function RoomTypeForm({
               <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                 Max children
               </label>
-              <HeroSelectField value={String(values.maxChildren)} onValueChange={(v) => set("maxChildren", Number(v))} options={[0, 1, 2, 3].map((n) => ({ value: String(n), label: n }))} ariaLabel="Max children" />
+              <HeroSelectField value={String(values.maxChildren)} onValueChange={(v) => set("maxChildren", Number(v))} options={[0, 1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: n }))} ariaLabel="Max children" />
             </div>
           </div>
         </FormSection>

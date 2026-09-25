@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { createPlatformClient } from "@/lib/supabase/platform-server";
+import { assertPlatformAdmin } from "./_guard";
 
 /**
  * Platform admin server actions — Hotel Oversight.
@@ -23,27 +23,6 @@ const ALLOWED_TRANSITIONS: Record<string, string> = {
   "active->suspended": "hotel.suspend",
   "suspended->active": "hotel.reactivate",
 };
-
-async function assertPlatformAdmin(): Promise<{
-  adminId: string;
-  adminEmail: string;
-}> {
-  const supabase = await createPlatformClient();
-  const { data, error } = await supabase.auth.getClaims();
-
-  if (error || !data?.claims) throw new Error("Not authenticated");
-
-  const { data: admin } = await supabaseAdmin
-    .from("platform_admins")
-    .select("id, email, is_active")
-    .eq("supabase_user_id", data.claims.sub)
-    .single();
-
-  if (!admin || !admin.is_active) {
-    throw new Error("Platform admin access required");
-  }
-  return { adminId: admin.id, adminEmail: admin.email ?? "unknown" };
-}
 
 export type LifecycleAction = "approve" | "suspend" | "reactivate";
 

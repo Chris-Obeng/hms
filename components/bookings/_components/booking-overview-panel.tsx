@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight, Moon } from "lucide-react";
+import { ArrowRight, Moon, BedDouble } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { formatDateFull, formatDateTime, getNights } from "@/lib/format";
+import { formatCurrency, formatDateFull, formatDateTime, getNights } from "@/lib/format";
 import { getSourceLabel } from "@/lib/booking-status";
 import type { FullBookingDetail } from "./booking-detail-types";
 
@@ -12,11 +12,19 @@ interface BookingOverviewPanelProps {
   booking: FullBookingDetail;
 }
 
+/** "2 adults" / "2 adults, 1 child". */
+function occupancyLabel(adults: number | null, children: number | null) {
+  const a = adults || 1;
+  const c = children || 0;
+  const base = `${a} ${a === 1 ? "adult" : "adults"}`;
+  return c > 0 ? `${base}, ${c} ${c === 1 ? "child" : "children"}` : base;
+}
+
 export function BookingOverviewPanel({ booking }: BookingOverviewPanelProps) {
   const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
-  const guestsLabel = `${booking.adults || 1} ${
-    (booking.adults || 1) === 1 ? "adult" : "adults"
-  }${booking.children ? `, ${booking.children} ${booking.children === 1 ? "child" : "children"}` : ""}`;
+  const guestsLabel = occupancyLabel(booking.adults, booking.children);
+  const group = booking.group;
+  const currency = booking.currency ?? "GHS";
 
   const roomValue = booking.room?.roomNumber
     ? `Room ${booking.room.roomNumber}${booking.room.floor ? ` · Floor ${booking.room.floor}` : ""}`
@@ -70,24 +78,73 @@ export function BookingOverviewPanel({ booking }: BookingOverviewPanelProps) {
         )}
       </section>
 
-      {/* ── Facts ────────────────────────────────────────────────── */}
-      <dl className="divide-y divide-border/50">
-        <Fact label="Room">
-          {roomValue ? (
-            <span className="font-medium text-foreground">{roomValue}</span>
-          ) : (
-            <span className="font-medium text-amber-600 dark:text-amber-400">Not assigned</span>
+      {/* ── Rooms ────────────────────────────────────────────────── */}
+      {group ? (
+        <section aria-label="Rooms">
+          <div className="mb-2 flex items-center justify-between px-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+              Rooms
+            </p>
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-semibold text-foreground/80">
+              <BedDouble className="size-3" />
+              {group.totalRooms} {group.totalRooms === 1 ? "room" : "rooms"}
+            </span>
+          </div>
+          <div className="overflow-hidden rounded-2xl border border-border/50 bg-card/40">
+            <div className="divide-y divide-border/40 px-3">
+              {group.lines.map((l) => {
+                const qty = Math.max(1, l.roomsCount ?? 1);
+                return (
+                  <div key={l.id} className="flex items-start justify-between gap-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-medium text-foreground">
+                        {qty > 1 ? `${qty} × ` : ""}
+                        {l.roomTypeName ?? "Room"}
+                      </p>
+                      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                        {occupancyLabel(l.adults, l.children)}
+                        {l.roomNumber ? ` · Room ${l.roomNumber}` : ""}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-[13px] font-semibold tabular-nums text-foreground">
+                      {formatCurrency(l.totalAmount, currency)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <dl className="mt-1 divide-y divide-border/50">
+            <Fact label="Source" className="capitalize">
+              {getSourceLabel(booking.source)}
+            </Fact>
+            <Fact label="Payment">
+              {booking.paymentPreference === "pay_now" ? "Pay now" : "Pay at check-in"}
+            </Fact>
+          </dl>
+        </section>
+      ) : (
+        <dl className="divide-y divide-border/50">
+          <Fact label="Room">
+            {roomValue ? (
+              <span className="font-medium text-foreground">{roomValue}</span>
+            ) : (
+              <span className="font-medium text-amber-600 dark:text-amber-400">Not assigned</span>
+            )}
+          </Fact>
+          <Fact label="Room type">{booking.roomType?.name ?? "—"}</Fact>
+          {(booking.roomsCount ?? 0) > 1 && (
+            <Fact label="Rooms">×{booking.roomsCount}</Fact>
           )}
-        </Fact>
-        <Fact label="Room type">{booking.roomType?.name ?? "—"}</Fact>
-        <Fact label="Guests">{guestsLabel}</Fact>
-        <Fact label="Source" className="capitalize">
-          {getSourceLabel(booking.source)}
-        </Fact>
-        <Fact label="Payment">
-          {booking.paymentPreference === "pay_now" ? "Pay now" : "Pay at check-in"}
-        </Fact>
-      </dl>
+          <Fact label="Guests">{guestsLabel}</Fact>
+          <Fact label="Source" className="capitalize">
+            {getSourceLabel(booking.source)}
+          </Fact>
+          <Fact label="Payment">
+            {booking.paymentPreference === "pay_now" ? "Pay now" : "Pay at check-in"}
+          </Fact>
+        </dl>
+      )}
 
       {(booking.createdBy?.fullName || booking.createdAt) && (
         <p className="text-[11px] text-muted-foreground/70">

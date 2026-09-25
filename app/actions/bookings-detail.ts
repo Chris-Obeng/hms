@@ -36,6 +36,42 @@ export interface PaymentRecord {
   paidAt: string | null;
   createdAt: string | null;
   recordedByName?: string | null;
+  // Set only on grouped reservations, so N split rows aren't opaque duplicates.
+  lineReference?: string | null;
+  roomLabel?: string | null;
+}
+
+/** One sibling room-line of a reservation group. */
+export interface GroupLineItem {
+  id: string;
+  reference: string;
+  roomTypeName: string | null;
+  roomNumber: string | null;
+  roomsCount: number | null;
+  adults: number | null;
+  children: number | null;
+  checkIn: string;
+  checkOut: string;
+  nights: number | null;
+  roomRate: number | null;
+  subtotal: number;
+  taxAmount: number | null;
+  totalAmount: number;
+  amountPaid: number;
+  outstanding: number;
+  paymentStatus: string | null;
+  status: string | null;
+}
+
+/** Group-level aggregate: the reservation total is the SUM across sibling rows. */
+export interface BookingGroupSummary {
+  total: number;
+  amountPaid: number;
+  outstanding: number;
+  subtotal: number;
+  taxAmount: number;
+  totalRooms: number;
+  lines: GroupLineItem[];
 }
 
 export interface FullBookingDetail {
@@ -86,6 +122,11 @@ export interface FullBookingDetail {
     id: string | null;
     fullName: string | null;
   } | null;
+  // Reservation-group awareness. groupId NULL = ordinary single-room booking,
+  // group stays null, and every field below behaves exactly as before.
+  groupId: string | null;
+  roomsCount: number | null;
+  group: BookingGroupSummary | null;
 }
 
 // ── Get Full Booking Detail ──────────────────────────────────────
@@ -108,7 +149,7 @@ export async function getFullBookingDetail(
         estimated_arrival, special_requests, internal_notes,
         check_in_at, check_out_at, cancelled_at, cancellation_reason,
         created_at, updated_at,
-        created_by,
+        created_by, group_id, rooms_count,
         guests(id, full_name, email, phone),
         rooms(id, room_number, floor),
         room_types(id, name)
@@ -122,7 +163,69 @@ export async function getFullBookingDetail(
       return { success: false, error: error?.message || "Booking not found" };
     }
 
-    // Fetch payments for this booking
+    // ── Reservation group ────────────────────────────────────────
+    // A multi-room reservation is N sibling `bookings` rows sharing one group_id.
+    // Group money is the SUM across siblings; a single-room booking (group_id NULL)
+    // skips this entirely and payments below read exactly its own row.
+    const groupId = (booking.group_id as string | null) ?? null;
+    let group: BookingGroupSummary | null = null;
+    let siblingIds: string[] = [bookingId];
+    if (groupId) {
+      const { data: siblings } = await supabase
+        .from("bookings")
+        .select(
+          `
+          id, reference, rooms_count, adults, children,
+          check_in, check_out, nights, room_rate, subtotal, tax_amount,
+          total_amount, amount_paid, outstanding_balance, payment_status, status,
+          room_types(name), rooms(room_number)
+        `
+        )
+        .eq("group_id", groupId)
+        .eq("hotel_id", hotelId)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
+
+      const rows = siblings ?? [];
+      if (rows.length > 0) {
+        siblingIds = rows.map((r) => r.id);
+        const lines: GroupLineItem[] = rows.map((r) => {
+          const total = r.total_amount ?? 0;
+          const paid = r.amount_paid ?? 0;
+          return {
+            id: r.id,
+            reference: r.reference,
+            roomTypeName: (r.room_types as { name?: string | null } | null)?.name ?? null,
+            roomNumber: (r.rooms as { room_number?: string | null } | null)?.room_number ?? null,
+            roomsCount: r.rooms_count,
+            adults: r.adults,
+            children: r.children,
+            checkIn: r.check_in,
+            checkOut: r.check_out,
+            nights: r.nights,
+            roomRate: r.room_rate,
+            subtotal: r.subtotal ?? 0,
+            taxAmount: r.tax_amount,
+            totalAmount: total,
+            amountPaid: paid,
+            outstanding: r.outstanding_balance ?? Math.max(0, total - paid),
+            paymentStatus: r.payment_status,
+            status: r.status,
+          };
+        });
+        group = {
+          total: lines.reduce((s, l) => s + l.totalAmount, 0),
+          amountPaid: lines.reduce((s, l) => s + l.amountPaid, 0),
+          outstanding: lines.reduce((s, l) => s + l.outstanding, 0),
+          subtotal: lines.reduce((s, l) => s + l.subtotal, 0),
+          taxAmount: lines.reduce((s, l) => s + (l.taxAmount ?? 0), 0),
+          totalRooms: lines.reduce((s, l) => s + Math.max(1, l.roomsCount ?? 1), 0),
+          lines,
+        };
+      }
+    }
+
+    // Fetch payments across every line of the group (single row when ungrouped).
     const { data: payments } = await supabase
       .from("payments")
       .select(
@@ -132,7 +235,7 @@ export async function getFullBookingDetail(
         recorded_by
       `
       )
-      .eq("booking_id", bookingId)
+      .in("booking_id", siblingIds)
       .eq("hotel_id", hotelId)
       .order("created_at", { ascending: false });
 
@@ -164,6 +267,14 @@ export async function getFullBookingDetail(
       createdByName = creator?.full_name || null;
     }
 
+    // Per-line attribution so a group's split payment rows aren't opaque dupes.
+    const lineMeta = new Map<string, { reference: string; roomLabel: string | null }>();
+    if (group) {
+      for (const l of group.lines) {
+        lineMeta.set(l.id, { reference: l.reference, roomLabel: l.roomTypeName });
+      }
+    }
+
     const mappedPayments: PaymentRecord[] = (payments || []).map((p) => ({
       id: p.id,
       bookingId: p.booking_id,
@@ -174,6 +285,8 @@ export async function getFullBookingDetail(
       paidAt: p.paid_at,
       createdAt: p.created_at,
       recordedByName: p.recorded_by ? staffMap.get(p.recorded_by) || null : null,
+      lineReference: group ? lineMeta.get(p.booking_id)?.reference ?? null : null,
+      roomLabel: group ? lineMeta.get(p.booking_id)?.roomLabel ?? null : null,
     }));
 
     const result: FullBookingDetail = {
@@ -230,6 +343,9 @@ export async function getFullBookingDetail(
         id: booking.created_by,
         fullName: createdByName,
       },
+      groupId,
+      roomsCount: booking.rooms_count,
+      group,
     };
 
     return { success: true, booking: result };

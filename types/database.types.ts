@@ -297,6 +297,7 @@ export type Database = {
           currency: string | null
           estimated_arrival: string | null
           external_booking_id: string | null
+          group_id: string | null
           guest_id: string | null
           hotel_id: string
           id: string
@@ -336,6 +337,7 @@ export type Database = {
           currency?: string | null
           estimated_arrival?: string | null
           external_booking_id?: string | null
+          group_id?: string | null
           guest_id?: string | null
           hotel_id: string
           id?: string
@@ -375,6 +377,7 @@ export type Database = {
           currency?: string | null
           estimated_arrival?: string | null
           external_booking_id?: string | null
+          group_id?: string | null
           guest_id?: string | null
           hotel_id?: string
           id?: string
@@ -1201,7 +1204,7 @@ export type Database = {
           created_at: string
           entity_id: string | null
           entity_type: string
-          hotel_id: string
+          hotel_id: string | null
           id: string
         }
         Insert: {
@@ -1213,7 +1216,7 @@ export type Database = {
           created_at?: string
           entity_id?: string | null
           entity_type: string
-          hotel_id: string
+          hotel_id?: string | null
           id?: string
         }
         Update: {
@@ -1225,7 +1228,7 @@ export type Database = {
           created_at?: string
           entity_id?: string | null
           entity_type?: string
-          hotel_id?: string
+          hotel_id?: string | null
           id?: string
         }
         Relationships: [
@@ -1275,6 +1278,36 @@ export type Database = {
           role?: string | null
           supabase_user_id?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      platform_settings: {
+        Row: {
+          fee_flat_currency: string
+          fee_flat_minor: number
+          fee_percent: number
+          fee_type: string
+          id: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          fee_flat_currency?: string
+          fee_flat_minor?: number
+          fee_percent?: number
+          fee_type?: string
+          id?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          fee_flat_currency?: string
+          fee_flat_minor?: number
+          fee_percent?: number
+          fee_type?: string
+          id?: number
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -1817,6 +1850,10 @@ export type Database = {
         Args: { p_booking_id: string; p_reason: string }
         Returns: undefined
       }
+      abort_unpaid_group: {
+        Args: { p_group_id: string; p_reason: string }
+        Returns: number
+      }
       add_online_payment_to_booking: {
         Args: { p_amount: number; p_booking_id: string; p_hotel_id: string }
         Returns: number
@@ -1934,6 +1971,7 @@ export type Database = {
         }
       }
       create_booking_atomic: { Args: { p_payload: Json }; Returns: Json }
+      create_booking_group_atomic: { Args: { p_payload: Json }; Returns: Json }
       currency_exponent: { Args: { p_currency: string }; Returns: number }
       effective_rate_plan_id: {
         Args: {
@@ -2071,6 +2109,26 @@ export type Database = {
           violations: string[]
         }[]
       }
+      settle_online_group_payment_atomic: {
+        Args: {
+          p_amount_minor: number
+          p_currency: string
+          p_group_id: string
+          p_hotel_id: string
+          p_metadata: Json
+          p_paystack_id: string
+          p_paystack_reference: string
+          p_subaccount_code: string
+        }
+        Returns: {
+          all_confirmed: boolean
+          already_recorded: boolean
+          amount_paid_minor: number
+          group_id: string
+          line_count: number
+          result: string
+        }[]
+      }
       settle_online_payment_atomic: {
         Args: {
           p_amount_minor: number
@@ -2106,6 +2164,17 @@ export type Database = {
       to_minor: {
         Args: { p_amount: number; p_currency: string }
         Returns: number
+      }
+      update_platform_fee_atomic: {
+        Args: {
+          p_admin_email: string
+          p_admin_id: string
+          p_fee_flat_currency: string
+          p_fee_flat_minor: number
+          p_fee_percent: number
+          p_fee_type: string
+        }
+        Returns: undefined
       }
       user_has_staff_role: {
         Args: { p_hotel_id: string; p_roles: string[] }

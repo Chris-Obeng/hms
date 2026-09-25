@@ -118,7 +118,8 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
   // Newest guests first by default (server pre-sorts created_at desc)
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [globalFilter, setGlobalFilter] = React.useState("");
+  // Seed the search box from ?search= (set by global search "See all")
+  const [globalFilter, setGlobalFilter] = React.useState(() => searchParams.get("search") ?? "");
   const [showFilters, setShowFilters] = React.useState(false);
   const [tagFilter, setTagFilter] = React.useState<string>("all");
   const [selectedGuest, setSelectedGuest] = React.useState<GuestRow | null>(null);

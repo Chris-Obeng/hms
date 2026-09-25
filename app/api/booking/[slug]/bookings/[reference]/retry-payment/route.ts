@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { initializeTransaction } from "@/lib/paystack";
-import { toMinor } from "@/lib/money";
+import { sumMinor, toMinor } from "@/lib/money";
+import { computePlatformFeeMinor, getPlatformFeeConfig } from "@/lib/platform/fees";
 import { rateLimit } from "@/lib/rate-limit";
 import {
   captureError,
@@ -82,7 +83,7 @@ async function handleRetryPayment(
   const { data: booking, error: bookingErr } = await supabaseAdmin
     .from("bookings")
     .select(
-      "id, reference, status, payment_status, payment_preference, source, total_amount, amount_paid, currency, initiated_payment_refs, guests(email)"
+      "id, reference, group_id, status, payment_status, payment_preference, source, total_amount, amount_paid, currency, initiated_payment_refs, guests(email)"
     )
     .eq("hotel_id", hotel.id)
     .eq("reference", reference)
@@ -103,6 +104,14 @@ async function handleRetryPayment(
 
   if (!booking) {
     return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+  }
+
+  // Multi-room group hold: retry re-inits ONE Paystack charge for the whole group
+  // total, keyed on the anchor with metadata.group_id, so the webhook / verify
+  // path settles every sibling via settle_online_group_payment_atomic. Single-room
+  // holds (group_id NULL) fall through to the unchanged path below.
+  if (booking.group_id) {
+    return await handleGroupRetryPayment(req, slug, hotel, booking.group_id);
   }
 
   if (booking.status === "cancelled") {
@@ -146,6 +155,12 @@ async function handleRetryPayment(
   const amountMinor = toMinor(remaining, attemptCurrency);
 
   try {
+    // Platform fee on the amount actually charged this retry (the remaining
+    // balance, not the original total). Stored on the attempt and sent to
+    // Paystack as transaction_charge; zero fee omits it.
+    const feeConfig = await getPlatformFeeConfig();
+    const platformFeeMinor = computePlatformFeeMinor(feeConfig, amountMinor, attemptCurrency);
+
     // Durable payment intent BEFORE the reference reaches Paystack: the
     // settlement RPC rejects any reference without a matching attempt, so a
     // guest who pays ahead of this row would be charged and then refused.
@@ -163,6 +178,7 @@ async function handleRetryPayment(
           booking_id: booking.id,
           hotel_id: hotel.id,
           booking_reference: booking.reference,
+          platform_fee_minor: platformFeeMinor,
         },
         status: "initialized",
         initialized_at: new Date().toISOString(),
@@ -180,6 +196,7 @@ async function handleRetryPayment(
       reference: payRef,
       callback_url: callbackUrl,
       subaccount: hotel.paystack_subaccount_code,
+      ...(platformFeeMinor > 0 ? { transaction_charge: platformFeeMinor } : {}),
       metadata: {
         booking_id: booking.id,
         hotel_id: hotel.id,
@@ -227,6 +244,173 @@ async function handleRetryPayment(
         "payment.currency": booking.currency ?? hotel.currency ?? "GHS",
       },
       contexts: { payment: { remaining, total: Number(booking.total_amount) } },
+      fingerprint: ["booking-funnel", "retry-payment-failed"],
+    });
+    return NextResponse.json(
+      { error: "Could not start payment. Please try again." },
+      { status: 502 }
+    );
+  }
+}
+
+/**
+ * Group hold retry: one Paystack charge for the whole reservation total, keyed on
+ * the anchor with metadata.group_id, so the webhook / verify path settles every
+ * sibling at once via settle_online_group_payment_atomic. Mirrors the group branch
+ * of the create route; never mutates booking state.
+ */
+async function handleGroupRetryPayment(
+  req: NextRequest,
+  slug: string,
+  hotel: {
+    id: string;
+    name: string;
+    currency: string | null;
+    paystack_subaccount_code: string | null;
+  },
+  groupId: string
+) {
+  const { data: lines, error: linesErr } = await supabaseAdmin
+    .from("bookings")
+    .select(
+      "id, reference, group_id, status, payment_status, payment_preference, source, total_amount, currency, initiated_payment_refs, guests(email)"
+    )
+    .eq("hotel_id", hotel.id)
+    .eq("group_id", groupId);
+
+  if (linesErr) {
+    captureSupabaseError(linesErr, "bookings.select.retry_payment_group", {
+      scope: "booking-funnel",
+      step: "payment_init",
+      level: "error",
+      hotelId: hotel.id,
+      reference: groupId,
+      tags: { "hotel.slug": slug, "payment.retry": true },
+    });
+  }
+
+  const anchor = lines?.find((l) => l.id === groupId);
+  if (!lines || lines.length === 0 || !anchor) {
+    return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+  }
+  // Any released line means the whole group hold expired (abort is all-or-nothing).
+  if (lines.some((l) => l.status === "cancelled")) {
+    return NextResponse.json(
+      { error: "This reservation has expired. Please start a new booking.", expired: true },
+      { status: 410 }
+    );
+  }
+
+  // The group is charged once for its full total, so every line must still be an
+  // unpaid pay_now direct hold — a settled group has already flipped all lines.
+  const payable = lines.every(
+    (l) =>
+      l.status === "pending" &&
+      l.payment_status === "unpaid" &&
+      l.payment_preference === "pay_now" &&
+      l.source === "direct"
+  );
+  if (!payable) {
+    return NextResponse.json(
+      { error: "No payment is due for this reservation." },
+      { status: 409 }
+    );
+  }
+
+  const currency = anchor.currency ?? hotel.currency ?? "GHS";
+  // Sum per line exactly as settle_online_group_payment_atomic does, so the
+  // charge, the attempt and the RPC's recomputed total agree to the pesewa.
+  const amountMinor = sumMinor(lines.map((l) => toMinor(l.total_amount, currency)));
+  if (!(amountMinor > 0)) {
+    return NextResponse.json(
+      { error: "No payment is due for this reservation." },
+      { status: 409 }
+    );
+  }
+
+  const guest = anchor.guests as { email?: string | null } | null;
+  const callbackUrl = `${req.nextUrl.origin}/${slug}/book/confirmation?bref=${anchor.reference}`;
+  const payRef = `${anchor.reference}-r${Date.now()}`;
+
+  try {
+    const feeConfig = await getPlatformFeeConfig();
+    const platformFeeMinor = computePlatformFeeMinor(feeConfig, amountMinor, currency);
+
+    // One attempt on the anchor, keyed by the group reference — the settle RPC
+    // validates the charge against exactly this row (amount + metadata).
+    const { error: attemptErr } = await supabaseAdmin
+      .from("payment_attempts")
+      .insert({
+        hotel_id: hotel.id,
+        booking_id: groupId,
+        paystack_reference: payRef,
+        amount_minor: amountMinor,
+        currency,
+        expected_subaccount_code: hotel.paystack_subaccount_code!,
+        metadata: {
+          group_id: groupId,
+          hotel_id: hotel.id,
+          group_reference: anchor.reference,
+          platform_fee_minor: platformFeeMinor,
+        },
+        status: "initialized",
+        initialized_at: new Date().toISOString(),
+      });
+
+    if (attemptErr) {
+      throw new Error(`payment_attempts insert failed: ${attemptErr.message}`);
+    }
+
+    const txn = await initializeTransaction({
+      email: guest?.email ?? `${anchor.reference}@bookings.local`,
+      amount: amountMinor,
+      currency,
+      reference: payRef,
+      callback_url: callbackUrl,
+      subaccount: hotel.paystack_subaccount_code!,
+      ...(platformFeeMinor > 0 ? { transaction_charge: platformFeeMinor } : {}),
+      metadata: {
+        group_id: groupId,
+        hotel_id: hotel.id,
+        group_reference: anchor.reference,
+      },
+    });
+
+    // Reconciliation reads only the anchor's refs — one entry for the group.
+    const nextRefs = [...(anchor.initiated_payment_refs ?? []), payRef].slice(-10);
+    const { error: refsErr } = await supabaseAdmin
+      .from("bookings")
+      .update({ initiated_payment_refs: nextRefs })
+      .eq("id", groupId);
+
+    if (refsErr) {
+      captureSupabaseError(refsErr, "bookings.update.initiated_payment_refs", {
+        scope: "booking-funnel",
+        step: "payment_init",
+        level: "error",
+        hotelId: hotel.id,
+        bookingId: groupId,
+        reference: payRef,
+        tags: { "hotel.slug": slug, "payment.retry": true },
+      });
+    }
+
+    return NextResponse.json({ authorizationUrl: txn.authorization_url });
+  } catch (err) {
+    console.error("[booking/retry-payment]", err);
+    captureError(err, {
+      scope: "booking-funnel",
+      step: "payment_init",
+      level: "error",
+      hotelId: hotel.id,
+      bookingId: groupId,
+      reference: payRef,
+      tags: {
+        "hotel.slug": slug,
+        "payment.retry": true,
+        "payment.currency": currency,
+      },
+      contexts: { payment: { amount: amountMinor, line_count: lines.length } },
       fingerprint: ["booking-funnel", "retry-payment-failed"],
     });
     return NextResponse.json(

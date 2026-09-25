@@ -642,7 +642,7 @@ BEGIN
   FROM public.resolve_nightly_rates(
     'd0d0d0d0-0000-4000-8000-00000000000a',
     ARRAY['d1d1d1d1-0000-4000-8000-000000000002'::uuid],
-    v_manual_date, v_manual_date + 1, v_replacement_plan, 0) r;
+    v_manual_date, v_manual_date + 1, v_replacement_plan, 0::smallint) r;
 
   IF v_expected_rate IS NULL OR v_expected_source IS NULL
      OR v_expected_source = 'manual' THEN

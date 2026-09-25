@@ -21,6 +21,7 @@ import type { PlatformAdmin } from "./platform-sidebar";
 
 const ROUTE_TITLES: Record<string, string> = {
   "/platform": "Hotel Oversight",
+  "/platform/settings": "Platform Fees",
 };
 
 function getPageTitle(pathname: string): string {

@@ -126,6 +126,11 @@
 .rl-booking-bar:focus-within{outline:3px solid var(--ring);outline-offset:2px}
 .rl-booking-bar.is-conflict{outline:2px solid var(--destructive);background-image:repeating-linear-gradient(135deg,transparent 0 7px,#ffffff38 7px 11px)!important}
 .rl-booking-bar.is-terminal{filter:saturate(.35);opacity:.78;cursor:default}
+/* Multi-room reservation marker: an accent stripe shared by every sibling bar
+   (hue set inline from a hash of group_id) so the front desk reads them as one
+   reservation. Additive — never overrides the status/source bar color. */
+.rl-booking-bar[data-group]::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--rl-group-accent,#E11D48);box-shadow:1px 0 2px rgb(0 0 0 / .28);z-index:2;pointer-events:none}
+.rl-booking-bar[data-group] .rl-booking-move{padding-left:13px}
 /* While a bar is dragged or resized the origin dims — the floating clone + cell
    preview carry the feedback instead of a stale duplicate. */
 .rl-booking-bar.is-dragging{opacity:.28;filter:saturate(.5)}
@@ -135,6 +140,7 @@
 .rl-booking-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;letter-spacing:.005em;text-shadow:0 1px 1px rgb(0 0 0 / .18)}
 .rl-booking-pay{flex:none;padding:1px 7px;border-radius:999px;font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;background:rgb(255 255 255 / .22);backdrop-filter:blur(2px)}
 .rl-booking-pay.is-due{background:rgb(0 0 0 / .28)}
+.rl-booking-rooms{flex:none;padding:1px 5px;border-radius:6px;font-size:9.5px;font-weight:800;letter-spacing:.01em;font-variant-numeric:tabular-nums;background:rgb(255 255 255 / .28)}
 .rl-resize-handle{position:absolute;top:0;bottom:0;width:11px;cursor:ew-resize;z-index:2;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .12s ease,background-color .12s ease}
 .rl-resize-handle::before{content:"";width:3px;height:14px;border-radius:999px;background:rgb(255 255 255 / .85);box-shadow:0 0 0 1px rgb(0 0 0 / .12)}
 .rl-resize-handle.left{left:0;border-radius:7px 0 0 7px}

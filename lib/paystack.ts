@@ -159,6 +159,19 @@ export interface TransactionInitInput {
   reference: string;
   callback_url: string;
   subaccount: string;
+  /**
+   * Flat amount (in `currency`'s smallest unit) routed to the main account,
+   * overriding the subaccount's percentage split for this charge. This is how
+   * RoomLine's per-transaction platform fee is realised — omit it (undefined)
+   * for a zero fee so the subaccount's own split applies unchanged.
+   */
+  transaction_charge?: number;
+  /**
+   * Who bears Paystack's own processing fee: 'account' (default, main account)
+   * or 'subaccount'. Left undefined here — RoomLine bears it, matching today's
+   * behaviour.
+   */
+  bearer?: "account" | "subaccount";
   metadata?: Record<string, unknown>;
 }
 
@@ -229,4 +242,163 @@ export async function verifyTransaction(reference: string): Promise<VerifiedPays
     `/transaction/verify/${encodeURIComponent(reference)}`
   );
   return res.data;
+}
+
+// ── Settlements (payout visibility) ──────────────────────────────────
+//
+// Paystack settles each hotel's subaccount directly to its bank on the
+// subaccount's schedule (Ghana default: AUTO, T+1). No `settlement.success`
+// webhook exists, so payout state is only knowable by polling these read-only
+// endpoints. Everything below is server-only (secret key), returns Paystack's
+// own shapes (treated as untrusted data by callers), and reports failures via
+// the shared `paystackFetch` Sentry path. Amounts are integer MINOR units —
+// format with `formatMoney` from `lib/money`, never a literal ÷100.
+
+export interface PaystackSubaccount {
+  /** Numeric id — the value the /settlement `subaccount` filter wants. */
+  id: number;
+  subaccount_code: string;
+  business_name: string;
+  settlement_bank: string;
+  account_number: string;
+  /** "auto" (T+1) | "weekly" | "monthly" | "manual". */
+  settlement_schedule: string;
+  active?: boolean;
+  currency?: string;
+}
+
+/**
+ * Fetch a subaccount by its `ACCT_` code or numeric id. Cached 24h by default:
+ * the id↔code mapping and bank details are effectively static, and this is on
+ * the render path of every payouts view.
+ */
+export async function getSubaccount(
+  idOrCode: string | number,
+  revalidate: number = 86_400
+): Promise<PaystackSubaccount> {
+  const res = await paystackFetch<PaystackSubaccount>(
+    `/subaccount/${encodeURIComponent(String(idOrCode))}`,
+    { next: { revalidate } }
+  );
+  return res.data;
+}
+
+/**
+ * Numeric subaccount id for an `ACCT_` code, memoised for the worker's life.
+ * We store the code but the Settlements filter needs the id; the mapping never
+ * changes for a given code, so a plain in-process cache is enough (and callers
+ * additionally wrap this in React `cache`).
+ */
+const subaccountIdCache = new Map<string, number>();
+export async function resolveSubaccountId(code: string): Promise<number> {
+  const hit = subaccountIdCache.get(code);
+  if (hit !== undefined) return hit;
+  const sub = await getSubaccount(code);
+  subaccountIdCache.set(code, sub.id);
+  return sub.id;
+}
+
+export interface PaystackSettlement {
+  id: number;
+  domain: string;
+  /** success | processing | pending | failed */
+  status: string;
+  currency: string;
+  integration: number;
+  /** Minor units. */
+  total_amount: number;
+  /** Minor units actually credited to the bank (net of fees/deductions). */
+  effective_amount: number;
+  total_fees: number;
+  total_processed: number;
+  deductions: number | null;
+  settlement_date: string;
+  settled_by: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ListSettlementsParams {
+  /** Numeric subaccount id (from resolveSubaccountId), NOT the ACCT_ code. */
+  subaccountId: number;
+  status?: "success" | "processing" | "pending" | "failed";
+  /** ISO datetime lower bound (settlement_date). */
+  from?: string;
+  /** ISO datetime upper bound. */
+  to?: string;
+  perPage?: number;
+  /** Starting page; the helper loops forward from here. */
+  page?: number;
+}
+
+/**
+ * All settlements matching the filter, looping pages internally. T+1 over a
+ * 30-day window is ≤ ~31 settlements, so one 50-row page normally covers it;
+ * the page cap is a runaway backstop, not an expected path. `paystackFetch`
+ * drops the `meta` envelope, so termination is by short-page, not page count.
+ */
+export async function listSettlements(params: ListSettlementsParams): Promise<PaystackSettlement[]> {
+  const perPage = params.perPage ?? 50;
+  const MAX_PAGES = 20;
+  const all: PaystackSettlement[] = [];
+  let page = params.page ?? 1;
+  for (let i = 0; i < MAX_PAGES; i++) {
+    const qs = new URLSearchParams({
+      subaccount: String(params.subaccountId),
+      perPage: String(perPage),
+      page: String(page),
+    });
+    if (params.status) qs.set("status", params.status);
+    if (params.from) qs.set("from", params.from);
+    if (params.to) qs.set("to", params.to);
+    // 5-min TTL: bounds Paystack API volume / rate-limit exposure while keeping
+    // T+1 payout state current enough for a dashboard. Same fetch-cache idiom as
+    // getPaystackBanks. Each page URL is a distinct cache entry.
+    const res = await paystackFetch<PaystackSettlement[]>(`/settlement?${qs.toString()}`, {
+      next: { revalidate: 300 },
+    });
+    const rows = res.data ?? [];
+    all.push(...rows);
+    if (rows.length < perPage) break;
+    page += 1;
+  }
+  return all;
+}
+
+/**
+ * The transactions included in one settlement — the primitive that maps a
+ * Paystack transaction id back to the settlement that paid it out. Only `id`
+ * is load-bearing (matched against `payments.paystack_id`); the rest of the
+ * transaction shape is not relied on.
+ */
+export interface SettlementTransaction {
+  id: number;
+  reference?: string;
+  amount?: number;
+  status?: string;
+}
+
+export async function listSettlementTransactions(
+  settlementId: number,
+  opts: { page?: number; perPage?: number } = {}
+): Promise<SettlementTransaction[]> {
+  const perPage = opts.perPage ?? 200;
+  const MAX_PAGES = 50;
+  const all: SettlementTransaction[] = [];
+  let page = opts.page ?? 1;
+  for (let i = 0; i < MAX_PAGES; i++) {
+    const qs = new URLSearchParams({ perPage: String(perPage), page: String(page) });
+    // A settlement's transaction set is immutable once the settlement exists,
+    // so cache it long; the short-TTL settlement list above is what surfaces
+    // newly-created settlements.
+    const res = await paystackFetch<SettlementTransaction[]>(
+      `/settlement/${encodeURIComponent(String(settlementId))}/transactions?${qs.toString()}`,
+      { next: { revalidate: 3_600 } }
+    );
+    const rows = res.data ?? [];
+    all.push(...rows);
+    if (rows.length < perPage) break;
+    page += 1;
+  }
+  return all;
 }

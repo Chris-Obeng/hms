@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { recordOnlinePayment } from "@/lib/bookings/confirm-online-payment";
+import { recordOnlinePayment, recordOnlineGroupPayment } from "@/lib/bookings/confirm-online-payment";
 import { extractSubaccountCode } from "@/lib/paystack";
 import { fromMinor } from "@/lib/money";
 import { createHmac, timingSafeEqual } from "crypto";
@@ -192,12 +192,18 @@ async function handleWebhook(req: NextRequest) {
     metadata = rawMeta as Record<string, unknown>;
   }
 
+  // A grouped reservation charges once on the anchor and carries metadata.group_id;
+  // a single-room booking carries metadata.booking_id. Group takes precedence.
+  const groupId = typeof metadata.group_id === "string" ? metadata.group_id : null;
   const bookingId = typeof metadata.booking_id === "string" ? metadata.booking_id : null;
 
-  if (!bookingId) {
+  if (!groupId && !bookingId) {
     // Not a booking payment — not our concern
     return NextResponse.json({ received: true });
   }
+
+  // Entity id for observability contexts below (anchor id for a group).
+  const logId = groupId ?? bookingId!;
 
   // ── 3. Shared, race-safe recording pipeline ──────────────────
 
@@ -217,7 +223,7 @@ async function handleWebhook(req: NextRequest) {
       scope: "paystack-webhook",
       step: "payment_webhook",
       level: "error",
-      bookingId,
+      bookingId: logId,
       reference: paystackRef,
       tags: { "webhook.acknowledged": true },
       contexts: { payment: { raw_amount_type: typeof rawAmount } },
@@ -239,7 +245,7 @@ async function handleWebhook(req: NextRequest) {
     captureIssue("Paystack charge has no readable subaccount_code", {
       scope: "paystack-webhook",
       step: "payment_webhook",
-      bookingId,
+      bookingId: logId,
       reference: paystackRef,
       contexts: {
         paystack: {
@@ -252,14 +258,23 @@ async function handleWebhook(req: NextRequest) {
     });
   }
 
-  const result = await recordOnlinePayment({
-    bookingId,
-    paystackReference: paystackRef,
-    paystackId: txn.id != null ? String(txn.id) : null,
-    amountPaid,
-    currency: txnCurrency,
-    subaccountCode,
-  });
+  const result = groupId
+    ? await recordOnlineGroupPayment({
+        groupId,
+        paystackReference: paystackRef,
+        paystackId: txn.id != null ? String(txn.id) : null,
+        amountPaid,
+        currency: txnCurrency,
+        subaccountCode,
+      })
+    : await recordOnlinePayment({
+        bookingId: bookingId!,
+        paystackReference: paystackRef,
+        paystackId: txn.id != null ? String(txn.id) : null,
+        amountPaid,
+        currency: txnCurrency,
+        subaccountCode,
+      });
 
   switch (result.outcome) {
     case "already_recorded":
@@ -277,7 +292,7 @@ async function handleWebhook(req: NextRequest) {
           scope: "paystack-webhook",
           step: "payment_webhook",
           level: "fatal",
-          bookingId,
+          bookingId: logId,
           reference: paystackRef,
           tags: { "webhook.acknowledged": true, "webhook.reason": result.error },
           contexts: {

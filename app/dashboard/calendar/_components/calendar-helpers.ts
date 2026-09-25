@@ -47,6 +47,31 @@ export function getBookingBarColor(
   }
 }
 
+/** Accent stripe for grouped (multi-room) reservations. Additive only — it
+ *  never replaces the status/source bar color; it marks that sibling bars
+ *  belong to ONE reservation so front-desk reads them as a set. A stable hash
+ *  of the group id picks a hue, so every sibling gets the same stripe without
+ *  server coordination. */
+const GROUP_ACCENTS = [
+  "#E11D48", // rose
+  "#D97706", // amber
+  "#7C3AED", // violet
+  "#0891B2", // cyan
+  "#4F46E5", // indigo
+  "#DB2777", // pink
+  "#0D9488", // teal
+  "#CA8A04", // gold
+] as const;
+
+export function groupAccent(groupId: string | null | undefined): string | null {
+  if (!groupId) return null;
+  let hash = 0;
+  for (let i = 0; i < groupId.length; i++) {
+    hash = (hash * 31 + groupId.charCodeAt(i)) | 0;
+  }
+  return GROUP_ACCENTS[Math.abs(hash) % GROUP_ACCENTS.length];
+}
+
 /** Operational zoom levels — nothing below a week: hotel planning happens
  *  in week-plus horizons, and sub-week views only added dropdown noise. */
 export const VIEW_PRESETS = [

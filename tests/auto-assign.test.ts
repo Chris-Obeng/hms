@@ -28,6 +28,8 @@ function booking(overrides: Partial<CalendarBooking> = {}): CalendarBooking {
     roomNumber: null,
     roomTypeId: "std",
     roomTypeName: null,
+    groupId: null,
+    roomsCount: 1,
     checkIn: "2026-08-23",
     checkOut: "2026-08-25",
     nights: 2,

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { initializeTransaction } from "@/lib/paystack";
+import { fromMinor } from "@/lib/money";
+import { computePlatformFeeMinor, getPlatformFeeConfig } from "@/lib/platform/fees";
 import { z } from "zod";
 import {
   abortUnpaidBooking,
+  abortUnpaidGroup,
   createBookingAtomic,
+  createBookingGroupAtomic,
   type BookingRejection,
 } from "@/lib/bookings/create-booking-atomic";
 import { rateLimit } from "@/lib/rate-limit";
@@ -29,6 +33,38 @@ const Schema = z.object({
   adults: z.coerce.number().int().min(1).max(20).default(1),
   children: z.coerce.number().int().min(0).max(10).default(0),
   rooms_count: z.coerce.number().int().min(1).max(10).default(1),
+  guest_name: z.string().min(1).max(120),
+  guest_email: guestEmail,
+  guest_phone: z.string().min(7).max(20),
+  nationality: z.string().max(80).optional(),
+  payment_preference: z.enum(["pay_now", "pay_at_checkin"]),
+  special_requests: z.string().max(500).optional(),
+  estimated_arrival: z.string().max(50).optional(),
+});
+
+/**
+ * One room line of a multi-room cart. Same per-room fields the single-room Schema
+ * accepts (no rate_plan_id — the single path does not wire rate plans either), so
+ * a group line prices through the exact same code as a standalone booking.
+ */
+const GroupLineSchema = z.object({
+  room_type_id: z.string().uuid(),
+  check_in: isoDateParam,
+  check_out: isoDateParam,
+  adults: z.coerce.number().int().min(1).max(20).default(1),
+  children: z.coerce.number().int().min(0).max(10).default(0),
+  rooms_count: z.coerce.number().int().min(1).max(10).default(1),
+  special_requests: z.string().max(500).optional(),
+});
+
+/**
+ * Multi-room cart: one primary guest, one payment, 2–4 room lines. The product
+ * cap (max 4) is the guest-facing limit; the RPC guards a higher ceiling of its
+ * own. A body with no `lines[]` is a single-room booking and takes the legacy
+ * path untouched.
+ */
+const GroupSchema = z.object({
+  lines: z.array(GroupLineSchema).min(2).max(4),
   guest_name: z.string().min(1).max(120),
   guest_email: guestEmail,
   guest_phone: z.string().min(7).max(20),
@@ -229,6 +265,14 @@ export async function POST(
     }
 
     const body = await req.json();
+
+    // A multi-room cart posts a `lines[]` array; a single-room body has none and
+    // runs the unchanged legacy path below. Branch before the single Schema so
+    // the two shapes never contend for the same validator.
+    if (Array.isArray((body as { lines?: unknown } | null)?.lines)) {
+      return await createGroupBooking(req, slug, body);
+    }
+
     const parsed = Schema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
@@ -408,6 +452,18 @@ export async function POST(
     const payRef = `${booking.reference}-${Date.now()}`;
 
     try {
+      // Platform fee (RoomLine's cut) for this charge. Stored on the attempt so
+      // it can be recorded onto the payment after settlement, and sent to
+      // Paystack as transaction_charge so the split routes it to the main
+      // account. A zero fee omits transaction_charge, so the subaccount split is
+      // byte-for-byte what it was before this feature.
+      const feeConfig = await getPlatformFeeConfig();
+      const platformFeeMinor = computePlatformFeeMinor(
+        feeConfig,
+        booking.total_minor,
+        booking.currency
+      );
+
       // Durable payment intent BEFORE the reference reaches Paystack: the
       // settlement RPC rejects any reference without a matching attempt, so a
       // guest who pays ahead of this row would be charged and then refused.
@@ -425,6 +481,7 @@ export async function POST(
             booking_id: booking.booking_id,
             hotel_id: hotel.id,
             booking_reference: booking.reference,
+            platform_fee_minor: platformFeeMinor,
           },
           status: "initialized",
           initialized_at: new Date().toISOString(),
@@ -444,6 +501,7 @@ export async function POST(
         reference: payRef,
         callback_url: callbackUrl,
         subaccount: hotel.paystack_subaccount_code!,
+        ...(platformFeeMinor > 0 ? { transaction_charge: platformFeeMinor } : {}),
         metadata: { booking_id: booking.booking_id, hotel_id: hotel.id, booking_reference: booking.reference },
       });
 
@@ -558,4 +616,315 @@ export async function POST(
     await flushSentry();
   }
 }
+
+/**
+ * Multi-room cart handler. Mirrors the single-room path exactly, with every
+ * per-booking side effect collapsed to one-per-group: one hotel lookup, the same
+ * payment-policy gates, one atomic group create, and — for pay_now — one
+ * payment_attempts row on the anchor, one initializeTransaction for the group
+ * total, one staff notification and one guest email. A single line losing the
+ * inventory race rolls the whole group back inside create_booking_group_atomic.
+ */
+async function createGroupBooking(
+  req: NextRequest,
+  slug: string,
+  body: unknown
+): Promise<NextResponse> {
+  const parsed = GroupSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid input" },
+      { status: 400 }
+    );
+  }
+  const data = parsed.data;
+
+  let hotelQuery = await supabaseAdmin
+    .from("hotels")
+    .select("id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, phone, address")
+    .eq("slug", slug)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (!hotelQuery.data) {
+    hotelQuery = await supabaseAdmin
+      .from("hotels")
+      .select("id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, phone, address")
+      .eq("custom_domain", slug)
+      .eq("status", "active")
+      .maybeSingle();
+  }
+
+  const hotel = hotelQuery.data;
+  if (!hotel) return NextResponse.json({ error: "Hotel not found" }, { status: 404 });
+
+  const policy = ((hotel.settings as Record<string, unknown>)?.payment_policy as string) ?? "choice";
+  if (policy === "pay_now_only" && data.payment_preference === "pay_at_checkin") {
+    return NextResponse.json({ error: "This hotel requires payment to confirm your booking." }, { status: 400 });
+  }
+  if (policy === "pay_later_only" && data.payment_preference === "pay_now") {
+    return NextResponse.json({ error: "This hotel collects payment at check-in." }, { status: 400 });
+  }
+  if (data.payment_preference === "pay_now" && !hotel.paystack_subaccount_code) {
+    return NextResponse.json({ error: "Online payment is not available for this hotel." }, { status: 400 });
+  }
+
+  for (const line of data.lines) {
+    if (line.check_out <= line.check_in) {
+      return NextResponse.json({ error: "Check-out must be after check-in." }, { status: 400 });
+    }
+  }
+
+  const status = data.payment_preference === "pay_now" ? "pending" : "confirmed";
+  const funnelStep: BookingFunnelStep =
+    data.payment_preference === "pay_now" ? "hold" : "confirm";
+  const anchorLine = data.lines[0];
+  const totalRooms = data.lines.reduce((sum, l) => sum + l.rooms_count, 0);
+
+  // One transaction composes create_booking_atomic per line; any line's
+  // inventory/overlap loss rolls the whole group back. Every line shares the
+  // anchor's id as group_id and the anchor's reference as the group reference.
+  const created = await createBookingGroupAtomic({
+    hotel_id: hotel.id,
+    status,
+    payment_status: "unpaid",
+    payment_preference: data.payment_preference,
+    source: "direct",
+    guest_name: data.guest_name,
+    guest_email: data.guest_email,
+    guest_phone: data.guest_phone,
+    nationality: data.nationality ?? null,
+    special_requests: data.special_requests ?? null,
+    estimated_arrival: data.estimated_arrival ?? null,
+    lines: data.lines.map((l) => ({
+      room_type_id: l.room_type_id,
+      check_in: l.check_in,
+      check_out: l.check_out,
+      adults: l.adults,
+      children: l.children,
+      rooms_count: l.rooms_count,
+      special_requests: l.special_requests ?? null,
+    })),
+  });
+
+  if (!created.ok) {
+    return rejectionResponse(created.rejection, {
+      hotelId: hotel.id,
+      slug,
+      step: funnelStep,
+      roomTypeId: anchorLine.room_type_id,
+      checkIn: anchorLine.check_in,
+      checkOut: anchorLine.check_out,
+      roomsCount: totalRooms,
+    });
+  }
+
+  const group = created.group;
+  const roomsLabel = `${totalRooms} ${totalRooms === 1 ? "room" : "rooms"}`;
+  const groupTotal = fromMinor(group.group_total_minor, group.currency);
+
+  if (data.payment_preference === "pay_at_checkin") {
+    // Confirmed group — one staff notification and one guest email for the whole
+    // reservation. The anchor line carries the group reference and the nights.
+    const { notifyStaffNewBooking } = await import("@/lib/bookings/confirm-online-payment");
+    await notifyStaffNewBooking(hotel.id, group.group_id, roomsLabel);
+
+    const { sendBookingConfirmation } = await import(
+      "@/lib/notifications/send-booking-confirmation"
+    );
+    const result = await sendBookingConfirmation({
+      hotelId: hotel.id,
+      bookingId: group.group_id,
+      config: {
+        hotelName: hotel.name,
+        currency: group.currency,
+      },
+      booking: {
+        guestName: data.guest_name,
+        guestEmail: data.guest_email,
+        reference: group.group_reference,
+        roomName: roomsLabel,
+        checkIn: anchorLine.check_in,
+        checkOut: anchorLine.check_out,
+        nights: group.lines[0].night_count,
+        totalAmount: groupTotal,
+        checkInTime: hotel.check_in_time ?? null,
+        checkOutTime: hotel.check_out_time ?? null,
+        hotelPhone: hotel.phone ?? null,
+        hotelAddress: hotel.address ?? null,
+      },
+    });
+
+    if (!result.success) {
+      console.error("[booking/create] Group notification send failed", {
+        groupId: group.group_id,
+        channel: result.channel,
+        error: result.error,
+      });
+      captureIssue("Booking confirmation send failed", {
+        scope: "notifications",
+        step: "confirm",
+        level: "error",
+        hotelId: hotel.id,
+        bookingId: group.group_id,
+        reference: group.group_reference,
+        tags: {
+          "hotel.slug": slug,
+          "notification.channel": result.channel,
+        },
+        contexts: { notification: { error: result.error ?? null } },
+        fingerprint: ["notifications", "booking-confirmation-failed"],
+      });
+    }
+
+    return NextResponse.json({
+      bookingId: group.group_id,
+      reference: group.group_reference,
+      roomsCount: totalRooms,
+    });
+  }
+
+  // ── pay_now: one Paystack handoff for the whole group total ──────
+  // Callback carries the group reference, same shape the single path uses.
+  const callbackUrl = `${req.nextUrl.origin}/${slug}/book/confirmation?bref=${group.group_reference}`;
+  const payRef = `${group.group_reference}-${Date.now()}`;
+
+  try {
+    // Platform fee on the group total (one cut for the whole reservation),
+    // stored on the anchor attempt and sent to Paystack as transaction_charge.
+    const feeConfig = await getPlatformFeeConfig();
+    const platformFeeMinor = computePlatformFeeMinor(
+      feeConfig,
+      group.group_total_minor,
+      group.currency
+    );
+
+    // One attempt on the anchor, keyed by the group reference. The settle RPC
+    // validates the charge against exactly this row — amount_minor must equal the
+    // summed line totals and the metadata must match — so all three fields carry
+    // the group's values, never a single line's.
+    const { error: attemptErr } = await supabaseAdmin
+      .from("payment_attempts")
+      .insert({
+        hotel_id: hotel.id,
+        booking_id: group.group_id,
+        paystack_reference: payRef,
+        amount_minor: group.group_total_minor,
+        currency: group.currency,
+        expected_subaccount_code: hotel.paystack_subaccount_code!,
+        metadata: {
+          group_id: group.group_id,
+          hotel_id: hotel.id,
+          group_reference: group.group_reference,
+          platform_fee_minor: platformFeeMinor,
+        },
+        status: "initialized",
+        initialized_at: new Date().toISOString(),
+      });
+
+    if (attemptErr) {
+      throw new Error(`payment_attempts insert failed: ${attemptErr.message}`);
+    }
+
+    const txn = await initializeTransaction({
+      email: data.guest_email,
+      amount: group.group_total_minor,
+      currency: group.currency,
+      reference: payRef,
+      callback_url: callbackUrl,
+      subaccount: hotel.paystack_subaccount_code!,
+      ...(platformFeeMinor > 0 ? { transaction_charge: platformFeeMinor } : {}),
+      metadata: {
+        group_id: group.group_id,
+        hotel_id: hotel.id,
+        group_reference: group.group_reference,
+      },
+    });
+
+    // Reconciliation reads the anchor row's initiated_payment_refs — one entry
+    // for the whole group; sibling rows carry no payment intent of their own.
+    const { error: refsErr } = await supabaseAdmin
+      .from("bookings")
+      .update({ initiated_payment_refs: [payRef] })
+      .eq("id", group.group_id);
+
+    if (refsErr) {
+      captureSupabaseError(refsErr, "bookings.update.initiated_payment_refs", {
+        scope: "booking-funnel",
+        step: "payment_init",
+        level: "error",
+        hotelId: hotel.id,
+        bookingId: group.group_id,
+        reference: payRef,
+        tags: { "hotel.slug": slug },
+      });
+    }
+
+    return NextResponse.json({
+      bookingId: group.group_id,
+      reference: group.group_reference,
+      roomsCount: totalRooms,
+      paymentRequired: true,
+      authorizationUrl: txn.authorization_url,
+      paymentReference: payRef,
+    });
+  } catch (paystackErr) {
+    // Payment init failed — release every unpaid hold in the group together.
+    const rollback = await abortUnpaidGroup(group.group_id, "paystack_init_failed");
+
+    console.error("[booking/create] Group Paystack init failed", paystackErr);
+
+    captureError(paystackErr, {
+      scope: "booking-funnel",
+      step: "payment_init",
+      level: "error",
+      hotelId: hotel.id,
+      bookingId: group.group_id,
+      reference: payRef,
+      tags: {
+        "hotel.slug": slug,
+        "payment.currency": group.currency,
+        "booking.rolled_back": rollback.ok,
+      },
+      contexts: { payment: { amount: groupTotal, rooms_count: totalRooms } },
+    });
+
+    if (!rollback.ok) {
+      captureSupabaseError(
+        {
+          message: rollback.rejection.message,
+          code: rollback.rejection.sqlstate,
+          details: rollback.rejection.code,
+          hint: rollback.rejection.hint,
+        } satisfies SupabaseErrorLike,
+        "rpc.abort_unpaid_group",
+        {
+          scope: "booking-funnel",
+          step: "payment_init",
+          level: "fatal",
+          hotelId: hotel.id,
+          bookingId: group.group_id,
+          reference: group.group_reference,
+          tags: { "hotel.slug": slug, "booking.rejection": rollback.rejection.code },
+          fingerprint: ["booking-funnel", "abort-unpaid-group", rollback.rejection.code],
+        }
+      );
+    }
+
+    const errMsg = paystackErr instanceof Error ? paystackErr.message : String(paystackErr);
+    if (errMsg.includes("unsupported_currency") || errMsg.includes("Currency not supported")) {
+      return NextResponse.json({
+        error: `Online payment unavailable: This hotel's payment processor doesn't support ${group.currency} currency. Please contact the hotel directly.`,
+      }, { status: 400 });
+    }
+
+    return NextResponse.json({
+      error: "Payment initialization failed. Please try again or contact the hotel directly.",
+    }, { status: 500 });
+  }
+}
+
+
+
+
 

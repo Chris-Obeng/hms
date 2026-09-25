@@ -1,7 +1,6 @@
 "use server";
 
 import { z } from "zod";
-import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireMinRole, toActionError } from "@/lib/auth";
 
@@ -38,23 +37,27 @@ export interface GuestBookingSummary {
   roomTypeName: string | null;
   roomNumber: string | null;
   createdAt: string | null;
+  /** NULL = single-room. Siblings share the anchor id; fold by this for display. */
+  groupId: string | null;
+  /** Same-type quantity on this line; total rooms = SUM(max(1, roomsCount)). */
+  roomsCount: number;
 }
 
 export async function getGuestBookings(
   guestId: string
 ): Promise<{ success: true; data: GuestBookingSummary[] } | { success: false; error: string }> {
   try {
-    const { orgId } = await auth();
-    if (!orgId) return { success: false, error: "Not authenticated" };
+    const { hotelId } = await requireMinRole("front_desk", "view guest bookings");
 
     const supabase = await createClient();
 
     const { data: bookings, error } = await supabase
       .from("bookings")
       .select(
-        `id, reference, check_in, check_out, nights, status, payment_status, total_amount, amount_paid, source, created_at, room_types(name), rooms(room_number)`
+        `id, reference, check_in, check_out, nights, status, payment_status, total_amount, amount_paid, source, created_at, group_id, rooms_count, room_types(name), rooms(room_number)`
       )
       .eq("guest_id", guestId)
+      .eq("hotel_id", hotelId)
       .order("created_at", { ascending: false })
       .limit(50);
 
@@ -76,12 +79,13 @@ export async function getGuestBookings(
       roomTypeName: b.room_types?.name || null,
       roomNumber: b.rooms?.room_number || null,
       createdAt: b.created_at,
+      groupId: (b.group_id as string | null) ?? null,
+      roomsCount: (b.rooms_count as number | null) ?? 1,
     }));
 
     return { success: true, data };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "An unexpected error occurred";
-    return { success: false, error: message };
+    return toActionError(err, { action: "customers.getGuestBookings" });
   }
 }
 

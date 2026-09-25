@@ -127,6 +127,7 @@ const REJECTION_CODES = [
   "room_conflict",
   "booking_paid",
   "stay_restrictions",
+  "invalid_line_count",
 ] as const;
 
 export type BookingRejectionCode =
@@ -172,26 +173,14 @@ function classify(error: RpcError): BookingRejection {
   };
 }
 
-/**
- * `types/database.types.ts` is generated against the remote project, which has
- * not been migrated yet, so its Functions map knows none of these functions.
- * The three casts below are the whole cost of that gap: delete them and call
- * `supabaseAdmin.rpc(...)` directly once db:types has been regenerated from a
- * project carrying migrations 20260901120000 and 20260902120000.
- */
 export async function createBookingAtomic(
   payload: CreateBookingPayload
 ): Promise<
   { ok: true; booking: CreateBookingResult } | { ok: false; rejection: BookingRejection }
 > {
-  // Bound explicitly: `supabaseAdmin.rpc` uses `this.rest` internally, so a
-  // detached reference crashes with `undefined.rest` at call time.
-  const rpc = supabaseAdmin.rpc.bind(supabaseAdmin) as unknown as (
-    fn: "create_booking_atomic",
-    params: { p_payload: CreateBookingPayload }
-  ) => Promise<{ data: CreateBookingResult | null; error: RpcError | null }>;
-
-  const { data, error } = await rpc("create_booking_atomic", { p_payload: payload });
+  const { data, error } = await supabaseAdmin.rpc("create_booking_atomic", {
+    p_payload: payload,
+  });
 
   if (error) return { ok: false, rejection: classify(error) };
   if (!data) {
@@ -207,7 +196,7 @@ export async function createBookingAtomic(
       },
     };
   }
-  return { ok: true, booking: data };
+  return { ok: true, booking: data as CreateBookingResult };
 }
 
 /**
@@ -221,15 +210,116 @@ export async function abortUnpaidBooking(
   bookingId: string,
   reason: string
 ): Promise<{ ok: true } | { ok: false; rejection: BookingRejection }> {
-  // Bound explicitly: `supabaseAdmin.rpc` uses `this.rest` internally, so a
-  // detached reference crashes with `undefined.rest` at call time.
-  const rpc = supabaseAdmin.rpc.bind(supabaseAdmin) as unknown as (
-    fn: "abort_unpaid_booking",
-    params: { p_booking_id: string; p_reason: string }
-  ) => Promise<{ data: null; error: RpcError | null }>;
-
-  const { error } = await rpc("abort_unpaid_booking", {
+  const { error } = await supabaseAdmin.rpc("abort_unpaid_booking", {
     p_booking_id: bookingId,
+    p_reason: reason,
+  });
+
+  return error ? { ok: false, rejection: classify(error) } : { ok: true };
+}
+
+/**
+ * One room line of a multi-room reservation. Shared reservation-level fields
+ * (the guest, the payment posture, the source) live on `CreateBookingGroupPayload`
+ * and apply to every line; a key repeated here overrides the shared value for
+ * that line only, matching how the SQL merges `(payload - 'lines') || line`.
+ */
+export type CreateBookingLine = {
+  room_type_id: string;
+  /** First night, inclusive. */
+  check_in: string;
+  /** Departure day, exclusive — not a stay night. */
+  check_out: string;
+  adults?: number;
+  children?: number;
+  rooms_count?: number;
+  rate_plan_id?: string | null;
+  occupancy?: number;
+  assign_room?: boolean;
+  room_id?: string | null;
+  special_requests?: string | null;
+};
+
+/**
+ * Keys `create_booking_group_atomic` reads: the shared reservation fields plus a
+ * non-empty `lines[]`. The guest is resolved once from the shared fields (or a
+ * pinned `guest_id`) and reused for every line, so no line re-creates the guest.
+ */
+export type CreateBookingGroupPayload = {
+  hotel_id: string;
+  status?: string;
+  payment_status?: string;
+  payment_preference?: string;
+  source?: string;
+  guest_id?: string | null;
+  guest_name?: string;
+  guest_email?: string;
+  guest_phone?: string;
+  nationality?: string | null;
+  special_requests?: string | null;
+  estimated_arrival?: string | null;
+  created_by?: string | null;
+  lines: CreateBookingLine[];
+};
+
+export type CreateBookingGroupResult = {
+  /** Anchor booking id; every line shares it as `bookings.group_id`. */
+  group_id: string;
+  /** The anchor line's own reference, shown to the guest for the whole group. */
+  group_reference: string;
+  guest_id: string;
+  currency: string;
+  /** Minor units. Sum of the lines' totals — the amount the payment layer charges. */
+  group_total_minor: number;
+  line_count: number;
+  /** Each line as `create_booking_atomic` resolved and stored it. */
+  lines: CreateBookingResult[];
+};
+
+/**
+ * Creates a multi-room reservation in one transaction: the SQL composes
+ * `create_booking_atomic` once per line, so pricing, the inventory guard, nights
+ * and rejection classification are identical to the single-room path per line,
+ * and any line's rejection rolls the whole group back. On success every line
+ * carries a shared `group_id`; the single-room path (no `lines[]`) is untouched.
+ */
+export async function createBookingGroupAtomic(
+  payload: CreateBookingGroupPayload
+): Promise<
+  { ok: true; group: CreateBookingGroupResult } | { ok: false; rejection: BookingRejection }
+> {
+  const { data, error } = await supabaseAdmin.rpc("create_booking_group_atomic", {
+    p_payload: payload,
+  });
+
+  if (error) return { ok: false, rejection: classify(error) };
+  if (!data) {
+    return {
+      ok: false,
+      rejection: {
+        code: "unknown",
+        sqlstate: "",
+        message: "create_booking_group_atomic returned no row",
+        hint: null,
+      },
+    };
+  }
+  return { ok: true, group: data as CreateBookingGroupResult };
+}
+
+/**
+ * Aborts every unpaid hold in a reservation group in one transaction — the SQL
+ * composes `abort_unpaid_booking` once per line (siblings first, anchor last),
+ * so its guards, cascades and per-line audit rows all apply. Refuses with
+ * `booking_paid` if any line carries a payment, leaving the whole group intact.
+ * Idempotent: aborting a group already gone succeeds.
+ */
+export async function abortUnpaidGroup(
+  groupId: string,
+  reason: string
+): Promise<{ ok: true } | { ok: false; rejection: BookingRejection }> {
+  const { error } = await supabaseAdmin.rpc("abort_unpaid_group", {
+    p_group_id: groupId,
     p_reason: reason,
   });
 
@@ -326,14 +416,9 @@ export async function repriceBookingStay(
 ): Promise<
   { ok: true; stay: RepriceBookingResult } | { ok: false; rejection: BookingRejection }
 > {
-  // Bound explicitly: `supabaseAdmin.rpc` uses `this.rest` internally, so a
-  // detached reference crashes with `undefined.rest` at call time.
-  const rpc = supabaseAdmin.rpc.bind(supabaseAdmin) as unknown as (
-    fn: "reprice_booking_stay",
-    params: { p_payload: RepriceBookingPayload }
-  ) => Promise<{ data: RepriceBookingResult | null; error: RpcError | null }>;
-
-  const { data, error } = await rpc("reprice_booking_stay", { p_payload: payload });
+  const { data, error } = await supabaseAdmin.rpc("reprice_booking_stay", {
+    p_payload: payload,
+  });
 
   if (error) return { ok: false, rejection: classify(error) };
   if (!data) {
@@ -347,5 +432,5 @@ export async function repriceBookingStay(
       },
     };
   }
-  return { ok: true, stay: data };
+  return { ok: true, stay: data as RepriceBookingResult };
 }

@@ -13,24 +13,17 @@ import {
   StickyNote,
   Contact,
   CalendarX2,
+  BedDouble,
 } from "lucide-react";
-import { Accordion, Button, Tabs, toast } from "@heroui/react";
+import { Accordion, Button, Drawer, Input, Skeleton, Tabs, toast } from "@heroui/react";
 
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { AccordionSection } from "@/components/ui/accordion-section";
 import { ContactEmpty, ContactLink, ContactStatic } from "@/components/ui/contact-row";
 import { MiniStat } from "@/components/ui/mini-stat";
 import { NotesEditor } from "@/components/ui/notes-editor";
 import { cn } from "@/lib/utils";
-import { formatCurrency, formatDate, getInitials } from "@/lib/format";
+import { formatCurrency, formatDate, getInitials, getNights } from "@/lib/format";
 import {
   STATUS_COLORS,
   getStatusLabel,
@@ -70,6 +63,7 @@ export function GuestDetailSheet({
   currency,
   onGuestUpdated,
 }: GuestDetailSheetProps) {
+  const isMobile = useIsMobile();
   const [guest, setGuest] = React.useState(initialGuest);
   const [bookings, setBookings] = React.useState<GuestBookingSummary[] | null>(null);
 
@@ -232,91 +226,115 @@ export function GuestDetailSheet({
   const totalRevenue = guest.totalSpend;
   const avgPerStay = guest.totalStays > 0 ? totalRevenue / guest.totalStays : 0;
   return (
-    <Sheet open={open} onOpenChange={handleClose}>
-      <SheetContent side="right" className="flex w-full flex-col gap-0 bg-background p-0 sm:max-w-lg">
-        {/* ═══ Header ═══ */}
-        <SheetHeader className="gap-2.5 border-b border-border/50 px-4 pb-4 pr-12 pt-4 max-md:pt-7 sm:px-5">
-          <div className="flex items-center gap-3">
-            <div className="grid size-11 shrink-0 place-items-center rounded-full bg-muted ring-1 ring-border/50">
-              <span className="text-sm font-semibold text-foreground">
-                {getInitials(guest.fullName)}
-              </span>
-            </div>
-            <div className="flex min-w-0 flex-1 flex-col">
-              <SheetTitle className="truncate text-lg font-bold tracking-tight text-foreground">
-                {guest.fullName}
-              </SheetTitle>
-              <SheetDescription className="text-[11px] text-muted-foreground">
-                Guest since {formatDate(guest.createdAt)}
-              </SheetDescription>
-            </div>
-          </div>
-
-          {guest.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {guest.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className={cn(
-                    "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize",
-                    tagClasses(tag)
-                  )}
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </SheetHeader>
-
-        {/* ═══ Tabs + content ═══ */}
-        <Tabs
-          key={resetKey}
-          defaultSelectedKey="overview"
-          className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
+    <Drawer.Backdrop
+      isOpen={open}
+      onOpenChange={(isOpen) => handleClose(isOpen)}
+      variant="opaque"
+      className="bg-black/40 dark:bg-black/60"
+    >
+      <Drawer.Content placement={isMobile ? "bottom" : "right"}>
+        <Drawer.Dialog
+          className="
+            flex w-full flex-col overflow-hidden rounded-t-3xl bg-background p-0 shadow-[0_-24px_80px_rgb(0_0_0/0.35)]
+            h-[min(94dvh,56rem)] max-h-[94dvh]
+            md:h-dvh md:max-h-dvh md:w-[min(32rem,100vw)] md:rounded-none
+            md:border-l md:border-border/60 md:shadow-[-32px_0_90px_rgb(0_0_0/0.16)]
+          "
         >
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            <Tabs.ListContainer className="sticky top-0 z-10 border-b border-border/40 bg-background/95 px-4 py-2 backdrop-blur-md sm:px-5">
-              <Tabs.List aria-label="Guest sections" className="grid w-full grid-cols-2">
-                <SegmentedTab id="overview">Overview</SegmentedTab>
-                <SegmentedTab id="bookings">
-                  History
-                  {bookings && bookings.length > 0 && (
-                    <span className="ml-1 font-normal text-muted-foreground/70">
-                      {bookings.length}
-                      <span className="sr-only"> bookings</span>
-                    </span>
-                  )}
-                </SegmentedTab>
-              </Tabs.List>
-            </Tabs.ListContainer>
+          {isMobile && <Drawer.Handle className="mt-2.5 shrink-0" />}
 
-            {/* ── Overview ── */}
-            <Tabs.Panel id="overview" className="space-y-4 px-4 py-4 sm:px-5">
-              {/* Lifetime value */}
-              <section
-                aria-label="Lifetime value"
-                className="rounded-2xl border border-border/60 bg-card p-4"
-              >
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Lifetime value
+          <Drawer.CloseTrigger
+            className="
+              absolute right-4 top-4 z-30 grid size-8 place-items-center rounded-full
+              bg-muted/70 text-muted-foreground shadow-xs backdrop-blur transition-all
+              hover:bg-muted hover:text-foreground active:scale-95
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+            "
+          />
+
+          {/* ═══ Header ═══ */}
+          <Drawer.Header className="shrink-0 flex-col items-start gap-2.5 border-b border-border/50 bg-background px-4 pb-4 pr-14 pt-[max(1rem,env(safe-area-inset-top))] sm:px-5 md:pt-6">
+            <div className="flex w-full items-center gap-3">
+              <div className="grid size-11 shrink-0 place-items-center rounded-full bg-muted ring-1 ring-border/50">
+                <span className="text-sm font-semibold text-foreground">
+                  {getInitials(guest.fullName)}
+                </span>
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col">
+                <Drawer.Heading className="truncate text-lg font-bold tracking-tight text-foreground">
+                  {guest.fullName}
+                </Drawer.Heading>
+                <p className="text-[11px] text-muted-foreground">
+                  Guest since {formatDate(guest.createdAt)}
                 </p>
-                <p className="mt-1 text-kpi tabular-nums text-foreground">
-                  {formatCurrency(totalRevenue, currency)}
-                </p>
-                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border/50 pt-3">
-                  <MiniStat label="Stays" value={guest.totalStays.toString()} strong />
-                  <MiniStat label="Avg / stay" value={formatCurrency(avgPerStay, currency)} />
-                  <MiniStat label="Last stay" value={formatDate(guest.lastStayDate)} />
-                </div>
-              </section>
-              {/* Contact · Tags · Notes */}
-              <Accordion
-                variant="surface"
-                allowsMultipleExpanded
-                defaultExpandedKeys={["contact", "notes"]}
-                className="w-full"
-              >
+              </div>
+            </div>
+
+            {guest.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {guest.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className={cn(
+                      "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize",
+                      tagClasses(tag)
+                    )}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </Drawer.Header>
+
+          {/* ═══ Tabs + content ═══ */}
+          <Tabs
+            key={resetKey}
+            defaultSelectedKey="overview"
+            className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
+          >
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <Tabs.ListContainer className="sticky top-0 z-10 border-b border-border/40 bg-background/95 px-4 py-2 backdrop-blur-md sm:px-5">
+                <Tabs.List aria-label="Guest sections" className="grid w-full grid-cols-2">
+                  <SegmentedTab id="overview">Overview</SegmentedTab>
+                  <SegmentedTab id="bookings">
+                    History
+                    {bookings && bookings.length > 0 && (
+                      <span className="ml-1 font-normal text-muted-foreground/70">
+                        {bookings.length}
+                        <span className="sr-only"> bookings</span>
+                      </span>
+                    )}
+                  </SegmentedTab>
+                </Tabs.List>
+              </Tabs.ListContainer>
+
+              {/* ── Overview ── */}
+              <Tabs.Panel id="overview" className="space-y-4 px-4 py-4 sm:px-5">
+                {/* Lifetime value */}
+                <section
+                  aria-label="Lifetime value"
+                  className="rounded-2xl border border-border/60 bg-card p-4"
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Lifetime value
+                  </p>
+                  <p className="mt-1 text-kpi tabular-nums text-foreground">
+                    {formatCurrency(totalRevenue, currency)}
+                  </p>
+                  <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border/50 pt-3">
+                    <MiniStat label="Stays" value={guest.totalStays.toString()} strong />
+                    <MiniStat label="Avg / stay" value={formatCurrency(avgPerStay, currency)} />
+                    <MiniStat label="Last stay" value={formatDate(guest.lastStayDate)} />
+                  </div>
+                </section>
+                {/* Contact · Tags · Notes */}
+                <Accordion
+                  variant="surface"
+                  allowsMultipleExpanded
+                  defaultExpandedKeys={["contact", "notes"]}
+                  className="w-full"
+                >
                 {/* ── Contact ── */}
                 <AccordionSection
                   id="contact"
@@ -542,10 +560,11 @@ export function GuestDetailSheet({
             <Tabs.Panel id="bookings" className="px-4 py-4 sm:px-5">
               <BookingHistory open={open} bookings={bookings} currency={currency} />
             </Tabs.Panel>
-          </div>
-        </Tabs>
-      </SheetContent>
-    </Sheet>
+            </div>
+          </Tabs>
+        </Drawer.Dialog>
+      </Drawer.Content>
+    </Drawer.Backdrop>
   );
 }
 // ── Segmented-control style tab trigger ────────────────────────────
@@ -660,6 +679,60 @@ function StatusChip({ status }: { status: string }) {
 }
 // ── Booking history tab ────────────────────────────────────────────
 
+/** One display reservation = one group (siblings folded) or a lone booking.
+ *  All of a guest's rows are fetched, so every sibling is present to fold. */
+interface HistoryReservation {
+  key: string;
+  reference: string;
+  status: string;
+  paymentStatus: string;
+  checkIn: string;
+  checkOut: string;
+  nights: number | null;
+  totalAmount: number;
+  roomsTotal: number;
+  lineCount: number;
+  roomTypeName: string | null;
+  roomNumber: string | null;
+}
+
+/** Fold sibling rows into one reservation each, preserving created_at-desc order
+ *  (input is already sorted, and Map keeps first-seen insertion order). */
+function foldReservations(bookings: GuestBookingSummary[]): HistoryReservation[] {
+  const groups = new Map<string, GuestBookingSummary[]>();
+  for (const b of bookings) {
+    const key = b.groupId ?? b.id;
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(b);
+    else groups.set(key, [b]);
+  }
+
+  const out: HistoryReservation[] = [];
+  for (const [key, lines] of groups) {
+    // Anchor = the row whose own id is the shared group id (guest-facing ref).
+    const anchor = lines.find((l) => l.id === key) ?? lines[0];
+    const roomsTotal = lines.reduce((s, l) => s + Math.max(1, l.roomsCount), 0);
+    const totalAmount = lines.reduce((s, l) => s + l.totalAmount, 0);
+    const checkIn = lines.reduce((m, l) => (l.checkIn < m ? l.checkIn : m), anchor.checkIn);
+    const checkOut = lines.reduce((m, l) => (l.checkOut > m ? l.checkOut : m), anchor.checkOut);
+    out.push({
+      key,
+      reference: anchor.reference,
+      status: anchor.status,
+      paymentStatus: anchor.paymentStatus,
+      checkIn,
+      checkOut,
+      nights: getNights(checkIn, checkOut),
+      totalAmount,
+      roomsTotal,
+      lineCount: lines.length,
+      roomTypeName: anchor.roomTypeName,
+      roomNumber: anchor.roomNumber,
+    });
+  }
+  return out;
+}
+
 function BookingHistory({
   open,
   bookings,
@@ -697,34 +770,48 @@ function BookingHistory({
     );
   }
 
+  const reservations = foldReservations(bookings);
+
   return (
     <div className="overflow-hidden rounded-2xl border border-border/50 bg-card/40">
       <div className="divide-y divide-border/40">
-        {bookings.map((b) => (
-          <div key={b.id} className="p-3 transition-colors hover:bg-muted/30">
+        {reservations.map((r) => (
+          <div key={r.key} className="p-3 transition-colors hover:bg-muted/30">
             <div className="flex items-center justify-between gap-2">
-              <span className="truncate font-mono text-[13px] font-medium text-foreground">
-                {b.reference}
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate font-mono text-[13px] font-medium text-foreground">
+                  {r.reference}
+                </span>
+                {r.roomsTotal > 1 && (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                    <BedDouble aria-hidden className="size-3" />
+                    {r.roomsTotal} rooms
+                  </span>
+                )}
               </span>
-              <StatusChip status={b.status} />
+              <StatusChip status={r.status} />
             </div>
             <p className="mt-1 truncate text-[11px] text-muted-foreground">
-              {formatDate(b.checkIn)} – {formatDate(b.checkOut)}
-              {b.nights ? ` · ${b.nights} night${b.nights > 1 ? "s" : ""}` : ""}
-              {b.roomTypeName ? ` · ${b.roomTypeName}` : ""}
-              {b.roomNumber ? ` · Rm ${b.roomNumber}` : ""}
+              {formatDate(r.checkIn)} – {formatDate(r.checkOut)}
+              {r.nights ? ` · ${r.nights} night${r.nights > 1 ? "s" : ""}` : ""}
+              {r.roomsTotal > 1
+                ? ""
+                : r.roomTypeName
+                  ? ` · ${r.roomTypeName}`
+                  : ""}
+              {r.roomsTotal > 1 ? "" : r.roomNumber ? ` · Rm ${r.roomNumber}` : ""}
             </p>
             <div className="mt-1.5 flex items-center justify-between gap-2">
               <span className="text-[13px] font-semibold tabular-nums text-foreground">
-                {formatCurrency(b.totalAmount, currency)}
+                {formatCurrency(r.totalAmount, currency)}
               </span>
               <span
                 className={cn(
                   "text-[11px] font-medium",
-                  PAYMENT_STATUS_TONE[b.paymentStatus] ?? "text-muted-foreground"
+                  PAYMENT_STATUS_TONE[r.paymentStatus] ?? "text-muted-foreground"
                 )}
               >
-                {getPaymentLabel(b.paymentStatus)}
+                {getPaymentLabel(r.paymentStatus)}
               </span>
             </div>
           </div>

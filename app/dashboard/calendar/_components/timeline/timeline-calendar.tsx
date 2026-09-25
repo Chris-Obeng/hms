@@ -22,7 +22,7 @@ import { Button, Tooltip } from "@heroui/react";
 import { cn } from "@/lib/utils";
 import type { CalendarAvailabilityBlock, CalendarBooking, CalendarRoom } from "../../actions";
 import { businessToday } from "@/lib/business-date";
-import { getBookingBarColor, isManualLikeSource, NON_BOOKABLE_ROOM_STATUSES, TERMINAL_BOOKING_STATUS_SET } from "../calendar-helpers";
+import { getBookingBarColor, groupAccent, isManualLikeSource, NON_BOOKABLE_ROOM_STATUSES, TERMINAL_BOOKING_STATUS_SET } from "../calendar-helpers";
 import {
   bookingGeometry,
   clampBarGeometry,
@@ -146,13 +146,16 @@ function BookingBar({
   const left = useDraggable({ id: `left:${booking.id}`, disabled: !editable, data: { kind: "resize-left", bookingId: booking.id } satisfies DragData });
   const right = useDraggable({ id: `right:${booking.id}`, disabled: !editable, data: { kind: "resize-right", bookingId: booking.id } satisfies DragData });
   const colors = getBookingBarColor(booking.status, booking.source);
+  const accent = groupAccent(booking.groupId);
   const isDragging = drag.isDragging || left.isDragging || right.isDragging;
   return (
     <div
       className={cn("rl-booking-bar", conflict && "is-conflict", isDragging && "is-dragging", !editable && "is-terminal")}
+      data-group={accent ? "true" : undefined}
       style={{
         background: `linear-gradient(180deg, color-mix(in srgb, ${colors.bg} 84%, white) 0%, ${colors.bg} 52%, color-mix(in srgb, ${colors.bg} 90%, black) 100%)`,
         borderColor: conflict ? "var(--destructive)" : colors.border,
+        ...(accent ? { "--rl-group-accent": accent } as React.CSSProperties : {}),
       }}
     >
       {editable && (
@@ -188,12 +191,17 @@ function BookingBar({
         {...drag.attributes}
         role="button"
         tabIndex={0}
-        aria-label={`${booking.guestName ?? "Guest"}, room ${booking.roomNumber ?? "unassigned"}, ${booking.checkIn} to ${booking.checkOut}, ${booking.status.replaceAll("_", " ")}${conflict ? ", conflict" : ""}`}
+        aria-label={`${booking.guestName ?? "Guest"}, room ${booking.roomNumber ?? "unassigned"}, ${booking.checkIn} to ${booking.checkOut}, ${booking.status.replaceAll("_", " ")}${accent ? ", part of a multi-room reservation" : ""}${(booking.roomsCount ?? 0) > 1 ? `, ${booking.roomsCount} rooms` : ""}${conflict ? ", conflict" : ""}`}
         onClick={onOpen}
         className="rl-booking-move"
       >
         {editable && <GripVertical className="rl-booking-grip" aria-hidden />}
         <span className="rl-booking-name">{booking.guestName ?? "Guest"}</span>
+        {(booking.roomsCount ?? 0) > 1 && (
+          <span className="rl-booking-rooms" aria-hidden>
+            ×{booking.roomsCount}
+          </span>
+        )}
         <span className={cn("rl-booking-pay", booking.paymentStatus === "paid" ? "is-paid" : "is-due")}>
           {booking.paymentStatus === "paid" ? "Paid" : "Due"}
         </span>
@@ -319,7 +327,7 @@ const RoomRow = React.memo(function RoomRow({ room, bookings, blocks, conflicts,
               className={cn("rl-bar-slot", highlightIds?.has(b.id) && "rl-bar-new")}
               style={{ position: "absolute", left: clipped.left, width: clipped.width, top: 8, height: 36 }}
             >
-              <BookingBar booking={b} conflict={conflicts.has(b.id)} canEdit={canEdit} onOpen={() => onOpenBooking(b.id)} />
+              <BookingBar booking={b} conflict={conflicts.has(b.id)} canEdit={canEdit} onOpen={() => onOpenBooking(b.groupId ?? b.id)} />
             </div>
           );
         })}
@@ -674,7 +682,7 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
             <strong>Unassigned · {unassigned.length}</strong>
             <div ref={trayRef}>
               {unassigned.map((b) => (
-                <TrayBooking key={b.id} booking={b} onOpen={() => guardedOpenBooking(b.id)} onAutoAssign={() => onAutoAssign(b.id)} />
+                <TrayBooking key={b.id} booking={b} onOpen={() => guardedOpenBooking(b.groupId ?? b.id)} onAutoAssign={() => onAutoAssign(b.id)} />
               ))}
             </div>
             <p className="rl-unassigned-hint">Drag onto a room to assign</p>

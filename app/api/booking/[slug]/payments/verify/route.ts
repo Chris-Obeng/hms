@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { verifyTransaction, extractSubaccountCode } from "@/lib/paystack";
-import { recordOnlinePayment } from "@/lib/bookings/confirm-online-payment";
+import { recordOnlinePayment, recordOnlineGroupPayment } from "@/lib/bookings/confirm-online-payment";
 import { fromMinor } from "@/lib/money";
 import { rateLimit } from "@/lib/rate-limit";
 import {
@@ -112,11 +112,21 @@ export async function GET(
         ? (JSON.parse(txn.metadata) as Record<string, unknown>)
         : ((txn.metadata ?? {}) as Record<string, unknown>);
 
+    // A grouped reservation carries metadata.group_id (and group_reference); a
+    // single-room booking carries booking_id (and booking_reference). The anchor
+    // booking id equals the group id, so the ownership check and the recording
+    // pipeline key on `entityId` either way.
+    const groupId = typeof metadata.group_id === "string" ? metadata.group_id : null;
     const bookingId = typeof metadata.booking_id === "string" ? metadata.booking_id : null;
+    const entityId = groupId ?? bookingId;
     const bookingRef =
-      typeof metadata.booking_reference === "string" ? metadata.booking_reference : null;
+      typeof metadata.group_reference === "string"
+        ? metadata.group_reference
+        : typeof metadata.booking_reference === "string"
+          ? metadata.booking_reference
+          : null;
 
-    if (!bookingId) {
+    if (!entityId) {
       return NextResponse.json({ verified: false, error: "No booking linked" }, { status: 400 });
     }
 
@@ -124,7 +134,7 @@ export async function GET(
     const { data: ownership, error: ownershipError } = await supabaseAdmin
       .from("bookings")
       .select("hotel_id")
-      .eq("id", bookingId)
+      .eq("id", entityId)
       .maybeSingle();
 
     if (ownershipError) {
@@ -132,7 +142,7 @@ export async function GET(
         scope: "booking-funnel",
         step: "payment_verify",
         hotelId: hotel.id,
-        bookingId,
+        bookingId: entityId,
         reference,
         tags: { "hotel.slug": slug },
       });
@@ -144,7 +154,7 @@ export async function GET(
         urlSlug: slug,
         resolvedHotelId: hotel.id,
         bookingHotelId: ownership?.hotel_id ?? null,
-        bookingId,
+        bookingId: entityId,
       });
       // Either a guest verifying a reference against the wrong hotel's site, or a
       // deliberate cross-tenant probe. Both are worth seeing; the tag says which.
@@ -153,7 +163,7 @@ export async function GET(
         step: "payment_verify",
         level: "error",
         hotelId: hotel.id,
-        bookingId,
+        bookingId: entityId,
         reference,
         tags: {
           "hotel.slug": slug,
@@ -179,7 +189,7 @@ export async function GET(
       captureIssue("Paystack charge has no readable subaccount_code", {
         scope: "booking-funnel",
         step: "payment_verify",
-        bookingId,
+        bookingId: entityId,
         reference,
         tags: { "hotel.slug": slug },
         contexts: {
@@ -193,14 +203,23 @@ export async function GET(
       });
     }
 
-    const result = await recordOnlinePayment({
-      bookingId,
-      paystackReference: reference,
-      paystackId: txn.id != null ? String(txn.id) : null,
-      amountPaid: fromMinor(txn.amount, txnCurrency),
-      currency: txnCurrency,
-      subaccountCode,
-    });
+    const result = groupId
+      ? await recordOnlineGroupPayment({
+          groupId,
+          paystackReference: reference,
+          paystackId: txn.id != null ? String(txn.id) : null,
+          amountPaid: fromMinor(txn.amount, txnCurrency),
+          currency: txnCurrency,
+          subaccountCode,
+        })
+      : await recordOnlinePayment({
+          bookingId: bookingId!,
+          paystackReference: reference,
+          paystackId: txn.id != null ? String(txn.id) : null,
+          amountPaid: fromMinor(txn.amount, txnCurrency),
+          currency: txnCurrency,
+          subaccountCode,
+        });
 
     switch (result.outcome) {
       case "already_recorded":

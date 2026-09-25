@@ -43,15 +43,15 @@ INSERT INTO public.staff_profiles (clerk_user_id, clerk_org_id, email, role, is_
 -- stay, and a comped stay whose zero rate cannot satisfy rate_minor > 0.
 INSERT INTO public.bookings
   (id, hotel_id, reference, check_in, check_out, room_rate, subtotal, total_amount,
-   rooms_count, currency, status) VALUES
+   rooms_count, currency, status, cancelled_at) VALUES
   (:'open', :'hA', 'NPROBE-OPEN', current_date + 1, current_date + 4,
-   450.00, 2700.00, 2700.00, 2, 'GHS', 'confirmed'),
+   450.00, 2700.00, 2700.00, 2, 'GHS', 'confirmed', NULL),
   (:'past', :'hA', 'NPROBE-PAST', current_date - 10, current_date - 7,
-   300.00,  900.00,  900.00, 1, 'GHS', 'checked_out'),
+   300.00,  900.00,  900.00, 1, 'GHS', 'checked_out', NULL),
   (:'canx', :'hA', 'NPROBE-CANX', current_date + 1, current_date + 3,
-   500.00, 1000.00, 1000.00, 1, 'GHS', 'cancelled'),
+   500.00, 1000.00, 1000.00, 1, 'GHS', 'cancelled', now()),
   (:'comp', :'hA', 'NPROBE-COMP', current_date + 1, current_date + 2,
-        0,       0,       0, 1, 'GHS', 'confirmed');
+        0,       0,       0, 1, 'GHS', 'confirmed', NULL);
 
 -- -----------------------------------------------------------------------------
 -- 1. The backfill reconstructs exactly the open, priceable, live stays.

@@ -17,6 +17,8 @@ import {
   Landmark,
   ShieldCheck,
   ArrowLeft,
+  Plus,
+  X,
 } from "lucide-react";
 import {
   Button,
@@ -24,8 +26,8 @@ import {
   Label,
   ListBox,
   Select,
-  TextArea,
   TextField,
+  TextArea,
 } from "@heroui/react";
 import { RoomGallery } from "@/components/booking/room-gallery";
 import { formatCurrencyCompact } from "@/lib/format-currency";
@@ -82,6 +84,33 @@ interface Props {
   initialRooms?: number;
 }
 
+/**
+ * One room line in the cart. Keyed by room-type id: a guest picks a type once and
+ * sets its quantity/occupancy on that card, so a second "Add" of the same type
+ * edits the existing line rather than stacking a duplicate.
+ */
+interface CartLine {
+  id: string;
+  roomType: RoomType;
+  adults: number;
+  children: number;
+  quantity: number;
+}
+
+/** Product caps: up to 4 distinct room types (group RPC guest limit), 5 of each. */
+const MAX_ROOM_TYPES = 4;
+const MAX_QTY_PER_LINE = 5;
+
+/**
+ * Per-room children cap. A positive max_children is a hard cap; 0 (the column
+ * default before children capacity was surfaced) means "no explicit limit" and
+ * falls back to this ceiling — so guests can always add kids when booking.
+ */
+const DEFAULT_MAX_CHILDREN = 6;
+function childrenCapFor(rt: { maxChildren: number }): number {
+  return rt.maxChildren > 0 ? rt.maxChildren : DEFAULT_MAX_CHILDREN;
+}
+
 function fmtDate(iso: string) {
   try {
     return format(parseISO(iso), "EEE, MMM d");
@@ -114,12 +143,25 @@ export function BookingWizard({
 
   const [checkIn, setCheckIn] = React.useState(initialCheckIn ?? todayStr);
   const [checkOut, setCheckOut] = React.useState(initialCheckOut ?? tomorrowStr);
+  // Party defaults applied to the NEXT room added; each cart line then owns its
+  // own occupancy/quantity, edited on the room card.
   const [adults, setAdults] = React.useState(Math.max(1, initialAdults));
   const [childrenCount, setChildrenCount] = React.useState(Math.max(0, initialChildren));
   const [roomsCount, setRoomsCount] = React.useState(Math.max(1, initialRooms));
-  const [selectedRoom, setSelectedRoom] = React.useState<RoomType | null>(
-    roomTypes.find((r) => r.id === initialRoomTypeId) ?? null
-  );
+  // Cart. A deep link (?room=) seeds the first line so the funnel opens ready.
+  const [lines, setLines] = React.useState<CartLine[]>(() => {
+    const seed = roomTypes.find((r) => r.id === initialRoomTypeId);
+    if (!seed) return [];
+    return [
+      {
+        id: seed.id,
+        roomType: seed,
+        adults: Math.min(Math.max(1, initialAdults), seed.maxAdults || 10),
+        children: Math.min(Math.max(0, initialChildren), childrenCapFor(seed)),
+        quantity: Math.max(1, Math.min(initialRooms, MAX_QTY_PER_LINE)),
+      },
+    ];
+  });
   const [galleryRoom, setGalleryRoom] = React.useState<RoomType | null>(null);
   const [guestName, setGuestName] = React.useState("");
   const [guestEmail, setGuestEmail] = React.useState("");
@@ -194,16 +236,26 @@ export function BookingWizard({
         }
         setResolvedPrices(map);
 
-        // Deselect if the chosen room is sold out or no longer sellable for the
-        // new dates. Dropping the selection here is what stops a guest carrying a
-        // restricted stay all the way to payment for the write to refuse it.
-        setSelectedRoom((prev) => {
-          if (!prev) return prev;
-          const resolved = map[prev.id];
-          if (resolved?.availableCount === 0) return null;
-          if (resolved?.restrictionReason) return null;
-          return prev;
-        });
+        // Reconcile the cart with the new dates: drop any line that is sold out or
+        // no longer sellable, and clamp a line's quantity to what is left. This is
+        // what stops a guest carrying a restricted or oversold stay to payment for
+        // the write to refuse it.
+        setLines((prev) =>
+          prev
+            .filter((l) => {
+              const resolved = map[l.roomType.id];
+              if (!resolved) return true; // absent from response — let the server judge
+              if (resolved.availableCount === 0) return false;
+              if (resolved.restrictionReason) return false;
+              return true;
+            })
+            .map((l) => {
+              const avail = map[l.roomType.id]?.availableCount;
+              if (avail != null && l.quantity > avail)
+                return { ...l, quantity: Math.max(1, avail) };
+              return l;
+            })
+        );
       } finally {
         if (!cancelled) setPriceLoading(false);
       }
@@ -216,6 +268,41 @@ export function BookingWizard({
     };
   }, [checkIn, checkOut, slug, availNonce]);
 
+  // ── Cart mutations ──
+  const addLine = React.useCallback(
+    (rt: RoomType) => {
+      setLines((prev) => {
+        if (prev.some((l) => l.roomType.id === rt.id)) return prev;
+        if (prev.length >= MAX_ROOM_TYPES) return prev;
+        const avail = resolvedPrices[rt.id]?.availableCount;
+        const qty = Math.max(
+          1,
+          Math.min(roomsCount, MAX_QTY_PER_LINE, avail ?? MAX_QTY_PER_LINE)
+        );
+        return [
+          ...prev,
+          {
+            id: rt.id,
+            roomType: rt,
+            adults: Math.min(Math.max(1, adults), rt.maxAdults || 10),
+            children: Math.min(Math.max(0, childrenCount), childrenCapFor(rt)),
+            quantity: qty,
+          },
+        ];
+      });
+    },
+    [resolvedPrices, roomsCount, adults, childrenCount]
+  );
+  const removeLine = React.useCallback(
+    (id: string) => setLines((prev) => prev.filter((l) => l.id !== id)),
+    []
+  );
+  const updateLine = React.useCallback(
+    (id: string, patch: Partial<Omit<CartLine, "id" | "roomType">>) =>
+      setLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l))),
+    []
+  );
+
   const nights =
     checkIn && checkOut
       ? Math.max(
@@ -226,40 +313,68 @@ export function BookingWizard({
         )
       : 1;
 
-  const resolvedSelected = selectedRoom ? resolvedPrices[selectedRoom.id] : null;
-  const displayNightRate = resolvedSelected?.displayPrice ?? selectedRoom?.basePrice ?? 0;
-
-  // Availability caps how many rooms of this type the party can actually book.
-  const selectedAvail = selectedRoom
-    ? resolvedPrices[selectedRoom.id]?.availableCount
-    : null;
-  const bookableRooms =
-    selectedAvail != null ? Math.max(1, Math.min(roomsCount, selectedAvail)) : roomsCount;
-
-  // Pricing mirrors POST /api/booking/[slug]/bookings exactly:
-  // unit subtotal (override-resolved) × rooms, then tax on top.
-  const unitSubtotal =
-    resolvedSelected?.subtotal ?? (selectedRoom?.basePrice ?? 0) * nights;
-  const subtotal = Math.round(unitSubtotal * bookableRooms * 100) / 100;
-  const taxAmount = hotel.taxEnabled
-    ? Math.round(subtotal * (hotel.taxPercentage / 100) * 100) / 100
-    : 0;
-  const total = subtotal + taxAmount;
-
   const fmt = (n: number) => formatCurrencyCompact(n, hotel.currency);
 
-  const selectedAvailable = selectedAvail === null || selectedAvail === undefined || selectedAvail > 0;
+  // Per-line pricing mirrors POST /api/booking/[slug]/bookings exactly, per line:
+  // unit subtotal (override-resolved) × rooms, then tax on top. Summed across
+  // lines it equals the group total the payment layer charges.
+  type PricedLine = {
+    line: CartLine;
+    qty: number;
+    nightRate: number;
+    subtotal: number;
+    tax: number;
+    total: number;
+    availableCount: number | null;
+    restrictionReason: string | null;
+    blocked: boolean;
+  };
+  const pricedLines: PricedLine[] = lines.map((l) => {
+    const resolved = resolvedPrices[l.roomType.id];
+    const avail = resolved?.availableCount ?? null;
+    const restrictionReason = resolved?.restrictionReason ?? null;
+    const qty = avail != null ? Math.max(1, Math.min(l.quantity, avail)) : l.quantity;
+    const unitSubtotal = resolved?.subtotal ?? (l.roomType.basePrice ?? 0) * nights;
+    const subtotal = Math.round(unitSubtotal * qty * 100) / 100;
+    const tax = hotel.taxEnabled
+      ? Math.round(subtotal * (hotel.taxPercentage / 100) * 100) / 100
+      : 0;
+    return {
+      line: l,
+      qty,
+      nightRate: resolved?.displayPrice ?? l.roomType.basePrice ?? 0,
+      subtotal,
+      tax,
+      total: subtotal + tax,
+      availableCount: avail,
+      restrictionReason,
+      blocked: avail === 0 || restrictionReason !== null,
+    };
+  });
+  const subtotal = Math.round(pricedLines.reduce((s, p) => s + p.subtotal, 0) * 100) / 100;
+  const taxAmount = Math.round(pricedLines.reduce((s, p) => s + p.tax, 0) * 100) / 100;
+  const total = subtotal + taxAmount;
+  const totalRooms = pricedLines.reduce((s, p) => s + p.qty, 0);
 
+  const datesValid = !!checkIn && !!checkOut && checkOut > checkIn;
   const step1Valid =
-    !!selectedRoom &&
-    !!checkIn &&
-    !!checkOut &&
-    checkOut > checkIn &&
-    selectedAvailable;
+    lines.length >= 1 && datesValid && pricedLines.every((p) => !p.blocked);
+
   const nameOk = guestName.trim().length > 1;
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim());
   const phoneOk = guestPhone.replace(/\s/g, "").length >= 7;
   const step2Valid = nameOk && emailOk && phoneOk;
+
+  const lineById = React.useMemo(() => {
+    const m = new Map<string, CartLine>();
+    for (const l of lines) m.set(l.id, l);
+    return m;
+  }, [lines]);
+  const totalById = React.useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of pricedLines) m.set(p.line.id, p.total);
+    return m;
+  }, [pricedLines]);
 
   const selectedCountryObj = countryList.find((c) => c.name === nationality);
   const selectedDialCode = selectedCountryObj?.dialCode || defaultDial;
@@ -314,35 +429,58 @@ export function BookingWizard({
   }, [roomTypes, resolvedPrices]);
 
   async function handleConfirm() {
-    if (!selectedRoom || !step1Valid || !step2Valid) return;
+    if (!step1Valid || !step2Valid || pricedLines.length === 0) return;
     setSubmitting(true);
     try {
+      const isGroup = pricedLines.length >= 2;
+      // Shared reservation fields — one primary guest, one payment, whatever the
+      // room count. Sent identically on both the single and group paths.
+      const guestFields = {
+        guest_name: guestName.trim(),
+        guest_email: guestEmail.trim(),
+        guest_phone: guestPhone.trim(),
+        nationality: nationality || undefined,
+        payment_preference: paymentPref,
+        special_requests: specialRequests || undefined,
+      };
+      // A one-line cart posts the legacy single-room body (NULL group_id path,
+      // byte-for-byte today's behaviour); 2–4 lines post the group cart.
+      const body = isGroup
+        ? {
+            ...guestFields,
+            lines: pricedLines.map((p) => ({
+              room_type_id: p.line.roomType.id,
+              check_in: checkIn,
+              check_out: checkOut,
+              adults: p.line.adults,
+              children: p.line.children,
+              rooms_count: p.qty,
+            })),
+          }
+        : {
+            room_type_id: pricedLines[0].line.roomType.id,
+            check_in: checkIn,
+            check_out: checkOut,
+            adults: pricedLines[0].line.adults,
+            children: pricedLines[0].line.children,
+            rooms_count: pricedLines[0].qty,
+            ...guestFields,
+          };
+
       const res = await fetch(`/api/booking/${slug}/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          room_type_id: selectedRoom.id,
-          check_in: checkIn,
-          check_out: checkOut,
-          adults,
-          children: childrenCount,
-          rooms_count: bookableRooms,
-          guest_name: guestName.trim(),
-          guest_email: guestEmail.trim(),
-          guest_phone: guestPhone.trim(),
-          nationality: nationality || undefined,
-          payment_preference: paymentPref,
-          special_requests: specialRequests || undefined,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         if (res.status === 409) {
-          // Room taken while checking out — honest copy, refresh live counts,
-          // and send the guest back to step 1 with everything they typed kept.
+          // A room was taken while checking out — honest copy, refresh live counts
+          // (which prunes/clamps the cart), and send the guest back to step 1 with
+          // everything they typed kept.
           toast.danger(
             data?.error ??
-              "That room was just taken for these dates. Pick another room or change your dates."
+              "A room was just taken for these dates. Adjust your selection or change your dates."
           );
           setAvailNonce((n) => n + 1);
           goToSection(1);
@@ -386,6 +524,14 @@ export function BookingWizard({
     [step1Valid, step2Valid, section]
   );
 
+  const payNowCta =
+    paymentPref === "pay_now" &&
+    (hotel.paymentPolicy === "pay_now_only" ||
+      (hotel.paymentPolicy === "choice" && hotel.hasPaystack));
+
+  // Step 1 needs room for the cart side-rail; the form steps stay a tight column.
+  const mainMax = section === 1 ? "max-w-5xl" : "max-w-2xl";
+
   return (
     <>
       <div className="min-h-[100dvh] flex flex-col bg-[var(--bk-bg)]">
@@ -425,7 +571,7 @@ export function BookingWizard({
         {/* Main */}
         <main
           ref={mainRef}
-          className="flex-1 w-full max-w-2xl mx-auto booking-safe-x pt-5 sm:pt-8 md:pt-10 pb-[calc(6.5rem+env(safe-area-inset-bottom))] sm:pb-12"
+          className={`flex-1 w-full ${mainMax} mx-auto booking-safe-x pt-5 sm:pt-8 md:pt-10 pb-[calc(6.5rem+env(safe-area-inset-bottom))] sm:pb-12`}
         >
           <div className="mb-5 sm:mb-8">
             <h1 className="booking-heading text-[1.65rem] leading-tight sm:text-3xl md:text-4xl text-[var(--bk-ink)] text-balance">
@@ -434,7 +580,7 @@ export function BookingWizard({
               {section === 3 && "Review & confirm"}
             </h1>
             <p className="text-sm text-[var(--bk-muted)] mt-1.5 max-w-prose">
-              {section === 1 && "Select dates and a room to continue."}
+              {section === 1 && "Select your dates, then add one or more rooms."}
               {section === 2 && "We will send your confirmation here."}
               {section === 3 && "Double-check everything before you confirm."}
             </p>
@@ -443,7 +589,7 @@ export function BookingWizard({
           {/* ── Step 1 ── */}
           {section === 1 && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 lg:max-w-3xl">
                 <BookingDateRangePicker
                   checkIn={checkIn}
                   checkOut={checkOut}
@@ -457,92 +603,131 @@ export function BookingWizard({
                   adults={adults}
                   childrenCount={childrenCount}
                   rooms={roomsCount}
-                  maxRooms={
-                    selectedRoom && selectedAvail != null
-                      ? Math.max(1, Math.min(5, selectedAvail))
-                      : 5
-                  }
                   onAdultsChange={setAdults}
                   onChildrenChange={setChildrenCount}
                   onRoomsChange={setRoomsCount}
                 />
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h2 className="text-sm font-semibold text-[var(--bk-ink)]">
-                    Available rooms
-                  </h2>
-                  {nights > 0 && (
-                    <span className="text-xs text-[var(--bk-muted)]">
-                      {nights} night{nights !== 1 ? "s" : ""}
-                      {priceLoading ? " · updating rates..." : ""}
-                    </span>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_21rem] lg:gap-8 lg:items-start">
+                {/* Room list */}
+                <div className="space-y-3 min-w-0">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h2 className="text-sm font-semibold text-[var(--bk-ink)]">
+                      Available rooms
+                    </h2>
+                    {nights > 0 && (
+                      <span className="text-xs text-[var(--bk-muted)]">
+                        {nights} night{nights !== 1 ? "s" : ""}
+                        {priceLoading ? " · updating rates..." : ""}
+                      </span>
+                    )}
+                  </div>
+
+                  {roomTypes.length === 0 ? (
+                    <div className="booking-surface-soft p-8 text-center">
+                      <p className="text-sm text-[var(--bk-muted)]">
+                        No rooms are available for booking yet.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {sortedRooms.map((rt) => {
+                        const line = lineById.get(rt.id) ?? null;
+                        return (
+                          <RoomCard
+                            key={rt.id}
+                            room={rt}
+                            currency={hotel.currency}
+                            displayPrice={
+                              resolvedPrices[rt.id]?.displayPrice ?? rt.basePrice
+                            }
+                            priceLoading={priceLoading}
+                            availableCount={resolvedPrices[rt.id]?.availableCount ?? null}
+                            restrictionReason={
+                              resolvedPrices[rt.id]?.restrictionReason ?? null
+                            }
+                            line={line}
+                            lineTotal={totalById.get(rt.id) ?? null}
+                            atLimit={lines.length >= MAX_ROOM_TYPES && !line}
+                            fmt={fmt}
+                            onAdd={() => addLine(rt)}
+                            onRemove={() => removeLine(rt.id)}
+                            onQty={(q) => updateLine(rt.id, { quantity: q })}
+                            onAdults={(a) => updateLine(rt.id, { adults: a })}
+                            onChildren={(c) => updateLine(rt.id, { children: c })}
+                            onPhotos={(e) => {
+                              e.stopPropagation();
+                              setGalleryRoom(rt);
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
                   )}
+
+                  {/* Inline cart — tablet & mobile (rail is desktop only) */}
+                  <div className="lg:hidden pt-1">
+                    <CartSummary
+                      pricedLines={pricedLines}
+                      nights={nights}
+                      checkIn={checkIn}
+                      checkOut={checkOut}
+                      taxEnabled={hotel.taxEnabled}
+                      taxPercentage={hotel.taxPercentage}
+                      subtotal={subtotal}
+                      taxAmount={taxAmount}
+                      total={total}
+                      fmt={fmt}
+                      onRemove={removeLine}
+                    />
+                  </div>
+
+                  {/* Tablet continue (mobile uses sticky bar; desktop uses rail) */}
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    isDisabled={!step1Valid}
+                    onPress={() => goToSection(2)}
+                    className="booking-cta w-full h-12 rounded-xl text-sm touch-manipulation hidden sm:inline-flex lg:hidden"
+                  >
+                    Continue
+                  </Button>
                 </div>
 
-                {roomTypes.length === 0 ? (
-                  <div className="booking-surface-soft p-8 text-center">
-                    <p className="text-sm text-[var(--bk-muted)]">
-                      No rooms are available for booking yet.
-                    </p>
+                {/* Cart rail — desktop */}
+                <aside className="hidden lg:block">
+                  <div className="lg:sticky lg:top-28">
+                    <CartSummary
+                      pricedLines={pricedLines}
+                      nights={nights}
+                      checkIn={checkIn}
+                      checkOut={checkOut}
+                      taxEnabled={hotel.taxEnabled}
+                      taxPercentage={hotel.taxPercentage}
+                      subtotal={subtotal}
+                      taxAmount={taxAmount}
+                      total={total}
+                      fmt={fmt}
+                      onRemove={removeLine}
+                      onContinue={() => goToSection(2)}
+                      canContinue={step1Valid}
+                    />
                   </div>
-                ) : (
-                  <div className="space-y-3" role="radiogroup" aria-label="Room type">
-                    {sortedRooms.map((rt) => {
-                      const avail = resolvedPrices[rt.id]?.availableCount ?? null;
-                      const restrictionReason =
-                        resolvedPrices[rt.id]?.restrictionReason ?? null;
-                      const blocked = avail === 0 || restrictionReason !== null;
-                      return (
-                        <RoomOptionCard
-                          key={rt.id}
-                          room={rt}
-                          selected={selectedRoom?.id === rt.id}
-                          currency={hotel.currency}
-                          displayPrice={
-                            resolvedPrices[rt.id]?.displayPrice ?? rt.basePrice
-                          }
-                          priceLoading={priceLoading}
-                          availableCount={avail}
-                          restrictionReason={restrictionReason}
-                          onSelect={() => {
-                            if (!blocked) setSelectedRoom(rt);
-                          }}
-                          onPhotos={(e) => {
-                            e.stopPropagation();
-                            setGalleryRoom(rt);
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
+                </aside>
               </div>
-
-              {/* Desktop continue — mobile uses sticky bar when room selected */}
-              <Button
-                variant="primary"
-                size="lg"
-                isDisabled={!step1Valid}
-                onPress={() => goToSection(2)}
-                className={`booking-cta w-full h-12 rounded-xl text-sm touch-manipulation ${
-                  selectedRoom ? "hidden sm:inline-flex" : ""
-                }`}
-              >
-                Continue
-              </Button>
             </div>
           )}
 
           {/* ── Step 2 ── */}
           {section === 2 && (
             <div className="space-y-4 sm:space-y-5">
-              {selectedRoom && (
+              {lines.length > 0 && (
                 <div className="booking-surface-soft px-3.5 sm:px-4 py-3 flex items-center justify-between gap-3 text-sm">
                   <div className="min-w-0">
                     <p className="font-semibold text-[var(--bk-ink)] truncate">
-                      {selectedRoom.name}
+                      {totalRooms} room{totalRooms !== 1 ? "s" : ""}
+                      {lines.length > 1 ? ` · ${lines.length} types` : ""}
                     </p>
                     <p className="text-xs text-[var(--bk-muted)] mt-0.5">
                       {fmtDate(checkIn)} - {fmtDate(checkOut)} · {nights} night
@@ -597,7 +782,6 @@ export function BookingWizard({
                   </p>
                 )}
               </TextField>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <TextField
                   name="phone"
@@ -624,9 +808,7 @@ export function BookingWizard({
                   {selectedDialCode && (
                     <p className="text-[11px] text-[var(--bk-muted)] mt-1">
                       Country code {selectedDialCode}
-                      {selectedCountryObj
-                        ? ` · ${selectedCountryObj.name}`
-                        : ""}
+                      {selectedCountryObj ? ` · ${selectedCountryObj.name}` : ""}
                     </p>
                   )}
                 </TextField>
@@ -697,7 +879,6 @@ export function BookingWizard({
                   </Select>
                 </div>
               </div>
-
               <div>
                 <button
                   type="button"
@@ -710,27 +891,11 @@ export function BookingWizard({
                   ) : (
                     <ChevronDown className="size-3.5" />
                   )}
-                  Special requests & guest count
+                  Special requests
                 </button>
 
                 {showExtras && (
                   <div className="mt-3 p-4 booking-surface-soft space-y-4">
-                    <NumericStepper
-                      label="Adults"
-                      description={`Max ${selectedRoom?.maxAdults ?? 10}`}
-                      value={adults}
-                      onChange={setAdults}
-                      min={1}
-                      max={selectedRoom?.maxAdults ?? 10}
-                    />
-                    <NumericStepper
-                      label="Children"
-                      description="Ages 0-12"
-                      value={childrenCount}
-                      onChange={setChildrenCount}
-                      min={0}
-                      max={selectedRoom?.maxChildren ?? 6}
-                    />
                     <TextField
                       name="specialRequests"
                       value={specialRequests}
@@ -773,18 +938,17 @@ export function BookingWizard({
           {/* ── Step 3 ── */}
           {section === 3 && (
             <div className="space-y-4 sm:space-y-5">
-              {/* Summary card */}
+              {/* Reservation summary */}
               <div className="booking-surface p-4 sm:p-5 space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="booking-heading text-xl sm:text-2xl text-[var(--bk-ink)] leading-tight">
-                      {selectedRoom?.name}
+                      {totalRooms} room{totalRooms !== 1 ? "s" : ""}
                     </p>
-                    {selectedRoom?.bedConfiguration && (
-                      <p className="text-xs text-[var(--bk-muted)] mt-1">
-                        {selectedRoom.bedConfiguration}
-                      </p>
-                    )}
+                    <p className="text-xs text-[var(--bk-muted)] mt-1">
+                      {fmtDate(checkIn)} - {fmtDate(checkOut)} · {nights} night
+                      {nights !== 1 ? "s" : ""}
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -820,6 +984,32 @@ export function BookingWizard({
                   </div>
                 </div>
 
+                {/* Per-line breakdown — every room reads as its own line */}
+                <div className="space-y-3 border-t border-[var(--bk-line)] pt-3">
+                  {pricedLines.map((p) => (
+                    <div key={p.line.id} className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-[var(--bk-ink)] truncate">
+                          {p.qty > 1 ? `${p.qty} × ` : ""}
+                          {p.line.roomType.name}
+                        </p>
+                        <p className="text-xs text-[var(--bk-muted)] mt-0.5">
+                          {p.line.adults} adult{p.line.adults !== 1 ? "s" : ""}
+                          {p.line.children > 0
+                            ? `, ${p.line.children} child${p.line.children !== 1 ? "ren" : ""}`
+                            : ""}
+                          {" · "}
+                          {fmt(p.nightRate)}/night
+                        </p>
+                      </div>
+                      <span className="booking-price text-sm text-[var(--bk-ink)] shrink-0 tabular-nums">
+                        {fmt(p.subtotal)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Guest + totals */}
                 <div className="space-y-2 text-sm border-t border-[var(--bk-line)] pt-3">
                   <div className="flex justify-between gap-4">
                     <span className="text-[var(--bk-muted)]">Guest</span>
@@ -829,40 +1019,29 @@ export function BookingWizard({
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <span className="text-[var(--bk-muted)]">Party</span>
-                    <span className="text-right text-[var(--bk-ink)]">
-                      {adults} adult{adults !== 1 ? "s" : ""}
-                      {childrenCount > 0
-                        ? `, ${childrenCount} child${childrenCount !== 1 ? "ren" : ""}`
-                        : ""}
-                      {bookableRooms > 1 ? `, ${bookableRooms} rooms` : ""}
+                    <span className="text-[var(--bk-muted)]">Subtotal</span>
+                    <span className="booking-price text-[var(--bk-ink)] tabular-nums">
+                      {fmt(subtotal)}
                     </span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-[var(--bk-muted)]">
-                      {fmt(displayNightRate)} × {nights} night
-                      {nights !== 1 ? "s" : ""}
-                      {bookableRooms > 1 ? ` × ${bookableRooms} rooms` : ""}
-                    </span>
-                    <span className="booking-price text-[var(--bk-ink)]">{fmt(subtotal)}</span>
                   </div>
                   {taxAmount > 0 && (
                     <div className="flex justify-between gap-4">
                       <span className="text-[var(--bk-muted)]">
                         Taxes & fees ({hotel.taxPercentage}%)
                       </span>
-                      <span className="booking-price text-[var(--bk-ink)]">{fmt(taxAmount)}</span>
+                      <span className="booking-price text-[var(--bk-ink)] tabular-nums">
+                        {fmt(taxAmount)}
+                      </span>
                     </div>
                   )}
                   <div className="flex justify-between items-baseline gap-4 pt-2 border-t border-[var(--bk-line)]">
                     <span className="font-semibold text-[var(--bk-ink)]">Total</span>
-                    <span className="booking-heading booking-price text-2xl text-[var(--bk-ink)]">
+                    <span className="booking-heading booking-price text-2xl text-[var(--bk-ink)] tabular-nums">
                       {fmt(total)}
                     </span>
                   </div>
                 </div>
               </div>
-
               {/* Payment */}
               {hotel.paymentPolicy === "choice" && hotel.hasPaystack && (
                 <div className="space-y-2.5">
@@ -946,9 +1125,7 @@ export function BookingWizard({
                       <Loader2 className="size-4 animate-spin" />
                       Processing...
                     </span>
-                  ) : paymentPref === "pay_now" &&
-                    (hotel.paymentPolicy === "pay_now_only" ||
-                      (hotel.paymentPolicy === "choice" && hotel.hasPaystack)) ? (
+                  ) : payNowCta ? (
                     `Pay ${fmt(total)}`
                   ) : (
                     "Confirm reservation"
@@ -963,10 +1140,10 @@ export function BookingWizard({
         <div className="booking-sticky-bar sm:hidden">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              {selectedRoom ? (
+              {lines.length > 0 ? (
                 <>
                   <p className="text-[11px] text-[var(--bk-muted)] truncate">
-                    {selectedRoom.name}
+                    {totalRooms} room{totalRooms !== 1 ? "s" : ""}
                     {nights ? ` · ${nights} night${nights !== 1 ? "s" : ""}` : ""}
                   </p>
                   <p className="booking-price text-base font-semibold text-[var(--bk-ink)] tabular-nums">
@@ -978,7 +1155,7 @@ export function BookingWizard({
                 </>
               ) : (
                 <p className="text-xs text-[var(--bk-muted)] leading-snug">
-                  Select a room to continue
+                  Add a room to continue
                 </p>
               )}
             </div>
@@ -1035,9 +1212,7 @@ export function BookingWizard({
                 >
                   {submitting ? (
                     <Loader2 className="size-4 animate-spin" />
-                  ) : paymentPref === "pay_now" &&
-                    (hotel.paymentPolicy === "pay_now_only" ||
-                      (hotel.paymentPolicy === "choice" && hotel.hasPaystack)) ? (
+                  ) : payNowCta ? (
                     "Pay"
                   ) : (
                     "Confirm"
@@ -1068,59 +1243,205 @@ export function BookingWizard({
   );
 }
 
-function RoomOptionCard({
+type PricedCartLine = {
+  line: CartLine;
+  qty: number;
+  nightRate: number;
+  subtotal: number;
+  tax: number;
+  total: number;
+  availableCount: number | null;
+  restrictionReason: string | null;
+  blocked: boolean;
+};
+
+/**
+ * Reservation cart — desktop side-rail and mobile inline. Lists every line with
+ * per-line remove and a live subtotal/tax/total. `onContinue` is passed only by
+ * the desktop rail (mobile advances from the sticky bar).
+ */
+function CartSummary({
+  pricedLines,
+  nights,
+  checkIn,
+  checkOut,
+  taxEnabled,
+  taxPercentage,
+  subtotal,
+  taxAmount,
+  total,
+  fmt,
+  onRemove,
+  onContinue,
+  canContinue,
+}: {
+  pricedLines: PricedCartLine[];
+  nights: number;
+  checkIn: string;
+  checkOut: string;
+  taxEnabled: boolean;
+  taxPercentage: number;
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+  fmt: (n: number) => string;
+  onRemove: (id: string) => void;
+  onContinue?: () => void;
+  canContinue?: boolean;
+}) {
+  const empty = pricedLines.length === 0;
+  const totalRooms = pricedLines.reduce((s, p) => s + p.qty, 0);
+
+  return (
+    <div className="booking-surface p-4 sm:p-5 space-y-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-sm font-semibold text-[var(--bk-ink)]">
+          Your reservation
+        </h2>
+        {!empty && (
+          <span className="text-xs text-[var(--bk-muted)]">
+            {totalRooms} room{totalRooms !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+      {empty ? (
+        <p className="text-xs text-[var(--bk-muted)] leading-relaxed py-1">
+          No rooms added yet. Choose a room to see your price.
+        </p>
+      ) : (
+        <>
+          <p className="text-xs text-[var(--bk-muted)]">
+            {fmtDate(checkIn)} - {fmtDate(checkOut)} · {nights} night
+            {nights !== 1 ? "s" : ""}
+          </p>
+          <ul className="space-y-2.5">
+            {pricedLines.map((p) => (
+              <li
+                key={p.line.id}
+                className="flex items-start justify-between gap-2 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium text-[var(--bk-ink)] truncate">
+                    {p.qty > 1 ? `${p.qty} × ` : ""}
+                    {p.line.roomType.name}
+                  </p>
+                  <p className="text-[11px] text-[var(--bk-muted)] mt-0.5">
+                    {p.line.adults} adult{p.line.adults !== 1 ? "s" : ""}
+                    {p.line.children > 0 ? `, ${p.line.children} ch` : ""}
+                    {p.blocked ? " · unavailable" : ""}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="booking-price text-sm text-[var(--bk-ink)] tabular-nums">
+                    {fmt(p.subtotal)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onRemove(p.line.id)}
+                    aria-label={`Remove ${p.line.roomType.name}`}
+                    className="p-1 rounded-md text-[var(--bk-muted)] hover:text-[var(--bk-danger)] hover:bg-[var(--bk-surface-soft)] transition-colors cursor-pointer touch-manipulation"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <div className="space-y-1.5 text-sm border-t border-[var(--bk-line)] pt-3">
+            <div className="flex justify-between gap-4">
+              <span className="text-[var(--bk-muted)]">Subtotal</span>
+              <span className="booking-price text-[var(--bk-ink)] tabular-nums">
+                {fmt(subtotal)}
+              </span>
+            </div>
+            {taxEnabled && taxAmount > 0 && (
+              <div className="flex justify-between gap-4">
+                <span className="text-[var(--bk-muted)]">
+                  Taxes & fees ({taxPercentage}%)
+                </span>
+                <span className="booking-price text-[var(--bk-ink)] tabular-nums">
+                  {fmt(taxAmount)}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between items-baseline gap-4 pt-2 border-t border-[var(--bk-line)]">
+              <span className="font-semibold text-[var(--bk-ink)]">Total</span>
+              <span className="booking-heading booking-price text-xl text-[var(--bk-ink)] tabular-nums">
+                {fmt(total)}
+              </span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {onContinue && (
+        <Button
+          variant="primary"
+          size="lg"
+          isDisabled={!canContinue}
+          onPress={onContinue}
+          className="booking-cta w-full h-12 rounded-xl text-sm touch-manipulation"
+        >
+          Continue
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function RoomCard({
   room,
-  selected,
   currency,
   displayPrice,
   priceLoading,
   availableCount,
   restrictionReason,
-  onSelect,
+  line,
+  lineTotal,
+  atLimit,
+  fmt,
+  onAdd,
+  onRemove,
+  onQty,
+  onAdults,
+  onChildren,
   onPhotos,
 }: {
   room: RoomType;
-  selected: boolean;
   currency: string;
   displayPrice: number;
   priceLoading: boolean;
   availableCount: number | null;
   /** Rate plan reason this window cannot be sold, already guest-facing. */
   restrictionReason: string | null;
-  onSelect: () => void;
+  line: CartLine | null;
+  lineTotal: number | null;
+  atLimit: boolean;
+  fmt: (n: number) => string;
+  onAdd: () => void;
+  onRemove: () => void;
+  onQty: (q: number) => void;
+  onAdults: (a: number) => void;
+  onChildren: (c: number) => void;
   onPhotos: (e: React.MouseEvent) => void;
 }) {
   const img = room.images[0]?.url ?? null;
   const soldOut = availableCount === 0;
-  // Sold out and restricted are both unbookable, so they share every
-  // interaction and affordance, but they are told apart in the copy: "sold out"
-  // is a dead end, a minimum stay is something the guest can act on by moving
-  // their dates.
+  // Sold out and restricted are both unbookable; the copy tells them apart.
   const blocked = soldOut || restrictionReason !== null;
   const scarce =
     !blocked && availableCount !== null && availableCount > 0 && availableCount <= 2;
+  const maxQty = Math.min(availableCount ?? MAX_QTY_PER_LINE, MAX_QTY_PER_LINE);
+  const inCart = line !== null;
 
   return (
     <div
-      role="radio"
-      aria-checked={selected}
-      aria-disabled={blocked || undefined}
-      tabIndex={blocked ? -1 : 0}
-      onClick={() => {
-        if (!blocked) onSelect();
-      }}
-      onKeyDown={(e) => {
-        if (blocked) return;
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-      data-selected={selected}
+      data-in-cart={inCart ? "true" : "false"}
       data-sold-out={soldOut ? "true" : "false"}
       data-blocked={blocked ? "true" : "false"}
-      className={`booking-room-option p-3 sm:p-4 touch-manipulation ${
-        blocked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+      className={`booking-room-option p-3 sm:p-4 ${
+        blocked && !inCart ? "opacity-60" : ""
       }`}
     >
       <div className="flex items-start gap-3 sm:gap-3.5">
@@ -1145,7 +1466,6 @@ function RoomOptionCard({
               </span>
             </div>
           )}
-
           {room.images.length > 1 && (
             <button
               type="button"
@@ -1192,6 +1512,20 @@ function RoomOptionCard({
                   {room.bedConfiguration}
                 </p>
               )}
+              {room.amenities.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {room.amenities.slice(0, 3).map((a) => (
+                    <span key={a.label} className="booking-chip">
+                      {a.label}
+                    </span>
+                  ))}
+                  {room.amenities.length > 3 && (
+                    <span className="text-[10px] text-[var(--bk-muted)] self-center">
+                      +{room.amenities.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
             <div className="text-right shrink-0 pl-1">
               <p
@@ -1204,53 +1538,70 @@ function RoomOptionCard({
               <p className="text-[10px] text-[var(--bk-muted)]">per night</p>
             </div>
           </div>
-
-          {selected && room.shortDescription && (
-            <p className="text-xs text-[var(--bk-muted)] mt-2 leading-relaxed line-clamp-2">
-              {room.shortDescription}
-            </p>
-          )}
-
-          {room.amenities.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {room.amenities.slice(0, 2).map((a) => (
-                <span key={a.label} className="booking-chip sm:hidden">
-                  {a.label}
-                </span>
-              ))}
-              {room.amenities.slice(0, 3).map((a) => (
-                <span key={`d-${a.label}`} className="booking-chip hidden sm:inline-flex">
-                  {a.label}
-                </span>
-              ))}
-              {room.amenities.length > 2 && (
-                <span className="text-[10px] text-[var(--bk-muted)] self-center sm:hidden">
-                  +{room.amenities.length - 2}
-                </span>
-              )}
-              {room.amenities.length > 3 && (
-                <span className="text-[10px] text-[var(--bk-muted)] self-center hidden sm:inline">
-                  +{room.amenities.length - 3}
-                </span>
-              )}
-            </div>
-          )}
         </div>
-
-        {/* Selection indicator */}
-        {!blocked && (
-          <div
-            className={`mt-0.5 size-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
-              selected
-                ? "border-[var(--bk-ink)] bg-[var(--bk-ink)]"
-                : "border-[var(--bk-line-strong)] bg-transparent"
-            }`}
-            aria-hidden
-          >
-            {selected && <Check className="size-3 text-[var(--bk-on-ink)]" strokeWidth={3} />}
-          </div>
-        )}
       </div>
+
+      {line ? (
+        <div className="mt-3 pt-3 border-t border-[var(--bk-line)] space-y-0.5">
+          <NumericStepper
+            label="Rooms"
+            value={line.quantity}
+            min={1}
+            max={maxQty}
+            onChange={onQty}
+            size="sm"
+          />
+          <NumericStepper
+            label="Adults"
+            value={line.adults}
+            min={1}
+            max={room.maxAdults}
+            onChange={onAdults}
+            size="sm"
+          />
+          <NumericStepper
+            label="Children"
+            description="Age 0 to 12"
+            value={line.children}
+            min={0}
+            max={childrenCapFor(room)}
+            onChange={onChildren}
+            size="sm"
+          />
+          <div className="flex items-center justify-between gap-3 pt-2.5 mt-1 border-t border-[var(--bk-line)]">
+            <button
+              type="button"
+              onClick={onRemove}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--bk-muted)] hover:text-[var(--bk-danger)] transition-colors cursor-pointer min-h-9 touch-manipulation"
+            >
+              <X className="size-3.5" />
+              Remove
+            </button>
+            {lineTotal !== null && (
+              <span className="booking-price text-sm font-semibold text-[var(--bk-ink)] tabular-nums">
+                {fmt(lineTotal)}
+              </span>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3">
+          <Button
+            variant="secondary"
+            size="md"
+            isDisabled={blocked || atLimit}
+            onPress={onAdd}
+            className="booking-cta w-full h-11 rounded-xl text-sm touch-manipulation"
+          >
+            {!blocked && !atLimit && <Plus className="size-4" />}
+            {blocked
+              ? "Unavailable"
+              : atLimit
+                ? `Limit ${MAX_ROOM_TYPES} room types`
+                : "Add room"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

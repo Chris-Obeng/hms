@@ -75,6 +75,9 @@ export interface BookingRow {
   totalAmount: number;
   amountPaid: number;
   outstandingBalance: number | null;
+  // Total rooms across the reservation; isGroup = linked multi-room reservation.
+  roomsCount: number;
+  isGroup: boolean;
   createdAt: string | null;
 }
 
@@ -264,10 +267,16 @@ function ReservationCard({
           >
             {source.label}
           </span>
-          {row.roomNumber && (
-            <span className="text-caption font-medium tabular-nums text-foreground">
-              Rm {row.roomNumber}
+          {row.roomsCount > 1 ? (
+            <span className="rounded-full bg-muted/70 px-2 py-0.5 text-[10px] font-semibold text-foreground/80">
+              {row.roomsCount} rooms
             </span>
+          ) : (
+            row.roomNumber && (
+              <span className="text-caption font-medium tabular-nums text-foreground">
+                Rm {row.roomNumber}
+              </span>
+            )
           )}
         </div>
       </div>
@@ -310,6 +319,7 @@ function exportToCsv(data: BookingRow[]) {
     "Phone",
     "Room Type",
     "Room Number",
+    "Rooms",
     "Check-In",
     "Check-Out",
     "Nights",
@@ -328,6 +338,7 @@ function exportToCsv(data: BookingRow[]) {
     b.guestPhone || "",
     b.roomType || "",
     b.roomNumber || "",
+    b.roomsCount.toString(),
     b.checkIn,
     b.checkOut,
     b.nights?.toString() || "",
@@ -351,16 +362,11 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
   // first, then recent history); column sorting re-orders on demand.
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [globalFilter, setGlobalFilter] = React.useState("");
-  const [showFilters, setShowFilters] = React.useState(false);
   const searchParams = useSearchParams();
-  const [newBookingOpen, setNewBookingOpen] = React.useState(
-    () => searchParams.get("new") === "1"
-  );
-
-  React.useEffect(() => {
-    if (searchParams.get("new") === "1") setNewBookingOpen(true);
-  }, [searchParams]);
+  // Seed the search box from ?search= (set by global search "See all")
+  const [globalFilter, setGlobalFilter] = React.useState(() => searchParams.get("search") ?? "");
+  const [showFilters, setShowFilters] = React.useState(false);
+  const [newBookingOpen, setNewBookingOpen] = React.useState(false);
 
   // Realtime subscription — refresh on any booking change for this hotel
   const refreshRef = React.useRef(router.refresh.bind(router));
@@ -478,11 +484,13 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
             </span>
             <span className="whitespace-nowrap text-caption text-muted-foreground">
               {row.original.nights ?? "—"} night{(row.original.nights ?? 0) !== 1 ? "s" : ""}
-              {row.original.roomNumber
-                ? ` · Rm ${row.original.roomNumber}`
-                : row.original.roomType
-                  ? ` · ${row.original.roomType}`
-                  : ""}
+              {row.original.roomsCount > 1
+                ? ` · ${row.original.roomsCount} rooms`
+                : row.original.roomNumber
+                  ? ` · Rm ${row.original.roomNumber}`
+                  : row.original.roomType
+                    ? ` · ${row.original.roomType}`
+                    : ""}
             </span>
           </div>
         ),
@@ -833,12 +841,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
       {/* New Reservation Modal */}
       <NewBookingModal
         open={newBookingOpen}
-        onOpenChange={(open) => {
-          setNewBookingOpen(open);
-          if (!open && searchParams.get("new")) {
-            router.replace("/dashboard/bookings");
-          }
-        }}
+        onOpenChange={setNewBookingOpen}
         roomTypes={roomTypes}
         currency={currency}
         onReservationCreated={({ bookingId, payNow }) => {

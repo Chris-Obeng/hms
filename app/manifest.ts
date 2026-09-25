@@ -41,9 +41,9 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     shortcuts: [
       {
-        name: "New Booking",
-        short_name: "Book",
-        url: "/dashboard/bookings?new=1",
+        name: "Bookings",
+        short_name: "Bookings",
+        url: "/dashboard/bookings",
         icons: [{ src: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" }],
       },
     ],

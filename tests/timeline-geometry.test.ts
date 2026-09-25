@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { bookingGeometry, columnToDate, dateToColumn, rangeOverlaps } from "@/app/dashboard/calendar/_components/timeline/timeline-geometry";
 import { validateTimelineDrop } from "@/app/dashboard/calendar/_components/timeline/timeline-conflicts";
 
-const booking = { id:"b1",reference:"R1",guestName:"Ama",guestPhone:null,guestEmail:null,roomId:null,roomNumber:null,roomTypeId:"rt1",roomTypeName:"Deluxe",checkIn:"2026-07-02",checkOut:"2026-07-05",nights:3,status:"confirmed",paymentStatus:"paid",source:"direct",totalAmount:10,adults:1,children:0,estimatedArrival:null,specialRequests:null };
+const booking = { id:"b1",reference:"R1",guestName:"Ama",guestPhone:null,guestEmail:null,roomId:null,roomNumber:null,roomTypeId:"rt1",roomTypeName:"Deluxe",groupId:null,roomsCount:1,checkIn:"2026-07-02",checkOut:"2026-07-05",nights:3,status:"confirmed",paymentStatus:"paid",source:"direct",totalAmount:10,adults:1,children:0,estimatedArrival:null,specialRequests:null };
 const room = { id:"r1",roomNumber:"101",floor:null,status:"available",roomTypeId:"rt1",roomTypeName:"Deluxe",roomTypeSlug:"deluxe",roomTypeSortOrder:0,roomTypeBasePrice:10 };
 
 describe("timeline geometry",()=>{
