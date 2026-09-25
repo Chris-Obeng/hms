@@ -57,7 +57,6 @@ export function BookingActionBar({
             isLoading={actionLoading === "confirm"}
             onPress={handleConfirm}
             icon={<BadgeCheck className="size-4" />}
-            className="bg-sky-600 text-white hover:bg-sky-700"
           />
         )}
         {booking.status === "confirmed" && (
@@ -67,7 +66,6 @@ export function BookingActionBar({
             isLoading={actionLoading === "check_in"}
             onPress={handleCheckIn}
             icon={<LogIn className="size-4" />}
-            className="bg-emerald-600 text-white hover:bg-emerald-700"
           />
         )}
         {booking.status === "checked_in" && (
@@ -77,7 +75,6 @@ export function BookingActionBar({
             isLoading={actionLoading === "check_out"}
             onPress={handleCheckOut}
             icon={<LogOut className="size-4" />}
-            className="bg-foreground text-background hover:bg-foreground/90"
           />
         )}
         {(booking.status === "cancelled" || booking.status === "no_show") && (
@@ -88,7 +85,6 @@ export function BookingActionBar({
             onPress={handleReinstate}
             icon={<RotateCcw className="size-4" />}
             variant="outline"
-            className="border-border/70 bg-background text-foreground hover:bg-muted/60"
           />
         )}
 
@@ -154,7 +150,6 @@ function ActionButton({
   isLoading,
   onPress,
   icon,
-  className,
   variant = "primary",
 }: {
   label: string;
@@ -162,7 +157,6 @@ function ActionButton({
   isLoading: boolean;
   onPress: () => void;
   icon: React.ReactNode;
-  className?: string;
   variant?: "primary" | "outline";
 }) {
   return (
@@ -172,7 +166,9 @@ function ActionButton({
       isPending={isLoading}
       className={cn(
         "h-10 rounded-xl px-4 text-[13px] font-semibold transition-colors active:scale-[0.98]",
-        className
+        variant === "primary"
+          ? "bg-foreground text-background hover:bg-foreground/90"
+          : "border-border/70 bg-background text-foreground hover:bg-muted/60"
       )}
     >
       {isLoading ? loadingLabel : (

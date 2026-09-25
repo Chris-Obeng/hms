@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Drawer, Skeleton, Tabs, toast } from "@heroui/react";
+import { Accordion, Drawer, Skeleton, Tabs, toast } from "@heroui/react";
 import { CalendarX2 } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -196,12 +196,11 @@ export function BookingDetailDrawer({
               <Tabs
                 key={`${open ? bookingId : "closed"}:${initialTab}`}
                 defaultSelectedKey={initialTab}
-                aria-label="Reservation sections"
                 className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
               >
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                   <Tabs.ListContainer className="sticky top-0 z-10 border-b border-border/40 bg-background/95 px-4 py-2 backdrop-blur-md sm:px-5">
-                    <Tabs.List className="grid w-full grid-cols-2">
+                    <Tabs.List aria-label="Reservation sections" className="grid w-full grid-cols-2">
                       <SegmentedTab id="overview">Overview</SegmentedTab>
                       <SegmentedTab id="payments">Payment</SegmentedTab>
                     </Tabs.List>
@@ -210,8 +209,17 @@ export function BookingDetailDrawer({
                   <BookingPanelBoundary label="overview">
                     <Tabs.Panel id="overview">
                       <BookingOverviewPanel booking={booking} />
-                      <BookingGuestPanel booking={booking} />
-                      <BookingNotesPanel booking={booking} onRefresh={fetchBooking} />
+                      <div className="px-4 pb-5 sm:px-5">
+                        <Accordion
+                          variant="surface"
+                          allowsMultipleExpanded
+                          defaultExpandedKeys={["guest", "notes"]}
+                          className="w-full"
+                        >
+                          <BookingGuestPanel booking={booking} />
+                          <BookingNotesPanel booking={booking} onRefresh={fetchBooking} />
+                        </Accordion>
+                      </div>
                     </Tabs.Panel>
                   </BookingPanelBoundary>
 
@@ -219,7 +227,7 @@ export function BookingDetailDrawer({
                     <Tabs.Panel id="payments">
                       <BookingPaymentsPanel
                         booking={booking}
-                        currency={currency}
+                        currency={booking.currency ?? currency}
                         onBookingChanged={onBookingChanged}
                         onRefresh={fetchBooking}
                       />

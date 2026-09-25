@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireMinRole, toActionError } from "@/lib/auth";
 
 // ── Schemas ──────────────────────────────────────────────────────────
 
@@ -91,8 +92,7 @@ export async function updateGuestNotes(
   input: z.infer<typeof UpdateNotesSchema>
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { orgId } = await auth();
-    if (!orgId) return { success: false, error: "Not authenticated" };
+    const { hotelId } = await requireMinRole("front_desk", "edit guest details");
 
     const parsed = UpdateNotesSchema.safeParse(input);
     if (!parsed.success) {
@@ -101,19 +101,23 @@ export async function updateGuestNotes(
 
     const supabase = await createClient();
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("guests")
       .update({ notes: parsed.data.notes || null })
-      .eq("id", guestId);
+      .eq("id", guestId)
+      .eq("hotel_id", hotelId)
+      .select("id");
 
     if (error) {
       return { success: false, error: error.message };
     }
+    if (!data || data.length === 0) {
+      return { success: false, error: "Guest not found" };
+    }
 
     return { success: true };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "An unexpected error occurred";
-    return { success: false, error: message };
+    return toActionError(err, { action: "customers.updateGuestNotes" });
   }
 }
 
@@ -124,8 +128,7 @@ export async function updateGuestTags(
   input: z.infer<typeof UpdateTagsSchema>
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { orgId } = await auth();
-    if (!orgId) return { success: false, error: "Not authenticated" };
+    const { hotelId } = await requireMinRole("front_desk", "edit guest details");
 
     const parsed = UpdateTagsSchema.safeParse(input);
     if (!parsed.success) {
@@ -134,19 +137,23 @@ export async function updateGuestTags(
 
     const supabase = await createClient();
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("guests")
       .update({ tags: parsed.data.tags })
-      .eq("id", guestId);
+      .eq("id", guestId)
+      .eq("hotel_id", hotelId)
+      .select("id");
 
     if (error) {
       return { success: false, error: error.message };
     }
+    if (!data || data.length === 0) {
+      return { success: false, error: "Guest not found" };
+    }
 
     return { success: true };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "An unexpected error occurred";
-    return { success: false, error: message };
+    return toActionError(err, { action: "customers.updateGuestTags" });
   }
 }
 
@@ -157,8 +164,7 @@ export async function updateGuestContact(
   input: z.infer<typeof UpdateContactSchema>
 ): Promise<{ success: true } | { success: false; error: string; fieldErrors?: Record<string, string[]> }> {
   try {
-    const { orgId } = await auth();
-    if (!orgId) return { success: false, error: "Not authenticated" };
+    const { hotelId } = await requireMinRole("front_desk", "edit guest details");
 
     const parsed = UpdateContactSchema.safeParse(input);
     if (!parsed.success) {
@@ -177,7 +183,7 @@ export async function updateGuestContact(
 
     const supabase = await createClient();
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("guests")
       .update({
         ...(parsed.data.email !== undefined ? { email: parsed.data.email || null } : {}),
@@ -185,15 +191,19 @@ export async function updateGuestContact(
         ...(parsed.data.nationalId !== undefined ? { national_id: parsed.data.nationalId || null } : {}),
         ...(parsed.data.nationality !== undefined ? { nationality: parsed.data.nationality || null } : {}),
       })
-      .eq("id", guestId);
+      .eq("id", guestId)
+      .eq("hotel_id", hotelId)
+      .select("id");
 
     if (error) {
       return { success: false, error: error.message };
     }
+    if (!data || data.length === 0) {
+      return { success: false, error: "Guest not found" };
+    }
 
     return { success: true };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "An unexpected error occurred";
-    return { success: false, error: message };
+    return toActionError(err, { action: "customers.updateGuestContact" });
   }
 }

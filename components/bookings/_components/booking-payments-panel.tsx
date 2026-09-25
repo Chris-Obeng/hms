@@ -6,6 +6,7 @@ import { BanknoteArrowUp, CheckCircle2, Wallet, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { HeroSelectField } from "@/components/ui/hero-select";
+import { MiniStat } from "@/components/ui/mini-stat";
 import { PaymentRow } from "./booking-payment-row";
 import { formatCurrency } from "@/lib/format";
 import { type FullBookingDetail } from "./booking-detail-types";
@@ -91,7 +92,7 @@ export function BookingPaymentsPanel({
         )}
       >
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             {isFullyPaid ? "Balance settled" : "Outstanding balance"}
           </p>
           {isFullyPaid && (
@@ -233,7 +234,7 @@ export function BookingPaymentsPanel({
             onPress={openPaymentForm}
             className="h-11 w-full rounded-xl border-border/70 bg-background text-[13px] font-semibold text-foreground shadow-xs transition-colors hover:border-foreground/30 hover:bg-muted/40 active:scale-[0.99]"
           >
-            <BanknoteArrowUp className="size-4 text-primary" />
+            <BanknoteArrowUp className="size-4 text-foreground" />
             Take payment
           </Button>
         )
@@ -241,14 +242,16 @@ export function BookingPaymentsPanel({
 
       {/* ── History ─────────────────────────────────────────────── */}
       <section aria-label="Payment history">
-        <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+        <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
           History{booking.payments.length > 0 ? ` · ${booking.payments.length}` : ""}
         </p>
         {booking.payments.length > 0 ? (
-          <div className="space-y-2">
-            {booking.payments.map((payment) => (
-              <PaymentRow key={payment.id} payment={payment} currency={currency} />
-            ))}
+          <div className="overflow-hidden rounded-2xl border border-border/50 bg-card/40">
+            <div className="divide-y divide-border/40 px-3">
+              {booking.payments.map((payment) => (
+                <PaymentRow key={payment.id} payment={payment} currency={currency} />
+              ))}
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 py-8 text-center">
@@ -257,35 +260,6 @@ export function BookingPaymentsPanel({
           </div>
         )}
       </section>
-    </div>
-  );
-}
-
-function MiniStat({
-  label,
-  value,
-  strong,
-  className,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-  className?: string;
-}) {
-  return (
-    <div className="min-w-0">
-      <p className="truncate text-[10px] uppercase tracking-wide text-muted-foreground/70">
-        {label}
-      </p>
-      <p
-        className={cn(
-          "mt-0.5 truncate text-[13px]",
-          strong ? "font-semibold text-foreground" : "font-medium",
-          className ?? "text-foreground/80"
-        )}
-      >
-        {value}
-      </p>
     </div>
   );
 }

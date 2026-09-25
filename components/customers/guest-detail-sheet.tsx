@@ -2,22 +2,19 @@
 
 import * as React from "react";
 import {
-  CalendarDays,
   Mail,
   Phone,
   Globe,
-  CreditCard,
-  Tag,
-  Edit3,
-  Check,
-  X,
-  Plus,
   MapPin,
-  Clock,
-  ArrowUpRight,
-  ChevronRight,
+  Tag,
+  Plus,
+  X,
+  PenLine,
+  StickyNote,
+  Contact,
+  CalendarX2,
 } from "lucide-react";
-import { toast } from "@heroui/react";
+import { Accordion, Button, Tabs, toast } from "@heroui/react";
 
 import {
   Sheet,
@@ -26,14 +23,20 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AccordionSection } from "@/components/ui/accordion-section";
+import { ContactEmpty, ContactLink, ContactStatic } from "@/components/ui/contact-row";
+import { MiniStat } from "@/components/ui/mini-stat";
+import { NotesEditor } from "@/components/ui/notes-editor";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatDate, getInitials } from "@/lib/format";
-import { getPaymentVariant, getStatusLabel, getStatusVariant } from "@/lib/booking-status";
+import {
+  STATUS_COLORS,
+  getStatusLabel,
+  getPaymentLabel,
+  PAYMENT_STATUS_TONE,
+} from "@/lib/booking-status";
 import {
   getGuestBookings,
   updateGuestNotes,
@@ -43,23 +46,14 @@ import {
 } from "@/app/actions/customers";
 import type { GuestRow } from "@/components/customers/customers-table";
 
-const TAG_STYLES: Record<string, { color: string; bg: string }> = {
-  vip: { color: "text-amber-600", bg: "bg-amber-500/10" },
-  regular: { color: "text-blue-600", bg: "bg-blue-500/10" },
-  flagged: { color: "text-red-600", bg: "bg-red-500/10" },
-  corporate: { color: "text-purple-600", bg: "bg-purple-500/10" },
-  new: { color: "text-emerald-600", bg: "bg-emerald-500/10" },
-  returning: { color: "text-teal-600", bg: "bg-teal-500/10" },
-};
-
-function getTagStyle(tag: string) {
-  const lower = tag.toLowerCase();
-  return TAG_STYLES[lower] || { color: "text-muted-foreground", bg: "bg-muted" };
-}
-
 const SUGGESTED_TAGS = ["vip", "regular", "flagged", "corporate", "new", "returning"];
 
-// ── Props ──────────────────────────────────────────────────────────
+// Only "flagged" carries a hue; every other tag stays neutral.
+function tagClasses(tag: string) {
+  return tag.toLowerCase() === "flagged"
+    ? "bg-red-500/10 text-red-600 dark:text-red-400"
+    : "bg-muted text-muted-foreground";
+}
 
 interface GuestDetailSheetProps {
   guest: GuestRow;
@@ -69,45 +63,6 @@ interface GuestDetailSheetProps {
   /** Notifies the parent list of successful edits so rows never go stale. */
   onGuestUpdated?: (guestId: string, patch: Partial<GuestRow>) => void;
 }
-
-// ── Stat Card ──────────────────────────────────────────────────────
-
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  highlighted = false,
-}: {
-  label: string;
-  value: string;
-  icon: React.ElementType;
-  highlighted?: boolean;
-}) {
-  return (
-    <div className={cn(
-      "flex items-center gap-2.5 rounded-xl border p-3",
-      highlighted ? "border-foreground/20 bg-foreground/5" : "border-border/50 bg-muted/10"
-    )}>
-      <div className="size-8 rounded-lg bg-muted/50 flex items-center justify-center shrink-0">
-        <Icon className="size-3.5 text-muted-foreground" />
-      </div>
-      <div className="flex flex-col min-w-0">
-        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-          {label}
-        </span>
-        <span className={cn(
-          "text-sm font-semibold tabular-nums truncate",
-          highlighted ? "text-foreground" : "text-foreground/90"
-        )}>
-          {value}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ── Component ──────────────────────────────────────────────────────
-
 export function GuestDetailSheet({
   guest: initialGuest,
   open,
@@ -115,12 +70,9 @@ export function GuestDetailSheet({
   currency,
   onGuestUpdated,
 }: GuestDetailSheetProps) {
-  // ── State ─────────────────────────────────────────────────────
   const [guest, setGuest] = React.useState(initialGuest);
   const [bookings, setBookings] = React.useState<GuestBookingSummary[] | null>(null);
-  const [activeTab, setActiveTab] = React.useState<"overview" | "bookings">("overview");
 
-  // Edit states
   const [editingNotes, setEditingNotes] = React.useState(false);
   const [notesDraft, setNotesDraft] = React.useState(guest.notes || "");
   const [savingNotes, setSavingNotes] = React.useState(false);
@@ -136,15 +88,18 @@ export function GuestDetailSheet({
   const [newTagInput, setNewTagInput] = React.useState("");
   const [savingTags, setSavingTags] = React.useState(false);
 
-  // ── Fetch bookings when sheet opens ───────────────────────────
-  // Loading is derived (open && bookings === null) — no sync setState here.
+  // Fetch bookings when the sheet opens. Loading is derived (open && bookings === null).
   React.useEffect(() => {
     if (!open || bookings !== null) return;
     let cancelled = false;
-    getGuestBookings(guest.id).then((result) => {
-      if (cancelled) return;
-      setBookings(result.success ? result.data : []);
-    });
+    getGuestBookings(guest.id)
+      .then((result) => {
+        if (cancelled) return;
+        setBookings(result.success ? result.data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setBookings([]);
+      });
     return () => {
       cancelled = true;
     };
@@ -158,7 +113,6 @@ export function GuestDetailSheet({
     setPrevResetKey(resetKey);
     setGuest(initialGuest);
     setBookings(null);
-    setActiveTab("overview");
     setEditingNotes(false);
     setEditingContact(false);
     setNotesDraft(initialGuest.notes || "");
@@ -168,233 +122,238 @@ export function GuestDetailSheet({
       nationality: initialGuest.nationality || "",
     });
     setNewTagInput("");
+    // Stuck loading flags must clear on guest-switch/reopen too.
+    setSavingNotes(false);
+    setSavingContact(false);
+    setSavingTags(false);
   }
-
   // ── Handlers ──────────────────────────────────────────────────
 
   async function handleSaveNotes() {
+    const targetId = guest.id;
     setSavingNotes(true);
-    const result = await updateGuestNotes(guest.id, { notes: notesDraft });
-    setSavingNotes(false);
-    if (result.success) {
-      setGuest((prev) => ({ ...prev, notes: notesDraft }));
-      onGuestUpdated?.(guest.id, { notes: notesDraft });
-      setEditingNotes(false);
-      toast.success("Notes updated");
-    } else {
-      toast.danger(result.error || "Failed to update notes");
+    try {
+      const result = await updateGuestNotes(targetId, { notes: notesDraft });
+      if (result.success) {
+        setGuest((prev) => (prev.id === targetId ? { ...prev, notes: notesDraft } : prev));
+        onGuestUpdated?.(targetId, { notes: notesDraft });
+        setEditingNotes(false);
+        toast.success("Notes updated");
+      } else {
+        toast.danger(result.error || "Failed to update notes");
+      }
+    } catch {
+      toast.danger("Failed to update notes — check your connection and retry");
+    } finally {
+      setSavingNotes(false);
     }
   }
 
   async function handleSaveContact() {
+    const targetId = guest.id;
     setSavingContact(true);
-    const result = await updateGuestContact(guest.id, contactDraft);
-    setSavingContact(false);
-    if (result.success) {
-      const patch: Partial<GuestRow> = {
-        email: contactDraft.email || null,
-        phone: contactDraft.phone || null,
-        nationality: contactDraft.nationality || null,
-      };
-      setGuest((prev) => ({ ...prev, ...patch }));
-      onGuestUpdated?.(guest.id, patch);
-      setEditingContact(false);
-      toast.success("Contact updated");
-    } else {
-      toast.danger(result.error || "Failed to update contact");
+    try {
+      const result = await updateGuestContact(targetId, contactDraft);
+      if (result.success) {
+        const patch: Partial<GuestRow> = {
+          email: contactDraft.email || null,
+          phone: contactDraft.phone || null,
+          nationality: contactDraft.nationality || null,
+        };
+        setGuest((prev) => (prev.id === targetId ? { ...prev, ...patch } : prev));
+        onGuestUpdated?.(targetId, patch);
+        setEditingContact(false);
+        toast.success("Contact updated");
+      } else {
+        toast.danger(result.error || "Failed to update contact");
+      }
+    } catch {
+      toast.danger("Failed to update contact — check your connection and retry");
+    } finally {
+      setSavingContact(false);
     }
   }
 
   async function handleAddTag(tag: string) {
+    if (savingTags) return;
     const trimmed = tag.trim().toLowerCase();
     if (!trimmed || guest.tags.includes(trimmed)) return;
 
+    const targetId = guest.id;
     const newTags = [...guest.tags, trimmed];
     setSavingTags(true);
-    const result = await updateGuestTags(guest.id, { tags: newTags });
-    setSavingTags(false);
-
-    if (result.success) {
-      setGuest((prev) => ({ ...prev, tags: newTags }));
-      onGuestUpdated?.(guest.id, { tags: newTags });
-      setNewTagInput("");
-      toast.success(`Tag "${trimmed}" added`);
-    } else {
-      toast.danger(result.error || "Failed to add tag");
+    try {
+      const result = await updateGuestTags(targetId, { tags: newTags });
+      if (result.success) {
+        setGuest((prev) => (prev.id === targetId ? { ...prev, tags: newTags } : prev));
+        onGuestUpdated?.(targetId, { tags: newTags });
+        setNewTagInput("");
+        toast.success(`Tag "${trimmed}" added`);
+      } else {
+        toast.danger(result.error || "Failed to add tag");
+      }
+    } catch {
+      toast.danger("Failed to add tag — check your connection and retry");
+    } finally {
+      setSavingTags(false);
     }
   }
 
   async function handleRemoveTag(tag: string) {
+    if (savingTags) return;
+    const targetId = guest.id;
     const newTags = guest.tags.filter((t) => t !== tag);
     setSavingTags(true);
-    const result = await updateGuestTags(guest.id, { tags: newTags });
-    setSavingTags(false);
-
-    if (result.success) {
-      setGuest((prev) => ({ ...prev, tags: newTags }));
-      onGuestUpdated?.(guest.id, { tags: newTags });
-      toast.success(`Tag "${tag}" removed`);
-    } else {
-      toast.danger(result.error || "Failed to remove tag");
+    try {
+      const result = await updateGuestTags(targetId, { tags: newTags });
+      if (result.success) {
+        setGuest((prev) => (prev.id === targetId ? { ...prev, tags: newTags } : prev));
+        onGuestUpdated?.(targetId, { tags: newTags });
+        toast.success(`Tag "${tag}" removed`);
+      } else {
+        toast.danger(result.error || "Failed to remove tag");
+      }
+    } catch {
+      toast.danger("Failed to remove tag — check your connection and retry");
+    } finally {
+      setSavingTags(false);
     }
   }
 
-  function handleClose(open: boolean) {
-    if (!open) {
+  function handleClose(next: boolean) {
+    if (!next) {
       setBookings(null);
       setEditingNotes(false);
       setEditingContact(false);
     }
-    onOpenChange(open);
+    onOpenChange(next);
   }
 
-  // ── Compute lifetime stats ────────────────────────────────────
   const totalRevenue = guest.totalSpend;
   const avgPerStay = guest.totalStays > 0 ? totalRevenue / guest.totalStays : 0;
-
   return (
     <Sheet open={open} onOpenChange={handleClose}>
-      <SheetContent
-        side="right"
-        className="w-full sm:max-w-lg p-0 gap-0 flex flex-col"
-      >
-        {/* Header */}
-        <SheetHeader className="px-5 pt-5 pb-4 border-b border-border/40">
+      <SheetContent side="right" className="flex w-full flex-col gap-0 bg-background p-0 sm:max-w-lg">
+        {/* ═══ Header ═══ */}
+        <SheetHeader className="gap-2.5 border-b border-border/50 px-4 pb-4 pr-12 pt-4 max-md:pt-7 sm:px-5">
           <div className="flex items-center gap-3">
-            <div className="size-10 rounded-full bg-muted flex items-center justify-center shrink-0 ring-1 ring-border/40">
+            <div className="grid size-11 shrink-0 place-items-center rounded-full bg-muted ring-1 ring-border/50">
               <span className="text-sm font-semibold text-foreground">
                 {getInitials(guest.fullName)}
               </span>
             </div>
-            <div className="flex flex-col min-w-0 flex-1">
-              <SheetTitle className="text-lg truncate">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <SheetTitle className="truncate text-lg font-bold tracking-tight text-foreground">
                 {guest.fullName}
               </SheetTitle>
-              <SheetDescription className="text-xs text-muted-foreground">
+              <SheetDescription className="text-[11px] text-muted-foreground">
                 Guest since {formatDate(guest.createdAt)}
               </SheetDescription>
             </div>
           </div>
 
-          {/* Tags row */}
           {guest.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-3">
-              {guest.tags.map((tag) => {
-                const style = getTagStyle(tag);
-                return (
-                  <span
-                    key={tag}
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-medium capitalize",
-                      style.bg,
-                      style.color
-                    )}
-                  >
-                            {tag}
-                            <button
-                              onClick={() => handleRemoveTag(tag)}
-                              aria-label={`Remove tag ${tag}`}
-                              className="hover:opacity-70 transition-opacity"
-                              disabled={savingTags}
-                            >
-                              <X className="size-2.5" />
-                            </button>
-                  </span>
-                );
-              })}
+            <div className="flex flex-wrap gap-1.5">
+              {guest.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className={cn(
+                    "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize",
+                    tagClasses(tag)
+                  )}
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
           )}
         </SheetHeader>
 
-        {/* Tabs */}
-        <div className="flex border-b border-border/20 px-5">
-          <button
-            onClick={() => setActiveTab("overview")}
-            className={cn(
-              "px-3 py-2.5 text-xs font-medium border-b-2 transition-colors -mb-px",
-              activeTab === "overview"
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab("bookings")}
-            className={cn(
-              "px-3 py-2.5 text-xs font-medium border-b-2 transition-colors -mb-px flex items-center gap-1.5",
-              activeTab === "bookings"
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Booking History
-            {bookings && (
-              <span className="text-[10px] text-muted-foreground/60">
-                ({bookings.length})
-              </span>
-            )}
-          </button>
-        </div>
+        {/* ═══ Tabs + content ═══ */}
+        <Tabs
+          key={resetKey}
+          defaultSelectedKey="overview"
+          className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
+        >
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <Tabs.ListContainer className="sticky top-0 z-10 border-b border-border/40 bg-background/95 px-4 py-2 backdrop-blur-md sm:px-5">
+              <Tabs.List aria-label="Guest sections" className="grid w-full grid-cols-2">
+                <SegmentedTab id="overview">Overview</SegmentedTab>
+                <SegmentedTab id="bookings">
+                  History
+                  {bookings && bookings.length > 0 && (
+                    <span className="ml-1 font-normal text-muted-foreground/70">
+                      {bookings.length}
+                      <span className="sr-only"> bookings</span>
+                    </span>
+                  )}
+                </SegmentedTab>
+              </Tabs.List>
+            </Tabs.ListContainer>
 
-        {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
-          {/* ════ TAB: Overview ════ */}
-          {activeTab === "overview" && (
-            <>
-              {/* Lifetime Stats */}
-              <div className="grid grid-cols-2 gap-2">
-                <StatCard
-                  label="Total Stays"
-                  value={guest.totalStays.toString()}
-                  icon={CalendarDays}
-                />
-                <StatCard
-                  label="Total Spent"
-                  value={formatCurrency(totalRevenue, currency)}
-                  icon={CreditCard}
-                  highlighted
-                />
-                <StatCard
-                  label="Last Stay"
-                  value={formatDate(guest.lastStayDate)}
-                  icon={Clock}
-                />
-                <StatCard
-                  label="Avg / Stay"
-                  value={formatCurrency(avgPerStay, currency)}
-                  icon={ArrowUpRight}
-                />
-              </div>
-
-              <Separator className="opacity-40" />
-
-              {/* Contact Information */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                    Contact Information
-                  </h3>
-                  {!editingContact ? (
-                    <button
-                      onClick={() => setEditingContact(true)}
-                      className="text-[10px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                    >
-                      <Edit3 className="size-3" />
-                      Edit
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={handleSaveContact}
-                        disabled={savingContact}
-                        className="text-[10px] text-emerald-600 hover:text-emerald-500 transition-colors flex items-center gap-1"
-                      >
-                        <Check className="size-3" />
-                        {savingContact ? "Saving..." : "Save"}
-                      </button>
-                      <button
-                        onClick={() => {
+            {/* ── Overview ── */}
+            <Tabs.Panel id="overview" className="space-y-4 px-4 py-4 sm:px-5">
+              {/* Lifetime value */}
+              <section
+                aria-label="Lifetime value"
+                className="rounded-2xl border border-border/60 bg-card p-4"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Lifetime value
+                </p>
+                <p className="mt-1 text-kpi tabular-nums text-foreground">
+                  {formatCurrency(totalRevenue, currency)}
+                </p>
+                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border/50 pt-3">
+                  <MiniStat label="Stays" value={guest.totalStays.toString()} strong />
+                  <MiniStat label="Avg / stay" value={formatCurrency(avgPerStay, currency)} />
+                  <MiniStat label="Last stay" value={formatDate(guest.lastStayDate)} />
+                </div>
+              </section>
+              {/* Contact · Tags · Notes */}
+              <Accordion
+                variant="surface"
+                allowsMultipleExpanded
+                defaultExpandedKeys={["contact", "notes"]}
+                className="w-full"
+              >
+                {/* ── Contact ── */}
+                <AccordionSection
+                  id="contact"
+                  icon={<Contact aria-hidden className="size-4 shrink-0 text-muted-foreground" />}
+                  title="Contact"
+                  bodyClassName="space-y-3"
+                >
+                  {editingContact ? (
+                    <>
+                      <ContactField
+                        label="Email"
+                        icon={<Mail aria-hidden className="size-3.5" />}
+                        value={contactDraft.email}
+                        onChange={(v) => setContactDraft((p) => ({ ...p, email: v }))}
+                        placeholder="guest@example.com"
+                        type="email"
+                        autoFocus
+                      />
+                      <ContactField
+                        label="Phone"
+                        icon={<Phone aria-hidden className="size-3.5" />}
+                        value={contactDraft.phone}
+                        onChange={(v) => setContactDraft((p) => ({ ...p, phone: v }))}
+                        placeholder="+233 XX XXX XXXX"
+                        type="tel"
+                      />
+                      <ContactField
+                        label="Nationality"
+                        icon={<Globe aria-hidden className="size-3.5" />}
+                        value={contactDraft.nationality}
+                        onChange={(v) => setContactDraft((p) => ({ ...p, nationality: v }))}
+                        placeholder="e.g. Ghanaian"
+                      />
+                      <EditActions
+                        saving={savingContact}
+                        onSave={handleSaveContact}
+                        onCancel={() => {
                           setEditingContact(false);
                           setContactDraft({
                             email: guest.email || "",
@@ -402,151 +361,108 @@ export function GuestDetailSheet({
                             nationality: guest.nationality || "",
                           });
                         }}
-                        className="text-[10px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                      >
-                        <X className="size-3" />
-                        Cancel
-                      </button>
-                    </div>
+                      />
+                    </>
+                  ) : (
+                    <>
+                      {guest.email ? (
+                        <ContactLink href={`mailto:${guest.email}`} icon={<Mail aria-hidden className="size-4" />}>
+                          {guest.email}
+                        </ContactLink>
+                      ) : (
+                        <ContactEmpty icon={<Mail aria-hidden className="size-4" />} label="No email on file" />
+                      )}
+                      {guest.phone ? (
+                        <ContactLink href={`tel:${guest.phone}`} icon={<Phone aria-hidden className="size-4" />}>
+                          {guest.phone}
+                        </ContactLink>
+                      ) : (
+                        <ContactEmpty icon={<Phone aria-hidden className="size-4" />} label="No phone on file" />
+                      )}
+                      {guest.nationality ? (
+                        <ContactStatic icon={<Globe aria-hidden className="size-4" />}>
+                          {guest.nationality}
+                        </ContactStatic>
+                      ) : (
+                        <ContactEmpty icon={<Globe aria-hidden className="size-4" />} label="No nationality set" />
+                      )}
+                      {guest.nationalId && (
+                        <ContactStatic icon={<MapPin aria-hidden className="size-4" />}>
+                          ID · {guest.nationalId}
+                        </ContactStatic>
+                      )}
+                      <div className="pt-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onPress={() => {
+                            setContactDraft({
+                              email: guest.email || "",
+                              phone: guest.phone || "",
+                              nationality: guest.nationality || "",
+                            });
+                            setEditingContact(true);
+                          }}
+                          className="h-7 rounded-lg px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                        >
+                          <PenLine aria-hidden className="size-3" />
+                          Edit contact
+                        </Button>
+                      </div>
+                    </>
                   )}
-                </div>
-
-                {editingContact ? (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-[10px] font-medium text-muted-foreground mb-1 block">
-                        Email
-                      </label>
-                      <div className="relative">
-                        <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/50 pointer-events-none" />
-                        <Input
-                          value={contactDraft.email}
-                          onChange={(e) => setContactDraft((prev) => ({ ...prev, email: e.target.value }))}
-                          placeholder="guest@example.com"
-                          className="h-8 pl-8 rounded-lg text-sm"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-medium text-muted-foreground mb-1 block">
-                        Phone
-                      </label>
-                      <div className="relative">
-                        <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/50 pointer-events-none" />
-                        <Input
-                          value={contactDraft.phone}
-                          onChange={(e) => setContactDraft((prev) => ({ ...prev, phone: e.target.value }))}
-                          placeholder="+233 XX XXX XXXX"
-                          className="h-8 pl-8 rounded-lg text-sm"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-medium text-muted-foreground mb-1 block">
-                        Nationality
-                      </label>
-                      <div className="relative">
-                        <Globe className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/50 pointer-events-none" />
-                        <Input
-                          value={contactDraft.nationality}
-                          onChange={(e) => setContactDraft((prev) => ({ ...prev, nationality: e.target.value }))}
-                          placeholder="e.g. Ghanaian"
-                          className="h-8 pl-8 rounded-lg text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2.5">
-                    <div className="flex items-center gap-2.5 text-sm">
-                      <Mail className="size-3.5 text-muted-foreground/60 shrink-0" />
-                      <span className="text-foreground">
-                        {guest.email || <span className="text-muted-foreground/50 italic">No email</span>}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2.5 text-sm">
-                      <Phone className="size-3.5 text-muted-foreground/60 shrink-0" />
-                      <span className="text-foreground">
-                        {guest.phone || <span className="text-muted-foreground/50 italic">No phone</span>}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2.5 text-sm">
-                      <Globe className="size-3.5 text-muted-foreground/60 shrink-0" />
-                      <span className="text-foreground">
-                        {guest.nationality || <span className="text-muted-foreground/50 italic">Not set</span>}
-                      </span>
-                    </div>
-                    {guest.nationalId && (
-                      <div className="flex items-center gap-2.5 text-sm">
-                        <MapPin className="size-3.5 text-muted-foreground/60 shrink-0" />
-                        <span className="text-foreground">ID: {guest.nationalId}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <Separator className="opacity-40" />
-
-              {/* Tags Management */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                    Tags
-                  </h3>
-                </div>
-                <div className="space-y-2">
-                  {/* Current tags */}
+                </AccordionSection>
+                {/* ── Tags ── */}
+                <AccordionSection
+                  id="tags"
+                  icon={<Tag aria-hidden className="size-4 shrink-0 text-muted-foreground" />}
+                  title="Tags"
+                  bodyClassName="space-y-3"
+                >
                   <div className="flex flex-wrap gap-1.5">
                     {guest.tags.length === 0 ? (
-                      <span className="text-xs text-muted-foreground/50 italic">
-                        No tags assigned
-                      </span>
+                      <span className="text-[13px] text-muted-foreground">No tags assigned</span>
                     ) : (
-                      guest.tags.map((tag) => {
-                        const style = getTagStyle(tag);
-                        return (
-                          <span
-                            key={tag}
-                            className={cn(
-                              "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-medium capitalize",
-                              style.bg,
-                              style.color
-                            )}
+                      guest.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-md py-0.5 pl-2 pr-1 text-[11px] font-medium capitalize",
+                            tagClasses(tag)
+                          )}
+                        >
+                          {tag}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTag(tag)}
+                            aria-label={`Remove tag ${tag}`}
+                            disabled={savingTags}
+                            className="grid size-4 place-items-center rounded transition-opacity hover:opacity-60 disabled:opacity-40"
                           >
-                            {tag}
-                            <button
-                              onClick={() => handleRemoveTag(tag)}
-                              aria-label={`Remove tag ${tag}`}
-                              className="hover:opacity-70 transition-opacity"
-                              disabled={savingTags}
-                            >
-                              <X className="size-2.5" />
-                            </button>
-                          </span>
-                        );
-                      })
+                            <X aria-hidden className="size-3" />
+                          </button>
+                        </span>
+                      ))
                     )}
                   </div>
 
-                  {/* Suggested tags */}
-                  <div className="flex flex-wrap gap-1">
-                    {SUGGESTED_TAGS.filter((t) => !guest.tags.includes(t)).map(
-                      (tag) => (
+                  {SUGGESTED_TAGS.filter((t) => !guest.tags.includes(t)).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {SUGGESTED_TAGS.filter((t) => !guest.tags.includes(t)).map((tag) => (
                         <button
                           key={tag}
+                          type="button"
                           onClick={() => handleAddTag(tag)}
                           disabled={savingTags}
-                          className="inline-flex items-center gap-0.5 rounded-md border border-dashed border-border/60 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors capitalize"
+                          className="inline-flex items-center gap-0.5 rounded-md border border-dashed border-border/70 px-1.5 py-0.5 text-[11px] capitalize text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:opacity-40"
                         >
-                          <Plus className="size-2.5" />
+                          <Plus aria-hidden className="size-3" />
                           {tag}
                         </button>
-                      )
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  )}
 
-                  {/* Custom tag input */}
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
@@ -555,177 +471,271 @@ export function GuestDetailSheet({
                     className="flex items-center gap-1.5"
                   >
                     <div className="relative flex-1">
-                      <Tag className="absolute left-2 top-1/2 -translate-y-1/2 size-3 text-muted-foreground/50 pointer-events-none" />
+                      <Tag aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/60" />
                       <Input
                         value={newTagInput}
                         onChange={(e) => setNewTagInput(e.target.value)}
-                        placeholder="Add custom tag..."
-                        className="h-7 pl-7 rounded-lg text-[11px]"
+                        placeholder="Add custom tag…"
+                        aria-label="Add custom tag"
+                        disabled={savingTags}
+                        className="h-9 rounded-xl pl-8 text-sm"
                       />
                     </div>
                     <Button
-                      type="submit"
-                      variant="ghost"
                       size="sm"
-                      disabled={!newTagInput.trim() || savingTags}
-                      className="h-7 text-xs rounded-lg px-2"
+                      variant="secondary"
+                      onPress={() => handleAddTag(newTagInput)}
+                      isDisabled={!newTagInput.trim() || savingTags}
+                      className="h-9 rounded-xl px-3.5 text-xs font-semibold"
                     >
                       Add
                     </Button>
                   </form>
-                </div>
-              </div>
-
-              <Separator className="opacity-40" />
-
-              {/* Notes */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                    Notes
-                  </h3>
-                  {!editingNotes && (
-                    <button
-                      onClick={() => {
-                        setNotesDraft(guest.notes || "");
-                        setEditingNotes(true);
-                      }}
-                      className="text-[10px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                    >
-                      <Edit3 className="size-3" />
-                      {guest.notes ? "Edit" : "Add"}
-                    </button>
-                  )}
-                </div>
-
-                {editingNotes ? (
-                  <div className="space-y-2">
-                    <textarea
+                </AccordionSection>
+                {/* ── Notes ── */}
+                <AccordionSection
+                  id="notes"
+                  icon={<StickyNote aria-hidden className="size-4 shrink-0 text-muted-foreground" />}
+                  title="Notes"
+                >
+                  {editingNotes ? (
+                    <NotesEditor
                       value={notesDraft}
-                      onChange={(e) => setNotesDraft(e.target.value)}
-                      placeholder="Internal notes about this guest (preferences, special needs, incidents)..."
-                      rows={4}
-                      maxLength={2000}
-                      className="w-full rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 placeholder:text-muted-foreground resize-none"
+                      onChange={setNotesDraft}
+                      onCancel={() => {
+                        setEditingNotes(false);
+                        setNotesDraft(guest.notes || "");
+                      }}
+                      onSave={handleSaveNotes}
+                      saving={savingNotes}
+                      label="Guest notes"
+                      placeholder="Internal notes about this guest (preferences, special needs, incidents)…"
                     />
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-muted-foreground/50">
-                        {notesDraft.length}/2000
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => {
-                            setEditingNotes(false);
-                            setNotesDraft(guest.notes || "");
-                          }}
-                          className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handleSaveNotes}
-                          disabled={savingNotes}
-                          className="text-[10px] bg-foreground text-background hover:bg-foreground/90 transition-colors rounded-lg px-3 py-1 font-medium"
-                        >
-                          {savingNotes ? "Saving..." : "Save"}
-                        </button>
-                      </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/90">
+                        {guest.notes || (
+                          <span className="text-muted-foreground">
+                            No notes recorded for this guest.
+                          </span>
+                        )}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onPress={() => {
+                          setNotesDraft(guest.notes || "");
+                          setEditingNotes(true);
+                        }}
+                        className="h-7 rounded-lg px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        <PenLine aria-hidden className="size-3" />
+                        {guest.notes ? "Edit note" : "Add note"}
+                      </Button>
                     </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">
-                    {guest.notes || (
-                      <span className="text-muted-foreground/50 italic">
-                        No notes recorded for this guest.
-                      </span>
-                    )}
-                  </p>
-                )}
-              </div>
-            </>
-          )}
+                  )}
+                </AccordionSection>
+              </Accordion>
+            </Tabs.Panel>
 
-          {/* ════ TAB: Booking History ════ */}
-          {activeTab === "bookings" && (
-            <>
-              {open && bookings === null ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-border/30">
-                      <Skeleton className="size-8 rounded-lg" />
-                      <div className="flex-1 space-y-1.5">
-                        <Skeleton className="h-3.5 w-24" />
-                        <Skeleton className="h-3 w-32" />
-                      </div>
-                      <Skeleton className="h-5 w-16 rounded-md" />
-                    </div>
-                  ))}
-                </div>
-              ) : bookings && bookings.length > 0 ? (
-                <div className="space-y-2">
-                  {bookings.map((b) => (
-                    <div
-                      key={b.id}
-                      className="flex items-start gap-3 p-3 rounded-xl border border-border/30 hover:border-border/60 transition-colors"
-                    >
-                      <div className="size-8 rounded-lg bg-muted/50 flex items-center justify-center shrink-0 mt-0.5">
-                        <CalendarDays className="size-3.5 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-sm font-medium text-foreground">
-                            {b.reference}
-                          </span>
-                          <Badge variant={getStatusVariant(b.status)} className="text-[9px] px-1 py-0 h-4">
-                            {getStatusLabel(b.status)}
-                          </Badge>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-                          <span>
-                            {formatDate(b.checkIn)} → {formatDate(b.checkOut)}
-                          </span>
-                          {b.nights && (
-                            <span>
-                              · {b.nights} night{b.nights > 1 ? "s" : ""}
-                            </span>
-                          )}
-                          {b.roomTypeName && <span>· {b.roomTypeName}</span>}
-                          {b.roomNumber && <span>· Rm {b.roomNumber}</span>}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs font-medium text-foreground tabular-nums">
-                            {formatCurrency(b.totalAmount, currency)}
-                          </span>
-                          <Badge variant={getPaymentVariant(b.paymentStatus)} className="text-[9px] px-1 py-0 h-4">
-                            {b.paymentStatus === "paid"
-                              ? "Paid"
-                              : b.paymentStatus === "partial"
-                              ? "Partial"
-                              : b.paymentStatus === "unpaid"
-                              ? "Unpaid"
-                              : b.paymentStatus}
-                          </Badge>
-                        </div>
-                      </div>
-                      <ChevronRight className="size-3.5 text-muted-foreground/30 mt-1.5 shrink-0" />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <CalendarDays className="size-8 text-muted-foreground/20 mb-3" />
-                  <p className="text-sm font-medium text-muted-foreground">
-                    No booking history
-                  </p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">
-                    This guest has no bookings yet.
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            {/* ── History ── */}
+            <Tabs.Panel id="bookings" className="px-4 py-4 sm:px-5">
+              <BookingHistory open={open} bookings={bookings} currency={currency} />
+            </Tabs.Panel>
+          </div>
+        </Tabs>
       </SheetContent>
     </Sheet>
   );
 }
+// ── Segmented-control style tab trigger ────────────────────────────
+
+function SegmentedTab({
+  id,
+  children,
+}: {
+  id: "overview" | "bookings";
+  children: React.ReactNode;
+}) {
+  return (
+    <Tabs.Tab
+      id={id}
+      className="
+        flex h-9 cursor-pointer items-center justify-center rounded-lg px-3 text-[13px]
+        font-semibold text-muted-foreground outline-none transition-colors
+        data-[hovered=true]:text-foreground
+        data-[selected=true]:bg-background data-[selected=true]:text-foreground
+        data-[selected=true]:shadow-sm data-[selected=true]:ring-1 data-[selected=true]:ring-border/70
+        focus-visible:ring-2 focus-visible:ring-ring
+      "
+    >
+      {children}
+    </Tabs.Tab>
+  );
+}
+
+// ── Contact edit field ─────────────────────────────────────────────
+
+function ContactField({
+  label,
+  icon,
+  value,
+  onChange,
+  placeholder,
+  type,
+  autoFocus,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+  autoFocus?: boolean;
+}) {
+  const id = React.useId();
+  return (
+    <div>
+      <label
+        htmlFor={id}
+        className="mb-1 block text-[11px] font-medium text-muted-foreground"
+      >
+        {label}
+      </label>
+      <div className="relative">
+        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60">
+          {icon}
+        </span>
+        <Input
+          id={id}
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          autoFocus={autoFocus}
+          className="h-9 rounded-xl pl-8 text-sm"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Save / Cancel row ──────────────────────────────────────────────
+
+function EditActions({
+  saving,
+  onSave,
+  onCancel,
+}: {
+  saving: boolean;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-end gap-1.5 pt-0.5">
+      <Button size="sm" variant="tertiary" onPress={onCancel} className="h-8 rounded-lg text-xs">
+        Cancel
+      </Button>
+      <Button
+        size="sm"
+        onPress={onSave}
+        isPending={saving}
+        className="h-8 rounded-lg bg-foreground text-xs font-semibold text-background hover:bg-foreground/90"
+      >
+        {saving ? "Saving…" : "Save"}
+      </Button>
+    </div>
+  );
+}
+
+// ── Booking-status chip (monochrome label + status dot) ────────────
+
+function StatusChip({ status }: { status: string }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+      <span className={cn("size-1.5 rounded-full", STATUS_COLORS[status] ?? "bg-muted-foreground")} />
+      {getStatusLabel(status)}
+    </span>
+  );
+}
+// ── Booking history tab ────────────────────────────────────────────
+
+function BookingHistory({
+  open,
+  bookings,
+  currency,
+}: {
+  open: boolean;
+  bookings: GuestBookingSummary[] | null;
+  currency: string;
+}) {
+  if (open && bookings === null) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-border/50 bg-card/40">
+        <div className="divide-y divide-border/40">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="p-3">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-3.5 w-24 rounded" />
+                <Skeleton className="h-3.5 w-16 rounded" />
+              </div>
+              <Skeleton className="mt-2 h-3 w-40 rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!bookings || bookings.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 py-12 text-center">
+        <CalendarX2 aria-hidden className="mb-2 size-6 text-muted-foreground/30" />
+        <p className="text-[13px] font-medium text-foreground">No booking history</p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">This guest has no bookings yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border/50 bg-card/40">
+      <div className="divide-y divide-border/40">
+        {bookings.map((b) => (
+          <div key={b.id} className="p-3 transition-colors hover:bg-muted/30">
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate font-mono text-[13px] font-medium text-foreground">
+                {b.reference}
+              </span>
+              <StatusChip status={b.status} />
+            </div>
+            <p className="mt-1 truncate text-[11px] text-muted-foreground">
+              {formatDate(b.checkIn)} – {formatDate(b.checkOut)}
+              {b.nights ? ` · ${b.nights} night${b.nights > 1 ? "s" : ""}` : ""}
+              {b.roomTypeName ? ` · ${b.roomTypeName}` : ""}
+              {b.roomNumber ? ` · Rm ${b.roomNumber}` : ""}
+            </p>
+            <div className="mt-1.5 flex items-center justify-between gap-2">
+              <span className="text-[13px] font-semibold tabular-nums text-foreground">
+                {formatCurrency(b.totalAmount, currency)}
+              </span>
+              <span
+                className={cn(
+                  "text-[11px] font-medium",
+                  PAYMENT_STATUS_TONE[b.paymentStatus] ?? "text-muted-foreground"
+                )}
+              >
+                {getPaymentLabel(b.paymentStatus)}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+
+
+
+
