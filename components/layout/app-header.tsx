@@ -11,7 +11,6 @@ import {
   Sun,
   Moon,
   Bell,
-  Search,
   Menu,
   CalendarDays,
   DollarSign,
@@ -21,15 +20,11 @@ import {
 import {
   Avatar,
   Button,
-  Kbd,
   Modal,
   useOverlayState,
 } from "@heroui/react";
-import {
-  NotificationIcon,
-  type NotificationIconHandle,
-} from "@/components/ui/notification-icon";
-import { GlobalSearch } from "@/app/dashboard/_components/global-search";
+import { NotificationBell } from "@/components/ui/notification-bell";
+import { DashboardSearch } from "@/app/dashboard/_components/dashboard-search";
 import { NewBookingModal } from "@/components/bookings/new-booking-modal";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/format";
@@ -120,12 +115,12 @@ export function AppHeader({
 
   void _bookingUrl;
 
-  // ── HeroUI-native overlay state for the command palette
-  const searchState = useOverlayState();
+  // ── Notifications dialog overlay state
+  const notifState = useOverlayState();
   const [newBookingOpen, setNewBookingOpen] = React.useState(false);
+  const openNewBooking = React.useCallback(() => setNewBookingOpen(true), []);
 
   // ── Audio
-  const bellRef = React.useRef<NotificationIconHandle>(null);
   const chimeRef = React.useRef<HTMLAudioElement | null>(null);
 
   React.useEffect(() => {
@@ -297,7 +292,6 @@ export function AppHeader({
                 const recipient = payload.new.recipient_staff_id;
                 if (recipient && recipient !== staffId) return;
                 console.log("Realtime: notification INSERT", payload);
-                bellRef.current?.startAnimation();
 
                 const soundEnabled =
                   localStorage.getItem("RoomLine_sound_enabled") !== "false";
@@ -360,18 +354,6 @@ export function AppHeader({
     };
   }, [hotelId, staffId, isLoaded, getToken, playChime, fetchNotifications]);
 
-  // ⌘K shortcut
-  React.useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        searchState.toggle();
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [searchState]);
-
   // Render
 
   return (
@@ -423,44 +405,13 @@ export function AppHeader({
           </button>
         </div>
 
-        {/*  Center: search trigger  */}
-        {/* Desktop: full pill search bar */}
-        <div className="mx-auto hidden max-w-lg flex-1 justify-center md:flex">
-          <button
-            type="button"
-            onClick={searchState.open}
-            aria-label="Open command palette (Ctrl+K)"
-            className={cn(
-              "flex h-8 w-full max-w-sm items-center gap-2 rounded-lg px-3 text-left",
-              "border border-border/50 bg-muted/30 text-sm text-muted-foreground/70",
-              "transition-all duration-200 hover:bg-muted/50 hover:border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-            )}
-          >
-            <Search className="size-3.5 shrink-0 text-muted-foreground/50" />
-            <span className="flex-1 truncate text-muted-foreground/60">
-              Search guests, bookings, rooms…
-            </span>
-            <Kbd className="hidden md:inline-flex bg-background/80 border border-border/50 text-muted-foreground/60 text-[9px] scale-90">
-              <Kbd.Abbr keyValue="command" />
-              <Kbd.Content>K</Kbd.Content>
-            </Kbd>
-          </button>
+        {/*  Center: inline global search (desktop field + mobile icon)  */}
+        <div className="flex flex-1 items-center justify-end md:mx-auto md:max-w-lg md:justify-center">
+          <DashboardSearch onNewBooking={openNewBooking} />
         </div>
 
         {/* ── Right: actions  */}
         <div className="flex shrink-0 items-center gap-1.5">
-
-          {/* Mobile-only: search icon button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            isIconOnly
-            onPress={searchState.open}
-            aria-label="Open search"
-            className="size-8 rounded-lg text-muted-foreground transition-all duration-200 hover:bg-muted/60 active:scale-[0.97] md:hidden"
-          >
-            <Search className="size-4" />
-          </Button>
 
           {/* New Booking */}
           <Button
@@ -494,30 +445,24 @@ export function AppHeader({
           )}
 
           {/* ── Notifications — full HeroUI dialog for desktop and mobile ── */}
-          <Modal onOpenChange={(isOpen) => { if (isOpen) fetchNotifications(); else setSelectedNotification(null); }}>
-            <Modal.Trigger>
-              <Button
-                variant="ghost"
-                isIconOnly
-                aria-label={
-                  liveCount > 0
-                    ? `Notifications, ${liveCount} unread`
-                    : "Notifications"
-                }
-                className="relative flex size-8 shrink-0 items-center justify-center rounded-lg hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 transition-colors"
-              >
-                <NotificationIcon ref={bellRef} size={16} />
-                {liveCount > 0 && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground ring-2 ring-background"
-                  >
-                    {liveCount > 9 ? "9+" : liveCount}
-                  </span>
-                )}
-              </Button>
-            </Modal.Trigger>
-            <Modal.Backdrop>
+          <NotificationBell
+            count={liveCount}
+            max={9}
+            color="red"
+            size={36}
+            onClick={notifState.open}
+            aria-haspopup="dialog"
+            aria-expanded={notifState.isOpen}
+            className="shrink-0"
+          />
+          <Modal.Backdrop
+            isOpen={notifState.isOpen}
+            onOpenChange={(isOpen) => {
+              notifState.setOpen(isOpen);
+              if (isOpen) fetchNotifications();
+              else setSelectedNotification(null);
+            }}
+          >
               <Modal.Container>
               <Modal.Dialog className="flex h-[min(88dvh,44rem)] w-[calc(100%-1rem)] max-w-2xl flex-col overflow-hidden p-0 sm:w-full">
                 <Modal.CloseTrigger />
@@ -612,7 +557,6 @@ export function AppHeader({
               </Modal.Dialog>
               </Modal.Container>
             </Modal.Backdrop>
-          </Modal>
 
 
           {/* ── User avatar — opens Clerk's default UserProfile modal ── */}
@@ -641,8 +585,6 @@ export function AppHeader({
         </div>
       </header>
 
-      {/*  Global Search command palette  */}
-      <GlobalSearch state={searchState} />
       <NewBookingModal
         open={newBookingOpen}
         onOpenChange={setNewBookingOpen}
