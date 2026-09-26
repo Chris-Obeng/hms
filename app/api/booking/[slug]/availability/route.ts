@@ -7,7 +7,7 @@ import {
   fetchStayRestrictions,
   type RoomTypeStayRestrictions,
 } from "@/lib/bookings/stay-restrictions";
-import { hotelSlugParam, isoDateParam } from "@/lib/validation/params";
+import { hotelSlugParam, isoDateParam, validateStayRange } from "@/lib/validation/params";
 
 /**
  * GET /api/booking/[slug]/availability
@@ -70,6 +70,17 @@ async function handleAvailability(
   }
   const checkIn = checkInParam.value;
   const checkOut = checkOutParam.value;
+
+  // With both dates present, bound the span before it reaches the date-series
+  // RPC: service_role has no statement_timeout, so an inverted or multi-century
+  // range would otherwise pin a connection for the full scan (DoS). Absent dates
+  // fall through to the "no dates yet" branch below.
+  if (checkIn && checkOut) {
+    const stay = validateStayRange(checkIn, checkOut);
+    if (!stay.ok) {
+      return NextResponse.json({ error: stay.reason }, { status: 400 });
+    }
+  }
 
   // Try slug first, then custom_domain — two clean parameterized queries.
   let hotelQuery = await supabase

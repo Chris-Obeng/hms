@@ -201,9 +201,9 @@ export function BlockRoomSheet({
                       setErrors((previous) => ({ ...previous, dates: "" }));
                     }}
                   >
-                    <RangeCalendar.Header className="pb-2">
+                    <RangeCalendar.Header>
                       <RangeCalendar.NavButton slot="previous" />
-                      <RangeCalendar.Heading className="text-[15px] font-semibold tracking-tight" />
+                      <RangeCalendar.Heading />
                       <RangeCalendar.NavButton slot="next" />
                     </RangeCalendar.Header>
                     <RangeCalendar.Grid>

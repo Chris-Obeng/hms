@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Button,
@@ -13,7 +14,6 @@ import { RotateCw, Search, ExternalLink, X } from "lucide-react";
 import { formatCurrencyCompact, formatDate } from "@/lib/format";
 import { HOTEL_STATUSES, type CurrencyTotal, type HotelRow } from "./types";
 import { StatusChip } from "./status-chip";
-import { HotelDrawer } from "./hotel-drawer";
 
 // ── Money cell ───────────────────────────────────────────────────
 /** Primary currency amount; extra currencies shown as a muted "+X" suffix. */
@@ -97,7 +97,6 @@ export function OversightTable({
 }: OversightTableProps) {
   const router = useRouter();
   const [searchDraft, setSearchDraft] = React.useState(q);
-  const [selectedHotelId, setSelectedHotelId] = React.useState<string | null>(null);
   const isPending = React.useTransition()[0];
 
   // Debounced sync of the search draft into the URL (server refetch).
@@ -124,25 +123,21 @@ export function OversightTable({
   // ── Error state ──
   if (error) {
     return (
-      <>
-        <div className="card-default py-14 flex flex-col items-center gap-3 text-center px-6">
-          <p className="text-body text-foreground font-medium">
-            Could not load hotels
-          </p>
-          <p className="text-caption text-muted-foreground max-w-sm">{error}</p>
-          <Button variant="outline" size="sm" onPress={() => router.refresh()} className="mt-1 gap-1.5 min-h-11">
-            <RotateCw className="size-3.5" />
-            Retry
-          </Button>
-        </div>
-        <HotelDrawer hotelId={selectedHotelId} onClose={() => setSelectedHotelId(null)} onChanged={() => router.refresh()} />
-      </>
+      <div className="card-default py-14 flex flex-col items-center gap-3 text-center px-6">
+        <p className="text-body text-foreground font-medium">
+          Could not load hotels
+        </p>
+        <p className="text-caption text-muted-foreground max-w-sm">{error}</p>
+        <Button variant="outline" size="sm" onPress={() => router.refresh()} className="mt-1 gap-1.5 min-h-11">
+          <RotateCw className="size-3.5" />
+          Retry
+        </Button>
+      </div>
     );
   }
 
   return (
-    <>
-      <section aria-label="Hotels" className={"space-y-3 transition-opacity" + (isPending ? " opacity-60" : "")}>
+    <section aria-label="Hotels" className={"space-y-3 transition-opacity" + (isPending ? " opacity-60" : "")}>
         {/* Controls */}
         <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
           <div className="relative w-full sm:w-64">
@@ -208,7 +203,7 @@ export function OversightTable({
                   {(row) => (
                     <Table.Row id={row.id} className="relative hover:bg-muted/30 transition-colors">
                       <Table.Cell>
-                        <RowLink row={row} onOpen={() => setSelectedHotelId(row.id)} />
+                        <RowLink row={row} />
                       </Table.Cell>
                       <Table.Cell><StatusChip status={row.status} /></Table.Cell>
                       <Table.Cell><OccupancyCell row={row} /></Table.Cell>
@@ -244,11 +239,10 @@ export function OversightTable({
             </div>
           ) : (
             rows.map((row) => (
-              <button
+              <Link
                 key={row.id}
-                type="button"
-                onClick={() => setSelectedHotelId(row.id)}
-                className="w-full text-left card-default p-4 space-y-3 outline-none focus-visible:ring-2 focus-visible:ring-ring active:bg-muted/40 transition-colors"
+                href={`/platform/hotels/${row.id}`}
+                className="block w-full text-left card-default p-4 space-y-3 outline-none focus-visible:ring-2 focus-visible:ring-ring active:bg-muted/40 transition-colors"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -282,7 +276,7 @@ export function OversightTable({
                 <p className="text-[11px] text-muted-foreground tabular-nums">
                   Created {formatDate(row.created_at, "dd MMM yyyy")}
                 </p>
-              </button>
+              </Link>
             ))
           )}
         </div>
@@ -333,13 +327,6 @@ export function OversightTable({
           </Pagination>
         )}
       </section>
-
-      <HotelDrawer
-        hotelId={selectedHotelId}
-        onClose={() => setSelectedHotelId(null)}
-        onChanged={() => router.refresh()}
-      />
-    </>
   );
 }
 
@@ -367,12 +354,11 @@ function FilterChip({
   );
 }
 
-/** Whole-row activation: a real button stretched over the row via ::after. */
-function RowLink({ row, onOpen }: { row: HotelRow; onOpen: () => void }) {
+/** Whole-row activation: a Link stretched over the row via ::after. */
+function RowLink({ row }: { row: HotelRow }) {
   return (
-    <button
-      type="button"
-      onClick={onOpen}
+    <Link
+      href={`/platform/hotels/${row.id}`}
       className="text-left after:absolute after:inset-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring group"
     >
       <span className="font-medium text-foreground group-hover:text-accent transition-colors">
@@ -381,7 +367,7 @@ function RowLink({ row, onOpen }: { row: HotelRow; onOpen: () => void }) {
       <span className="block text-[11px] text-muted-foreground mt-0.5">
         {[row.city, row.country].filter(Boolean).join(", ") || "—"}
       </span>
-    </button>
+    </Link>
   );
 }
 

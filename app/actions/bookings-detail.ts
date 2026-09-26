@@ -213,12 +213,18 @@ export async function getFullBookingDetail(
             status: r.status,
           };
         });
+        // A cancelled line is void revenue; a checked-out line is settled and
+        // uncollectable here. Charge totals exclude cancelled; "due" excludes
+        // both, so it matches exactly what this panel can still collect.
+        const isCancelled = (l: GroupLineItem) => l.status === "cancelled";
+        const isTerminal = (l: GroupLineItem) =>
+          l.status === "cancelled" || l.status === "checked_out";
         group = {
-          total: lines.reduce((s, l) => s + l.totalAmount, 0),
-          amountPaid: lines.reduce((s, l) => s + l.amountPaid, 0),
-          outstanding: lines.reduce((s, l) => s + l.outstanding, 0),
-          subtotal: lines.reduce((s, l) => s + l.subtotal, 0),
-          taxAmount: lines.reduce((s, l) => s + (l.taxAmount ?? 0), 0),
+          total: lines.reduce((s, l) => s + (isCancelled(l) ? 0 : l.totalAmount), 0),
+          amountPaid: lines.reduce((s, l) => s + (isCancelled(l) ? 0 : l.amountPaid), 0),
+          outstanding: lines.reduce((s, l) => s + (isTerminal(l) ? 0 : l.outstanding), 0),
+          subtotal: lines.reduce((s, l) => s + (isCancelled(l) ? 0 : l.subtotal), 0),
+          taxAmount: lines.reduce((s, l) => s + (isCancelled(l) ? 0 : l.taxAmount ?? 0), 0),
           totalRooms: lines.reduce((s, l) => s + Math.max(1, l.roomsCount ?? 1), 0),
           lines,
         };

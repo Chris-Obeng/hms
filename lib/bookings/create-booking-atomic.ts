@@ -29,7 +29,8 @@
  * - Integrity rejections keep their native SQLSTATE. `23P01` — from the
  *   `bookings_room_type_inventory_guard` trigger, or from either room-overlap
  *   EXCLUDE constraint — is a lost race for a room and is surfaced as
- *   `inventory_conflict`.
+ *   `inventory_conflict`. `40P01` (deadlock) shares that code: two group
+ *   creates that raced for the same room types are told to retry, not 500.
  * - `23514` is shared: the `bookings_restrictions_guard` trigger raises it for a
  *   stay that breaks the rate plan's length-of-stay or open/closed controls, and
  *   so does every ordinary CHECK on the table. Only DETAIL tells the two apart,
@@ -132,7 +133,7 @@ const REJECTION_CODES = [
 
 export type BookingRejectionCode =
   | (typeof REJECTION_CODES)[number]
-  /** 23P01 from the inventory guard — two guests raced for the last room. */
+  /** 23P01 (inventory guard) or 40P01 (group-create deadlock) — retryable race for a room. */
   | "inventory_conflict"
   /** Anything else: a broken migration, a missing grant, a bug. */
   | "unknown";
@@ -162,7 +163,7 @@ function classify(error: RpcError): BookingRejection {
   const known = (REJECTION_CODES as readonly string[]).includes(detail);
   return {
     code:
-      error.code === "23P01"
+      error.code === "23P01" || error.code === "40P01"
         ? "inventory_conflict"
         : (error.code === "P0001" || error.code === "23514") && known
           ? (detail as BookingRejectionCode)

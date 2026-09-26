@@ -108,19 +108,19 @@ export function DashboardHeader({
                   }
                 }}
               >
-                <Calendar.Header className="pb-2 text-foreground">
+                <Calendar.Header>
                   <Calendar.NavButton slot="previous" />
                   <Calendar.Heading />
                   <Calendar.NavButton slot="next" />
                 </Calendar.Header>
                 <Calendar.Grid>
-                  <Calendar.GridHeader className="text-foreground">
+                  <Calendar.GridHeader>
                     {(day) => (
-                      <Calendar.HeaderCell className="text-xs font-semibold text-foreground">{day}</Calendar.HeaderCell>
+                      <Calendar.HeaderCell>{day}</Calendar.HeaderCell>
                     )}
                   </Calendar.GridHeader>
                   <Calendar.GridBody>
-                    {(date) => <Calendar.Cell date={date} className="text-sm text-foreground" />}
+                    {(date) => <Calendar.Cell date={date} />}
                   </Calendar.GridBody>
                 </Calendar.Grid>
               </Calendar>

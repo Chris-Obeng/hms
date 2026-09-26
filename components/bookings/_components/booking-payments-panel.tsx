@@ -54,6 +54,12 @@ export function BookingPaymentsPanel({
       )
     : [];
 
+  // A group follows its payable lines, not the anchor: a checked-out anchor can
+  // still have an owing sibling, and a checked-out sibling must not hide the CTA.
+  const canTakePayment = group
+    ? payableLines.length > 0
+    : !["cancelled", "checked_out"].includes(booking.status ?? "");
+
   const openPaymentForm = () => {
     if (group) {
       const first = payableLines[0];
@@ -313,7 +319,7 @@ export function BookingPaymentsPanel({
           </div>
         </form>
       ) : (
-        !["cancelled", "checked_out"].includes(booking.status ?? "") &&
+        canTakePayment &&
         !isFullyPaid && (
           <Button
             variant="outline"

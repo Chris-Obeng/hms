@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HeroSelectField } from "@/components/ui/hero-select";
 import { cn } from "@/lib/utils";
-import { SettingsSubHeader } from "../_components/settings-sub-header";
 import {
   fetchPaystackBanks,
   verifyBankAccount,
@@ -66,7 +65,6 @@ export function PaymentsSettingsClient({ hotelName, initialData }: Props) {
   const [bankCode, setBankCode] = React.useState(initialData.bankCode ?? "");
   const [accountNumber, setAccountNumber] = React.useState(initialData.accountNumber ?? "");
   const [businessName, setBusinessName] = React.useState(initialData.businessName ?? hotelName);
-  const [settlement, setSettlement] = React.useState(initialData.settlementSchedule);
   const [verified, setVerified] = React.useState<string | null>(null);
   const [verifying, setVerifying] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -85,8 +83,12 @@ export function PaymentsSettingsClient({ hotelName, initialData }: Props) {
     setBanksError(false);
     try {
       const r = await fetchPaystackBanks();
-      if (r.success) setBanks(r.banks);
-      else setBanksError(true);
+      if (r.success) {
+        // Paystack's Ghana list repeats some sort codes; keep first per code so
+        // the select has unique keys (find() is already first-wins on type).
+        const seen = new Set<string>();
+        setBanks(r.banks.filter((b) => !seen.has(b.code) && seen.add(b.code)));
+      } else setBanksError(true);
     } catch {
       setBanksError(true);
     } finally {
@@ -132,7 +134,8 @@ export function PaymentsSettingsClient({ hotelName, initialData }: Props) {
       businessName,
       bankCode,
       accountNumber,
-      settlementSchedule: settlement,
+      // Schedule is no longer editable in the UI — preserve the stored value.
+      settlementSchedule: initialData.settlementSchedule,
     });
     setSaving(false);
     if (r.success) {
@@ -159,9 +162,7 @@ export function PaymentsSettingsClient({ hotelName, initialData }: Props) {
   };
 
   return (
-    <div className="space-y-7 max-w-xl">
-      <SettingsSubHeader icon="card" title="Payments" subtitle="Payment policy and Paystack bank setup" />
-
+    <div className="space-y-7 max-w-xl mx-auto">
       {/* Payment Policy */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
@@ -320,20 +321,6 @@ export function PaymentsSettingsClient({ hotelName, initialData }: Props) {
                 {verified}
               </p>
             )}
-          </div>
-
-          <div>
-            <label className="text-label text-muted-foreground mb-1.5 block">Settlement schedule</label>
-            <HeroSelectField
-              value={settlement}
-              onValueChange={setSettlement}
-              options={[
-                { value: "auto", label: "Automatic (T+1)" },
-                { value: "weekly", label: "Weekly" },
-                { value: "manual", label: "Manual" },
-              ]}
-              ariaLabel="Settlement schedule"
-            />
           </div>
         </div>
 

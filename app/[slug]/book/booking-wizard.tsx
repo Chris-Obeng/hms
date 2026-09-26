@@ -30,7 +30,8 @@ import {
   TextArea,
 } from "@heroui/react";
 import { RoomGallery } from "@/components/booking/room-gallery";
-import { formatCurrencyCompact } from "@/lib/format-currency";
+import { formatCurrency } from "@/lib/format";
+import { fromMinor, sumMinor, toMinor } from "@/lib/money";
 import { BookingDateRangePicker } from "@/components/booking/booking-date-range-picker";
 import { GuestPickerPopover } from "@/components/booking/guest-picker-popover";
 import { NumericStepper } from "@/components/booking/numeric-stepper";
@@ -313,7 +314,9 @@ export function BookingWizard({
         )
       : 1;
 
-  const fmt = (n: number) => formatCurrencyCompact(n, hotel.currency);
+  // 2-decimal so the displayed figures match the exact minor amount charged;
+  // the compact formatter rounded GHS 450.50 to "451".
+  const fmt = (n: number) => formatCurrency(n, hotel.currency);
 
   // Per-line pricing mirrors POST /api/booking/[slug]/bookings exactly, per line:
   // unit subtotal (override-resolved) × rooms, then tax on top. Summed across
@@ -351,9 +354,14 @@ export function BookingWizard({
       blocked: avail === 0 || restrictionReason !== null,
     };
   });
-  const subtotal = Math.round(pricedLines.reduce((s, p) => s + p.subtotal, 0) * 100) / 100;
-  const taxAmount = Math.round(pricedLines.reduce((s, p) => s + p.tax, 0) * 100) / 100;
-  const total = subtotal + taxAmount;
+  // Sum in minor units then convert once, so the grand total equals the sum of
+  // the per-line charges to the pesewa — a raw float reduce can drift.
+  const cur = hotel.currency;
+  const subtotalMinor = sumMinor(pricedLines.map((p) => toMinor(p.subtotal, cur)));
+  const taxMinor = sumMinor(pricedLines.map((p) => toMinor(p.tax, cur)));
+  const subtotal = fromMinor(subtotalMinor, cur);
+  const taxAmount = fromMinor(taxMinor, cur);
+  const total = fromMinor(subtotalMinor + taxMinor, cur);
   const totalRooms = pricedLines.reduce((s, p) => s + p.qty, 0);
 
   const datesValid = !!checkIn && !!checkOut && checkOut > checkIn;
@@ -1237,6 +1245,7 @@ export function BookingWizard({
           roomTypeId={galleryRoom.id}
           checkIn={checkIn}
           checkOut={checkOut}
+          slug={slug}
         />
       )}
     </>

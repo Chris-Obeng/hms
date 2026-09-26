@@ -80,7 +80,9 @@ export async function paystackFetch<T = unknown>(
       },
       fingerprint: ["paystack-api", endpoint, String(res.status)],
     });
-    throw new Error(`Paystack ${res.status}: ${text}`);
+    // Body kept out of the message: call sites pass this to captureError, so the
+    // raw payload (may echo a guest email) would reach Sentry. Size is logged above.
+    throw new Error(`Paystack ${res.status} ${endpoint}`);
   }
   return res.json();
 }

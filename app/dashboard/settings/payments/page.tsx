@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { can } from "@/lib/roles";
 import { redirect } from "next/navigation";
-import { PaymentsSettingsClient } from "./payments-client";
+import { PaymentsTabs } from "./payments-tabs";
 export const metadata = { title: "Payments · RoomLine" };
 
 export default async function PaymentsSettingsPage() {
@@ -39,7 +39,7 @@ export default async function PaymentsSettingsPage() {
   const settings = (hotel.settings as Record<string, unknown>) ?? {};
 
   return (
-    <PaymentsSettingsClient
+    <PaymentsTabs
       hotelName={hotel.name}
       initialData={{
         subaccountCode: hotel.paystack_subaccount_code,

@@ -22,15 +22,11 @@ interface StayRangeCalendarProps {
 }
 
 /**
- * Airbnb-style dual-month stay range picker.
+ * Dual-month stay range picker — HeroUI defaults only.
  *
- * - ONE RangeCalendar state machine driving two month grids.
- * - Nav buttons sit on the outer edges: prev on the first month,
- *   next on the last. No per-month heading duplication issues —
- *   each grid header shows its own month label via `offset`.
- * - Range visuals: rounded pill start/end, soft track between —
- *   driven by `booking-range-calendar` CSS (globals.css).
- * - Mobile: renders a single month; desktop (md+): two months.
+ * One RangeCalendar drives two month grids (composed via visibleDuration +
+ * per-grid offset). Two months on desktop, one on mobile. No custom styling:
+ * selection/colors come straight from HeroUI's stock RangeCalendar.
  */
 export function StayRangeCalendar({
   value,
@@ -47,7 +43,7 @@ export function StayRangeCalendar({
   return (
     <RangeCalendar
       aria-label={ariaLabel}
-      className={cn("stay-range-calendar", className)}
+      className={cn("@container-normal w-full max-w-none overflow-x-auto", className)}
       visibleDuration={{ months }}
       value={value}
       onChange={(v) =>
@@ -61,13 +57,13 @@ export function StayRangeCalendar({
       selectionAlignment="start"
       weeksInMonth={6}
     >
-      <div className="stay-range-months">
-        <div className="stay-range-month">
+      <div className="mx-auto flex w-max gap-8">
+        <div className="w-64">
           <RangeCalendar.Header>
             <RangeCalendar.NavButton slot="previous" />
-            <RangeCalendar.Heading />
-            {/* Spacer keeps heading centered when next-button column is absent */}
-            {months === 1 ? <RangeCalendar.NavButton slot="next" /> : <span className="stay-range-nav-spacer" />}
+            <RangeCalendar.Heading className="flex-none" />
+            {/* One month: next lives here; two months: next sits on the last */}
+            {months === 1 ? <RangeCalendar.NavButton slot="next" /> : <div className="size-6" />}
           </RangeCalendar.Header>
           <RangeCalendar.Grid>
             <RangeCalendar.GridHeader>
@@ -80,10 +76,10 @@ export function StayRangeCalendar({
         </div>
 
         {months === 2 && (
-          <div className="stay-range-month">
+          <div className="w-64">
             <RangeCalendar.Header>
-              <span className="stay-range-nav-spacer" />
-              <RangeCalendar.Heading offset={{ months: 1 }} />
+              <div className="size-6" />
+              <RangeCalendar.Heading className="flex-none" offset={{ months: 1 }} />
               <RangeCalendar.NavButton slot="next" />
             </RangeCalendar.Header>
             <RangeCalendar.Grid offset={{ months: 1 }}>

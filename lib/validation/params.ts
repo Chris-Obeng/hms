@@ -64,6 +64,51 @@ export const isoDateParam = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date")
   .refine((value) => !Number.isNaN(Date.parse(`${value}T00:00:00Z`)), "Invalid date");
 
+/** Longest stay span, in nights, any guest-facing route will search or book.
+ *  Matches the 366-day payout-window cap so one number bounds every date-range
+ *  scan in the app. */
+export const MAX_STAY_NIGHTS = 366;
+
+/** Furthest ahead a check-in may be, in days from today. */
+export const MAX_LEAD_DAYS = 730;
+
+const STAY_DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Server-side sanity check for a guest-supplied stay range, shared by the
+ * availability search and the booking-create routes so both reject the same
+ * shapes. It guards the date-series RPCs behind them: `room_type_available_counts`
+ * builds a per-day series and `service_role` has no `statement_timeout`, so an
+ * inverted or unbounded span is a denial-of-service, not just a bad request.
+ *
+ * Both dates must be `yyyy-MM-dd` (re-checked here via `isoDateParam`, so callers
+ * may pass raw input) and are compared as UTC midnights — no timezone drift.
+ */
+export function validateStayRange(
+  checkIn: string,
+  checkOut: string
+): { ok: true } | { ok: false; reason: string } {
+  if (
+    !isoDateParam.safeParse(checkIn).success ||
+    !isoDateParam.safeParse(checkOut).success
+  ) {
+    return { ok: false, reason: "Invalid check-in or check-out date" };
+  }
+  const inMs = Date.parse(`${checkIn}T00:00:00Z`);
+  const outMs = Date.parse(`${checkOut}T00:00:00Z`);
+  if (outMs <= inMs) {
+    return { ok: false, reason: "Check-out must be after check-in" };
+  }
+  if ((outMs - inMs) / STAY_DAY_MS > MAX_STAY_NIGHTS) {
+    return { ok: false, reason: `Stay cannot exceed ${MAX_STAY_NIGHTS} nights` };
+  }
+  const todayMs = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+  if ((inMs - todayMs) / STAY_DAY_MS > MAX_LEAD_DAYS) {
+    return { ok: false, reason: "Check-in is too far in the future" };
+  }
+  return { ok: true };
+}
+
 /**
  * Guest email address.
  *

@@ -24,7 +24,7 @@ import {
   guestStayRestrictionMessage,
   parseStayRestrictions,
 } from "@/lib/bookings/stay-restrictions";
-import { guestEmail, hotelSlugParam, isoDateParam } from "@/lib/validation/params";
+import { guestEmail, hotelSlugParam, isoDateParam, validateStayRange } from "@/lib/validation/params";
 
 const Schema = z.object({
   room_type_id: z.string().uuid(),
@@ -309,8 +309,9 @@ export async function POST(
       return NextResponse.json({ error: "Online payment is not available for this hotel." }, { status: 400 });
     }
 
-    if (data.check_out <= data.check_in) {
-      return NextResponse.json({ error: "Check-out must be after check-in." }, { status: 400 });
+    const stay = validateStayRange(data.check_in, data.check_out);
+    if (!stay.ok) {
+      return NextResponse.json({ error: stay.reason }, { status: 400 });
     }
 
     const { data: roomType, error: roomTypeErr } = await supabaseAdmin
@@ -670,8 +671,9 @@ async function createGroupBooking(
   }
 
   for (const line of data.lines) {
-    if (line.check_out <= line.check_in) {
-      return NextResponse.json({ error: "Check-out must be after check-in." }, { status: 400 });
+    const stay = validateStayRange(line.check_in, line.check_out);
+    if (!stay.ok) {
+      return NextResponse.json({ error: stay.reason }, { status: 400 });
     }
   }
 

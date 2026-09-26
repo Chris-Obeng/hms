@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { assertPlatformAdmin } from "./_guard";
+import { buildHotelPayoutOverview, type HotelPayoutOverview } from "@/lib/payouts";
 
 /**
  * Platform admin server actions — Hotel Oversight.
@@ -136,15 +137,10 @@ export interface Hotel360Result {
   money?: {
     /** Per-currency — payments may be recorded in a different currency than the hotel's default. */
     collected: { currency: string; amount: number }[];
+    /** All-time gross from online/website bookings (Paystack), per currency. */
+    online: { currency: string; amount: number }[];
     fees: { currency: string; amount: number }[];
     outstanding: { currency: string; amount: number }[];
-    lastPayments: {
-      amount: number;
-      currency: string;
-      method: string | null;
-      status: string | null;
-      paid_at: string | null;
-    }[];
   };
   staff?: { role: string; count: number }[];
   audit?: {
@@ -185,8 +181,8 @@ export async function getHotel360(hotelId: string): Promise<Hotel360Result> {
       roomsRes,
       opsBookingsRes,
       paymentsTotalsRes,
+      onlineTotalsRes,
       outstandingRes,
-      lastPaymentsRes,
       staffRes,
       auditRes,
     ] = await Promise.all([
@@ -207,6 +203,16 @@ export async function getHotel360(hotelId: string): Promise<Hotel360Result> {
         .select("amount, platform_fee, currency")
         .eq("hotel_id", hotelId)
         .eq("status", "success"),
+      // Online/website bookings only (Paystack), all-time — mirrors the payout
+      // discriminator with no date floor: source=direct + no staff creator.
+      supabaseAdmin
+        .from("payments")
+        .select("amount, currency, bookings!inner(source, created_by)")
+        .eq("hotel_id", hotelId)
+        .eq("status", "success")
+        .not("paystack_reference", "is", null)
+        .eq("bookings.source", "direct")
+        .is("bookings.created_by", null),
       supabaseAdmin
         .from("bookings")
         .select("outstanding_balance, currency")
@@ -214,12 +220,6 @@ export async function getHotel360(hotelId: string): Promise<Hotel360Result> {
         .in("status", ["confirmed", "checked_in", "checked_out"])
         .neq("payment_status", "paid")
         .gt("outstanding_balance", 0),
-      supabaseAdmin
-        .from("payments")
-        .select("amount, currency, method, status, paid_at")
-        .eq("hotel_id", hotelId)
-        .order("created_at", { ascending: false })
-        .limit(5),
       hotel.clerk_org_id
         ? supabaseAdmin
             .from("staff_profiles")
@@ -290,6 +290,11 @@ export async function getHotel360(hotelId: string): Promise<Hotel360Result> {
         (feeByCur.get(cur) ?? 0) + Number(p.platform_fee ?? 0)
       );
     }
+    const onlineByCur = new Map<string, number>();
+    for (const p of onlineTotalsRes.data ?? []) {
+      const cur = p.currency ?? "GHS";
+      onlineByCur.set(cur, (onlineByCur.get(cur) ?? 0) + Number(p.amount));
+    }
     const outByCur = new Map<string, number>();
     for (const b of outstandingRes.data ?? []) {
       const cur = b.currency ?? "GHS";
@@ -298,10 +303,14 @@ export async function getHotel360(hotelId: string): Promise<Hotel360Result> {
         (outByCur.get(cur) ?? 0) + Number(b.outstanding_balance ?? 0)
       );
     }
+    // Hotel's own currency leads; foreign buckets (rare/legacy) fall to the suffix.
+    const homeCur = hotel.currency ?? "GHS";
     const sorted = (m: Map<string, number>) =>
       Array.from(m.entries())
         .map(([currency, amount]) => ({ currency, amount }))
-        .sort((a, b) => b.amount - a.amount);
+        .sort((a, b) =>
+          a.currency === homeCur ? -1 : b.currency === homeCur ? 1 : b.amount - a.amount
+        );
 
     const roleCounts = new Map<string, number>();
     for (const s of staffRes.data ?? []) {
@@ -326,15 +335,9 @@ export async function getHotel360(hotelId: string): Promise<Hotel360Result> {
       operations,
       money: {
         collected: sorted(paidByCur),
+        online: sorted(onlineByCur),
         fees: sorted(feeByCur),
         outstanding: sorted(outByCur),
-        lastPayments: (lastPaymentsRes.data ?? []).map((p) => ({
-          amount: Number(p.amount),
-          currency: p.currency ?? "GHS",
-          method: p.method,
-          status: p.status,
-          paid_at: p.paid_at,
-        })),
       },
       staff: Array.from(roleCounts.entries())
         .map(([role, count]) => ({ role, count }))
@@ -354,6 +357,47 @@ export async function getHotel360(hotelId: string): Promise<Hotel360Result> {
         created_at: row.created_at,
       })),
     };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+}
+
+// ── Hotel payouts (platform oversight) ───────────────────────────
+
+/**
+ * Payout overview for any hotel, for platform admins. Same live-poll data layer
+ * as the hotel-facing action, gated by the platform-admin whitelist and reading
+ * through supabaseAdmin (platform admins operate across all hotels). Only this
+ * hotel's own subaccount is ever queried; the id shape is validated first. The
+ * optional date range is validated and clamped inside buildHotelPayoutOverview.
+ */
+export async function getHotelPayouts(
+  hotelId: string,
+  range?: { from: string; to: string }
+): Promise<{ success: true; data: HotelPayoutOverview } | { success: false; error: string }> {
+  try {
+    if (!/^[0-9a-f-]{36}$/i.test(hotelId)) {
+      return { success: false, error: "Invalid hotel" };
+    }
+    await assertPlatformAdmin();
+
+    const { data: hotel } = await supabaseAdmin
+      .from("hotels")
+      .select("id, currency, paystack_subaccount_code, paystack_settlement_schedule")
+      .eq("id", hotelId)
+      .single();
+    if (!hotel) return { success: false, error: "Hotel not found" };
+
+    const data = await buildHotelPayoutOverview({
+      hotelId: hotel.id,
+      subaccountCode: hotel.paystack_subaccount_code,
+      settlementSchedule: hotel.paystack_settlement_schedule,
+      currency: hotel.currency ?? "GHS",
+      supabase: supabaseAdmin,
+      window: range ?? { days: 30 },
+    });
+
+    return { success: true, data };
   } catch (err) {
     return { success: false, error: (err as Error).message };
   }

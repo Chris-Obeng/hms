@@ -13,7 +13,8 @@ import {
 import { CopyButton } from "@/components/booking/copy-button";
 import { PaymentVerifier } from "@/components/booking/payment-verifier";
 import { CompletePaymentPanel } from "@/components/booking/complete-payment-panel";
-import { formatCurrencyCompact } from "@/lib/format-currency";
+import { formatCurrency } from "@/lib/format";
+import { fromMinor, sumMinor, toMinor } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 
@@ -112,15 +113,22 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
     lines = (groupRows as GroupLine[] | null) ?? [];
   }
 
+  const currency = booking.currency ?? hotel.currency ?? "GHS";
+
   // Group money is the sum across lines; a single-room booking uses its own row.
+  // Summed in minor units so the total reconciles to the pesewa with the single
+  // amount Paystack charged (itself the sum of the line totals).
   const sumSubtotal = isGroup
-    ? lines.reduce((s, l) => s + (l.subtotal ?? l.total_amount ?? 0), 0)
+    ? fromMinor(
+        sumMinor(lines.map((l) => toMinor(l.subtotal ?? l.total_amount ?? 0, currency))),
+        currency
+      )
     : booking.subtotal ?? booking.total_amount ?? 0;
   const sumTax = isGroup
-    ? lines.reduce((s, l) => s + (l.tax_amount ?? 0), 0)
+    ? fromMinor(sumMinor(lines.map((l) => toMinor(l.tax_amount ?? 0, currency))), currency)
     : booking.tax_amount ?? 0;
   const sumTotal = isGroup
-    ? lines.reduce((s, l) => s + (l.total_amount ?? 0), 0)
+    ? fromMinor(sumMinor(lines.map((l) => toMinor(l.total_amount ?? 0, currency))), currency)
     : booking.total_amount ?? 0;
 
   const guestName =
@@ -149,8 +157,7 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
     state = "cancelled";
   }
 
-  const currency = booking.currency ?? hotel.currency ?? "GHS";
-  const fmtMoney = (n: number) => formatCurrencyCompact(n, currency);
+  const fmtMoney = (n: number) => formatCurrency(n, currency);
   const firstName = guestName.split(" ")[0];
   const location = [hotel.address, hotel.city].filter(Boolean).join(", ");
   const roomsCount = isGroup

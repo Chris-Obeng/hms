@@ -243,6 +243,7 @@ export function RoomCard({
         roomTypeId={id}
         checkIn={checkIn}
         checkOut={checkOut}
+        slug={slug}
       />
     </>
   );

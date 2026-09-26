@@ -630,16 +630,13 @@
   --color-muted: var(--muted);
   --color-default: var(--default);
   --color-default-foreground: var(--default-foreground);
-  --color-accent: var(--bk-accent);
-  --color-accent-foreground: var(--bk-on-ink);
-  --color-accent-hover: var(--bk-accent-hover);
-  --color-accent-soft: var(--bk-accent-soft);
-  --color-accent-soft-foreground: var(--bk-accent);
-  --color-accent-soft-hover: var(--bk-accent-soft);
+  /* Selection uses the neutral HeroUI default accent, not guest amber */
+  --accent: oklch(0.6204 0.195 253.83);
+  --accent-foreground: oklch(0.9911 0 0);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
 
-  /* Bridge: StayRangeCalendar drives selection UI off --primary/--muted-foreground */
-  --primary: var(--bk-accent);
-  --primary-foreground: var(--bk-on-ink);
+  /* Readability token for native day-name header / outside-month cells */
   --muted-foreground: var(--bk-muted);
 }
 
