@@ -13,15 +13,18 @@ import {
   type ColumnFiltersState,
   type SortingState,
 } from "@tanstack/react-table";
-import { Download, SlidersHorizontal, Users } from "lucide-react";
-import { Button, Chip, SearchField, Table } from "@heroui/react";
+import { Users } from "lucide-react";
+import { Button, Chip, Table } from "@heroui/react";
 
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { downloadCsv, toCsv } from "@/lib/csv";
-import { HeroSelectField } from "@/components/ui/hero-select";
 import { HeroTablePagination } from "@/components/ui/hero-table-pagination";
+import { TableSearchField } from "@/components/ui/table-search-field";
+import { ViewModeToggle } from "@/components/ui/view-mode-toggle";
+import {
+  EntityFilters,
+  EntityFilterChips,
+  type FilterFieldConfig,
+} from "@/components/ui/entity-filters";
 import { GuestDetailSheet } from "@/components/customers/guest-detail-sheet";
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -61,6 +64,21 @@ function getTagColor(tag: string) {
 
 const ALL_TAG_OPTIONS = ["vip", "regular", "flagged", "corporate", "new", "returning"];
 
+const TAG_OPTIONS = ALL_TAG_OPTIONS.map((t) => ({
+  value: t,
+  label: t.charAt(0).toUpperCase() + t.slice(1),
+}));
+
+const ACTIVITY_OPTIONS = [
+  { value: "returning", label: "Returning" },
+  { value: "first_time", label: "First-time" },
+  { value: "no_stays", label: "No stays" },
+];
+
+function activityBucket(totalStays: number) {
+  return totalStays >= 2 ? "returning" : totalStays === 1 ? "first_time" : "no_stays";
+}
+
 function GuestInitials({ fullName }: { fullName: string }) {
   const initials =
     fullName
@@ -77,36 +95,70 @@ function GuestInitials({ fullName }: { fullName: string }) {
   );
 }
 
-// ── CSV Export ─────────────────────────────────────────────────────
-
-function exportToCsv(data: GuestRow[]) {
-  const headers = [
-    "Full Name",
-    "Email",
-    "Phone",
-    "Nationality",
-    "National ID",
-    "Total Stays",
-    "Total Spend",
-    "Last Stay Date",
-    "Tags",
-    "Notes",
-  ];
-
-  const rows = data.map((g) => [
-    g.fullName,
-    g.email || "",
-    g.phone || "",
-    g.nationality || "",
-    g.nationalId || "",
-    g.totalStays.toString(),
-    g.totalSpend.toString(),
-    g.lastStayDate || "",
-    g.tags.join(", "),
-    g.notes || "",
-  ]);
-
-  downloadCsv(`customers-${format(new Date(), "yyyy-MM-dd")}.csv`, toCsv(headers, rows));
+// Reusable guest card — mobile list + desktop grid view share it.
+function GuestCard({
+  guest,
+  currency,
+  onSelect,
+}: {
+  guest: GuestRow;
+  currency: string;
+  onSelect: (guest: GuestRow) => void;
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(guest)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(guest);
+        }
+      }}
+      className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 text-left shadow-sm transition-all duration-150 hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:bg-muted/40"
+    >
+      <div className="flex items-center gap-3">
+        <GuestInitials fullName={guest.fullName} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-body font-semibold text-foreground">{guest.fullName}</p>
+          <p className="truncate text-caption text-muted-foreground">
+            {guest.phone || guest.email || "—"}
+          </p>
+        </div>
+        {guest.tags.length > 0 && (
+          <div className="flex shrink-0 items-center gap-1">
+            <Chip size="sm" variant="soft" color={getTagColor(guest.tags[0])}>
+              <span className="capitalize">{guest.tags[0].replace("_", " ")}</span>
+            </Chip>
+            {guest.tags.length > 1 && (
+              <span className="text-caption text-muted-foreground">+{guest.tags.length - 1}</span>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-3">
+        <div className="flex gap-4">
+          <div>
+            <p className="text-caption text-muted-foreground">Stays</p>
+            <p className="text-body font-medium tabular-nums text-foreground">{guest.totalStays}</p>
+          </div>
+          <div>
+            <p className="text-caption text-muted-foreground">Total spent</p>
+            <p className="text-body font-medium tabular-nums text-foreground">
+              {formatCurrency(guest.totalSpend, currency)}
+            </p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-caption text-muted-foreground">Last stay</p>
+          <p className="text-caption font-medium text-foreground">
+            {formatDate(guest.lastStayDate)}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Main Component ─────────────────────────────────────────────────
@@ -120,10 +172,12 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   // Seed the search box from ?search= (set by global search "See all")
   const [globalFilter, setGlobalFilter] = React.useState(() => searchParams.get("search") ?? "");
-  const [showFilters, setShowFilters] = React.useState(false);
-  const [tagFilter, setTagFilter] = React.useState<string>("all");
+  const [tagFilter, setTagFilter] = React.useState("all");
+  const [activityFilter, setActivityFilter] = React.useState("all");
+  const [nationalityFilter, setNationalityFilter] = React.useState("all");
   const [selectedGuest, setSelectedGuest] = React.useState<GuestRow | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
+  const [viewMode, setViewMode] = React.useState<"table" | "grid">("table");
 
   // Edits saved inside the detail sheet are merged here so table rows and
   // re-opened sheets reflect them immediately (server data refreshes on next
@@ -173,14 +227,14 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
     [router]
   );
 
-  // Apply tag selection as a column filter
+  // Selections drive TanStack column filters (tags = membership, others exact).
   React.useEffect(() => {
     const filters: ColumnFiltersState = [];
-    if (tagFilter !== "all") {
-      filters.push({ id: "tags", value: tagFilter });
-    }
+    if (tagFilter !== "all") filters.push({ id: "tags", value: tagFilter });
+    if (activityFilter !== "all") filters.push({ id: "activity", value: activityFilter });
+    if (nationalityFilter !== "all") filters.push({ id: "nationality", value: nationalityFilter });
     setColumnFilters(filters);
-  }, [tagFilter]);
+  }, [tagFilter, activityFilter, nationalityFilter]);
 
   // ── Columns ────────────────────────────────────────────────────
   const columns = React.useMemo<ColumnDef<GuestRow>[]>(
@@ -216,6 +270,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
       {
         accessorKey: "nationality",
         header: "Nationality",
+        filterFn: (row, id, value) => row.getValue(id) === value,
         cell: ({ row }) => (
           <span className="text-body text-muted-foreground">
             {row.original.nationality || "—"}
@@ -277,6 +332,13 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
           );
         },
       },
+      {
+        id: "activity",
+        accessorFn: (g) => activityBucket(g.totalStays),
+        header: "Activity",
+        enableSorting: false,
+        filterFn: (row, id, value) => row.getValue(id) === value,
+      },
     ],
     [currency]
   );
@@ -308,6 +370,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
       );
     },
     initialState: {
+      columnVisibility: { activity: false },
       pagination: {
         pageSize: 15,
       },
@@ -317,7 +380,50 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
   const filteredCount = table.getFilteredRowModel().rows.length;
   const totalCount = data.length;
   const rows = table.getRowModel().rows;
-  const isFiltered = globalFilter.trim().length > 0 || tagFilter !== "all";
+
+  const nationalityOptions = React.useMemo(
+    () =>
+      (Array.from(new Set(data.map((g) => g.nationality).filter(Boolean))) as string[])
+        .sort((a, b) => a.localeCompare(b))
+        .map((n) => ({ value: n, label: n })),
+    [data]
+  );
+
+  const filterFields = React.useMemo<FilterFieldConfig[]>(
+    () => [
+      { key: "tag", label: "Tag", ariaLabel: "Filter by guest tag", allLabel: "All tags", options: TAG_OPTIONS },
+      { key: "activity", label: "Activity", ariaLabel: "Filter by stay activity", allLabel: "Any activity", options: ACTIVITY_OPTIONS },
+      {
+        key: "nationality",
+        label: "Nationality",
+        ariaLabel: "Filter by nationality",
+        allLabel: "All nationalities",
+        disabled: nationalityOptions.length === 0,
+        options: nationalityOptions,
+      },
+    ],
+    [nationalityOptions]
+  );
+
+  const filterValues = { tag: tagFilter, activity: activityFilter, nationality: nationalityFilter };
+
+  const setFilter = React.useCallback((key: string, value: string) => {
+    if (key === "tag") setTagFilter(value);
+    else if (key === "activity") setActivityFilter(value);
+    else if (key === "nationality") setNationalityFilter(value);
+  }, []);
+
+  const clearAllFilters = React.useCallback(() => {
+    setTagFilter("all");
+    setActivityFilter("all");
+    setNationalityFilter("all");
+  }, []);
+
+  const isFiltered =
+    globalFilter.trim().length > 0 ||
+    tagFilter !== "all" ||
+    activityFilter !== "all" ||
+    nationalityFilter !== "all";
 
   function handleGuestClick(guest: GuestRow) {
     setSelectedGuest(guest);
@@ -335,97 +441,58 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
           ? "Try adjusting your search or filters."
           : "Guest profiles are created automatically when bookings are made."}
       </p>
+      {isFiltered && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mt-4 rounded-lg text-sm"
+          onPress={() => {
+            clearAllFilters();
+            setGlobalFilter("");
+          }}
+        >
+          Clear all filters
+        </Button>
+      )}
     </div>
   );
 
   return (
     <>
       <div className="space-y-4">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-page-title text-foreground">Customers</h1>
-            <p className="mt-0.5 text-body text-muted-foreground">
-              {totalCount} guest profile{totalCount !== 1 ? "s" : ""}
-              {filteredCount !== totalCount && (
-                <span className="text-muted-foreground/60"> · {filteredCount} visible</span>
-              )}
-            </p>
+        {/* Toolbar + active-filter chips */}
+        <div className="space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-1 flex-wrap items-center gap-2">
+              <TableSearchField
+                ariaLabel="Search guests"
+                value={globalFilter}
+                onChange={setGlobalFilter}
+                placeholder="Search name, email, phone…"
+                className="max-w-xs"
+              />
+              <EntityFilters
+                fields={filterFields}
+                values={filterValues}
+                onChange={setFilter}
+                onClearAll={clearAllFilters}
+                filteredCount={filteredCount}
+                resultNoun="guest"
+              />
+            </div>
+            <ViewModeToggle value={viewMode} onChange={setViewMode} />
           </div>
+          <EntityFilterChips
+            fields={filterFields}
+            values={filterValues}
+            onChange={setFilter}
+            onClearAll={clearAllFilters}
+          />
         </div>
 
-        {/* Toolbar */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <SearchField
-              aria-label="Search guests"
-              value={globalFilter}
-              onChange={setGlobalFilter}
-              className="max-w-xs flex-1"
-            >
-              <SearchField.Group className="h-9 rounded-xl border-border/60 bg-background">
-                <SearchField.SearchIcon />
-                <SearchField.Input
-                  placeholder="Search name, email, phone..."
-                  className="text-sm"
-                />
-                <SearchField.ClearButton />
-              </SearchField.Group>
-            </SearchField>
-            <Button
-              variant="ghost"
-              size="sm"
-              onPress={() => setShowFilters(!showFilters)}
-              aria-expanded={showFilters}
-              className={cn("h-9 shrink-0 rounded-xl text-sm", showFilters && "bg-muted")}
-            >
-              <SlidersHorizontal className="size-3.5" />
-              Filters
-            </Button>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 shrink-0 rounded-xl text-sm"
-            onPress={() => exportToCsv(enrichedData)}
-          >
-            <Download className="size-3.5" />
-            Export
-          </Button>
-        </div>
-
-        {/* Filters */}
-        {showFilters && (
-          <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/60 bg-card p-3 shadow-sm">
-            <HeroSelectField
-              className="w-40"
-              label="Tag"
-              value={tagFilter}
-              onValueChange={setTagFilter}
-              options={[
-                { value: "all", label: "All" },
-                ...ALL_TAG_OPTIONS.map((tag) => ({
-                  value: tag,
-                  label: tag.charAt(0).toUpperCase() + tag.slice(1),
-                })),
-              ]}
-              ariaLabel="Guest tag"
-            />
-            {tagFilter !== "all" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-9 rounded-lg text-xs text-muted-foreground"
-                onPress={() => setTagFilter("all")}
-              >
-                Clear filters
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* Desktop table */}
-        <Table variant="secondary" className="hidden md:block">
+        {/* Desktop table view */}
+        {viewMode === "table" && (
+          <Table variant="secondary" className="hidden md:block">
           <Table.ScrollContainer>
             <Table.Content aria-label="Guests" className="min-w-[760px]">
               <Table.Header>
@@ -474,53 +541,43 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
             />
           </Table.Footer>
         </Table>
+        )}
 
-        {/* Mobile cards */}
+        {/* Desktop grid view */}
+        {viewMode === "grid" &&
+          (rows.length > 0 ? (
+            <div className="hidden space-y-4 md:block">
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
+                {rows.map(({ original: guest }) => (
+                  <GuestCard
+                    key={guest.id}
+                    guest={guest}
+                    currency={currency}
+                    onSelect={handleGuestClick}
+                  />
+                ))}
+              </div>
+              <HeroTablePagination
+                table={table}
+                totalRows={totalCount}
+                filteredRows={filteredCount}
+              />
+            </div>
+          ) : (
+            <div className="hidden md:block">{emptyState}</div>
+          ))}
+
+        {/* Mobile cards — always */}
         <div className="space-y-3 md:hidden">
           {rows.length > 0 ? (
             <>
               {rows.map(({ original: guest }) => (
-                <button
+                <GuestCard
                   key={guest.id}
-                  onClick={() => handleGuestClick(guest)}
-                  className="w-full rounded-xl border border-border/60 bg-card p-4 text-left shadow-sm transition-colors active:bg-muted/40"
-                >
-                  <div className="flex items-center gap-3">
-                    <GuestInitials fullName={guest.fullName} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-body font-semibold text-foreground">
-                        {guest.fullName}
-                      </p>
-                      <p className="truncate text-caption text-muted-foreground">
-                        {guest.phone || guest.email || "—"}
-                      </p>
-                    </div>
-                    {guest.tags.length > 0 && (
-                      <Chip size="sm" variant="soft" color={getTagColor(guest.tags[0])}>
-                        <span className="capitalize">{guest.tags[0].replace("_", " ")}</span>
-                      </Chip>
-                    )}
-                  </div>
-                  <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
-                    <div className="flex gap-4">
-                      <div>
-                        <p className="text-caption text-muted-foreground">Stays</p>
-                        <p className="text-body font-medium tabular-nums text-foreground">
-                          {guest.totalStays}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-caption text-muted-foreground">Total spent</p>
-                        <p className="text-body font-medium tabular-nums text-foreground">
-                          {formatCurrency(guest.totalSpend, currency)}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-caption text-muted-foreground">
-                      Last stay {formatDate(guest.lastStayDate)}
-                    </p>
-                  </div>
-                </button>
+                  guest={guest}
+                  currency={currency}
+                  onSelect={handleGuestClick}
+                />
               ))}
               <HeroTablePagination
                 table={table}

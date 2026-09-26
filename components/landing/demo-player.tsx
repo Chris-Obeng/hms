@@ -1,29 +1,21 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { PosterFrame } from "@/components/landing/demo/poster-frame";
+import { WindowShell } from "./demo/window-shell";
 
-const DemoScreen = dynamic(() => import("@/components/landing/demo/demo-screen"), {
+/*
+ * The walkthrough is ~200KB of player plus the composition — far too much to
+ * block the hero on. The window itself (chrome, caption) renders on
+ * the server with its real geometry; the player mounts over it after
+ * hydration, so the swap costs no layout and no paint of a missing frame.
+ */
+const DemoScreen = dynamic(() => import("./demo/demo-screen"), {
   ssr: false,
   loading: () => (
-    <div className="lp-stage__fit">
-      <PosterFrame />
-    </div>
+    <WindowShell playing={false} idle onToggle={() => undefined} />
   ),
 });
 
 export function DemoPlayer() {
-  return (
-    <div className="lp-frame">
-      <div className="lp-frame__bar" aria-hidden="true">
-        <span className="lp-frame__dot" />
-        <span className="lp-frame__dot" />
-        <span className="lp-frame__dot" />
-        <span className="lp-frame__url">app.roomline.com/dashboard</span>
-      </div>
-      <div className="lp-stage">
-        <DemoScreen />
-      </div>
-    </div>
-  );
+  return <DemoScreen />;
 }

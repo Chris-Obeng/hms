@@ -112,14 +112,12 @@ export default async function DashboardLayout({
 
       {/* Overlay sidebar — floats above content, no layout shift */}
       <Sidebar side="left">
-        <AppSidebar hotelName={hotel.name} />
+        <AppSidebar />
       </Sidebar>
 
       {/* Full-width content — never shrinks */}
       <div className="flex min-h-screen w-full flex-col">
         <AppHeader
-          hotelName={hotel.name}
-          hotelLogoUrl={hotel.logo_url}
           hotelId={hotel.id}
           staffId={staff.id}
           notificationCount={notificationCount ?? 0}

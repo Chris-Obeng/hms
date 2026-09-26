@@ -51,7 +51,6 @@ export default async function CustomersPage() {
   }));
 
   const currency = hotel?.currency || "GHS";
-  const totalGuests = guestList.length;
 
   return (
     <div className="space-y-6">
@@ -60,9 +59,6 @@ export default async function CustomersPage() {
         <h1 className="text-page-title text-foreground">
           Customers
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {totalGuests} guest profile{totalGuests !== 1 ? "s" : ""} · Lifetime value tracking
-        </p>
       </div>
 
       <CustomersTable data={guestList} currency={currency} />

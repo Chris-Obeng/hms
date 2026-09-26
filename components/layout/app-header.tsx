@@ -1,13 +1,11 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useUser, useAuth, useClerk } from "@clerk/nextjs";
 import { useTheme } from "@/components/theme-provider";
 import {
   Plus,
-  Building2,
   Sun,
   Moon,
   Bell,
@@ -44,8 +42,6 @@ import { toast } from "@heroui/react";
 // Props
 
 export interface AppHeaderProps {
-  hotelName?: string;
-  hotelLogoUrl?: string | null;
   hotelId?: string;
   staffId?: string;
   notificationCount?: number;
@@ -90,8 +86,6 @@ function NotifIcon({ type }: { type: string | null }) {
 // Component
 
 export function AppHeader({
-  hotelName,
-  hotelLogoUrl,
   hotelId,
   staffId,
   notificationCount = 0,
@@ -386,21 +380,8 @@ export function AppHeader({
             title="Hotel settings"
             className="group flex min-w-0 items-center gap-2 text-left cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded-lg p-0.5"
           >
-            {hotelLogoUrl ? (
-              <Image
-                src={hotelLogoUrl}
-                alt={hotelName || "Hotel"}
-                width={28}
-                height={28}
-                className="size-7 shrink-0 rounded-lg object-cover"
-              />
-            ) : (
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-foreground/5 ring-1 ring-border group-hover:bg-foreground/10 transition-colors">
-                <Building2 className="size-3.5 text-muted-foreground" />
-              </span>
-            )}
-            <span className="hidden truncate text-sm font-semibold text-foreground transition-colors group-hover:text-foreground/80 sm:inline">
-              {hotelName || "Dashboard"}
+            <span className="truncate text-lg font-bold tracking-tight text-foreground transition-colors group-hover:text-foreground/80">
+              RoomLine
             </span>
           </button>
         </div>

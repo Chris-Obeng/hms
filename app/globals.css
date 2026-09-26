@@ -38,6 +38,8 @@
   --color-forest: #0a0f0d;
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
+  --font-display:
+    var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -359,6 +361,23 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: color-mix(in oklch, var(--foreground) 75%, transparent);
+}
+
+/* HeroUI calendars read --muted (weekday strip) and --accent (today + selection).
+ * This app repurposes both as pale surfaces, so the native defaults render
+ * near-invisible weekdays and a no-fill "black" today. Restore HeroUI's own
+ * default token values, scoped to calendars only. */
+.calendar,
+.range-calendar {
+  --accent: oklch(0.6204 0.195 253.83);
+  --accent-foreground: oklch(0.9911 0 0);
+  --muted: oklch(0.5517 0.0138 285.94);
+}
+.dark .calendar,
+.dark .range-calendar,
+[data-theme="dark"] .calendar,
+[data-theme="dark"] .range-calendar {
+  --muted: oklch(0.705 0.015 286.067);
 }
 
 /* ── Design System Utilities ──────────────────────────────────────────

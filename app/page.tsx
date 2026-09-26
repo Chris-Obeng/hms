@@ -10,9 +10,9 @@ import { SocialProof } from "@/components/landing/social-proof";
 import { FinalCta } from "@/components/landing/final-cta";
 
 export const metadata: Metadata = {
-  title: "Hotel management for Ghana and across Africa",
+  title: "RoomLine — the property system for independent hotels",
   description:
-    "RoomLine puts bookings, payments, housekeeping and night audit on one screen. Built for Hotels in Ghana — mobile money, cash and card included.",
+    "Bookings, payments, housekeeping and the night audit on one screen. Mobile money, cash and card — reconciled by the time you close.",
 };
 
 export default function HomePage() {

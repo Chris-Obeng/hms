@@ -1,9 +1,11 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "RoomLine — hotel management for Ghana and across Africa";
+export const alt = "RoomLine — the property system for independent hotels";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
+// Social card mirrors the landing's night band: paper ink on evergreen
+// ground, a single brass accent for the settled figure.
 export default function OpengraphImage() {
   return new ImageResponse(
     (
@@ -14,7 +16,7 @@ export default function OpengraphImage() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          backgroundColor: "#0a0f0d",
+          backgroundColor: "#0F241F",
           padding: 72,
         }}
       >
@@ -24,18 +26,18 @@ export default function OpengraphImage() {
               width: 44,
               height: 44,
               borderRadius: 12,
-              backgroundColor: "#d4af37",
+              backgroundColor: "#E7C46A",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
             <svg width="24" height="24" viewBox="0 0 16 16" fill="none">
-              <rect x="1" y="7" width="6" height="8" rx="1" fill="#0a0f0d" />
-              <rect x="9" y="4" width="6" height="11" rx="1" fill="#0a0f0d" fillOpacity="0.55" />
+              <rect x="1" y="7" width="6" height="8" rx="1" fill="#0F241F" />
+              <rect x="9" y="4" width="6" height="11" rx="1" fill="#0F241F" fillOpacity="0.55" />
             </svg>
           </div>
-          <span style={{ color: "#f5f0e8", fontSize: 30, fontWeight: 700 }}>
+          <span style={{ color: "#FBFAF8", fontSize: 30, fontWeight: 700 }}>
             RoomLine
           </span>
         </div>
@@ -43,7 +45,7 @@ export default function OpengraphImage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <div
             style={{
-              color: "#f5f0e8",
+              color: "#FBFAF8",
               fontSize: 64,
               fontWeight: 800,
               lineHeight: 1.05,
@@ -53,11 +55,11 @@ export default function OpengraphImage() {
               flexDirection: "column",
             }}
           >
-            <span>Run your whole hotel</span>
-            <span style={{ color: "#e5c158" }}>from one screen.</span>
+            <span>One screen for the</span>
+            <span style={{ color: "#8FD9B8" }}>entire front desk.</span>
           </div>
-          <div style={{ color: "rgba(245,240,232,0.55)", fontSize: 26 }}>
-            Bookings · mobile money and card payments · night audit
+          <div style={{ color: "rgba(251,250,248,0.62)", fontSize: 26 }}>
+            Bookings · mobile money, cash and card · night audit
           </div>
         </div>
 
@@ -70,7 +72,7 @@ export default function OpengraphImage() {
                 height: 14,
                 borderRadius: 8,
                 backgroundColor:
-                  i === 0 ? "#d4af37" : "rgba(245,240,232,0.14)",
+                  i === 0 ? "#E7C46A" : "rgba(251,250,248,0.14)",
               }}
             />
           ))}

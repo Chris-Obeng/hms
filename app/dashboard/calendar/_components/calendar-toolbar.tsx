@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { addDays, format } from "date-fns";
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, SlidersHorizontal, X } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, SlidersHorizontal, X } from "lucide-react";
 import { Button, ButtonGroup, Calendar, Popover, SearchField, Select, ListBox, Label, Tooltip } from "@heroui/react";
 import type { CalendarDate } from "@internationalized/date";
 import { cn } from "@/lib/utils";
@@ -24,7 +24,6 @@ export interface CalendarToolbarProps {
   onSearchQueryChange(query: string): void;
   onOpenFilters(): void;
   onBlockRoom(): void;
-  onNewBooking(): void;
 }
 
 const NAV_TOOLTIP_DELAY = 350;
@@ -246,7 +245,7 @@ function BlockRoomButton({ onBlockRoom }: Pick<CalendarToolbarProps, "onBlockRoo
 }
 
 export function CalendarToolbar(props: CalendarToolbarProps) {
-  const { realtimeStatus, canBlock, onNewBooking } = props;
+  const { realtimeStatus, canBlock } = props;
 
   return (
     <>
@@ -262,18 +261,6 @@ export function CalendarToolbar(props: CalendarToolbarProps) {
         <ToolbarSearch searchQuery={props.searchQuery} onSearchQueryChange={props.onSearchQueryChange} />
         <FiltersButton activeFilterCount={props.activeFilterCount} onOpenFilters={props.onOpenFilters} />
         {canBlock && <BlockRoomButton onBlockRoom={props.onBlockRoom} />}
-
-        <div className="mx-1 h-5 w-px bg-border" />
-
-        <Tooltip delay={NAV_TOOLTIP_DELAY}>
-          <Tooltip.Trigger>
-            <Button size="sm" onPress={onNewBooking} className="h-8 gap-1.5 px-3 text-xs font-semibold">
-              <Plus className="size-3.5" />
-              New Reservation
-            </Button>
-          </Tooltip.Trigger>
-          <Tooltip.Content>Create reservation (N)</Tooltip.Content>
-        </Tooltip>
       </div>
 
       {/* ── Mobile ── */}
@@ -295,9 +282,6 @@ export function CalendarToolbar(props: CalendarToolbarProps) {
           <NavButtonGroup onNavigate={props.onNavigate} onToday={props.onToday} />
           <FiltersButton activeFilterCount={props.activeFilterCount} onOpenFilters={props.onOpenFilters} />
           {canBlock && <BlockRoomButton onBlockRoom={props.onBlockRoom} />}
-          <Button size="sm" isIconOnly aria-label="New reservation" onPress={onNewBooking} className="tap-target">
-            <Plus className="size-4" />
-          </Button>
         </div>
       </div>
     </>

@@ -2,34 +2,58 @@ import { Reveal } from "@/components/landing/reveal";
 
 const PAINS = [
   {
+    tag: "Conflict",
+    tone: "due",
     title: "Room 204, twice sold",
-    body: "A walk-in arrives while a Booking.com guest holds the same room. You find out at check-in, in front of both of them.",
+    body: "A walk-in arrives while an online guest holds the same room. You find out at check-in, in front of both of them.",
   },
   {
-    title: "Scattered across notebook and WhatsApp",
-    body: "Reservations live in a paper notebook, WhatsApp chats and OTA email threads. When one booking changes, the others don't hear about it.",
+    tag: "Untracked",
+    tone: "house",
+    title: "A notebook, three inboxes, one phone",
+    body: "Reservations live across a paper diary, OTA email threads and staff phones. When one booking changes, the others never hear about it.",
   },
   {
+    tag: "Unreconciled",
+    tone: "await",
     title: "Money that won't balance",
-    body: "Guests check out owing you, and you spend weeks chasing them on WhatsApp. At close of day, cash, MoMo and card totals still don't agree.",
+    body: "Guests leave owing you, and you chase them for weeks. At close of day the cash drawer, mobile-money and card totals still don't agree.",
   },
 ] as const;
 
 export function Problem() {
   return (
-    <section id="how-it-works" className="lp-section lp-section--tint scroll-mt-16">
-      <div className="lp-container">
-        <Reveal className="max-w-2xl">
-          <p className="lp-eyebrow">Sound familiar?</p>
-          <h2 className="lp-title mt-3">Your notebook can&rsquo;t hold a hotel</h2>
+    <section id="how-it-works" className="lp-section lp-band scroll-mt-24">
+      <div className="lp-container grid gap-10 md:grid-cols-[0.85fr_1.1fr] md:gap-16">
+        <Reveal>
+          <p className="lp-index">§ 01 · The problem</p>
+          <h2 className="lp-h2 mt-4">
+            The front desk keeps two sets of books, and neither agrees.
+          </h2>
+          <p className="lp-lead mt-5">
+            Bookings scatter across a notebook, a phone and the OTAs. By close of
+            day nobody can say for certain which rooms sold, or where the money
+            went.
+          </p>
         </Reveal>
 
-        <div className="mt-12 grid gap-x-10 gap-y-10 md:mt-14 md:grid-cols-3">
+        <div>
           {PAINS.map((pain, i) => (
             <Reveal key={pain.title} delay={i * 80}>
-              <div className="border-t-2 border-[var(--lp-hairline)] pt-6">
-                <h3 className="lp-heading">{pain.title}</h3>
-                <p className="lp-body mt-2.5">{pain.body}</p>
+              <div className="grid grid-cols-[auto_1fr] gap-x-5 border-t border-[var(--lp-line-strong)] pt-6 first:pt-0 first:border-t-0 md:pt-7">
+                <span className="lp-index pt-1.5">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <h3 className="lp-h3">{pain.title}</h3>
+                    <span className={`lp-chip lp-chip--${pain.tone}`}>
+                      <span className="lp-chip__dot" />
+                      {pain.tag}
+                    </span>
+                  </div>
+                  <p className="lp-body mt-2.5 max-w-md">{pain.body}</p>
+                </div>
               </div>
             </Reveal>
           ))}

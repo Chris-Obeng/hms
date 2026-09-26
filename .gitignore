@@ -76,6 +76,7 @@ supabase/.temp/
 graphify-out/
 .heroui-docs/
 .freebuff/
+.commandcode/
 
 # Windows artifacts
 nul

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { CalendarSearch } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { DateSearchBar } from "../_components/date-search-bar";
 import { RoomCard } from "../_components/room-card";
@@ -252,7 +253,7 @@ export default async function RoomsPage({ params, searchParams }: Props) {
         Skip to rooms
       </a>
 
-      <header className="booking-header sticky top-0 z-40 booking-safe-x py-1.5 sm:py-2 flex flex-col min-[640px]:flex-row min-[640px]:items-center gap-1.5 sm:gap-2.5 pt-[max(0.375rem,env(safe-area-inset-top))]">
+      <header id="stay-search" className="booking-header sticky top-0 z-40 booking-safe-x py-1.5 sm:py-2 flex flex-col min-[640px]:flex-row min-[640px]:items-center gap-1.5 sm:gap-2.5 pt-[max(0.375rem,env(safe-area-inset-top))]">
         <Link
           href={`/${slug}`}
           className="booking-heading text-sm sm:text-base text-[var(--bk-ink)] shrink-0 hover:opacity-80 transition-opacity truncate max-w-full sm:max-w-[12rem] md:max-w-none"
@@ -313,19 +314,31 @@ export default async function RoomsPage({ params, searchParams }: Props) {
             </Link>
           </div>
         ) : datesSelected && availableRooms.length === 0 ? (
-          <div className="booking-surface-soft py-16 px-6 text-center max-w-md mx-auto">
+          <div className="booking-surface-soft mx-auto max-w-md px-6 py-14 text-center">
+            <div className="mx-auto mb-5 inline-flex size-14 items-center justify-center rounded-full border border-[var(--bk-accent)] bg-[var(--bk-accent-soft)] text-[var(--bk-accent)]">
+              <CalendarSearch className="size-6" aria-hidden="true" />
+            </div>
             <p className="booking-heading text-2xl text-[var(--bk-ink)] mb-2">
-              No rooms for these dates
+              Fully booked for these dates
             </p>
-            <p className="text-sm text-[var(--bk-muted)] mb-6">
-              Try different dates or contact the hotel for availability.
+            <p className="text-sm text-[var(--bk-muted)] mb-6 leading-relaxed">
+              Every room is taken for {fmtDate(check_in!)} – {fmtDate(check_out!)}.
+              Shifting your stay by a night or two often opens things up.
             </p>
-            <Link
-              href={`/${slug}/rooms`}
-              className="inline-flex h-10 px-5 items-center rounded-xl bg-[var(--bk-ink)] text-[var(--bk-on-ink)] text-sm font-semibold hover:bg-[var(--bk-ink-hover)] transition-colors active:scale-[0.98]"
-            >
-              Clear dates
-            </Link>
+            <div className="flex flex-col items-center justify-center gap-2.5 sm:flex-row">
+              <a
+                href="#stay-search"
+                className="booking-cta inline-flex h-11 w-full items-center justify-center rounded-xl px-5 text-sm font-semibold sm:w-auto"
+              >
+                Adjust dates
+              </a>
+              <Link
+                href={`/${slug}/rooms`}
+                className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-[var(--bk-line)] px-5 text-sm font-medium text-[var(--bk-ink-soft)] transition-colors hover:border-[var(--bk-line-strong)] active:scale-[0.98] sm:w-auto"
+              >
+                Clear dates
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="space-y-12">

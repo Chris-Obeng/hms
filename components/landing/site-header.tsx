@@ -1,45 +1,56 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Reveal } from "@/components/landing/reveal";
+
+/*
+ * Paper header that only earns its rule once the page has scrolled — the blur
+ * keeps the wordmark legible over the hero, the hairline appears when there is
+ * content behind it to divide. The bar itself settles in on first paint.
+ */
 
 const NAV_ITEMS = [
-  { href: "#how-it-works", label: "How it works" },
-  { href: "#features", label: "Features" },
+  { href: "#how-it-works", label: "The problem" },
+  { href: "#showcase", label: "The board" },
+  { href: "#features", label: "What it does" },
 ] as const;
 
 export function SiteHeader() {
+  const [stuck, setStuck] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setStuck(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--lp-hairline)] bg-white">
-      <div className="lp-container flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5" aria-label="RoomLine home">
+    <header className="lp-header" data-stuck={stuck ? "true" : undefined}>
+      <Reveal as="div" className="lp-container flex h-16 items-center justify-between">
+        <Link href="/" className="lp-wordmark" aria-label="RoomLine home">
           <Logo />
-          <span className="text-[17px] font-bold tracking-tight">RoomLine</span>
+          <span className="lp-wordmark__name">RoomLine</span>
         </Link>
 
-        <nav
-          aria-label="Main"
-          className="hidden items-center gap-8 text-sm font-medium text-muted md:flex"
-        >
+        <nav aria-label="Main" className="hidden items-center gap-9 md:flex">
           {NAV_ITEMS.map((item) => (
-            <a key={item.href} href={item.href} className="transition-colors hover:text-foreground">
+            <a key={item.href} href={item.href} className="lp-navlink">
               {item.label}
             </a>
           ))}
         </nav>
 
-        <div className="flex items-center gap-1">
-          <Link
-            href="/sign-in"
-            className="button button--ghost hidden h-10 items-center rounded-lg px-4 text-sm font-medium sm:inline-flex"
-          >
+        <div className="flex items-center gap-2">
+          <Link href="/sign-in" className="lp-navlink hidden sm:inline-flex">
             Sign in
           </Link>
-          <Link
-            href="/onboarding"
-            className="button button--primary inline-flex h-10 items-center rounded-lg px-4 text-sm font-semibold"
-          >
-            Get started
+          <Link href="/onboarding" className="lp-btn lp-btn--solid lp-btn--sm">
+            Start free trial
           </Link>
         </div>
-      </div>
+      </Reveal>
     </header>
   );
 }
@@ -47,8 +58,14 @@ export function SiteHeader() {
 export function Logo({ size = 28 }: { size?: number }) {
   return (
     <span
-      className="flex items-center justify-center rounded-lg bg-accent text-accent-foreground"
-      style={{ width: size, height: size }}
+      className="flex items-center justify-center"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size * 0.28,
+        background: "var(--lp-brand)",
+        color: "#fbfaf8",
+      }}
       aria-hidden="true"
     >
       <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 16 16" fill="none">

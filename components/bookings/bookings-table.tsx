@@ -13,31 +13,8 @@ import {
   type ColumnFiltersState,
   type SortingState,
 } from "@tanstack/react-table";
-import {
-  CalendarIcon,
-  Download,
-  Eye,
-  LayoutGrid,
-  List,
-  LogIn,
-  LogOut,
-  RotateCcw,
-  SlidersHorizontal,
-  XCircle,
-} from "lucide-react";
-import { format } from "date-fns";
-import {
-  AlertDialog,
-  Button,
-  Dropdown,
-  Label,
-  SearchField,
-  Table,
-  ToggleButton,
-  ToggleButtonGroup,
-  toast,
-} from "@heroui/react";
-import type { Key } from "@heroui/react";
+import { CalendarIcon } from "lucide-react";
+import { Button, Table } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -46,12 +23,15 @@ import {
   getPaymentLabel,
   getStatusLabel,
 } from "@/lib/booking-status";
-import { downloadCsv, toCsv } from "@/lib/csv";
-import { HeroSelectField } from "@/components/ui/hero-select";
 import { HeroTablePagination } from "@/components/ui/hero-table-pagination";
-import { NewBookingModal } from "@/components/bookings/new-booking-modal";
+import { TableSearchField } from "@/components/ui/table-search-field";
+import { ViewModeToggle } from "@/components/ui/view-mode-toggle";
+import {
+  ReservationFilters,
+  ReservationFilterChips,
+  type ReservationFilterState,
+} from "@/components/bookings/reservation-filters";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
-import { updateBookingStatus } from "@/app/actions/bookings";
 import { createClient } from "@/lib/supabase/client";
 import { onRealtimeStatus } from "@/lib/observability/realtime";
 import { createCoalescer } from "@/lib/realtime/coalesce";
@@ -119,87 +99,6 @@ function StatusChip({ kind, value }: { kind: "status" | "payment"; value: string
     >
       {kind === "status" ? getStatusLabel(value) : getPaymentLabel(value)}
     </span>
-  );
-}
-
-// ── Row actions ────────────────────────────────────────────────────
-
-function BookingActions({
-  booking,
-  onViewDetails,
-  onCheckIn,
-  onCheckOut,
-  onRequestCancel,
-  onReinstate,
-}: {
-  booking: BookingRow;
-  onViewDetails: (id: string) => void;
-  onCheckIn: (booking: BookingRow) => void;
-  onCheckOut: (booking: BookingRow) => void;
-  onRequestCancel: (booking: BookingRow) => void;
-  onReinstate: (booking: BookingRow) => void;
-}) {
-  return (
-    <Dropdown>
-      <Button
-        isIconOnly
-        size="sm"
-        variant="ghost"
-        aria-label={`Actions for booking ${booking.reference}`}
-        className="size-8 min-w-8 rounded-lg text-muted-foreground"
-      >
-        <Eye className="size-4" />
-      </Button>
-      <Dropdown.Popover placement="bottom end">
-        <Dropdown.Menu>
-          <Dropdown.Item id="view" textValue="View details" onAction={() => onViewDetails(booking.id)}>
-            <Eye className="size-3.5" />
-            <Label>View details</Label>
-          </Dropdown.Item>
-          {booking.status === "confirmed" && (
-            <Dropdown.Item
-              id="check-in"
-              textValue="Check in"
-              onAction={() => onCheckIn(booking)}
-            >
-              <LogIn className="size-3.5 text-emerald-500" />
-              <Label>Check in</Label>
-            </Dropdown.Item>
-          )}
-          {booking.status === "checked_in" && (
-            <Dropdown.Item
-              id="check-out"
-              textValue="Check out"
-              onAction={() => onCheckOut(booking)}
-            >
-              <LogOut className="size-3.5 text-amber-500" />
-              <Label>Check out</Label>
-            </Dropdown.Item>
-          )}
-          {(booking.status === "confirmed" || booking.status === "checked_in") && (
-            <Dropdown.Item
-              id="cancel"
-              textValue="Cancel booking"
-              variant="danger"
-              onAction={() => onRequestCancel(booking)}
-            >
-              <XCircle className="size-3.5" />
-              <Label>Cancel…</Label>
-            </Dropdown.Item>
-          )}
-          {booking.status === "cancelled" && (
-            <Dropdown.Item
-              id="reinstate"
-              textValue="Reinstate booking"
-              onAction={() => onReinstate(booking)}
-            >
-              <RotateCcw className="size-3.5" />
-              <Label>Reinstate</Label>
-            </Dropdown.Item>
-          )}
-        </Dropdown.Menu>
-      </Dropdown.Popover>
-    </Dropdown>
   );
 }
 
@@ -284,74 +183,8 @@ function ReservationCard({
   );
 }
 
-// ── Filter Config ──────────────────────────────────────────────────
-
-const STATUS_OPTIONS = [
-  { value: "confirmed", label: "Confirmed" },
-  { value: "checked_in", label: "Checked In" },
-  { value: "checked_out", label: "Checked Out" },
-  { value: "cancelled", label: "Cancelled" },
-  { value: "no_show", label: "No Show" },
-  { value: "pending", label: "Pending" },
-];
-
-const PAYMENT_OPTIONS = [
-  { value: "paid", label: "Paid" },
-  { value: "partial", label: "Partial" },
-  { value: "unpaid", label: "Unpaid" },
-  { value: "refunded", label: "Refunded" },
-];
-
-const SOURCE_OPTIONS = [
-  { value: "direct", label: "Direct" },
-  { value: "manual", label: "Manual" },
-  { value: "phone", label: "Phone" },
-  { value: "walk_in", label: "Walk-in" },
-];
-
-// ── CSV Export ─────────────────────────────────────────────────────
-
-function exportToCsv(data: BookingRow[]) {
-  const headers = [
-    "Reference",
-    "Guest",
-    "Email",
-    "Phone",
-    "Room Type",
-    "Room Number",
-    "Rooms",
-    "Check-In",
-    "Check-Out",
-    "Nights",
-    "Status",
-    "Payment",
-    "Source",
-    "Total",
-    "Paid",
-    "Outstanding",
-  ];
-
-  const rows = data.map((b) => [
-    b.reference,
-    b.guestName,
-    b.guestEmail || "",
-    b.guestPhone || "",
-    b.roomType || "",
-    b.roomNumber || "",
-    b.roomsCount.toString(),
-    b.checkIn,
-    b.checkOut,
-    b.nights?.toString() || "",
-    getStatusLabel(b.status),
-    getPaymentLabel(b.paymentStatus),
-    SOURCE_BADGES[b.source]?.label || b.source,
-    b.totalAmount.toString(),
-    b.amountPaid.toString(),
-    (b.outstandingBalance || 0).toString(),
-  ]);
-
-  downloadCsv(`bookings-${format(new Date(), "yyyy-MM-dd")}.csv`, toCsv(headers, rows));
-}
+// Accessor columns kept for search/filtering but never shown in the table.
+const HIDDEN_COLUMNS = new Set(["createdAt", "source"]);
 
 // ── Main Component ─────────────────────────────────────────────────
 
@@ -365,8 +198,6 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
   const searchParams = useSearchParams();
   // Seed the search box from ?search= (set by global search "See all")
   const [globalFilter, setGlobalFilter] = React.useState(() => searchParams.get("search") ?? "");
-  const [showFilters, setShowFilters] = React.useState(false);
-  const [newBookingOpen, setNewBookingOpen] = React.useState(false);
 
   // Realtime subscription — refresh on any booking change for this hotel
   const refreshRef = React.useRef(router.refresh.bind(router));
@@ -401,10 +232,6 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
   const [sourceFilter, setSourceFilter] = React.useState<string>("all");
   const [roomTypeFilter, setRoomTypeFilter] = React.useState<string>("all");
 
-  // Pending cancellation
-  const [pendingCancel, setPendingCancel] = React.useState<BookingRow | null>(null);
-  const [cancelling, setCancelling] = React.useState(false);
-
   // Apply column filters from selections
   React.useEffect(() => {
     const filters: ColumnFiltersState = [];
@@ -415,41 +242,31 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
     setColumnFilters(filters);
   }, [statusFilter, paymentFilter, sourceFilter, roomTypeFilter]);
 
+  // Adapter between the panel/chips (single {key,value}) and the 4 filter setters.
+  const selectedFilters: ReservationFilterState = {
+    status: statusFilter,
+    payment: paymentFilter,
+    source: sourceFilter,
+    roomType: roomTypeFilter,
+  };
+  const setFilter = React.useCallback((key: keyof ReservationFilterState, value: string) => {
+    if (key === "status") setStatusFilter(value);
+    else if (key === "payment") setPaymentFilter(value);
+    else if (key === "source") setSourceFilter(value);
+    else if (key === "roomType") setRoomTypeFilter(value);
+  }, []);
+  const clearAllFilters = React.useCallback(() => {
+    setStatusFilter("all");
+    setPaymentFilter("all");
+    setSourceFilter("all");
+    setRoomTypeFilter("all");
+  }, []);
+
   const handleViewDetails = React.useCallback((id: string) => {
     setDetailInitialTab("overview");
     setDetailBookingId(id);
     setDetailOpen(true);
   }, []);
-
-  const runStatusUpdate = React.useCallback(
-    async (booking: BookingRow, status: string, successMsg: string, errorMsg: string) => {
-      const result = await updateBookingStatus(booking.id, status);
-      if (result.success) {
-        toast.success(successMsg);
-        router.refresh();
-      } else {
-        toast.danger(result.error || errorMsg);
-      }
-    },
-    [router]
-  );
-
-  const handleCancel = React.useCallback(async () => {
-    if (!pendingCancel || cancelling) return;
-    setCancelling(true);
-    try {
-      const result = await updateBookingStatus(pendingCancel.id, "cancelled");
-      if (result.success) {
-        toast.success("Booking cancelled");
-        setPendingCancel(null);
-        router.refresh();
-      } else {
-        toast.danger(result.error || "Cancel failed");
-      }
-    } finally {
-      setCancelling(false);
-    }
-  }, [pendingCancel, cancelling, router]);
 
   // ── Columns ────────────────────────────────────────────────────
   const columns = React.useMemo<ColumnDef<BookingRow>[]>(
@@ -457,6 +274,12 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
       {
         accessorKey: "createdAt",
         header: "Created",
+      },
+      {
+        // Hidden — backs the Source filter with an exact match.
+        accessorKey: "source",
+        header: "Source",
+        filterFn: (row, id, value) => row.getValue(id) === value,
       },
       {
         accessorKey: "guestName",
@@ -477,6 +300,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
       {
         accessorKey: "roomType",
         header: "Stay",
+        filterFn: (row, id, value) => row.getValue(id) === value,
         cell: ({ row }) => (
           <div className="flex min-w-0 flex-col">
             <span className="whitespace-nowrap text-body text-foreground">
@@ -526,30 +350,8 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
           </div>
         ),
       },
-      {
-        id: "actions",
-        cell: ({ row }) => {
-          const booking = row.original;
-          return (
-            <BookingActions
-              booking={booking}
-              onViewDetails={handleViewDetails}
-              onCheckIn={(b) =>
-                void runStatusUpdate(b, "checked_in", `${b.guestName} checked in`, "Check-in failed")
-              }
-              onCheckOut={(b) =>
-                void runStatusUpdate(b, "checked_out", `${b.guestName} checked out`, "Check-out failed")
-              }
-              onRequestCancel={setPendingCancel}
-              onReinstate={(b) =>
-                void runStatusUpdate(b, "confirmed", "Booking reinstated", "Reinstate failed")
-              }
-            />
-          );
-        },
-      },
     ],
-    [currency, handleViewDetails, runStatusUpdate]
+    [currency]
   );
 
   const table = useReactTable({
@@ -595,11 +397,6 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
     sourceFilter !== "all" ||
     roomTypeFilter !== "all";
 
-  function handleViewModeSelect(keys: "all" | Set<Key>) {
-    const first = keys instanceof Set && keys.size > 0 ? [...keys][0] : null;
-    if (first === "table" || first === "grid") setViewMode(first);
-  }
-
   const emptyState = (
     <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
       <CalendarIcon className="mb-3 size-10 text-muted-foreground/30" />
@@ -611,6 +408,19 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
           ? "Try adjusting your search or filters."
           : "Reservations will appear here once guests start reserving rooms."}
       </p>
+      {isFiltered && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mt-4 rounded-lg text-sm"
+          onPress={() => {
+            clearAllFilters();
+            setGlobalFilter("");
+          }}
+        >
+          Clear all filters
+        </Button>
+      )}
     </div>
   );
 
@@ -618,137 +428,38 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
     <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-page-title text-foreground">Reservations</h1>
-          <p className="mt-0.5 text-body text-muted-foreground">
-            {totalCount} total reservation{totalCount !== 1 ? "s" : ""}
-            {filteredCount !== totalCount && (
-              <span className="text-muted-foreground/60"> · {filteredCount} visible</span>
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* View toggle — desktop only; mobile always uses cards */}
-          <ToggleButtonGroup
-            selectionMode="single"
-            selectedKeys={new Set([viewMode])}
-            onSelectionChange={handleViewModeSelect}
-            className="hidden md:flex"
-            aria-label="View mode"
-          >
-            <ToggleButton isIconOnly id="table" aria-label="Table view" size="sm">
-              <List className="size-4" />
-            </ToggleButton>
-            <ToggleButton isIconOnly id="grid" aria-label="Grid view" size="sm">
-              <ToggleButtonGroup.Separator />
-              <LayoutGrid className="size-4" />
-            </ToggleButton>
-          </ToggleButtonGroup>
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0 rounded-xl text-sm"
-            onPress={() => exportToCsv(data)}
-          >
-            <Download className="size-3.5" />
-            Export
-          </Button>
-          <Button size="sm" onPress={() => setNewBookingOpen(true)} className="shrink-0">
-            <span className="text-base leading-none">+</span>
-            New Reservation
-          </Button>
-        </div>
+        <h1 className="text-page-title text-foreground">Reservations</h1>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <SearchField
-          aria-label="Search reservations"
-          value={globalFilter}
-          onChange={setGlobalFilter}
-          className="max-w-sm flex-1"
-        >
-          <SearchField.Group className="h-9 rounded-xl border-border/60 bg-background">
-            <SearchField.SearchIcon />
-            <SearchField.Input
-              placeholder="Search name, email, reference..."
-              className="text-sm"
-            />
-            <SearchField.ClearButton />
-          </SearchField.Group>
-        </SearchField>
-        <Button
-          variant="ghost"
-          size="sm"
-          onPress={() => setShowFilters(!showFilters)}
-          aria-expanded={showFilters}
-          className={cn("h-9 shrink-0 rounded-xl text-sm", showFilters && "bg-muted")}
-        >
-          <SlidersHorizontal className="size-3.5" />
-          Filters
-        </Button>
+      {/* Toolbar + active-filter chips */}
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <TableSearchField
+            ariaLabel="Search reservations"
+            value={globalFilter}
+            onChange={setGlobalFilter}
+            placeholder="Search name, email, reference…"
+          />
+          <ReservationFilters
+            filters={selectedFilters}
+            onChange={setFilter}
+            onClearAll={clearAllFilters}
+            roomTypes={roomTypes}
+            filteredCount={filteredCount}
+          />
+          <ViewModeToggle value={viewMode} onChange={setViewMode} className="ml-auto" />
+        </div>
+        <ReservationFilterChips
+          filters={selectedFilters}
+          onChange={setFilter}
+          onClearAll={clearAllFilters}
+        />
       </div>
 
-      {/* Filters */}
-      {showFilters && (
-        <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/60 bg-card p-3 shadow-sm">
-          <HeroSelectField
-            className="w-40"
-            label="Status"
-            value={statusFilter}
-            onValueChange={setStatusFilter}
-            options={[{ value: "all", label: "All" }, ...STATUS_OPTIONS]}
-            ariaLabel="Booking status"
-          />
-          <HeroSelectField
-            className="w-40"
-            label="Payment"
-            value={paymentFilter}
-            onValueChange={setPaymentFilter}
-            options={[{ value: "all", label: "All" }, ...PAYMENT_OPTIONS]}
-            ariaLabel="Payment status"
-          />
-          <HeroSelectField
-            className="w-40"
-            label="Source"
-            value={sourceFilter}
-            onValueChange={setSourceFilter}
-            options={[{ value: "all", label: "All" }, ...SOURCE_OPTIONS]}
-            ariaLabel="Booking source"
-          />
-          <HeroSelectField
-            className="w-40"
-            label="Room Type"
-            value={roomTypeFilter}
-            onValueChange={setRoomTypeFilter}
-            options={[
-              { value: "all", label: "All" },
-              ...roomTypes.map((rt) => ({ value: rt.name, label: rt.name })),
-            ]}
-            ariaLabel="Room type"
-          />
-          {isFiltered && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-9 rounded-lg text-xs text-muted-foreground"
-              onPress={() => {
-                setStatusFilter("all");
-                setPaymentFilter("all");
-                setSourceFilter("all");
-                setRoomTypeFilter("all");
-              }}
-            >
-              Clear filters
-            </Button>
-          )}
-        </div>
-      )}
-
-      {/* Cards — mobile always; desktop when Grid view selected */}
-      {rows.length > 0 ? (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 md:hidden">
+      {/* Mobile cards — always */}
+      <div className="space-y-4 md:hidden">
+        {rows.length > 0 ? (
+          <>
             {rows.map((row) => (
               <ReservationCard
                 key={row.id}
@@ -757,9 +468,22 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
                 onViewDetails={handleViewDetails}
               />
             ))}
-          </div>
-          {viewMode === "grid" && (
-            <div className="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <HeroTablePagination
+              table={table}
+              totalRows={totalCount}
+              filteredRows={filteredCount}
+            />
+          </>
+        ) : (
+          emptyState
+        )}
+      </div>
+
+      {/* Desktop grid view */}
+      {viewMode === "grid" &&
+        (rows.length > 0 ? (
+          <div className="hidden space-y-4 md:block">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {rows.map((row) => (
                 <ReservationCard
                   key={row.id}
@@ -769,18 +493,15 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
                 />
               ))}
             </div>
-          )}
-          <div className={cn(viewMode === "table" && "md:hidden")}>
             <HeroTablePagination
               table={table}
               totalRows={totalCount}
               filteredRows={filteredCount}
             />
           </div>
-        </div>
-      ) : (
-        emptyState
-      )}
+        ) : (
+          <div className="hidden md:block">{emptyState}</div>
+        ))}
 
       {/* Table view — desktop only */}
       {viewMode === "table" && (
@@ -798,10 +519,10 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
                     }
                     id={header.id}
                     isRowHeader={header.id === "guestName"}
-                    className={header.id === "createdAt" ? "hidden" : undefined}
+                    className={HIDDEN_COLUMNS.has(header.id) ? "hidden" : undefined}
                   >
                     {({ sortDirection }) =>
-                      header.id === "actions" || header.id === "createdAt" ? null : (
+                      HIDDEN_COLUMNS.has(header.id) ? null : (
                         <Table.SortableColumnHeader sortDirection={sortDirection}>
                           {flexRender(header.column.columnDef.header, header.getContext())}
                         </Table.SortableColumnHeader>
@@ -819,7 +540,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
                     onAction={() => handleViewDetails(row.original.id)}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <Table.Cell key={cell.id} className={cell.column.id === "createdAt" ? "hidden" : undefined}>
+                      <Table.Cell key={cell.id} className={HIDDEN_COLUMNS.has(cell.column.id) ? "hidden" : undefined}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </Table.Cell>
                     ))}
@@ -838,20 +559,6 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
         </Table>
       )}
 
-      {/* New Reservation Modal */}
-      <NewBookingModal
-        open={newBookingOpen}
-        onOpenChange={setNewBookingOpen}
-        roomTypes={roomTypes}
-        currency={currency}
-        onReservationCreated={({ bookingId, payNow }) => {
-          if (!payNow) return;
-          setDetailInitialTab("payments");
-          setDetailBookingId(bookingId);
-          setDetailOpen(true);
-        }}
-      />
-
       {/* Reservation Detail Drawer */}
       <BookingDetailDrawer
         bookingId={detailBookingId}
@@ -864,41 +571,6 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
         initialTab={detailInitialTab}
         onBookingChanged={() => router.refresh()}
       />
-
-      {/* Cancel confirmation — destructive, always confirm */}
-      <AlertDialog>
-        <AlertDialog.Backdrop
-          isOpen={pendingCancel !== null}
-          onOpenChange={(open) => !open && setPendingCancel(null)}
-        >
-          <AlertDialog.Container>
-            <AlertDialog.Dialog className="sm:max-w-[420px]">
-              <AlertDialog.Header>
-                <AlertDialog.Icon status="danger" />
-                <AlertDialog.Heading>Cancel this reservation?</AlertDialog.Heading>
-              </AlertDialog.Header>
-              <AlertDialog.Body>
-                <p>
-                  {pendingCancel?.guestName}&rsquo;s stay ({pendingCancel?.reference}) will be
-                  cancelled and the room released. You can reinstate it later if needed.
-                </p>
-              </AlertDialog.Body>
-              <AlertDialog.Footer>
-                <Button slot="close" variant="tertiary" isDisabled={cancelling}>
-                  Keep reservation
-                </Button>
-                <Button
-                  variant="danger"
-                  isPending={cancelling}
-                  onPress={() => void handleCancel()}
-                >
-                  Cancel reservation
-                </Button>
-              </AlertDialog.Footer>
-            </AlertDialog.Dialog>
-          </AlertDialog.Container>
-        </AlertDialog.Backdrop>
-      </AlertDialog>
     </div>
   );
 }

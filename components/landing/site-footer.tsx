@@ -5,9 +5,10 @@ const COLUMNS = [
   {
     heading: "Product",
     links: [
-      { label: "Front-desk calendar", href: "#features" },
-      { label: "Payments & mobile money", href: "#features" },
-      { label: "Direct booking page", href: "#features" },
+      { label: "Front-desk calendar", href: "#calendar" },
+      { label: "Payments & mobile money", href: "#payments" },
+      { label: "Direct booking page", href: "#booking" },
+      { label: "Night audit & reports", href: "#audit" },
     ],
   },
   {
@@ -21,32 +22,30 @@ const COLUMNS = [
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-[var(--lp-hairline)] bg-[var(--lp-tint)]">
+    <footer className="border-t border-[var(--lp-line-strong)] bg-[var(--lp-band)]">
       <div className="lp-container py-12 md:py-16">
         <div className="flex flex-col gap-10 sm:flex-row sm:justify-between">
           <div className="max-w-xs">
-            <Link href="/" className="flex items-center gap-2.5" aria-label="RoomLine home">
+            <Link href="/" className="lp-wordmark" aria-label="RoomLine home">
               <Logo size={24} />
-              <span className="text-[15px] font-bold tracking-tight">RoomLine</span>
+              <span className="lp-wordmark__name">RoomLine</span>
             </Link>
             <p className="lp-small mt-3">
-              Hotel management for guesthouses and hotels in Ghana and across
-              Africa.
+              Bookings, payments, housekeeping and the night audit for
+              independent hotels — on one screen.
             </p>
           </div>
 
-          <nav aria-label="Footer" className="grid grid-cols-2 gap-x-14 gap-y-2.5">
+          <nav aria-label="Footer" className="grid grid-cols-2 gap-x-14 gap-y-3">
             {COLUMNS.map((column) => (
-              <div key={column.heading} className="space-y-2.5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted">
-                  {column.heading}
-                </p>
+              <div key={column.heading} className="space-y-3">
+                <p className="lp-index">{column.heading}</p>
                 {column.links.map((link) =>
                   link.href.startsWith("/") ? (
                     <Link
                       key={link.label}
                       href={link.href}
-                      className="block text-sm text-muted transition-colors hover:text-foreground"
+                      className="block text-sm text-[var(--lp-muted)] transition-colors hover:text-[var(--lp-ink)]"
                     >
                       {link.label}
                     </Link>
@@ -54,7 +53,7 @@ export function SiteFooter() {
                     <a
                       key={link.label}
                       href={link.href}
-                      className="block text-sm text-muted transition-colors hover:text-foreground"
+                      className="block text-sm text-[var(--lp-muted)] transition-colors hover:text-[var(--lp-ink)]"
                     >
                       {link.label}
                     </a>
@@ -65,13 +64,11 @@ export function SiteFooter() {
           </nav>
         </div>
 
-        <div className="mt-12 flex flex-col gap-3 border-t border-[var(--lp-hairline)] pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="lp-micro">
-            © {new Date().getFullYear()} RoomLine Ltd. Registered in Accra, Ghana.
+        <div className="mt-12 flex flex-col gap-3 border-t border-[var(--lp-line)] pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="lp-index">
+            © {new Date().getFullYear()} RoomLine
           </p>
-          <p className="lp-micro">
-            Payments processed by Paystack · Settled in GHS
-          </p>
+          <p className="lp-index">Mobile money · Cash · Card, on one screen</p>
         </div>
       </div>
     </footer>

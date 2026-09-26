@@ -683,7 +683,6 @@ function CalendarClientContent({
           setBlockPrefillRoomId(undefined);
           setBlockRoomOpen(true);
         }}
-        onNewBooking={() => openNewBooking(null)}
       />
 
       {/* Active filter chips */}

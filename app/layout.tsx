@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Geist_Mono, Fraunces } from "next/font/google";
 import Script from "next/script";
 import { ToastProvider } from "@/components/toast-provider";
 import { ClerkProvider } from "@clerk/nextjs";
@@ -17,8 +17,18 @@ const geistMono = Geist_Mono({
   preload: false,
 });
 
-// Plus Jakarta Sans: preload:false prevents blocking compilation when
-// Google Fonts is unreachable (firewall/offline). Falls back to system font.
+// Fraunces: display face for the landing page only (scoped via landing
+// tokens). Variable font — weight comes from the wght axis, so we omit
+// `weight` and request only the extra SOFT/WONK axes the CSS pins to 0.
+// preload:false keeps builds fast when Google Fonts is unreachable.
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  axes: ["SOFT", "WONK"],
+  variable: "--font-fraunces",
+  display: "swap",
+  preload: false,
+});
+
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
@@ -70,7 +80,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${jakarta.variable} ${geistMono.variable} font-sans h-full antialiased`}
+      className={`${jakarta.variable} ${geistMono.variable} ${fraunces.variable} font-sans h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="native-shell min-h-dvh flex flex-col font-sans">

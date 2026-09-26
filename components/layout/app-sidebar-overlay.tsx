@@ -25,7 +25,6 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarGroupContent,
 } from "@/components/ui/sidebar";
 import type { Selection } from "@heroui/react";
@@ -118,7 +117,7 @@ const navGroups: NavGroup[] = [
 ];
 
 const LIST_ITEM_CLASS =
-  "rounded-md px-2.5 py-2 text-sm outline-hidden transition-[color,background-color] duration-150 ring-sidebar-ring ring-inset focus-visible:ring-2 data-[hovered=true]:bg-sidebar-foreground/10 data-[hovered=true]:text-sidebar-foreground data-[selected=true]:bg-sidebar-foreground/10 data-[selected=true]:font-medium data-[selected=true]:text-sidebar-foreground";
+  "rounded-md px-2.5 py-2 text-sm font-medium outline-hidden transition-[color,background-color] duration-150 ring-sidebar-ring ring-inset focus-visible:ring-2 data-[hovered=true]:bg-sidebar-foreground/10 data-[hovered=true]:text-sidebar-foreground data-[selected=true]:bg-sidebar-foreground/10 data-[selected=true]:font-semibold data-[selected=true]:text-sidebar-foreground";
 
 interface ProcessedGroup extends NavGroup {
   leafItems: NavItem[];
@@ -184,11 +183,11 @@ function AccordionNavItem({
         <Accordion.Heading>
           <Accordion.Trigger
             className={cn(
-              "flex w-full items-center gap-2 overflow-hidden rounded-md px-2.5 py-2 text-left text-sm",
+              "flex w-full items-center gap-2 overflow-hidden rounded-md px-2.5 py-2 text-left text-[15px] font-medium",
               "outline-hidden transition-[width,height,padding,color,background-color,transform] duration-150",
               "ring-sidebar-ring ring-inset focus-visible:ring-2",
               anySubActive
-                ? "bg-sidebar-foreground/10 font-medium text-sidebar-foreground"
+                ? "bg-sidebar-foreground/10 font-semibold text-sidebar-foreground"
                 : "text-sidebar-foreground/80 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground",
               "active:scale-[0.98]",
               "[&_svg]:size-4 [&_svg]:shrink-0"
@@ -212,11 +211,11 @@ function AccordionNavItem({
                     href={sub.url}
                     onClick={onNavClick}
                     className={cn(
-                      "flex h-7 items-center gap-2 rounded-md px-2 text-sm",
+                      "flex h-7 items-center gap-2 rounded-md px-2 text-sm font-medium",
                       "outline-hidden transition-[color,background-color] duration-150",
                       "ring-sidebar-ring ring-inset focus-visible:ring-2",
                       subActive
-                        ? "bg-sidebar-foreground/10 font-medium text-sidebar-foreground"
+                        ? "bg-sidebar-foreground/10 font-semibold text-sidebar-foreground"
                         : "text-sidebar-foreground/70 hover:bg-sidebar-foreground/8 hover:text-sidebar-foreground"
                     )}
                   >
@@ -304,7 +303,7 @@ function SidebarUserCard({
 
 // ── AppSidebar ─────────────────────────────────────────────────
 
-export function AppSidebar({ hotelName }: { hotelName?: string }) {
+export function AppSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useUser();
@@ -375,22 +374,14 @@ export function AppSidebar({ hotelName }: { hotelName?: string }) {
             title="Hotel settings"
             className="flex items-center gap-2.5 min-w-0 text-left group cursor-pointer outline-none rounded-lg p-0.5"
           >
-            <div className="size-8 rounded-lg bg-sidebar-accent flex items-center justify-center shrink-0 ring-1 ring-sidebar-border/40 group-hover:bg-sidebar-foreground/10 transition-colors">
-              <LayoutDashboard className="size-3.5 text-sidebar-foreground/70" />
-            </div>
-            <div
+            <span
               className={cn(
-                "min-w-0 transition-[opacity,width] duration-200",
+                "text-lg font-bold tracking-tight text-sidebar-foreground truncate leading-tight transition-colors group-hover:text-sidebar-foreground/80",
                 isCollapsed && "hidden"
               )}
             >
-              <p className="text-sm font-semibold text-sidebar-foreground truncate leading-tight group-hover:text-sidebar-foreground/80">
-                {hotelName ?? "Hotel"}
-              </p>
-              <p className="text-[10px] text-sidebar-foreground/40 truncate leading-tight mt-0.5">
-                RoomLine
-              </p>
-            </div>
+              RoomLine
+            </span>
           </button>
           <CloseButton
             onPress={() => {
@@ -465,46 +456,47 @@ export function AppSidebar({ hotelName }: { hotelName?: string }) {
               )}
             </div>
           ) : (
-            /* Expanded: HeroUI ListBox per group */
-            processedGroups.map((group) => (
-              <SidebarGroup key={group.title}>
-                <SidebarGroupLabel className="px-2 text-label font-semibold uppercase tracking-widest text-sidebar-foreground/50">
-                  {group.title}
-                </SidebarGroupLabel>
-                <SidebarGroupContent>
-                  {group.leafItems.length > 0 && (
-                    <ListBox
-                      selectionMode="single"
-                      selectedKeys={selectedKeys}
-                      onSelectionChange={handleSelectionChange}
-                      className="w-full bg-transparent"
-                      aria-label={group.title}
-                    >
-                      {group.leafItems.map((item) => (
-                        <ListBox.Item
-                          key={item.url}
-                          id={item.url}
-                          textValue={item.title}
-                          className={LIST_ITEM_CLASS}
-                        >
-                          <item.icon className="size-4 shrink-0" />
-                          <span className="flex-1 truncate text-sm">{item.title}</span>
-                        </ListBox.Item>
-                      ))}
-                    </ListBox>
-                  )}
-                  {group.accordionItems.map((item) => (
-                    <AccordionNavItem
-                      key={item.url}
-                      item={item}
-                      pathname={pathname}
-                      onNavClick={handleNavClick}
-                      collapsed={false}
-                    />
-                  ))}
-                </SidebarGroupContent>
-              </SidebarGroup>
-            ))
+            /* Expanded: single flat ListBox — uniform item spacing */
+            (() => {
+              const leafItems = processedGroups.flatMap((g) => g.leafItems);
+              const accordionItems = processedGroups.flatMap((g) => g.accordionItems);
+              return (
+                <SidebarGroup className="p-0">
+                  <SidebarGroupContent>
+                    {leafItems.length > 0 && (
+                      <ListBox
+                        selectionMode="single"
+                        selectedKeys={selectedKeys}
+                        onSelectionChange={handleSelectionChange}
+                        className="w-full bg-transparent"
+                        aria-label="Navigation"
+                      >
+                        {leafItems.map((item) => (
+                          <ListBox.Item
+                            key={item.url}
+                            id={item.url}
+                            textValue={item.title}
+                            className={LIST_ITEM_CLASS}
+                          >
+                            <item.icon className="size-4 shrink-0" />
+                            <span className="flex-1 truncate text-[15px]">{item.title}</span>
+                          </ListBox.Item>
+                        ))}
+                      </ListBox>
+                    )}
+                    {accordionItems.map((item) => (
+                      <AccordionNavItem
+                        key={item.url}
+                        item={item}
+                        pathname={pathname}
+                        onNavClick={handleNavClick}
+                        collapsed={false}
+                      />
+                    ))}
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              );
+            })()
           )}
         </ScrollShadow>
       </SidebarContent>
