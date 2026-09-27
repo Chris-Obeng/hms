@@ -1,6 +1,6 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { can } from "@/lib/roles";
+import { asStaffRole } from "@/lib/roles";
 import { Users } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -32,8 +32,6 @@ export default async function StaffPage() {
     .eq("clerk_org_id", orgId)
     .single();
 
-  const isSuperAdmin = can(currentUser?.role, "staff:manage");
-
   // Fetch all staff for this hotel
   const { data: staff } = await supabase
     .from("staff_profiles")
@@ -60,6 +58,28 @@ export default async function StaffPage() {
     createdAt: s.created_at,
   }));
 
+  // Last-login comes from Clerk's lastSignInAt (Unix ms), not the DB column.
+  // Best-effort: on any Clerk failure, rows fall back to null → "Never".
+  const clerkUserIds = staffList.map((s) => s.clerkUserId).filter(Boolean);
+  const lastSignInById = new Map<string, number>();
+  try {
+    const client = await clerkClient();
+    for (let i = 0; i < clerkUserIds.length; i += 100) {
+      const chunk = clerkUserIds.slice(i, i + 100);
+      const { data: users } = await client.users.getUserList({ userId: chunk, limit: chunk.length });
+      for (const u of users) if (u.lastSignInAt) lastSignInById.set(u.id, u.lastSignInAt);
+    }
+  } catch (err) {
+    console.error("[staff] clerk last-login fetch failed:", err);
+  }
+
+  const enrichedStaff = staffList.map((s) => ({
+    ...s,
+    lastLoginAt: lastSignInById.has(s.clerkUserId)
+      ? new Date(lastSignInById.get(s.clerkUserId)!).toISOString()
+      : null,
+  }));
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -68,10 +88,6 @@ export default async function StaffPage() {
           <h1 className="text-page-title text-foreground">
             Staff
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {staffList.length} team member{staffList.length !== 1 ? "s" : ""}{" "}
-            · Manage roles and access
-          </p>
         </div>
         <div className="flex items-center gap-2">
           {pendingCount > 0 && (
@@ -91,7 +107,11 @@ export default async function StaffPage() {
         </div>
       </div>
 
-      <StaffClient data={staffList} currentUserId={userId} isSuperAdmin={isSuperAdmin} />
+      <StaffClient
+        data={enrichedStaff}
+        currentUserId={userId}
+        currentUserRole={asStaffRole(currentUser?.role)}
+      />
     </div>
   );
 }
