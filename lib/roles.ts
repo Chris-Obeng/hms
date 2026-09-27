@@ -21,6 +21,18 @@ export function roleAtLeast(role: string | null | undefined, min: StaffRole): bo
   return (ROLE_LEVEL[(role ?? "pending") as StaffRole] ?? 0) >= ROLE_LEVEL[min];
 }
 
+/** The four grantable roles — never "pending", never an unknown string. */
+const ASSIGNABLE_ROLES = ["super_admin", "manager", "front_desk", "read_only"] as const;
+
+function isAssignableRole(role: string | null | undefined): boolean {
+  return (ASSIGNABLE_ROLES as readonly string[]).includes(role ?? "");
+}
+
+/** Coerce an untrusted string to a known role; unknown/absent → "pending" (no privileges). */
+export function asStaffRole(role: string | null | undefined): StaffRole {
+  return role != null && role in ROLE_LEVEL ? (role as StaffRole) : "pending";
+}
+
 /**
  * The strongest role. A holder of this role clears every capability below by
  * construction, because `can()` is a level comparison and no capability can be
@@ -58,7 +70,11 @@ export const CAPABILITY_MIN_ROLE = {
   /** Add, deactivate, or re-role staff. */
   "staff:manage":                  "super_admin",
   /** Send a staff invitation. */
-  "staff:invite":                  "super_admin",
+  "staff:invite":                  "manager",
+  /** Activate or deactivate a staff member. */
+  "staff:setActive":               "manager",
+  /** Change a staff member's role. */
+  "staff:setRole":                 "manager",
   /** Change hotel profile, policies, and integration settings. */
   "settings:manage":               "super_admin",
   /** Reveal or rotate payment provider credentials. */
@@ -78,4 +94,32 @@ export type Capability = keyof typeof CAPABILITY_MIN_ROLE;
  */
 export function can(role: string | null | undefined, capability: Capability): boolean {
   return roleAtLeast(role, CAPABILITY_MIN_ROLE[capability]);
+}
+
+/**
+ * Whether `actorRole` may manage the staff member holding `targetRole`
+ * (status/role). Managers may act on anyone at or below manager; only a
+ * super_admin may act on a super_admin. Self-action is guarded by callers.
+ */
+export function canAdministerStaff(
+  actorRole: string | null | undefined,
+  targetRole: string | null | undefined
+): boolean {
+  if (!roleAtLeast(actorRole, "manager")) return false;
+  if (roleAtLeast(actorRole, "super_admin")) return true;
+  return !roleAtLeast(targetRole, "super_admin");
+}
+
+/**
+ * Whether `actorRole` may grant `newRole`. super_admin grants any real role;
+ * manager grants up to manager, never super_admin. `pending` is never assignable.
+ */
+export function canAssignRole(
+  actorRole: string | null | undefined,
+  newRole: string | null | undefined
+): boolean {
+  if (!isAssignableRole(newRole)) return false; // rejects pending + unknown/garbage
+  if (roleAtLeast(actorRole, "super_admin")) return true;
+  if (!roleAtLeast(actorRole, "manager")) return false;
+  return !roleAtLeast(newRole, "super_admin");
 }

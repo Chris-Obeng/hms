@@ -4,6 +4,9 @@ import {
   HIGHEST_ROLE,
   ROLE_LEVEL,
   can,
+  canAdministerStaff,
+  canAssignRole,
+  asStaffRole,
   roleAtLeast,
   type Capability,
   type StaffRole,
@@ -136,5 +139,78 @@ describe("can", () => {
     expect(can("manager", "audit:read")).toBe(false);
     // Any assigned role may look at the settings area.
     expect(can("read_only", "settings:view")).toBe(true);
+  });
+});
+
+describe("canAssignRole", () => {
+  it("lets super_admin grant any real role but never pending", () => {
+    for (const r of ["super_admin", "manager", "front_desk", "read_only"] as const)
+      expect(canAssignRole("super_admin", r)).toBe(true);
+    expect(canAssignRole("super_admin", "pending")).toBe(false);
+  });
+
+  it("lets manager grant up to manager, never super_admin or pending", () => {
+    expect(canAssignRole("manager", "manager")).toBe(true);
+    expect(canAssignRole("manager", "front_desk")).toBe(true);
+    expect(canAssignRole("manager", "read_only")).toBe(true);
+    expect(canAssignRole("manager", "super_admin")).toBe(false);
+    expect(canAssignRole("manager", "pending")).toBe(false);
+  });
+
+  it("denies anyone below manager, and unknown/null actors", () => {
+    for (const r of ["front_desk", "read_only", "pending"] as const)
+      expect(canAssignRole(r, "read_only")).toBe(false);
+    expect(canAssignRole(null, "read_only")).toBe(false);
+    expect(canAssignRole("owner", "read_only")).toBe(false);
+  });
+
+  it("rejects unknown / non-role strings for every actor", () => {
+    expect(canAssignRole("super_admin", "owner")).toBe(false);
+    expect(canAssignRole("super_admin", "garbage")).toBe(false);
+    expect(canAssignRole("super_admin", "")).toBe(false);
+    expect(canAssignRole("super_admin", null)).toBe(false);
+    expect(canAssignRole("manager", "garbage")).toBe(false);
+  });
+});
+
+describe("asStaffRole", () => {
+  it("passes through known roles", () => {
+    expect(asStaffRole("manager")).toBe("manager");
+    expect(asStaffRole("super_admin")).toBe("super_admin");
+  });
+
+  it("coerces unknown / absent to pending", () => {
+    expect(asStaffRole("garbage")).toBe("pending");
+    expect(asStaffRole("")).toBe("pending");
+    expect(asStaffRole(null)).toBe("pending");
+    expect(asStaffRole(undefined)).toBe("pending");
+  });
+});
+
+describe("canAdministerStaff", () => {
+  it("lets super_admin administer every target", () => {
+    for (const t of ["super_admin", "manager", "front_desk", "read_only", "pending"] as const)
+      expect(canAdministerStaff("super_admin", t)).toBe(true);
+  });
+
+  it("lets manager administer anyone except a super_admin", () => {
+    expect(canAdministerStaff("manager", "super_admin")).toBe(false);
+    for (const t of ["manager", "front_desk", "read_only", "pending"] as const)
+      expect(canAdministerStaff("manager", t)).toBe(true);
+  });
+
+  it("denies anyone below manager, and unknown/null actors", () => {
+    expect(canAdministerStaff("front_desk", "read_only")).toBe(false);
+    expect(canAdministerStaff(null, "read_only")).toBe(false);
+  });
+});
+
+describe("staff capability ladder", () => {
+  it("puts invite/setActive/setRole at manager, keeps manage at super_admin", () => {
+    expect(can("manager", "staff:invite")).toBe(true);
+    expect(can("front_desk", "staff:invite")).toBe(false);
+    expect(can("manager", "staff:setActive")).toBe(true);
+    expect(can("manager", "staff:setRole")).toBe(true);
+    expect(can("manager", "staff:manage")).toBe(false);
   });
 });
