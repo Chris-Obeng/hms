@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans, Geist_Mono, Fraunces } from "next/font/google";
+import { Plus_Jakarta_Sans, Geist_Mono, Fraunces, Inter } from "next/font/google";
 import Script from "next/script";
 import { ToastProvider } from "@/components/toast-provider";
 import { ClerkProvider } from "@clerk/nextjs";
@@ -25,6 +25,14 @@ const fraunces = Fraunces({
   subsets: ["latin"],
   axes: ["SOFT", "WONK"],
   variable: "--font-fraunces",
+  display: "swap",
+  preload: false,
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
   display: "swap",
   preload: false,
 });
@@ -80,7 +88,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${jakarta.variable} ${geistMono.variable} ${fraunces.variable} font-sans h-full antialiased`}
+      className={`${jakarta.variable} ${inter.variable} ${geistMono.variable} ${fraunces.variable} font-sans h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="native-shell min-h-dvh flex flex-col font-sans">

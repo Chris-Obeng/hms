@@ -26,8 +26,8 @@ export function Mark({ size = 26 }: { size?: number }) {
       aria-hidden
     >
       <svg width={size * 0.58} height={size * 0.58} viewBox="0 0 16 16" fill="none">
-        <rect x="1" y="7" width="6" height="8" rx="1" fill="#FBFAF8" fillOpacity="0.95" />
-        <rect x="9" y="3.5" width="6" height="11.5" rx="1" fill="#FBFAF8" fillOpacity="0.55" />
+        <rect x="1" y="7" width="6" height="8" rx="1" fill="#F6F1E9" fillOpacity="0.95" />
+        <rect x="9" y="3.5" width="6" height="11.5" rx="1" fill="#F6F1E9" fillOpacity="0.55" />
       </svg>
     </span>
   );

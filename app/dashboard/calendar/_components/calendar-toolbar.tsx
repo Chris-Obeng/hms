@@ -153,9 +153,9 @@ function LegendPopover() {
       <Popover.Trigger>
         <Button variant="ghost" size="sm" aria-label="Legend" className="h-8 gap-2 px-2.5 text-xs text-muted-foreground">
           <span className="flex gap-1" aria-hidden>
-            <span className="size-2 rounded-sm" style={{ background: "#16A7D8" }} />
-            <span className="size-2 rounded-sm" style={{ background: "#2FAA67" }} />
-            <span className="size-2 rounded-sm" style={{ background: "#16A34A" }} />
+            <span className="size-2 rounded-sm" style={{ background: "var(--cal-confirmed)" }} />
+            <span className="size-2 rounded-sm" style={{ background: "var(--cal-inhouse)" }} />
+            <span className="size-2 rounded-sm" style={{ background: "var(--cal-pending)" }} />
           </span>
           Legend
         </Button>
@@ -170,7 +170,7 @@ function LegendPopover() {
                   className={cn("size-2.5 shrink-0 rounded-sm", item.type === "block" && "rounded-[3px]")}
                   style={
                     item.type === "block"
-                      ? { background: "repeating-linear-gradient(135deg, rgba(100,116,139,0.25) 0 3px, rgba(100,116,139,0.5) 3px 6px)" }
+                      ? { background: "repeating-linear-gradient(135deg, color-mix(in oklch, var(--cal-closure) 25%, transparent) 0 3px, color-mix(in oklch, var(--cal-closure) 50%, transparent) 3px 6px)" }
                       : { background: item.color }
                   }
                 />

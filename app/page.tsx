@@ -4,15 +4,16 @@ import { SiteFooter } from "@/components/landing/site-footer";
 import { Hero } from "@/components/landing/hero";
 import { Problem } from "@/components/landing/problem";
 import { Showcase } from "@/components/landing/showcase";
-import { Capabilities } from "@/components/landing/capabilities";
-import { TrustStrip } from "@/components/landing/trust-strip";
-import { SocialProof } from "@/components/landing/social-proof";
+import { How } from "@/components/landing/how";
+import { DeepDive } from "@/components/landing/deep-dive";
+import { Security } from "@/components/landing/security";
+import { DemoCta } from "@/components/landing/demo-cta";
 import { FinalCta } from "@/components/landing/final-cta";
 
 export const metadata: Metadata = {
-  title: "RoomLine — the property system for independent hotels",
+  title: "RoomLine — Run the whole property from one dashboard",
   description:
-    "Bookings, payments, housekeeping and the night audit on one screen. Mobile money, cash and card — reconciled by the time you close.",
+    "Reservations, front desk, housekeeping, channels, billing and reporting in one calm system for independent hotels.",
 };
 
 export default function HomePage() {
@@ -23,9 +24,10 @@ export default function HomePage() {
         <Hero />
         <Problem />
         <Showcase />
-        <Capabilities />
-        <TrustStrip />
-        <SocialProof />
+        <How />
+        <DeepDive />
+        <Security />
+        <DemoCta />
         <FinalCta />
       </main>
       <SiteFooter />

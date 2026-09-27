@@ -1,62 +1,45 @@
-import { Reveal } from "@/components/landing/reveal";
+import { Stagger, StaggerItem } from "@/components/landing/reveal";
 
 const PAINS = [
   {
-    tag: "Conflict",
-    tone: "due",
-    title: "Room 204, twice sold",
-    body: "A walk-in arrives while an online guest holds the same room. You find out at check-in, in front of both of them.",
+    no: "01",
+    title: "The 11pm double-booking",
+    body: "A walk-in takes Room 204 while an OTA holds it. You discover it at check-in, in front of both guests — and comp a night to fix it.",
   },
   {
-    tag: "Untracked",
-    tone: "house",
-    title: "A notebook, three inboxes, one phone",
-    body: "Reservations live across a paper diary, OTA email threads and staff phones. When one booking changes, the others never hear about it.",
+    no: "02",
+    title: "Five books, none agreeing",
+    body: "Reservations live in a paper diary, OTA inboxes and staff phones. One change never reaches the others, so housekeeping cleans the wrong rooms.",
   },
   {
-    tag: "Unreconciled",
-    tone: "await",
-    title: "Money that won't balance",
-    body: "Guests leave owing you, and you chase them for weeks. At close of day the cash drawer, mobile-money and card totals still don't agree.",
+    no: "03",
+    title: "Money that won't close",
+    body: "Cash, mobile money and card totals meet only at midnight — in a spreadsheet. The night audit takes an hour and still leaves ₵ unaccounted.",
   },
 ] as const;
 
 export function Problem() {
   return (
-    <section id="how-it-works" className="lp-section lp-band scroll-mt-24">
-      <div className="lp-container grid gap-10 md:grid-cols-[0.85fr_1.1fr] md:gap-16">
-        <Reveal>
-          <p className="lp-index">§ 01 · The problem</p>
-          <h2 className="lp-h2 mt-4">
-            The front desk keeps two sets of books, and neither agrees.
-          </h2>
-          <p className="lp-lead mt-5">
-            Bookings scatter across a notebook, a phone and the OTAs. By close of
-            day nobody can say for certain which rooms sold, or where the money
-            went.
-          </p>
-        </Reveal>
+    <section id="problem" className="lp-section scroll-mt-24 border-t border-[var(--lp-line-strong)]">
+      <div className="lp-container">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-16">
+          <div>
+            <p className="lp-eyebrow">01 · The problem</p>
+            <h2 className="lp-h2 mt-4">
+              Running a hotel on disconnected tools.
+            </h2>
+            <div className="lp-rule-brass mt-6 w-16" aria-hidden />
+          </div>
 
-        <div>
-          {PAINS.map((pain, i) => (
-            <Reveal key={pain.title} delay={i * 80}>
-              <div className="grid grid-cols-[auto_1fr] gap-x-5 border-t border-[var(--lp-line-strong)] pt-6 first:pt-0 first:border-t-0 md:pt-7">
-                <span className="lp-index pt-1.5">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                    <h3 className="lp-h3">{pain.title}</h3>
-                    <span className={`lp-chip lp-chip--${pain.tone}`}>
-                      <span className="lp-chip__dot" />
-                      {pain.tag}
-                    </span>
-                  </div>
-                  <p className="lp-body mt-2.5 max-w-md">{pain.body}</p>
-                </div>
-              </div>
-            </Reveal>
-          ))}
+          <Stagger className="grid gap-px overflow-hidden rounded-xl border border-[var(--lp-line)] bg-[var(--lp-line)] md:grid-cols-3">
+            {PAINS.map((pain) => (
+              <StaggerItem key={pain.no} className="bg-[var(--lp-surface)] p-7">
+                <p className="lp-index">{pain.no}</p>
+                <h3 className="lp-h3 mt-4 text-[1.35rem]">{pain.title}</h3>
+                <p className="lp-body mt-3 text-[0.95rem]">{pain.body}</p>
+              </StaggerItem>
+            ))}
+          </Stagger>
         </div>
       </div>
     </section>

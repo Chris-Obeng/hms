@@ -3,19 +3,21 @@ import { Logo } from "@/components/landing/site-header";
 
 const COLUMNS = [
   {
-    heading: "Product",
+    heading: "Modules",
     links: [
-      { label: "Front-desk calendar", href: "#calendar" },
-      { label: "Payments & mobile money", href: "#payments" },
-      { label: "Direct booking page", href: "#booking" },
-      { label: "Night audit & reports", href: "#audit" },
+      { label: "Reservations & front desk", href: "#reservations" },
+      { label: "Housekeeping", href: "#housekeeping" },
+      { label: "Channel manager", href: "#channels" },
+      { label: "Billing & POS", href: "#billing" },
     ],
   },
   {
-    heading: "For hotels",
+    heading: "Property",
     links: [
+      { label: "How it works", href: "#how" },
+      { label: "Security", href: "#security" },
+      { label: "Request a demo", href: "#demo" },
       { label: "Sign in", href: "/sign-in" },
-      { label: "Set up your hotel", href: "/onboarding" },
     ],
   },
 ] as const;
@@ -23,7 +25,7 @@ const COLUMNS = [
 export function SiteFooter() {
   return (
     <footer className="border-t border-[var(--lp-line-strong)] bg-[var(--lp-band)]">
-      <div className="lp-container py-12 md:py-16">
+      <div className="lp-container py-12 md:py-14">
         <div className="flex flex-col gap-10 sm:flex-row sm:justify-between">
           <div className="max-w-xs">
             <Link href="/" className="lp-wordmark" aria-label="RoomLine home">
@@ -31,8 +33,8 @@ export function SiteFooter() {
               <span className="lp-wordmark__name">RoomLine</span>
             </Link>
             <p className="lp-small mt-3">
-              Bookings, payments, housekeeping and the night audit for
-              independent hotels — on one screen.
+              Run the whole property from one dashboard — reservations, front
+              desk, housekeeping, channels, billing and reporting.
             </p>
           </div>
 
@@ -68,7 +70,7 @@ export function SiteFooter() {
           <p className="lp-index">
             © {new Date().getFullYear()} RoomLine
           </p>
-          <p className="lp-index">Mobile money · Cash · Card, on one screen</p>
+          <p className="lp-index">One dashboard · One ledger · One close of day</p>
         </div>
       </div>
     </footer>

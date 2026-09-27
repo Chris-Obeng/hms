@@ -5,15 +5,16 @@ import Link from "next/link";
 import { Reveal } from "@/components/landing/reveal";
 
 /*
- * Paper header that only earns its rule once the page has scrolled — the blur
- * keeps the wordmark legible over the hero, the hairline appears when there is
- * content behind it to divide. The bar itself settles in on first paint.
+ * Sticky, minimal, ivory. Logo + five links + one CTA. The hairline
+ * appears only once the page has scrolled and there is content to divide.
  */
 
 const NAV_ITEMS = [
-  { href: "#how-it-works", label: "The problem" },
-  { href: "#showcase", label: "The board" },
-  { href: "#features", label: "What it does" },
+  { href: "#problem", label: "The problem" },
+  { href: "#modules", label: "Modules" },
+  { href: "#how", label: "How it works" },
+  { href: "#security", label: "Security" },
+  { href: "#demo", label: "Request a demo" },
 ] as const;
 
 export function SiteHeader() {
@@ -34,7 +35,7 @@ export function SiteHeader() {
           <span className="lp-wordmark__name">RoomLine</span>
         </Link>
 
-        <nav aria-label="Main" className="hidden items-center gap-9 md:flex">
+        <nav aria-label="Main" className="hidden items-center gap-8 lg:flex">
           {NAV_ITEMS.map((item) => (
             <a key={item.href} href={item.href} className="lp-navlink">
               {item.label}
@@ -64,7 +65,7 @@ export function Logo({ size = 28 }: { size?: number }) {
         height: size,
         borderRadius: size * 0.28,
         background: "var(--lp-brand)",
-        color: "#fbfaf8",
+        color: "var(--lp-night-fg)",
       }}
       aria-hidden="true"
     >

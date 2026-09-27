@@ -5,38 +5,39 @@
  * or blocked, slate = walk-in / neutral, evergreen = clear.
  */
 export const ui = {
-  paper: "#FBFAF8",
-  surface: "#FFFFFF",
-  ink: "#151A18",
-  inkSoft: "#3A423F",
-  muted: "#5B6561",
-  faint: "#676F6B",
-  line: "#E5E2DC",
-  rule: "#D3D1C9",
-  brand: "#145C4A",
-  brandDeep: "#0F4A3B",
-  brandWash: "#E9F1EE",
-  brandLine: "#C8DDD5",
-  await: "#9A5B12",
-  awaitWash: "#F7F0E4",
-  awaitLine: "#E6D3B4",
+  paper: "#F6F1E9",
+  surface: "#FBF8F3",
+  ink: "#1C1815",
+  inkSoft: "#3A332D",
+  muted: "#57504A",
+  faint: "#645C52",
+  line: "#E4DCCB",
+  rule: "#D3C8B2",
+  brand: "#1F3D2B",
+  brandDeep: "#162E21",
+  brandWash: "#E7ECE4",
+  brandLine: "#B9C8B8",
+  brass: "#B9975B",
+  await: "#6B5320",
+  awaitWash: "#F1E8D2",
+  awaitLine: "#D9C9A6",
   due: "#B42318",
   dueWash: "#FAEEED",
   dueLine: "#F0CFCB",
   house: "#5B6570",
   houseWash: "#F0F1F3",
   houseLine: "#D9DDE1",
-  night: "#0F241F",
-  nightRaised: "#16302A",
-  nightLine: "#24413A",
-  nightFg: "#FBFAF8",
-  nightMuted: "#C9D3CE",
-  nightBrand: "#8FD9B8",
-  nightBrass: "#E7C46A",
+  night: "#1F3D2B",
+  nightRaised: "#2A4C38",
+  nightLine: "#3D5C4B",
+  nightFg: "#F6F1E9",
+  nightMuted: "#CBC2B2",
+  nightBrand: "#D9CFAE",
+  nightBrass: "#E3C87F",
 } as const;
 
 export const fontText =
-  "var(--font-jakarta), ui-sans-serif, system-ui, sans-serif";
+  "var(--font-inter), var(--font-jakarta), ui-sans-serif, system-ui, sans-serif";
 export const fontData =
   "var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace";
 export const fontDisplay =

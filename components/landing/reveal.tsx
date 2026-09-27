@@ -24,8 +24,8 @@ const EASE = [0.16, 1, 0.3, 1] as const;
 const useIsoLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-function useReveal(amount = 0.18, margin = "0px 0px -8% 0px") {
-  const ref = useRef<HTMLElement | null>(null);
+function useReveal<T extends HTMLElement = HTMLElement>(amount = 0.18, margin = "0px 0px -8% 0px") {
+  const ref = useRef<T | null>(null);
   const [armed, setArmed] = useState(false);
   const [play, setPlay] = useState(false);
 
@@ -61,7 +61,7 @@ function useReveal(amount = 0.18, margin = "0px 0px -8% 0px") {
 }
 
 const RISE = {
-  hide: { opacity: 0, y: 14 },
+  hide: { opacity: 0, y: 8 },
   show: { opacity: 1, y: 0 },
 } as const;
 
@@ -70,11 +70,16 @@ export function Reveal({
   delay = 0,
   className,
   children,
+  y = 8,
+  duration = 0.62,
 }: {
   as?: ElementType;
   delay?: number;
   className?: string;
   children: ReactNode;
+  /** Rise distance in px — the brief fixes this at 8. */
+  y?: number;
+  duration?: number;
 }) {
   const { ref, armed, play } = useReveal();
   const M = motion[(as ?? "div") as keyof typeof motion] as ElementType;
@@ -83,13 +88,114 @@ export function Reveal({
       ref={ref}
       key={armed ? "on" : "off"}
       className={className}
-      variants={RISE}
+      variants={{
+        hide: { opacity: 0, y },
+        show: { opacity: 1, y: 0 },
+      }}
       initial={armed ? "hide" : false}
       animate={!armed || play ? "show" : "hide"}
-      transition={{ duration: 0.62, ease: EASE, delay: delay / 1000 }}
+      transition={{ duration, ease: EASE, delay: delay / 1000 }}
     >
       {children}
     </M>
+  );
+}
+
+/* Stagger group: fade + 8px rise, ~60ms per child — the brief motion law.
+ * Visible by default; arms the hidden start only in JS, like Reveal. */
+export function Stagger({
+  className,
+  children,
+  delay = 0,
+  step = 60,
+}: {
+  className?: string;
+  children: ReactNode;
+  delay?: number;
+  /** Stagger gap in ms between children. */
+  step?: number;
+}) {
+  const { ref, armed, play } = useReveal<HTMLDivElement>(0.12);
+  return (
+    <motion.div
+      ref={ref}
+      className={className}
+      initial={armed ? "hide" : false}
+      animate={!armed || play ? "show" : "hide"}
+      variants={{
+        hide: {},
+        show: { transition: { staggerChildren: step / 1000, delayChildren: delay / 1000 } },
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+export function StaggerItem({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <motion.div
+      className={className}
+      variants={{
+        hide: { opacity: 0, y: 8 },
+        show: {
+          opacity: 1,
+          y: 0,
+          transition: { duration: 0.62, ease: EASE },
+        },
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/* Magnetic hover for the primary CTA: the button leans toward the cursor
+ * (max ~6px) and eases home on leave. Pointer-only; touch stays static. */
+export function Magnetic({
+  className,
+  children,
+  strength = 6,
+}: {
+  className?: string;
+  children: ReactNode;
+  strength?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{ display: "inline-block" }}
+      onMouseMove={(e) => {
+        const el = ref.current;
+        if (!el) return;
+        if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+        if (window.matchMedia?.("(hover: none)").matches) return;
+        const r = el.getBoundingClientRect();
+        const dx = e.clientX - (r.left + r.width / 2);
+        const dy = e.clientY - (r.top + r.height / 2);
+        const nx = Math.max(-0.5, Math.min(0.5, dx / r.width));
+        const ny = Math.max(-0.5, Math.min(0.5, dy / r.height));
+        el.style.transform = `translate(${Number((nx * strength * 2).toFixed(2))}px, ${Number((ny * strength * 2).toFixed(2))}px)`;
+        el.style.transition = "transform 120ms cubic-bezier(0.16,1,0.3,1)";
+      }}
+      onMouseLeave={() => {
+        const el = ref.current;
+        if (!el) return;
+        el.style.transition = "transform 420ms cubic-bezier(0.16,1,0.3,1)";
+        el.style.transform = "translate(0px, 0px)";
+      }}
+    >
+      {children}
+    </div>
   );
 }
 

@@ -10,7 +10,7 @@ import {
   startOfWeek,
 } from "date-fns";
 
-// ── Types ────────────────────────────────────────────────────────
+// ── Types
 
 export interface OccupancyReportData {
   dailyOccupancy: { date: string; occupancy: number; occupied: number; total: number }[];

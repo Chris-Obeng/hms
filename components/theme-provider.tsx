@@ -188,7 +188,7 @@ export function ThemeProvider({
     const resolved = resolveTheme(effective, systemTheme);
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
-      meta.setAttribute("content", resolved === "dark" ? "#1C1917" : "#FAFAF8");
+      meta.setAttribute("content", resolved === "dark" ? "#1B1A18" : "#FAFAF8");
     }
   }, [theme, systemTheme, forcedTheme, enableColorScheme]);
 

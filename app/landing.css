@@ -1,56 +1,61 @@
 /* ═══════════════════════════════════════════════════════════════════
-   RoomLine marketing landing — scoped design system · "The Closing Report"
+   RoomLine marketing landing — "The Ledger Suite"
 
-   Thesis: the page is composed like a nightly report, not a SaaS pitch.
-   Ruled paper, mono report indices, tabular figures, one evergreen
-   decision colour, and the product as the only imagery.
+   Register: five-star boutique hotel crossed with Linear/Stripe polish.
+   Warm ivory canvas, warm-charcoal ink, deep forest for decisions,
+   warm brass sparingly. Fraunces display · Inter text · Geist Mono data.
 
-   Scoping: every token sits under [data-theme="landing"], so the app
-   dashboard keeps its own theme. Custom properties inherit from the
-   nearest ancestor, so these win over any .dark/.light on <html>.
+   Tailwind v4 theme tokens (brief palette, no inline hex):
+     --color-ivory / ink / forest / forest-deep / brass / card / hairline
+   Scoped landing tokens (--lp-*) inherit from those theme tokens so the
+   app dashboard keeps its own theme.
 
-   Laws
-   · Paper canvas + ONE tinted band. Product surfaces are pure white, so
-     the tool reads brighter than the page around it.
-   · Near-black green-cast ink; evergreen is the only decision colour
-     (CTA, links, focus) — never decoration.
-   · Amber / rose / slate are SIGNALS. They appear only where they mean a
-     real product state (awaiting, due, walk-in). Never for ornament.
-   · Two weights of line only: hairline (grouping), rule (structure).
-   · Type: Fraunces display · Plus Jakarta Sans text · Geist Mono data.
-   · Motion: 14px rise, 620ms, cubic-bezier(.16,1,.3,1). Rules draw in,
-     headlines mask-reveal. Nothing bounces. Reduced motion = static.
+   Motion: one curve cubic-bezier(.16,1,.3,1). Fade + 8px rise, ~60ms
+   stagger, word/line headline reveals, magnetic primary CTA, 2-3% grain
+   over flat sections. Reduced motion = static.
    ═══════════════════════════════════════════════════════════════════ */
+
+@theme {
+  --color-ivory: #f6f1e9;
+  --color-ink: #1c1815;
+  --color-forest: #1f3d2b;
+  --color-forest-deep: #162e21;
+  --color-brass: #b9975b;
+  --color-card: #fbf8f3;
+  --color-hairline: #e4dccb;
+}
 
 @layer base {
   [data-theme="landing"] {
     color-scheme: light;
 
-    /* ── Paper & surface ────────────────────────────────────────── */
-    --lp-paper: #fbfaf8; /* canvas: same family as the app's #fafaf8 */
-    --lp-band: #f4f2ee; /* the one tinted section layer             */
-    --lp-surface: #ffffff; /* product frames: brighter than the page  */
+    /* ── Brief palette: warm ivory · warm charcoal · forest · brass ─── */
+    --lp-paper: #f6f1e9; /* base/background */
+    --lp-band: #efe7d8; /* one tinted layer, same family */
+    --lp-surface: #fbf8f3; /* card/surface, lifted off-white */
 
-    /* ── Ink ────────────────────────────────────────────────────── */
-    --lp-ink: #151a18; /* 16.9:1 — headlines                         */
-    --lp-ink-soft: #3a423f; /* 9.9:1  — emphasis                       */
-    --lp-muted: #5b6561; /* 5.8:1  — body copy (AA)                   */
-    --lp-faint: #676f6b; /* 4.8:1  — micro labels (AA floor)          */
+    /* ── Ink: warm charcoal, WCAG AA on ivory ────────────────────── */
+    --lp-ink: #1c1815; /* 15.68:1 — headlines */
+    --lp-ink-soft: #3a332d; /* 11.04:1 — emphasis */
+    --lp-muted: #57504a; /* 6.9:1 — body copy (AA) */
+    --lp-faint: #645c52; /* 5.85:1 — micro labels (AA floor) */
 
-    /* ── Line ───────────────────────────────────────────────────── */
-    --lp-line: #e5e2dc; /* hairline: grouping                         */
-    --lp-line-strong: #d5d1c9; /* rule: structure, section edges        */
+    /* ── Line: hairline borders on ivory ──────────────────────────── */
+    --lp-line: #e4dccb; /* hairline: grouping                         */
+    --lp-line-strong: #d3c8b2; /* rule: structure, section edges        */
 
-    /* ── Evergreen: the only decision colour ────────────────────── */
-    --lp-brand: #145c4a; /* 7.9:1 on white                             */
-    --lp-brand-hover: #0f4a3b; /* press depth, no new hue               */
-    --lp-brand-wash: #e9f1ee; /* chip/row tint, never a big fill       */
-    --lp-brand-line: #c8ddd5;
+    /* ── Forest: the only decision colour ─────────────────────────── */
+    --lp-brand: #1f3d2b; /* 10.61:1 on ivory — CTA, links, focus */
+    --lp-brand-hover: #162e21; /* press depth, no new hue               */
+    --lp-brand-wash: #e7ece4; /* chip/row tint, never a big fill       */
+    --lp-brand-line: #b9c8b8;
+    --lp-brass: #b9975b; /* dividers, hover states, sparingly */
+    --lp-brass-deep: #8a6f3e; /* brass text on ivory (4.22:1) */
 
     /* ── Signals: real product states only ──────────────────────── */
-    --lp-await: #9a5b12; /* 5.2:1 — money not yet cleared               */
-    --lp-await-wash: #f7f0e4;
-    --lp-await-line: #e6d3b4;
+    --lp-await: #6b5320; /* 5.97:1 on pending tint — money not yet cleared */
+    --lp-await-wash: #f1e8d2;
+    --lp-await-line: #d9c9a6;
     --lp-due: #b42318; /* 6.3:1 — outstanding / conflict              */
     --lp-due-wash: #faeeed;
     --lp-due-line: #f0cfcb;
@@ -59,35 +64,35 @@
     --lp-house-line: #d9dde1;
 
     /* ── Night audit band ───────────────────────────────────────── */
-    --lp-night: #0f241f; /* deep evergreen-black                        */
-    --lp-night-raised: #16302a;
-    --lp-night-line: #24413a;
-    --lp-night-fg: #fbfaf8; /* 15.6:1                                   */
-    --lp-night-muted: #c9d3ce; /* 10.6:1                                */
-    --lp-night-brand: #8fd9b8; /* 9.9:1                                 */
-    --lp-night-brass: #e7c46a; /* 9.7:1 — closed-day figures            */
+    --lp-night: #1f3d2b; /* deep forest — ivory text 10.61:1 */
+    --lp-night-raised: #2a4c38;
+    --lp-night-line: #3d5c4b;
+    --lp-night-fg: #f6f1e9; /* 10.61:1                                  */
+    --lp-night-muted: #cbc2b2; /* 6.76:1                                */
+    --lp-night-brand: #d9cfae; /* 7.2:1 — links on forest               */
+    --lp-night-brass: #e3c87f; /* 7.3:1 — closed-day figures            */
 
-    /* ── Type ───────────────────────────────────────────────────── */
+    /* ── Type: Fraunces display · Inter text · Geist Mono data ──── */
     --lp-font-display: var(--font-fraunces), ui-serif, Georgia, serif;
-    --lp-font-text: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+    --lp-font-text: var(--font-inter), var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
     --lp-font-data:
       var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
 
-    /* ── Motion ─────────────────────────────────────────────────── */
+    /* ── Motion: one curve everywhere ───────────────────────────── */
     --lp-ease: cubic-bezier(0.16, 1, 0.3, 1);
-    --lp-ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
+    --lp-ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
     --lp-fast: 180ms;
     --lp-base: 380ms;
     --lp-slow: 620ms;
 
-    /* ── Depth: one for product, one for lifted chrome ──────────── */
+    /* ── Depth: hairline borders, not drop shadows ──────────────── */
     --lp-shadow-product:
-      0 0 0 1px rgba(21, 26, 24, 0.06), 0 2px 4px rgba(21, 26, 24, 0.04),
-      0 12px 32px -8px rgba(21, 26, 24, 0.1),
-      0 40px 80px -32px rgba(15, 36, 31, 0.22);
+      0 0 0 1px rgba(28, 24, 21, 0.08),
+      0 1px 2px rgba(28, 24, 21, 0.05),
+      0 16px 40px -24px rgba(31, 61, 43, 0.25);
     --lp-shadow-raise:
-      0 0 0 1px rgba(21, 26, 24, 0.05),
-      0 8px 24px -10px rgba(21, 26, 24, 0.12);
+      0 0 0 1px rgba(28, 24, 21, 0.06),
+      0 10px 28px -16px rgba(28, 24, 21, 0.18);
 
     /* ── HeroUI bridge: retarget shared tokens inside this scope ── */
     --background: var(--lp-paper);
@@ -97,15 +102,15 @@
     --overlay: var(--lp-surface);
     --overlay-foreground: var(--lp-ink);
     --accent: var(--lp-brand);
-    --accent-foreground: #fbfaf8;
+    --accent-foreground: #f6f1e9;
     --accent-hover: var(--lp-brand-hover);
     --accent-soft: var(--lp-brand-wash);
     --accent-soft-foreground: var(--lp-brand-hover);
-    --accent-soft-hover: #dfeae5;
+    --accent-soft-hover: #dde5da;
     --muted: var(--lp-muted);
-    --default: #efece7;
+    --default: #ece4d3;
     --default-foreground: var(--lp-ink);
-    --default-hover: #e6e2dc;
+    --default-hover: #e2d7c0;
     --border: var(--lp-line);
     --separator: var(--lp-line);
     --background-secondary: var(--lp-band);
@@ -120,7 +125,7 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* Night audit scope: inverts the local palette for the closing band. */
+  /* Night audit scope: deep forest close of day. Brass carries the figures. */
   [data-theme="landing"] .lp-night {
     color-scheme: dark;
     --background: var(--lp-night);
@@ -130,8 +135,8 @@
     --surface-foreground: var(--lp-night-fg);
     --accent: var(--lp-night-brand);
     --accent-foreground: var(--lp-night);
-    --accent-hover: #a7e3c8;
-    --accent-soft: rgba(143, 217, 184, 0.14);
+    --accent-hover: #e6dcc0;
+    --accent-soft: rgba(217, 207, 174, 0.14);
     --accent-soft-foreground: var(--lp-night-brand);
     --border: var(--lp-night-line);
     --separator: var(--lp-night-line);
@@ -296,10 +301,11 @@
   }
   .lp-btn--solid {
     background: var(--lp-brand);
-    color: #fbfaf8;
+    color: var(--lp-night-fg);
   }
   .lp-btn--solid:hover {
     background: var(--lp-brand-hover);
+    border-color: var(--lp-brass);
   }
   .lp-btn--ghost {
     background: transparent;
@@ -307,8 +313,8 @@
     border-color: var(--lp-line-strong);
   }
   .lp-btn--ghost:hover {
-    border-color: var(--lp-ink);
-    background: rgba(21, 26, 24, 0.04);
+    border-color: var(--lp-brass);
+    background: rgba(185, 151, 91, 0.1);
   }
   /* On the evergreen closing band: paper is the decision colour there. */
   .lp-btn--paper {
@@ -389,6 +395,57 @@
     border-color: var(--lp-night-line);
   }
 
+  /* ── Hero folio marginalia ──────────────────────────────────── */
+  .lp-hero-grid {
+    display: grid;
+    gap: 2.5rem;
+  }
+  @media (min-width: 1024px) {
+    .lp-hero-grid {
+      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+      gap: 3.5rem;
+      align-items: end;
+    }
+  }
+  .lp-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-family: var(--lp-font-data);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--lp-faint);
+  }
+  .lp-eyebrow::before {
+    content: "";
+    width: 1.75rem;
+    height: 1px;
+    background: var(--lp-brass);
+  }
+  .lp-hero-ledger {
+    border-top: 1px solid var(--lp-line-strong);
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  .lp-hero-ledger dt {
+    font-family: var(--lp-font-data);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--lp-faint);
+  }
+  .lp-hero-ledger dd {
+    margin-top: 0.3rem;
+    font-family: var(--lp-font-data);
+    font-size: 0.95rem;
+    color: var(--lp-ink);
+    font-variant-numeric: tabular-nums;
+  }
+
   /* ── Product window: the only imagery on the page ──────────────── */
   .lp-window {
     background: var(--lp-surface);
@@ -404,7 +461,7 @@
     height: 2.75rem;
     padding-inline: 0.875rem;
     border-bottom: 1px solid var(--lp-line);
-    background: linear-gradient(180deg, #ffffff, #fbfaf8);
+    background: linear-gradient(180deg, var(--lp-surface), var(--lp-paper));
   }
   .lp-window__path {
     font-family: var(--lp-font-data);
@@ -514,6 +571,33 @@
     gap: 0.875rem;
     padding: clamp(1.5rem, 8%, 3rem);
     text-align: center;
+  }
+
+  /* ── Grain: 2.5% noise over flat sections — kills the flat-vector look */
+  .lp-grain {
+    position: relative;
+    isolation: isolate;
+  }
+  .lp-grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 160px 160px;
+  }
+  .lp-grain > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ── Brass rule: the sparing secondary accent ───────────────────── */
+  .lp-rule-brass {
+    height: 1px;
+    background: var(--lp-brass);
+    opacity: 0.65;
   }
 
   /* ── Header: paper with a rule that appears once it earns one ──── */

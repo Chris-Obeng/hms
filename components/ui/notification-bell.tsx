@@ -17,8 +17,8 @@ import {
 } from "motion/react";
 import { cn } from "@/lib/utils";
 
-const SURFACE = "bg-[#F4F4F9] dark:bg-[#262626]";
-const GLYPH = "text-[#5C5B69] dark:text-[#B4B3C0]";
+const SURFACE = "bg-muted/70 dark:bg-muted";
+const GLYPH = "text-muted-foreground";
 
 const COLORS = {
   red: "bg-[#FF3B30] dark:bg-[#FF453A]",

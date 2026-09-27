@@ -22,7 +22,7 @@ import { Button, Tooltip } from "@heroui/react";
 import { cn } from "@/lib/utils";
 import type { CalendarAvailabilityBlock, CalendarBooking, CalendarRoom } from "../../actions";
 import { businessToday } from "@/lib/business-date";
-import { getBookingBarColor, groupAccent, isManualLikeSource, NON_BOOKABLE_ROOM_STATUSES, TERMINAL_BOOKING_STATUS_SET } from "../calendar-helpers";
+import { getBookingStatusKey, groupAccent, isManualLikeSource, NON_BOOKABLE_ROOM_STATUSES, sourceShort, TERMINAL_BOOKING_STATUS_SET } from "../calendar-helpers";
 import {
   bookingGeometry,
   clampBarGeometry,
@@ -123,11 +123,6 @@ function resolveDragDates(
   }
 }
 
-interface BarVisuals {
-  bg: string;
-  border: string;
-}
-
 function BookingBar({
   booking,
   conflict,
@@ -145,18 +140,16 @@ function BookingBar({
   const drag = useDraggable({ id: `booking:${booking.id}`, disabled: !editable, data: { kind: "booking", bookingId: booking.id } satisfies DragData });
   const left = useDraggable({ id: `left:${booking.id}`, disabled: !editable, data: { kind: "resize-left", bookingId: booking.id } satisfies DragData });
   const right = useDraggable({ id: `right:${booking.id}`, disabled: !editable, data: { kind: "resize-right", bookingId: booking.id } satisfies DragData });
-  const colors = getBookingBarColor(booking.status, booking.source);
+  const statusKey = getBookingStatusKey(booking.status);
+  const src = sourceShort(booking.source);
   const accent = groupAccent(booking.groupId);
   const isDragging = drag.isDragging || left.isDragging || right.isDragging;
   return (
     <div
       className={cn("rl-booking-bar", conflict && "is-conflict", isDragging && "is-dragging", !editable && "is-terminal")}
+      data-cal-status={statusKey}
       data-group={accent ? "true" : undefined}
-      style={{
-        background: `linear-gradient(180deg, color-mix(in srgb, ${colors.bg} 84%, white) 0%, ${colors.bg} 52%, color-mix(in srgb, ${colors.bg} 90%, black) 100%)`,
-        borderColor: conflict ? "var(--destructive)" : colors.border,
-        ...(accent ? { "--rl-group-accent": accent } as React.CSSProperties : {}),
-      }}
+      style={accent ? ({ "--rl-group-accent": accent } as React.CSSProperties) : undefined}
     >
       {editable && (
         <>
@@ -197,6 +190,7 @@ function BookingBar({
       >
         {editable && <GripVertical className="rl-booking-grip" aria-hidden />}
         <span className="rl-booking-name">{booking.guestName ?? "Guest"}</span>
+        {src && <span className="rl-booking-src" aria-hidden>{src}</span>}
         {(booking.roomsCount ?? 0) > 1 && (
           <span className="rl-booking-rooms" aria-hidden>
             ×{booking.roomsCount}
@@ -566,7 +560,7 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
   }, [setDragState]);
 
   const activeBooking = activeDrag ? bookingById.get(activeDrag.bookingId) : undefined;
-  const activeColors: BarVisuals | null = activeBooking ? getBookingBarColor(activeBooking.status, activeBooking.source) : null;
+  const activeStatusKey = activeBooking ? getBookingStatusKey(activeBooking.status) : null;
 
   const preview = React.useMemo(() => {
     if (!activeDrag || !activeDrag.target || !activeBooking) return null;
@@ -696,14 +690,11 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
         {/* Only move-drags float a clone — resize feedback lives entirely in
             the cell preview, which is what the eye should track. The clone
             keeps the bar's true pixel width so long stays hold their shape. */}
-        {activeDrag?.kind === "booking" && activeBooking && activeColors ? (
+        {activeDrag?.kind === "booking" && activeBooking && activeStatusKey ? (
           <div
             className="rl-drag-overlay-bar"
-            style={{
-              width: dragWidth ?? undefined,
-              background: `linear-gradient(180deg, color-mix(in srgb, ${activeColors.bg} 84%, white) 0%, ${activeColors.bg} 52%, color-mix(in srgb, ${activeColors.bg} 90%, black) 100%)`,
-              borderColor: activeColors.border,
-            }}
+            data-cal-status={activeStatusKey}
+            style={{ width: dragWidth ?? undefined }}
           >
             <GripVertical className="rl-booking-grip" aria-hidden />
             <span className="rl-booking-name">{activeBooking.guestName ?? activeBooking.reference}</span>

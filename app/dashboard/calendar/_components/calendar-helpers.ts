@@ -10,41 +10,47 @@ export function isManualLikeSource(source: string | null | undefined): boolean {
   return source === "manual" || source === "phone" || source === "walk_in";
 }
 
-export function getBookingBarColor(
-  status: string,
-  source: string | null
-): { bg: string; text: string; border: string } {
-  // Terminal/special statuses always override source-based coloring
-  if (status === "checked_in") {
-    // IN HOUSE - matches CALENDAR_LEGEND "In House" #16A34A
-    return { bg: "#16A34A", text: "#FFFFFF", border: "#15803D" };
-  }
-  if (status === "checked_out") {
-    return { bg: "#6B7280", text: "#FFFFFF", border: "#4B5563" };
-  }
-  if (status === "cancelled") {
-    return { bg: "#94A3B8", text: "#FFFFFF", border: "#64748B" };
-  }
-  if (status === "pending") {
-    // PENDING - matches CALENDAR_LEGEND "Pending" #7C3AED (violet)
-    return { bg: "#7C3AED", text: "#FFFFFF", border: "#6D28D9" };
-  }
-  if (status === "maintenance" || status === "out_of_service") {
-    return { bg: "#D97706", text: "#FFFFFF", border: "#B45309" };
-  }
+/** Bar color is keyed by lifecycle status, never source — the front desk
+ *  scans the rack by "arriving / in-house / departed", and coloring confirmed
+ *  bookings by source used to make manual-green collide with in-house-green.
+ *  The key maps to a CSS token set in calendar.css (light + dark). */
+export type BookingStatusKey =
+  | "confirmed"
+  | "inhouse"
+  | "checkout"
+  | "pending"
+  | "cancelled"
+  | "noshow";
 
-  // CONFIRMED: source-based coloring — matches CALENDAR_LEGEND swatches exactly
-  switch (source) {
-    case "manual":
-    case "phone":
-    case "walk_in":
-      // Manual/Phone - green, matches legend #2FAA67
-      return { bg: "#2FAA67", text: "#FFFFFF", border: "#27996E" };
-    case "direct":
+export function getBookingStatusKey(status: string): BookingStatusKey {
+  switch (status) {
+    case "checked_in":
+      return "inhouse";
+    case "checked_out":
+      return "checkout";
+    case "cancelled":
+      return "cancelled";
+    case "no_show":
+      return "noshow";
+    case "pending":
+      return "pending";
+    case "confirmed":
     default:
-      // Direct - cyan, matches legend #16A7D8
-      return { bg: "#16A7D8", text: "#FFFFFF", border: "#0E96C5" };
+      return "confirmed";
   }
+}
+
+/** Short source code for the on-bar badge. Direct is the default and stays
+ *  unbadged to reduce noise; only non-direct channels earn a marker. */
+const SOURCE_SHORT: Record<string, string> = {
+  bookings_com: "OTA",
+  manual: "MAN",
+  phone: "TEL",
+  walk_in: "WLK",
+};
+
+export function sourceShort(source: string | null | undefined): string | null {
+  return source ? SOURCE_SHORT[source] ?? null : null;
 }
 
 /** Accent stripe for grouped (multi-room) reservations. Additive only — it
@@ -98,11 +104,14 @@ export interface LegendItem {
 }
 
 export const CALENDAR_LEGEND: LegendItem[] = [
-  { label: "Direct", color: "#16A7D8", type: "booking" },
-  { label: "Manual/Phone", color: "#2FAA67", type: "booking" },
-  { label: "In House", color: "#16A34A", type: "booking" },
-  { label: "Pending", color: "#7C3AED", type: "booking" },
-  { label: "Blocked", color: "#64748B", type: "block" },
+  { label: "Confirmed", color: "var(--cal-confirmed)", type: "booking" },
+  { label: "In house", color: "var(--cal-inhouse)", type: "booking" },
+  { label: "Pending", color: "var(--cal-pending)", type: "booking" },
+  { label: "Checked out", color: "var(--cal-checkout)", type: "booking" },
+  { label: "Cancelled", color: "var(--cal-cancelled)", type: "booking" },
+  { label: "No-show", color: "var(--cal-noshow)", type: "booking" },
+  { label: "Unallocated", color: "var(--cal-unalloc)", type: "booking" },
+  { label: "Room closure", color: "var(--cal-closure)", type: "block" },
 ];
 
 export const BLOCK_REASONS = [

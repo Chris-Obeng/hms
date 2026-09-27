@@ -218,7 +218,7 @@ export function PaymentScreen({ frame, wide }: { frame: number; wide: boolean })
               height: wide ? 46 : 44,
               borderRadius: 7,
               background: paid > 0.5 ? ui.brandDeep : ui.brand,
-              color: "#FBFAF8",
+              color: "#F6F1E9",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
