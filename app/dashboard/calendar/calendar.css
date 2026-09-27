@@ -25,25 +25,6 @@
   --cal-unalloc: #06b6d4;
   --cal-unalloc-bd: #0891b2;
 }
-/* Dark: lift the muted greys so departed/cancelled bars stay visible. */
-.dark {
-  --cal-confirmed: #78a8f4;
-  --cal-confirmed-bd: #5b8fdf;
-  --cal-inhouse: #62c98c;
-  --cal-inhouse-bd: #3fae70;
-  --cal-checkout: #8695ab;
-  --cal-checkout-bd: #64748b;
-  --cal-pending: #e3ad5b;
-  --cal-pending-bd: #c78d34;
-  --cal-cancelled: #6b7a90;
-  --cal-cancelled-bd: #52617a;
-  --cal-noshow: #f27794;
-  --cal-noshow-bd: #d95778;
-  --cal-closure: #f27794;
-  --cal-closure-bd: #d95778;
-  --cal-unalloc: #63c6d7;
-  --cal-unalloc-bd: #3aa6bb;
-}
 
 .cal-wrap {
   --cal-bg: var(--background);
@@ -140,8 +121,6 @@
 .rl-room-flag{display:inline-flex;align-items:center;font-size:8.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;line-height:1;padding:2.5px 5px;border-radius:999px;white-space:nowrap;flex-shrink:0}
 .rl-room-flag--maintenance{color:#b45309;background:#d9770618;box-shadow:inset 0 0 0 1px #d9770638}
 .rl-room-flag--out_of_service{color:#be123c;background:#e11d4814;box-shadow:inset 0 0 0 1px #e11d4830}
-.dark .rl-room-flag--maintenance{color:#fbbf24;background:#d9770622}
-.dark .rl-room-flag--out_of_service{color:#fb7185;background:#e11d4822}
 
 /* Hatch veil across the entire row of a non-sellable room. Sits under bars,
    blocks double-click creation visually and communicates "dead inventory". */
@@ -196,7 +175,6 @@
 .rl-block-bar:hover{box-shadow:0 3px 10px rgb(0 0 0 / .16),inset 0 0 0 999px color-mix(in oklch,var(--cal-closure) 7%,transparent);z-index:calc(var(--rl-z-bars) + 1)}
 .rl-block-bar:focus-visible{outline:2.5px solid var(--cal-closure-bd);outline-offset:2px}
 .rl-block-lock{width:11px;height:11px;flex-shrink:0;opacity:.75}
-.dark .rl-block-bar{border-color:color-mix(in oklch,var(--cal-closure) 62%,transparent);background:repeating-linear-gradient(135deg,color-mix(in oklch,var(--cal-closure) 20%,transparent) 0 6px,color-mix(in oklch,var(--cal-closure) 36%,transparent) 6px 12px),color-mix(in oklch,var(--card) 70%,transparent);color:#fda4af}
 
 /* Live drop-target ghost rendered inside the grid while dragging. */
 .rl-drag-preview{position:absolute;top:0;z-index:var(--rl-z-preview);display:flex;align-items:flex-start;justify-content:center;padding-top:3px;pointer-events:none}

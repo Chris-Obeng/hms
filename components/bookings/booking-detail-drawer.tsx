@@ -141,7 +141,7 @@ export function BookingDetailDrawer({
       isOpen={open}
       onOpenChange={(isOpen) => !isOpen && onClose()}
       variant="opaque"
-      className="bg-black/40 dark:bg-black/60"
+      className="bg-black/40"
     >
       <Drawer.Content placement={isMobile ? "bottom" : "right"}>
         <Drawer.Dialog

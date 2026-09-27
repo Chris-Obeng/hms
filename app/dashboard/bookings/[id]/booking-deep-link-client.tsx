@@ -156,7 +156,7 @@ export function BookingDeepLinkClient({ bookingId, currency }: Props) {
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
                 Paid
               </p>
-              <p className="text-kpi text-emerald-600 dark:text-emerald-400">
+              <p className="text-kpi text-emerald-600">
                 {formatCurrency(booking.amountPaid || 0, currency)}
               </p>
             </div>

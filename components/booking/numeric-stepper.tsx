@@ -69,7 +69,7 @@ export function NumericStepper({
 
       {/* HeroUI Pro Style Pill Track Container */}
       <div
-        className="inline-flex items-center gap-1 p-1 rounded-full bg-muted/60 dark:bg-muted/30 border border-border/40 shadow-inner shrink-0"
+        className="inline-flex items-center gap-1 p-1 rounded-full bg-muted/60 border border-border/40 shadow-inner shrink-0"
         role="spinbutton"
         aria-label={label || "Numeric stepper"}
         aria-valuenow={value}
@@ -84,7 +84,7 @@ export function NumericStepper({
           aria-label={label ? `Decrease ${label}` : "Decrease value"}
           className={cn(
             buttonSizeClass,
-            "rounded-full bg-background dark:bg-card text-foreground flex items-center justify-center shadow-xs hover:shadow-sm active:scale-95 transition-all duration-150 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-30 disabled:pointer-events-none disabled:shadow-none"
+            "rounded-full bg-background text-foreground flex items-center justify-center shadow-xs hover:shadow-sm active:scale-95 transition-all duration-150 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-30 disabled:pointer-events-none disabled:shadow-none"
           )}
         >
           <Minus className={cn(iconSizeClass, "stroke-[2.5]")} />
@@ -103,7 +103,7 @@ export function NumericStepper({
           aria-label={label ? `Increase ${label}` : "Increase value"}
           className={cn(
             buttonSizeClass,
-            "rounded-full bg-background dark:bg-card text-foreground flex items-center justify-center shadow-xs hover:shadow-sm active:scale-95 transition-all duration-150 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-30 disabled:pointer-events-none disabled:shadow-none"
+            "rounded-full bg-background text-foreground flex items-center justify-center shadow-xs hover:shadow-sm active:scale-95 transition-all duration-150 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-30 disabled:pointer-events-none disabled:shadow-none"
           )}
         >
           <Plus className={cn(iconSizeClass, "stroke-[2.5]")} />

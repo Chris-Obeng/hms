@@ -523,7 +523,7 @@ function PhotosCard({
           <div className="flex items-center gap-2">
             <span>Photos</span>
             {images.length === 0 && (
-              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-1.5 py-0.5 text-caption font-medium text-amber-700 dark:text-amber-300">
+              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-1.5 py-0.5 text-caption font-medium text-amber-700">
                 No photos yet
               </span>
             )}

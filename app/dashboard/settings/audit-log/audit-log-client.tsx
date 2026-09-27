@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 
 type ChipColor = "success" | "danger" | "warning" | "accent" | "default";
 
-/** Semantic color by action outcome — dark-mode safe via HeroUI soft variants. */
+/** Semantic color by action outcome. */
 function actionColor(action: string): ChipColor {
   if (/(cancelled|deactivated|refunded|rejected)/.test(action)) return "danger";
   if (/(created|approved|reactivated|confirmed)/.test(action)) return "success";

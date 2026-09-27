@@ -74,7 +74,7 @@ export function ReferenceChip({
         {reference}
       </span>
       {copied ? (
-        <Check className="size-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
+        <Check className="size-3 shrink-0 text-emerald-600" />
       ) : (
         <Copy className="size-3 shrink-0 opacity-50 transition-opacity group-hover:opacity-100" />
       )}

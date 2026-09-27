@@ -878,7 +878,7 @@ function CalendarClientContent({
                 </button>
               </div>
               {typeChangeBlocked && (
-                <p className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                <p className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
                   <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                   This move cannot go ahead either way until {pendingTypeChange?.toTypeName} has an active rate plan.
                 </p>
@@ -946,10 +946,10 @@ function CalendarClientContent({
             invalidateCalendarData();
           }
         }}
-        roomTypes={roomTypes}
         rooms={rooms}
         currency={currency}
         prefillRoomTypeId={newBookingPrefill?.roomTypeId}
+        prefillRoomId={newBookingPrefill?.roomId}
         prefillCheckIn={newBookingPrefill?.checkIn}
         prefillCheckOut={newBookingPrefill?.checkOut}
         onReservationCreated={({ bookingId, payNow }) => {
@@ -1037,7 +1037,7 @@ function FilterDrawer({
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       variant="opaque"
-      className="bg-black/40 dark:bg-black/60"
+      className="bg-black/40"
     >
       <Drawer.Content placement={isMobile ? "bottom" : "right"}>
         <Drawer.Dialog

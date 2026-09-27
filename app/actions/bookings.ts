@@ -187,6 +187,29 @@ export async function createBooking(
       }
     }
 
+    // Occupancy ceiling. The client gates this in availability-step, but the action
+    // is the real trust boundary (create_booking_atomic runs as service_role), so the
+    // room type's max capacity is re-checked here. Defaults mirror getStaffAvailability
+    // (2 adults / 0 children) so the server never rejects a stay the client allowed.
+    // Capacity is a hard limit, not a policy — no manager override.
+    const { data: capacity } = await supabase
+      .from("room_types")
+      .select("max_adults, max_children")
+      .eq("id", data.roomTypeId)
+      .eq("hotel_id", hotelId)
+      .single();
+
+    if (!capacity) return { success: false, error: "Room type not found" };
+    const maxAdults = capacity.max_adults ?? 2;
+    const maxChildren = capacity.max_children ?? 0;
+    if (data.adults > maxAdults || data.children > maxChildren) {
+      const cap =
+        maxChildren > 0
+          ? `${maxAdults} adult${maxAdults === 1 ? "" : "s"} and ${maxChildren} child${maxChildren === 1 ? "" : "ren"}`
+          : `${maxAdults} guest${maxAdults === 1 ? "" : "s"}`;
+      return { success: false, error: `That room type holds up to ${cap}.` };
+    }
+
     // Rate plan restrictions. The database guard is armed only for an
     // unattributed direct stay — the public widget — because a desk has to be
     // able to sell a closed date with a guest standing in front of it. That makes

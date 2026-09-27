@@ -44,7 +44,7 @@ const SUGGESTED_TAGS = ["vip", "regular", "flagged", "corporate", "new", "return
 // Only "flagged" carries a hue; every other tag stays neutral.
 function tagClasses(tag: string) {
   return tag.toLowerCase() === "flagged"
-    ? "bg-red-500/10 text-red-600 dark:text-red-400"
+    ? "bg-red-500/10 text-red-600"
     : "bg-muted text-muted-foreground";
 }
 
@@ -230,7 +230,7 @@ export function GuestDetailSheet({
       isOpen={open}
       onOpenChange={(isOpen) => handleClose(isOpen)}
       variant="opaque"
-      className="bg-black/40 dark:bg-black/60"
+      className="bg-black/40"
     >
       <Drawer.Content placement={isMobile ? "bottom" : "right"}>
         <Drawer.Dialog

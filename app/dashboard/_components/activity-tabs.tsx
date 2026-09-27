@@ -56,7 +56,7 @@ export function ActivityTabs({ tabs, activeTab, onTabChange }: ActivityTabsProps
               "flex min-w-0 cursor-pointer flex-col justify-between gap-1 rounded-xl border p-2.5 text-left outline-none transition-all duration-150",
               "min-h-[68px] focus-visible:ring-2 focus-visible:ring-ring",
               isActive
-                ? "border-primary/30 bg-primary/[0.07] shadow-xs ring-1 ring-primary/20 dark:bg-primary/[0.12]"
+                ? "border-primary/30 bg-primary/[0.07] shadow-xs ring-1 ring-primary/20"
                 : "border-border/40 bg-card hover:border-border hover:bg-accent/40"
             )}
           >
@@ -87,7 +87,7 @@ export function ActivityTabs({ tabs, activeTab, onTabChange }: ActivityTabsProps
                 {tab.label}
               </span>
               {showDue && (
-                <span className="shrink-0 rounded-full bg-amber-500/15 px-1.5 py-px text-[10px] font-bold tabular-nums text-amber-700 dark:text-amber-400">
+                <span className="shrink-0 rounded-full bg-amber-500/15 px-1.5 py-px text-[10px] font-bold tabular-nums text-amber-700">
                   {tab.remaining}
                 </span>
               )}

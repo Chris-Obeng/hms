@@ -12,28 +12,25 @@ import {
   CalendarDays,
   CalendarPlus,
   Loader2,
-  Moon,
   Search,
   Settings,
-  Sun,
   UserRound,
   X,
 } from "lucide-react";
-import { useTheme } from "@/components/theme-provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { SearchHitType, SearchResponse } from "@/lib/search";
 
-// ── Chip palettes — one soft hue per domain, dark-mode aware ──────
+// ── Chip palettes — one soft hue per domain ──────
 const TONES = {
-  blue: "bg-blue-500/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400",
-  sky: "bg-sky-500/10 text-sky-600 dark:bg-sky-400/10 dark:text-sky-400",
-  indigo: "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-400/10 dark:text-indigo-400",
-  emerald: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400",
-  teal: "bg-teal-500/10 text-teal-600 dark:bg-teal-400/10 dark:text-teal-400",
-  violet: "bg-violet-500/10 text-violet-600 dark:bg-violet-400/10 dark:text-violet-400",
-  amber: "bg-amber-500/10 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400",
-  orange: "bg-orange-500/10 text-orange-600 dark:bg-orange-400/10 dark:text-orange-400",
+  blue: "bg-blue-500/10 text-blue-600",
+  sky: "bg-sky-500/10 text-sky-600",
+  indigo: "bg-indigo-500/10 text-indigo-600",
+  emerald: "bg-emerald-500/10 text-emerald-600",
+  teal: "bg-teal-500/10 text-teal-600",
+  violet: "bg-violet-500/10 text-violet-600",
+  amber: "bg-amber-500/10 text-amber-600",
+  orange: "bg-orange-500/10 text-orange-600",
   slate: "bg-muted text-muted-foreground",
 } as const;
 
@@ -83,8 +80,6 @@ function IconChip({ tone, children }: { tone: Tone; children: React.ReactNode })
 
 // ── Idle-state quick actions ──────────────────────────────────────
 function useActions(
-  theme: string | undefined,
-  setTheme: (t: string) => void,
   close: () => void,
   onNewBooking?: () => void
 ): ActionItem[] {
@@ -94,20 +89,8 @@ function useActions(
       { id: "view-bookings", label: "All Bookings", group: "Bookings", icon: <CalendarDays />, tone: "sky", url: "/dashboard/bookings" },
       { id: "availability", label: "Room Availability", group: "Bookings", icon: <BedDouble />, tone: "indigo", url: "/dashboard/availability" },
       { id: "settings", label: "Hotel Settings", group: "Settings", icon: <Settings />, tone: "slate", url: "/dashboard/settings" },
-      {
-        id: "theme",
-        label: theme === "dark" ? "Light Mode" : "Dark Mode",
-        group: "Settings",
-        icon: theme === "dark" ? <Sun /> : <Moon />,
-        tone: "slate",
-        action: () => {
-          setTheme(theme === "dark" ? "light" : "dark");
-          close();
-        },
-        keywords: ["appearance", "dark", "light", "mode", "theme", "toggle"],
-      },
     ],
-    [theme, setTheme, close, onNewBooking]
+    [close, onNewBooking]
   );
 }
 
@@ -124,7 +107,6 @@ type Status = "idle" | "loading" | "done" | "error";
 export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { theme, setTheme } = useTheme();
   const reduced = useReducedMotion();
 
   const [open, setOpen] = React.useState(false);
@@ -210,7 +192,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
     }
   }, []);
 
-  const actions = useActions(theme, setTheme, dismiss, onNewBooking);
+  const actions = useActions(dismiss, onNewBooking);
 
   const runResult = React.useCallback(
     (url: string) => {
@@ -223,7 +205,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
   const runAction = React.useCallback(
     (item: ActionItem) => {
       if (item.action) {
-        item.action(); // theme toggle etc. — handles its own dismiss()
+        item.action(); // handles its own dismiss()
         return;
       }
       dismiss();

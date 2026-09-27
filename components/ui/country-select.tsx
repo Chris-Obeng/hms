@@ -1,6 +1,12 @@
 "use client";
 
-import { ComboBox, Input, ListBox } from "@heroui/react";
+import {
+  Autocomplete,
+  EmptyState,
+  ListBox,
+  SearchField,
+  useFilter,
+} from "@heroui/react";
 import { COUNTRIES } from "@/lib/countries-data";
 
 // Formatted for this component's option shape (static trimmed dataset).
@@ -24,25 +30,72 @@ interface CountrySelectProps {
   disabled?: boolean;
 }
 
-export function CountrySelect({ value, onChange, placeholder = "Select country...", className = "", disabled = false }: CountrySelectProps) {
+export function CountrySelect({
+  value,
+  onChange,
+  placeholder = "Select country...",
+  className = "",
+  disabled = false,
+}: CountrySelectProps) {
+  const { contains } = useFilter({ sensitivity: "base" });
+  const selected = value ? countryOptions.find((c) => c.value === value) : undefined;
+
   return (
-    <ComboBox className={`w-full ${className}`} selectedKey={value || null} onSelectionChange={(key) => onChange(String(key ?? ""))} isDisabled={disabled} menuTrigger="input">
-      <ComboBox.InputGroup className="min-h-11 rounded-lg border border-input bg-background px-3 shadow-sm transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
-        <Input placeholder={placeholder} className="min-w-0 flex-1 border-0 bg-transparent shadow-none focus:ring-0" />
-        <ComboBox.Trigger className="shrink-0 text-muted-foreground" />
-      </ComboBox.InputGroup>
-      <ComboBox.Popover className="z-[100] w-[var(--trigger-width)] overflow-hidden rounded-xl border border-border bg-popover p-1 shadow-xl">
-        <ListBox className="max-h-64 overflow-y-auto" renderEmptyState={() => <div className="px-3 py-4 text-sm text-muted-foreground">No countries found</div>}>
-          {countryOptions.map((country) => (
-            <ListBox.Item key={country.value} id={country.value} textValue={`${country.label} ${country.code}`} className="min-h-10 rounded-lg px-3 py-2">
-              <span className="mr-2 text-lg" aria-hidden="true">{country.flag}</span>
-              <span className="font-medium">{country.label}</span>
-              <span className="ml-auto text-xs text-muted-foreground">{country.dialCode}</span>
-              <ListBox.ItemIndicator />
-            </ListBox.Item>
-          ))}
-        </ListBox>
-      </ComboBox.Popover>
-    </ComboBox>
+    <Autocomplete
+      aria-label="Nationality"
+      className={className}
+      fullWidth
+      isDisabled={disabled}
+      placeholder={placeholder}
+      selectionMode="single"
+      value={value || null}
+      onChange={(key) => onChange(String(key ?? ""))}
+    >
+      <Autocomplete.Trigger className="min-h-11 rounded-xl border border-border/60 bg-background px-3 text-sm shadow-none transition-colors hover:border-border data-[focus-visible=true]:border-ring">
+        <Autocomplete.Value>
+          {({ defaultChildren, isPlaceholder }) =>
+            !isPlaceholder && selected ? (
+              <span className="flex w-full items-center gap-2">
+                <span className="text-base leading-none" aria-hidden="true">{selected.flag}</span>
+                <span className="truncate">{selected.label}</span>
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">{selected.dialCode}</span>
+              </span>
+            ) : (
+              defaultChildren
+            )
+          }
+        </Autocomplete.Value>
+        <Autocomplete.ClearButton />
+        <Autocomplete.Indicator />
+      </Autocomplete.Trigger>
+      <Autocomplete.Popover>
+        <Autocomplete.Filter filter={contains}>
+          <SearchField autoFocus name="country-search" variant="secondary">
+            <SearchField.Group>
+              <SearchField.SearchIcon />
+              <SearchField.Input placeholder="Search country…" />
+              <SearchField.ClearButton />
+            </SearchField.Group>
+          </SearchField>
+          <ListBox
+            className="max-h-64 overflow-y-auto"
+            renderEmptyState={() => <EmptyState>No countries found</EmptyState>}
+          >
+            {countryOptions.map((country) => (
+              <ListBox.Item
+                key={country.value}
+                id={country.value}
+                textValue={`${country.label} ${country.code} ${country.dialCode}`}
+              >
+                <span className="mr-1 text-base leading-none" aria-hidden="true">{country.flag}</span>
+                <span className="font-medium">{country.label}</span>
+                <span className="ml-auto text-xs text-muted-foreground">{country.dialCode}</span>
+                <ListBox.ItemIndicator />
+              </ListBox.Item>
+            ))}
+          </ListBox>
+        </Autocomplete.Filter>
+      </Autocomplete.Popover>
+    </Autocomplete>
   );
 }

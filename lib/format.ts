@@ -134,3 +134,8 @@ export function getNights(
     )
   );
 }
+
+/** "1 night" / "3 nights" — pluralized stay length. */
+export function nightsLabel(nights: number): string {
+  return `${nights} night${nights === 1 ? "" : "s"}`;
+}

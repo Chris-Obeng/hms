@@ -70,7 +70,7 @@ function StatCard({
         className={cn(
           "mt-1 text-xl font-semibold tabular-nums",
           tone === "success"
-            ? "text-emerald-600 dark:text-emerald-400"
+            ? "text-emerald-600"
             : "text-foreground"
         )}
       >
@@ -151,7 +151,7 @@ export function PayoutsPanel({
             {scheduleLabel}
           </Chip>
           {data.error ? (
-            <span className="text-[11px] text-amber-600 dark:text-amber-400">
+            <span className="text-[11px] text-amber-600">
               Payout status may be delayed
             </span>
           ) : null}

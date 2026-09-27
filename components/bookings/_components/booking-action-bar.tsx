@@ -91,7 +91,7 @@ export function BookingActionBar({
         {(booking.status === "confirmed" || booking.status === "pending") && (
           <Button
             variant="ghost"
-            className="ml-auto h-9 rounded-xl px-3 text-xs font-medium text-muted-foreground hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
+            className="ml-auto h-9 rounded-xl px-3 text-xs font-medium text-muted-foreground hover:bg-red-500/10 hover:text-red-600"
             isPending={actionLoading === "cancel"}
             onPress={() => setConfirmCancel(true)}
           >

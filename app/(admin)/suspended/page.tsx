@@ -31,7 +31,7 @@ export default async function SuspendedPage() {
   return (
     <main className="w-full min-h-[100dvh] bg-background text-foreground flex items-center justify-center p-4 font-sans">
       <div className="w-full max-w-md rounded-2xl border border-border/50 bg-card p-8 shadow-xs">
-        <div className="mx-auto mb-5 grid size-11 place-items-center rounded-full bg-red-500/10 text-red-600 dark:text-red-400">
+        <div className="mx-auto mb-5 grid size-11 place-items-center rounded-full bg-red-500/10 text-red-600">
           <ShieldAlert className="size-5" aria-hidden />
         </div>
 

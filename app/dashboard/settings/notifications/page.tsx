@@ -284,7 +284,7 @@ export default function NotificationSettingsPage() {
               </p>
             )}
             {notificationPermission === "granted" && browserAlertsEnabled && (
-              <p className="text-emerald-700 dark:text-emerald-400 pl-5 leading-normal">
+              <p className="text-emerald-700 pl-5 leading-normal">
                 Background push active. Alerts can arrive while dashboard is closed.
               </p>
             )}

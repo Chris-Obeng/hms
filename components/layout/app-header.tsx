@@ -3,11 +3,8 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useUser, useAuth, useClerk } from "@clerk/nextjs";
-import { useTheme } from "@/components/theme-provider";
 import {
   Plus,
-  Sun,
-  Moon,
   Bell,
   Menu,
   CalendarDays,
@@ -98,14 +95,6 @@ export function AppHeader({
   const { getToken } = useAuth();
   const { openUserProfile } = useClerk();
   const { toggleSidebar } = useSidebar();
-
-
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
-  React.useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setMounted(true));
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
 
   void _bookingUrl;
 
@@ -405,26 +394,6 @@ export function AppHeader({
             <Plus className="size-3.5" />
           </Button>
 
-          {/* Theme toggle */}
-          {mounted ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              isIconOnly
-              onPress={() => setTheme(theme === "dark" ? "light" : "dark")}
-              aria-label="Toggle theme"
-              className="size-8 rounded-lg text-muted-foreground transition-all duration-300 hover:bg-muted/60 hover:text-foreground active:scale-[0.98]"
-            >
-              {theme === "dark" ? (
-                <Sun className="size-4" />
-              ) : (
-                <Moon className="size-4" />
-              )}
-            </Button>
-          ) : (
-            <div aria-hidden="true" className="size-8 rounded-lg" />
-          )}
-
           {/* ── Notifications — full HeroUI dialog for desktop and mobile ── */}
           <NotificationBell
             count={liveCount}
@@ -488,7 +457,7 @@ export function AppHeader({
                           "flex items-start gap-3 border-b border-border/30 px-3 py-2.5 last:border-0",
                           "transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none",
                           !n.is_read &&
-                            "bg-blue-50/20 dark:bg-blue-950/10",
+                            "bg-blue-50/20",
                         )}
                       >
                         <NotifIcon type={n.type} />
@@ -569,7 +538,6 @@ export function AppHeader({
       <NewBookingModal
         open={newBookingOpen}
         onOpenChange={setNewBookingOpen}
-        roomTypes={roomTypes}
         currency={currency}
       />
     </>

@@ -5,10 +5,9 @@ import { format, isToday, startOfDay } from "date-fns";
 import { AlertDialog, toast } from "@heroui/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
-import { CalendarClock, RotateCw } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 
 import { Skeleton, Button } from "@heroui/react";
-import { DashboardHeader } from "./_components/dashboard-header";
 import { DateCard } from "./_components/date-card";
 import { OccupancyCard } from "./_components/occupancy-card";
 import { ActivityTabs, buildActivityTabs, type ActivityTab } from "./_components/activity-tabs";
@@ -340,7 +339,6 @@ export function DashboardClient({ hotelId, currency, hotelTimezone }: DashboardC
     isLoading: loading,
     error: queryError,
     refetch,
-    isRefetching
   } = useQuery({
     queryKey: qk.dashboard(orgId || "", hotelId, dateParamStr),
     queryFn: () => {
@@ -716,40 +714,6 @@ export function DashboardClient({ hotelId, currency, hotelTimezone }: DashboardC
       resistance={2.5}
     >
     <div className="mx-auto max-w-[1600px] space-y-5 md:space-y-6">
-      {/* ── Date header (desktop only) ──────────────────────────── */}
-      <div className="hidden md:flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/50 bg-card px-4 py-3 shadow-xs">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span
-            aria-hidden
-            className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-foreground/70"
-          >
-            <CalendarClock className="size-4.5" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-section truncate leading-tight text-foreground">
-              {isToday(selectedDate) ? "Today" : format(selectedDate, "EEEE")}
-            </p>
-            <p className="text-caption tabular-nums text-muted-foreground">
-              {format(selectedDate, "MMMM d, yyyy")}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            isIconOnly
-            onPress={() => refetch()}
-            aria-label="Refresh data"
-            className="size-8 min-w-8 rounded-lg text-muted-foreground hover:text-foreground"
-          >
-            <RotateCw className={cn("size-3.5", isRefetching && "animate-spin")} />
-          </Button>
-          <DashboardHeader selectedDate={selectedDate} onDateChange={handleDateChange} />
-        </div>
-      </div>
-
       {/* ── Mobile week strip ────────────────────────────────────── */}
       <MobileWeekCalendar selectedDate={selectedDate} onDateChange={handleDateChange} />
 
@@ -823,8 +787,8 @@ export function DashboardClient({ hotelId, currency, hotelTimezone }: DashboardC
                 className={cn(
                   "size-12 rounded-2xl flex items-center justify-center border shadow-xs transition-all",
                   earlyCheckinBooking
-                    ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/25"
-                    : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/25"
+                    ? "bg-blue-500/15 text-blue-600 border-blue-500/25"
+                    : "bg-amber-500/15 text-amber-600 border-amber-500/25"
                 )}
               >
                 <CalendarClock className="size-6" />
@@ -863,8 +827,8 @@ export function DashboardClient({ hotelId, currency, hotelTimezone }: DashboardC
                 className={cn(
                   "rounded-xl font-semibold px-5 h-10 text-white shadow-xs transition-all active:scale-[0.98] cursor-pointer",
                   earlyCheckinBooking
-                    ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 dark:text-zinc-950"
-                    : "bg-amber-600 hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-zinc-950"
+                    ? "bg-blue-600 hover:bg-blue-700"
+                    : "bg-amber-600 hover:bg-amber-700"
                 )}
               >
                 Confirm {earlyCheckinBooking ? "early check-in" : "early check-out"}
@@ -881,8 +845,6 @@ export function DashboardClient({ hotelId, currency, hotelTimezone }: DashboardC
 function DashboardSkeleton() {
   return (
     <div className="mx-auto max-w-[1600px] space-y-5 md:space-y-6">
-      <Skeleton className="h-16 w-full rounded-2xl" />
-
       <div className="grid grid-cols-1 lg:grid-cols-[270px_1fr] gap-6">
         <div className="space-y-6">
           <Skeleton className="h-32 w-full rounded-xl" />

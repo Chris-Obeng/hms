@@ -54,12 +54,12 @@ export const STATUS_DOT_FALLBACK = "bg-muted-foreground/50";
 
 /** Status pill (badge) classes: background + text + ring per booking status. */
 export const STATUS_PILL_CLASSES: Record<string, string> = {
-  confirmed: "bg-blue-500/10 text-blue-700 ring-blue-500/20 dark:text-blue-300",
-  checked_in: "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-300",
+  confirmed: "bg-blue-500/10 text-blue-700 ring-blue-500/20",
+  checked_in: "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20",
   checked_out: "bg-muted text-muted-foreground ring-border",
-  pending: "bg-amber-500/10 text-amber-700 ring-amber-500/20 dark:text-amber-300",
-  cancelled: "bg-red-500/10 text-red-700 ring-red-500/20 dark:text-red-300",
-  no_show: "bg-rose-500/10 text-rose-700 ring-rose-500/20 dark:text-rose-300",
+  pending: "bg-amber-500/10 text-amber-700 ring-amber-500/20",
+  cancelled: "bg-red-500/10 text-red-700 ring-red-500/20",
+  no_show: "bg-rose-500/10 text-rose-700 ring-rose-500/20",
 };
 
 export const STATUS_PILL_FALLBACK = "bg-muted text-muted-foreground ring-border";
@@ -104,8 +104,8 @@ export function getPaymentLabel(status: string): string {
  * owed or has been reversed; "paid" reads positive.
  */
 export const PAYMENT_STATUS_TONE: Record<string, string> = {
-  paid: "text-emerald-600 dark:text-emerald-400",
-  partial: "text-amber-600 dark:text-amber-400",
+  paid: "text-emerald-600",
+  partial: "text-amber-600",
   unpaid: "text-destructive",
   refunded: "text-muted-foreground",
 };
@@ -115,8 +115,8 @@ export const PAYMENT_STATUS_TONE: Record<string, string> = {
  * neutral (no entry); only records that need attention carry colour.
  */
 export const PAYMENT_RECORD_TONE: Record<string, string> = {
-  pending: "text-amber-700 dark:text-amber-300",
-  failed: "text-red-600 dark:text-red-400",
+  pending: "text-amber-700",
+  failed: "text-red-600",
   refunded: "text-muted-foreground",
 };
 

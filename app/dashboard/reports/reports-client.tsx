@@ -18,7 +18,6 @@ import {
   YAxis,
 } from "recharts";
 import { RotateCw } from "lucide-react";
-import { useTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import { formatCurrencyCompact, formatDate } from "@/lib/format";
 import { SOURCE_LABELS } from "@/lib/booking-status";
@@ -32,12 +31,11 @@ import {
   type SourcesReportData,
 } from "./actions";
 
-// ── Chart theming ──────────────────────────────────────────────────
-// Reads the app's CSS custom properties so charts follow light/dark
-// automatically. Gold is the single data accent; neutrals separate series.
+// ── Chart palette ───────────────────────────────────────────────────
+// Reads the app's CSS custom properties. Gold is the single data accent;
+// neutrals separate series.
 
 function useChartColors() {
-  const { resolvedTheme } = useTheme();
   const [colors, setColors] = React.useState({
     gold: "#d4af37",
     fg: "#1c1c1c",
@@ -69,7 +67,7 @@ function useChartColors() {
       });
     });
     return () => cancelAnimationFrame(frame);
-  }, [resolvedTheme]);
+  }, []);
 
   return colors;
 }

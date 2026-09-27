@@ -748,7 +748,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
       return <Badge variant="secondary" className="bg-muted text-muted-foreground border-muted-foreground/20 font-medium">Past</Badge>;
     }
     if (startDate <= today && endDate >= today) {
-      return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 font-semibold animate-pulse">Active</Badge>;
+      return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-semibold animate-pulse">Active</Badge>;
     }
     return <Badge variant="outline" className="bg-blue-500/5 text-blue-500 border-blue-500/20 font-medium">Upcoming</Badge>;
   };
@@ -1020,19 +1020,19 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
               </div>
               <div className="flex items-center gap-2">
                 <span className="inline-block size-3 rounded bg-emerald-500/15 border border-emerald-500/20" />
-                <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Seasonal Rate</span>
+                <span className="text-emerald-700 font-semibold">Seasonal Rate</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="inline-block size-3 rounded bg-amber-500/10 border border-amber-500/20 relative">
                   <span className="absolute top-0.5 right-0.5 size-1 rounded-full bg-amber-500" />
                 </span>
-                <span className="text-amber-700 dark:text-amber-400 font-semibold">Season / No Rate Set</span>
+                <span className="text-amber-700 font-semibold">Season / No Rate Set</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="inline-block size-3 rounded bg-violet-500/20 border border-violet-500/40 relative">
                   <span className="absolute top-0.5 right-0.5 size-1 rounded-full bg-violet-600" />
                 </span>
-                <span className="text-violet-700 dark:text-violet-400 font-semibold">Daily Override</span>
+                <span className="text-violet-700 font-semibold">Daily Override</span>
               </div>
             </div>
           </div>
@@ -1112,8 +1112,8 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
                           className={cn(
                             "flex flex-col justify-between p-2 rounded-lg border text-left cursor-pointer transition-all hover:bg-accent/10 select-none",
                             active && "ring-2 ring-primary border-primary",
-                            cell?.source === "seasonal" && "bg-emerald-500/5 border-emerald-500/15 text-emerald-800 dark:text-emerald-400",
-                            cell?.source === "daily" && "bg-violet-500/5 border-violet-500/15 text-violet-800 dark:text-violet-400",
+                            cell?.source === "seasonal" && "bg-emerald-500/5 border-emerald-500/15 text-emerald-800",
+                            cell?.source === "daily" && "bg-violet-500/5 border-violet-500/15 text-violet-800",
                             cell?.source === "base" && "bg-muted/10 border-border/80"
                           )}
                         >
@@ -1196,9 +1196,9 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
                             pct >= 40 ? "bg-blue-500" :
                             "bg-muted-foreground/30";
                           const textColor =
-                            pct >= 90 ? "text-red-600 dark:text-red-400 font-bold" :
-                            pct >= 70 ? "text-amber-600 dark:text-amber-400 font-semibold" :
-                            pct >= 40 ? "text-blue-600 dark:text-blue-400 font-semibold" :
+                            pct >= 90 ? "text-red-600 font-bold" :
+                            pct >= 70 ? "text-amber-600 font-semibold" :
+                            pct >= 40 ? "text-blue-600 font-semibold" :
                             "text-muted-foreground";
                           return (
                             <td
@@ -1267,8 +1267,8 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
                                 "relative px-3 py-3.5 text-center align-middle border-r border-border/40 cursor-pointer select-none transition-all focus:outline-none focus:ring-1 focus:ring-primary/80",
                                 isWe && "bg-muted-foreground/[0.015] shadow-[inset_0_0_0_999px_rgba(0,0,0,0.01)]",
                                 isSelected && "ring-2 ring-primary border-primary z-10 shadow-sm",
-                                !isSelected && cell?.source === "seasonal" && "bg-emerald-500/5 text-emerald-800 dark:text-emerald-400",
-                                !isSelected && cell?.source === "daily" && "bg-violet-500/5 text-violet-800 dark:text-violet-400 font-medium",
+                                !isSelected && cell?.source === "seasonal" && "bg-emerald-500/5 text-emerald-800",
+                                !isSelected && cell?.source === "daily" && "bg-violet-500/5 text-violet-800 font-medium",
                                 !isSelected && isSeasonUnconfigured && "bg-amber-500/5"
                               )}
                             >
@@ -1283,18 +1283,18 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
 
                               {/* Overrides Indicators */}
                               {cell?.source === "daily" && (
-                                <span className="absolute top-1 right-1 size-1.5 rounded-full bg-violet-500 dark:bg-violet-400 animate-in zoom-in duration-300" />
+                                <span className="absolute top-1 right-1 size-1.5 rounded-full bg-violet-500 animate-in zoom-in duration-300" />
                               )}
                               
                               {cell?.source === "seasonal" && (
-                                <span className="absolute top-1 right-1 size-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-in zoom-in duration-300" />
+                                <span className="absolute top-1 right-1 size-1.5 rounded-full bg-emerald-500 animate-in zoom-in duration-300" />
                               )}
 
                               {/* Amber dot: season active but this room type has no rate configured */}
                               {isSeasonUnconfigured && (
                                 <Tooltip>
                                   <TooltipTrigger render={
-                                    <span className="absolute top-1 right-1 size-1.5 rounded-full bg-amber-500 dark:bg-amber-400 animate-in zoom-in duration-300 cursor-help" />
+                                    <span className="absolute top-1 right-1 size-1.5 rounded-full bg-amber-500 animate-in zoom-in duration-300 cursor-help" />
                                   } />
                                   <TooltipContent side="top" className="text-xs max-w-[180px]">
                                     Season &ldquo;{cell?.seasonName}&rdquo; is active but no rate is configured for this room type. Using base price.
@@ -1536,7 +1536,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
                         return (
                           <div className="flex flex-wrap gap-2 mt-1">
                             {gaps.map((g, i) => (
-                              <div key={i} className="flex items-center gap-1.5 text-[10px] bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 rounded-md px-2 py-0.5">
+                              <div key={i} className="flex items-center gap-1.5 text-[10px] bg-amber-500/10 border border-amber-500/20 text-amber-700 rounded-md px-2 py-0.5">
                                 <AlertTriangle className="size-3 shrink-0" />
                                 Gap: {g.from} &ndash; {g.to} &mdash; no seasonal rate
                               </div>
@@ -1589,7 +1589,7 @@ export function PricingClient({ hotelId, orgId, currency, roomTypes }: PricingCl
                           <TableCell>{getSeasonStatus(season.start_date, season.end_date)}</TableCell>
                           <TableCell className="text-center font-medium">
                             <Badge variant={coveredCount === roomTypes.length ? "default" : "outline"} className={cn(
-                              coveredCount === roomTypes.length ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" : "bg-muted text-muted-foreground"
+                              coveredCount === roomTypes.length ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-muted text-muted-foreground"
                             )}>
                               {coveredCount} / {roomTypes.length} types
                             </Badge>

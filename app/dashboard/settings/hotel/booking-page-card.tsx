@@ -48,7 +48,7 @@ export function BookingPageCard({ url, hotelName }: { url: string; hotelName: st
       </div>
 
       {isDev && (
-        <p className="text-[11px] text-amber-600 dark:text-amber-500 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+        <p className="text-[11px] text-amber-600 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
           Local dev URL. Replace <code className="font-mono bg-amber-500/20 px-1 rounded">localhost:3000</code> with your domain in production.
         </p>
       )}

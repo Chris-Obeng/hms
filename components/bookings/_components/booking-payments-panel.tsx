@@ -126,7 +126,7 @@ export function BookingPaymentsPanel({
             {isFullyPaid ? "Balance settled" : "Outstanding balance"}
           </p>
           {isFullyPaid && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
               <CheckCircle2 className="size-3.5" />
               Paid in full
             </span>
@@ -155,7 +155,7 @@ export function BookingPaymentsPanel({
 
         <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border/50 pt-3 text-[11px] tabular-nums">
           <MiniStat label="Total" value={formatCurrency(totalDue, currency)} strong />
-          <MiniStat label="Paid" value={formatCurrency(amountPaid, currency)} className="text-emerald-600 dark:text-emerald-400" />
+          <MiniStat label="Paid" value={formatCurrency(amountPaid, currency)} className="text-emerald-600" />
           <MiniStat
             label="Due"
             value={isFullyPaid ? "—" : formatCurrency(outstandingBalance, currency)}
@@ -203,7 +203,7 @@ export function BookingPaymentsPanel({
                     </p>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
                       {linePaid ? (
-                        <span className="text-emerald-600 dark:text-emerald-400">Paid</span>
+                        <span className="text-emerald-600">Paid</span>
                       ) : (
                         <>{formatCurrency(l.outstanding, currency)} due</>
                       )}

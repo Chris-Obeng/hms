@@ -69,7 +69,7 @@ export function BookingOverviewPanel({ booking }: BookingOverviewPanelProps) {
               <p>Checked out · {formatDateTime(booking.checkOutAt)}</p>
             )}
             {booking.status === "cancelled" && booking.cancelledAt && (
-              <p className="text-red-600 dark:text-red-400">
+              <p className="text-red-600">
                 Cancelled · {formatDateTime(booking.cancelledAt)}
                 {booking.cancellationReason ? ` — ${booking.cancellationReason}` : ""}
               </p>
@@ -129,7 +129,7 @@ export function BookingOverviewPanel({ booking }: BookingOverviewPanelProps) {
             {roomValue ? (
               <span className="font-medium text-foreground">{roomValue}</span>
             ) : (
-              <span className="font-medium text-amber-600 dark:text-amber-400">Not assigned</span>
+              <span className="font-medium text-amber-600">Not assigned</span>
             )}
           </Fact>
           <Fact label="Room type">{booking.roomType?.name ?? "—"}</Fact>

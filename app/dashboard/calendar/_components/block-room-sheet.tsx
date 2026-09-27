@@ -140,7 +140,7 @@ export function BlockRoomSheet({
       isOpen={open}
       onOpenChange={onOpenChange}
       variant="opaque"
-      className="bg-black/40 dark:bg-black/60"
+      className="bg-black/40"
     >
       <Drawer.Content placement={isMobile ? "bottom" : "right"}>
         <Drawer.Dialog

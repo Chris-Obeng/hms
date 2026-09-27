@@ -17,15 +17,15 @@ import {
 } from "motion/react";
 import { cn } from "@/lib/utils";
 
-const SURFACE = "bg-muted/70 dark:bg-muted";
+const SURFACE = "bg-muted/70";
 const GLYPH = "text-muted-foreground";
 
 const COLORS = {
-  red: "bg-[#FF3B30] dark:bg-[#FF453A]",
-  orange: "bg-[#FF9500] dark:bg-[#FF9F0A]",
-  green: "bg-[#34C759] dark:bg-[#30D158]",
-  blue: "bg-[#007AFF] dark:bg-[#0A84FF]",
-  violet: "bg-[#AF52DE] dark:bg-[#BF5AF2]",
+  red: "bg-[#FF3B30]",
+  orange: "bg-[#FF9500]",
+  green: "bg-[#34C759]",
+  blue: "bg-[#007AFF]",
+  violet: "bg-[#AF52DE]",
 } as const;
 
 // all sizes are a fraction of the size prop

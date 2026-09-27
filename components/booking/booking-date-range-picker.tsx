@@ -97,7 +97,7 @@ export function BookingDateRangePicker({
       aria-label="Select check-in and check-out dates"
     >
       <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
-        <div className="shrink-0 rounded-lg bg-[oklch(0.94_0.035_178)] p-2 text-[oklch(0.42_0.1_178)] dark:bg-[oklch(0.25_0.04_178)] dark:text-[oklch(0.78_0.09_178)]">
+        <div className="shrink-0 rounded-lg bg-[oklch(0.94_0.035_178)] p-2 text-[oklch(0.42_0.1_178)]">
           <CalendarIcon className="size-4" />
         </div>
         <div className="flex flex-col min-w-0">
@@ -112,7 +112,7 @@ export function BookingDateRangePicker({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1 rounded-full bg-[oklch(0.94_0.035_178)] px-2 py-1 text-[11px] font-semibold text-[oklch(0.36_0.09_178)] dark:bg-[oklch(0.25_0.04_178)] dark:text-[oklch(0.82_0.08_178)]">
+      <div className="flex shrink-0 items-center gap-1 rounded-full bg-[oklch(0.94_0.035_178)] px-2 py-1 text-[11px] font-semibold text-[oklch(0.36_0.09_178)]">
         <Moon className="size-3" />
         <span className="tabular-nums whitespace-nowrap">
           {nights}

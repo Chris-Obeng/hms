@@ -3,8 +3,6 @@
 @import "tw-animate-css";
 @import "./landing.css";
 
-@custom-variant dark (&:is(.dark, .dark *));
-
 @theme inline {
   @keyframes accordion-down {
     from {
@@ -236,10 +234,9 @@
 
 /* ── Theme tokens ────────────────────────────────────────────────────
  *
- *  Palette direction: airy paper in light mode; warm graphite and ivory in
- *  dark mode. Brass carries primary actions while status colours stay
- *  semantic and restrained. Surface steps are intentionally visible in
- *  low-light front-desk environments.
+ *  Palette direction: airy paper. Brass carries primary actions while
+ *  status colours stay semantic and restrained. Surface steps are
+ *  intentionally visible in low-light front-desk environments.
  * ──────────────────────────────────────────────────────────────────── */
 
 :root {
@@ -287,68 +284,39 @@
   --sidebar-accent-foreground: oklch(0.28 0.05 262);
   --sidebar-border: oklch(0.91 0.012 255);
   --sidebar-ring: oklch(0.62 0.16 261);
-}
 
-.dark {
-  /* Warm graphite surfaces keep hierarchy readable without OLED-black glare. */
-  --background: oklch(0.16 0.012 95);
-  --foreground: oklch(0.95 0.014 92);
-  --card: oklch(0.205 0.013 94);
-  --card-foreground: oklch(0.95 0.014 92);
-  --popover: oklch(0.235 0.014 93);
-  --popover-foreground: oklch(0.96 0.014 92);
-  /* Brass primary: hospitality cue, high contrast against graphite. */
-  --primary: oklch(0.76 0.13 82);
-  --primary-foreground: oklch(0.19 0.014 92);
-  --secondary: oklch(0.265 0.014 94);
-  --secondary-foreground: oklch(0.93 0.014 92);
-  --muted: oklch(0.245 0.013 94);
-  --muted-foreground: oklch(0.73 0.016 92);
-  --accent: oklch(0.30 0.018 92);
-  --accent-foreground: oklch(0.96 0.014 92);
-  --destructive: oklch(0.65 0.17 25);
-  --border: oklch(0.98 0.01 92 / 13%);
-  --input: oklch(0.98 0.01 92 / 16%);
-  --ring: oklch(0.78 0.12 82);
-  --chart-1: oklch(0.76 0.13 82);
-  --chart-2: oklch(0.73 0.12 165);
-  --chart-3: oklch(0.76 0.11 235);
-  --chart-4: oklch(0.72 0.12 305);
-  --chart-5: oklch(0.70 0.15 25);
-  --sidebar: oklch(0.125 0.012 95);
-  --sidebar-foreground: oklch(0.95 0.014 92);
-  --sidebar-primary: oklch(0.76 0.13 82);
-  --sidebar-primary-foreground: oklch(0.19 0.014 92);
-  --sidebar-accent: oklch(0.255 0.014 94);
-  --sidebar-accent-foreground: oklch(0.96 0.014 92);
-  --sidebar-border: oklch(0.98 0.01 92 / 14%);
-  --sidebar-ring: oklch(0.78 0.12 82);
-
-  /* HeroUI v3 semantic surfaces. Keep its components on same graphite scale. */
+  /* HeroUI v3 semantic surfaces. Fields, popovers, and calendars stop
+   * falling back to HeroUI stock defaults. */
   --surface: var(--card);
   --surface-foreground: var(--card-foreground);
-  --surface-secondary: var(--card);
-  --surface-secondary-foreground: var(--card-foreground);
+  --surface-secondary: var(--secondary);
+  --surface-secondary-foreground: var(--secondary-foreground);
   --surface-tertiary: var(--secondary);
   --surface-tertiary-foreground: var(--secondary-foreground);
   --overlay: var(--popover);
   --overlay-foreground: var(--popover-foreground);
   --default: var(--secondary);
   --default-foreground: var(--secondary-foreground);
-  --default-hover: color-mix(in oklch, var(--secondary) 82%, var(--foreground));
-  --accent-hover: color-mix(in oklch, var(--primary) 86%, white);
-  --accent-soft: color-mix(in oklch, var(--primary) 18%, transparent);
+  --default-hover: color-mix(in oklch, var(--secondary) 96%, var(--foreground));
+  --accent-hover: color-mix(in oklch, var(--primary) 90%, black);
+  --accent-soft: color-mix(in oklch, var(--primary) 12%, transparent);
   --accent-soft-foreground: var(--primary);
-  --field-background: color-mix(in oklch, var(--card) 88%, var(--background));
+  --field-background: var(--card);
   --field-foreground: var(--foreground);
   --field-placeholder: var(--muted-foreground);
-  --field-border: var(--input);
-  --field-border-hover: color-mix(in oklch, var(--input) 70%, var(--foreground));
+  --field-border: color-mix(in oklch, var(--input) 80%, var(--foreground));
+  --field-border-hover: color-mix(in oklch, var(--input) 60%, var(--foreground));
   --field-border-focus: var(--ring);
   --focus: var(--ring);
-  --backdrop: rgb(0 0 0 / 64%);
-  --surface-shadow: 0 1px 2px rgb(0 0 0 / 24%), 0 10px 24px rgb(0 0 0 / 10%);
-  --overlay-shadow: 0 18px 50px rgb(0 0 0 / 32%), 0 0 0 1px rgb(255 255 255 / 6%);
+}
+
+/* Primary buttons read the brand color, not the pale --accent surface, so hover
+ * darkens the brand instead of flashing a mismatched fill. */
+.button--primary {
+  --button-bg: var(--primary);
+  --button-bg-hover: color-mix(in oklch, var(--primary) 90%, black);
+  --button-bg-pressed: color-mix(in oklch, var(--primary) 90%, black);
+  --button-fg: var(--primary-foreground);
 }
 
 @layer base {
@@ -371,44 +339,6 @@
     background: color-mix(in oklch, var(--primary) 30%, transparent);
     color: var(--foreground);
   }
-}
-
-/* Dark-mode chrome: quiet elevation and visible scroll affordances. */
-.dark body {
-  background: var(--background);
-  color-scheme: dark;
-}
-
-.dark .button--primary {
-  --button-bg: var(--primary);
-  --button-bg-hover: var(--accent-hover);
-  --button-bg-pressed: var(--accent-hover);
-  --button-fg: var(--primary-foreground);
-}
-
-.dark .card-default,
-.dark [data-slot="card"] {
-  border-color: var(--border);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 24%), 0 10px 24px rgb(0 0 0 / 10%);
-}
-
-.dark ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-.dark ::-webkit-scrollbar-track {
-  background: var(--background);
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  border: 3px solid var(--background);
-  border-radius: 999px;
-  background: color-mix(in oklch, var(--foreground) 26%, transparent);
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in oklch, var(--foreground) 40%, transparent);
 }
 
 /* HeroUI v3 uses --muted for helper and placeholder text, while this app uses
@@ -444,11 +374,25 @@
   --accent-foreground: oklch(0.9911 0 0);
   --muted: oklch(0.5517 0.0138 285.94);
 }
-.dark .calendar,
-.dark .range-calendar,
-[data-theme="dark"] .calendar,
-[data-theme="dark"] .range-calendar {
-  --muted: oklch(0.705 0.015 286.067);
+/* HeroUI paints the month heading + nav arrows with text-default, which this
+ * theme maps to a pale surface — near-invisible. Force readable foreground. */
+.calendar__heading,
+.range-calendar__heading {
+  color: var(--foreground) !important;
+  font-weight: 600;
+}
+.calendar__nav-button,
+.range-calendar__nav-button {
+  color: color-mix(in oklch, var(--foreground) 80%, transparent) !important;
+}
+
+/* Reservation wizard: HeroUI's default modal spacing adds mt-2 after the header
+ * and mt-5 before the footer (sibling-combinator rules a plain utility class
+ * can't override). Zero them so the body owns that vertical space and the
+ * header/footer separators sit tight against their sections. */
+.reservation-modal .modal__header + .modal__body,
+.reservation-modal .modal__body + .modal__footer {
+  margin-top: 0;
 }
 
 /* ── Design System Utilities ──────────────────────────────────────────
@@ -531,7 +475,7 @@
 
 /* ── HeroUI Switch — default blue when on (app-wide standard) ────────
  *  HeroUI v3 exposes BEM hooks (.switch__control) with data attributes.
- *  Blue = Tailwind default palette blue-600 / blue-500 (dark).
+ *  Blue = Tailwind default palette blue-600.
  * ──────────────────────────────────────────────────────────────────── */
 .switch__control[data-selected="true"] {
   background-color: oklch(0.546 0.245 262.881); /* blue-600 */
@@ -540,14 +484,6 @@
 .switch__control[data-selected="true"][data-hovered="true"],
 .switch__control[data-selected="true"]:hover {
   background-color: oklch(0.488 0.243 264.376); /* blue-700 */
-}
-.dark .switch__control[data-selected="true"] {
-  background-color: oklch(0.623 0.214 259.815); /* blue-500 */
-  border-color: oklch(0.623 0.214 259.815);
-}
-.dark .switch__control[data-selected="true"][data-hovered="true"],
-.dark .switch__control[data-selected="true"]:hover {
-  background-color: oklch(0.546 0.245 262.881); /* blue-600 */
 }
 
 /* ── Tap-target helper ─────────────────────────────────────────────────
@@ -567,22 +503,22 @@
  *  status is displayed.
  * ────────────────────────────────────────────────────────────────────── */
 .status-confirmed {
-  @apply bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800;
+  @apply bg-emerald-50 text-emerald-700 border-emerald-200;
 }
 .status-checked-in {
-  @apply bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800;
+  @apply bg-blue-50 text-blue-700 border-blue-200;
 }
 .status-checked-out {
   @apply bg-muted/60 text-muted-foreground border-border/60;
 }
 .status-pending {
-  @apply bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800;
+  @apply bg-amber-50 text-amber-700 border-amber-200;
 }
 .status-cancelled {
-  @apply bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800;
+  @apply bg-red-50 text-red-600 border-red-200;
 }
 .status-no-show {
-  @apply bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-900/40 dark:text-slate-400 dark:border-slate-700;
+  @apply bg-slate-100 text-slate-500 border-slate-200;
 }
 
 /* ── Native / PWA shell ───────────────────────────────────────────────

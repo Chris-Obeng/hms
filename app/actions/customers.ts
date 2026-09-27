@@ -21,6 +21,68 @@ const UpdateContactSchema = z.object({
   nationality: z.string().optional().or(z.literal("")),
 });
 
+// ── Guest Search (booking autocomplete) ──────────────────────────────
+
+export interface GuestSearchResult {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  nationality: string | null;
+}
+
+/**
+ * Strips LIKE wildcards (`%` `_`) and the PostgREST quoting chars (`"` `\`) from
+ * a typeahead term, so it matches literally inside a double-quoted `.or()` value.
+ * Commas, dots, parens and colons are left in — the double quotes make them
+ * literal — which is what keeps a value like an email or `+233…` phone working
+ * without the `.or()` filter injection the availability route documents.
+ */
+function toGuestSearchTerm(query: string): string | null {
+  const cleaned = query.trim().replace(/[%_"\\]/g, " ").replace(/\s+/g, " ").trim();
+  return cleaned.length >= 2 ? cleaned : null;
+}
+
+export async function searchGuests(
+  query: string
+): Promise<{ success: true; data: GuestSearchResult[] } | { success: false; error: string }> {
+  try {
+    const { hotelId } = await requireMinRole("front_desk", "search guests");
+
+    const term = toGuestSearchTerm(query);
+    if (!term) return { success: true, data: [] };
+
+    const supabase = await createClient();
+
+    // Value is double-quoted so commas/dots/parens inside a name, email or phone
+    // are literal, not filter separators.
+    const pattern = `"%${term}%"`;
+    const { data, error } = await supabase
+      .from("guests")
+      .select("id, full_name, email, phone, nationality")
+      .eq("hotel_id", hotelId)
+      .or(`full_name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern}`)
+      .order("last_stay_date", { ascending: false, nullsFirst: false })
+      .limit(8);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    const results: GuestSearchResult[] = (data || []).map((g) => ({
+      id: g.id,
+      fullName: g.full_name,
+      email: g.email,
+      phone: g.phone,
+      nationality: g.nationality,
+    }));
+
+    return { success: true, data: results };
+  } catch (err) {
+    return toActionError(err, { action: "customers.searchGuests" });
+  }
+}
+
 // ── Get Guest Bookings ───────────────────────────────────────────────
 
 export interface GuestBookingSummary {

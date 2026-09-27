@@ -213,12 +213,12 @@ export function PaymentsSettingsClient({ hotelName, initialData }: Props) {
         <div className="flex items-center justify-between">
           <h2 className="text-section text-foreground">Paystack bank account</h2>
           {isActive ? (
-            <span className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+            <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
               <CheckCircle2 className="size-3.5" />
               Active
             </span>
           ) : (
-            <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium">
+            <span className="flex items-center gap-1.5 text-xs text-amber-600 font-medium">
               <AlertCircle className="size-3.5" />
               Not set up
             </span>
@@ -316,7 +316,7 @@ export function PaymentsSettingsClient({ hotelName, initialData }: Props) {
                   : "Select a bank first, then enter the full account number."}
             </p>
             {verified && (
-              <p className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+              <p className="flex items-center gap-1.5 text-xs text-emerald-600 mt-1 font-medium">
                 <CheckCircle2 className="size-3.5" />
                 {verified}
               </p>

@@ -83,12 +83,12 @@ export function EditRoomTypeClient({
             role="status"
             className="flex items-start gap-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3"
           >
-            <Camera className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <Camera className="mt-0.5 size-4 shrink-0 text-amber-600" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+              <p className="text-sm font-medium text-amber-900">
                 Room created — now add photos
               </p>
-              <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300/80">
+              <p className="mt-0.5 text-xs text-amber-700">
                 Rooms with photos get significantly more bookings. Add at least 3 photos below.
               </p>
             </div>
@@ -96,7 +96,7 @@ export function EditRoomTypeClient({
               type="button"
               onClick={() => setShowBanner(false)}
               aria-label="Dismiss"
-              className="-mr-1 -mt-1 inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-amber-600/70 transition-colors hover:bg-amber-500/10 hover:text-amber-800 dark:text-amber-400/70 dark:hover:text-amber-200"
+              className="-mr-1 -mt-1 inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-amber-600/70 transition-colors hover:bg-amber-500/10 hover:text-amber-800"
             >
               <X className="size-4" />
             </button>

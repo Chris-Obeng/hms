@@ -344,7 +344,7 @@ function DesktopBookingRow({
                 e.stopPropagation();
                 onTakePayment?.(booking);
               }}
-              className="rounded-lg border border-amber-500/40 px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 dark:border-amber-500/30 dark:text-amber-400"
+              className="rounded-lg border border-amber-500/40 px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40"
             >
               Take payment
             </button>
@@ -426,7 +426,7 @@ function MobileBookingRow({
           <Button
             size="sm"
             variant="tertiary"
-            className="h-9 flex-1 rounded-xl border border-amber-500/40 text-xs font-semibold text-amber-700 hover:bg-muted/50 dark:border-amber-500/30 dark:text-amber-400"
+            className="h-9 flex-1 rounded-xl border border-amber-500/40 text-xs font-semibold text-amber-700 hover:bg-muted/50"
             onPress={() => onTakePayment?.(booking)}
           >
             Pay
@@ -554,15 +554,15 @@ export function StatusChip({ status, className }: { status: string; className?: 
 function chipTone(status: string): string {
   switch (status) {
     case "checked_in":
-      return "bg-emerald-500/10 text-emerald-700 ring-emerald-500/25 dark:text-emerald-400";
+      return "bg-emerald-500/10 text-emerald-700 ring-emerald-500/25";
     case "confirmed":
-      return "bg-sky-500/10 text-sky-700 ring-sky-500/25 dark:text-sky-400";
+      return "bg-sky-500/10 text-sky-700 ring-sky-500/25";
     case "pending":
-      return "bg-violet-500/10 text-violet-700 ring-violet-500/25 dark:text-violet-400";
+      return "bg-violet-500/10 text-violet-700 ring-violet-500/25";
     case "cancelled":
-      return "bg-red-500/10 text-red-600 ring-red-500/25 dark:text-red-400";
+      return "bg-red-500/10 text-red-600 ring-red-500/25";
     case "no_show":
-      return "bg-rose-500/10 text-rose-600 ring-rose-500/25 dark:text-rose-400";
+      return "bg-rose-500/10 text-rose-600 ring-rose-500/25";
     default:
       return "bg-muted text-muted-foreground ring-border";
   }
@@ -571,12 +571,12 @@ function chipTone(status: string): string {
 function statusTextTone(status: string): string {
   switch (status) {
     case "checked_in":
-      return "text-emerald-600 dark:text-emerald-400";
+      return "text-emerald-600";
     case "confirmed":
-      return "text-sky-600 dark:text-sky-400";
+      return "text-sky-600";
     case "cancelled":
     case "no_show":
-      return "text-red-500 dark:text-red-400";
+      return "text-red-500";
     default:
       return "text-muted-foreground";
   }

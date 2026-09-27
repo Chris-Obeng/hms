@@ -69,7 +69,7 @@ export function BlockDetailDrawer({
       isOpen={open && !!block}
       onOpenChange={(isOpen) => !isOpen && onClose()}
       variant="opaque"
-      className="bg-black/40 dark:bg-black/60"
+      className="bg-black/40"
     >
       <Drawer.Content placement={isMobile ? "bottom" : "right"}>
         <Drawer.Dialog
@@ -96,7 +96,7 @@ export function BlockDetailDrawer({
               <div className="px-5 pb-5 pt-12 md:pt-14">
                 <span
                   aria-hidden
-                  className="mb-3.5 grid size-12 place-items-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                  className="mb-3.5 grid size-12 place-items-center rounded-2xl bg-amber-500/10 text-amber-600"
                 >
                   <CalendarOff className="size-6" />
                 </span>

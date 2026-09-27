@@ -1,10 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Geist_Mono, Fraunces, Inter } from "next/font/google";
-import Script from "next/script";
 import { ToastProvider } from "@/components/toast-provider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ThemeProvider } from "@/components/theme-provider";
 import { Providers } from "@/components/providers";
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Analytics } from "@vercel/analytics/next"
@@ -74,10 +72,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#FAFAF8" },
-    { media: "(prefers-color-scheme: dark)", color: "#1C1917" },
-  ],
+  themeColor: "#FAFAF8",
 };
 
 export default function RootLayout({
@@ -92,27 +87,13 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="native-shell min-h-dvh flex flex-col font-sans">
-        <Script
-          id="theme-init"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var e,l=localStorage.getItem("theme"),d="system";if(l==="dark"||l==="light")e=l;else{var m=window.matchMedia("(prefers-color-scheme: dark)");e=m.matches?"dark":"light"}document.documentElement.classList.remove("light","dark");document.documentElement.classList.add(e)}catch(t){}})()`,
-          }}
-        />
         <ClerkProvider>
           <Providers>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-              disableTransitionOnChange
-            >
-              <TooltipProvider>{children}
-                <SpeedInsights />
-                <Analytics />
-              </TooltipProvider>
-              <ToastProvider />
-            </ThemeProvider>
+            <TooltipProvider>{children}
+              <SpeedInsights />
+              <Analytics />
+            </TooltipProvider>
+            <ToastProvider />
           </Providers>
         </ClerkProvider>
       </body>

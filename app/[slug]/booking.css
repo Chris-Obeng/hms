@@ -1,10 +1,8 @@
 /* ============================================================================
  * Guest booking site — warm editorial hospitality palette
  *
- * Theme-aware: follows the device/account theme via the html.dark class that
- * the app's theme-init script sets before first paint. Every colour on guest
- * pages flows from --bk-* tokens (or bridged HeroUI tokens) below, so light
- * and dark both render correctly without component-level conditionals.
+ * Every colour on guest pages flows from --bk-* tokens (or bridged HeroUI
+ * tokens) below.
  * ==========================================================================*/
 
 .booking-body {
@@ -102,60 +100,6 @@
   --color-border: var(--border);
 }
 
-/* ── DARK — same structure, deep warm charcoal ────────────────── */
-.dark .booking-body {
-  --bk-bg: #141110;
-  --bk-surface: #1d1a18;
-  --bk-surface-soft: #262220;
-  --bk-ink: #f5f4f1;
-  --bk-ink-hover: #ffffff;
-  --bk-ink-soft: #d6d3d0;
-  --bk-muted: #a8a29e;
-  --bk-line: #332f2b;
-  --bk-line-strong: #474139;
-  --bk-accent: #e8a33d;
-  --bk-accent-hover: #f0b055;
-  --bk-accent-soft: rgb(232 163 61 / 0.14);
-  --bk-success: #34d399;
-  --bk-success-soft: rgb(52 211 153 / 0.12);
-  --bk-success-line: rgb(52 211 153 / 0.35);
-  --bk-danger: #fb7185;
-  --bk-danger-soft: rgb(251 113 133 / 0.12);
-  --bk-danger-line: rgb(251 113 133 / 0.35);
-  --bk-on-ink: #171412;
-  --bk-chrome: rgb(20 17 16 / 0.88);
-  --bk-hero-panel: rgb(29 26 24 / 0.94);
-  --bk-field-bg: #232019;
-  --bk-focus-ring: rgb(245 244 241 / 0.12);
-
-  --bk-shadow: 0 1px 2px rgb(0 0 0 / 0.32), 0 8px 24px rgb(0 0 0 / 0.32);
-  --bk-shadow-lg: 0 4px 6px rgb(0 0 0 / 0.28), 0 16px 40px rgb(0 0 0 / 0.44);
-
-  /* HeroUI bridge — dark equivalents */
-  --white: #232019;
-  --snow: #262220;
-  --eclipse: #f5f4f1;
-  --foreground: var(--eclipse);
-  --muted: oklch(0.72 0.008 286);
-  --default: #2b2724;
-  --default-foreground: var(--eclipse);
-  --default-hover: #332e2a;
-  --field-background: var(--white);
-  --field-foreground: var(--eclipse);
-  --field-placeholder: oklch(0.62 0.01 286);
-  --field-border: #3a3530;
-  --overlay: #201d1b;
-  --overlay-foreground: var(--eclipse);
-  --border: #38332e;
-  --separator: #302b27;
-  --accent: #e8a33d;
-  --accent-foreground: #171412;
-
-  --background: var(--bk-surface);
-  --card: var(--bk-surface);
-  --popover: var(--bk-surface);
-}
-
 /* Keyboard skip link — offscreen until focused */
 .booking-skip-link {
   position: absolute;
@@ -205,10 +149,6 @@
     border-color 220ms cubic-bezier(0.32, 0.72, 0, 1),
     box-shadow 220ms cubic-bezier(0.32, 0.72, 0, 1),
     backdrop-filter 220ms ease;
-}
-
-.dark .booking-header {
-  box-shadow: 0 1px 0 rgb(0 0 0 / 0.2), 0 8px 24px rgb(0 0 0 / 0.22);
 }
 
 .booking-header-hero {
@@ -306,10 +246,6 @@
 
 .booking-cta-accent:hover:not(:disabled) {
   background: var(--bk-accent-hover) !important;
-}
-
-.dark .booking-cta-accent {
-  color: #171412 !important;
 }
 
 /* Form field shell inside booking — readable labels, values, placeholders */
@@ -638,12 +574,6 @@
 
   /* Readability token for native day-name header / outside-month cells */
   --muted-foreground: var(--bk-muted);
-}
-
-.dark .booking-calendar-panel {
-  box-shadow:
-    0 1px 2px rgb(0 0 0 / 0.4),
-    0 12px 32px rgb(0 0 0 / 0.5);
 }
 
 /* Dual-month layout needs breathing room on desktop */

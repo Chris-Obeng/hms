@@ -312,22 +312,22 @@ export function NightAuditClient({
           icon={CalendarArrowDown}
           label="Arrivals due"
           value={summary.pendingArrivals}
-          tone="text-amber-600 dark:text-amber-400"
+          tone="text-amber-600"
         />
         <StatTile
           icon={CalendarArrowUp}
           label="Departures due"
           value={summary.pendingDepartures}
-          tone="text-rose-600 dark:text-rose-400"
+          tone="text-rose-600"
         />
-        <StatTile icon={Users} label="In-house guests" value={summary.inHouseCount} tone="text-emerald-600 dark:text-emerald-400" />
-        <StatTile icon={BedDouble} label="Rooms occupied" value={summary.occupiedRooms} tone="text-blue-600 dark:text-blue-400" />
+        <StatTile icon={Users} label="In-house guests" value={summary.inHouseCount} tone="text-emerald-600" />
+        <StatTile icon={BedDouble} label="Rooms occupied" value={summary.occupiedRooms} tone="text-blue-600" />
       </div>
 
       {/* ── Closed confirmation ────────────────────────────────── */}
       {summary.isClosed && summary.lastAudit && (
         <div className="card-default p-4 flex items-start gap-3 border-emerald-500/25 bg-emerald-500/5">
-          <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+          <CheckCircle2 className="size-5 text-emerald-600 shrink-0 mt-0.5" />
           <div className="min-w-0 text-sm">
             <p className="font-semibold text-foreground">
               Day closed{summary.lastAudit.staffName ? ` by ${summary.lastAudit.staffName}` : ""}
@@ -348,12 +348,12 @@ export function NightAuditClient({
       {/* ── Unresolved same-day operations ─────────────────────── */}
       {hasUnresolved && !summary.isClosed && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-4 flex items-start gap-3">
-          <AlertTriangle className="size-5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+          <AlertTriangle className="size-5 shrink-0 mt-0.5 text-amber-600" />
           <div className="min-w-0 w-full">
             <p className="text-sm font-semibold text-foreground">
               Resolve before closing ({summary.unresolvedBookings.length})
             </p>
-            <p className="text-caption text-amber-700 dark:text-amber-400/90 mt-0.5">
+            <p className="text-caption text-amber-700 mt-0.5">
               These arrivals or departures are still open for this date.
             </p>
 
@@ -431,7 +431,7 @@ export function NightAuditClient({
                       className={cn(
                         "text-sm font-semibold tabular-nums shrink-0",
                         row.difference_minor < 0
-                          ? "text-amber-600 dark:text-amber-400"
+                          ? "text-amber-600"
                           : "text-foreground"
                       )}
                       title="Recorded nights minus the room charge on the booking"
@@ -514,7 +514,7 @@ export function NightAuditClient({
               </dl>
 
               {hasUnresolved && (
-                <p className="rounded-lg bg-amber-500/10 border border-amber-500/25 px-3 py-2 text-xs text-amber-700 dark:text-amber-400 flex items-start gap-2">
+                <p className="rounded-lg bg-amber-500/10 border border-amber-500/25 px-3 py-2 text-xs text-amber-700 flex items-start gap-2">
                   <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
                   {summary.unresolvedBookings.length} same-day booking(s) are still unresolved. You can still
                   close the day, but resolve them first if possible.
