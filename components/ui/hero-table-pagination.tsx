@@ -41,11 +41,14 @@ export function HeroTablePagination({
   table,
   totalRows,
   filteredRows,
+  showSummary = true,
 }: {
   table: PaginatedTableInstance;
   /** Rows before filtering — used for the summary label. */
   totalRows: number;
   filteredRows: number;
+  /** Hide the "N–M of T" range label; page controls still render. */
+  showSummary?: boolean;
 }) {
   const { pageIndex, pageSize } = table.getState().pagination;
   const pageCount = table.getPageCount();
@@ -61,6 +64,7 @@ export function HeroTablePagination({
         : `${start}–${end} of ${filteredRows}`;
 
   if (pageCount <= 1) {
+    if (!showSummary) return null;
     return (
       <div className="flex w-full justify-center sm:justify-start">
         <p className="text-caption text-muted-foreground">{summary}</p>
@@ -68,48 +72,57 @@ export function HeroTablePagination({
     );
   }
 
+  const controls = (
+    <Pagination size="sm">
+      <Pagination.Content>
+        <Pagination.Item>
+          <Pagination.Previous
+            isDisabled={!table.getCanPreviousPage()}
+            onPress={() => table.previousPage()}
+            aria-label="Previous page"
+          >
+            <Pagination.PreviousIcon />
+          </Pagination.Previous>
+        </Pagination.Item>
+        {getPageNumbers(pageIndex + 1, pageCount).map((p, i) =>
+          p === "ellipsis" ? (
+            <Pagination.Item key={`ellipsis-${i}`}>
+              <Pagination.Ellipsis />
+            </Pagination.Item>
+          ) : (
+            <Pagination.Item key={p}>
+              <Pagination.Link
+                isActive={p === pageIndex + 1}
+                onPress={() => table.setPageIndex(p - 1)}
+                aria-label={`Page ${p}`}
+              >
+                {p}
+              </Pagination.Link>
+            </Pagination.Item>
+          )
+        )}
+        <Pagination.Item>
+          <Pagination.Next
+            isDisabled={!table.getCanNextPage()}
+            onPress={() => table.nextPage()}
+            aria-label="Next page"
+          >
+            <Pagination.NextIcon />
+          </Pagination.Next>
+        </Pagination.Item>
+      </Pagination.Content>
+    </Pagination>
+  );
+
+  // Count hidden: page controls alone, right-aligned on desktop.
+  if (!showSummary) {
+    return <div className="flex w-full justify-center sm:justify-end">{controls}</div>;
+  }
+
   return (
     <div className="flex w-full flex-col-reverse items-center gap-3 sm:flex-row sm:justify-between">
       <p className="text-caption text-muted-foreground">{summary}</p>
-      <Pagination size="sm">
-        <Pagination.Content>
-          <Pagination.Item>
-            <Pagination.Previous
-              isDisabled={!table.getCanPreviousPage()}
-              onPress={() => table.previousPage()}
-              aria-label="Previous page"
-            >
-              <Pagination.PreviousIcon />
-            </Pagination.Previous>
-          </Pagination.Item>
-          {getPageNumbers(pageIndex + 1, pageCount).map((p, i) =>
-            p === "ellipsis" ? (
-              <Pagination.Item key={`ellipsis-${i}`}>
-                <Pagination.Ellipsis />
-              </Pagination.Item>
-            ) : (
-              <Pagination.Item key={p}>
-                <Pagination.Link
-                  isActive={p === pageIndex + 1}
-                  onPress={() => table.setPageIndex(p - 1)}
-                  aria-label={`Page ${p}`}
-                >
-                  {p}
-                </Pagination.Link>
-              </Pagination.Item>
-            )
-          )}
-          <Pagination.Item>
-            <Pagination.Next
-              isDisabled={!table.getCanNextPage()}
-              onPress={() => table.nextPage()}
-              aria-label="Next page"
-            >
-              <Pagination.NextIcon />
-            </Pagination.Next>
-          </Pagination.Item>
-        </Pagination.Content>
-      </Pagination>
+      {controls}
     </div>
   );
 }

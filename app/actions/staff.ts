@@ -2,7 +2,7 @@
 
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { can } from "@/lib/roles";
+import { can, canAdministerStaff, canAssignRole } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
 
@@ -33,23 +33,10 @@ async function getHotelScopedClient() {
   const currentStaffId = currentUser?.id ?? null;
   const currentStaffName = currentUser?.full_name ?? null;
 
-  return { supabase, hotelId: hotel.id, hotel, orgId, userId, isSuperAdmin, currentStaffId, currentStaffName };
+  return { supabase, hotelId: hotel.id, hotel, orgId, userId, isSuperAdmin, role: currentUser?.role ?? null, currentStaffId, currentStaffName };
 }
 
 // ── Types ────────────────────────────────────────────────────────────
-
-export interface StaffMember {
-  id: string;
-  clerkUserId: string;
-  email: string;
-  fullName: string | null;
-  avatarUrl: string | null;
-  role: string;
-  isActive: boolean;
-  grantedAt: string | null;
-  lastLoginAt: string | null;
-  createdAt: string | null;
-}
 
 export interface PendingStaffRequest {
   id: string;
@@ -59,43 +46,6 @@ export interface PendingStaffRequest {
   avatarUrl: string | null;
   role: string;
   createdAt: string | null;
-}
-
-// ── Get Staff List ───────────────────────────────────────────────────
-
-export async function getStaffList(): Promise<
-  | { success: true; data: StaffMember[] }
-  | { success: false; error: string }
-> {
-  try {
-    const { supabase, orgId } = await getHotelScopedClient();
-
-    const { data, error } = await supabase
-      .from("staff_profiles")
-      .select("id, clerk_user_id, email, full_name, avatar_url, role, is_active, granted_at, last_login_at, created_at")
-      .eq("clerk_org_id", orgId)
-      .order("created_at", { ascending: true });
-
-    if (error) return { success: false, error: error.message };
-
-    return {
-      success: true,
-      data: (data || []).map((s) => ({
-        id: s.id,
-        clerkUserId: s.clerk_user_id,
-        email: s.email,
-        fullName: s.full_name,
-        avatarUrl: s.avatar_url,
-        role: s.role || "pending",
-        isActive: s.is_active || false,
-        grantedAt: s.granted_at,
-        lastLoginAt: s.last_login_at,
-        createdAt: s.created_at,
-      })),
-    };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Failed to fetch staff" };
-  }
 }
 
 // ── Get Pending Staff Requests ───────────────────────────────────────
@@ -230,22 +180,28 @@ export async function toggleStaffActive(
   isActive: boolean
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { supabase, orgId, isSuperAdmin, currentStaffId, currentStaffName, hotelId } =
+    const { supabase, orgId, role, currentStaffId, currentStaffName, hotelId } =
       await getHotelScopedClient();
 
-    if (!isSuperAdmin) return { success: false, error: "Only super admins can manage staff" };
-    if (currentStaffId === staffId) return { success: false, error: "You cannot change your own active status" };
+    if (!can(role, "staff:setActive"))
+      return { success: false, error: "You do not have permission to change staff status" };
+    if (currentStaffId === staffId)
+      return { success: false, error: "You cannot change your own status" };
 
-    // Prevent deactivating the last active super admin
+    // Target role gates the manager check AND the last-admin check — load it up front.
+    const { data: target } = await supabase
+      .from("staff_profiles")
+      .select("role, clerk_user_id, full_name")
+      .eq("id", staffId)
+      .eq("clerk_org_id", orgId)
+      .single();
+    if (!target) return { success: false, error: "Staff member not found" };
+    if (!canAdministerStaff(role, target.role))
+      return { success: false, error: "You cannot manage this staff member" };
+
+    // Prevent deactivating the last active super admin, then revoke sessions.
     if (!isActive) {
-      const { data: target } = await supabase
-        .from("staff_profiles")
-        .select("role, clerk_user_id, full_name")
-        .eq("id", staffId)
-        .eq("clerk_org_id", orgId)
-        .single();
-
-      if (target?.role === "super_admin") {
+      if (target.role === "super_admin") {
         const { count } = await supabase
           .from("staff_profiles")
           .select("*", { count: "exact", head: true })
@@ -259,7 +215,7 @@ export async function toggleStaffActive(
       }
 
       // Revoke all active Clerk sessions for this user immediately
-      if (target?.clerk_user_id) {
+      if (target.clerk_user_id) {
         try {
           const clerk = await clerkClient();
           const sessions = await clerk.sessions.getSessionList({ userId: target.clerk_user_id, status: "active" });
@@ -302,47 +258,46 @@ export async function toggleStaffActive(
 
 export async function changeStaffRole(
   staffId: string,
-  role: "super_admin" | "manager" | "front_desk" | "read_only"
+  newRole: "super_admin" | "manager" | "front_desk" | "read_only"
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { supabase, orgId, isSuperAdmin, currentStaffId, currentStaffName, hotelId } =
+    const { supabase, orgId, role, currentStaffId, currentStaffName, hotelId } =
       await getHotelScopedClient();
 
-    if (!isSuperAdmin) return { success: false, error: "Only super admins can change roles" };
-    if (currentStaffId === staffId) return { success: false, error: "You cannot change your own role" };
+    if (!can(role, "staff:setRole"))
+      return { success: false, error: "You do not have permission to change roles" };
+    if (currentStaffId === staffId)
+      return { success: false, error: "You cannot change your own role" };
 
-    // Prevent demoting the last active super admin
-    if (role !== "super_admin") {
-      const { data: target } = await supabase
-        .from("staff_profiles")
-        .select("role")
-        .eq("id", staffId)
-        .eq("clerk_org_id", orgId)
-        .single();
-
-      if (target?.role === "super_admin") {
-        const { count } = await supabase
-          .from("staff_profiles")
-          .select("*", { count: "exact", head: true })
-          .eq("clerk_org_id", orgId)
-          .eq("role", "super_admin")
-          .eq("is_active", true);
-
-        if ((count ?? 0) <= 1) {
-          return { success: false, error: "Cannot demote the last active super admin" };
-        }
-      }
-    }
-
-    const { data: before } = await supabase
+    const { data: target } = await supabase
       .from("staff_profiles")
       .select("role")
       .eq("id", staffId)
+      .eq("clerk_org_id", orgId)
       .single();
+    if (!target) return { success: false, error: "Staff member not found" };
+    if (!canAdministerStaff(role, target.role))
+      return { success: false, error: "You cannot manage this staff member" };
+    if (!canAssignRole(role, newRole))
+      return { success: false, error: "You cannot assign that role" };
+
+    // Prevent demoting the last active super admin
+    if (newRole !== "super_admin" && target.role === "super_admin") {
+      const { count } = await supabase
+        .from("staff_profiles")
+        .select("*", { count: "exact", head: true })
+        .eq("clerk_org_id", orgId)
+        .eq("role", "super_admin")
+        .eq("is_active", true);
+
+      if ((count ?? 0) <= 1) {
+        return { success: false, error: "Cannot demote the last active super admin" };
+      }
+    }
 
     const { error } = await supabase
       .from("staff_profiles")
-      .update({ role })
+      .update({ role: newRole })
       .eq("id", staffId)
       .eq("clerk_org_id", orgId);
 
@@ -355,8 +310,8 @@ export async function changeStaffRole(
       action: "staff.role_changed",
       entityType: "staff_profile",
       entityId: staffId,
-      beforeState: { role: before?.role },
-      afterState: { role },
+      beforeState: { role: target.role },
+      afterState: { role: newRole },
     });
 
     revalidatePath("/dashboard/staff");
