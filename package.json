@@ -19,6 +19,7 @@
     "db:test": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/oversell_guard.sql",
     "db:test:rates": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/resolve_nightly_rates.sql",
     "db:test:roles": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/role_ladder.sql",
+    "db:test:superadmin": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/last_super_admin_guard.sql",
     "db:test:atomic": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/create_booking_atomic.sql",
     "db:test:nights": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/booking_nights.sql",
     "db:test:reprice": "docker exec -i -e PGPASSWORD=postgres supabase_db_RoomLine psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/reprice_booking_stay.sql",
