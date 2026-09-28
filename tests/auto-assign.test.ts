@@ -41,6 +41,7 @@ function booking(overrides: Partial<CalendarBooking> = {}): CalendarBooking {
     children: null,
     estimatedArrival: null,
     specialRequests: null,
+    internalNotes: null,
     ...overrides,
   };
 }

@@ -40,19 +40,6 @@ export function getBookingStatusKey(status: string): BookingStatusKey {
   }
 }
 
-/** Short source code for the on-bar badge. Direct is the default and stays
- *  unbadged to reduce noise; only non-direct channels earn a marker. */
-const SOURCE_SHORT: Record<string, string> = {
-  bookings_com: "OTA",
-  manual: "MAN",
-  phone: "TEL",
-  walk_in: "WLK",
-};
-
-export function sourceShort(source: string | null | undefined): string | null {
-  return source ? SOURCE_SHORT[source] ?? null : null;
-}
-
 /** Accent stripe for grouped (multi-room) reservations. Additive only — it
  *  never replaces the status/source bar color; it marks that sibling bars
  *  belong to ONE reservation so front-desk reads them as a set. A stable hash

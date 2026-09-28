@@ -144,6 +144,7 @@ export interface CalendarBooking {
   children: number | null;
   estimatedArrival: string | null;
   specialRequests: string | null;
+  internalNotes: string | null;
 }
 
 export interface CalendarAvailabilityBlock {
@@ -238,7 +239,7 @@ export async function getCalendarData(
       check_in, check_out, nights,
       status, payment_status, source,
       total_amount, adults, children,
-      estimated_arrival, special_requests,
+      estimated_arrival, special_requests, internal_notes,
       room_id,
       room_type_id,
       group_id, rooms_count,
@@ -344,6 +345,7 @@ export async function getCalendarData(
     children: (row.children as number | null) ?? null,
     estimatedArrival: (row.estimated_arrival as string | null) ?? null,
     specialRequests: (row.special_requests as string | null) ?? null,
+    internalNotes: (row.internal_notes as string | null) ?? null,
   }));
 
   const mappedBlocks: CalendarAvailabilityBlock[] = (blocks || []).map((blk) => ({

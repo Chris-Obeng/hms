@@ -17,12 +17,12 @@ import {
 } from "@dnd-kit/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
-import { AlertTriangle, BedDouble, GripVertical, Lock, Wand2 } from "lucide-react";
+import { AlertTriangle, BedDouble, GripVertical, Lock, MessageSquareText, Wand2 } from "lucide-react";
 import { Button, Tooltip } from "@heroui/react";
 import { cn } from "@/lib/utils";
 import type { CalendarAvailabilityBlock, CalendarBooking, CalendarRoom } from "../../actions";
 import { businessToday } from "@/lib/business-date";
-import { getBookingStatusKey, groupAccent, isManualLikeSource, NON_BOOKABLE_ROOM_STATUSES, sourceShort, TERMINAL_BOOKING_STATUS_SET } from "../calendar-helpers";
+import { getBookingStatusKey, groupAccent, isManualLikeSource, NON_BOOKABLE_ROOM_STATUSES, TERMINAL_BOOKING_STATUS_SET } from "../calendar-helpers";
 import {
   bookingGeometry,
   clampBarGeometry,
@@ -141,7 +141,7 @@ function BookingBar({
   const left = useDraggable({ id: `left:${booking.id}`, disabled: !editable, data: { kind: "resize-left", bookingId: booking.id } satisfies DragData });
   const right = useDraggable({ id: `right:${booking.id}`, disabled: !editable, data: { kind: "resize-right", bookingId: booking.id } satisfies DragData });
   const statusKey = getBookingStatusKey(booking.status);
-  const src = sourceShort(booking.source);
+  const hasNotes = Boolean(booking.specialRequests?.trim() || booking.internalNotes?.trim());
   const accent = groupAccent(booking.groupId);
   const isDragging = drag.isDragging || left.isDragging || right.isDragging;
   return (
@@ -184,13 +184,13 @@ function BookingBar({
         {...drag.attributes}
         role="button"
         tabIndex={0}
-        aria-label={`${booking.guestName ?? "Guest"}, room ${booking.roomNumber ?? "unassigned"}, ${booking.checkIn} to ${booking.checkOut}, ${booking.status.replaceAll("_", " ")}${accent ? ", part of a multi-room reservation" : ""}${(booking.roomsCount ?? 0) > 1 ? `, ${booking.roomsCount} rooms` : ""}${conflict ? ", conflict" : ""}`}
+        aria-label={`${booking.guestName ?? "Guest"}, room ${booking.roomNumber ?? "unassigned"}, ${booking.checkIn} to ${booking.checkOut}, ${booking.status.replaceAll("_", " ")}${accent ? ", part of a multi-room reservation" : ""}${(booking.roomsCount ?? 0) > 1 ? `, ${booking.roomsCount} rooms` : ""}${hasNotes ? ", has notes" : ""}${conflict ? ", conflict" : ""}`}
         onClick={onOpen}
         className="rl-booking-move"
       >
         {editable && <GripVertical className="rl-booking-grip" aria-hidden />}
         <span className="rl-booking-name">{booking.guestName ?? "Guest"}</span>
-        {src && <span className="rl-booking-src" aria-hidden>{src}</span>}
+        {hasNotes && <MessageSquareText className="rl-booking-note" aria-hidden />}
         {(booking.roomsCount ?? 0) > 1 && (
           <span className="rl-booking-rooms" aria-hidden>
             ×{booking.roomsCount}

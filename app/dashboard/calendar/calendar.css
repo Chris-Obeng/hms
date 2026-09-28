@@ -140,8 +140,8 @@
 .rl-booking-bar[data-cal-status="pending"],.rl-drag-overlay-bar[data-cal-status="pending"]{--rl-bar:var(--cal-pending);--rl-bar-bd:var(--cal-pending-bd)}
 .rl-booking-bar[data-cal-status="cancelled"],.rl-drag-overlay-bar[data-cal-status="cancelled"]{--rl-bar:var(--cal-cancelled);--rl-bar-bd:var(--cal-cancelled-bd)}
 .rl-booking-bar[data-cal-status="noshow"],.rl-drag-overlay-bar[data-cal-status="noshow"]{--rl-bar:var(--cal-noshow);--rl-bar-bd:var(--cal-noshow-bd)}
-/* Source marker — small code on non-direct bookings (OTA/phone/manual/walk-in). */
-.rl-booking-src{flex:none;padding:1px 5px;border-radius:5px;font-size:8.5px;font-weight:800;letter-spacing:.04em;background:rgb(255 255 255 / .24);text-shadow:0 1px 1px rgb(0 0 0 / .2)}
+/* Notes indicator — quiet icon when a booking carries special requests / internal notes. */
+.rl-booking-note{flex:none;width:13px;height:13px;opacity:.85;filter:drop-shadow(0 1px 1px rgb(0 0 0 / .25))}
 .rl-booking-bar:hover{box-shadow:0 3px 10px rgb(0 0 0 / .18),0 0 0 1px rgb(255 255 255 / .18) inset;z-index:3}
 .rl-booking-bar:focus-within{outline:3px solid var(--ring);outline-offset:2px}
 .rl-booking-bar.is-conflict{outline:2px solid var(--destructive);border-color:var(--destructive);background-image:repeating-linear-gradient(135deg,transparent 0 7px,#ffffff38 7px 11px)!important}
