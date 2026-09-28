@@ -185,6 +185,11 @@ describe("asStaffRole", () => {
     expect(asStaffRole(null)).toBe("pending");
     expect(asStaffRole(undefined)).toBe("pending");
   });
+
+  it("coerces inherited Object.prototype property names to pending", () => {
+    for (const name of ["constructor", "toString", "valueOf", "hasOwnProperty", "isPrototypeOf", "__proto__"])
+      expect(asStaffRole(name)).toBe("pending");
+  });
 });
 
 describe("canAdministerStaff", () => {

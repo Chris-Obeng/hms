@@ -30,7 +30,9 @@ function isAssignableRole(role: string | null | undefined): boolean {
 
 /** Coerce an untrusted string to a known role; unknown/absent → "pending" (no privileges). */
 export function asStaffRole(role: string | null | undefined): StaffRole {
-  return role != null && role in ROLE_LEVEL ? (role as StaffRole) : "pending";
+  return role != null && Object.prototype.hasOwnProperty.call(ROLE_LEVEL, role)
+    ? (role as StaffRole)
+    : "pending";
 }
 
 /**

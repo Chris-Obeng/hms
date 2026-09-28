@@ -70,15 +70,6 @@ export default async function DashboardLayout({
     orgId,
   })
 
-  // Update last_login_at — fire-and-forget
-  if (userId) {
-    supabase
-      .from('staff_profiles')
-      .update({ last_login_at: new Date().toISOString() })
-      .eq('clerk_user_id', userId)
-      .eq('clerk_org_id', orgId);
-  }
-
   // Header needs a small, stable data set for global reservation creation.
   const [notificationResult, roomTypesResult] = await Promise.all([
     supabase

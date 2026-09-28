@@ -2,7 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { can } from "@/lib/roles";
+import { can, canAssignRole } from "@/lib/roles";
 import { headers } from "next/headers";
 import crypto from "crypto";
 
@@ -24,7 +24,10 @@ export async function createShareableInvite(
       .single();
 
     if (userError || !currentUser || !currentUser.is_active || !can(currentUser.role, "staff:invite")) {
-      return { success: false, error: "Only active super admins can invite staff" };
+      return { success: false, error: "You do not have permission to invite staff" };
+    }
+    if (!canAssignRole(currentUser.role, role)) {
+      return { success: false, error: "You cannot invite a staff member with that role" };
     }
 
     // Generate secure random token
