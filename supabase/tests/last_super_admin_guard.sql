@@ -3,8 +3,15 @@
 -- super_admin. app/actions/staff.ts holds a friendly count(...) <= 1 pre-check
 -- for UX, but that check and the write are separate statements, so two
 -- concurrent demotions/deactivations can each see count = 2 and both proceed.
--- The trg_enforce_last_super_admin trigger closes that race atomically and also
--- covers a direct SQL DELETE the server actions never issue.
+-- The trg_enforce_last_super_admin trigger is the race-proof backstop (it takes
+-- a per-org advisory lock; see the migration header) and also covers direct SQL
+-- the server actions never issue.
+--
+-- Scope: this probe runs serially in a single session, so it exercises the
+-- single-actor guard for demote / deactivate / delete / org-move plus the
+-- benign-edit pass-through. It does NOT open a second connection, so it does
+-- not itself exercise the concurrent-demotion race — the advisory lock that
+-- closes that race is argued in the migration header.
 --
 -- Run against a database with the migrations applied:
 --
@@ -57,6 +64,15 @@ begin
    where clerk_org_id = 'test_org_guard' and clerk_user_id = 'u_sa2';
   raise exception 'TEST FAILED: last super admin delete was allowed';
 exception when check_violation then raise notice 'PASS: delete blocked';
+end $$;
+
+-- 6) moving the last active super admin out of the org must be blocked
+do $$
+begin
+  update public.staff_profiles set clerk_org_id = 'other_org_guard'
+   where clerk_org_id = 'test_org_guard' and clerk_user_id = 'u_sa2';
+  raise exception 'TEST FAILED: last super admin org move was allowed';
+exception when check_violation then raise notice 'PASS: org move blocked';
 end $$;
 
 rollback;
