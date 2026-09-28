@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { format, isToday, startOfDay } from "date-fns";
+import { addDays, format, isToday, startOfDay } from "date-fns";
 import { AlertDialog, toast } from "@heroui/react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { CalendarClock } from "lucide-react";
 
@@ -18,8 +18,9 @@ import { onRealtimeStatus } from "@/lib/observability/realtime";
 import { createCoalescer } from "@/lib/realtime/coalesce";
 import { writeAuditLog } from "@/lib/audit";
 import { qk } from "@/lib/query-keys";
-import { findOverlappingBookingIds, isCancelledOnDate, isCheckedInStayoverOnDate, isInHouseOnDate } from "@/lib/calendar-domain";
-import { businessDate, businessDayBounds, businessToday } from "@/lib/business-date";
+import { fetchDashboardData, type DashboardQueryData } from "@/lib/dashboard/fetch-dashboard-data";
+import { isCancelledOnDate, isInHouseOnDate } from "@/lib/calendar-domain";
+import { businessDate, businessToday } from "@/lib/business-date";
 import { updateBookingStatus } from "@/app/actions/bookings";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -27,10 +28,14 @@ import PullToRefresh from "react-simple-pull-to-refresh";
 
 interface DashboardClientProps {
   hotelId: string;
+  /** Clerk org id from the server — seeds the query key so hydrated data matches on first paint. */
+  orgId: string;
   hotelName: string;
   currency: string;
   /** Property timezone — day boundaries follow the hotel's calendar, not the device clock. */
   hotelTimezone: string;
+  /** Server-computed business day (YYYY-MM-DD); seeds selectedDate so the first query key matches hydration. */
+  initialDate: string;
 }
 
 const defaultEmptyStats = {
@@ -45,266 +50,21 @@ const defaultEmptyStats = {
   overbookings: 0,
 };
 
-type DashboardSupabase = ReturnType<typeof createClient>;
-
-interface DashboardBookingRow {
-  id: string;
-  reference: string;
-  check_in: string;
-  check_out: string;
-  status: string | null;
-  payment_status: string | null;
-  total_amount: number;
-  amount_paid: number | null;
-  outstanding_balance: number | null;
-  adults: number | null;
-  children: number | null;
-  source: string | null;
-  nights: number | null;
-  room_id: string | null;
-  created_at: string | null;
-  cancelled_at?: string | null;
-  special_requests: string | null;
-  internal_notes: string | null;
-  guests: { full_name: string | null; email: string | null; phone: string | null } | null;
-  rooms: { room_number: string | null } | null;
-  room_types: { name: string | null } | null;
-}
-
-async function fetchDashboardClientData(
-  supabase: DashboardSupabase,
-  hotelId: string,
-  dateStr: string,
-  timeZone: string
-) {
-  const dayStr = dateStr;
-  // Timestamp-day queries (created_at / cancelled_at / paid_at) use the
-  // property's business-day bounds — the same rule the tab predicates apply —
-  // so badge counts and list contents can never diverge on non-UTC devices.
-  const dayBounds = businessDayBounds(dateStr, timeZone);
-
-  const [
-    roomsRes,
-    arrivalsRes,
-    departuresRes,
-    inHouseBookingsRes,
-    newBookingsRes,
-    cancellationsRes,
-    dateBookingsRes,
-    blocksRes,
-    todayPaymentsRes
-  ] = await Promise.all([
-    supabase
-      .from("rooms")
-      .select("status, room_type_id")
-      .eq("hotel_id", hotelId)
-      .eq("is_active", true),
-    supabase
-      .from("bookings")
-      .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, special_requests, internal_notes,
-        guests(full_name, email, phone),
-        rooms(room_number),
-        room_types(name)
-      `)
-      .eq("hotel_id", hotelId)
-      .eq("check_in", dayStr)
-      .in("status", ["confirmed", "checked_in"])
-      .order("check_in", { ascending: true }),
-    supabase
-      .from("bookings")
-      .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, special_requests, internal_notes,
-        guests(full_name, email, phone),
-        rooms(room_number),
-        room_types(name)
-      `)
-      .eq("hotel_id", hotelId)
-      .eq("check_out", dayStr)
-      .in("status", ["confirmed", "checked_in", "checked_out"])
-      .order("check_out", { ascending: true }),
-    supabase
-      .from("bookings")
-      .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, special_requests, internal_notes,
-        guests(full_name, email, phone),
-        rooms(room_number),
-        room_types(name)
-      `)
-      .eq("hotel_id", hotelId)
-      .eq("status", "checked_in")
-      .lte("check_in", dayStr)
-      .gte("check_out", dayStr),
-    supabase
-      .from("bookings")
-      .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, special_requests, internal_notes,
-        guests(full_name, email, phone), rooms(room_number), room_types(name)
-      `)
-      .eq("hotel_id", hotelId)
-      .gte("created_at", dayBounds.startISO)
-      .lt("created_at", dayBounds.endISO)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("bookings")
-      .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, cancelled_at, special_requests, internal_notes,
-        guests(full_name, email, phone), rooms(room_number), room_types(name)
-      `)
-      .eq("hotel_id", hotelId)
-      .eq("status", "cancelled")
-      .gte("cancelled_at", dayBounds.startISO)
-      .lt("cancelled_at", dayBounds.endISO)
-      .order("cancelled_at", { ascending: false }),
-    supabase
-      .from("bookings")
-      .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, special_requests, internal_notes,
-        guests(full_name, email, phone), rooms(room_number), room_types(name)
-      `)
-      .eq("hotel_id", hotelId)
-      .in("status", ["confirmed", "checked_in"])
-      .lte("check_in", dayStr)
-      .gt("check_out", dayStr),
-    supabase
-      .from("availability_blocks")
-      .select("room_id, start_date, end_date")
-      .eq("hotel_id", hotelId)
-      .lte("start_date", dayStr)
-      .gt("end_date", dayStr),
-    supabase
-      .from("payments")
-      .select("amount")
-      .eq("hotel_id", hotelId)
-      .eq("status", "success")
-      .gte("paid_at", dayBounds.startISO)
-      .lt("paid_at", dayBounds.endISO)
-  ]);
-
-  if (roomsRes.error) throw roomsRes.error;
-  if (arrivalsRes.error) throw arrivalsRes.error;
-  if (departuresRes.error) throw departuresRes.error;
-  if (inHouseBookingsRes.error) throw inHouseBookingsRes.error;
-  if (newBookingsRes.error) throw newBookingsRes.error;
-  if (cancellationsRes.error) throw cancellationsRes.error;
-  if (dateBookingsRes.error) throw dateBookingsRes.error;
-  if (blocksRes.error) throw blocksRes.error;
-  if (todayPaymentsRes.error) throw todayPaymentsRes.error;
-
-  const roomStatuses = roomsRes.data || [];
-  const outOfService = roomStatuses.filter((r) => r.status === "maintenance" || r.status === "out_of_service").length;
-  const activeRooms = roomStatuses.length;
-  const occupiedRoomIds = new Set((dateBookingsRes.data || []).map((b) => b.room_id).filter(Boolean));
-  const blockedRoomIds = new Set((blocksRes.data || []).map((b) => b.room_id));
-  const occupiedRooms = occupiedRoomIds.size;
-  const blocked = [...blockedRoomIds].filter((id) => !occupiedRoomIds.has(id)).length;
-  const availableRooms = activeRooms - occupiedRooms - outOfService - blocked;
-
-  const mapBooking = (b: DashboardBookingRow): ActivityBooking => ({
-    id: b.id,
-    reference: b.reference,
-    guestName: b.guests?.full_name || "Unknown",
-    guestPhone: b.guests?.phone || null,
-    guestEmail: b.guests?.email || null,
-    roomNumber: b.rooms?.room_number || null,
-    roomType: b.room_types?.name || null,
-    checkIn: b.check_in,
-    checkOut: b.check_out,
-    nights: b.nights,
-    adults: b.adults,
-    children: b.children,
-    status: b.status || "confirmed",
-    paymentStatus: b.payment_status || "unpaid",
-    totalAmount: b.total_amount,
-    source: b.source || "direct",
-    createdAt: b.created_at ?? null,
-    cancelledAt: b.cancelled_at ?? null,
-    hasConflict: false,
-    hasNotes: Boolean(b.special_requests?.trim() || b.internal_notes?.trim()),
-  });
-
-  const arrivalsList = (arrivalsRes.data || []).map(mapBooking);
-  const departuresList = (departuresRes.data || []).map(mapBooking);
-  const inHouseList = (inHouseBookingsRes.data || []).map(mapBooking);
-  const recordedList = (newBookingsRes.data || []).map(mapBooking);
-  const cancellationsList = (cancellationsRes.data || []).map(mapBooking);
-  const dateBookingsList = (dateBookingsRes.data || []).map(mapBooking);
-
-  const seen = new Set<string>();
-  const uniqueBookings = [...arrivalsList, ...departuresList].filter((b) => {
-    if (seen.has(b.id)) return false;
-    seen.add(b.id);
-    return true;
-  });
-
-  for (const b of inHouseList) {
-    if (!seen.has(b.id)) {
-      uniqueBookings.push(b);
-      seen.add(b.id);
-    }
-  }
-  for (const b of [...recordedList, ...cancellationsList, ...dateBookingsList]) {
-    if (!seen.has(b.id)) { uniqueBookings.push(b); seen.add(b.id); }
-  }
-
-  const stayovers = (dateBookingsRes.data || []).filter((b) => isCheckedInStayoverOnDate({ id: b.id, roomId: b.room_id, checkIn: b.check_in, checkOut: b.check_out, status: b.status }, dayStr)).length;
-  const inHouse = inHouseList.length;
-  const conflictIds = findOverlappingBookingIds((dateBookingsRes.data || []).map((b) => ({ id: b.id, roomId: b.room_id, checkIn: b.check_in, checkOut: b.check_out })));
-  for (const booking of uniqueBookings) booking.hasConflict = conflictIds.has(booking.id);
-  const overbookings = conflictIds.size;
-
-  const totalRevenueToday = todayPaymentsRes.data?.reduce((s: number, p) => s + (p.amount || 0), 0) || 0;
-  const roomNightsSold = uniqueBookings.reduce((s: number, b) => s + (b.nights || 1), 0);
-  const adrToday = roomNightsSold > 0 ? Math.round(totalRevenueToday / roomNightsSold) : 0;
-  const revparToday = activeRooms > 0 ? Math.round(totalRevenueToday / activeRooms) : 0;
-
-  return {
-    stats: {
-      arrivals: arrivalsRes.data?.length || 0,
-      uncheckedInArrivals: arrivalsRes.data?.filter((b) => b.status === "confirmed").length || 0,
-      departures: departuresRes.data?.length || 0,
-      pendingDepartures: departuresRes.data?.filter((b) => b.status !== "checked_out").length || 0,
-      inHouse,
-      stayovers,
-      newBookings: recordedList.length,
-      cancellations: cancellationsList.length,
-      overbookings,
-    },
-    bookings: uniqueBookings,
-    occupancy: {
-      percent: activeRooms > 0 ? Math.round((occupiedRooms / activeRooms) * 100) : 0,
-      totalRooms: activeRooms,
-      occupiedRooms,
-      availableRooms,
-      outOfService,
-      blocked,
-    },
-    quickStats: {
-      adr: adrToday,
-      revpar: revparToday,
-      totalRevenue: totalRevenueToday,
-      roomNightsSold,
-    },
-  };
-}
-
-type DashboardQueryData = Awaited<ReturnType<typeof fetchDashboardClientData>>;
-
 /** Optimistic-update rollback payload captured in onMutate. */
 interface MutationCtx {
   previousData?: DashboardQueryData;
   queryKey?: readonly unknown[];
 }
 
-export function DashboardClient({ hotelId, currency, hotelTimezone }: DashboardClientProps) {
+export function DashboardClient({ hotelId, currency, hotelTimezone, orgId: initialOrgId, initialDate }: DashboardClientProps) {
   const queryClient = useQueryClient();
-  const { orgId, userId } = useAuth();
+  const { orgId: liveOrgId, userId } = useAuth();
+  const orgId = initialOrgId || liveOrgId || "";
 
-  // Open on the property's business day, not the device's: a remote viewer in
-  // another timezone still lands on the hotel's current date. Constructing a
-  // device-local midnight keeps format(selectedDate, "yyyy-MM-dd") an exact
-  // round-trip of that date string.
-  const [selectedDate, setSelectedDate] = React.useState(() => new Date(`${businessToday(hotelTimezone)}T00:00:00`));
+  // Seed from the server-computed business day so the first-render query key
+  // matches the hydrated one exactly — no day-boundary hydration miss. A
+  // device-local midnight keeps format(selectedDate, "yyyy-MM-dd") a round-trip.
+  const [selectedDate, setSelectedDate] = React.useState(() => new Date(`${initialDate}T00:00:00`));
   const [activeTab, setActiveTab] = React.useState<ActivityTab>("arrivals");
   const [selectedBookingId, setSelectedBookingId] = React.useState<string | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
@@ -337,19 +97,38 @@ export function DashboardClient({ hotelId, currency, hotelTimezone }: DashboardC
   const {
     data,
     isLoading: loading,
+    isPlaceholderData: isDateSwitching,
     error: queryError,
     refetch,
   } = useQuery({
     queryKey: qk.dashboard(orgId || "", hotelId, dateParamStr),
     queryFn: () => {
       const supabase = createClient();
-      return fetchDashboardClientData(supabase, hotelId, dateParamStr, hotelTimezone);
+      return fetchDashboardData(supabase, hotelId, dateParamStr, hotelTimezone);
     },
     enabled: !!orgId,
+    // Keep the current day on screen while the next loads (no full skeleton).
+    placeholderData: keepPreviousData,
+    // A day revisited within 30s serves from cache without a refetch.
+    staleTime: 30_000,
     refetchInterval: 60000,
   });
 
   const error = queryError ? (queryError instanceof Error ? queryError.message : "Failed to load dashboard data") : null;
+
+  // Warm the neighbouring days so the ± chevron stepper resolves instantly.
+  React.useEffect(() => {
+    if (!orgId) return;
+    const supabase = createClient();
+    for (const offset of [-1, 1]) {
+      const day = format(addDays(selectedDate, offset), "yyyy-MM-dd");
+      queryClient.prefetchQuery({
+        queryKey: qk.dashboard(orgId, hotelId, day),
+        queryFn: () => fetchDashboardData(supabase, hotelId, day, hotelTimezone),
+        staleTime: 30_000,
+      });
+    }
+  }, [selectedDate, orgId, hotelId, hotelTimezone, queryClient]);
 
   React.useEffect(() => {
     if (!orgId) return;
@@ -365,7 +144,7 @@ export function DashboardClient({ hotelId, currency, hotelTimezone }: DashboardC
         () => refresh.schedule(() => {
           queryClient.invalidateQueries({ queryKey: qk.dashboard(orgId, hotelId, dateParamStr) });
           queryClient.invalidateQueries({
-            queryKey: qk.dashboard(orgId, hotelId, format(new Date(), "yyyy-MM-dd")),
+            queryKey: qk.dashboard(orgId, hotelId, businessToday(hotelTimezone)),
           });
         }),
       )
@@ -376,7 +155,7 @@ export function DashboardClient({ hotelId, currency, hotelTimezone }: DashboardC
       refresh.cancel();
       supabase.removeChannel(channel);
     };
-  }, [hotelId, orgId, queryClient, dateParamStr]);
+  }, [hotelId, orgId, queryClient, dateParamStr, hotelTimezone]);
 
   const handleBookingChanged = React.useCallback(() => {
     if (orgId) {
@@ -713,24 +492,35 @@ export function DashboardClient({ hotelId, currency, hotelTimezone }: DashboardC
       maxPullDownDistance={96}
       resistance={2.5}
     >
-    <div className="mx-auto max-w-[1600px] space-y-5 md:space-y-6">
-      {/* ── Mobile week strip ────────────────────────────────────── */}
+    <div
+      aria-busy={isDateSwitching}
+      className={cn(
+        "mx-auto max-w-[1600px] space-y-5 pt-1 transition-opacity duration-200 md:space-y-6",
+        isDateSwitching && "opacity-60"
+      )}
+    >
+      {/* ── Mobile week strip (phone only) ───────────────────────── */}
       <MobileWeekCalendar selectedDate={selectedDate} onDateChange={handleDateChange} />
 
       {/* ── Main 2-column grid ──────────────────────────────────── */}
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[270px_1fr] lg:gap-6">
-        {/* Left column */}
-        <div className="space-y-4 lg:space-y-6">
-          <DateCard selectedDate={selectedDate} onDateChange={handleDateChange} />
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[300px_1fr] lg:gap-6">
+        {/* Date + occupancy — mobile: occupancy only; tablet: side-by-side row; desktop: stacked column */}
+        <div className="flex flex-col gap-5 md:flex-row md:items-start md:gap-5 lg:block lg:space-y-6">
+          {/* Date card: hidden on phone (week strip covers it); equal half on tablet, full width on desktop */}
+          <div className="hidden md:block md:flex-1 lg:w-full">
+            <DateCard selectedDate={selectedDate} onDateChange={handleDateChange} />
+          </div>
 
-          <OccupancyCard
-            occupancyPercent={data.occupancy.percent}
-            availableUnits={data.occupancy.availableRooms}
-            bookedUnits={data.occupancy.occupiedRooms}
-            outOfService={data.occupancy.outOfService}
-            blockedDates={data.occupancy.blocked}
-            totalRooms={data.occupancy.totalRooms}
-          />
+          <div className="min-w-0 md:flex-1 lg:w-full">
+            <OccupancyCard
+              occupancyPercent={data.occupancy.percent}
+              availableUnits={data.occupancy.availableRooms}
+              bookedUnits={data.occupancy.occupiedRooms}
+              outOfService={data.occupancy.outOfService}
+              blockedDates={data.occupancy.blocked}
+              totalRooms={data.occupancy.totalRooms}
+            />
+          </div>
         </div>
 
         {/* Right column — activity */}
@@ -787,7 +577,7 @@ export function DashboardClient({ hotelId, currency, hotelTimezone }: DashboardC
                 className={cn(
                   "size-12 rounded-2xl flex items-center justify-center border shadow-xs transition-all",
                   earlyCheckinBooking
-                    ? "bg-blue-500/15 text-blue-600 border-blue-500/25"
+                    ? "bg-primary/15 text-primary border-primary/25"
                     : "bg-amber-500/15 text-amber-600 border-amber-500/25"
                 )}
               >
@@ -827,7 +617,7 @@ export function DashboardClient({ hotelId, currency, hotelTimezone }: DashboardC
                 className={cn(
                   "rounded-xl font-semibold px-5 h-10 text-white shadow-xs transition-all active:scale-[0.98] cursor-pointer",
                   earlyCheckinBooking
-                    ? "bg-blue-600 hover:bg-blue-700"
+                    ? "bg-primary hover:bg-[var(--accent-hover)]"
                     : "bg-amber-600 hover:bg-amber-700"
                 )}
               >
@@ -845,15 +635,20 @@ export function DashboardClient({ hotelId, currency, hotelTimezone }: DashboardC
 function DashboardSkeleton() {
   return (
     <div className="mx-auto max-w-[1600px] space-y-5 md:space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-[270px_1fr] gap-6">
-        <div className="space-y-6">
-          <Skeleton className="h-32 w-full rounded-xl" />
-          <Skeleton className="h-80 w-full rounded-xl" />
+      {/* 2-column body */}
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[300px_1fr] lg:gap-6">
+        <div className="space-y-4 lg:space-y-6">
+          <Skeleton className="h-24 w-full rounded-2xl" />
+          <div className="space-y-4 rounded-2xl border border-border/50 bg-card p-5 shadow-xs">
+            <Skeleton className="mx-auto aspect-square w-full max-w-[184px] rounded-full" />
+            <div className="space-y-2.5 pt-1">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-5 w-full rounded-md" />
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="space-y-4">
-          <Skeleton className="h-20 w-full rounded-xl" />
-          <Skeleton className="h-[400px] w-full rounded-xl" />
-        </div>
+        <Skeleton className="h-[480px] w-full rounded-2xl" />
       </div>
     </div>
   );
@@ -899,25 +694,25 @@ function MobileWeekCalendar({
   return (
     <div className="rounded-2xl border border-border/50 bg-card shadow-xs md:hidden">
       {/* Week range header with nav */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2">
+      <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
         <button
           type="button"
           onClick={goToPrevWeek}
           aria-label="Previous week"
-          className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+          className="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <span className="text-sm font-semibold text-foreground tracking-tight">
+        <span className="text-[13px] font-semibold text-foreground tracking-tight">
           {rangeLabel}
         </span>
         <button
           type="button"
           onClick={goToNextWeek}
           aria-label="Next week"
-          className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+          className="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -926,7 +721,7 @@ function MobileWeekCalendar({
       </div>
 
       {/* Day strip */}
-      <div className="grid grid-cols-7 gap-1 px-3 pb-3">
+      <div className="grid grid-cols-7 gap-0.5 px-2 pb-2.5">
         {weekDays.map((day) => {
           const isSel = startOfDay(day).getTime() === startOfDay(selectedDate).getTime();
           const isTod = isToday(day);
@@ -935,30 +730,28 @@ function MobileWeekCalendar({
               key={day.toISOString()}
               type="button"
               onClick={() => onDateChange(day)}
+              aria-pressed={isSel}
               className={cn(
-                "flex flex-col items-center gap-1 rounded-xl py-2 transition-all cursor-pointer",
+                "flex min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 outline-none transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-ring",
                 isSel
-                  ? "bg-foreground text-background shadow-sm"
+                  ? "bg-primary text-primary-foreground shadow-sm"
                   : isTod
-                    ? "bg-primary/10 text-primary"
+                    ? "text-primary ring-1 ring-inset ring-primary/30 hover:bg-primary/5"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
               <span className={cn(
-                "text-[11px] font-medium uppercase tracking-wide",
-                isSel ? "text-background/70" : isTod ? "text-primary/80" : "text-muted-foreground"
+                "text-[10px] font-medium uppercase tracking-wide",
+                isSel ? "text-primary-foreground/70" : isTod ? "text-primary/80" : "text-muted-foreground"
               )}>
                 {format(day, "EEE")}
               </span>
               <span className={cn(
-                "text-base font-bold tabular-nums leading-none",
-                isSel ? "text-background" : isTod ? "text-primary" : "text-foreground"
+                "text-[15px] font-bold tabular-nums leading-none",
+                isSel ? "text-primary-foreground" : isTod ? "text-primary" : "text-foreground"
               )}>
                 {format(day, "d")}
               </span>
-              {isTod && !isSel && (
-                <span className="mt-0.5 size-1 rounded-full bg-primary" />
-              )}
             </button>
           );
         })}

@@ -1,7 +1,7 @@
 "use client";
 
-import * as React from "react";
 import { Info } from "lucide-react";
+import { OccupancyDonut } from "./occupancy-donut";
 
 interface OccupancyCardProps {
   occupancyPercent: number;
@@ -10,63 +10,6 @@ interface OccupancyCardProps {
   outOfService: number;
   blockedDates: number;
   totalRooms: number;
-}
-
-function OccupancyDonut({ percent }: { percent: number }) {
-  const radius = 56;
-  const circumference = 2 * Math.PI * radius;
-  const filledLength = (percent / 100) * circumference;
-  const emptyLength = circumference - filledLength;
-
-  const [animatedOffset, setAnimatedOffset] = React.useState(circumference);
-  React.useEffect(() => {
-    const timer = setTimeout(() => setAnimatedOffset(emptyLength), 100);
-    return () => clearTimeout(timer);
-  }, [percent, emptyLength]);
-
-  const displayPercent = percent % 1 === 0 ? String(percent) : percent.toFixed(1);
-
-  return (
-    <div className="relative flex items-center justify-center py-2">
-      <svg
-        width="160"
-        height="160"
-        viewBox="0 0 130 130"
-        className="-rotate-90 transform"
-        role="img"
-        aria-label={`Night occupancy ${displayPercent} percent`}
-      >
-        <circle
-          cx="65"
-          cy="65"
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          className="text-muted/25"
-          strokeWidth="10"
-          strokeLinecap="round"
-        />
-        <circle
-          cx="65"
-          cy="65"
-          r={radius}
-          fill="none"
-          stroke="var(--primary)"
-          strokeWidth="10"
-          strokeLinecap="round"
-          strokeDasharray={`${filledLength} ${emptyLength}`}
-          strokeDashoffset={animatedOffset}
-          className="transition-all duration-1000 ease-out"
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="text-kpi-hero tabular-nums text-foreground">{displayPercent}%</span>
-        <span className="mt-0.5 text-xs font-semibold text-muted-foreground">
-          Night occupancy
-        </span>
-      </div>
-    </div>
-  );
 }
 
 export function OccupancyCard({
@@ -98,10 +41,10 @@ export function OccupancyCard({
 
       {/* Breakdown */}
       <div className="space-y-2.5 border-t border-border/40 pt-3 text-sm">
-        <Row count={availableUnits} label="Available tonight" dot="bg-emerald-500" info="Units free for the selected night after departures" />
-        <Row count={bookedUnits} label="Booked tonight" dot="bg-primary" />
-        <Row count={outOfService} label="Out of service" dot="bg-amber-500" />
-        <Row count={blockedDates} label="Blocked dates" dot="bg-slate-400" />
+        <Row count={Math.max(0, availableUnits)} label="Available tonight" dot="bg-emerald-500" info="Units free for the selected night after departures" />
+        <Row count={Math.max(0, bookedUnits)} label="Booked tonight" dot="bg-primary" />
+        <Row count={Math.max(0, outOfService)} label="Out of service" dot="bg-amber-500" />
+        <Row count={Math.max(0, blockedDates)} label="Blocked dates" dot="bg-slate-400" />
       </div>
     </div>
   );

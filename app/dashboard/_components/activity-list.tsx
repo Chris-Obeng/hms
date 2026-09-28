@@ -12,7 +12,7 @@ import { MorphIcon, type IconInput } from "morphicons/react";
 import { AlertDialog, Button, Dropdown, Skeleton } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
-import { formatDate, getNights } from "@/lib/format";
+import { formatDate, getNights, getInitials } from "@/lib/format";
 import { getStatusLabel } from "@/lib/booking-status";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -283,9 +283,7 @@ function DesktopBookingRow({
 }: { booking: ActivityBooking } & RowHandlers) {
   const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
   const totalGuests = (booking.adults || 1) + (booking.children || 0);
-  const roomLabel = booking.roomNumber
-    ? `Room ${booking.roomNumber}`
-    : booking.roomType || "Unassigned";
+  const room = roomLabel(booking.roomNumber, booking.roomType);
 
   return (
     <tr
@@ -294,26 +292,29 @@ function DesktopBookingRow({
     >
       {/* Guest */}
       <td className="px-6 py-3.5 align-top">
-        <div className="flex flex-col">
-          <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            <span className="truncate">{booking.guestName}</span>
-            {booking.hasNotes && (
-              <MessageSquareText
-                className="size-3.5 shrink-0 text-amber-500"
-                aria-label="Booking has notes or special requests"
-              />
-            )}
-          </span>
-          <span className="mt-0.5 font-mono text-[11px] text-muted-foreground/60">
-            {booking.reference}
-          </span>
+        <div className="flex items-center gap-3">
+          <GuestAvatar name={booking.guestName} />
+          <div className="flex min-w-0 flex-col">
+            <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <span className="truncate">{booking.guestName}</span>
+              {booking.hasNotes && (
+                <MessageSquareText
+                  className="size-3.5 shrink-0 text-amber-500"
+                  aria-label="Booking has notes or special requests"
+                />
+              )}
+            </span>
+            <span className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
+              {booking.reference}
+            </span>
+          </div>
         </div>
       </td>
 
       {/* Accommodation */}
       <td className="px-4 py-3.5 align-top">
         <span className="flex items-center gap-1 text-sm font-medium text-foreground">
-          {roomLabel}
+          {room}
           <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground/60" />
         </span>
         {!booking.roomNumber && booking.roomType && (
@@ -329,7 +330,7 @@ function DesktopBookingRow({
           </div>
           <div className="flex items-center gap-3 font-mono text-xs tabular-nums text-muted-foreground">
             <span>{nights}n</span>
-            <span>{totalGuests} guests</span>
+            <span>{totalGuests} {totalGuests === 1 ? "guest" : "guests"}</span>
           </div>
         </div>
       </td>
@@ -351,7 +352,7 @@ function DesktopBookingRow({
           )}
           {booking.status === "confirmed" && onCheckIn ? (
             <SplitAction
-              tone="emerald"
+              tone="primary"
               mainLabel="Check-in"
               onMain={(e) => {
                 e.stopPropagation();
@@ -364,7 +365,7 @@ function DesktopBookingRow({
             />
           ) : booking.status === "checked_in" && onCheckOut ? (
             <SplitAction
-              tone="indigo"
+              tone="neutral"
               mainLabel="Check-out"
               onMain={(e) => {
                 e.stopPropagation();
@@ -395,29 +396,32 @@ function MobileBookingRow({
       className="cursor-pointer space-y-2.5 rounded-2xl border border-border/50 bg-card p-4 shadow-xs transition-colors active:bg-muted/30"
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <span
-            className={cn(
-              "mb-1 block text-[10px] font-bold uppercase tracking-wide",
-              statusTextTone(booking.status)
-            )}
-          >
-            {getStatusLabel(booking.status ?? "")}
-          </span>
-          <span className="flex items-center gap-1.5 text-base font-semibold text-foreground">
-            <span className="truncate">{booking.guestName}</span>
-            {booking.hasNotes && (
-              <MessageSquareText
-                className="size-3.5 shrink-0 text-amber-500"
-                aria-label="Booking has notes"
-              />
-            )}
-          </span>
+        <div className="flex min-w-0 items-center gap-3">
+          <GuestAvatar name={booking.guestName} />
+          <div className="min-w-0">
+            <span
+              className={cn(
+                "mb-0.5 block text-[10px] font-bold uppercase tracking-wide",
+                statusTextTone(booking.status)
+              )}
+            >
+              {getStatusLabel(booking.status ?? "")}
+            </span>
+            <span className="flex items-center gap-1.5 text-base font-semibold text-foreground">
+              <span className="truncate">{booking.guestName}</span>
+              {booking.hasNotes && (
+                <MessageSquareText
+                  className="size-3.5 shrink-0 text-amber-500"
+                  aria-label="Booking has notes"
+                />
+              )}
+            </span>
+          </div>
         </div>
-        <span className="font-mono text-xs text-muted-foreground">{booking.reference}</span>
+        <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{booking.reference}</span>
       </div>
       <div className="text-xs tabular-nums text-muted-foreground">
-        {booking.roomNumber ? `Room ${booking.roomNumber}` : booking.roomType || "Unassigned"}
+        {roomLabel(booking.roomNumber, booking.roomType)}
         {" · "}
         {formatDate(booking.checkIn, "dd MMM")} – {formatDate(booking.checkOut, "dd MMM")}
       </div>
@@ -437,7 +441,7 @@ function MobileBookingRow({
             <Button
               size="sm"
               onPress={() => onCheckIn(booking.id)}
-              className="h-9 flex-1 rounded-xl bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700"
+              className="h-9 flex-1 rounded-xl bg-primary text-xs font-semibold text-primary-foreground hover:bg-[var(--accent-hover)]"
             >
               Check-in
             </Button>
@@ -481,6 +485,27 @@ function MobileBookingRow({
 
 // ── Shared bits ────────────────────────────────────────────────────
 
+/** "room 2"/"Room2"/"RM 2" → "Room 2", "204" → "Room 204"; never doubles "Room". */
+function roomLabel(roomNumber?: string | null, roomType?: string | null): string {
+  if (roomNumber) {
+    const cleaned = roomNumber.replace(/^\s*(?:room|rm)\.?\s*/i, "").trim();
+    return cleaned ? `Room ${cleaned}` : "Room";
+  }
+  return roomType || "Unassigned";
+}
+
+/** Neutral initials circle — matches the app-wide guest avatar pattern. */
+function GuestAvatar({ name }: { name: string }) {
+  return (
+    <span
+      aria-hidden
+      className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground"
+    >
+      {getInitials(name)}
+    </span>
+  );
+}
+
 function SplitAction({
   mainLabel,
   tone,
@@ -488,13 +513,13 @@ function SplitAction({
   items,
 }: {
   mainLabel: string;
-  tone: "emerald" | "indigo";
+  tone: "primary" | "neutral";
   onMain: (e: React.MouseEvent) => void;
   items?: Array<{ key: string; label: string; onSelect: () => void }>;
 }) {
   const tones = {
-    emerald: "border-emerald-600 bg-emerald-600 hover:bg-emerald-700",
-    indigo: "border-slate-800 bg-slate-800 hover:bg-slate-900",
+    primary: "border-primary bg-primary hover:bg-[var(--accent-hover)]",
+    neutral: "border-foreground bg-foreground hover:bg-foreground/90",
   };
   return (
     <div
@@ -555,14 +580,12 @@ function chipTone(status: string): string {
   switch (status) {
     case "checked_in":
       return "bg-emerald-500/10 text-emerald-700 ring-emerald-500/25";
-    case "confirmed":
-      return "bg-sky-500/10 text-sky-700 ring-sky-500/25";
     case "pending":
-      return "bg-violet-500/10 text-violet-700 ring-violet-500/25";
+      return "bg-amber-500/10 text-amber-700 ring-amber-500/25";
     case "cancelled":
       return "bg-red-500/10 text-red-600 ring-red-500/25";
+    case "confirmed":
     case "no_show":
-      return "bg-rose-500/10 text-rose-600 ring-rose-500/25";
     default:
       return "bg-muted text-muted-foreground ring-border";
   }
@@ -572,10 +595,9 @@ function statusTextTone(status: string): string {
   switch (status) {
     case "checked_in":
       return "text-emerald-600";
-    case "confirmed":
-      return "text-sky-600";
+    case "pending":
+      return "text-amber-600";
     case "cancelled":
-    case "no_show":
       return "text-red-500";
     default:
       return "text-muted-foreground";

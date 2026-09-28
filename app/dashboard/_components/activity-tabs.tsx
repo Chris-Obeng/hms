@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2, KeyRound, MoonStar, PlusCircle, UserRound, XOctagon } from "lucide-react";
+import { ScrollShadow } from "@heroui/react";
 import { cn } from "@/lib/utils";
 
 export type ActivityTab =
@@ -17,17 +17,7 @@ export interface ActivityTabData {
   label: string;
   count: number;
   remaining?: number;
-  icon?: React.ComponentType<{ className?: string }>;
 }
-
-const TAB_ICONS: Record<ActivityTab, React.ComponentType<{ className?: string }>> = {
-  arrivals: KeyRound,
-  departures: CheckCircle2,
-  in_house: UserRound,
-  bookings: PlusCircle,
-  cancellations: XOctagon,
-  overbookings: MoonStar,
-};
 
 interface ActivityTabsProps {
   tabs: ActivityTabData[];
@@ -35,66 +25,64 @@ interface ActivityTabsProps {
   onTabChange: (tab: ActivityTab) => void;
 }
 
+/**
+ * Segmented filter bar. A muted track holds text+count pills; the active
+ * segment lifts to an elevated card chip (iOS-style). Overflow scrolls
+ * horizontally with faded edges rather than wrapping or crushing.
+ */
 export function ActivityTabs({ tabs, activeTab, onTabChange }: ActivityTabsProps) {
   return (
-    <div className="grid grid-cols-2 gap-2 overflow-x-auto border-b border-border/40 bg-muted/[0.18] p-3 sm:grid-cols-3 lg:grid-cols-6">
-      {tabs.map((tab) => {
-        const isActive = activeTab === tab.key;
-        const Icon = TAB_ICONS[tab.key];
-        const showDue =
-          typeof tab.remaining === "number" &&
-          tab.remaining > 0 &&
-          tab.remaining !== tab.count;
+    <div className="border-b border-border/40 bg-muted/[0.15]">
+      <ScrollShadow orientation="horizontal" hideScrollBar className="px-2 py-2">
+        <div role="group" aria-label="Activity filter" className="flex items-center gap-1">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.key;
+            const isZero = tab.count === 0;
+            const showDue =
+              typeof tab.remaining === "number" &&
+              tab.remaining > 0 &&
+              tab.remaining !== tab.count;
 
-        return (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => onTabChange(tab.key)}
-            aria-pressed={isActive}
-            className={cn(
-              "flex min-w-0 cursor-pointer flex-col justify-between gap-1 rounded-xl border p-2.5 text-left outline-none transition-all duration-150",
-              "min-h-[68px] focus-visible:ring-2 focus-visible:ring-ring",
-              isActive
-                ? "border-primary/30 bg-primary/[0.07] shadow-xs ring-1 ring-primary/20"
-                : "border-border/40 bg-card hover:border-border hover:bg-accent/40"
-            )}
-          >
-            <div className="flex w-full items-center justify-between gap-1.5">
-              <span
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                aria-pressed={isActive}
+                onClick={() => onTabChange(tab.key)}
                 className={cn(
-                  "text-xl font-bold leading-none tabular-nums",
-                  isActive ? "text-primary" : "text-foreground/85"
+                  "inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium whitespace-nowrap outline-none transition-all duration-150",
+                  "focus-visible:ring-2 focus-visible:ring-ring",
+                  isActive
+                    ? "bg-card text-foreground shadow-sm ring-1 ring-border/60"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                 )}
               >
-                {tab.count}
-              </span>
-              <Icon
-                className={cn(
-                  "size-3.5 shrink-0",
-                  isActive ? "text-primary" : "text-muted-foreground/50"
-                )}
-              />
-            </div>
-
-            <div className="flex w-full items-center justify-between gap-1">
-              <span
-                className={cn(
-                  "truncate text-xs font-semibold",
-                  isActive ? "text-foreground" : "text-muted-foreground"
-                )}
-              >
-                {tab.label}
-              </span>
-              {showDue && (
-                <span className="shrink-0 rounded-full bg-amber-500/15 px-1.5 py-px text-[10px] font-bold tabular-nums text-amber-700">
-                  {tab.remaining}
+                <span className={cn(!isActive && isZero && "opacity-50")}>{tab.label}</span>
+                <span
+                  className={cn(
+                    "inline-flex min-w-[1.375rem] justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums leading-none",
+                    isActive
+                      ? "bg-primary/12 text-primary"
+                      : isZero
+                        ? "text-muted-foreground/50"
+                        : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {tab.count}
                 </span>
-              )}
-            </div>
-          </button>
-        );
-      })}
+                {showDue && (
+                  <span
+                    aria-label={`${tab.remaining} pending`}
+                    className="inline-flex items-center rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none text-amber-700"
+                  >
+                    {tab.remaining}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </ScrollShadow>
     </div>
   );
 }

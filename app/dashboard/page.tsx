@@ -1,8 +1,13 @@
 import { auth } from "@clerk/nextjs/server";
+import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/server";
+import { qk } from "@/lib/query-keys";
+import { businessToday } from "@/lib/business-date";
+import { fetchDashboardData } from "@/lib/dashboard/fetch-dashboard-data";
 import { DashboardClient } from "./dashboard-client";
+
 export default async function DashboardHomePage() {
-  const { orgId } = await auth();
+  const { orgId, getToken } = await auth();
   const supabase = await createClient();
 
   if (!orgId) {
@@ -20,7 +25,36 @@ export default async function DashboardHomePage() {
     return <NoHotelState />;
   }
 
-  return <DashboardClient hotelId={hotel.id} hotelName={hotel.name} currency={hotel.currency || "GHS"} hotelTimezone={hotel.timezone || "UTC"} />;
+  const timezone = hotel.timezone || "UTC";
+  const dateStr = businessToday(timezone);
+
+  // Prefetch today's board on the server so the client hydrates with data on
+  // first paint — no skeleton, no client fetch waterfall. Failure is non-fatal.
+  const queryClient = new QueryClient();
+  // Prefetch only with a valid Supabase RLS token; without it the server client
+  // is anon and would dehydrate an empty board the client won't refetch.
+  const rlsToken = getToken ? await getToken({ template: "supabase" }).catch(() => null) : null;
+  if (rlsToken) {
+    await queryClient
+      .prefetchQuery({
+        queryKey: qk.dashboard(orgId, hotel.id, dateStr),
+        queryFn: () => fetchDashboardData(supabase, hotel.id, dateStr, timezone),
+      })
+      .catch(() => {});
+  }
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <DashboardClient
+        orgId={orgId}
+        hotelId={hotel.id}
+        hotelName={hotel.name}
+        currency={hotel.currency || "GHS"}
+        hotelTimezone={timezone}
+        initialDate={dateStr}
+      />
+    </HydrationBoundary>
+  );
 }
 
 function NoHotelState() {
