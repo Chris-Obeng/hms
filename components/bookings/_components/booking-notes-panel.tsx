@@ -45,7 +45,18 @@ export function BookingNotesPanel({ booking, onRefresh }: BookingNotesPanelProps
     <AccordionSection
       id="notes"
       icon={<StickyNote className="size-4 shrink-0 text-muted-foreground" />}
-      title="Notes & requests"
+      title={
+        <span className="flex items-center gap-1.5">
+          {"Notes & requests"}
+          {/* amber = staff/internal note, neutral = guest request */}
+          {booking.internalNotes ? (
+            <span aria-hidden className="size-1.5 rounded-full bg-amber-600" />
+          ) : null}
+          {booking.specialRequests ? (
+            <span aria-hidden className="size-1.5 rounded-full bg-muted-foreground/50" />
+          ) : null}
+        </span>
+      }
       bodyClassName="space-y-4"
     >
       {/* Guest requests — read-only */}

@@ -166,9 +166,8 @@ function ActionButton({
       isPending={isLoading}
       className={cn(
         "h-10 rounded-xl px-4 text-[13px] font-semibold transition-colors active:scale-[0.98]",
-        variant === "primary"
-          ? "bg-foreground text-background hover:bg-foreground/90"
-          : "border-border/70 bg-background text-foreground hover:bg-muted/60"
+        variant === "outline" &&
+          "border-border/70 bg-background text-foreground hover:bg-muted/60"
       )}
     >
       {isLoading ? loadingLabel : (

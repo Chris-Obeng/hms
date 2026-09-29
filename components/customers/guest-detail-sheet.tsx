@@ -15,10 +15,11 @@ import {
   CalendarX2,
   BedDouble,
 } from "lucide-react";
-import { Accordion, Button, Drawer, Input, Skeleton, Tabs, toast } from "@heroui/react";
+import { Accordion, Button, Drawer, Input, ScrollShadow, Skeleton, Tabs, toast } from "@heroui/react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AccordionSection } from "@/components/ui/accordion-section";
+import { SegmentedTab } from "@/components/ui/segmented-tab";
 import { ContactEmpty, ContactLink, ContactStatic } from "@/components/ui/contact-row";
 import { MiniStat } from "@/components/ui/mini-stat";
 import { NotesEditor } from "@/components/ui/notes-editor";
@@ -37,6 +38,7 @@ import {
   updateGuestContact,
   type GuestBookingSummary,
 } from "@/app/actions/customers";
+import { takeGuestBookings } from "@/lib/detail-prefetch";
 import type { GuestRow } from "@/components/customers/customers-table";
 
 const SUGGESTED_TAGS = ["vip", "regular", "flagged", "corporate", "new", "returning"];
@@ -83,10 +85,11 @@ export function GuestDetailSheet({
   const [savingTags, setSavingTags] = React.useState(false);
 
   // Fetch bookings when the sheet opens. Loading is derived (open && bookings === null).
+  // Consume a hover-warmed promise when one exists, else fetch on open.
   React.useEffect(() => {
     if (!open || bookings !== null) return;
     let cancelled = false;
-    getGuestBookings(guest.id)
+    (takeGuestBookings(guest.id) ?? getGuestBookings(guest.id))
       .then((result) => {
         if (cancelled) return;
         setBookings(result.success ? result.data : []);
@@ -237,7 +240,7 @@ export function GuestDetailSheet({
           className="
             flex w-full flex-col overflow-hidden rounded-t-3xl bg-background p-0 shadow-[0_-24px_80px_rgb(0_0_0/0.35)]
             h-[min(94dvh,56rem)] max-h-[94dvh]
-            md:h-dvh md:max-h-dvh md:w-[min(32rem,100vw)] md:rounded-none
+            md:h-dvh md:max-h-dvh md:w-[min(28rem,100vw)] md:rounded-none
             md:border-l md:border-border/60 md:shadow-[-32px_0_90px_rgb(0_0_0/0.16)]
           "
         >
@@ -293,7 +296,7 @@ export function GuestDetailSheet({
             defaultSelectedKey="overview"
             className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
           >
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <ScrollShadow hideScrollBar className="min-h-0 flex-1 overscroll-contain">
               <Tabs.ListContainer className="sticky top-0 z-10 border-b border-border/40 bg-background/95 px-4 py-2 backdrop-blur-md sm:px-5">
                 <Tabs.List aria-label="Guest sections" className="grid w-full grid-cols-2">
                   <SegmentedTab id="overview">Overview</SegmentedTab>
@@ -332,7 +335,7 @@ export function GuestDetailSheet({
                 <Accordion
                   variant="surface"
                   allowsMultipleExpanded
-                  defaultExpandedKeys={["contact", "notes"]}
+                  defaultExpandedKeys={["contact"]}
                   className="w-full"
                 >
                 {/* ── Contact ── */}
@@ -514,7 +517,14 @@ export function GuestDetailSheet({
                 <AccordionSection
                   id="notes"
                   icon={<StickyNote aria-hidden className="size-4 shrink-0 text-muted-foreground" />}
-                  title="Notes"
+                  title={
+                    <span className="flex items-center gap-1.5">
+                      Notes
+                      {guest.notes ? (
+                        <span aria-hidden className="size-1.5 rounded-full bg-amber-600" />
+                      ) : null}
+                    </span>
+                  }
                 >
                   {editingNotes ? (
                     <NotesEditor
@@ -560,39 +570,13 @@ export function GuestDetailSheet({
             <Tabs.Panel id="bookings" className="px-4 py-4 sm:px-5">
               <BookingHistory open={open} bookings={bookings} currency={currency} />
             </Tabs.Panel>
-            </div>
+            </ScrollShadow>
           </Tabs>
         </Drawer.Dialog>
       </Drawer.Content>
     </Drawer.Backdrop>
   );
 }
-// ── Segmented-control style tab trigger ────────────────────────────
-
-function SegmentedTab({
-  id,
-  children,
-}: {
-  id: "overview" | "bookings";
-  children: React.ReactNode;
-}) {
-  return (
-    <Tabs.Tab
-      id={id}
-      className="
-        flex h-9 cursor-pointer items-center justify-center rounded-lg px-3 text-[13px]
-        font-semibold text-muted-foreground outline-none transition-colors
-        data-[hovered=true]:text-foreground
-        data-[selected=true]:bg-background data-[selected=true]:text-foreground
-        data-[selected=true]:shadow-sm data-[selected=true]:ring-1 data-[selected=true]:ring-border/70
-        focus-visible:ring-2 focus-visible:ring-ring
-      "
-    >
-      {children}
-    </Tabs.Tab>
-  );
-}
-
 // ── Contact edit field ─────────────────────────────────────────────
 
 function ContactField({
@@ -657,9 +641,10 @@ function EditActions({
       </Button>
       <Button
         size="sm"
+        variant="primary"
         onPress={onSave}
         isPending={saving}
-        className="h-8 rounded-lg bg-foreground text-xs font-semibold text-background hover:bg-foreground/90"
+        className="h-8 rounded-lg text-xs font-semibold"
       >
         {saving ? "Saving…" : "Save"}
       </Button>

@@ -250,28 +250,26 @@ export async function getFullBookingDetail(
       .map((p) => p.recorded_by)
       .filter(Boolean) as string[];
 
+    // One lookup for both roles: payment "recorded_by" and the booking creator
+    // share staff_profiles, so a single .in() replaces two round-trips.
+    const staffIds = new Set(recordedByIds);
+    if (booking.created_by) staffIds.add(booking.created_by);
+
     const staffMap = new Map<string, string>();
-    if (recordedByIds.length > 0) {
+    if (staffIds.size > 0) {
       const { data: staff } = await supabase
         .from("staff_profiles")
         .select("id, full_name")
-        .in("id", recordedByIds);
+        .in("id", [...staffIds]);
 
       for (const s of staff || []) {
         if (s.full_name) staffMap.set(s.id, s.full_name);
       }
     }
 
-    // Resolve created_by name
-    let createdByName: string | null = null;
-    if (booking.created_by) {
-      const { data: creator } = await supabase
-        .from("staff_profiles")
-        .select("full_name")
-        .eq("id", booking.created_by)
-        .single();
-      createdByName = creator?.full_name || null;
-    }
+    const createdByName = booking.created_by
+      ? staffMap.get(booking.created_by) ?? null
+      : null;
 
     // Per-line attribution so a group's split payment rows aren't opaque dupes.
     const lineMeta = new Map<string, { reference: string; roomLabel: string | null }>();

@@ -1,14 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Accordion, Drawer, Skeleton, Tabs, toast } from "@heroui/react";
+import { Accordion, Drawer, ScrollShadow, Skeleton, Tabs, toast } from "@heroui/react";
 import { CalendarX2 } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
+import { SegmentedTab } from "@/components/ui/segmented-tab";
 import {
   getFullBookingDetail,
   type FullBookingDetail,
 } from "@/app/actions/bookings-detail";
+import { takeBookingDetail } from "@/lib/detail-prefetch";
 
 import { BookingStatusPill, ReferenceChip } from "./_components/booking-status-pill";
 import { BookingPanelBoundary } from "./_components/booking-panel-boundary";
@@ -29,8 +31,6 @@ interface BookingDetailDrawerProps {
   onBookingChanged?: () => void;
 }
 
-type DetailTab = "overview" | "payments";
-
 // ── Main Component ─────────────────────────────────────────────────
 
 export function BookingDetailDrawer({
@@ -47,34 +47,40 @@ export function BookingDetailDrawer({
   const [actionLoading, setActionLoading] = React.useState<string | null>(null);
   const requestIdRef = React.useRef(0);
 
-  // Fetch booking detail when opened
-  const fetchBooking = React.useCallback(async () => {
-    if (!bookingId) return;
-    const requestId = ++requestIdRef.current;
-    setLoading(true);
-    try {
-      const result = await getFullBookingDetail(bookingId);
-      if (requestId !== requestIdRef.current) return; // stale response
-      if (result.success) {
-        setBooking(result.booking);
-      } else {
-        setBooking(null);
-        toast.danger(result.error || "Failed to load reservation details");
+  // Fetch booking detail when opened. On the initial open we consume a
+  // hover-warmed promise if one exists; refreshes after a mutation always
+  // hit the server so post-write data is never stale.
+  const fetchBooking = React.useCallback(
+    async (preferCache = false) => {
+      if (!bookingId) return;
+      const requestId = ++requestIdRef.current;
+      setLoading(true);
+      try {
+        const warmed = preferCache ? takeBookingDetail(bookingId) : undefined;
+        const result = await (warmed ?? getFullBookingDetail(bookingId));
+        if (requestId !== requestIdRef.current) return; // stale response
+        if (result.success) {
+          setBooking(result.booking);
+        } else {
+          setBooking(null);
+          toast.danger(result.error || "Failed to load reservation details");
+        }
+      } catch {
+        if (requestId === requestIdRef.current) {
+          setBooking(null);
+          toast.danger("Failed to load reservation details");
+        }
+      } finally {
+        if (requestId === requestIdRef.current) setLoading(false);
       }
-    } catch {
-      if (requestId === requestIdRef.current) {
-        setBooking(null);
-        toast.danger("Failed to load reservation details");
-      }
-    } finally {
-      if (requestId === requestIdRef.current) setLoading(false);
-    }
-  }, [bookingId]);
+    },
+    [bookingId]
+  );
 
   React.useEffect(() => {
     if (open && bookingId) {
       const frame = window.requestAnimationFrame(() => {
-        void fetchBooking();
+        void fetchBooking(true);
       });
       return () => window.cancelAnimationFrame(frame);
     }
@@ -148,7 +154,7 @@ export function BookingDetailDrawer({
           className={`
             flex w-full flex-col overflow-hidden rounded-t-3xl bg-background p-0 shadow-[0_-24px_80px_rgb(0_0_0/0.35)]
             h-[min(94dvh,56rem)] max-h-[94dvh]
-            md:h-dvh md:max-h-dvh md:w-[min(26rem,100vw)] md:rounded-none
+            md:h-dvh md:max-h-dvh md:w-[min(28rem,100vw)] md:rounded-none
             md:border-l md:border-border/60 md:shadow-[-32px_0_90px_rgb(0_0_0/0.16)]
           `}
         >
@@ -203,7 +209,7 @@ export function BookingDetailDrawer({
                 defaultSelectedKey={initialTab}
                 className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
               >
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                <ScrollShadow hideScrollBar className="min-h-0 flex-1 overscroll-contain">
                   <Tabs.ListContainer className="sticky top-0 z-10 border-b border-border/40 bg-background/95 px-4 py-2 backdrop-blur-md sm:px-5">
                     <Tabs.List aria-label="Reservation sections" className="grid w-full grid-cols-2">
                       <SegmentedTab id="overview">Overview</SegmentedTab>
@@ -218,11 +224,11 @@ export function BookingDetailDrawer({
                         <Accordion
                           variant="surface"
                           allowsMultipleExpanded
-                          defaultExpandedKeys={["guest", "notes"]}
+                          defaultExpandedKeys={["guest"]}
                           className="w-full"
                         >
                           <BookingGuestPanel booking={booking} />
-                          <BookingNotesPanel booking={booking} onRefresh={fetchBooking} />
+                          <BookingNotesPanel booking={booking} onRefresh={() => fetchBooking()} />
                         </Accordion>
                       </div>
                     </Tabs.Panel>
@@ -234,11 +240,11 @@ export function BookingDetailDrawer({
                         booking={booking}
                         currency={booking.currency ?? currency}
                         onBookingChanged={onBookingChanged}
-                        onRefresh={fetchBooking}
+                        onRefresh={() => fetchBooking()}
                       />
                     </Tabs.Panel>
                   </BookingPanelBoundary>
-                </div>
+                </ScrollShadow>
               </Tabs>
 
               {/* Safe-area spacer on phones */}
@@ -263,31 +269,6 @@ export function BookingDetailDrawer({
         </Drawer.Dialog>
       </Drawer.Content>
     </Drawer.Backdrop>
-  );
-}
-
-// ── Segmented-control style tab trigger ────────────────────────────
-
-function SegmentedTab({
-  id,
-  children,
-}: {
-  id: DetailTab;
-  children: React.ReactNode;
-}) {
-  return (
-    <Tabs.Tab
-      id={id}
-      className="
-        h-9 cursor-pointer rounded-lg px-3 text-[13px] font-semibold text-muted-foreground
-        outline-none transition-colors data-[hovered=true]:text-foreground
-        data-[selected=true]:bg-background data-[selected=true]:text-foreground
-        data-[selected=true]:shadow-sm data-[selected=true]:ring-1 data-[selected=true]:ring-border/70
-        focus-visible:ring-2 focus-visible:ring-ring
-      "
-    >
-      {children}
-    </Tabs.Tab>
   );
 }
 

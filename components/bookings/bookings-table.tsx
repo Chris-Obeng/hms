@@ -32,6 +32,7 @@ import {
   type ReservationFilterState,
 } from "@/components/bookings/reservation-filters";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
+import { prefetchBookingDetail } from "@/lib/detail-prefetch";
 import { createClient } from "@/lib/supabase/client";
 import { onRealtimeStatus } from "@/lib/observability/realtime";
 import { createCoalescer } from "@/lib/realtime/coalesce";
@@ -123,6 +124,8 @@ function ReservationCard({
       tabIndex={0}
       onClick={() => onViewDetails(row.id)}
       onKeyDown={(e) => e.key === "Enter" && onViewDetails(row.id)}
+      onPointerEnter={() => prefetchBookingDetail(row.id)}
+      onFocus={() => prefetchBookingDetail(row.id)}
       className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm transition-all duration-150 hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="flex items-start justify-between gap-2">
@@ -538,6 +541,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
                     id={row.id}
                     className="cursor-pointer"
                     onAction={() => handleViewDetails(row.original.id)}
+                    onHoverStart={() => prefetchBookingDetail(row.original.id)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <Table.Cell key={cell.id} className={HIDDEN_COLUMNS.has(cell.column.id) ? "hidden" : undefined}>

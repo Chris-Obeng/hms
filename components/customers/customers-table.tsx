@@ -26,6 +26,7 @@ import {
   type FilterFieldConfig,
 } from "@/components/ui/entity-filters";
 import { GuestDetailSheet } from "@/components/customers/guest-detail-sheet";
+import { prefetchGuestBookings } from "@/lib/detail-prefetch";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -116,6 +117,8 @@ function GuestCard({
           onSelect(guest);
         }
       }}
+      onPointerEnter={() => prefetchGuestBookings(guest.id)}
+      onFocus={() => prefetchGuestBookings(guest.id)}
       className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 text-left shadow-sm transition-all duration-150 hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:bg-muted/40"
     >
       <div className="flex items-center gap-3">
@@ -522,6 +525,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
                     id={row.id}
                     className="cursor-pointer"
                     onAction={() => handleGuestClick(row.original)}
+                    onHoverStart={() => prefetchGuestBookings(row.original.id)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <Table.Cell key={cell.id}>

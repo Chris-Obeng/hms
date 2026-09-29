@@ -312,7 +312,7 @@ export function BookingPaymentsPanel({
               size="sm"
               isPending={savingPayment}
               isDisabled={!paymentAmount || Number(paymentAmount) <= 0 || (!!group && !selectedLineId)}
-              className="h-9 rounded-xl bg-foreground px-4 text-xs font-semibold text-background hover:bg-foreground/90 active:scale-[0.98]"
+              className="h-9 rounded-xl bg-amber-700 px-4 text-xs font-semibold text-white hover:bg-amber-800 active:scale-[0.98]"
             >
               {savingPayment ? "Recording…" : "Record payment"}
             </Button>
@@ -324,9 +324,9 @@ export function BookingPaymentsPanel({
           <Button
             variant="outline"
             onPress={openPaymentForm}
-            className="h-11 w-full rounded-xl border-border/70 bg-background text-[13px] font-semibold text-foreground shadow-xs transition-colors hover:border-foreground/30 hover:bg-muted/40 active:scale-[0.99]"
+            className="h-11 w-full rounded-xl border-amber-500/40 bg-amber-500/[0.04] text-[13px] font-semibold text-amber-700 shadow-xs transition-colors hover:border-amber-500/60 hover:bg-amber-500/10 active:scale-[0.99]"
           >
-            <BanknoteArrowUp className="size-4 text-foreground" />
+            <BanknoteArrowUp className="size-4 text-amber-600" />
             Take payment
           </Button>
         )
