@@ -11,4 +11,7 @@ export const qk = {
   pricingSeasons: (orgId: string, hotelId: string) => ['pricing', 'seasons', orgId, hotelId] as const,
   pricingResolved: (orgId: string, hotelId: string, roomTypeIds: string[], startDate: string, endDate: string) => ['pricing', 'resolved', orgId, hotelId, roomTypeIds, startDate, endDate] as const,
   pricingOccupancy: (orgId: string, hotelId: string, startDate: string, endDate: string) => ['pricing', 'occupancy', orgId, hotelId, startDate, endDate] as const,
+  // Detail caches — single source for drawer instant-open (SSR warm → idle → viewport → hover)
+  bookingDetail: (id: string) => ['bookingDetail', id] as const,
+  guestBookings: (id: string) => ['guestBookings', id] as const,
 };
