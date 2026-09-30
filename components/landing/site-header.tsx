@@ -1,78 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { Reveal } from "@/components/landing/reveal";
+import { ArrowRight, Menu, X } from "lucide-react";
+import { Button } from "@heroui/react";
+import { Logo } from "./logo";
 
-/*
- * Sticky, minimal, ivory. Logo + five links + one CTA. The hairline
- * appears only once the page has scrolled and there is content to divide.
- */
-
-const NAV_ITEMS = [
-  { href: "#problem", label: "The problem" },
-  { href: "#modules", label: "Modules" },
-  { href: "#how", label: "How it works" },
-  { href: "#security", label: "Security" },
-  { href: "#demo", label: "Request a demo" },
-] as const;
+const links = [{ href: "#platform", label: "Platform" }, { href: "#hospitality", label: "Why RoomLine" }, { href: "#getting-started", label: "Getting started" }] as const;
 
 export function SiteHeader() {
-  const [stuck, setStuck] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setStuck(window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
 
   return (
-    <header className="lp-header" data-stuck={stuck ? "true" : undefined}>
-      <Reveal as="div" className="lp-container flex h-16 items-center justify-between">
-        <Link href="/" className="lp-wordmark" aria-label="RoomLine home">
-          <Logo />
-          <span className="lp-wordmark__name">RoomLine</span>
-        </Link>
-
-        <nav aria-label="Main" className="hidden items-center gap-8 lg:flex">
-          {NAV_ITEMS.map((item) => (
-            <a key={item.href} href={item.href} className="lp-navlink">
-              {item.label}
-            </a>
-          ))}
-        </nav>
-
-        <div className="flex items-center gap-2">
-          <Link href="/sign-in" className="lp-navlink hidden sm:inline-flex">
-            Sign in
-          </Link>
-          <Link href="/onboarding" className="lp-btn lp-btn--solid lp-btn--sm">
-            Start free trial
-          </Link>
-        </div>
-      </Reveal>
+    <header className="lp-header" onKeyDown={(event) => { if (event.key === "Escape" && open) { setOpen(false); trigger.current?.focus(); } }}>
+      <div className="lp-container lp-header-inner">
+        <Link href="/" className="lp-wordmark" aria-label="RoomLine home"><Logo /><span>RoomLine<span className="lp-wordmark-period">.</span></span></Link>
+        <nav className="lp-desktop-nav" aria-label="Main navigation">{links.map((item) => <a key={item.href} href={item.href}>{item.label}</a>)}</nav>
+        <div className="lp-header-actions"><Link href="/sign-in" className="lp-sign-in">Sign in<ArrowRight size={14} aria-hidden="true" /></Link><a className="lp-btn lp-btn--primary lp-header-cta" href="#demo">Book a demo<ArrowRight size={16} aria-hidden="true" /></a><Button ref={trigger} variant="ghost" isIconOnly className="lp-menu-toggle" aria-label={open ? "Close navigation" : "Open navigation"} aria-expanded={open} aria-controls="mobile-navigation" onPress={() => setOpen(!open)}>{open ? <X size={22} /> : <Menu size={22} />}</Button></div>
+      </div>
+      {open && <nav id="mobile-navigation" className="lp-mobile-nav lp-container" aria-label="Mobile navigation">{links.map((item) => <a key={item.href} href={item.href} onClick={() => setOpen(false)}>{item.label}<ArrowRight size={17} aria-hidden="true" /></a>)}<a href="#demo" onClick={() => setOpen(false)}>Book a demo<ArrowRight size={17} aria-hidden="true" /></a><Link href="/sign-in" onClick={() => setOpen(false)}>Sign in<ArrowRight size={17} aria-hidden="true" /></Link></nav>}
     </header>
-  );
-}
-
-export function Logo({ size = 28 }: { size?: number }) {
-  return (
-    <span
-      className="flex items-center justify-center"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size * 0.28,
-        background: "var(--lp-brand)",
-        color: "var(--lp-night-fg)",
-      }}
-      aria-hidden="true"
-    >
-      <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 16 16" fill="none">
-        <rect x="1" y="7" width="6" height="8" rx="1" fill="currentColor" fillOpacity="0.95" />
-        <rect x="9" y="4" width="6" height="11" rx="1" fill="currentColor" fillOpacity="0.55" />
-      </svg>
-    </span>
   );
 }

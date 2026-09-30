@@ -3,13 +3,12 @@
 import * as React from "react";
 import { Accordion, Drawer, ScrollShadow, Skeleton, Tabs, toast } from "@heroui/react";
 import { CalendarX2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { SegmentedTab } from "@/components/ui/segmented-tab";
-import {
-  getFullBookingDetail,
-  type FullBookingDetail,
-} from "@/app/actions/bookings-detail";
+import type { FullBookingDetail } from "@/app/actions/bookings-detail";
+import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
 import { takeBookingDetail } from "@/lib/detail-prefetch";
 
 import { BookingStatusPill, ReferenceChip } from "./_components/booking-status-pill";
@@ -20,8 +19,6 @@ import { BookingPaymentsPanel } from "./_components/booking-payments-panel";
 import { BookingNotesPanel } from "./_components/booking-notes-panel";
 import { BookingGuestPanel } from "./_components/booking-guest-panel";
 
-// ── Props ──────────────────────────────────────────────────────────
-
 interface BookingDetailDrawerProps {
   bookingId: string | null;
   open: boolean;
@@ -30,8 +27,6 @@ interface BookingDetailDrawerProps {
   initialTab?: "overview" | "payments";
   onBookingChanged?: () => void;
 }
-
-// ── Main Component ─────────────────────────────────────────────────
 
 export function BookingDetailDrawer({
   bookingId,
@@ -42,57 +37,56 @@ export function BookingDetailDrawer({
   onBookingChanged,
 }: BookingDetailDrawerProps) {
   const isMobile = useIsMobile();
-  const [booking, setBooking] = React.useState<FullBookingDetail | null>(null);
-  const [loading, setLoading] = React.useState(false);
+  const queryClient = useQueryClient();
   const [actionLoading, setActionLoading] = React.useState<string | null>(null);
-  const requestIdRef = React.useRef(0);
+  // Optimistic local patch — layered over TanStack data
+  const [optimisticPatch, setOptimisticPatch] = React.useState<Partial<FullBookingDetail> | null>(null);
 
-  // Fetch booking detail when opened. On the initial open we consume a
-  // hover-warmed promise if one exists; refreshes after a mutation always
-  // hit the server so post-write data is never stale.
-  const fetchBooking = React.useCallback(
-    async (preferCache = false) => {
-      if (!bookingId) return;
-      const requestId = ++requestIdRef.current;
-      setLoading(true);
-      try {
-        const warmed = preferCache ? takeBookingDetail(bookingId) : undefined;
-        const result = await (warmed ?? getFullBookingDetail(bookingId));
-        if (requestId !== requestIdRef.current) return; // stale response
-        if (result.success) {
-          setBooking(result.booking);
-        } else {
-          setBooking(null);
-          toast.danger(result.error || "Failed to load reservation details");
-        }
-      } catch {
-        if (requestId === requestIdRef.current) {
-          setBooking(null);
-          toast.danger("Failed to load reservation details");
-        }
-      } finally {
-        if (requestId === requestIdRef.current) setLoading(false);
-      }
-    },
-    [bookingId]
-  );
-
+  // Seed from legacy detail-prefetch Map on first open (one-shot migration) → instant if hover-warmed before hydration
+  const seededRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    if (open && bookingId) {
-      const frame = window.requestAnimationFrame(() => {
-        void fetchBooking(true);
-      });
-      return () => window.cancelAnimationFrame(frame);
+    if (!open || !bookingId || seededRef.current === bookingId) return;
+    seededRef.current = bookingId;
+    const warmed = takeBookingDetail(bookingId);
+    if (warmed) {
+      void warmed
+        .then((r) => {
+          if (r.success) queryClient.setQueryData(bookingDetailCache.key(bookingId), r.booking);
+        })
+        .catch(() => {});
     }
-    // Keep last content visible while the close animation plays out.
-    const timer = window.setTimeout(() => {
-      setBooking(null);
-      setLoading(false);
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [open, bookingId, fetchBooking]);
+  }, [open, bookingId, queryClient]);
 
-  // ── Handlers ──────────────────────────────────────────────────
+  const query = useQuery({
+    ...bookingDetailCache.options(bookingId ?? "__none__"),
+    enabled: open && !!bookingId,
+  });
+
+  const rawBooking = query.data ?? null;
+  const booking: FullBookingDetail | null = React.useMemo(() => {
+    if (!rawBooking) return null;
+    return optimisticPatch ? ({ ...rawBooking, ...optimisticPatch } as FullBookingDetail) : rawBooking;
+  }, [rawBooking, optimisticPatch]);
+
+  // Clear optimistic patch when underlying data refreshes or drawer closes
+  React.useEffect(() => {
+    if (!open) setOptimisticPatch(null);
+  }, [open]);
+  React.useEffect(() => {
+    if (query.data) setOptimisticPatch(null);
+  }, [query.data]);
+
+  const refresh = React.useCallback(() => {
+    if (!bookingId) return;
+    void queryClient.invalidateQueries({ queryKey: bookingDetailCache.key(bookingId) });
+    if (onBookingChanged) onBookingChanged();
+  }, [bookingId, queryClient, onBookingChanged]);
+
+  // Error toast on query failure (no infinite loop)
+  const errorMsg = query.error instanceof Error ? query.error.message : null;
+  React.useEffect(() => {
+    if (open && query.isError && errorMsg) toast.danger(errorMsg);
+  }, [open, query.isError, errorMsg]);
 
   const handleAction = async (
     action: string,
@@ -100,18 +94,15 @@ export function BookingDetailDrawer({
     actionFn: () => Promise<{ success: boolean; error?: string }>
   ) => {
     if (!booking) return;
-    const previousBooking = booking;
+    const previous = booking;
     const now = new Date().toISOString();
-
     setActionLoading(action);
-    setBooking({
-      ...booking,
+    setOptimisticPatch({
       status: optimisticStatus,
       checkInAt: action === "check_in" ? now : booking.checkInAt,
       checkOutAt: action === "check_out" ? now : booking.checkOutAt,
-      cancelledAt:
-        action === "cancel" ? now : action === "reinstate" ? null : booking.cancelledAt,
-    });
+      cancelledAt: action === "cancel" ? now : action === "reinstate" ? null : booking.cancelledAt,
+    } as Partial<FullBookingDetail>);
     try {
       const result = await actionFn();
       if (result.success) {
@@ -126,29 +117,114 @@ export function BookingDetailDrawer({
                   ? "Reservation reinstated"
                   : "Reservation confirmed"
         );
-        fetchBooking();
-        if (onBookingChanged) onBookingChanged();
+        refresh();
       } else {
-        setBooking(previousBooking);
+        setOptimisticPatch(null);
+        // rollback visual via patch clear — data still previous
+        void queryClient.setQueryData(bookingDetailCache.key(previous.id), previous);
         toast.danger(result.error || `${action} failed`);
       }
     } catch {
-      setBooking(previousBooking);
+      setOptimisticPatch(null);
+      void queryClient.setQueryData(bookingDetailCache.key(previous.id), previous);
       toast.danger(`${action} failed`);
     } finally {
       setActionLoading(null);
     }
   };
 
-  // ── Render ─────────────────────────────────────────────────────
+  const handleLineAction = async (
+    actionKey: string,
+    lineId: string,
+    optimisticStatus: string,
+    fn: () => Promise<{ success: boolean; error?: string }>
+  ) => {
+    if (!booking || !bookingId) return;
+    const prev = booking;
+    setActionLoading(actionKey);
+    if (booking.group) {
+      setOptimisticPatch({
+        ...(lineId === booking.id ? { status: optimisticStatus } : {}),
+        group: {
+          ...booking.group,
+          lines: booking.group.lines.map((l) => (l.id === lineId ? { ...l, status: optimisticStatus } : l)),
+        },
+      } as unknown as Partial<FullBookingDetail>);
+    } else {
+      setOptimisticPatch({ status: optimisticStatus } as Partial<FullBookingDetail>);
+    }
+    try {
+      const result = await fn();
+      if (result.success) {
+        const isCheckIn = actionKey.includes("check_in");
+        const isCheckOut = actionKey.includes("check_out");
+        const isCancel = actionKey.includes("cancel");
+        const isNoShow = actionKey.includes("no_show");
+        toast.success(
+          isCheckIn ? "Room checked in" : isCheckOut ? "Room checked out" : isCancel ? "Room cancelled" : isNoShow ? "Room marked no-show" : "Room confirmed"
+        );
+        refresh();
+      } else {
+        setOptimisticPatch(null);
+        queryClient.setQueryData(bookingDetailCache.key(bookingId), prev);
+        toast.danger(result.error || "Action failed");
+      }
+    } catch {
+      setOptimisticPatch(null);
+      queryClient.setQueryData(bookingDetailCache.key(bookingId), prev);
+      toast.danger("Action failed");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleBulkAction = async (ids: string[], targetStatus: string, kind: "check_in" | "check_out") => {
+    if (!booking?.group || !bookingId || ids.length === 0) return;
+    const prev = booking;
+    const bulkKey = `bulk:${kind}`;
+    setActionLoading(bulkKey);
+    setOptimisticPatch({
+      group: {
+        ...booking.group,
+        lines: booking.group.lines.map((l) => (ids.includes(l.id) ? { ...l, status: targetStatus } : l)),
+      },
+    } as unknown as Partial<FullBookingDetail>);
+    try {
+      const { checkInBooking: doIn, checkOutBooking: doOut } = await import("@/app/dashboard/actions");
+      let ok = 0;
+      let lastError: string | undefined;
+      for (const id of ids) {
+        const fn = kind === "check_in" ? () => doIn(id) : () => doOut(id);
+        // eslint-disable-next-line no-await-in-loop
+        const r = await fn();
+        if (r.success) ok += 1;
+        else lastError = r.error;
+      }
+      if (ok === ids.length) {
+        toast.success(kind === "check_in" ? `Checked in ${ok} rooms` : `Checked out ${ok} rooms`);
+      } else if (ok > 0) {
+        toast.warning(`${ok}/${ids.length} rooms ${kind === "check_in" ? "checked in" : "checked out"}${lastError ? ` — ${lastError}` : ""}`);
+      } else {
+        setOptimisticPatch(null);
+        queryClient.setQueryData(bookingDetailCache.key(bookingId), prev);
+        toast.danger(lastError || `Bulk ${kind.replace("_", " ")} failed`);
+        return;
+      }
+      refresh();
+    } catch {
+      setOptimisticPatch(null);
+      queryClient.setQueryData(bookingDetailCache.key(bookingId), prev);
+      toast.danger(`Bulk ${kind.replace("_", " ")} failed`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const isPending = open && !!bookingId && query.isPending;
+  const isErrorEmpty = open && !!bookingId && query.isError && !booking;
 
   return (
-    <Drawer.Backdrop
-      isOpen={open}
-      onOpenChange={(isOpen) => !isOpen && onClose()}
-      variant="opaque"
-      className="bg-black/40"
-    >
+    <Drawer.Backdrop isOpen={open} onOpenChange={(isOpen) => !isOpen && onClose()} variant="opaque" className="bg-black/40">
       <Drawer.Content placement={isMobile ? "bottom" : "right"}>
         <Drawer.Dialog
           className={`
@@ -160,28 +236,21 @@ export function BookingDetailDrawer({
         >
           {isMobile && <Drawer.Handle className="mt-2.5 shrink-0" />}
 
-          {/* Close affordance floats above all states */}
-          <Drawer.CloseTrigger
-            className="
-              absolute right-4 top-4 z-30 grid size-8 place-items-center rounded-full
-              bg-muted/70 text-muted-foreground shadow-xs backdrop-blur transition-all
-              hover:bg-muted hover:text-foreground active:scale-95
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
-            "
-          />
+          <Drawer.CloseTrigger className="absolute right-4 top-4 z-30 grid size-8 place-items-center rounded-full bg-muted/70 text-muted-foreground shadow-xs backdrop-blur transition-all hover:bg-muted hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
 
-          {loading && !booking ? (
+          {isPending ? (
             <DrawerSkeleton />
+          ) : isErrorEmpty ? (
+            <Drawer.Body className="flex flex-1 flex-col items-center justify-center px-6 pb-16 text-center">
+              <div className="mb-4 grid size-14 place-items-center rounded-2xl bg-muted/50">
+                <CalendarX2 className="size-6 text-muted-foreground/40" />
+              </div>
+              <p className="text-sm font-semibold text-foreground">Reservation not found</p>
+              <p className="mt-1 max-w-[15rem] text-xs text-muted-foreground">It may have been removed, or you don&apos;t have access to it.</p>
+            </Drawer.Body>
           ) : booking ? (
             <>
-              {/* ═══ Header ═══ */}
-              <Drawer.Header
-                className="
-                  shrink-0 flex-col items-start gap-2.5 border-b border-border/50
-                  bg-background px-4 pb-4 pr-14 pt-[max(1rem,env(safe-area-inset-top))] sm:px-5
-                  md:pt-14
-                "
-              >
+              <Drawer.Header className="shrink-0 flex-col items-start gap-2.5 border-b border-border/50 bg-background px-4 pb-4 pr-14 pt-[max(1rem,env(safe-area-inset-top))] sm:px-5 md:pt-14">
                 <div className="flex w-full min-w-0 items-center gap-2.5">
                   <BookingStatusPill status={booking.status} className="shrink-0" />
                   <ReferenceChip reference={booking.reference} className="min-w-0" />
@@ -196,14 +265,8 @@ export function BookingDetailDrawer({
                 </Drawer.Heading>
               </Drawer.Header>
 
-              {/* ═══ Actions ═══ */}
-              <BookingActionBar
-                booking={booking}
-                actionLoading={actionLoading}
-                onAction={handleAction}
-              />
+              <BookingActionBar booking={booking} actionLoading={actionLoading} onAction={handleAction} />
 
-              {/* ═══ Content ═══ */}
               <Tabs
                 key={`${open ? bookingId : "closed"}:${initialTab}`}
                 defaultSelectedKey={initialTab}
@@ -219,16 +282,11 @@ export function BookingDetailDrawer({
 
                   <BookingPanelBoundary label="overview">
                     <Tabs.Panel id="overview">
-                      <BookingOverviewPanel booking={booking} />
+                      <BookingOverviewPanel booking={booking} actionLoading={actionLoading} onLineAction={handleLineAction} onBulkAction={handleBulkAction} />
                       <div className="px-4 pb-5 sm:px-5">
-                        <Accordion
-                          variant="surface"
-                          allowsMultipleExpanded
-                          defaultExpandedKeys={["guest"]}
-                          className="w-full"
-                        >
+                        <Accordion variant="surface" allowsMultipleExpanded defaultExpandedKeys={["guest"]} className="w-full">
                           <BookingGuestPanel booking={booking} />
-                          <BookingNotesPanel booking={booking} onRefresh={() => fetchBooking()} />
+                          <BookingNotesPanel booking={booking} onRefresh={refresh} />
                         </Accordion>
                       </div>
                     </Tabs.Panel>
@@ -236,34 +294,21 @@ export function BookingDetailDrawer({
 
                   <BookingPanelBoundary label="payments">
                     <Tabs.Panel id="payments">
-                      <BookingPaymentsPanel
-                        booking={booking}
-                        currency={booking.currency ?? currency}
-                        onBookingChanged={onBookingChanged}
-                        onRefresh={() => fetchBooking()}
-                      />
+                      <BookingPaymentsPanel booking={booking} currency={booking.currency ?? currency} onBookingChanged={onBookingChanged} onRefresh={refresh} />
                     </Tabs.Panel>
                   </BookingPanelBoundary>
                 </ScrollShadow>
               </Tabs>
 
-              {/* Safe-area spacer on phones */}
-              <div
-                aria-hidden
-                className="h-[max(0.25rem,env(safe-area-inset-bottom))] shrink-0 md:hidden"
-              />
+              <div aria-hidden className="h-[max(0.25rem,env(safe-area-inset-bottom))] shrink-0 md:hidden" />
             </>
           ) : (
             <Drawer.Body className="flex flex-1 flex-col items-center justify-center px-6 pb-16 text-center">
               <div className="mb-4 grid size-14 place-items-center rounded-2xl bg-muted/50">
                 <CalendarX2 className="size-6 text-muted-foreground/40" />
               </div>
-              <p className="text-sm font-semibold text-foreground">
-                Reservation not found
-              </p>
-              <p className="mt-1 max-w-[15rem] text-xs text-muted-foreground">
-                It may have been removed, or you don&apos;t have access to it.
-              </p>
+              <p className="text-sm font-semibold text-foreground">Reservation not found</p>
+              <p className="mt-1 max-w-[15rem] text-xs text-muted-foreground">It may have been removed, or you don&apos;t have access to it.</p>
             </Drawer.Body>
           )}
         </Drawer.Dialog>
@@ -271,8 +316,6 @@ export function BookingDetailDrawer({
     </Drawer.Backdrop>
   );
 }
-
-// ── Loading skeleton ───────────────────────────────────────────────
 
 function DrawerSkeleton() {
   return (

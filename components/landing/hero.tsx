@@ -1,101 +1,37 @@
-"use client";
-
-import { useRef } from "react";
-import Link from "next/link";
-import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
-import { DemoPlayer } from "@/components/landing/demo-player";
-import { Magnetic, MaskLines, Reveal } from "@/components/landing/reveal";
-
-/*
- * Editorial hero, not a centered SaaS pitch. Left column: one concrete claim
- * in big Fraunces, one sentence of subhead, magnetic primary + secondary CTA,
- * and a folio ledger strip. Right column: the real product in a browser frame
- * with scroll-linked tilt/parallax. Mobile stacks deliberately: claim, CTAs,
- * then the dashboard crop — not the desktop grid shrunk.
- */
-
-function HeroVisual() {
-  const ref = useRef<HTMLDivElement>(null);
-  const reduce = useReducedMotion();
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
-  const rotateX = useTransform(scrollYProgress, [0, 1], reduce ? [0, 0] : [4.5, -3.5]);
-  const y = useTransform(scrollYProgress, [0, 1], reduce ? [0, 0] : [28, -28]);
-
-  return (
-    <div ref={ref} style={{ perspective: 1400 }}>
-      <motion.div style={reduce ? undefined : { rotateX, y, transformStyle: "preserve-3d" }}>
-        <DemoPlayer />
-      </motion.div>
-    </div>
-  );
-}
+import Image from "next/image";
+import { ArrowDown, ArrowRight, Check, CornerDownRight } from "lucide-react";
+import hotelExterior from "@/public/images/landing/hotel-exterior.jpg";
 
 export function Hero() {
   return (
-    <section className="lp-section lp-grain relative overflow-hidden">
-      <div className="lp-container lp-hero-grid pt-2 md:pt-8">
+    <section className="lp-hero" aria-labelledby="hero-heading">
+      <div className="lp-container lp-hero-intro">
         <div>
-          <Reveal as="p" className="lp-eyebrow">
-            RoomLine · Property management
-          </Reveal>
-
-          <h1 className="lp-display lp-display--hero mt-5">
-            <MaskLines
-              lines={["Run the whole", "property from", "one dashboard."]}
-              delay={120}
-            />
-          </h1>
-
-          <Reveal as="p" className="lp-lead mt-6" delay={260}>
-            Reservations, front desk, housekeeping, channels, billing and
-            reporting — one calm system, so the rooms and the money agree at
-            close of day.
-          </Reveal>
-
-          <Reveal className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center" delay={320}>
-            <Magnetic>
-              <Link href="/onboarding" className="lp-btn lp-btn--solid">
-                Start free trial
-                <span className="lp-arrow" aria-hidden>→</span>
-              </Link>
-            </Magnetic>
-            <Link href="#product-demo" className="lp-btn lp-btn--ghost">
-              Watch a folio clear
-            </Link>
-          </Reveal>
-
-          <Reveal delay={380}>
-            <dl className="lp-hero-ledger">
-              <div>
-                <dt>Today</dt>
-                <dd>Mon 24 Aug</dd>
-              </div>
-              <div>
-                <dt>Occupancy</dt>
-                <dd>41 / 52 rooms</dd>
-              </div>
-              <div>
-                <dt>To clear</dt>
-                <dd>$1,548 · 3 folios</dd>
-              </div>
-            </dl>
-          </Reveal>
+          <p className="lp-eyebrow"><span className="lp-brand-line" />Property management, thoughtfully connected</p>
+          <h1 id="hero-heading">Your hotel.<br /><span>Perfectly in sync.</span></h1>
         </div>
-
-        <Reveal className="lg:pb-2" delay={200} y={12}>
-          <div id="product-demo" className="scroll-mt-24">
-            <HeroVisual />
+        <div className="lp-hero-copy">
+          <p>Reservations, rooms, payments, and people. One considered system for the way your hotel runs.</p>
+          <div className="lp-hero-actions">
+            <a href="#demo" className="lp-btn lp-btn--primary">Book a demo<ArrowRight size={17} aria-hidden="true" /></a>
+            <a href="#platform" className="lp-text-link">Explore the platform<ArrowDown size={16} aria-hidden="true" /></a>
           </div>
-        </Reveal>
+        </div>
       </div>
-
-      <div className="lp-container mt-10 md:mt-14">
-        <Reveal as="p" className="lp-index" delay={120}>
-          Free for 14 days · No card required · Live in a day
-        </Reveal>
+      <div className="lp-container">
+        <div className="lp-hero-scene">
+          <Image src={hotelExterior} alt="A warmly lit hotel and quiet pool at dusk" fill preload sizes="(max-width: 767px) 100vw, (max-width: 1440px) 94vw, 1344px" className="lp-hero-photo" placeholder="blur" />
+          <div className="lp-photo-caption"><span>Made for the people</span><strong>behind every great stay.</strong></div>
+          <div className="lp-day-card">
+            <div className="lp-day-card-heading"><span className="lp-mini-mark" aria-hidden="true">r.</span><span>The Palm House<small>Illustrative property</small></span><span className="lp-status"><Check size={12} aria-hidden="true" />All in view</span></div>
+            <div className="lp-day-title"><h2>A good day, at a glance.</h2><span>Tuesday, 29 September</span></div>
+            <dl className="lp-day-metrics"><div><dt>Occupancy</dt><dd>83<span>%</span></dd></div><div><dt>Arrivals</dt><dd>08</dd></div><div><dt>Departures</dt><dd>05</dd></div></dl>
+            <div className="lp-day-event"><span className="lp-event-icon"><Check size={16} aria-hidden="true" /></span><span><strong>Room 204 is ready</strong><small>Inspected. Ready for the next arrival.</small></span></div>
+            <a href="#platform" className="lp-day-link">Take a look inside<ArrowRight size={16} aria-hidden="true" /></a>
+          </div>
+          <div className="lp-scene-label"><CornerDownRight size={14} aria-hidden="true" />Hospitality in focus. Operations in order.</div>
+        </div>
+        <div className="lp-property-strip"><p>Independent spirit.<br /><strong>Professional operations.</strong></p><div><span>Boutique hotels</span><span>City hotels</span><span>Resorts & retreats</span><span>Guesthouses</span></div></div>
       </div>
     </section>
   );

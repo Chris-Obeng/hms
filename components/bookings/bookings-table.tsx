@@ -32,7 +32,9 @@ import {
   type ReservationFilterState,
 } from "@/components/bookings/reservation-filters";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
-import { prefetchBookingDetail } from "@/lib/detail-prefetch";
+import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
+import { CAPS, onIdle, isFresh } from "@/lib/cache/prefetch-helpers";
+import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { onRealtimeStatus } from "@/lib/observability/realtime";
 import { createCoalescer } from "@/lib/realtime/coalesce";
@@ -109,10 +111,12 @@ function ReservationCard({
   row,
   currency,
   onViewDetails,
+  onHoverPrefetch,
 }: {
   row: BookingRow;
   currency: string;
   onViewDetails: (id: string) => void;
+  onHoverPrefetch?: (id: string) => void;
 }) {
   const source = SOURCE_BADGES[row.source] || SOURCE_BADGES.direct;
   const nights = row.nights ?? 0;
@@ -124,8 +128,8 @@ function ReservationCard({
       tabIndex={0}
       onClick={() => onViewDetails(row.id)}
       onKeyDown={(e) => e.key === "Enter" && onViewDetails(row.id)}
-      onPointerEnter={() => prefetchBookingDetail(row.id)}
-      onFocus={() => prefetchBookingDetail(row.id)}
+      onPointerEnter={() => onHoverPrefetch?.(row.id)}
+      onFocus={() => onHoverPrefetch?.(row.id)}
       className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm transition-all duration-150 hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="flex items-start justify-between gap-2">
@@ -192,7 +196,9 @@ const HIDDEN_COLUMNS = new Set(["createdAt", "source"]);
 // ── Main Component ─────────────────────────────────────────────────
 
 export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTableProps) {
+  const queryClient = useQueryClient();
   const router = useRouter();
+  // Tiered prefetch: SSR warm → idle → viewport → hover (caps in prefetch-helpers)
   const [viewMode, setViewMode] = React.useState<"table" | "grid">("table");
   // Rows arrive pre-sorted in front-desk working order (upcoming arrivals
   // first, then recent history); column sorting re-orders on demand.
@@ -270,6 +276,14 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
     setDetailBookingId(id);
     setDetailOpen(true);
   }, []);
+
+  const hoverPrefetch = React.useCallback(
+    (id: string) => {
+      if (isFresh(queryClient, bookingDetailCache.key(id))) return;
+      void queryClient.prefetchQuery(bookingDetailCache.options(id));
+    },
+    [queryClient]
+  );
 
   // ── Columns ────────────────────────────────────────────────────
   const columns = React.useMemo<ColumnDef<BookingRow>[]>(
@@ -393,6 +407,49 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
   const filteredCount = table.getFilteredRowModel().rows.length;
   const totalCount = data.length;
   const rows = table.getRowModel().rows;
+  const visibleIdsKey = React.useMemo(() => rows.slice(0, CAPS.clientIdle).map((r) => r.original.id).join(","), [rows]);
+  React.useEffect(() => {
+    if (!visibleIdsKey) return;
+    const ids = visibleIdsKey.split(",").filter(Boolean);
+    return onIdle(() => {
+      for (const id of ids) {
+        if (isFresh(queryClient, bookingDetailCache.key(id))) continue;
+        void queryClient.prefetchQuery(bookingDetailCache.options(id));
+      }
+    });
+  }, [visibleIdsKey, queryClient]);
+  const observedRef = React.useRef<Set<string>>(new Set());
+  const rowObserverRef = React.useRef<IntersectionObserver | null>(null);
+  const getRowObserver = React.useCallback(() => {
+    if (rowObserverRef.current) return rowObserverRef.current;
+    if (typeof window === "undefined" || !("IntersectionObserver" in window)) return null;
+    rowObserverRef.current = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          const id = (e.target as HTMLElement).dataset.bookingId;
+          if (!id || observedRef.current.has(id)) continue;
+          observedRef.current.add(id);
+          rowObserverRef.current?.unobserve(e.target);
+          if (isFresh(queryClient, bookingDetailCache.key(id))) continue;
+          if (observedRef.current.size > CAPS.serverWarm + CAPS.viewportAhead) continue;
+          void queryClient.prefetchQuery(bookingDetailCache.options(id));
+        }
+      },
+      { rootMargin: "400px" }
+    );
+    return rowObserverRef.current;
+  }, [queryClient]);
+  const attachRowRef = React.useCallback(
+    (el: HTMLDivElement | null) => {
+      if (!el) return;
+      const id = el.dataset.bookingId;
+      if (!id || observedRef.current.has(id)) return;
+      getRowObserver()?.observe(el);
+    },
+    [getRowObserver]
+  );
+  React.useEffect(() => () => rowObserverRef.current?.disconnect(), []);
   const isFiltered =
     globalFilter.trim().length > 0 ||
     statusFilter !== "all" ||
@@ -464,12 +521,14 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
         {rows.length > 0 ? (
           <>
             {rows.map((row) => (
-              <ReservationCard
-                key={row.id}
-                row={row.original}
-                currency={currency}
-                onViewDetails={handleViewDetails}
-              />
+              <div key={row.id} ref={attachRowRef} data-booking-id={row.original.id}>
+                <ReservationCard
+                  row={row.original}
+                  currency={currency}
+                  onViewDetails={handleViewDetails}
+                  onHoverPrefetch={hoverPrefetch}
+                />
+              </div>
             ))}
             <HeroTablePagination
               table={table}
@@ -488,12 +547,9 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
           <div className="hidden space-y-4 md:block">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {rows.map((row) => (
-                <ReservationCard
-                  key={row.id}
-                  row={row.original}
-                  currency={currency}
-                  onViewDetails={handleViewDetails}
-                />
+                <div key={row.id} ref={attachRowRef} data-booking-id={row.original.id}>
+                  <ReservationCard row={row.original} currency={currency} onViewDetails={handleViewDetails} onHoverPrefetch={hoverPrefetch} />
+                </div>
               ))}
             </div>
             <HeroTablePagination
@@ -540,8 +596,12 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
                     key={row.id}
                     id={row.id}
                     className="cursor-pointer"
+                    data-booking-id={row.original.id}
+                    ref={(el: HTMLElement | null) => {
+                      if (el) attachRowRef(el as unknown as HTMLDivElement);
+                    }}
                     onAction={() => handleViewDetails(row.original.id)}
-                    onHoverStart={() => prefetchBookingDetail(row.original.id)}
+                    onHoverStart={() => hoverPrefetch(row.original.id)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <Table.Cell key={cell.id} className={HIDDEN_COLUMNS.has(cell.column.id) ? "hidden" : undefined}>

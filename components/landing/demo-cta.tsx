@@ -1,84 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Magnetic, Reveal } from "@/components/landing/reveal";
-
-/* CTA/demo — direct. Request a demo or start a trial, with a short form.
- * The form is honest: it opens a mailto with the details prefilled, so no
- * demo request ever disappears into a void. */
+import { ArrowRight, Check, Mail } from "lucide-react";
+import { Button } from "@heroui/react";
 
 export function DemoCta() {
-  const [name, setName] = useState("");
-  const [property, setProperty] = useState("");
-  const [rooms, setRooms] = useState("");
-  const [contact, setContact] = useState("");
-  const href = `mailto:hello@roomline.app?subject=${encodeURIComponent(
-    `Demo request — ${property || "my property"}`
-  )}&body=${encodeURIComponent(
-    `Name: ${name}\nProperty: ${property}\nRooms: ${rooms}\nContact: ${contact}\n\nWe'd like a 20-minute walkthrough of RoomLine.`
-  )}`;
+  const [prepared, setPrepared] = useState(false);
+  const [draft, setDraft] = useState("");
 
-  const input =
-    "min-h-[3rem] w-full rounded-lg border border-[var(--lp-line)] bg-[var(--lp-surface)] px-3.5 text-[0.95rem] text-[var(--lp-ink)] placeholder:text-[var(--lp-faint)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--lp-brand)]";
-  const label = "lp-index mb-2 block";
+  function prepareEmail(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const body = `Hello RoomLine,\n\nI'd like a walkthrough for my property.\n\nName: ${data.get("name")}\nWork email: ${data.get("email")}\nProperty: ${data.get("property")}\nNumber of rooms: ${data.get("rooms")}\n\nPlease get in touch to arrange a demo.`;
+    const href = `mailto:hello@roomline.app?subject=${encodeURIComponent(`RoomLine demo — ${data.get("property")}`)}&body=${encodeURIComponent(body)}`;
+    setDraft(href);
+    setPrepared(true);
+    window.location.href = href;
+  }
 
   return (
-    <section id="demo" className="lp-section scroll-mt-24 border-t border-[var(--lp-line-strong)]">
-      <div className="lp-container grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
-        <Reveal>
-          <p className="lp-eyebrow">06 · Request a demo</p>
-          <h2 className="lp-h2 mt-4">See your property on RoomLine in 20 minutes.</h2>
-          <p className="lp-lead mt-4">
-            A walkthrough on your rooms and your rates — or skip the call and
-            start the 14-day trial now.
-          </p>
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <Magnetic>
-              <Link href="/onboarding" className="lp-btn lp-btn--solid">
-                Start free trial
-                <span className="lp-arrow" aria-hidden>→</span>
-              </Link>
-            </Magnetic>
-            <a href={href} className="lp-btn lp-btn--ghost">
-              Send demo request
-            </a>
-          </div>
-          <p className="lp-index mt-6">No card required · Replies within one business day</p>
-        </Reveal>
-        <Reveal delay={120}>
-          <form
-            className="rounded-xl border border-[var(--lp-line)] bg-[var(--lp-surface)] p-6 sm:p-8"
-            onSubmit={(e) => {
-              e.preventDefault();
-              window.location.href = href;
-            }}
-          >
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div>
-                <label htmlFor="demo-name" className={label}>Your name</label>
-                <input id="demo-name" className={input} placeholder="Ama Serwaa" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
-              </div>
-              <div>
-                <label htmlFor="demo-property" className={label}>Property name</label>
-                <input id="demo-property" className={input} placeholder="Meridian Hotel" autoComplete="organization" value={property} onChange={(e) => setProperty(e.target.value)} />
-              </div>
-              <div>
-                <label htmlFor="demo-rooms" className={label}>Rooms</label>
-                <input id="demo-rooms" className={input} placeholder="52" inputMode="numeric" value={rooms} onChange={(e) => setRooms(e.target.value)} />
-              </div>
-              <div>
-                <label htmlFor="demo-contact" className={label}>Email or phone</label>
-                <input id="demo-contact" className={input} placeholder="ama@meridian.com" autoComplete="email" value={contact} onChange={(e) => setContact(e.target.value)} />
-              </div>
-            </div>
-            <button type="submit" className="lp-btn lp-btn--solid mt-6 w-full">
-              Request a demo
-              <span className="lp-arrow" aria-hidden>→</span>
-            </button>
-            <p className="lp-index mt-4 text-center">Prefer to talk? hello@roomline.app</p>
-          </form>
-        </Reveal>
+    <section id="demo" className="lp-section lp-demo-section" aria-labelledby="demo-heading">
+      <div className="lp-container lp-demo-grid"><div className="lp-demo-copy"><p className="lp-eyebrow">Let’s make room</p><h2 id="demo-heading">A better day<br />starts here.</h2><p>Tell us a little about your property. We’ll walk through the details that matter to you.</p><a href="mailto:hello@roomline.app" className="lp-contact-link"><Mail size={18} aria-hidden="true" />hello@roomline.app</a><div className="lp-self-start"><span>Prefer to explore on your own?</span><Link href="/onboarding" className="lp-text-link">Get started<ArrowRight size={16} aria-hidden="true" /></Link></div></div>
+        <form className="lp-demo-form" onSubmit={prepareEmail} onChange={() => setPrepared(false)}><h3>A closer look at RoomLine</h3><p>A conversation about your hotel, your team, and your day.</p><div className="lp-form-grid"><div><label htmlFor="demo-name">Your name</label><input id="demo-name" name="name" autoComplete="name" required maxLength={100} placeholder="Full name" /></div><div><label htmlFor="demo-email">Work email</label><input id="demo-email" name="email" type="email" autoComplete="email" required maxLength={254} placeholder="you@yourhotel.com" /></div><div><label htmlFor="demo-property">Property name</label><input id="demo-property" name="property" autoComplete="organization" required maxLength={150} placeholder="Your hotel" /></div><div><label htmlFor="demo-rooms">Number of rooms</label><select id="demo-rooms" name="rooms" defaultValue="" required><option value="" disabled>Select a range</option><option>1–20</option><option>21–50</option><option>51–100</option><option>101–250</option><option>251+</option></select></div></div><Button type="submit" className="lp-btn lp-btn--primary lp-submit">Prepare demo email<ArrowRight size={17} aria-hidden="true" /></Button><p className="lp-form-note">Opens your email app with your details. Review and send to request a demo.</p><div aria-live="polite">{prepared && <div className="lp-form-confirmation"><Check size={18} aria-hidden="true" /><p>Your email draft is ready. Send it from your email app to complete your request. <a href={draft}>Open draft again</a>, or email hello@roomline.app directly.</p></div>}</div></form>
       </div>
     </section>
   );

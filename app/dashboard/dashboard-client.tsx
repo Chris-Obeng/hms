@@ -160,6 +160,8 @@ export function DashboardClient({ hotelId, currency, hotelTimezone, orgId: initi
   const handleBookingChanged = React.useCallback(() => {
     if (orgId) {
       queryClient.invalidateQueries({ queryKey: qk.dashboard(orgId, hotelId, dateParamStr) });
+      // Detail mutations change booking detail; keep drawer fresh next open
+      void queryClient.invalidateQueries({ queryKey: ["bookingDetail"] });
     }
   }, [queryClient, orgId, hotelId, dateParamStr]);
 

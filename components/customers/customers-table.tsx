@@ -26,7 +26,9 @@ import {
   type FilterFieldConfig,
 } from "@/components/ui/entity-filters";
 import { GuestDetailSheet } from "@/components/customers/guest-detail-sheet";
-import { prefetchGuestBookings } from "@/lib/detail-prefetch";
+import { guestBookingsCache } from "@/lib/cache/guest-bookings-cache";
+import { CAPS, onIdle, isFresh } from "@/lib/cache/prefetch-helpers";
+import { useQueryClient } from "@tanstack/react-query";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -101,10 +103,12 @@ function GuestCard({
   guest,
   currency,
   onSelect,
+  onHoverPrefetch,
 }: {
   guest: GuestRow;
   currency: string;
   onSelect: (guest: GuestRow) => void;
+  onHoverPrefetch?: (id: string) => void;
 }) {
   return (
     <div
@@ -117,8 +121,8 @@ function GuestCard({
           onSelect(guest);
         }
       }}
-      onPointerEnter={() => prefetchGuestBookings(guest.id)}
-      onFocus={() => prefetchGuestBookings(guest.id)}
+      onPointerEnter={() => onHoverPrefetch?.(guest.id)}
+      onFocus={() => onHoverPrefetch?.(guest.id)}
       className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 text-left shadow-sm transition-all duration-150 hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:bg-muted/40"
     >
       <div className="flex items-center gap-3">
@@ -167,6 +171,7 @@ function GuestCard({
 // ── Main Component ─────────────────────────────────────────────────
 
 export function CustomersTable({ data, currency }: CustomersTableProps) {
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -203,6 +208,18 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
       data.map((g) => (guestOverrides[g.id] ? { ...g, ...guestOverrides[g.id] } : g)),
     [data, guestOverrides]
   );
+
+  const hoverPrefetch = React.useCallback(
+    (id: string) => {
+      if (isFresh(queryClient, guestBookingsCache.key(id))) return;
+      void queryClient.prefetchQuery(guestBookingsCache.options(id));
+    },
+    [queryClient]
+  );
+
+  // idle tier wired after table `rows` is defined below
+
+  // viewport tier wired after table `rows` is defined below
 
   // Watch for guestId in search params to auto-open guest detail sheet
   React.useEffect(() => {
@@ -383,6 +400,49 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
   const filteredCount = table.getFilteredRowModel().rows.length;
   const totalCount = data.length;
   const rows = table.getRowModel().rows;
+  const visibleGuestIdsKey = React.useMemo(() => rows.slice(0, CAPS.clientIdle).map((r) => r.original.id).join(","), [rows]);
+  React.useEffect(() => {
+    if (!visibleGuestIdsKey) return;
+    const ids = visibleGuestIdsKey.split(",").filter(Boolean);
+    return onIdle(() => {
+      for (const id of ids) {
+        if (isFresh(queryClient, guestBookingsCache.key(id))) continue;
+        void queryClient.prefetchQuery(guestBookingsCache.options(id));
+      }
+    });
+  }, [visibleGuestIdsKey, queryClient]);
+  const observedGuestRef = React.useRef<Set<string>>(new Set());
+  const guestObserverRef = React.useRef<IntersectionObserver | null>(null);
+  const getGuestObserver = React.useCallback(() => {
+    if (guestObserverRef.current) return guestObserverRef.current;
+    if (typeof window === "undefined" || !("IntersectionObserver" in window)) return null;
+    guestObserverRef.current = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          const id = (e.target as HTMLElement).dataset.guestId;
+          if (!id || observedGuestRef.current.has(id)) continue;
+          observedGuestRef.current.add(id);
+          guestObserverRef.current?.unobserve(e.target);
+          if (isFresh(queryClient, guestBookingsCache.key(id))) continue;
+          if (observedGuestRef.current.size > CAPS.serverWarm + CAPS.viewportAhead) continue;
+          void queryClient.prefetchQuery(guestBookingsCache.options(id));
+        }
+      },
+      { rootMargin: "400px" }
+    );
+    return guestObserverRef.current;
+  }, [queryClient]);
+  const attachGuestRef = React.useCallback(
+    (el: HTMLDivElement | HTMLElement | null) => {
+      if (!el) return;
+      const id = (el as HTMLElement).dataset.guestId;
+      if (!id || observedGuestRef.current.has(id)) return;
+      getGuestObserver()?.observe(el as unknown as Element);
+    },
+    [getGuestObserver]
+  );
+  React.useEffect(() => () => guestObserverRef.current?.disconnect(), []);
 
   const nationalityOptions = React.useMemo(
     () =>
@@ -524,8 +584,12 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
                     key={row.id}
                     id={row.id}
                     className="cursor-pointer"
+                    data-guest-id={row.original.id}
+                    ref={(el: HTMLElement | null) => {
+                      if (el) attachGuestRef(el as unknown as HTMLDivElement);
+                    }}
                     onAction={() => handleGuestClick(row.original)}
-                    onHoverStart={() => prefetchGuestBookings(row.original.id)}
+                    onHoverStart={() => hoverPrefetch(row.original.id)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <Table.Cell key={cell.id}>
@@ -553,12 +617,9 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
             <div className="hidden space-y-4 md:block">
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
                 {rows.map(({ original: guest }) => (
-                  <GuestCard
-                    key={guest.id}
-                    guest={guest}
-                    currency={currency}
-                    onSelect={handleGuestClick}
-                  />
+                  <div key={guest.id} ref={attachGuestRef} data-guest-id={guest.id}>
+                    <GuestCard guest={guest} currency={currency} onSelect={handleGuestClick} onHoverPrefetch={hoverPrefetch} />
+                  </div>
                 ))}
               </div>
               <HeroTablePagination
@@ -576,12 +637,9 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
           {rows.length > 0 ? (
             <>
               {rows.map(({ original: guest }) => (
-                <GuestCard
-                  key={guest.id}
-                  guest={guest}
-                  currency={currency}
-                  onSelect={handleGuestClick}
-                />
+                <div key={guest.id} ref={attachGuestRef} data-guest-id={guest.id}>
+                  <GuestCard guest={guest} currency={currency} onSelect={handleGuestClick} onHoverPrefetch={hoverPrefetch} />
+                </div>
               ))}
               <HeroTablePagination
                 table={table}
