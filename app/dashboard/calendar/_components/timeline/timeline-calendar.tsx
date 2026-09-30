@@ -85,6 +85,7 @@ type Props = {
   onChange(booking: CalendarBooking, roomId: string | null, checkIn: string, checkOut: string): Promise<void>;
   onAutoAssign(bookingId: string): void;
   onRequestTypeChange(request: TypeChangeRequest): void;
+  attachBarRef?: (el: HTMLElement | null) => void;
 };
 
 /** Extract the client point from a pointer/mouse/touch activation event. */
@@ -250,6 +251,7 @@ interface RowProps {
   onOpenBooking(id: string): void;
   onOpenBlock?(block: CalendarAvailabilityBlock): void;
   onCreate(room: CalendarRoom, date: string): void;
+  attachBarRef?: (el: HTMLElement | null) => void;
 }
 
 /** Rooms in these states cannot take any booking — the row is hatched and
@@ -261,7 +263,7 @@ const NON_BOOKABLE = NON_BOOKABLE_ROOM_STATUSES;
 const EMPTY_BOOKINGS: CalendarBooking[] = [];
 const EMPTY_BLOCKS: CalendarAvailabilityBlock[] = [];
 
-const RoomRow = React.memo(function RoomRow({ room, bookings, blocks, conflicts, canEdit, start, days, highlightIds, onOpenBooking, onOpenBlock, onCreate }: RowProps) {
+const RoomRow = React.memo(function RoomRow({ room, bookings, blocks, conflicts, canEdit, start, days, highlightIds, onOpenBooking, onOpenBlock, onCreate, attachBarRef }: RowProps) {
   const notBookable = NON_BOOKABLE.has(room.status ?? "");
   return (
     <div className="rl-room-row" style={{ height: ROW_HEIGHT }}>
@@ -319,13 +321,16 @@ const RoomRow = React.memo(function RoomRow({ room, bookings, blocks, conflicts,
           const g = bookingGeometry(b.checkIn, b.checkOut, start);
           const clipped = clampBarGeometry(g, days);
           if (!clipped.visible) return null;
+          const barId = (b.groupId ?? b.id).replace(/:v\d+$/, "");
           return (
             <div
               key={b.id}
+              ref={attachBarRef as unknown as React.Ref<HTMLDivElement>}
+              data-booking-id={barId}
               className={cn("rl-bar-slot", highlightIds?.has(b.id) && "rl-bar-new")}
               style={{ position: "absolute", left: clipped.left, width: clipped.width, top: 8, height: 36 }}
             >
-              <BookingBar booking={b} conflict={conflicts.has(b.id)} canEdit={canEdit} onOpen={() => onOpenBooking(b.groupId ?? b.id)} />
+              <BookingBar booking={b} conflict={conflicts.has(b.id)} canEdit={canEdit} onOpen={() => onOpenBooking(barId)} />
             </div>
           );
         })}
@@ -334,7 +339,7 @@ const RoomRow = React.memo(function RoomRow({ room, bookings, blocks, conflicts,
   );
 });
 
-export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, canEdit, hotelTimezone, todayAnchor = 0, highlightIds, onOpenBooking, onOpenBlock, onCreate, onChange, onAutoAssign, onRequestTypeChange }: Props) {
+export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, canEdit, hotelTimezone, todayAnchor = 0, highlightIds, onOpenBooking, onOpenBlock, onCreate, onChange, onAutoAssign, onRequestTypeChange, attachBarRef }: Props) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const trayRef = React.useRef<HTMLDivElement>(null);
   const [activeDrag, setActiveDrag] = React.useState<DragState | null>(null);
@@ -651,6 +656,7 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
                       onOpenBooking={guardedOpenBooking}
                       onOpenBlock={onOpenBlock}
                       onCreate={onCreate}
+                      attachBarRef={attachBarRef}
                     />
                   </div>
                 );

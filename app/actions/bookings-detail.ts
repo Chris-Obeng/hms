@@ -134,6 +134,8 @@ export interface FullBookingDetail {
 export async function getFullBookingDetail(
   bookingId: string
 ): Promise<{ success: true; booking: FullBookingDetail } | { success: false; error: string }> {
+  const parsed = z.string().uuid().safeParse(bookingId);
+  if (!parsed.success) return { success: false, error: "Invalid booking id" };
   try {
     const { supabase, hotelId } = await getHotelScopedClient();
 

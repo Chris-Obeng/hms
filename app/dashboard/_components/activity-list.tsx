@@ -15,6 +15,9 @@ import { cn } from "@/lib/utils";
 import { formatDate, getNights, getInitials } from "@/lib/format";
 import { getStatusLabel } from "@/lib/booking-status";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useQueryClient } from "@tanstack/react-query";
+import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
+import { CAPS, onIdle, isFresh } from "@/lib/cache/prefetch-helpers";
 
 // ── Morphicon geometry (module scope — stable refs for plan caches) ──
 const SEARCH_ICON: IconInput = [
@@ -77,8 +80,20 @@ export function ActivityList({
   onViewDetails,
   onTakePayment,
   onRefresh,
-}: ActivityListProps) {
+  onHoverPrefetch,
+}: ActivityListProps & { onHoverPrefetch?: (id: string) => void }) {
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
+  const handleHoverPrefetch = React.useCallback(
+    (id: string) => {
+      const fn = onHoverPrefetch ?? ((bid: string) => {
+        if (isFresh(queryClient, bookingDetailCache.key(bid))) return;
+        void queryClient.prefetchQuery(bookingDetailCache.options(bid));
+      });
+      fn(id);
+    },
+    [onHoverPrefetch, queryClient]
+  );
   const [searchQuery, setSearchQuery] = React.useState("");
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [pendingConfirm, setPendingConfirm] = React.useState<PendingConfirm>(null);
@@ -97,6 +112,50 @@ export function ActivityList({
     }
     return list;
   }, [bookings, searchQuery]);
+
+  const visibleActivityIds = React.useMemo(() => filteredBookings.slice(0, CAPS.clientIdle).map((b) => b.id).join(","), [filteredBookings]);
+  React.useEffect(() => {
+    if (!visibleActivityIds) return;
+    const ids = visibleActivityIds.split(",").filter(Boolean);
+    return onIdle(() => {
+      for (const id of ids) {
+        if (isFresh(queryClient, bookingDetailCache.key(id))) continue;
+        void queryClient.prefetchQuery(bookingDetailCache.options(id));
+      }
+    });
+  }, [visibleActivityIds, queryClient]);
+  const observedActivityRef = React.useRef<Set<string>>(new Set());
+  const activityObsRef = React.useRef<IntersectionObserver | null>(null);
+  const getActivityObs = React.useCallback(() => {
+    if (activityObsRef.current) return activityObsRef.current;
+    if (typeof window === "undefined" || !("IntersectionObserver" in window)) return null;
+    activityObsRef.current = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          const id = (e.target as HTMLElement).dataset.bookingId;
+          if (!id || observedActivityRef.current.has(id)) continue;
+          observedActivityRef.current.add(id);
+          activityObsRef.current?.unobserve(e.target);
+          if (isFresh(queryClient, bookingDetailCache.key(id))) continue;
+          if (observedActivityRef.current.size > CAPS.serverWarm + CAPS.viewportAhead) continue;
+          void queryClient.prefetchQuery(bookingDetailCache.options(id));
+        }
+      },
+      { rootMargin: "400px" }
+    );
+    return activityObsRef.current;
+  }, [queryClient]);
+  const attachActivityRef = React.useCallback(
+    (el: HTMLElement | null) => {
+      if (!el) return;
+      const id = el.dataset.bookingId;
+      if (!id || observedActivityRef.current.has(id)) return;
+      getActivityObs()?.observe(el);
+    },
+    [getActivityObs]
+  );
+  React.useEffect(() => () => activityObsRef.current?.disconnect(), []);
 
   const requestCancel = (b: ActivityBooking) => setPendingConfirm({ kind: "cancel", booking: b });
   const requestNoShow = (b: ActivityBooking) => setPendingConfirm({ kind: "noshow", booking: b });
@@ -185,7 +244,15 @@ export function ActivityList({
       ) : isMobile ? (
         <div className="space-y-3 p-4">
           {filteredBookings.map((b) => (
-            <MobileBookingRow key={b.id} booking={b} {...rowProps} />
+            <div
+              key={b.id}
+              ref={attachActivityRef}
+              data-booking-id={b.id}
+              onMouseEnter={() => handleHoverPrefetch(b.id)}
+              onFocusCapture={() => handleHoverPrefetch(b.id)}
+            >
+              <MobileBookingRow booking={b} {...rowProps} />
+            </div>
           ))}
         </div>
       ) : (
@@ -201,7 +268,7 @@ export function ActivityList({
             </thead>
             <tbody className="divide-y divide-border/30 text-sm">
               {filteredBookings.map((b) => (
-                <DesktopBookingRow key={b.id} booking={b} {...rowProps} />
+                <DesktopBookingRow key={b.id} booking={b} {...rowProps} onHoverPrefetch={handleHoverPrefetch} attachRef={attachActivityRef} />
               ))}
             </tbody>
           </table>
@@ -280,14 +347,20 @@ function DesktopBookingRow({
   onNoShow,
   onViewDetails,
   onTakePayment,
-}: { booking: ActivityBooking } & RowHandlers) {
+  onHoverPrefetch,
+  attachRef,
+}: { booking: ActivityBooking; onHoverPrefetch?: (id: string) => void; attachRef?: (el: HTMLElement | null) => void } & RowHandlers) {
   const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
   const totalGuests = (booking.adults || 1) + (booking.children || 0);
   const room = roomLabel(booking.roomNumber, booking.roomType);
 
   return (
     <tr
+      ref={attachRef as unknown as React.Ref<HTMLTableRowElement>}
+      data-booking-id={booking.id}
       onClick={() => onViewDetails?.(booking)}
+      onMouseEnter={() => onHoverPrefetch?.(booking.id)}
+      onFocusCapture={() => onHoverPrefetch?.(booking.id)}
       className="group cursor-pointer transition-colors hover:bg-muted/25"
     >
       {/* Guest */}

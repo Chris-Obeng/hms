@@ -12,6 +12,8 @@ import { qk } from "@/lib/query-keys";
 import { createClient } from "@/lib/supabase/client";
 import { onRealtimeStatus } from "@/lib/observability/realtime";
 import { getQueryClient } from "@/components/providers";
+import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
+import { CAPS, onIdle, isFresh } from "@/lib/cache/prefetch-helpers";
 import {
   assignBookingToRoom,
   getCalendarData,
@@ -261,6 +263,45 @@ function CalendarClientContent({
     [bookings, deferredSearchQuery, filteredRooms, sourceFilters, statusFilters],
   );
 
+  // Tier 2+3: detail prefetch for calendar bars — idle + viewport (calendar has SSR warm via page HydrationBoundary)
+  const calendarPrefetchEnabled = !!orgId;
+  const calendarIdleKey = React.useMemo(
+    () => (calendarPrefetchEnabled ? visibleBookings.slice(0, CAPS.clientIdle).map((b) => b.id.replace(/:v\d+$/, "")).join(",") : ""),
+    [visibleBookings, calendarPrefetchEnabled]
+  );
+  const observedCalendarRef = React.useRef<Set<string>>(new Set());
+  const calendarObsRef = React.useRef<IntersectionObserver | null>(null);
+  const getCalendarObserver = React.useCallback(() => {
+    if (calendarObsRef.current) return calendarObsRef.current;
+    if (typeof window === "undefined" || !("IntersectionObserver" in window)) return null;
+    calendarObsRef.current = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          const id = (e.target as HTMLElement).dataset.bookingId;
+          if (!id || observedCalendarRef.current.has(id)) continue;
+          observedCalendarRef.current.add(id);
+          calendarObsRef.current?.unobserve(e.target);
+          if (isFresh(queryClient, bookingDetailCache.key(id))) continue;
+          if (observedCalendarRef.current.size > CAPS.serverWarm + CAPS.viewportAhead) continue;
+          void queryClient.prefetchQuery(bookingDetailCache.options(id));
+        }
+      },
+      { rootMargin: "400px" }
+    );
+    return calendarObsRef.current;
+  }, [queryClient]);
+  const attachCalendarBarRef = React.useCallback(
+    (el: HTMLElement | null) => {
+      if (!el) return;
+      const id = (el as HTMLElement).dataset.bookingId;
+      if (!id || observedCalendarRef.current.has(id)) return;
+      getCalendarObserver()?.observe(el);
+    },
+    [getCalendarObserver]
+  );
+  React.useEffect(() => () => calendarObsRef.current?.disconnect(), []);
+
   // ── New-booking highlight animation ────────────────────────────────
   const dateRangeKey = `${dateStr}_${days}`;
   const knownDateRangeKeyRef = React.useRef(dateRangeKey);
@@ -288,6 +329,18 @@ function CalendarClientContent({
     }, 3000);
     return () => window.clearTimeout(timer);
   }, [bookings, dateRangeKey]);
+
+  // Prefetch booking detail for visible calendar bars (idle)
+  React.useEffect(() => {
+    if (!calendarPrefetchEnabled || !calendarIdleKey) return;
+    const ids = calendarIdleKey.split(",").filter(Boolean);
+    return onIdle(() => {
+      for (const id of ids) {
+        if (isFresh(queryClient, bookingDetailCache.key(id))) continue;
+        void queryClient.prefetchQuery(bookingDetailCache.options(id));
+      }
+    });
+  }, [calendarIdleKey, calendarPrefetchEnabled, queryClient]);
 
   // ── Realtime subscription → invalidate React Query cache ────────────
   React.useEffect(() => {
@@ -455,10 +508,20 @@ function CalendarClientContent({
   }, []);
 
   const openBooking = React.useCallback((bookingId: string) => {
+    const raw = bookingId.replace(/:v\d+$/, "");
+    void (async () => {
+      const [{ bookingDetailCache }, { isFresh }] = await Promise.all([
+        import("@/lib/cache/booking-detail-cache"),
+        import("@/lib/cache/prefetch-helpers"),
+      ]);
+      if (!isFresh(queryClient, bookingDetailCache.key(raw))) {
+        void queryClient.prefetchQuery(bookingDetailCache.options(raw));
+      }
+    })();
     setDetailInitialTab("overview");
-    setSelectedBookingId(bookingId);
+    setSelectedBookingId(raw);
     setDetailPanelOpen(true);
-  }, []);
+  }, [queryClient]);
 
   const openNewBooking = React.useCallback((prefill: typeof newBookingPrefill) => {
     if (!canEdit) {
@@ -748,6 +811,7 @@ function CalendarClientContent({
             onAutoAssign={handleAutoAssign}
             onRequestTypeChange={handleRequestTypeChange}
             onCreate={handleCellCreate}
+            attachBarRef={attachCalendarBarRef}
           />
         ) : (
           <div className="flex h-[500px] flex-col items-center justify-center px-6 text-center">

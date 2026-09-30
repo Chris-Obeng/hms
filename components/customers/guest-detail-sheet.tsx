@@ -32,14 +32,15 @@ import {
   PAYMENT_STATUS_TONE,
 } from "@/lib/booking-status";
 import {
-  getGuestBookings,
   updateGuestNotes,
   updateGuestTags,
   updateGuestContact,
   type GuestBookingSummary,
 } from "@/app/actions/customers";
+import { guestBookingsCache } from "@/lib/cache/guest-bookings-cache";
 import { takeGuestBookings } from "@/lib/detail-prefetch";
 import type { GuestRow } from "@/components/customers/customers-table";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const SUGGESTED_TAGS = ["vip", "regular", "flagged", "corporate", "new", "returning"];
 
@@ -67,7 +68,6 @@ export function GuestDetailSheet({
 }: GuestDetailSheetProps) {
   const isMobile = useIsMobile();
   const [guest, setGuest] = React.useState(initialGuest);
-  const [bookings, setBookings] = React.useState<GuestBookingSummary[] | null>(null);
 
   const [editingNotes, setEditingNotes] = React.useState(false);
   const [notesDraft, setNotesDraft] = React.useState(guest.notes || "");
@@ -83,33 +83,48 @@ export function GuestDetailSheet({
 
   const [newTagInput, setNewTagInput] = React.useState("");
   const [savingTags, setSavingTags] = React.useState(false);
+  const queryClient = useQueryClient();
 
-  // Fetch bookings when the sheet opens. Loading is derived (open && bookings === null).
-  // Consume a hover-warmed promise when one exists, else fetch on open.
+  // TanStack as source — hydrates instantly from SSR warm (cap 12). Fallback skeleton only for un-prefetched rows.
+  // Seed legacy hover Map into cache once per open (migration).
+  const seededGuestRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    if (!open || bookings !== null) return;
-    let cancelled = false;
-    (takeGuestBookings(guest.id) ?? getGuestBookings(guest.id))
-      .then((result) => {
-        if (cancelled) return;
-        setBookings(result.success ? result.data : []);
-      })
-      .catch(() => {
-        if (!cancelled) setBookings([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, guest.id, bookings]);
+    if (!open || seededGuestRef.current === guest.id) return;
+    seededGuestRef.current = guest.id;
+    const warmed = takeGuestBookings(guest.id);
+    if (warmed) {
+      void warmed
+        .then((r) => {
+          if (r.success) queryClient.setQueryData(guestBookingsCache.key(guest.id), r.data);
+        })
+        .catch(() => {});
+    }
+  }, [open, guest.id, queryClient]);
 
-  // Reset when the sheet opens for a different guest (or reopens). Adjusting
-  // state during render is the documented alternative to a reset effect.
+  const bookingsQuery = useQuery({
+    ...guestBookingsCache.options(guest.id),
+    enabled: open,
+  });
+  const bookings: GuestBookingSummary[] | null = (bookingsQuery.data as GuestBookingSummary[] | undefined) ?? null;
+  const bookingsErrorMsg = bookingsQuery.error instanceof Error ? bookingsQuery.error.message : null;
+  React.useEffect(() => {
+    if (open && bookingsQuery.isError && bookingsErrorMsg) toast.danger(bookingsErrorMsg);
+  }, [open, bookingsQuery.isError, bookingsErrorMsg]);
+  const setBookings = React.useCallback(
+    (v: GuestBookingSummary[] | null) => {
+      if (v === null) queryClient.setQueryData(guestBookingsCache.key(guest.id), undefined);
+      else queryClient.setQueryData(guestBookingsCache.key(guest.id), v);
+    },
+    [guest.id, queryClient]
+  );
+
+  // Reset when the sheet opens for a different guest (or reopens).
   const resetKey = `${initialGuest.id}:${open}`;
   const [prevResetKey, setPrevResetKey] = React.useState(resetKey);
   if (prevResetKey !== resetKey) {
     setPrevResetKey(resetKey);
     setGuest(initialGuest);
-    setBookings(null);
+    // Don't clear TanStack cache — different guest has different key; just reset local UI
     setEditingNotes(false);
     setEditingContact(false);
     setNotesDraft(initialGuest.notes || "");
@@ -119,7 +134,6 @@ export function GuestDetailSheet({
       nationality: initialGuest.nationality || "",
     });
     setNewTagInput("");
-    // Stuck loading flags must clear on guest-switch/reopen too.
     setSavingNotes(false);
     setSavingContact(false);
     setSavingTags(false);
@@ -219,7 +233,6 @@ export function GuestDetailSheet({
 
   function handleClose(next: boolean) {
     if (!next) {
-      setBookings(null);
       setEditingNotes(false);
       setEditingContact(false);
     }

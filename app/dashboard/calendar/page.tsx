@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { addDays, format, parseISO } from "date-fns";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
@@ -6,30 +7,27 @@ import { businessToday } from "@/lib/business-date";
 import { CalendarClient } from "./calendar-client";
 import { getCalendarData, getCurrentStaffRole } from "./actions";
 import { PAST_LEAD_MAX_DAYS } from "./_components/calendar-helpers";
+import { QueryClient, dehydrate, HydrationBoundary, defaultShouldDehydrateQuery } from "@tanstack/react-query";
+import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
+import { CAPS } from "@/lib/cache/prefetch-helpers";
 export const metadata = {
   title: "Calendar | RoomLine",
 };
 
 export default async function CalendarPage() {
-  const { orgId } = await auth();
+  const { orgId, getToken } = await auth();
   const supabase = await createClient();
 
   if (!orgId) {
     return <NoCalendarState />;
   }
 
-  // Fetch hotel
-  const { data: hotel } = await supabase
-    .from("hotels")
-    .select("id, name, currency, logo_url, timezone")
-    .eq("clerk_org_id", orgId)
-    .single();
+  const { data: hotel } = await supabase.from("hotels").select("id, name, currency, logo_url, timezone").eq("clerk_org_id", orgId).single();
 
   if (!hotel) {
     return <NoCalendarState />;
   }
 
-  // Fetch room types for filters + new booking sheet
   const { data: roomTypesRaw } = await supabase
     .from("room_types")
     .select("id, name, slug, base_price, sort_order")
@@ -41,15 +39,9 @@ export default async function CalendarPage() {
   const roomTypes = (roomTypesRaw || []).map((rt) => ({
     id: rt.id,
     name: rt.name,
-    // snake_case matches the timeline's room-type payload shape
     base_price: rt.base_price,
   }));
 
-  // Fetch initial calendar data. The window opens PAST_LEAD_MAX_DAYS before
-  // the business date so the client anchors the scrollport on today while
-  // past dates stay one scroll away — one widened seed, no extra fetch. A
-  // seed failure must never blank the whole route (H4) — degrade to a
-  // retryable error state instead of throwing past any boundary.
   const today = businessToday(hotel.timezone || "UTC");
   const seedStart = format(addDays(parseISO(today), -PAST_LEAD_MAX_DAYS), "yyyy-MM-dd");
   let initialData: Awaited<ReturnType<typeof getCalendarData>> | null = null;
@@ -63,8 +55,35 @@ export default async function CalendarPage() {
     return <CalendarLoadErrorState />;
   }
 
-  // Resolve staff role for permission gating
   const { canEdit, canBlock, canUnblock } = await getCurrentStaffRole();
+
+  const rlsToken = getToken ? await getToken({ template: "supabase" }).catch(() => null) : null;
+  if (rlsToken && initialData.bookings.length > 0) {
+    // Operational priority: confirmed/checked_in first, then by checkIn
+    const sorted = [...initialData.bookings].sort((a, b) => {
+      const rank = (s: string) => (s === "checked_in" ? 0 : s === "confirmed" ? 1 : 2);
+      const d = rank(a.status) - rank(b.status);
+      return d !== 0 ? d : a.checkIn.localeCompare(b.checkIn);
+    });
+    const warmIds = [...new Set(sorted.map((b) => b.id.replace(/:v\d+$/, "")))].slice(0, CAPS.serverWarm);
+    return (
+      <CalendarWarmBoundary warmIds={warmIds}>
+        <div className="-mx-4 -mb-4 md:-mx-6 md:-mb-6 lg:-mx-8 lg:-mb-8 overflow-hidden">
+          <CalendarClient
+            initialData={initialData}
+            roomTypes={roomTypes}
+            hotelId={hotel.id}
+            hotelName={hotel.name}
+            currency={hotel.currency || "GHS"}
+            hotelTimezone={hotel.timezone || "UTC"}
+            canEdit={canEdit}
+            canBlock={canBlock}
+            canUnblock={canUnblock}
+          />
+        </div>
+      </CalendarWarmBoundary>
+    );
+  }
 
   return (
     <div className="-mx-4 -mb-4 md:-mx-6 md:-mb-6 lg:-mx-8 lg:-mb-8 overflow-hidden">
@@ -83,6 +102,24 @@ export default async function CalendarPage() {
   );
 }
 
+async function CalendarWarmBoundary({ warmIds, children }: { warmIds: string[]; children: React.ReactNode }) {
+  const queryClient = new QueryClient();
+  void Promise.allSettled(
+    warmIds.map((id) =>
+      queryClient.prefetchQuery({
+        ...bookingDetailCache.options(id),
+        queryFn: bookingDetailCache.serverQueryFn(id),
+      })
+    )
+  ).catch(() => {});
+  await new Promise((r) => setTimeout(r, 0));
+  return (
+    <HydrationBoundary state={dehydrate(queryClient, { shouldDehydrateQuery: (q) => defaultShouldDehydrateQuery(q) || q.state.status === "pending" })}>
+      <Suspense fallback={children}>{children}</Suspense>
+    </HydrationBoundary>
+  );
+}
+
 function CalendarLoadErrorState() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
@@ -92,13 +129,8 @@ function CalendarLoadErrorState() {
         </svg>
       </div>
       <h2 className="text-lg font-semibold text-foreground">Calendar could not be loaded</h2>
-      <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-        Something went wrong while loading bookings and rooms. This is usually temporary — try again.
-      </p>
-      <Link
-        href="/dashboard/calendar"
-        className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-      >
+      <p className="text-sm text-muted-foreground mt-1 max-w-sm">Something went wrong while loading bookings and rooms. This is usually temporary — try again.</p>
+      <Link href="/dashboard/calendar" className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
         Retry
       </Link>
     </div>
@@ -114,9 +146,7 @@ function NoCalendarState() {
         </svg>
       </div>
       <h2 className="text-lg font-semibold text-foreground">Hotel not found</h2>
-      <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-        No hotel is associated with this account. Please contact support to set up your property.
-      </p>
+      <p className="text-sm text-muted-foreground mt-1 max-w-sm">No hotel is associated with this account. Please contact support to set up your property.</p>
     </div>
   );
 }

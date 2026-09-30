@@ -108,6 +108,8 @@ export interface GuestBookingSummary {
 export async function getGuestBookings(
   guestId: string
 ): Promise<{ success: true; data: GuestBookingSummary[] } | { success: false; error: string }> {
+  const parsed = z.string().uuid().safeParse(guestId);
+  if (!parsed.success) return { success: false, error: "Invalid guest id" };
   try {
     const { hotelId } = await requireMinRole("front_desk", "view guest bookings");
 

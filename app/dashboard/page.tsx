@@ -1,9 +1,12 @@
+import { Suspense } from "react";
 import { auth } from "@clerk/nextjs/server";
-import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { QueryClient, dehydrate, HydrationBoundary, defaultShouldDehydrateQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/server";
 import { qk } from "@/lib/query-keys";
 import { businessToday } from "@/lib/business-date";
 import { fetchDashboardData } from "@/lib/dashboard/fetch-dashboard-data";
+import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
+import { CAPS } from "@/lib/cache/prefetch-helpers";
 import { DashboardClient } from "./dashboard-client";
 
 export default async function DashboardHomePage() {
@@ -28,31 +31,90 @@ export default async function DashboardHomePage() {
   const timezone = hotel.timezone || "UTC";
   const dateStr = businessToday(timezone);
 
-  // Prefetch today's board on the server so the client hydrates with data on
-  // first paint — no skeleton, no client fetch waterfall. Failure is non-fatal.
-  const queryClient = new QueryClient();
-  // Prefetch only with a valid Supabase RLS token; without it the server client
-  // is anon and would dehydrate an empty board the client won't refetch.
   const rlsToken = getToken ? await getToken({ template: "supabase" }).catch(() => null) : null;
   if (rlsToken) {
-    await queryClient
-      .prefetchQuery({
-        queryKey: qk.dashboard(orgId, hotel.id, dateStr),
-        queryFn: () => fetchDashboardData(supabase, hotel.id, dateStr, timezone),
-      })
-      .catch(() => {});
+    // Lightweight warm-ids query so detail prefetch does not need to block on full board aggregation
+    const { data: warmRows } = await supabase
+      .from("bookings")
+      .select("id, check_in, status")
+      .eq("hotel_id", hotel.id)
+      .or(`check_in.eq.${dateStr},status.eq.checked_in`)
+      .order("check_in", { ascending: true })
+      .limit(CAPS.serverWarm);
+    const warmIds = [...new Set((warmRows || []).map((r) => r.id))].slice(0, CAPS.serverWarm);
+    return (
+      <DashboardWarmBoundary
+        orgId={orgId}
+        hotelId={hotel.id}
+        dateStr={dateStr}
+        timezone={timezone}
+        warmIds={warmIds}
+      >
+        <DashboardClient
+          orgId={orgId}
+          hotelId={hotel.id}
+          hotelName={hotel.name}
+          currency={hotel.currency || "GHS"}
+          hotelTimezone={timezone}
+          initialDate={dateStr}
+        />
+      </DashboardWarmBoundary>
+    );
   }
 
   return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
-      <DashboardClient
-        orgId={orgId}
-        hotelId={hotel.id}
-        hotelName={hotel.name}
-        currency={hotel.currency || "GHS"}
-        hotelTimezone={timezone}
-        initialDate={dateStr}
-      />
+    <DashboardClient
+      orgId={orgId}
+      hotelId={hotel.id}
+      hotelName={hotel.name}
+      currency={hotel.currency || "GHS"}
+      hotelTimezone={timezone}
+      initialDate={dateStr}
+    />
+  );
+}
+
+async function DashboardWarmBoundary({
+  orgId,
+  hotelId,
+  dateStr,
+  timezone,
+  warmIds,
+  children,
+}: {
+  orgId: string;
+  hotelId: string;
+  dateStr: string;
+  timezone: string;
+  warmIds: string[];
+  children: React.ReactNode;
+}) {
+  const queryClient = new QueryClient();
+  const supabase = await createClient();
+  void queryClient
+    .prefetchQuery({
+      queryKey: qk.dashboard(orgId, hotelId, dateStr),
+      queryFn: () => fetchDashboardData(supabase, hotelId, dateStr, timezone),
+    })
+    .catch(() => {});
+  if (warmIds.length > 0) {
+    void Promise.allSettled(
+      warmIds.map((id) =>
+        queryClient.prefetchQuery({
+          ...bookingDetailCache.options(id),
+          queryFn: bookingDetailCache.serverQueryFn(id),
+        })
+      )
+    ).catch(() => {});
+  }
+  await new Promise((r) => setTimeout(r, 0));
+  return (
+    <HydrationBoundary
+      state={dehydrate(queryClient, {
+        shouldDehydrateQuery: (q) => defaultShouldDehydrateQuery(q) || q.state.status === "pending",
+      })}
+    >
+      <Suspense fallback={children}>{children}</Suspense>
     </HydrationBoundary>
   );
 }
@@ -66,9 +128,7 @@ function NoHotelState() {
         </svg>
       </div>
       <h2 className="text-lg font-semibold text-foreground">Hotel not found</h2>
-      <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-        No hotel is associated with this account. Please contact support.
-      </p>
+      <p className="text-sm text-muted-foreground mt-1 max-w-sm">No hotel is associated with this account. Please contact support.</p>
     </div>
   );
 }
