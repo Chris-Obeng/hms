@@ -145,6 +145,8 @@ export interface CalendarBooking {
   estimatedArrival: string | null;
   specialRequests: string | null;
   internalNotes: string | null;
+  /** Legacy rows with rooms_count>1 are split into N room strips; extra siblings are light wrappers around the real row that cannot be dragged. */
+  isVirtual?: boolean;
 }
 
 export interface CalendarAvailabilityBlock {
@@ -359,10 +361,114 @@ export async function getCalendarData(
     createdByName: blk.created_by ? blockStaffMap.get(blk.created_by) ?? null : null,
   }));
 
+  // ── Legacy multi-room expansion (virtualization) ──────────────────────
+  // New reservations write N rows (group_id shared, rooms_count=1) so the
+  // timeline gets N strips. Legacy rows store N rooms on one row (rooms_count>1,
+  // group_id null, one room_id) and would otherwise render as a single ×N bar.
+  // Virtualize them at read time: split into N room-level strips, reusing free
+  // rooms of the same type for the extra units so the rack again shows the
+  // physical inventory held. Purely presentational — no DB write — and only for
+  // active stays (cancelled/checked_out/noshow never occupy inventory).
+  const TERMINAL_FOR_EXPANSION = new Set(["cancelled", "checked_out", "no_show"]);
+  const rangeOverlapsForExpand = (aStart: string, aEnd: string, bStart: string, bEnd: string) =>
+    aStart < bEnd && bStart < aEnd;
+  const blocksByRoomForExpand = new Map<string, CalendarAvailabilityBlock[]>();
+  for (const blk of mappedBlocks) {
+    const list = blocksByRoomForExpand.get(blk.roomId) ?? [];
+    list.push(blk);
+    blocksByRoomForExpand.set(blk.roomId, list);
+  }
+  // Track physical occupancy for virtual placement (including prior virtuals).
+  const bookingsByRoomForExpand = new Map<string, CalendarBooking[]>();
+  for (const b of mappedBookings) {
+    if (!b.roomId) continue;
+    if (TERMINAL_FOR_EXPANSION.has(b.status)) continue;
+    const list = bookingsByRoomForExpand.get(b.roomId) ?? [];
+    list.push(b);
+    bookingsByRoomForExpand.set(b.roomId, list);
+  }
+  const isRoomFreeForBooking = (roomId: string, target: CalendarBooking): boolean => {
+    for (const other of bookingsByRoomForExpand.get(roomId) ?? []) {
+      if (other.id === target.id) continue;
+      if (rangeOverlapsForExpand(target.checkIn, target.checkOut, other.checkIn, other.checkOut)) return false;
+    }
+    for (const blk of blocksByRoomForExpand.get(roomId) ?? []) {
+      if (rangeOverlapsForExpand(target.checkIn, target.checkOut, blk.startDate, blk.endDate)) return false;
+    }
+    return true;
+  };
+  const expandedBookings: CalendarBooking[] = [];
+  for (const b of mappedBookings) {
+    const n = Math.max(1, Number(b.roomsCount) || 1);
+    const needsExpansion = n > 1 && !b.groupId && !TERMINAL_FOR_EXPANSION.has(b.status);
+    if (!needsExpansion) {
+      expandedBookings.push(b);
+      continue;
+    }
+    // Anchor keeps its id; extra units are virtual siblings sharing groupId=b.id so
+    // the group accent unifies them and onOpenBooking(groupId) opens the real row.
+    // Carry remainder so split totals reconcile to the stored group total.
+    const totalMinor = Math.round(Number(b.totalAmount ?? 0));
+    const base = Math.floor(totalMinor / n);
+    const remainder = totalMinor - base * n;
+    const anchorTotal = base + (0 < remainder ? 1 : 0);
+    const anchor: CalendarBooking = { ...b, groupId: b.id, roomsCount: 1, totalAmount: anchorTotal, isVirtual: false };
+    expandedBookings.push(anchor);
+    // Claim anchor's room for subsequent overlap checks
+    if (anchor.roomId) {
+      const list = bookingsByRoomForExpand.get(anchor.roomId) ?? [];
+      // replace the original entry's reference with anchor for overlap probes
+      const idx = list.findIndex((x) => x.id === b.id);
+      if (idx >= 0) list[idx] = anchor;
+      else list.push(anchor);
+      bookingsByRoomForExpand.set(anchor.roomId, list);
+    }
+    const typeRooms = mappedRooms.filter((r) => !b.roomTypeId || r.roomTypeId === b.roomTypeId);
+    // Prefer numeric room order for deterministic allocation
+    const sortedTypeRooms = [...typeRooms].sort((a, c) => a.roomNumber.localeCompare(c.roomNumber, undefined, { numeric: true }));
+    const anchorIsUnassigned = !b.roomId;
+    for (let i = 1; i < n; i++) {
+      let chosenId: string | null = null;
+      let chosenNumber: string | null = null;
+      // Unassigned legacy holds stay unassigned — do not auto-place virtuals on the rack.
+      if (!anchorIsUnassigned) {
+        for (const room of sortedTypeRooms) {
+          if (room.id === b.roomId) continue;
+          if (!isRoomFreeForBooking(room.id, b)) continue;
+          // Already claimed by a prior virtual sibling in this same expansion?
+          if (expandedBookings.some((x) => x.roomId === room.id && rangeOverlapsForExpand(b.checkIn, b.checkOut, x.checkIn, x.checkOut) && x.groupId === b.id)) {
+            // linear scan over expandedBookings is tiny; reuses virtual claims
+            continue;
+          }
+          chosenId = room.id;
+          chosenNumber = room.roomNumber;
+          break;
+        }
+      }
+      const perUnitForVirtual = base + (i < remainder ? 1 : 0);
+      const virtual: CalendarBooking = {
+        ...b,
+        id: `${b.id}:v${i}`,
+        groupId: b.id,
+        roomsCount: 1,
+        roomId: chosenId,
+        roomNumber: chosenNumber,
+        totalAmount: perUnitForVirtual,
+        isVirtual: true,
+      };
+      expandedBookings.push(virtual);
+      if (chosenId) {
+        const list = bookingsByRoomForExpand.get(chosenId) ?? [];
+        list.push(virtual);
+        bookingsByRoomForExpand.set(chosenId, list);
+      }
+    }
+  }
+
   return {
     rooms: mappedRooms,
     roomTypes: mappedRoomTypes,
-    bookings: mappedBookings,
+    bookings: expandedBookings,
     availabilityBlocks: mappedBlocks,
   };
 }

@@ -20,7 +20,7 @@ import {
 import { CalendarDays, Clock, User, UserCheck, X } from "lucide-react";
 import { parseTime } from "@internationalized/date";
 import { searchGuests, type GuestSearchResult } from "@/app/actions/customers";
-import { type StaffAvailabilityRoom } from "@/app/actions/availability";
+import { type StaffCartLine } from "./availability-step";
 import { CountrySelect } from "@/components/ui/country-select";
 import { formatCurrency, formatDate, nightsLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -42,14 +42,13 @@ export interface SummaryPricing {
 }
 
 interface SummaryStepProps {
-  room: StaffAvailabilityRoom;
+  cartLines: StaffCartLine[];
+  linePricings: { line: StaffCartLine; pricing: SummaryPricing }[];
+  grand: { subtotal: number; taxAmount: number; totalAmount: number; loading: boolean };
   checkIn: string;
   checkOut: string;
   nights: number;
-  adults: number;
-  childrenCount: number;
   currency: string;
-  pricing: SummaryPricing;
   guestId: string | null;
   guestName: string;
   guestEmail: string;
@@ -163,14 +162,13 @@ function GuestSearchField({ onSelect }: { onSelect: (g: GuestSearchResult) => vo
 }
 
 export function SummaryStep({
-  room,
+  cartLines,
+  linePricings,
+  grand,
   checkIn,
   checkOut,
   nights,
-  adults,
-  childrenCount,
   currency,
-  pricing,
   guestId,
   guestName,
   guestEmail,
@@ -195,9 +193,7 @@ export function SummaryStep({
   countryDialCode,
   errors,
 }: SummaryStepProps) {
-  const occupancy =
-    `${adults} adult${adults !== 1 ? "s" : ""}` +
-    (childrenCount > 0 ? ` · ${childrenCount} child${childrenCount !== 1 ? "ren" : ""}` : "");
+  const totalRooms = cartLines.reduce((s, l) => s + l.quantity, 0);
 
   // String prop ↔ TimeValue bridge for the arrival field; empty/invalid → null.
   const arrivalValue = React.useMemo(() => {
@@ -210,7 +206,7 @@ export function SummaryStep({
   }, [estimatedArrival]);
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
       {/* Left — guest capture + options */}
       <div className="flex flex-col gap-5">
         <section className="flex flex-col gap-3">
@@ -289,7 +285,6 @@ export function SummaryStep({
               </div>
 
               <div className="flex flex-col gap-1.5">
-                {/* CountrySelect self-labels via its internal aria-label; a bare Label here binds to nothing. */}
                 <span className="text-sm font-medium text-foreground">Nationality</span>
                 <CountrySelect value={nationality} onChange={onNationalityChange} placeholder="Search country" />
               </div>
@@ -379,15 +374,19 @@ export function SummaryStep({
               rows={2}
             />
           </TextField>
+          {errors.cart && <p className="text-xs font-medium text-destructive">{errors.cart}</p>}
         </section>
       </div>
 
-      {/* Right — sticky reservation summary */}
+      {/* Right — sticky reservation summary (cart-aware) */}
       <aside className="lg:sticky lg:top-0 lg:self-start">
         <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-4">
           <div>
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Reservation</p>
-            <p className="text-sm font-bold text-foreground">{room.name}</p>
+            <p className="text-sm font-bold text-foreground">
+              {totalRooms} room{totalRooms !== 1 ? "s" : ""} · {cartLines.length} type{cartLines.length !== 1 ? "s" : ""}
+            </p>
+            <p className="text-[11px] text-muted-foreground">One guest · each room is its own stay on the calendar</p>
           </div>
 
           <div className="flex items-center gap-2 rounded-lg bg-background px-3 py-2">
@@ -400,10 +399,40 @@ export function SummaryStep({
             </span>
           </div>
 
-          <p className="text-xs text-muted-foreground">{occupancy}</p>
+          {/* Per-line breakdown */}
+          <div className="flex flex-col gap-2 border-t border-border/60 pt-3">
+            {linePricings.map(({ line, pricing }) => {
+              const perRoomLabel =
+                `${line.adults} adult${line.adults !== 1 ? "s" : ""}` +
+                (line.children ? ` · ${line.children} child${line.children !== 1 ? "ren" : ""}` : "") +
+                " · per room";
+              return (
+                <div key={line.roomTypeId} className="rounded-xl border border-border/70 bg-background px-3 py-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {line.quantity > 1 ? `${line.quantity}× ` : ""}{line.room.name}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">{perRoomLabel}</p>
+                    </div>
+                    <span className="shrink-0 text-xs font-semibold tabular-nums text-foreground">
+                      {pricing.loading ? "…" : formatCurrency(pricing.subtotal, currency)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">
+                    {pricing.loading ? (
+                      <span className="inline-block h-3 w-24 animate-pulse rounded bg-muted" />
+                    ) : (
+                      <>{formatCurrency(pricing.roomRate / Math.max(1, line.quantity), currency)}/night × {line.quantity} room{line.quantity !== 1 ? "s" : ""} · {nightsLabel(nights)}</>
+                    )}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
 
           <div className="border-t border-border/60 pt-3">
-            {pricing.loading ? (
+            {grand.loading ? (
               <div className="flex flex-col gap-2">
                 <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
                 <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
@@ -412,23 +441,22 @@ export function SummaryStep({
             ) : (
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>
-                    {formatCurrency(pricing.roomRate, currency)} × {nightsLabel(nights)}
-                  </span>
-                  <span className="tabular-nums">{formatCurrency(pricing.subtotal, currency)}</span>
+                  <span>Subtotal</span>
+                  <span className="tabular-nums">{formatCurrency(grand.subtotal, currency)}</span>
                 </div>
-                {pricing.taxAmount > 0 && (
+                {grand.taxAmount > 0 && (
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Tax {pricing.taxRate.toFixed(2).replace(/\.00$/, "")}%</span>
-                    <span className="tabular-nums">{formatCurrency(pricing.taxAmount, currency)}</span>
+                    <span>Tax</span>
+                    <span className="tabular-nums">{formatCurrency(grand.taxAmount, currency)}</span>
                   </div>
                 )}
                 <div className="mt-1 flex items-center justify-between border-t border-border/50 pt-2">
                   <span className="text-sm font-semibold text-foreground">Total</span>
                   <span className="text-base font-bold tabular-nums text-primary">
-                    {formatCurrency(pricing.totalAmount, currency)}
+                    {formatCurrency(grand.totalAmount, currency)}
                   </span>
                 </div>
+                <p className="text-[11px] text-muted-foreground">For all {totalRooms} rooms · due by payment choice</p>
               </div>
             )}
           </div>
@@ -437,4 +465,3 @@ export function SummaryStep({
     </div>
   );
 }
-

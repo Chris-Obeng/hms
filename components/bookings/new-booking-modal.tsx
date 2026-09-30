@@ -1,20 +1,21 @@
 "use client";
 
 import * as React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueries } from "@tanstack/react-query";
 import { toast, Modal, Button } from "@heroui/react";
 import { CalendarDate } from "@internationalized/date";
 
 import { BookingStepper, type WizardStep } from "@/components/bookings/booking-stepper";
 import { DatesStep } from "@/components/bookings/steps/dates-step";
-import { AvailabilityStep } from "@/components/bookings/steps/availability-step";
+import { AvailabilityStep, type StaffCartLine } from "@/components/bookings/steps/availability-step";
 import { SummaryStep, type SummaryPricing } from "@/components/bookings/steps/summary-step";
 import { type StayRangeValue } from "@/components/ui/stay-range-calendar";
 import { getCountryDialCode } from "@/components/ui/country-select";
 import { type StaffAvailabilityRoom } from "@/app/actions/availability";
 import { type GuestSearchResult } from "@/app/actions/customers";
 import { getResolvedRatesForBooking } from "@/app/actions/pricing";
-import { createBooking, type NewBookingInput } from "@/app/actions/bookings";
+import { createBooking, createBookingGroup, type NewBookingInput } from "@/app/actions/bookings";
+import { fromMinor, sumMinor, toMinor } from "@/lib/money";
 
 interface NewBookingModalProps {
   open: boolean;
@@ -29,6 +30,8 @@ interface NewBookingModalProps {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_ROOM_TYPES = 4;
+const MAX_QTY_PER_LINE = 5;
 
 /** Wizard step order — index + 1 is the step number, used for the a11y announce. */
 const STEP_TITLES = ["Dates", "Availability", "Summary"] as const;
@@ -54,9 +57,7 @@ export function NewBookingModal({
 }: NewBookingModalProps) {
   const [step, setStep] = React.useState<WizardStep>(1);
   const [range, setRange] = React.useState<StayRangeValue | null>(null);
-  const [adults, setAdults] = React.useState(1);
-  const [children, setChildren] = React.useState(0);
-  const [selectedRoom, setSelectedRoom] = React.useState<StaffAvailabilityRoom | null>(null);
+  const [cartLines, setCartLines] = React.useState<StaffCartLine[]>([]);
 
   // Guest — either a linked existing profile (guestId set) or manual new-guest fields.
   const [guestId, setGuestId] = React.useState<string | null>(null);
@@ -119,35 +120,110 @@ export function NewBookingModal({
     }
   }, [open, prefillCheckIn, prefillCheckOut]);
 
-  // Changing the stay clears a room picked for the old dates (skips the initial/prefill set).
+  // Changing the stay clears cart lines that no longer fit (handled inside AvailabilityStep via prune,
+  // but keep a fallback clear here for instant feedback if AvailabilityStep hasn't reconciled yet).
   const stayKey = checkIn && checkOut ? `${checkIn}_${checkOut}` : null;
   const prevStayKey = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (prevStayKey.current !== null && prevStayKey.current !== stayKey) {
-      setSelectedRoom(null);
+      // Don't wipe cart blindly — AvailabilityStep will prune/clamp based on fresh counts.
+      // We reset only if the previous key was set and new key is null (dates cleared).
+      if (!stayKey) setCartLines([]);
     }
     prevStayKey.current = stayKey;
   }, [stayKey]);
 
-  // Override-resolved price for the picked type + stay (React Query — replaces the old manual effect).
-  const roomTypeId = selectedRoom?.roomTypeId ?? null;
-  const priceQuery = useQuery({
-    queryKey: ["staff-booking-price", roomTypeId, checkIn, checkOut],
-    queryFn: () => getResolvedRatesForBooking(roomTypeId as string, checkIn as string, checkOut as string),
-    enabled: Boolean(roomTypeId && checkIn && checkOut),
+  // ── Cart mutations ──
+  const handleAddLine = React.useCallback((room: StaffAvailabilityRoom) => {
+    setCartLines((prev) => {
+      if (prev.some((l) => l.roomTypeId === room.roomTypeId)) return prev;
+      if (prev.length >= MAX_ROOM_TYPES) {
+        toast.danger(`You can add up to ${MAX_ROOM_TYPES} room types per reservation`);
+        return prev;
+      }
+      return [
+        ...prev,
+        {
+          roomTypeId: room.roomTypeId,
+          room,
+          adults: 1,
+          children: 0,
+          quantity: 1,
+        },
+      ];
+    });
+  }, []);
+
+  const handleRemoveLine = React.useCallback((roomTypeId: string) => {
+    setCartLines((prev) => prev.filter((l) => l.roomTypeId !== roomTypeId));
+  }, []);
+
+  const handleUpdateLine = React.useCallback(
+    (roomTypeId: string, patch: Partial<Omit<StaffCartLine, "roomTypeId" | "room">>) => {
+      setCartLines((prev) => prev.map((l) => (l.roomTypeId === roomTypeId ? { ...l, ...patch } : l)));
+    },
+    []
+  );
+
+  const handleSyncCart = React.useCallback((next: StaffCartLine[]) => {
+    setCartLines(next);
+  }, []);
+
+  // ── Pricing: one query per cart line (others cached) ──
+  const priceQueries = useQueries({
+    queries: cartLines.map((line) => ({
+      queryKey: ["staff-booking-price", line.roomTypeId, checkIn, checkOut] as const,
+      queryFn: () => getResolvedRatesForBooking(line.roomTypeId, checkIn as string, checkOut as string),
+      enabled: Boolean(checkIn && checkOut && line.roomTypeId),
+    })),
   });
-  const resolved = priceQuery.data && priceQuery.data.success ? priceQuery.data.data : null;
-  const pricing: SummaryPricing = {
-    roomRate: resolved?.avgNightlyRate ?? selectedRoom?.avgNightly ?? 0,
-    subtotal: resolved?.subtotal ?? selectedRoom?.subtotal ?? 0,
-    taxAmount: resolved?.taxAmount ?? 0,
-    taxRate: resolved?.taxRate ?? 0,
-    totalAmount: resolved?.totalAmount ?? selectedRoom?.subtotal ?? 0,
-    loading: priceQuery.isFetching && !resolved,
-  };
+
+  // Build per-line pricing — all maths in minor units so ×qty sums reconcile to the charge.
+  const linePricings: { line: StaffCartLine; pricing: SummaryPricing }[] = React.useMemo(() => {
+    return cartLines.map((line, idx) => {
+      const q = priceQueries[idx];
+      const resolved = q?.data && q.data.success ? q.data.data : null;
+      const unitSubtotalMinor = toMinor(resolved?.subtotal ?? line.room.subtotal ?? 0, currency);
+      const unitTaxMinor = resolved ? toMinor(resolved.taxAmount ?? 0, currency) : 0;
+      const taxRate = resolved?.taxRate ?? 0;
+      const subtotalMinor = unitSubtotalMinor * line.quantity;
+      const taxMinor = unitTaxMinor * line.quantity;
+      const totalMinor = subtotalMinor + taxMinor;
+      // Display avgNightly as per-line aggregate nightly rate (unit × qty)
+      const unitAvgMinor = toMinor(resolved?.avgNightlyRate ?? line.room.avgNightly ?? 0, currency);
+      const avgNightlyMinor = unitAvgMinor * line.quantity;
+      return {
+        line,
+        pricing: {
+          roomRate: fromMinor(avgNightlyMinor, currency),
+          subtotal: fromMinor(subtotalMinor, currency),
+          taxAmount: fromMinor(taxMinor, currency),
+          taxRate,
+          totalAmount: fromMinor(totalMinor, currency),
+          loading: Boolean(q?.isFetching && !resolved),
+        },
+      };
+    });
+  }, [cartLines, priceQueries, currency]);
+
+  // Grand totals in minor units so the sum equals the charge to the pesewa
+  const grand = React.useMemo(() => {
+    if (!linePricings.length) return { subtotal: 0, taxAmount: 0, totalAmount: 0, loading: false };
+    const subtotalMinor = sumMinor(linePricings.map((p) => toMinor(p.pricing.subtotal, currency)));
+    const taxMinor = sumMinor(linePricings.map((p) => toMinor(p.pricing.taxAmount, currency)));
+    const loading = linePricings.some((p) => p.pricing.loading);
+    return {
+      subtotal: fromMinor(subtotalMinor, currency),
+      taxAmount: fromMinor(taxMinor, currency),
+      totalAmount: fromMinor(subtotalMinor + taxMinor, currency),
+      loading,
+    };
+  }, [linePricings, currency]);
+
+  const totalRooms = React.useMemo(() => cartLines.reduce((s, l) => s + l.quantity, 0), [cartLines]);
 
   const canReachStep2 = Boolean(range && nights > 0);
-  const canReachStep3 = canReachStep2 && Boolean(selectedRoom);
+  const canReachStep3 = canReachStep2 && cartLines.length > 0;
   const canReach = (s: WizardStep) => (s === 1 ? true : s === 2 ? canReachStep2 : canReachStep3);
 
   const emailValid = !guestEmail.trim() || EMAIL_RE.test(guestEmail.trim());
@@ -182,9 +258,7 @@ export function NewBookingModal({
   function resetState() {
     setStep(1);
     setRange(null);
-    setAdults(1);
-    setChildren(0);
-    setSelectedRoom(null);
+    setCartLines([]);
     setGuestId(null);
     setGuestName("");
     setGuestEmail("");
@@ -209,50 +283,101 @@ export function NewBookingModal({
     if (!guestName.trim()) next.guestName = "Guest name is required";
     if (!emailValid) next.guestEmail = "Enter a valid email";
     if (!source) next.source = "Select a source";
+    if (!cartLines.length) next.cart = "Add at least one room";
     setErrors(next);
     if (Object.keys(next).length) {
       toast.danger("Complete the highlighted fields");
       return;
     }
-    if (!selectedRoom || !checkIn || !checkOut) return;
+    if (!checkIn || !checkOut || !cartLines.length) return;
 
     setLoading(true);
-    // Pin the physical room only when the picked type still matches the cell the desk opened from.
-    // If staff switched room type mid-wizard, omit it so the server auto-assigns within the type.
-    const pinnedRoomId =
-      prefillRoomId && rooms?.find((r) => r.id === prefillRoomId)?.roomTypeId === selectedRoom.roomTypeId
-        ? prefillRoomId
-        : undefined;
-    const input: NewBookingInput = {
+
+    // Single-room fast path: preserve the existing createBooking flow byte-for-byte
+    // (including pinned physical room when the type matches the grid cell the desk opened from).
+    if (cartLines.length === 1 && cartLines[0].quantity === 1) {
+      const line = cartLines[0];
+      const pricing = linePricings[0]?.pricing;
+      const pinnedRoomId =
+        prefillRoomId && rooms?.find((r) => r.id === prefillRoomId)?.roomTypeId === line.roomTypeId
+          ? prefillRoomId
+          : undefined;
+      const input: NewBookingInput = {
+        guestId: guestId ?? undefined,
+        guestName: guestName.trim(),
+        guestEmail: guestEmail.trim() || "",
+        guestPhone: guestPhone.trim() || "",
+        nationality: nationality || "",
+        roomTypeId: line.roomTypeId,
+        roomId: pinnedRoomId,
+        checkIn,
+        checkOut,
+        adults: line.adults,
+        children: line.children,
+        roomRate: pricing?.roomRate ?? line.room.avgNightly,
+        subtotal: pricing?.subtotal ?? line.room.subtotal,
+        taxAmount: pricing?.taxAmount ?? 0,
+        totalAmount: pricing?.totalAmount ?? line.room.subtotal,
+        estimatedArrival: estimatedArrival || "",
+        specialRequests: specialRequests.trim() || "",
+        source: source as NewBookingInput["source"],
+        paymentPreference,
+        internalNotes: internalNotes.trim() || "",
+      };
+
+      const result = await createBooking(input);
+      setLoading(false);
+
+      if (result.success) {
+        toast.success(`Reservation ${result.reference} created`);
+        onReservationCreated?.({
+          bookingId: result.bookingId,
+          reference: result.reference,
+          payNow: paymentPreference === "pay_now",
+        });
+        handleClose(false);
+        return;
+      }
+
+      if (result.fieldErrors) {
+        const mapped: Record<string, string> = {};
+        for (const [k, v] of Object.entries(result.fieldErrors)) mapped[k] = v[0] ?? "Invalid";
+        setErrors(mapped);
+      }
+      toast.danger(result.error || "Failed to create reservation");
+      return;
+    }
+
+    // Multi-room / multi-quantity: one group, one guest, N stays
+    const groupInput = {
       guestId: guestId ?? undefined,
       guestName: guestName.trim(),
       guestEmail: guestEmail.trim() || "",
       guestPhone: guestPhone.trim() || "",
       nationality: nationality || "",
-      roomTypeId: selectedRoom.roomTypeId,
-      roomId: pinnedRoomId,
       checkIn,
       checkOut,
-      adults,
-      children,
-      roomRate: pricing.roomRate,
-      subtotal: pricing.subtotal,
-      taxAmount: pricing.taxAmount,
-      totalAmount: pricing.totalAmount,
-      estimatedArrival: estimatedArrival || "",
-      specialRequests: specialRequests.trim() || "",
       source: source as NewBookingInput["source"],
       paymentPreference,
+      estimatedArrival: estimatedArrival || "",
+      specialRequests: specialRequests.trim() || "",
       internalNotes: internalNotes.trim() || "",
+      lines: cartLines.map((l) => ({
+        roomTypeId: l.roomTypeId,
+        adults: l.adults,
+        children: l.children,
+        quantity: l.quantity,
+      })),
     };
 
-    const result = await createBooking(input);
+    const result = await createBookingGroup(groupInput);
     setLoading(false);
 
     if (result.success) {
-      toast.success(`Reservation ${result.reference} created`);
+      const roomsLabel = totalRooms === 1 ? "1 room" : `${totalRooms} rooms`;
+      toast.success(`Reservation ${result.reference} · ${roomsLabel} created`);
       onReservationCreated?.({
-        bookingId: result.bookingId,
+        bookingId: result.groupId,
         reference: result.reference,
         payNow: paymentPreference === "pay_now",
       });
@@ -274,7 +399,7 @@ export function NewBookingModal({
     else if (step === 3) void handleSubmit();
   }
 
-  const primaryLabel = step === 3 ? (loading ? "Creating…" : "Create reservation") : "Continue";
+  const primaryLabel = step === 3 ? (loading ? "Creating…" : cartLines.length > 1 || totalRooms > 1 ? `Create reservation · ${totalRooms} rooms` : "Create reservation") : "Continue";
   const primaryDisabled = step === 1 ? !canReachStep2 : step === 2 ? !canReachStep3 : !canSubmit;
 
   return (
@@ -290,6 +415,7 @@ export function NewBookingModal({
           <Modal.Header className="flex shrink-0 flex-col gap-2 border-b border-border/60 px-4 py-2 pr-12 sm:px-6 sm:pr-14">
             <div className="min-w-0">
               <Modal.Heading className="text-base font-semibold text-foreground">New reservation</Modal.Heading>
+              {totalRooms > 0 && <p className="text-xs text-muted-foreground">{totalRooms} room{totalRooms !== 1 ? "s" : ""} · {cartLines.length} type{cartLines.length !== 1 ? "s" : ""}</p>}
             </div>
             <BookingStepper current={step} canReach={canReach} onStepChange={(s) => canReach(s) && setStep(s)} />
           </Modal.Header>
@@ -309,26 +435,24 @@ export function NewBookingModal({
                 checkOut={checkOut}
                 currency={currency}
                 nights={nights}
-                adults={adults}
-                childrenCount={children}
-                onAdultsChange={setAdults}
-                onChildrenChange={setChildren}
-                selectedRoomTypeId={selectedRoom?.roomTypeId ?? null}
-                onSelectRoom={setSelectedRoom}
+                cartLines={cartLines}
+                onAddLine={handleAddLine}
+                onRemoveLine={handleRemoveLine}
+                onUpdateLine={handleUpdateLine}
+                onSyncCart={handleSyncCart}
                 prefillRoomTypeId={prefillRoomTypeId}
               />
             )}
 
-            {step === 3 && selectedRoom && checkIn && checkOut && (
+            {step === 3 && checkIn && checkOut && cartLines.length > 0 && (
               <SummaryStep
-                room={selectedRoom}
+                cartLines={cartLines}
+                linePricings={linePricings}
+                grand={grand}
                 checkIn={checkIn}
                 checkOut={checkOut}
                 nights={nights}
-                adults={adults}
-                childrenCount={children}
                 currency={currency}
-                pricing={pricing}
                 guestId={guestId}
                 guestName={guestName}
                 guestEmail={guestEmail}

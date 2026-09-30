@@ -2,44 +2,40 @@
 
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BedDouble, Check, RefreshCw, Users } from "lucide-react";
+import { BedDouble, Check, RefreshCw, Minus, Plus, Trash2 } from "lucide-react";
 import { getStaffAvailability, type StaffAvailabilityRoom } from "@/app/actions/availability";
-import { NumericStepper } from "@/components/booking/numeric-stepper";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { formatCurrency, nightsLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+const MAX_QTY_PER_LINE = 5;
+const MAX_ROOM_TYPES = 4;
+
+export interface StaffCartLine {
+  roomTypeId: string;
+  room: StaffAvailabilityRoom;
+  adults: number;
+  children: number;
+  quantity: number;
+}
 
 interface AvailabilityStepProps {
   checkIn: string | null;
   checkOut: string | null;
   currency: string;
   nights: number;
-  adults: number;
-  childrenCount: number;
-  onAdultsChange: (n: number) => void;
-  onChildrenChange: (n: number) => void;
-  selectedRoomTypeId: string | null;
-  onSelectRoom: (room: StaffAvailabilityRoom | null) => void;
+  cartLines: StaffCartLine[];
+  onAddLine: (room: StaffAvailabilityRoom) => void;
+  onRemoveLine: (roomTypeId: string) => void;
+  onUpdateLine: (roomTypeId: string, patch: Partial<Omit<StaffCartLine, "roomTypeId" | "room">>) => void;
+  onSyncCart?: (next: StaffCartLine[]) => void;
   prefillRoomTypeId?: string;
 }
 
-/** Inventory + policy + capacity resolve to one selectable/blocked verdict. */
-function roomState(room: StaffAvailabilityRoom, adults: number, childrenCount: number) {
-  const fits = adults <= room.maxAdults && childrenCount <= room.maxChildren;
-  if (!room.available) return { selectable: false, reason: "Sold out" };
-  if (!room.sellable) return { selectable: false, reason: room.restrictionReason ?? "Unavailable for these dates" };
-  if (!fits) {
-    const cap = room.maxChildren > 0 ? `${room.maxAdults} adults · ${room.maxChildren} children` : `${room.maxAdults} guests`;
-    return { selectable: false, reason: `Max ${cap}` };
-  }
-  return { selectable: true, reason: null as string | null };
+/** Inventory + policy → bookable verdict (occupancy checked per line, not globally). */
+function roomStockState(room: StaffAvailabilityRoom) {
+  if (!room.available) return { addable: false, reason: "Sold out" };
+  if (!room.sellable) return { addable: false, reason: room.restrictionReason ?? "Unavailable for these dates" };
+  return { addable: true, reason: null as string | null };
 }
 
 function AvailabilityChip({ count }: { count: number }) {
@@ -63,17 +59,59 @@ function AvailabilityChip({ count }: { count: number }) {
   );
 }
 
+function Stepper({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (n: number) => void;
+}) {
+  const canDec = value > min;
+  const canInc = value < max;
+  return (
+    <div className="flex items-center justify-between gap-3 py-1.5">
+      <span className="text-xs font-medium text-foreground">{label}</span>
+      <div className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 p-0.5">
+        <button
+          type="button"
+          aria-label={`Decrease ${label}`}
+          disabled={!canDec}
+          onClick={() => canDec && onChange(value - 1)}
+          className="inline-flex size-7 items-center justify-center rounded-full bg-background text-foreground shadow-sm transition disabled:opacity-40"
+        >
+          <Minus className="size-3.5" />
+        </button>
+        <span className="min-w-6 text-center text-sm font-semibold tabular-nums text-foreground">{value}</span>
+        <button
+          type="button"
+          aria-label={`Increase ${label}`}
+          disabled={!canInc}
+          onClick={() => canInc && onChange(value + 1)}
+          className="inline-flex size-7 items-center justify-center rounded-full bg-background text-foreground shadow-sm transition disabled:opacity-40"
+        >
+          <Plus className="size-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function AvailabilityStep({
   checkIn,
   checkOut,
   currency,
   nights,
-  adults,
-  childrenCount,
-  onAdultsChange,
-  onChildrenChange,
-  selectedRoomTypeId,
-  onSelectRoom,
+  cartLines,
+  onAddLine,
+  onRemoveLine,
+  onUpdateLine,
+  onSyncCart,
   prefillRoomTypeId,
 }: AvailabilityStepProps) {
   const enabled = Boolean(checkIn && checkOut);
@@ -87,199 +125,219 @@ export function AvailabilityStep({
   const rooms = React.useMemo(() => result?.rooms ?? [], [result]);
   const loadError = data && !data.success ? data.error : null;
 
-  const maxAdultsCap = rooms.length ? Math.max(...rooms.map((r) => r.maxAdults)) : 6;
-  const maxChildrenCap = rooms.length ? Math.max(...rooms.map((r) => r.maxChildren)) : 4;
+  const cartById = React.useMemo(() => new Map(cartLines.map((l) => [l.roomTypeId, l])), [cartLines]);
+  const totalRooms = cartLines.reduce((s, l) => s + l.quantity, 0);
 
-  const anySelectable = rooms.some((r) => roomState(r, adults, childrenCount).selectable);
-
-  // Auto-select the prefilled room type once it lands, if it fits.
+  // Auto-add prefilled room type once it lands, if it fits stock.
   const prefillApplied = React.useRef(false);
   React.useEffect(() => {
-    if (prefillApplied.current || !prefillRoomTypeId || !rooms.length) return;
+    if (prefillApplied.current || !prefillRoomTypeId || !rooms.length || cartLines.length) return;
     const match = rooms.find((r) => r.roomTypeId === prefillRoomTypeId);
-    if (match && roomState(match, adults, childrenCount).selectable) {
+    if (match && roomStockState(match).addable) {
       prefillApplied.current = true;
-      onSelectRoom(match);
+      onAddLine(match);
     }
-  }, [rooms, prefillRoomTypeId, adults, childrenCount, onSelectRoom]);
+  }, [rooms, prefillRoomTypeId, cartLines.length, onAddLine]);
 
-  // Drop a selection that no longer fits the current occupancy or availability.
+  // Prune/clamp cart when availability changes (sold out / restricted / fewer left).
+  // Single-sync: compute next cart once, apply one state update instead of N calls.
   React.useEffect(() => {
-    if (!selectedRoomTypeId) return;
-    const sel = rooms.find((r) => r.roomTypeId === selectedRoomTypeId);
-    if (rooms.length && (!sel || !roomState(sel, adults, childrenCount).selectable)) {
-      onSelectRoom(null);
+    if (!rooms.length || !cartLines.length) return;
+    if (!onSyncCart) return;
+    const roomMap = new Map(rooms.map((r) => [r.roomTypeId, r]));
+    let changed = false;
+    const next: StaffCartLine[] = [];
+    for (const line of cartLines) {
+      const room = roomMap.get(line.roomTypeId);
+      if (!room || !roomStockState(room).addable) {
+        changed = true;
+        continue;
+      }
+      const clampedQty = Math.min(line.quantity, Math.max(1, room.availableCount || MAX_QTY_PER_LINE));
+      const roomChanged =
+        line.room.availableCount !== room.availableCount ||
+        line.room.subtotal !== room.subtotal ||
+        line.room.avgNightly !== room.avgNightly ||
+        line.room.sellable !== room.sellable;
+      if (clampedQty !== line.quantity || roomChanged) {
+        changed = true;
+        next.push({ ...line, quantity: clampedQty, room: roomChanged ? room : line.room });
+      } else {
+        next.push(line);
+      }
     }
-  }, [adults, childrenCount, rooms, selectedRoomTypeId, onSelectRoom]);
+    if (changed) onSyncCart(next);
+  }, [rooms, cartLines, onSyncCart]);
 
-  function handlePick(room: StaffAvailabilityRoom) {
-    if (!roomState(room, adults, childrenCount).selectable) return;
-    onSelectRoom(selectedRoomTypeId === room.roomTypeId ? null : room);
+  const atTypeLimit = cartLines.length >= MAX_ROOM_TYPES;
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-8 text-center">
+        <p className="text-sm font-medium text-foreground">Couldn&apos;t load availability</p>
+        <p className="max-w-sm text-xs text-muted-foreground">{loadError}</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+        >
+          <RefreshCw className="size-3.5" /> Try again
+        </button>
+      </div>
+    );
+  }
+
+  if (isPending && enabled) {
+    return (
+      <div className="flex flex-col gap-2">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-[88px] animate-pulse rounded-xl border border-border bg-muted/40" />
+        ))}
+      </div>
+    );
+  }
+
+  if (rooms.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-4 py-10 text-center">
+        <BedDouble className="size-6 text-muted-foreground" />
+        <p className="text-sm font-medium text-foreground">No room types published</p>
+        <p className="text-xs text-muted-foreground">Add room types in settings before taking reservations.</p>
+      </div>
+    );
   }
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Occupancy */}
-      <div className="rounded-xl border border-border bg-muted/30 px-4 py-2">
-        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-          <Users className="size-4 text-muted-foreground" />
-          Occupancy
-        </div>
-        <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
-          <NumericStepper value={adults} onChange={onAdultsChange} min={1} max={maxAdultsCap} label="Adults" size="sm" />
-          <NumericStepper value={childrenCount} onChange={onChildrenChange} min={0} max={maxChildrenCap} label="Children" size="sm" />
-        </div>
-      </div>
-
-      {loadError ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-8 text-center">
-          <p className="text-sm font-medium text-foreground">Couldn&apos;t load availability</p>
-          <p className="max-w-sm text-xs text-muted-foreground">{loadError}</p>
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
-          >
-            <RefreshCw className="size-3.5" /> Try again
-          </button>
-        </div>
-      ) : isPending && enabled ? (
-        <div className="flex flex-col gap-2">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded-xl border border-border bg-muted/40" />
-          ))}
-        </div>
-      ) : rooms.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-4 py-10 text-center">
-          <BedDouble className="size-6 text-muted-foreground" />
-          <p className="text-sm font-medium text-foreground">No room types published</p>
-          <p className="text-xs text-muted-foreground">Add room types in settings before taking reservations.</p>
-        </div>
-      ) : (
-        <>
-          {!anySelectable && (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700">
-              No rooms fit this stay and occupancy. Adjust the dates or guest count.
-            </div>
-          )}
-
-          {/* Desktop table */}
-          <div className="hidden sm:block">
-            <div className="overflow-hidden rounded-xl border border-border">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead>Room type</TableHead>
-                    <TableHead>Availability</TableHead>
-                    <TableHead className="text-right">Price · {nightsLabel(nights)}</TableHead>
-                    <TableHead className="w-16 text-center">Select</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rooms.map((room) => {
-                    const st = roomState(room, adults, childrenCount);
-                    const selected = selectedRoomTypeId === room.roomTypeId;
-                    return (
-                      <TableRow
-                        key={room.roomTypeId}
-                        data-state={selected ? "selected" : undefined}
-                        onClick={() => handlePick(room)}
-                        className={cn(
-                          st.selectable ? "cursor-pointer" : "cursor-not-allowed opacity-60",
-                          selected && "bg-primary/5"
-                        )}
-                      >
-                        <TableCell className="max-w-[220px]">
-                          <span className="block text-sm font-semibold text-foreground">{room.name}</span>
-                          {st.reason ? (
-                            <span className="block text-[11px] font-medium text-muted-foreground">{st.reason}</span>
-                          ) : room.shortDescription ? (
-                            <span className="block truncate text-[11px] text-muted-foreground">{room.shortDescription}</span>
-                          ) : null}
-                        </TableCell>
-                        <TableCell><AvailabilityChip count={room.availableCount} /></TableCell>
-                        <TableCell className="text-right">
-                          <span className="block text-sm font-bold tabular-nums text-foreground">{formatCurrency(room.subtotal, currency)}</span>
-                          <span className="block text-[11px] text-muted-foreground tabular-nums">{formatCurrency(room.avgNightly, currency)}/night</span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span
-                            role="radio"
-                            aria-checked={selected}
-                            aria-disabled={!st.selectable}
-                            className={cn(
-                              "inline-flex size-5 items-center justify-center rounded-full border-2 transition-colors",
-                              selected ? "border-primary bg-primary text-primary-foreground" : "border-border",
-                              !st.selectable && "opacity-40"
-                            )}
-                          >
-                            {selected && <Check className="size-3" strokeWidth={3} />}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+      {/* Cart summary — compact, always visible when something is added */}
+      {cartLines.length > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[0.04] px-3.5 py-2.5">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">
+              {totalRooms} room{totalRooms !== 1 ? "s" : ""} · {cartLines.length} type{cartLines.length !== 1 ? "s" : ""}
+            </p>
+            <p className="text-[11px] text-muted-foreground">One reservation — each room gets its own stay on the calendar</p>
           </div>
+          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground shadow-sm">
+            {cartLines.length}/{MAX_ROOM_TYPES} types · max {MAX_QTY_PER_LINE} each
+          </span>
+        </div>
+      )}
 
-          {/* Mobile cards */}
-          <div className="flex flex-col gap-2 sm:hidden">
-            {rooms.map((room) => {
-              const st = roomState(room, adults, childrenCount);
-              const selected = selectedRoomTypeId === room.roomTypeId;
-              return (
-                <button
-                  key={room.roomTypeId}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  disabled={!st.selectable}
-                  onClick={() => handlePick(room)}
-                  className={cn(
-                    "flex flex-col gap-2 rounded-xl border px-3.5 py-3 text-left transition-colors",
-                    selected ? "border-primary bg-primary/8 ring-1 ring-primary/25" : "border-border bg-background",
-                    !st.selectable && "cursor-not-allowed opacity-60"
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <span className="block text-sm font-semibold text-foreground">{room.name}</span>
-                      {st.reason ? (
-                        <span className="block text-[11px] font-medium text-muted-foreground">{st.reason}</span>
-                      ) : room.shortDescription ? (
-                        <span className="block truncate text-[11px] text-muted-foreground">{room.shortDescription}</span>
-                      ) : null}
-                    </div>
-                    <AvailabilityChip count={room.availableCount} />
+      {atTypeLimit && (
+        <p className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-700">
+          Limit {MAX_ROOM_TYPES} room types per reservation — remove one to add another.
+        </p>
+      )}
+
+      {/* Room cards — single column, Apple-clean, no table bloat */}
+      <div className="flex flex-col gap-3">
+        {rooms.map((room) => {
+          const line = cartById.get(room.roomTypeId) ?? null;
+          const selected = Boolean(line);
+          const st = roomStockState(room);
+          const blocked = !st.addable;
+          const maxQty = Math.min(room.availableCount || MAX_QTY_PER_LINE, MAX_QTY_PER_LINE);
+          const inCartQty = line?.quantity ?? 0;
+
+          return (
+            <div
+              key={room.roomTypeId}
+              className={cn(
+                "rounded-xl border bg-background p-3.5 transition",
+                selected ? "border-primary/30 bg-primary/[0.03] shadow-sm" : "border-border hover:border-border/80",
+                blocked && !selected && "opacity-60"
+              )}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-foreground">{room.name}</span>
+                    {selected && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
+                        <Check className="size-3" /> Added
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-end justify-between gap-2">
-                    <div>
-                      <span className="block text-sm font-bold tabular-nums text-foreground">{formatCurrency(room.subtotal, currency)}</span>
-                      <span className="block text-[11px] text-muted-foreground tabular-nums">{formatCurrency(room.avgNightly, currency)}/night</span>
-                    </div>
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "inline-flex size-5 items-center justify-center rounded-full border-2",
-                        selected ? "border-primary bg-primary text-primary-foreground" : "border-border"
-                      )}
-                    >
-                      {selected && <Check className="size-3" strokeWidth={3} />}
+                  {blocked ? (
+                    <span className="mt-1 block text-[11px] font-medium text-destructive">{st.reason}</span>
+                  ) : room.shortDescription ? (
+                    <span className="mt-1 block truncate text-[11px] text-muted-foreground">{room.shortDescription}</span>
+                  ) : null}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span className="tabular-nums">
+                      {formatCurrency(room.subtotal, currency)} total · {formatCurrency(room.avgNightly, currency)}/night · {nightsLabel(nights)}
                     </span>
                   </div>
-                </button>
-              );
-            })}
-          </div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    Sleeps {room.maxAdults}
+                    {room.maxChildren > 0 ? ` + ${room.maxChildren} children` : ""} · per room
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <AvailabilityChip count={room.availableCount} />
+                  {!selected ? (
+                    <button
+                      type="button"
+                      disabled={blocked || atTypeLimit}
+                      onClick={() => onAddLine(room)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition",
+                        blocked || atTypeLimit
+                          ? "cursor-not-allowed bg-muted text-muted-foreground"
+                          : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                      )}
+                    >
+                      <Plus className="size-3.5" /> Add
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onRemoveLine(room.roomTypeId)}
+                      className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
+                    >
+                      <Trash2 className="size-3" /> Remove
+                    </button>
+                  )}
+                </div>
+              </div>
 
-          {isFetching && (
-            <p className="text-center text-[11px] text-muted-foreground">Refreshing availability…</p>
-          )}
-        </>
-      )}
+              {selected && line && (
+                <div className="mt-3 rounded-lg border border-border bg-muted/20 px-3 py-2">
+                  <Stepper
+                    label={`Rooms · ${inCartQty} of ${maxQty} available`}
+                    value={line.quantity}
+                    min={1}
+                    max={maxQty}
+                    onChange={(n) => onUpdateLine(room.roomTypeId, { quantity: n })}
+                  />
+                  <div className="my-1 h-px bg-border/60" />
+                  <Stepper
+                    label="Adults · per room"
+                    value={line.adults}
+                    min={1}
+                    max={room.maxAdults}
+                    onChange={(n) => onUpdateLine(room.roomTypeId, { adults: n })}
+                  />
+                  <Stepper
+                    label="Children · per room"
+                    value={line.children}
+                    min={0}
+                    max={room.maxChildren > 0 ? room.maxChildren : 6}
+                    onChange={(n) => onUpdateLine(room.roomTypeId, { children: n })}
+                  />
+                  <p className="pt-1 text-[11px] text-muted-foreground">
+                    {line.adults} adult{line.adults !== 1 ? "s" : ""}
+                    {line.children ? ` · ${line.children} child${line.children !== 1 ? "ren" : ""}` : ""} · per room
+                  </p>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {isFetching && <p className="text-center text-[11px] text-muted-foreground">Refreshing availability…</p>}
     </div>
   );
 }
-

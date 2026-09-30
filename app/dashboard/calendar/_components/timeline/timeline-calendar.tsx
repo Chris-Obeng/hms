@@ -135,8 +135,11 @@ function BookingBar({
   onOpen(): void;
 }) {
   // Terminal statuses are historical records — visible when scrolling back,
-  // never movable.
-  const editable = canEdit && !TERMINAL_BOOKING_STATUS_SET.has(booking.status);
+  // never movable. Virtual siblings of legacy rooms_count>1 bookings are
+  // presentational wrappers around a single DB row; they open the real row on
+  // click but cannot be dragged or resized independently.
+  const isVirtual = Boolean(booking.isVirtual);
+  const editable = canEdit && !isVirtual && !TERMINAL_BOOKING_STATUS_SET.has(booking.status);
   const drag = useDraggable({ id: `booking:${booking.id}`, disabled: !editable, data: { kind: "booking", bookingId: booking.id } satisfies DragData });
   const left = useDraggable({ id: `left:${booking.id}`, disabled: !editable, data: { kind: "resize-left", bookingId: booking.id } satisfies DragData });
   const right = useDraggable({ id: `right:${booking.id}`, disabled: !editable, data: { kind: "resize-right", bookingId: booking.id } satisfies DragData });
@@ -206,7 +209,8 @@ function BookingBar({
 }
 
 function TrayBooking({ booking, onOpen, onAutoAssign }: { booking: CalendarBooking; onOpen(): void; onAutoAssign(): void }) {
-  const drag = useDraggable({ id: `booking:${booking.id}`, data: { kind: "booking", bookingId: booking.id } satisfies DragData });
+  const isVirtual = Boolean(booking.isVirtual);
+  const drag = useDraggable({ id: `booking:${booking.id}`, disabled: isVirtual, data: { kind: "booking", bookingId: booking.id } satisfies DragData });
   const nights = nightsBetween(booking.checkIn, booking.checkOut);
   return (
     <div className={cn("rl-tray-booking", drag.isDragging && "is-dragging")} title={`${booking.guestName ?? booking.reference} · ${nights}n`}>
@@ -384,9 +388,10 @@ export function TimelineCalendar({ startDate, days, rooms, bookings, blocks, can
     return map;
   }, [blocks]);
 
-  // Tray is operational: only bookings that can still be placed.
+  // Tray is operational: only bookings that can still be placed. Virtual siblings
+  // with no room are presentation-only wrappers — hide them from the tray.
   const unassigned = React.useMemo(
-    () => bookings.filter((b) => !b.roomId && !TERMINAL_BOOKING_STATUS_SET.has(b.status)),
+    () => bookings.filter((b) => !b.roomId && !b.isVirtual && !TERMINAL_BOOKING_STATUS_SET.has(b.status)),
     [bookings],
   );
   const bookingById = React.useMemo(() => new Map(bookings.map((b) => [b.id, b])), [bookings]);

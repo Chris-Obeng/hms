@@ -2,7 +2,11 @@
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { createBookingAtomic, type BookingRejection } from "@/lib/bookings/create-booking-atomic";
+import {
+  createBookingAtomic,
+  createBookingGroupAtomic,
+  type BookingRejection,
+} from "@/lib/bookings/create-booking-atomic";
 import { writeAuditLog } from "@/lib/audit";
 import { canPerformAction, requireMinRole, toActionError } from "@/lib/auth";
 import {
@@ -48,6 +52,47 @@ const NewBookingSchema = z.object({
 });
 
 export type NewBookingInput = z.infer<typeof NewBookingSchema>;
+
+// ── Group (multi-room) schemas ───────────────────────────────────────
+// Staff cart keeps occupancy + quantity per line, keyed by roomTypeId.
+// Limits mirror the guest funnel (4 types, 5 of each) so the product caps
+// and the DB ceiling (10 lines) never surprise each other.
+const NewBookingGroupLineSchema = z.object({
+  roomTypeId: z.string().uuid("Room type is required"),
+  adults: z.coerce.number().int().min(1).max(20).default(1),
+  children: z.coerce.number().int().min(0).max(10).default(0),
+  quantity: z.coerce.number().int().min(1).max(5).default(1),
+});
+
+const NewBookingGroupSchema = z
+  .object({
+    guestId: z.string().uuid().optional(),
+    guestName: z.string().min(1, "Guest name is required").max(200),
+    guestEmail: z.string().email().optional().or(z.literal("")),
+    guestPhone: z.string().max(30).optional().or(z.literal("")),
+    nationality: z.string().max(80).optional().or(z.literal("")),
+    checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid check-in date"),
+    checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid check-out date"),
+    source: z.enum(["direct", "manual", "phone", "walk_in"]),
+    paymentPreference: z.enum(["pay_now", "pay_at_checkin"]),
+    estimatedArrival: z.string().optional().or(z.literal("")),
+    specialRequests: z.string().max(1000).optional().or(z.literal("")),
+    internalNotes: z.string().max(2000).optional().or(z.literal("")),
+    overrideRestrictions: z.coerce.boolean().optional(),
+    lines: z.array(NewBookingGroupLineSchema).min(1).max(4),
+  })
+  .superRefine((data, ctx) => {
+    const total = data.lines.reduce((sum, l) => sum + l.quantity, 0);
+    if (total > 10) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["lines"],
+        message: "At most 10 rooms per reservation — reduce quantities",
+      });
+    }
+  });
+
+export type NewBookingGroupInput = z.infer<typeof NewBookingGroupSchema>;
 
 // ── Statuses that require manager or above ────────────────────────
 // Industry-standard PMS matrix: front desk owns the full reservation
@@ -376,6 +421,363 @@ export async function createBooking(
     return { success: true, bookingId: booking.booking_id, reference: booking.reference };
   } catch (err) {
     return toActionError(err, { action: "bookings.createBooking" });
+  }
+}
+
+// ── Create Booking Group (staff multi-room) ──────────────────────────
+// One reservation = N space stays for the same guest (shared dates, guest
+// and payment posture). Reuses createBookingGroupAtomic exactly as the guest
+// /api/booking/[slug]/bookings group path does, so the N× available-count +
+// restriction + capacity checks and the DB-side inventory/repriced-nights
+// flow are byte-for-byte the single-room path per line. Any line's HINT
+// travels back (invalid_line_count / no_availability / inventory_conflict /
+// stay_restrictions) and the caller never sees raw SQL text.
+
+function groupRejectionMessage(
+  rejection: BookingRejection,
+  stay: { checkIn: string; checkOut: string }
+): string {
+  // Dedicated group codes first — single-room failures fall through to the
+  // same curated copy the front desk already sees.
+  switch (rejection.code) {
+    case "invalid_line_count":
+      return "A reservation can hold 1–10 rooms. Check the quantities and try again.";
+    default:
+      return rejectionMessage(rejection, stay);
+  }
+}
+
+export type CreateBookingGroupResult =
+  | {
+      success: true;
+      groupId: string;
+      reference: string;
+      groupTotalMinor?: number;
+      lineCount: number;
+      lines: { bookingId: string; reference: string; totalAmount: number }[];
+    }
+  | { success: false; error: string; fieldErrors?: Record<string, string[]> };
+
+export async function createBookingGroup(
+  raw: unknown
+): Promise<CreateBookingGroupResult> {
+  try {
+    const ctx = await requireMinRole("front_desk", "create bookings");
+    const supabase = await createClient();
+
+    const parsed = NewBookingGroupSchema.safeParse(raw);
+    if (!parsed.success) {
+      const fieldErrors: Record<string, string[]> = {};
+      for (const issue of parsed.error.issues) {
+        const path = issue.path.join(".");
+        fieldErrors[path] ??= [];
+        fieldErrors[path].push(issue.message);
+      }
+      return { success: false, error: "Validation failed", fieldErrors };
+    }
+
+    const data = parsed.data;
+    const hotelId = ctx.hotelId;
+
+    const checkIn = new Date(data.checkIn);
+    const checkOut = new Date(data.checkOut);
+    if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+      return { success: false, error: "Invalid dates" };
+    }
+    if (checkOut <= checkIn) {
+      return { success: false, error: "Check-out must be after check-in" };
+    }
+
+    const needsTotal = data.lines.reduce((sum, l) => sum + l.quantity, 0);
+    // Expand the cart so rooms_count===1 per row: N physical stays (industry
+    // norm: one reservation → N space stays → N assignable strips), not one
+    // row holding rooms_count>1 (which would render as a single strip after).
+    // Keep a per-line summary so the audit/notification text still reads "2×
+    // Deluxe ×3 + 1× Standard ×1".
+    type CartRow = { roomTypeId: string; adults: number; children: number };
+    const cartRows: CartRow[] = data.lines.flatMap((l) =>
+      Array.from({ length: l.quantity }, () => ({
+        roomTypeId: l.roomTypeId,
+        adults: l.adults,
+        children: l.children,
+      }))
+    );
+    const lineCounts = new Map<string, number>();
+    for (const row of cartRows) {
+      lineCounts.set(row.roomTypeId, (lineCounts.get(row.roomTypeId) ?? 0) + 1);
+    }
+
+    // Convex hull is the whole stay for this product, so one pass covering N
+    // room types over one window beats N round trips. Availability caps the
+    // product regardless of restrictions — getStaffAvailability returns the
+    // min free nights per type across the stay, which is the correct headroom
+    // when N holds already land pre-branch. fetchStayRestrictions stays the
+    // source of truth for the "blocked by plan" copy.
+    const roomTypeIds = [...new Set(cartRows.map((r) => r.roomTypeId))];
+
+    // Per-row-type capacities server-side: createBooking already derives these
+    // for single; the group must do it line-by-line before anything else.
+    const { data: capacities, error: capErr } = await supabase
+      .from("room_types")
+      .select("id, max_adults, max_children")
+      .eq("hotel_id", hotelId)
+      .in("id", roomTypeIds);
+
+    if (capErr || !capacities || capacities.length !== roomTypeIds.length) {
+      return { success: false, error: "One or more room types not found" };
+    }
+    const capById = new Map(
+      capacities.map((r) => [r.id, { maxAdults: r.max_adults ?? 2, maxChildren: r.max_children ?? 0 }])
+    );
+    for (const row of cartRows) {
+      const cap = capById.get(row.roomTypeId)!;
+      if (row.adults > cap.maxAdults || row.children > cap.maxChildren) {
+        const label =
+          cap.maxChildren > 0
+            ? `${cap.maxAdults} adult${cap.maxAdults === 1 ? "" : "s"} and ${cap.maxChildren} child${cap.maxChildren === 1 ? "" : "ren"}`
+            : `${cap.maxAdults} guest${cap.maxAdults === 1 ? "" : "s"}`;
+        return { success: false, error: `That room type holds up to ${label}.` };
+      }
+    }
+
+    // Batch availability so the product does not overbook on the same dates
+    // regardless of how many rows are mid-cart. Build per-type total from
+    // distinct room_types to keep the map honest rather than trusting a sum.
+    const { data: availRows, error: availError } = await supabase.rpc("room_type_available_counts", {
+      p_room_type_ids: roomTypeIds,
+      p_from: data.checkIn,
+      p_to: data.checkOut,
+    });
+
+    if (availError) {
+      console.error("[createBookingGroup] available_counts lookup failed", {
+        error: availError.message,
+      });
+    }
+    const availById = new Map<string, number>(
+      (availRows ?? []).map((r: { room_type_id: string; available: number }) => [r.room_type_id, Number(r.available ?? 0)])
+    );
+    for (const [roomTypeId, needed] of lineCounts) {
+      const available = availById.get(roomTypeId) ?? 0;
+      if (available < needed) {
+        return {
+          success: false,
+          error:
+            needsTotal > 1
+              ? `Only ${available} room(s) left of one type for those dates. Adjust the cart and try again.`
+              : "Not enough rooms of that type are available for those dates.",
+        };
+      }
+    }
+
+    // Restrictions are a soft product gate, not a hard DB one for staff: the
+    // DB trigger normally fires only for direct, unauthenticated stays, so the
+    // check here is what a front desk actually sees. Per-line, same as the
+    // single path, so a closed Premium week does not block a booked Superior
+    // when both types sit in the same cart.
+    let restrictions: Map<string, RoomTypeStayRestrictions> | null = null;
+    try {
+      restrictions = await fetchStayRestrictions(hotelId, roomTypeIds, data.checkIn, data.checkOut);
+    } catch (error) {
+      captureError(error, {
+        scope: "server-action",
+        hotelId,
+        role: ctx.role,
+        level: "warning",
+        tags: { action: "createBookingGroup", read: "room_type_stay_restrictions" },
+      });
+    }
+
+    const blockedIds: string[] = [];
+    if (restrictions) {
+      for (const id of roomTypeIds) {
+        const r = restrictions.get(id);
+        if (r && !r.sellable) blockedIds.push(id);
+      }
+    }
+    if (blockedIds.length) {
+      const multi = blockedIds.length > 1;
+      const reasons = [...new Set(
+        blockedIds
+          .map((id) => {
+            const r = restrictions!.get(id)!;
+            return staffStayRestrictionMessage(r.restrictions);
+          })
+          .filter(Boolean)
+      )].join("; ");
+      if (!data.overrideRestrictions) {
+        return {
+          success: false,
+          error: multi
+            ? `Rate plan restrictions block this stay on ${blockedIds.length} room type(s): ${reasons}. A manager can override.`
+            : `Rate plan restrictions block this stay: ${reasons}. A manager can override this.`,
+        };
+      }
+      if (!canPerformAction(ctx.role, "manager")) {
+        return {
+          success: false,
+          error: multi
+            ? `Rate plan restrictions block this stay on ${blockedIds.length} room type(s): ${reasons}. Only a manager or above can override it.`
+            : `Rate plan restrictions block this stay: ${reasons}. Only a manager or above can override it.`,
+        };
+      }
+    }
+
+    const created = await createBookingGroupAtomic({
+      hotel_id: hotelId,
+      status: data.paymentPreference === "pay_now" ? "pending" : "confirmed",
+      payment_status: "unpaid",
+      payment_preference: data.paymentPreference,
+      source: data.source,
+      guest_id: data.guestId ?? null,
+      guest_name: data.guestName,
+      guest_email: data.guestEmail ?? "",
+      guest_phone: data.guestPhone ?? "",
+      nationality: data.nationality ?? null,
+      special_requests: data.specialRequests ?? null,
+      estimated_arrival: data.estimatedArrival ?? null,
+      created_by: ctx.staffId,
+      lines: cartRows.map((row) => ({
+        room_type_id: row.roomTypeId,
+        check_in: data.checkIn,
+        check_out: data.checkOut,
+        adults: row.adults,
+        children: row.children,
+        // One bookable unit each: mixed-cart repricing can then retry per
+        // physical row instead of retrying a whole type block, and every row
+        // can be assigned on the calendar without inventing rooms_count.
+        rooms_count: 1,
+        // Desk books hold numbered rooms straight away, so an assigned row per
+        // physical unit stays that way through timeline drags. The writer picks
+        // the lowest-numbered free room when assign_room is true and still
+        // succeeds as unassigned when none is free, so a valid reservation is
+        // never lost.
+        assign_room: true,
+      })),
+    });
+
+    if (!created.ok) {
+      return {
+        success: false,
+        error: groupRejectionMessage(created.rejection, {
+          checkIn: data.checkIn,
+          checkOut: data.checkOut,
+        }),
+      };
+    }
+
+    const group = created.group;
+
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
+      action: "booking.created",
+      entityType: "booking",
+      entityId: group.group_id,
+      afterState: {
+        reference: group.group_reference,
+        group_id: group.group_id,
+        line_count: group.line_count,
+        // Per-line quantities the desk actually picked (e.g. "2× Deluxe").
+        cart: data.lines.map((l) => ({
+          room_type_id: l.roomTypeId,
+          quantity: l.quantity,
+          adults: l.adults,
+          children: l.children,
+        })),
+        source: data.source,
+        payment_preference: data.paymentPreference,
+        check_in: data.checkIn,
+        check_out: data.checkOut,
+        total_rooms: needsTotal,
+        total_amount_minor: group.group_total_minor,
+      },
+    });
+
+    // A second audit line only when a manager sold through restrictions — a
+    // query a revenue manager can filter on later.
+    // Merge duplicate restriction reasons across room types so the log states
+    // every distinct violation rather than the first line's.
+    if (blockedIds.length) {
+      const distinctViolations = [
+        ...new Set(
+          blockedIds.flatMap((id) =>
+            (restrictions!.get(id)!.restrictions ?? []).map((v) => v.raw)
+          )
+        ),
+      ];
+      await writeAuditLog(supabase, {
+        hotelId,
+        staffId: ctx.staffId,
+        staffName: ctx.staffName,
+        action: "rate.restriction_overridden",
+        entityType: "booking",
+        entityId: group.group_id,
+        afterState: {
+          reference: group.group_reference,
+          group_id: group.group_id,
+          room_type_ids: blockedIds,
+          check_in: data.checkIn,
+          check_out: data.checkOut,
+          violations: distinctViolations,
+        },
+      });
+    }
+
+    // Fan-out internal alerts exactly like single-booking: per-prefs, actors
+    // excluded. The atomized group has per-row booking_ids, but the UX is one
+    // reservation (one reference), so the fan-out references the anchor id the
+    // UI opens — same as the guest funnel's group path.
+    const { data: recipients } = await supabase
+      .from("staff_profiles")
+      .select("id, notification_prefs")
+      .eq("clerk_org_id", ctx.orgId)
+      .eq("is_active", true)
+      .neq("id", ctx.staffId);
+    const notifRows = (recipients ?? [])
+      .filter((s) => (s.notification_prefs as Record<string, boolean> | null)?.new_booking !== false)
+      .map((s) => ({
+        hotel_id: hotelId,
+        type: "new_booking",
+        title:
+          group.line_count > 1
+            ? `New group booking · ${group.line_count} stays`
+            : "New booking created",
+        message:
+          group.line_count > 1
+            ? `${group.group_reference} · ${group.line_count} stays by ${ctx.staffName ?? "staff"}`
+            : `${group.group_reference} added by ${ctx.staffName ?? "staff"}`,
+        booking_id: group.group_id,
+        created_by_staff_id: ctx.staffId,
+        recipient_staff_id: s.id,
+      }));
+    if (notifRows.length) {
+      const { error: notifyError } = await supabase.from("notifications").insert(notifRows as never);
+      if (notifyError) {
+        console.error("[createBookingGroup] staff notification insert failed", {
+          bookingId: group.group_id,
+          error: notifyError.message,
+        });
+      } else {
+        kickDeliveryWorker();
+      }
+    }
+
+    return {
+      success: true,
+      groupId: group.group_id,
+      reference: group.group_reference,
+      groupTotalMinor: group.group_total_minor,
+      lineCount: group.line_count,
+      lines: group.lines.map((l) => ({
+        bookingId: l.booking_id,
+        reference: l.reference,
+        totalAmount: l.total_amount,
+      })),
+    };
+  } catch (err) {
+    return toActionError(err, { action: "bookings.createBookingGroup" });
   }
 }
 

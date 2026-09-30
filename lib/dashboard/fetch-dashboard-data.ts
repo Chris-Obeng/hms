@@ -19,6 +19,8 @@ interface DashboardBookingRow {
   source: string | null;
   nights: number | null;
   room_id: string | null;
+  rooms_count?: number | null;
+  group_id?: string | null;
   created_at: string | null;
   cancelled_at?: string | null;
   special_requests: string | null;
@@ -121,7 +123,7 @@ export async function fetchDashboardData(
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, special_requests, internal_notes,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, rooms_count, group_id, created_at, special_requests, internal_notes,
         guests(full_name, email, phone), rooms(room_number), room_types(name)
       `)
       .eq("hotel_id", hotelId)
@@ -156,11 +158,19 @@ export async function fetchDashboardData(
   const roomStatuses = roomsRes.data || [];
   const outOfService = roomStatuses.filter((r) => r.status === "maintenance" || r.status === "out_of_service").length;
   const activeRooms = roomStatuses.length;
-  const occupiedRoomIds = new Set((dateBookingsRes.data || []).map((b) => b.room_id).filter(Boolean));
+  // Booked units: sum of rooms_count for the night. Distinct room_id undercounts
+  // legacy rows where one booking holds N units on a single room_id (group_id
+  // null, rooms_count>1) and also misses unassigned inventory-holding rows.
+  const dateBookings = (dateBookingsRes.data || []) as Array<{ room_id: string | null; rooms_count: number | null; group_id: string | null }>;
+  const occupiedUnits = dateBookings.reduce((sum, b) => sum + Math.max(1, Number(b.rooms_count) || 1), 0);
+  // For the "blocked but not already occupied" bucket we still need the set of
+  // physically assigned rooms, so a blocked room that already has a strip is
+  // not double-subtracted from Available.
+  const occupiedRoomIds = new Set(dateBookings.map((b) => b.room_id).filter(Boolean) as string[]);
   const blockedRoomIds = new Set((blocksRes.data || []).map((b) => b.room_id));
-  const occupiedRooms = occupiedRoomIds.size;
+  const occupiedRooms = occupiedUnits;
   const blocked = [...blockedRoomIds].filter((id) => !occupiedRoomIds.has(id)).length;
-  const availableRooms = activeRooms - occupiedRooms - outOfService - blocked;
+  const availableRooms = Math.max(0, activeRooms - occupiedUnits - outOfService - blocked);
 
   const mapBooking = (b: DashboardBookingRow): ActivityBooking => ({
     id: b.id,
@@ -234,7 +244,7 @@ export async function fetchDashboardData(
     },
     bookings: uniqueBookings,
     occupancy: {
-      percent: activeRooms > 0 ? Math.round((occupiedRooms / activeRooms) * 100) : 0,
+      percent: activeRooms > 0 ? Math.round((Math.min(occupiedRooms, activeRooms) / activeRooms) * 100) : 0,
       totalRooms: activeRooms,
       occupiedRooms,
       availableRooms,
