@@ -34,27 +34,51 @@ function recentlyDismissed(): boolean {
  * Actions are 44 px tall, the minimum comfortable touch target (HIG ›
  * Accessibility › Platform considerations).
  */
-export function PushOptInPrompt({ paused = false }: { paused?: boolean }) {
+export function PushOptInPrompt({
+  claimTurn,
+  releaseTurn,
+}: {
+  claimTurn: () => boolean;
+  releaseTurn: () => void;
+}) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
 
-  useFirstInteraction(!paused, () => {
+  // Same turn as the install ask above: request, support and cooldown decide
+  // eligibility, but only the shared turn decides who opens — so a late
+  // install signal still takes its place first instead of stacking.
+  // Returning `false` declines without consuming the hook, so push waits for
+  // the next interaction rather than missing its turn.
+  useFirstInteraction(true, () => {
     const supported =
       "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
     if (!supported || Notification.permission !== "default" || recentlyDismissed()) return;
+    if (!claimTurn()) return false;
     setIsOpen(true);
   });
 
   const handleOpenChange = React.useCallback((open: boolean) => {
     setIsOpen(open);
     if (!open) {
+      releaseTurn();
       try {
         localStorage.setItem(DISMISS_KEY, new Date().toISOString());
       } catch {
         // Storage unavailable — the prompt simply reappears next visit.
       }
     }
-  }, []);
+  }, [releaseTurn]);
+
+  // A successful enable must hand the turn back: `setIsOpen(false)` alone does
+  // not run the shared close path above, so the partner prompt would otherwise
+  // sit declined forever. Permission is no longer "default" afterwards, so
+  // this prompt never asks again anyway — but it must not wedge the other one.
+  // (HeroUI closes through `onOpenChange`, which does release the turn; this
+  // is only the programmatic-dismiss path.)
+  const releaseTurnRef = React.useRef(releaseTurn);
+  React.useEffect(() => {
+    releaseTurnRef.current = releaseTurn;
+  }, [releaseTurn]);
 
   const enable = React.useCallback(async () => {
     setBusy(true);
@@ -63,6 +87,7 @@ export function PushOptInPrompt({ paused = false }: { paused?: boolean }) {
       // Granted (or subscribed): the permission is no longer "default", so this
       // never asks again and no cooldown is needed.
       setIsOpen(false);
+      releaseTurnRef.current();
       toast.success("Notifications on");
     } catch (error) {
       // Left open on purpose: a retry is legitimate, and the toast carries the

@@ -3,6 +3,40 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 
+/**
+ * The browser fires `beforeinstallprompt` during page load/navigation and does
+ * not retain it — a listener attached from a React effect (after hydration)
+ * starts too late and the event is missed for the whole page lifetime. This
+ * import-time capture in the root provider runs with the first client module
+ * evaluation, stores the deferred prompt on `window`, and keeps working across
+ * route changes and remounts because `window` survives them.
+ */
+export interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
+declare global {
+  interface WindowEventMap {
+    beforeinstallprompt: BeforeInstallPromptEvent;
+  }
+
+  interface Window {
+    __roomlineDeferredInstallPrompt?: BeforeInstallPromptEvent | null;
+  }
+}
+
+if (typeof window !== "undefined" && window.__roomlineDeferredInstallPrompt === undefined) {
+  window.__roomlineDeferredInstallPrompt = null;
+  window.addEventListener("beforeinstallprompt", (event) => {
+    // No zustand here (providers load before any store): keep the raw event so
+    // the install hook can seed from it, and prevent the browser's automatic
+    // mini-infobar so only our modal asks.
+    event.preventDefault();
+    window.__roomlineDeferredInstallPrompt = event;
+  });
+}
+
 function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {

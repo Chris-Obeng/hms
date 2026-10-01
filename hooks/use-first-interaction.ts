@@ -13,12 +13,20 @@ import * as React from "react";
  * focus, instead of firing on a timer.
  *
  * `enabled` gates the listener entirely, so a prompt that is already dismissed,
- * unsupported or paused costs nothing.
+ * unsupported or paused costs nothing. Flipping `enabled` from false to true
+ * re-arms the listener, which is what lets a late-arriving signal (like the
+ * browser's install event) ask on the *next* interaction instead of missing its
+ * turn forever.
+ *
+ * If `onReady` returns exactly `false` the listener re-arms for the next
+ * interaction instead of being consumed — the mechanism that keeps two modal
+ * asks from stacking (HIG › Modality › Best practices): whoever claims the
+ * shared prompt turn opens, the other declines and waits its turn.
  */
 export function useFirstInteraction(
   enabled: boolean,
-  onReady: () => void,
-  settleMs = 600
+  onReady: () => void | false,
+  settleMs = 600,
 ): void {
   const callback = React.useRef(onReady);
 
@@ -32,17 +40,29 @@ export function useFirstInteraction(
     const events = ["pointerdown", "keydown", "touchstart", "scroll"] as const;
     let timer: number | undefined;
 
-    const onFirst = () => {
-      for (const event of events) window.removeEventListener(event, onFirst);
-      timer = window.setTimeout(() => callback.current(), settleMs);
+    const arm = () => {
+      for (const event of events) {
+        window.addEventListener(event, onFirst, { passive: true });
+      }
     };
 
-    for (const event of events) {
-      window.addEventListener(event, onFirst, { passive: true });
-    }
+    const disarm = () => {
+      for (const event of events) window.removeEventListener(event, onFirst);
+    };
+
+    const onFirst = () => {
+      disarm();
+      timer = window.setTimeout(() => {
+        // `false` declines the turn without consuming it: the listener re-arms
+        // for the next interaction instead of letting two asks stack.
+        if (callback.current() === false) arm();
+      }, settleMs);
+    };
+
+    arm();
 
     return () => {
-      for (const event of events) window.removeEventListener(event, onFirst);
+      disarm();
       if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [enabled, settleMs]);

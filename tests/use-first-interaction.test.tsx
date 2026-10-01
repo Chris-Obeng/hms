@@ -61,6 +61,28 @@ describe("useFirstInteraction", () => {
     expect(onReady).not.toHaveBeenCalled();
   });
 
+  it("re-arms when the callback declines the turn", () => {
+    const onReady = vi.fn((): false => false);
+    renderHook(() => useFirstInteraction(true, onReady, 600));
+
+    act(() => {
+      window.dispatchEvent(new Event("pointerdown"));
+    });
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expect(onReady).toHaveBeenCalledTimes(1);
+
+    // The turn was declined, not consumed: the next interaction fires again.
+    act(() => {
+      window.dispatchEvent(new Event("pointerdown"));
+    });
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expect(onReady).toHaveBeenCalledTimes(2);
+  });
+
   it("drops a pending open when the surface unmounts first", () => {
     const onReady = vi.fn();
     const { unmount } = renderHook(() => useFirstInteraction(true, onReady, 600));

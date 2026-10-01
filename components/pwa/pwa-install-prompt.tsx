@@ -33,9 +33,11 @@ function wasDismissedRecently(): boolean {
  * Accessibility › Platform considerations).
  */
 export function PwaInstallPrompt({
-  onOpenChange,
+  claimTurn,
+  releaseTurn,
 }: {
-  onOpenChange?: (open: boolean) => void;
+  claimTurn: () => boolean;
+  releaseTurn: () => void;
 }) {
   const { isStandalone, isIos, canInstall, promptInstall } = usePwaInstall();
   const [isOpen, setIsOpen] = React.useState(false);
@@ -44,9 +46,25 @@ export function PwaInstallPrompt({
   // iOS Safari fires no install event: the same surface teaches the two taps
   // instead of offering a button that cannot work.
   const showIosSteps = isIos && !canInstall;
+  const eligible = !isStandalone && (canInstall || isIos);
 
-  useFirstInteraction(!isStandalone && (canInstall || isIos), () => {
-    if (!wasDismissedRecently()) setIsOpen(true);
+  // The browser can fire the event after the user's first interaction (it is
+  // only guaranteed around load/navigation), so eligibility alone is not
+  // enough: the ask must also wake and re-fire once the signal arrives.
+  // Returning `false` declines the shared prompt turn without consuming the
+  // hook, so the notification ask keeps its place in line instead of stacking.
+  // The eligibility snapshot is recomputed at fire time rather than trusted
+  // from render: the deferred prompt arrives through the store and this
+  // callback intentionally runs with whatever values are current.
+  const eligibleRef = React.useRef(eligible);
+  React.useEffect(() => {
+    eligibleRef.current = eligible;
+  }, [eligible]);
+
+  useFirstInteraction(eligible, () => {
+    if (!eligibleRef.current || wasDismissedRecently()) return;
+    if (!claimTurn()) return false;
+    setIsOpen(true);
   });
 
   const remember = React.useCallback(() => {
@@ -60,10 +78,12 @@ export function PwaInstallPrompt({
   const handleOpenChange = React.useCallback(
     (open: boolean) => {
       setIsOpen(open);
-      onOpenChange?.(open);
-      if (!open) remember();
+      if (!open) {
+        releaseTurn();
+        remember();
+      }
     },
-    [onOpenChange, remember]
+    [releaseTurn, remember]
   );
 
   const handleInstall = React.useCallback(async () => {

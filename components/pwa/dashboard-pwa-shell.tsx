@@ -10,16 +10,37 @@ import { PushOptInPrompt } from "@/components/pwa/push-opt-in-prompt";
 export function DashboardPwaShell({ children }: { children: ReactNode }) {
   // HIG › Modality › Best practices: "Let people dismiss a modal view before
   // presenting another one… you never want to display more than one alert at the
-  // same time." The install ask goes first; the notification ask waits until it
-  // has been closed, then waits for the next interaction of its own.
-  const [installPromptOpen, setInstallPromptOpen] = React.useState(false);
+  // same time." The shared turn below is the enforcement: whoever claims the
+  // prompt turn opens; the other declines and waits for the next interaction.
+  // Refs — never state — because both timers can expire in the same task: the
+  // loser must see the winner's claim synchronously, not after a re-render.
+  const claimedTurn = React.useRef(false);
+
+  const claimPromptTurn = React.useCallback(() => {
+    if (claimedTurn.current) return false;
+    claimedTurn.current = true;
+    return true;
+  }, []);
+
+  const releasePromptTurn = React.useCallback(() => {
+    claimedTurn.current = false;
+  }, []);
+
+  // If the shell unmounts while a modal holds the turn (route change,
+  // teardown), hand it back: the survivor re-arms on its next interaction
+  // instead of sitting declined forever.
+  React.useEffect(() => {
+    return () => {
+      claimedTurn.current = false;
+    };
+  }, []);
 
   return (
     <>
       <SwRegister />
       <OfflineIndicator />
-      <PwaInstallPrompt onOpenChange={setInstallPromptOpen} />
-      <PushOptInPrompt paused={installPromptOpen} />
+      <PwaInstallPrompt claimTurn={claimPromptTurn} releaseTurn={releasePromptTurn} />
+      <PushOptInPrompt claimTurn={claimPromptTurn} releaseTurn={releasePromptTurn} />
       {children}
     </>
   );
