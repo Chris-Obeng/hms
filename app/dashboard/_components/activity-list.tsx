@@ -3,13 +3,15 @@
 import * as React from "react";
 import {
   MessageSquareText,
+  CalendarX,
+  MoonStar,
   ChevronDown,
   ChevronRight,
   MoreVertical,
   RotateCw,
 } from "lucide-react";
 import { MorphIcon, type IconInput } from "morphicons/react";
-import { AlertDialog, Button, Dropdown, Skeleton } from "@heroui/react";
+import { AlertDialog, Button, Dropdown, Label, Skeleton } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
 import { formatDate, getNights, getInitials, formatRoomLabel } from "@/lib/format";
@@ -71,6 +73,112 @@ type PendingConfirm =
   | { kind: "cancel"; booking: ActivityBooking }
   | { kind: "noshow"; booking: ActivityBooking }
   | null;
+
+/**
+ * Cancel / no-show confirmation dialog.
+ *
+ * Apple HIG `alerts.md` › Content + Buttons: short fragment title naming the
+ * exact outcome, one plain-language consequence sentence (no button
+ * walkthrough), 44pt+ stacked actions with the preferred outcome first,
+ * destructive styling only for the irreversible cancel, Keep as plain Cancel.
+ */
+function CancelConfirmContent({
+  pendingConfirm,
+  onConfirm,
+}: {
+  pendingConfirm: PendingConfirm;
+  onConfirm: () => void;
+}) {
+  if (!pendingConfirm) return null;
+  const isNoShow = pendingConfirm.kind === "noshow";
+  const { booking } = pendingConfirm;
+  const stayRange = `${formatDate(booking.checkIn, "MMM d")} – ${formatDate(
+    booking.checkOut,
+    "MMM d, yyyy"
+  )}`;
+  const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
+
+  return (
+    <>
+      {/* Centered emblem on a soft status wash — the single glanceable cue. */}
+      <div
+        className={cn(
+          "mx-auto grid size-14 place-items-center rounded-[18px] border shadow-sm",
+          isNoShow
+            ? "bg-amber-700/10 text-amber-700 border-amber-700/15 dark:bg-amber-500/12 dark:text-amber-400"
+            : "bg-destructive/10 text-destructive border-destructive/15"
+        )}
+      >
+        {isNoShow ? (
+          <MoonStar className="size-[22px]" aria-hidden />
+        ) : (
+          <CalendarX className="size-[22px]" aria-hidden />
+        )}
+      </div>
+
+      <div className="mt-4 text-center">
+        <AlertDialog.Heading className="text-balance text-[17px] font-semibold leading-tight tracking-tight text-foreground">
+          {isNoShow ? "Mark as No-Show" : "Cancel Reservation"}
+        </AlertDialog.Heading>
+        <p className="mt-1.5 text-balance text-[13.5px] leading-relaxed text-muted-foreground">
+          {isNoShow
+            ? "The room returns to inventory and this stay counts toward tonight's no-shows."
+            : "The room is released and can be rebooked immediately."}
+        </p>
+      </div>
+
+      {/* Booking facts — grouped via spacing + alignment only, no boxing. */}
+      <dl className="mt-5 space-y-2.5 text-left">
+        <div className="flex items-baseline justify-between gap-4">
+          <dt className="shrink-0 text-[12px] font-medium text-muted-foreground">Guest</dt>
+          <dd className="truncate text-[13px] font-semibold text-foreground">{booking.guestName}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-4">
+          <dt className="shrink-0 text-[12px] font-medium text-muted-foreground">Reference</dt>
+          <dd className="font-mono text-[12px] font-medium tracking-tight text-foreground">
+            {booking.reference}
+          </dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-4">
+          <dt className="shrink-0 text-[12px] font-medium text-muted-foreground">Stay</dt>
+          <dd className="text-right text-[13px] font-medium tabular-nums text-foreground">
+            {stayRange} · {nights} {nights === 1 ? "night" : "nights"}
+          </dd>
+        </div>
+      </dl>
+
+      {/* Stacked actions: primary first (48px min per HIG), rounded-3xl. Warning amber for no-show, danger red only for cancel. */}
+      <div className="mt-6 flex flex-col gap-2.5">
+        <Button
+          variant={isNoShow ? undefined : "danger"}
+          onPress={onConfirm}
+          className={cn(
+            "h-12 w-full rounded-full text-[15px] font-semibold text-white shadow-sm transition-all active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            isNoShow && "bg-amber-700 hover:bg-amber-800"
+          )}
+        >
+          {isNoShow ? "Mark No-Show" : "Cancel Reservation"}
+        </Button>
+        <Button
+          slot="close"
+          variant="tertiary"
+          className="h-12 w-full rounded-full border border-border/70 bg-background text-[15px] font-semibold text-foreground hover:bg-muted/60 hover:border-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          Keep Reservation
+        </Button>
+      </div>
+    </>
+  );
+}
+
+type RowHandlers = {
+  onCheckIn?: (id: string) => void;
+  onCheckOut?: (id: string) => void;
+  onCancel?: (b: ActivityBooking) => void;
+  onNoShow?: (b: ActivityBooking) => void;
+  onViewDetails?: (b: ActivityBooking) => void;
+  onTakePayment?: (b: ActivityBooking) => void;
+};
 
 export function ActivityList({
   bookings,
@@ -279,67 +387,22 @@ export function ActivityList({
 
       {/* Destructive confirmation — replaces brittle window.confirm */}
       <AlertDialog.Backdrop
-        variant="opaque"
+        variant="blur"
         isOpen={pendingConfirm !== null}
         onOpenChange={(isOpen) => !isOpen && setPendingConfirm(null)}
       >
-        <AlertDialog.Container placement="auto" size="sm">
-          <AlertDialog.Dialog className="rounded-2xl border border-border/70 bg-card p-6 shadow-2xl">
-            <AlertDialog.Header>
-              <AlertDialog.Icon status={pendingConfirm?.kind === "noshow" ? "warning" : "danger"} />
-              <AlertDialog.Heading>
-                {pendingConfirm?.kind === "noshow"
-                  ? "Mark as no-show?"
-                  : "Cancel this reservation?"}
-              </AlertDialog.Heading>
-            </AlertDialog.Header>
-            <AlertDialog.Body>
-              <p>
-                {pendingConfirm?.booking.guestName}&rsquo;s stay{" "}
-                <span className="font-mono text-[13px]">{pendingConfirm?.booking.reference}</span>{" "}
-                will be marked as{" "}
-                <strong className="font-semibold">
-                  {pendingConfirm?.kind === "noshow" ? "no-show" : "cancelled"}
-                </strong>
-                .
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {pendingConfirm?.kind === "noshow"
-                  ? "The room is released back to inventory. This is reported for the night audit."
-                  : "The room is released and can be rebooked immediately."}
-              </p>
-            </AlertDialog.Body>
-            <AlertDialog.Footer>
-              <Button slot="close" variant="tertiary">
-                Keep
-              </Button>
-              <Button
-                variant={pendingConfirm?.kind === "noshow" ? "primary" : "danger"}
-                className={
-                  pendingConfirm?.kind === "noshow"
-                    ? "bg-amber-600 text-white hover:bg-amber-700"
-                    : undefined
-                }
-                onPress={confirmPending}
-              >
-                {pendingConfirm?.kind === "noshow" ? "Mark no-show" : "Cancel reservation"}
-              </Button>
-            </AlertDialog.Footer>
+        <AlertDialog.Container placement="center" size="sm">
+          <AlertDialog.Dialog className="rounded-[28px] border border-border/60 bg-card px-6 py-7 shadow-2xl outline-none sm:max-w-[400px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none">
+            <CancelConfirmContent
+              pendingConfirm={pendingConfirm}
+              onConfirm={confirmPending}
+            />
           </AlertDialog.Dialog>
         </AlertDialog.Container>
       </AlertDialog.Backdrop>
     </div>
   );
 }
-
-type RowHandlers = {
-  onCheckIn?: (id: string) => void;
-  onCheckOut?: (id: string) => void;
-  onCancel?: (b: ActivityBooking) => void;
-  onNoShow?: (b: ActivityBooking) => void;
-  onViewDetails?: (b: ActivityBooking) => void;
-  onTakePayment?: (b: ActivityBooking) => void;
-};
 
 function DesktopBookingRow({
   booking,
@@ -526,25 +589,35 @@ function MobileBookingRow({
             >
               Check-in
             </Button>
-            <Dropdown>
-              <Dropdown.Trigger
-                aria-label="More actions"
-                className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-xl border border-border text-muted-foreground outline-none hover:bg-muted/50 transition-colors"
-              >
-                <MoreVertical className="size-4" />
-              </Dropdown.Trigger>
-              <Dropdown.Popover placement="bottom end">
-                <Dropdown.Menu
-                  onAction={(key) => {
-                    if (key === "cancel") onCancel?.(booking);
-                    if (key === "noshow") onNoShow?.(booking);
-                  }}
+            <div
+              onClick={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+            >
+              <Dropdown>
+                <Dropdown.Trigger
+                  aria-label="More actions"
+                  className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-xl border border-border text-muted-foreground outline-none hover:bg-muted/50 transition-colors"
                 >
-                  <Dropdown.Item key="cancel">Cancel booking</Dropdown.Item>
-                  <Dropdown.Item key="noshow">Mark no-show</Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown.Popover>
-            </Dropdown>
+                  <MoreVertical className="size-4" />
+                </Dropdown.Trigger>
+                <Dropdown.Popover placement="bottom end">
+                  <Dropdown.Menu
+                    onAction={(key) => {
+                      const action = String(key);
+                      if (action === "cancel") onCancel?.(booking);
+                      if (action === "noshow") onNoShow?.(booking);
+                    }}
+                  >
+                    <Dropdown.Item id="cancel" key="cancel" textValue="Cancel booking">
+                      <Label>Cancel booking</Label>
+                    </Dropdown.Item>
+                    <Dropdown.Item id="noshow" key="noshow" textValue="Mark no-show">
+                      <Label>Mark no-show</Label>
+                    </Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown.Popover>
+              </Dropdown>
+            </div>
           </>
         )}
         {booking.status === "checked_in" && onCheckOut && (
@@ -602,6 +675,7 @@ function SplitAction({
   };
   return (
     <div
+      onClick={(e) => e.stopPropagation()}
       className={cn(
         "inline-flex overflow-hidden rounded-lg border text-xs font-semibold text-white divide-x divide-white/20",
         tones[tone]
@@ -625,13 +699,15 @@ function SplitAction({
           <Dropdown.Popover placement="bottom end">
             <Dropdown.Menu
               onAction={(key) => {
-                const item = items.find((i) => i.key === key);
+                const item = items.find((i) => i.key === String(key));
                 if (item) item.onSelect();
               }}
               className="w-40 text-xs"
             >
               {items.map((item) => (
-                <Dropdown.Item key={item.key}>{item.label}</Dropdown.Item>
+                <Dropdown.Item id={item.key} key={item.key} textValue={item.label}>
+                  <Label>{item.label}</Label>
+                </Dropdown.Item>
               ))}
             </Dropdown.Menu>
           </Dropdown.Popover>
