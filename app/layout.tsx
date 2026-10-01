@@ -52,7 +52,10 @@ export const metadata: Metadata = {
   applicationName: "RoomLine",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    // The product is light-only, so the status bar text must stay dark (the
+    // platform default). "black-translucent" painted white text over light
+    // content on iOS home-screen installs.
+    statusBarStyle: "default",
     title: "RoomLine",
   },
   formatDetection: {
@@ -67,12 +70,25 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * Deliberately declares NO `themeColor`.
+ *
+ * A page-level theme colour overrides the web app manifest and paints the
+ * installed PWA's title bar. Declaring the app's paper colour here is what turned
+ * the RoomLine window caption white; leaving it unset hands the chrome back to the
+ * platform default, which is the choice Mews and Cloudbeds make too (neither
+ * ships a theme-color or a manifest).
+ *
+ * `colorScheme: "light"` is not a colour declaration: it tells the browser the
+ * document does not support dark mode, so scrollbars, form controls and the
+ * canvas stay light even when the OS is in dark mode.
+ */
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  themeColor: "#FAFAF8",
+  colorScheme: "light",
 };
 
 export default function RootLayout({

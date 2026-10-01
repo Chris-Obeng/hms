@@ -10,8 +10,10 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/dashboard",
     display: "standalone",
     display_override: ["standalone", "minimal-ui"],
+    // background_color paints the PWA splash before the app renders, so it stays
+    // the app's paper colour. theme_color is deliberately absent: the window
+    // chrome is left to the platform default (see the viewport note in layout.tsx).
     background_color: "#FAFAF8",
-    theme_color: "#1C1917",
     orientation: "any",
     categories: ["business", "productivity"],
     icons: [

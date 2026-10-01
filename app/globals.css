@@ -246,6 +246,11 @@
   --ob-accent-muted: oklch(0.78 0.18 70 / 0.15);
   --ob-accent-glow: oklch(0.78 0.18 70 / 0.06);
 
+  /* Light-only product: keep UA-painted chrome (scrollbars, form controls, the
+     canvas) light even when the operating system is in dark mode. Paired with
+     `colorScheme: "light"` in the root viewport meta. */
+  color-scheme: light;
+
   --background: oklch(0.993 0.003 250);
   --foreground: oklch(0.17 0.02 260);
   --card: oklch(1 0 0);

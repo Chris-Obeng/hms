@@ -15,6 +15,10 @@ export default defineConfig({
     // Node by default (lib/domain tests). DOM tests opt in per file with the
     // documented `@vitest-environment jsdom` docblock.
     environment: "node",
+    // DOM suites pay their cold render on the first test of the file (~1.5 s on
+    // an idle machine, several times that while lint/typecheck run beside them),
+    // so the 5 s default produced timeouts that had nothing to do with the code.
+    testTimeout: 15_000,
     include: ["tests/**/*.test.{ts,tsx}"],
     // RTL cleanup — it cannot self-register while globals are off.
     setupFiles: ["./tests/setup.ts"],

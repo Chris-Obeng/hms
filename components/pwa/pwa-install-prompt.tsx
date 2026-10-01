@@ -1,16 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Download, Share, Plus, X, Smartphone } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { Button, Modal } from "@heroui/react";
+import { Plus, Share, Smartphone } from "lucide-react";
+import { useFirstInteraction } from "@/hooks/use-first-interaction";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 
 const DISMISS_KEY = "RoomLine_pwa_install_dismissed";
@@ -25,131 +18,119 @@ function wasDismissedRecently(): boolean {
   return Date.now() - dismissedAt < DISMISS_DAYS * 24 * 60 * 60 * 1000;
 }
 
-export function PwaInstallPrompt() {
+/**
+ * The install ask, as an alert-style modal.
+ *
+ * The anatomy is Apple's alert anatomy on purpose: "alerts display a title,
+ * optional informative text, and up to three buttons" (HIG › Alerts › Content),
+ * and a modal task should stay "simple, short, and streamlined" (HIG › Modality ›
+ * Best practices). It opens on the first interaction rather than on a timer
+ * (HIG › Alerts › Best practices) and yields to the notification prompt, because
+ * you "never want to display more than one alert at the same time" (HIG ›
+ * Modality › Best practices).
+ *
+ * Buttons are 44 px tall: the minimum comfortable touch target (HIG ›
+ * Accessibility › Platform considerations).
+ */
+export function PwaInstallPrompt({
+  onOpenChange,
+}: {
+  onOpenChange?: (open: boolean) => void;
+}) {
   const { isStandalone, isIos, canInstall, promptInstall } = usePwaInstall();
-  const [visible, setVisible] = React.useState(false);
-  const [iosOpen, setIosOpen] = React.useState(false);
+  const [isOpen, setIsOpen] = React.useState(false);
   const [installing, setInstalling] = React.useState(false);
 
-  React.useEffect(() => {
-    if (isStandalone || wasDismissedRecently()) return;
-    const timer = window.setTimeout(() => {
-      if (canInstall || isIos) setVisible(true);
-    }, 4000);
-    return () => window.clearTimeout(timer);
-  }, [canInstall, isIos, isStandalone]);
+  // iOS Safari fires no install event: the same surface teaches the two taps
+  // instead of offering a button that cannot work.
+  const showIosSteps = isIos && !canInstall;
 
-  const dismiss = React.useCallback(() => {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()));
-    setVisible(false);
-    setIosOpen(false);
+  useFirstInteraction(!isStandalone && (canInstall || isIos), () => {
+    if (!wasDismissedRecently()) setIsOpen(true);
+  });
+
+  const remember = React.useCallback(() => {
+    try {
+      localStorage.setItem(DISMISS_KEY, String(Date.now()));
+    } catch {
+      // Storage unavailable — the prompt simply reappears, which is acceptable.
+    }
   }, []);
 
+  const handleOpenChange = React.useCallback(
+    (open: boolean) => {
+      setIsOpen(open);
+      onOpenChange?.(open);
+      if (!open) remember();
+    },
+    [onOpenChange, remember]
+  );
+
   const handleInstall = React.useCallback(async () => {
-    if (isIos) {
-      setIosOpen(true);
-      return;
-    }
     setInstalling(true);
-    const accepted = await promptInstall();
-    setInstalling(false);
-    if (accepted) {
-      setVisible(false);
+    try {
+      await promptInstall();
+    } finally {
+      setInstalling(false);
+      // The browser's own prompt is the decision: dismiss the modal either way and
+      // start the quiet cooldown, so a refusal is not repeated on the next tap.
+      handleOpenChange(false);
     }
-  }, [isIos, promptInstall]);
+  }, [handleOpenChange, promptInstall]);
 
   if (isStandalone) return null;
 
   return (
-    <>
-      {visible && (
-      <div
-        role="status"
-        className={cn(
-          "mb-4 flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm",
-          "sm:flex-row sm:items-center sm:justify-between",
-          "animate-in fade-in slide-in-from-top-2 duration-300",
-        )}
-      >
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-foreground text-background">
-            <Smartphone className="size-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">Install RoomLine</p>
-            <p className="text-caption text-muted-foreground mt-0.5">
-              Add to home screen for faster check-ins, offline shell, and native feel on tablet or phone.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0 sm:ml-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 rounded-xl text-muted-foreground"
-            onClick={dismiss}
-          >
-            Not now
-          </Button>
-          <Button
-            size="sm"
-            className="h-9 rounded-xl gap-1.5"
-            onClick={handleInstall}
-            disabled={installing}
-          >
-            <Download className="size-3.5" />
-            {installing ? "Installing…" : "Install"}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="size-9 rounded-xl sm:hidden"
-            onClick={dismiss}
-            aria-label="Dismiss install prompt"
-          >
-            <X className="size-4" />
-          </Button>
-        </div>
-      </div>
-      )}
+    <Modal.Backdrop isOpen={isOpen} onOpenChange={handleOpenChange} variant="opaque">
+      <Modal.Container placement="auto" size="sm">
+        <Modal.Dialog className="sm:max-w-[22rem]">
+          <Modal.Header>
+            <Modal.Icon className="bg-primary/[0.08] text-primary ring-1 ring-primary/15">
+              <Smartphone className="size-5" />
+            </Modal.Icon>
+            <Modal.Heading>Install RoomLine</Modal.Heading>
+          </Modal.Header>
 
-      <Dialog open={iosOpen} onOpenChange={setIosOpen}>
-        <IosInstallDialog onDismiss={dismiss} />
-      </Dialog>
-    </>
-  );
-}
+          <Modal.Body>
+            {showIosSteps ? (
+              <p className="text-base leading-relaxed text-muted-foreground">
+                Tap <Share aria-hidden className="inline size-4 -mt-0.5" /> Share in Safari&apos;s
+                toolbar, then <Plus aria-hidden className="inline size-4 -mt-0.5" /> Add to Home
+                Screen.
+              </p>
+            ) : (
+              <p className="text-base leading-relaxed text-muted-foreground">
+                Full screen, launches faster, and keeps working offline.
+              </p>
+            )}
+          </Modal.Body>
 
-function IosInstallDialog({ onDismiss }: { onDismiss: () => void }) {
-  return (
-    <DialogContent className="sm:max-w-md rounded-2xl">
-      <DialogHeader>
-        <DialogTitle>Add RoomLine to Home Screen</DialogTitle>
-        <DialogDescription>
-          Install works like a native app — full screen, fast launch, no browser chrome.
-        </DialogDescription>
-      </DialogHeader>
-      <ol className="space-y-3 text-sm text-foreground">
-        <li className="flex items-start gap-3">
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">1</span>
-          <span className="pt-0.5">
-            Tap <Share className="inline size-4 mx-0.5 -mt-0.5" /> Share in Safari&apos;s toolbar
-          </span>
-        </li>
-        <li className="flex items-start gap-3">
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">2</span>
-          <span className="pt-0.5">
-            Scroll and tap <Plus className="inline size-4 mx-0.5 -mt-0.5" /> Add to Home Screen
-          </span>
-        </li>
-        <li className="flex items-start gap-3">
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">3</span>
-          <span className="pt-0.5">Tap Add — RoomLine opens standalone from your home screen</span>
-        </li>
-      </ol>
-      <Button className="w-full rounded-xl" onClick={onDismiss}>
-        Got it
-      </Button>
-    </DialogContent>
+          <Modal.Footer>
+            {showIosSteps ? (
+              <Button slot="close" className="min-h-11 h-auto flex-1 rounded-xl text-base font-semibold">
+                Got It
+              </Button>
+            ) : (
+              <>
+                <Button
+                  slot="close"
+                  variant="tertiary"
+                  className="min-h-11 h-auto flex-1 rounded-xl text-base font-medium"
+                >
+                  Not Now
+                </Button>
+                <Button
+                  isPending={installing}
+                  onPress={handleInstall}
+                  className="min-h-11 h-auto flex-1 rounded-xl text-base font-semibold"
+                >
+                  Install
+                </Button>
+              </>
+            )}
+          </Modal.Footer>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }
