@@ -105,42 +105,39 @@
    *  Production-ready tokens for onboarding flow
    * ────────────────────────────────────────────────────────────── */
 
-  /* Layout */
+  /* Layout — flagship paper */
   --onboarding-sidebar-width: 42%;
   --onboarding-sidebar-width-xl: 38%;
   --onboarding-content-max-width: 32rem;
 
-  /* Colors - Dark sidebar theme */
-  --onboarding-sidebar-bg: oklch(0.28 0.019 258.53);      /* #1e293b slate-800 - lighter */
-  --onboarding-sidebar-fg: oklch(0.99 0.002 264.54);      /* #f8fafc slate-50 */
-  --onboarding-sidebar-muted: oklch(0.58 0.013 257.89);   /* #94a3b8 slate-400 - lighter */
-  --onboarding-sidebar-border: oklch(0.38 0.020 258.98);  /* #334155 slate-700 */
-  
-  /* Colors - Light content area */
-  --onboarding-content-bg: oklch(0.99 0.002 264.54);      /* #fafafa neutral-50 */
-  --onboarding-card-bg: oklch(1.0 0 0);                   /* #ffffff white */
-  --onboarding-border: oklch(0.90 0.004 264.53);          /* #e5e7eb gray-200 */
-  --onboarding-border-muted: oklch(0.95 0.003 264.52);    /* #f3f4f6 gray-100 */
-  
-  /* Text colors */
-  --onboarding-text-primary: oklch(0.22 0.014 258.34);    /* #111827 gray-900 */
-  --onboarding-text-secondary: oklch(0.45 0.011 264.36);  /* #6b7280 gray-500 */
-  --onboarding-text-muted: oklch(0.63 0.006 264.53);      /* #9ca3af gray-400 */
-  
-  /* Interactive */
-  --onboarding-accent: var(--onboarding-sidebar-bg);
-  --onboarding-accent-hover: oklch(0.38 0.020 258.98);    /* slate-700 */
-  --onboarding-focus-ring: oklch(0.28 0.019 258.53 / 0.12);
-  
-  /* Status colors */
-  --onboarding-success-bg: oklch(0.97 0.020 142.50);      /* #f0fdf4 green-50 */
-  --onboarding-success-fg: oklch(0.55 0.154 143.52);      /* #16a34a green-600 */
-  --onboarding-error-bg: oklch(0.97 0.013 22.18);         /* #fef2f2 red-50 */
-  --onboarding-error-fg: oklch(0.57 0.215 27.33);         /* #ef4444 red-500 */
-  --onboarding-error-border: oklch(0.87 0.078 22.18);     /* #fecaca red-200 */
-  
-  /* Spacing */
-  --onboarding-input-height: 2.75rem;                     /* 44px - proper touch target */
+  /* Flagship: ink sidebar + paper content — matches landing */
+  --onboarding-sidebar-bg: #0F1D1A;
+  --onboarding-sidebar-fg: #FFFCF8;
+  --onboarding-sidebar-muted: #A8B5B0;
+  --onboarding-sidebar-border: #1C2E2B;
+
+  --onboarding-content-bg: #FDFCFA;
+  --onboarding-card-bg: #FFFFFF;
+  --onboarding-border: #E9E2D6;
+  --onboarding-border-muted: #F3F0EB;
+
+  --onboarding-text-primary: #0F1D1A;
+  --onboarding-text-secondary: #6B7571;
+  --onboarding-text-muted: #8A9692;
+
+  --onboarding-accent: #0F1D1A;
+  --onboarding-accent-hover: #1C2E2B;
+  --onboarding-focus-ring: rgb(15 29 26 / 12%);
+  --onboarding-brass: #C8A96A;
+  --onboarding-brass-hover: #B89652;
+
+  --onboarding-success-bg: #F2F8F2;
+  --onboarding-success-fg: #1A6B3C;
+  --onboarding-error-bg: #FDF2F2;
+  --onboarding-error-fg: #9B2C2C;
+  --onboarding-error-border: #E9C4C4;
+
+  --onboarding-input-height: 2.75rem;
   --onboarding-button-height: 2.75rem;
   --onboarding-section-gap: 1.5rem;
   --text-label-lh: 1.4;
