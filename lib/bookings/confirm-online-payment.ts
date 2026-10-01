@@ -25,6 +25,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { fromMinor, toMinor } from "@/lib/money";
+import { fetchGroupRoomLines } from "@/lib/bookings/group-room-lines";
 import { sendBookingConfirmation } from "@/lib/notifications/send-booking-confirmation";
 import { kickDeliveryWorker } from "@/lib/notifications/kick-delivery";
 import {
@@ -950,6 +951,7 @@ export async function recordOnlineGroupPayment(
           guestEmail: guest?.email,
           reference: anchorFull.reference,
           roomName: roomsLabel,
+          rooms: await fetchGroupRoomLines(groupId),
           checkIn: anchorFull.check_in,
           checkOut: anchorFull.check_out,
           nights: anchorFull.nights ?? 1,

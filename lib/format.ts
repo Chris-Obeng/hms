@@ -139,3 +139,15 @@ export function getNights(
 export function nightsLabel(nights: number): string {
   return `${nights} night${nights === 1 ? "" : "s"}`;
 }
+
+/**
+ * Room number as stored ("room 6", "rm 6", "6") → display form ("Room 6").
+ * The rooms table keeps the word inside the number, so call sites that prefix
+ * "Room" themselves would otherwise render "Room room 6". Null for a booking
+ * with no room assigned.
+ */
+export function formatRoomLabel(roomNumber: string | null | undefined): string | null {
+  if (!roomNumber) return null;
+  const cleaned = roomNumber.replace(/^\s*(?:room|rm)\.?\s*/i, "").trim();
+  return cleaned ? `Room ${cleaned}` : "Room";
+}

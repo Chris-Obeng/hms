@@ -40,6 +40,27 @@ export function canTransitionBooking(from: string | null, to: string): boolean {
   return (ALLOWED_BOOKING_TRANSITIONS[from ?? ""] ?? []).includes(to);
 }
 
+/**
+ * Reservation-level status for a multi-room reservation, derived from every
+ * room line. One room's lifecycle event must never speak for its siblings:
+ * a reservation is only "Checked Out" once every room has left, and it stays
+ * "Checked In" while any room is still occupied.
+ *
+ * Precedence follows operational urgency — in-house, then still-expected, then
+ * past, then void:
+ *   checked_in > confirmed > pending > checked_out > no_show > cancelled
+ *
+ * An empty line list (should not happen) reads as pending.
+ */
+export function deriveReservationStatus(statuses: (string | null | undefined)[]): string {
+  const present = new Set(statuses.map((s) => s ?? ""));
+  for (const status of ["checked_in", "confirmed", "pending", "checked_out", "no_show"] as const) {
+    if (present.has(status)) return status;
+  }
+  if (present.has("cancelled")) return "cancelled";
+  return "pending";
+}
+
 /** Status dot colour. Single source for the pill dot and guest-history dot. */
 export const STATUS_COLORS: Record<string, string> = {
   confirmed: "bg-blue-500",

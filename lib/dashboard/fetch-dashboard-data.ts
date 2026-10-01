@@ -66,7 +66,7 @@ export async function fetchDashboardData(
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, special_requests, internal_notes,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, rooms_count, created_at, special_requests, internal_notes,
         guests(full_name, email, phone),
         rooms(room_number),
         room_types(name)
@@ -78,7 +78,7 @@ export async function fetchDashboardData(
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, special_requests, internal_notes,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, rooms_count, created_at, special_requests, internal_notes,
         guests(full_name, email, phone),
         rooms(room_number),
         room_types(name)
@@ -90,7 +90,7 @@ export async function fetchDashboardData(
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, special_requests, internal_notes,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, rooms_count, created_at, special_requests, internal_notes,
         guests(full_name, email, phone),
         rooms(room_number),
         room_types(name)
@@ -102,7 +102,7 @@ export async function fetchDashboardData(
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, special_requests, internal_notes,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, rooms_count, created_at, special_requests, internal_notes,
         guests(full_name, email, phone), rooms(room_number), room_types(name)
       `)
       .eq("hotel_id", hotelId)
@@ -112,7 +112,7 @@ export async function fetchDashboardData(
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, created_at, cancelled_at, special_requests, internal_notes,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, rooms_count, created_at, cancelled_at, special_requests, internal_notes,
         guests(full_name, email, phone), rooms(room_number), room_types(name)
       `)
       .eq("hotel_id", hotelId)
@@ -180,6 +180,9 @@ export async function fetchDashboardData(
     guestEmail: b.guests?.email || null,
     roomNumber: b.rooms?.room_number || null,
     roomType: b.room_types?.name || null,
+    // Units held by this row: >1 only on legacy single-row multi-room bookings
+    // (group reservations are one row per room, so each reads 1).
+    roomsCount: Math.max(1, b.rooms_count ?? 1),
     checkIn: b.check_in,
     checkOut: b.check_out,
     nights: b.nights,

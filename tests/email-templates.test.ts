@@ -45,6 +45,35 @@ describe("buildConfirmationEmail", () => {
     expect(html).not.toMatch(/>by /);
   });
 
+  it("lists every room of a multi-room reservation with its occupancy", () => {
+    const html = buildConfirmationEmail(
+      "Sunset Inn",
+      {
+        ...booking,
+        roomName: "2 rooms",
+        rooms: [
+          { name: "Premium Room", occupancy: "2 adults" },
+          { name: "Deluxe Room", occupancy: "1 adult, 1 child" },
+        ],
+      },
+      "GHS"
+    );
+    expect(html).toContain("Room 1");
+    expect(html).toContain("Room 2");
+    expect(html).toContain("Premium Room");
+    expect(html).toContain("2 adults");
+    expect(html).toContain("Deluxe Room");
+    expect(html).toContain("1 adult, 1 child");
+    // The generic summary label must not stand in for the rooms themselves.
+    expect(html).not.toContain(">2 rooms<");
+  });
+
+  it("keeps the single Room row when no room lines are supplied", () => {
+    const html = buildConfirmationEmail("Sunset Inn", booking, "GHS");
+    expect(html).toContain("Deluxe Suite");
+    expect(html).not.toContain("Room 1");
+  });
+
   it("renders optional address, phone and times when supplied", () => {
     const html = buildConfirmationEmail(
       "Sunset Inn",

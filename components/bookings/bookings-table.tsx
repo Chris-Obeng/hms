@@ -17,12 +17,13 @@ import { CalendarIcon } from "lucide-react";
 import { Button, Table } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, formatRoomLabel } from "@/lib/format";
 import {
   SOURCE_BADGES,
   getPaymentLabel,
   getStatusLabel,
 } from "@/lib/booking-status";
+import type { BookingRow } from "@/lib/bookings/reservation-rows";
 import { HeroTablePagination } from "@/components/ui/hero-table-pagination";
 import { TableSearchField } from "@/components/ui/table-search-field";
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle";
@@ -41,28 +42,9 @@ import { createCoalescer } from "@/lib/realtime/coalesce";
 
 // ── Types ──────────────────────────────────────────────────────────
 
-export interface BookingRow {
-  id: string;
-  reference: string;
-  guestName: string;
-  guestEmail: string | null;
-  guestPhone: string | null;
-  roomType: string | null;
-  roomNumber: string | null;
-  checkIn: string;
-  checkOut: string;
-  nights: number | null;
-  status: string;
-  paymentStatus: string;
-  source: string;
-  totalAmount: number;
-  amountPaid: number;
-  outstandingBalance: number | null;
-  // Total rooms across the reservation; isGroup = linked multi-room reservation.
-  roomsCount: number;
-  isGroup: boolean;
-  createdAt: string | null;
-}
+// Row shape lives with the collapse rule (lib/bookings/reservation-rows.ts) so
+// the list and its derivation can never drift. Re-exported for existing imports.
+export type { BookingRow };
 
 interface BookingsTableProps {
   data: BookingRow[];
@@ -180,7 +162,7 @@ function ReservationCard({
           ) : (
             row.roomNumber && (
               <span className="text-caption font-medium tabular-nums text-foreground">
-                Rm {row.roomNumber}
+                {formatRoomLabel(row.roomNumber)}
               </span>
             )
           )}
@@ -328,7 +310,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
               {row.original.roomsCount > 1
                 ? ` · ${row.original.roomsCount} rooms`
                 : row.original.roomNumber
-                  ? ` · Rm ${row.original.roomNumber}`
+                  ? ` · ${formatRoomLabel(row.original.roomNumber)}`
                   : row.original.roomType
                     ? ` · ${row.original.roomType}`
                     : ""}

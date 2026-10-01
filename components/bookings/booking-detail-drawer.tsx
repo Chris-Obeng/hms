@@ -6,7 +6,9 @@ import { CalendarX2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useSnapshotPatch } from "@/hooks/use-snapshot-patch";
 import { SegmentedTab } from "@/components/ui/segmented-tab";
+import { deriveReservationStatus } from "@/lib/booking-status";
 import type { FullBookingDetail } from "@/app/actions/bookings-detail";
 import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
 import { takeBookingDetail } from "@/lib/detail-prefetch";
@@ -39,8 +41,6 @@ export function BookingDetailDrawer({
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [actionLoading, setActionLoading] = React.useState<string | null>(null);
-  // Optimistic local patch — layered over TanStack data
-  const [optimisticPatch, setOptimisticPatch] = React.useState<Partial<FullBookingDetail> | null>(null);
 
   // Seed from legacy detail-prefetch Map on first open (one-shot migration) → instant if hover-warmed before hydration
   const seededRef = React.useRef<string | null>(null);
@@ -63,18 +63,25 @@ export function BookingDetailDrawer({
   });
 
   const rawBooking = query.data ?? null;
+  // Optimistic local patch — layered over the TanStack snapshot, and dropped
+  // with it (or with the closed drawer) by the hook's render-time reset.
+  const [optimisticPatch, setOptimisticPatch] = useSnapshotPatch<
+    FullBookingDetail | null,
+    Partial<FullBookingDetail>
+  >(rawBooking, open);
+
   const booking: FullBookingDetail | null = React.useMemo(() => {
     if (!rawBooking) return null;
     return optimisticPatch ? ({ ...rawBooking, ...optimisticPatch } as FullBookingDetail) : rawBooking;
   }, [rawBooking, optimisticPatch]);
 
-  // Clear optimistic patch when underlying data refreshes or drawer closes
-  React.useEffect(() => {
-    if (!open) setOptimisticPatch(null);
-  }, [open]);
-  React.useEffect(() => {
-    if (query.data) setOptimisticPatch(null);
-  }, [query.data]);
+  // The header speaks for the whole reservation: a multi-room booking stays
+  // "Checked In" while any sibling room is still occupied, even when the room
+  // this drawer was opened from (the anchor) has already checked out.
+  const reservationStatus =
+    booking?.group && booking.group.lines.length > 0
+      ? deriveReservationStatus(booking.group.lines.map((l) => l.status))
+      : booking?.status ?? "";
 
   const refresh = React.useCallback(() => {
     if (!bookingId) return;
@@ -133,51 +140,6 @@ export function BookingDetailDrawer({
     }
   };
 
-  const handleLineAction = async (
-    actionKey: string,
-    lineId: string,
-    optimisticStatus: string,
-    fn: () => Promise<{ success: boolean; error?: string }>
-  ) => {
-    if (!booking || !bookingId) return;
-    const prev = booking;
-    setActionLoading(actionKey);
-    if (booking.group) {
-      setOptimisticPatch({
-        ...(lineId === booking.id ? { status: optimisticStatus } : {}),
-        group: {
-          ...booking.group,
-          lines: booking.group.lines.map((l) => (l.id === lineId ? { ...l, status: optimisticStatus } : l)),
-        },
-      } as unknown as Partial<FullBookingDetail>);
-    } else {
-      setOptimisticPatch({ status: optimisticStatus } as Partial<FullBookingDetail>);
-    }
-    try {
-      const result = await fn();
-      if (result.success) {
-        const isCheckIn = actionKey.includes("check_in");
-        const isCheckOut = actionKey.includes("check_out");
-        const isCancel = actionKey.includes("cancel");
-        const isNoShow = actionKey.includes("no_show");
-        toast.success(
-          isCheckIn ? "Room checked in" : isCheckOut ? "Room checked out" : isCancel ? "Room cancelled" : isNoShow ? "Room marked no-show" : "Room confirmed"
-        );
-        refresh();
-      } else {
-        setOptimisticPatch(null);
-        queryClient.setQueryData(bookingDetailCache.key(bookingId), prev);
-        toast.danger(result.error || "Action failed");
-      }
-    } catch {
-      setOptimisticPatch(null);
-      queryClient.setQueryData(bookingDetailCache.key(bookingId), prev);
-      toast.danger("Action failed");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
   const handleBulkAction = async (ids: string[], targetStatus: string, kind: "check_in" | "check_out") => {
     if (!booking?.group || !bookingId || ids.length === 0) return;
     const prev = booking;
@@ -195,7 +157,6 @@ export function BookingDetailDrawer({
       let lastError: string | undefined;
       for (const id of ids) {
         const fn = kind === "check_in" ? () => doIn(id) : () => doOut(id);
-        // eslint-disable-next-line no-await-in-loop
         const r = await fn();
         if (r.success) ok += 1;
         else lastError = r.error;
@@ -252,7 +213,7 @@ export function BookingDetailDrawer({
             <>
               <Drawer.Header className="shrink-0 flex-col items-start gap-2.5 border-b border-border/50 bg-background px-4 pb-4 pr-14 pt-[max(1rem,env(safe-area-inset-top))] sm:px-5 md:pt-14">
                 <div className="flex w-full min-w-0 items-center gap-2.5">
-                  <BookingStatusPill status={booking.status} className="shrink-0" />
+                  <BookingStatusPill status={reservationStatus} className="shrink-0" />
                   <ReferenceChip reference={booking.reference} className="min-w-0" />
                   {(booking.group?.totalRooms ?? booking.roomsCount ?? 0) > 1 && (
                     <span className="shrink-0 rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-semibold text-foreground/80">
@@ -265,7 +226,11 @@ export function BookingDetailDrawer({
                 </Drawer.Heading>
               </Drawer.Header>
 
-              <BookingActionBar booking={booking} actionLoading={actionLoading} onAction={handleAction} />
+              <BookingActionBar
+                booking={booking}
+                actionLoading={actionLoading}
+                onAction={handleAction}
+              />
 
               <Tabs
                 key={`${open ? bookingId : "closed"}:${initialTab}`}
@@ -282,7 +247,7 @@ export function BookingDetailDrawer({
 
                   <BookingPanelBoundary label="overview">
                     <Tabs.Panel id="overview">
-                      <BookingOverviewPanel booking={booking} actionLoading={actionLoading} onLineAction={handleLineAction} onBulkAction={handleBulkAction} />
+                      <BookingOverviewPanel booking={booking} actionLoading={actionLoading} onBulkAction={handleBulkAction} />
                       <div className="px-4 pb-5 sm:px-5">
                         <Accordion variant="surface" allowsMultipleExpanded defaultExpandedKeys={["guest"]} className="w-full">
                           <BookingGuestPanel booking={booking} />

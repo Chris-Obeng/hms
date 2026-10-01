@@ -18,6 +18,24 @@ export function buildConfirmationEmail(
 ): string {
   const firstName = booking.guestName.split(" ")[0] ?? booking.guestName;
 
+  // A multi-room reservation names every room with its own occupancy — the same
+  // lines the confirmation page shows, so the email can't under-report what was
+  // booked. A single-room booking keeps its one "Room" row.
+  const rooms = booking.rooms ?? [];
+  const roomRows = rooms.length > 0
+    ? rooms
+        .map(
+          (room, index) => `          <tr style="border-bottom:1px solid #F5F4F2;">
+            <td style="padding:10px 0;color:#A8A29E;width:45%;">${rooms.length > 1 ? `Room ${index + 1}` : "Room"}</td>
+            <td style="padding:10px 0;text-align:right;color:#44403C;font-weight:500;">${room.name}${room.occupancy ? ` <span style="color:#A8A29E;">· ${room.occupancy}</span>` : ""}</td>
+          </tr>`
+        )
+        .join("\n")
+    : `          <tr style="border-bottom:1px solid #F5F4F2;">
+            <td style="padding:10px 0;color:#A8A29E;width:45%;">Room</td>
+            <td style="padding:10px 0;text-align:right;color:#44403C;font-weight:500;">${booking.roomName}</td>
+          </tr>`;
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -49,10 +67,7 @@ export function buildConfirmationEmail(
       <!-- Details table -->
       <table style="width:100%;border-collapse:collapse;font-size:14px;">
         <tbody>
-          <tr style="border-bottom:1px solid #F5F4F2;">
-            <td style="padding:10px 0;color:#A8A29E;width:45%;">Room</td>
-            <td style="padding:10px 0;text-align:right;color:#44403C;font-weight:500;">${booking.roomName}</td>
-          </tr>
+${roomRows}
           <tr style="border-bottom:1px solid #F5F4F2;">
             <td style="padding:10px 0;color:#A8A29E;">Check-in</td>
             <td style="padding:10px 0;text-align:right;color:#44403C;">${booking.checkIn}${booking.checkInTime ? ` <span style="color:#A8A29E;">from ${booking.checkInTime}</span>` : ""}</td>

@@ -1,25 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight, Moon, BedDouble, LogIn, LogOut, XCircle, RotateCcw, BadgeCheck } from "lucide-react";
-import { AlertDialog, Button } from "@heroui/react";
+import { ArrowRight, Moon, BedDouble } from "lucide-react";
+import { Button } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
-import { formatCurrency, formatDateFull, formatDateTime, getNights } from "@/lib/format";
+import { formatCurrency, formatDateFull, formatDateTime, formatRoomLabel, getNights } from "@/lib/format";
+import { occupancyText } from "@/lib/bookings/cart";
 import { canTransitionBooking, getSourceLabel, getStatusLabel } from "@/lib/booking-status";
-import { checkInBooking, checkOutBooking } from "@/app/dashboard/actions";
-import { updateBookingStatus } from "@/app/actions/bookings";
 import type { FullBookingDetail } from "./booking-detail-types";
 
 interface BookingOverviewPanelProps {
   booking: FullBookingDetail;
   actionLoading?: string | null;
-  onLineAction?: (
-    action: string,
-    lineId: string,
-    optimisticStatus: string,
-    fn: () => Promise<{ success: boolean; error?: string }>
-  ) => void;
+  /**
+   * Group-wide only ("check in all"). Per-room lifecycle work belongs to the
+   * header bar, which acts on the single opened row.
+   */
   onBulkAction?: (
     ids: string[],
     targetStatus: string,
@@ -27,22 +24,17 @@ interface BookingOverviewPanelProps {
   ) => void;
 }
 
-/** "2 adults" / "2 adults, 1 child". */
-function occupancyLabel(adults: number | null, children: number | null) {
-  const a = adults || 1;
-  const c = children || 0;
-  const base = `${a} ${a === 1 ? "adult" : "adults"}`;
-  return c > 0 ? `${base}, ${c} ${c === 1 ? "child" : "children"}` : base;
-}
+// Per-room occupancy phrasing is shared with the booking engine and the
+// confirmation email — `occupancyText` in lib/bookings/cart.ts is the source.
 
-export function BookingOverviewPanel({ booking, actionLoading, onLineAction, onBulkAction }: BookingOverviewPanelProps) {
+export function BookingOverviewPanel({ booking, actionLoading, onBulkAction }: BookingOverviewPanelProps) {
   const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
-  const guestsLabel = occupancyLabel(booking.adults, booking.children);
+  const guestsLabel = occupancyText(booking.adults ?? 1, booking.children ?? 0);
   const group = booking.group;
   const currency = booking.currency ?? "GHS";
 
   const roomValue = booking.room?.roomNumber
-    ? `Room ${booking.room.roomNumber}${booking.room.floor ? ` · Floor ${booking.room.floor}` : ""}`
+    ? `${formatRoomLabel(booking.room.roomNumber)}${booking.room.floor ? ` · Floor ${booking.room.floor}` : ""}`
     : null;
 
   return (
@@ -107,32 +99,9 @@ export function BookingOverviewPanel({ booking, actionLoading, onLineAction, onB
           </div>
           <div className="overflow-hidden rounded-2xl border border-border/50 bg-card/40">
             <div className="divide-y divide-border/40 px-3">
-              {group.lines.map((l) => {
-                const interactive = !!onLineAction;
-                const canCheckIn = interactive && canTransitionBooking(l.status ?? "", "checked_in");
-                const canCheckOut = interactive && canTransitionBooking(l.status ?? "", "checked_out");
-                const canConfirmPending = interactive && l.status === "pending" && canTransitionBooking(l.status ?? "", "confirmed");
-                const canReinstate = interactive && (l.status === "cancelled" || l.status === "no_show") && canTransitionBooking(l.status ?? "", "confirmed");
-                const canCancel = interactive && canTransitionBooking(l.status ?? "", "cancelled");
-                const canNoShow = interactive && canTransitionBooking(l.status ?? "", "no_show");
-                const busy = actionLoading === `line:${l.id}:check_in` || actionLoading === `line:${l.id}:check_out` || actionLoading === `line:${l.id}:cancel` || actionLoading === `line:${l.id}:confirm` || actionLoading === `line:${l.id}:no_show`;
-                return (
-                  <GroupLineRow
-                    key={l.id}
-                    line={l}
-                    currency={currency}
-                    canCheckIn={canCheckIn}
-                    canCheckOut={canCheckOut}
-                    canConfirmPending={canConfirmPending}
-                    canReinstate={canReinstate}
-                    canCancel={canCancel}
-                    canNoShow={canNoShow}
-                    busy={busy}
-                    actionLoading={actionLoading ?? null}
-                    onAction={onLineAction}
-                  />
-                );
-              })}
+              {group.lines.map((l) => (
+                <GroupLineRow key={l.id} line={l} currency={currency} />
+              ))}
             </div>
           </div>
           <GroupBulkBar group={group} actionLoading={actionLoading ?? null} onBulkAction={onBulkAction} />
@@ -178,54 +147,18 @@ export function BookingOverviewPanel({ booking, actionLoading, onLineAction, onB
   );
 }
 
+/**
+ * One room of a grouped reservation. Read-only on purpose: per-room lifecycle
+ * work lives in the header bar (the one opened row) and the group-wide
+ * controls live in the bulk bar below this list, so the list stays a list.
+ */
 function GroupLineRow({
   line,
   currency,
-  canCheckIn,
-  canCheckOut,
-  canConfirmPending,
-  canReinstate,
-  canCancel,
-  canNoShow,
-  busy,
-  actionLoading,
-  onAction,
 }: {
   line: import("@/app/actions/bookings-detail").GroupLineItem;
   currency: string;
-  canCheckIn: boolean;
-  canCheckOut: boolean;
-  canConfirmPending: boolean;
-  canReinstate: boolean;
-  canCancel: boolean;
-  canNoShow: boolean;
-  busy: boolean;
-  actionLoading: string | null;
-  onAction: BookingOverviewPanelProps["onLineAction"];
 }) {
-  const [confirmCancel, setConfirmCancel] = React.useState(false);
-  if (!onAction) {
-    return (
-      <div className="flex items-center justify-between gap-3 py-2.5">
-        <div className="min-w-0">
-          <p className="truncate text-[13px] font-medium text-foreground">
-            {line.roomTypeName ?? "Room"}
-            {line.roomNumber ? (
-              <span className="font-normal text-muted-foreground"> · Room {line.roomNumber}</span>
-            ) : (
-              <span className="font-normal text-amber-600"> · Unassigned</span>
-            )}
-          </p>
-          <p className="truncate text-[11px] text-muted-foreground">
-            {getStatusLabel(line.status ?? "")} · {occupancyLabel(line.adults, line.children)}
-          </p>
-        </div>
-        <span className="shrink-0 text-[13px] font-semibold tabular-nums text-foreground">
-          {formatCurrency(line.totalAmount, currency)}
-        </span>
-      </div>
-    );
-  }
   const label = getStatusLabel(line.status ?? "");
   const dot: Record<string, string> = {
     confirmed: "bg-blue-500",
@@ -236,137 +169,25 @@ function GroupLineRow({
     pending: "bg-amber-500",
   };
   return (
-    <>
-      <div className="flex items-center gap-3 py-2.5">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-medium text-foreground">
-            {line.roomTypeName ?? "Room"}
-            {line.roomNumber ? (
-              <span className="font-normal text-muted-foreground"> · Room {line.roomNumber}</span>
-            ) : (
-              <span className="font-normal text-amber-600"> · Unassigned</span>
-            )}
-          </p>
-          <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-muted-foreground">
-            <span className={cn("size-1.5 shrink-0 rounded-full", dot[line.status ?? ""] ?? "bg-muted-foreground/50")} />
-            {label} · {occupancyLabel(line.adults, line.children)}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <span className="mr-1 text-[13px] font-semibold tabular-nums text-foreground">
-            {formatCurrency(line.totalAmount, currency)}
-          </span>
-          {canConfirmPending && (
-            <Button
-              size="sm"
-              variant="ghost"
-              isIconOnly
-              aria-label={`Confirm ${line.roomTypeName ?? "room"}`}
-              isPending={actionLoading === `line:${line.id}:confirm`}
-              isDisabled={busy}
-              onPress={() => onAction(`line:${line.id}:confirm`, line.id, "confirmed", () => updateBookingStatus(line.id, "confirmed"))}
-              className="size-7 rounded-lg text-blue-600 hover:bg-blue-500/10"
-            >
-              <BadgeCheck className="size-3.5" />
-            </Button>
+    <div className="flex items-center gap-3 py-2.5">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-medium text-foreground">
+          {line.roomTypeName ?? "Room"}
+          {line.roomNumber ? (
+            <span className="font-normal text-muted-foreground"> · {formatRoomLabel(line.roomNumber)}</span>
+          ) : (
+            <span className="font-normal text-amber-600"> · Unassigned</span>
           )}
-          {canCheckIn && (
-            <Button
-              size="sm"
-              variant="ghost"
-              isIconOnly
-              aria-label={`Check in ${line.roomTypeName ?? "room"}`}
-              isPending={actionLoading === `line:${line.id}:check_in`}
-              isDisabled={busy}
-              onPress={() => onAction(`line:${line.id}:check_in`, line.id, "checked_in", () => checkInBooking(line.id))}
-              className="size-7 rounded-lg text-emerald-600 hover:bg-emerald-500/10"
-            >
-              <LogIn className="size-3.5" />
-            </Button>
-          )}
-          {canCheckOut && (
-            <Button
-              size="sm"
-              variant="ghost"
-              isIconOnly
-              aria-label={`Check out ${line.roomTypeName ?? "room"}`}
-              isPending={actionLoading === `line:${line.id}:check_out`}
-              isDisabled={busy}
-              onPress={() => onAction(`line:${line.id}:check_out`, line.id, "checked_out", () => checkOutBooking(line.id))}
-              className="size-7 rounded-lg text-foreground hover:bg-muted"
-            >
-              <LogOut className="size-3.5" />
-            </Button>
-          )}
-          {canReinstate && (
-            <Button
-              size="sm"
-              variant="outline"
-              isPending={actionLoading === `line:${line.id}:confirm`}
-              isDisabled={busy}
-              onPress={() => onAction(`line:${line.id}:confirm`, line.id, "confirmed", () => updateBookingStatus(line.id, "confirmed"))}
-              className="h-7 rounded-lg px-2 text-[11px]"
-            >
-              <RotateCcw className="size-3" /> Reinstate
-            </Button>
-          )}
-          {canCancel && (
-            <Button
-              size="sm"
-              variant="ghost"
-              isIconOnly
-              aria-label={`Cancel ${line.roomTypeName ?? "room"}`}
-              isDisabled={busy}
-              onPress={() => setConfirmCancel(true)}
-              className="size-7 rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-600"
-            >
-              <XCircle className="size-3.5" />
-            </Button>
-          )}
-          {canNoShow && (
-            <Button
-              size="sm"
-              variant="ghost"
-              isPending={actionLoading === `line:${line.id}:no_show`}
-              isDisabled={busy}
-              onPress={() => onAction(`line:${line.id}:no_show`, line.id, "no_show", () => updateBookingStatus(line.id, "no_show"))}
-              className="h-7 rounded-lg px-2 text-[11px] text-muted-foreground hover:text-foreground"
-            >
-              No-show
-            </Button>
-          )}
-        </div>
+        </p>
+        <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-muted-foreground">
+          <span className={cn("size-1.5 shrink-0 rounded-full", dot[line.status ?? ""] ?? "bg-muted-foreground/50")} />
+          {label} · {occupancyText(line.adults ?? 1, line.children ?? 0)}
+        </p>
       </div>
-      <AlertDialog.Backdrop isOpen={confirmCancel} onOpenChange={(o) => setConfirmCancel(o)} variant="opaque">
-        <AlertDialog.Container placement="auto" size="sm">
-          <AlertDialog.Dialog className="rounded-2xl border border-border/70 bg-card p-6 shadow-2xl">
-            <AlertDialog.Header>
-              <AlertDialog.Icon status="danger" />
-              <AlertDialog.Heading>Cancel this room?</AlertDialog.Heading>
-            </AlertDialog.Header>
-            <AlertDialog.Body>
-              <p>
-                {line.roomTypeName ?? "This room"} {line.roomNumber ? `· Room ${line.roomNumber}` : ""} will be cancelled
-                and released. Other rooms in the reservation are not affected.
-              </p>
-            </AlertDialog.Body>
-            <AlertDialog.Footer>
-              <Button slot="close" variant="tertiary">Keep</Button>
-              <Button
-                variant="danger"
-                isPending={actionLoading === `line:${line.id}:cancel`}
-                onPress={() => {
-                  setConfirmCancel(false);
-                  onAction(`line:${line.id}:cancel`, line.id, "cancelled", () => updateBookingStatus(line.id, "cancelled"));
-                }}
-              >
-                Cancel room
-              </Button>
-            </AlertDialog.Footer>
-          </AlertDialog.Dialog>
-        </AlertDialog.Container>
-      </AlertDialog.Backdrop>
-    </>
+      <span className="shrink-0 text-[13px] font-semibold tabular-nums text-foreground">
+        {formatCurrency(line.totalAmount, currency)}
+      </span>
+    </div>
   );
 }
 
@@ -383,6 +204,9 @@ function GroupBulkBar({
   const checkInIds = group.lines.filter((l) => canTransitionBooking(l.status ?? "", "checked_in")).map((l) => l.id);
   const checkOutIds = group.lines.filter((l) => canTransitionBooking(l.status ?? "", "checked_out")).map((l) => l.id);
   const bulkBusy = actionLoading?.startsWith("bulk:") ?? false;
+  // The only group-wide control on this surface: the header bar acts on the one
+  // opened row, so this bar must cover every room that still needs an action —
+  // including when only one room does.
   if (checkInIds.length === 0 && checkOutIds.length === 0) return null;
   return (
     <div className="mt-2 flex gap-2">
@@ -395,7 +219,7 @@ function GroupBulkBar({
           onPress={() => onBulkAction(checkInIds, "checked_in", "check_in")}
           className="h-8 rounded-xl px-3 text-xs font-semibold"
         >
-          <LogIn className="size-3.5" /> Check in all ({checkInIds.length})
+          Check in all ({checkInIds.length})
         </Button>
       )}
       {checkOutIds.length > 0 && (
@@ -407,7 +231,7 @@ function GroupBulkBar({
           onPress={() => onBulkAction(checkOutIds, "checked_out", "check_out")}
           className="h-8 rounded-xl px-3 text-xs font-semibold"
         >
-          <LogOut className="size-3.5" /> Check out all ({checkOutIds.length})
+          Check out all ({checkOutIds.length})
         </Button>
       )}
     </div>

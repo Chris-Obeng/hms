@@ -12,7 +12,7 @@ import { MorphIcon, type IconInput } from "morphicons/react";
 import { AlertDialog, Button, Dropdown, Skeleton } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
-import { formatDate, getNights, getInitials } from "@/lib/format";
+import { formatDate, getNights, getInitials, formatRoomLabel } from "@/lib/format";
 import { getStatusLabel } from "@/lib/booking-status";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useQueryClient } from "@tanstack/react-query";
@@ -37,6 +37,8 @@ export interface ActivityBooking {
   guestEmail: string | null;
   roomNumber: string | null;
   roomType: string | null;
+  /** Units this row holds. >1 on legacy multi-room rows; 1 for one-room rows. */
+  roomsCount: number;
   checkIn: string;
   checkOut: string;
   nights: number | null;
@@ -388,6 +390,11 @@ function DesktopBookingRow({
       <td className="px-4 py-3.5 align-top">
         <span className="flex items-center gap-1 text-sm font-medium text-foreground">
           {room}
+          {booking.roomsCount > 1 && (
+            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+              ×{booking.roomsCount}
+            </span>
+          )}
           <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground/60" />
         </span>
         {!booking.roomNumber && booking.roomType && (
@@ -495,6 +502,7 @@ function MobileBookingRow({
       </div>
       <div className="text-xs tabular-nums text-muted-foreground">
         {roomLabel(booking.roomNumber, booking.roomType)}
+        {booking.roomsCount > 1 ? ` ×${booking.roomsCount}` : ""}
         {" · "}
         {formatDate(booking.checkIn, "dd MMM")} – {formatDate(booking.checkOut, "dd MMM")}
       </div>
@@ -560,11 +568,9 @@ function MobileBookingRow({
 
 /** "room 2"/"Room2"/"RM 2" → "Room 2", "204" → "Room 204"; never doubles "Room". */
 function roomLabel(roomNumber?: string | null, roomType?: string | null): string {
-  if (roomNumber) {
-    const cleaned = roomNumber.replace(/^\s*(?:room|rm)\.?\s*/i, "").trim();
-    return cleaned ? `Room ${cleaned}` : "Room";
-  }
-  return roomType || "Unassigned";
+  // "room 6" is stored with its word — formatRoomLabel is the one place that
+  // normalises it, so the list cannot drift from the drawer or the table.
+  return formatRoomLabel(roomNumber) ?? roomType ?? "Unassigned";
 }
 
 /** Neutral initials circle — matches the app-wide guest avatar pattern. */

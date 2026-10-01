@@ -57,17 +57,22 @@ describe("paystackFetch", () => {
     expect(lastCall().init?.headers).toMatchObject({ "Content-Type": "text/plain" });
   });
 
-  it("throws with the response body on a non-2xx response", async () => {
+  it("fails with status + endpoint, never echoing the response body", async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 401,
       statusText: "Unauthorized",
       text: async () => "invalid key",
     });
-    await expect(paystackFetch("/ping")).rejects.toThrow("Paystack 401: invalid key");
+    // The message is what call sites forward to Sentry (captureError), and
+    // Paystack error bodies can echo the request — including a guest email — so
+    // it carries the grouped endpoint label and status only (395554a).
+    const error = await paystackFetch("/ping").catch((e: unknown) => e as Error);
+    expect(error.message).toBe("Paystack 401 /ping");
+    expect(error.message).not.toContain("invalid key");
   });
 
-  it("falls back to statusText when the error body cannot be read", async () => {
+  it("reports the same failure when the error body cannot be read", async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 500,
@@ -76,7 +81,19 @@ describe("paystackFetch", () => {
         throw new Error("stream closed");
       },
     });
-    await expect(paystackFetch("/ping")).rejects.toThrow("Paystack 500: Server Error");
+    await expect(paystackFetch("/ping")).rejects.toThrow("Paystack 500 /ping");
+  });
+
+  it("groups variable path segments in the failure message", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: "Not Found",
+      text: async () => "",
+    });
+    await expect(paystackFetch("/transaction/verify/RL-8H2K91")).rejects.toThrow(
+      "Paystack 404 /transaction/verify/:id"
+    );
   });
 });
 

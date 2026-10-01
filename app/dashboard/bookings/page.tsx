@@ -3,8 +3,12 @@ import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { businessToday } from "@/lib/business-date";
 import { sortByOperationalRelevance } from "@/lib/bookings/operational-sort";
+import {
+  collapseReservationGroups,
+  type ReservationRowSource,
+} from "@/lib/bookings/reservation-rows";
 import { BookOpen } from "lucide-react";
-import { BookingsTable, type BookingRow } from "@/components/bookings/bookings-table";
+import { BookingsTable } from "@/components/bookings/bookings-table";
 import { QueryClient, dehydrate, HydrationBoundary, defaultShouldDehydrateQuery } from "@tanstack/react-query";
 import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
 import { CAPS } from "@/lib/cache/prefetch-helpers";
@@ -56,51 +60,10 @@ export default async function BookingsPage() {
     b.payment_status === "unpaid";
 
   const visible = (bookingsRaw || []).filter((b) => !isTransientHold(b));
-  const groupsMap = new Map<string, typeof visible>();
-  for (const b of visible) {
-    const key = b.group_id ?? b.id;
-    const arr = groupsMap.get(key);
-    if (arr) arr.push(b);
-    else groupsMap.set(key, [b]);
-  }
-
-  const bookings: BookingRow[] = [];
-  for (const [key, members] of groupsMap) {
-    const anchor = members.find((m) => m.id === key) ?? members[0];
-    const isGroup = members.length > 1 || anchor.group_id != null;
-    const roomsCount = members.reduce((n, m) => n + Math.max(1, m.rooms_count ?? 1), 0);
-    const totalAmount = isGroup
-      ? members.reduce((s, m) => s + (m.total_amount ?? 0), 0)
-      : anchor.total_amount;
-    const amountPaid = isGroup
-      ? members.reduce((s, m) => s + (m.amount_paid ?? 0), 0)
-      : anchor.amount_paid ?? 0;
-    const outstandingBalance = isGroup
-      ? members.reduce((s, m) => s + (m.outstanding_balance ?? 0), 0)
-      : anchor.outstanding_balance;
-
-    bookings.push({
-      id: anchor.id,
-      reference: anchor.reference,
-      guestName: (anchor.guests as { full_name?: string | null } | null)?.full_name ?? "Unknown",
-      guestEmail: (anchor.guests as { email?: string | null } | null)?.email ?? null,
-      guestPhone: (anchor.guests as { phone?: string | null } | null)?.phone ?? null,
-      roomType: (anchor.room_types as { name?: string | null } | null)?.name ?? null,
-      roomNumber: (anchor.rooms as { room_number?: string | null } | null)?.room_number ?? null,
-      checkIn: anchor.check_in,
-      checkOut: anchor.check_out,
-      nights: anchor.nights,
-      status: anchor.status ?? "pending",
-      paymentStatus: anchor.payment_status ?? "unpaid",
-      source: anchor.source ?? "direct",
-      totalAmount,
-      amountPaid,
-      outstandingBalance,
-      roomsCount,
-      isGroup,
-      createdAt: anchor.created_at,
-    });
-  }
+  // One row per reservation: a multi-room group renders as a single row whose
+  // status/payment posture is derived from every sibling, not only the anchor
+  // (lib/bookings/reservation-rows.ts pins that rule with tests).
+  const bookings = collapseReservationGroups(visible as unknown as ReservationRowSource[]);
 
   const orderedBookings = sortByOperationalRelevance(bookings, businessToday(hotel?.timezone || "UTC"));
   const currency = hotel?.currency || "GHS";

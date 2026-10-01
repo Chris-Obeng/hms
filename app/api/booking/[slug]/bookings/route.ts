@@ -3,7 +3,6 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { initializeTransaction } from "@/lib/paystack";
 import { fromMinor } from "@/lib/money";
 import { computePlatformFeeMinor, getPlatformFeeConfig } from "@/lib/platform/fees";
-import { z } from "zod";
 import {
   abortUnpaidBooking,
   abortUnpaidGroup,
@@ -24,55 +23,17 @@ import {
   guestStayRestrictionMessage,
   parseStayRestrictions,
 } from "@/lib/bookings/stay-restrictions";
-import { guestEmail, hotelSlugParam, isoDateParam, validateStayRange } from "@/lib/validation/params";
+import { hotelSlugParam, validateStayRange } from "@/lib/validation/params";
+import {
+  countCartUnits,
+  expandCartLines,
+  RESERVATION_ROOM_CAP,
+} from "@/lib/bookings/expand-cart-lines";
+import { GroupSchema, Schema } from "./booking-schemas";
 
-const Schema = z.object({
-  room_type_id: z.string().uuid(),
-  check_in: isoDateParam,
-  check_out: isoDateParam,
-  adults: z.coerce.number().int().min(1).max(20).default(1),
-  children: z.coerce.number().int().min(0).max(10).default(0),
-  rooms_count: z.coerce.number().int().min(1).max(10).default(1),
-  guest_name: z.string().min(1).max(120),
-  guest_email: guestEmail,
-  guest_phone: z.string().min(7).max(20),
-  nationality: z.string().max(80).optional(),
-  payment_preference: z.enum(["pay_now", "pay_at_checkin"]),
-  special_requests: z.string().max(500).optional(),
-  estimated_arrival: z.string().max(50).optional(),
-});
+// Request shapes live in ./booking-schemas so their contract is unit-testable
+// without booting Next/Clerk/Supabase (tests/booking-request-schema.test.ts).
 
-/**
- * One room line of a multi-room cart. Same per-room fields the single-room Schema
- * accepts (no rate_plan_id — the single path does not wire rate plans either), so
- * a group line prices through the exact same code as a standalone booking.
- */
-const GroupLineSchema = z.object({
-  room_type_id: z.string().uuid(),
-  check_in: isoDateParam,
-  check_out: isoDateParam,
-  adults: z.coerce.number().int().min(1).max(20).default(1),
-  children: z.coerce.number().int().min(0).max(10).default(0),
-  rooms_count: z.coerce.number().int().min(1).max(10).default(1),
-  special_requests: z.string().max(500).optional(),
-});
-
-/**
- * Multi-room cart: one primary guest, one payment, 2–4 room lines. The product
- * cap (max 4) is the guest-facing limit; the RPC guards a higher ceiling of its
- * own. A body with no `lines[]` is a single-room booking and takes the legacy
- * path untouched.
- */
-const GroupSchema = z.object({
-  lines: z.array(GroupLineSchema).min(2).max(4),
-  guest_name: z.string().min(1).max(120),
-  guest_email: guestEmail,
-  guest_phone: z.string().min(7).max(20),
-  nationality: z.string().max(80).optional(),
-  payment_preference: z.enum(["pay_now", "pay_at_checkin"]),
-  special_requests: z.string().max(500).optional(),
-  estimated_arrival: z.string().max(50).optional(),
-});
 
 /** What the reporter needs to describe a stay that could not be written. */
 type RejectionContext = {
@@ -278,6 +239,31 @@ export async function POST(
       return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
     }
     const data = parsed.data;
+
+    // Legacy multi-unit body. The funnel posts one line per room, but a client
+    // that asks for N rooms of one type must still get N independent rows: fan
+    // the request into the group writer rather than writing one row holding N
+    // units, which could only be checked in or out as a block.
+    if (data.rooms_count > 1) {
+      return await createGroupBooking(req, slug, {
+        lines: Array.from({ length: data.rooms_count }, () => ({
+          room_type_id: data.room_type_id,
+          check_in: data.check_in,
+          check_out: data.check_out,
+          adults: data.adults,
+          children: data.children,
+          rooms_count: 1,
+          special_requests: data.special_requests,
+        })),
+        guest_name: data.guest_name,
+        guest_email: data.guest_email,
+        guest_phone: data.guest_phone,
+        nationality: data.nationality,
+        payment_preference: data.payment_preference,
+        special_requests: data.special_requests,
+        estimated_arrival: data.estimated_arrival,
+      });
+    }
 
     let hotelQuery = await supabaseAdmin
       .from("hotels")
@@ -494,6 +480,9 @@ export async function POST(
 
       const txn = await initializeTransaction({
         email: data.guest_email,
+        // Charge currency is the hotel's own; Paystack rejects currencies outside
+        // its supported set at this call — see the "charge-currency gate" note in
+        // lib/paystack.ts (deliberately parked).
         // Minor units for the booking's own currency, taken from the row the
         // transaction wrote, so the charge cannot round away from the total the
         // guest agreed to.
@@ -681,7 +670,19 @@ async function createGroupBooking(
   const funnelStep: BookingFunnelStep =
     data.payment_preference === "pay_now" ? "hold" : "confirm";
   const anchorLine = data.lines[0];
-  const totalRooms = data.lines.reduce((sum, l) => sum + l.rooms_count, 0);
+  const totalRooms = countCartUnits(data.lines);
+  // One row per physical room: a same-type cart line (qty 2) arrives as ONE
+  // line carrying rooms_count=2, and left unexpanded it would become a single
+  // booking holding two units — one dashboard entry, one calendar strip, and no
+  // way to check the rooms out independently. Fan it out exactly like the staff
+  // writer does, then honour the writer's own line ceiling.
+  const roomLines = expandCartLines(data.lines);
+  if (roomLines.length > RESERVATION_ROOM_CAP) {
+    return NextResponse.json(
+      { error: `A reservation can hold up to ${RESERVATION_ROOM_CAP} rooms. Split this booking into two?` },
+      { status: 400 }
+    );
+  }
 
   // One transaction composes create_booking_atomic per line; any line's
   // inventory/overlap loss rolls the whole group back. Every line shares the
@@ -698,14 +699,18 @@ async function createGroupBooking(
     nationality: data.nationality ?? null,
     special_requests: data.special_requests ?? null,
     estimated_arrival: data.estimated_arrival ?? null,
-    lines: data.lines.map((l) => ({
+    lines: roomLines.map((l) => ({
       room_type_id: l.room_type_id,
       check_in: l.check_in,
       check_out: l.check_out,
       adults: l.adults,
       children: l.children,
       rooms_count: l.rooms_count,
-      special_requests: l.special_requests ?? null,
+      // Only sent when the line carries its own text. The group writer merges
+      // shared fields with per-line keys (`v_shared || v_line`), and a per-line
+      // `null` would clobber the reservation-level special_requests — the guest's
+      // note used to disappear on every multi-room booking this way.
+      ...(l.special_requests ? { special_requests: l.special_requests } : {}),
     })),
   });
 
@@ -734,6 +739,10 @@ async function createGroupBooking(
     const { sendBookingConfirmation } = await import(
       "@/lib/notifications/send-booking-confirmation"
     );
+    // One named row per room in the guest's email, straight from the rows just
+    // written — a group is one row per room, so this lists exactly what was booked.
+    const { fetchGroupRoomLines } = await import("@/lib/bookings/group-room-lines");
+    const roomLines = await fetchGroupRoomLines(group.group_id);
     const result = await sendBookingConfirmation({
       hotelId: hotel.id,
       bookingId: group.group_id,
@@ -746,6 +755,7 @@ async function createGroupBooking(
         guestEmail: data.guest_email,
         reference: group.group_reference,
         roomName: roomsLabel,
+        rooms: roomLines,
         checkIn: anchorLine.check_in,
         checkOut: anchorLine.check_out,
         nights: group.lines[0].night_count,
@@ -828,6 +838,9 @@ async function createGroupBooking(
       throw new Error(`payment_attempts insert failed: ${attemptErr.message}`);
     }
 
+    // Charge currency is whatever the hotel priced in; Paystack rejects its own
+    // unsupported currencies here (see lib/paystack.ts "charge-currency gate",
+    // parked by decision) and the branch below turns that into guest copy.
     const txn = await initializeTransaction({
       email: data.guest_email,
       amount: group.group_total_minor,

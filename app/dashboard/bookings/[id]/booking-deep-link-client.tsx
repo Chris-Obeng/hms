@@ -17,7 +17,7 @@ import {
   BookingStatusPill,
   ReferenceChip,
 } from "@/components/bookings/_components/booking-status-pill";
-import { formatCurrency, formatDateFull, getNights } from "@/lib/format";
+import { formatCurrency, formatDateFull, formatRoomLabel, getNights } from "@/lib/format";
 
 interface Props {
   bookingId: string;
@@ -82,6 +82,41 @@ export function BookingDeepLinkClient({ bookingId, currency }: Props) {
     [loadBooking]
   );
 
+  // Bulk actions call the same per-room server actions the drawer does, one after
+  // another: the header bar stays row-scoped, so the group-wide control belongs
+  // with the group list itself.
+  const handleBulkAction = React.useCallback(
+    async (ids: string[], _targetStatus: string, kind: "check_in" | "check_out") => {
+      setActionLoading(`bulk:${kind}`);
+      try {
+        const { checkInBooking, checkOutBooking } = await import("@/app/dashboard/actions");
+        let ok = 0;
+        let lastError: string | undefined;
+        for (const id of ids) {
+          const result = kind === "check_in" ? await checkInBooking(id) : await checkOutBooking(id);
+          if (result.success) ok += 1;
+          else lastError = result.error;
+        }
+        if (ok === ids.length) {
+          toast.success(kind === "check_in" ? `Checked in ${ok} rooms` : `Checked out ${ok} rooms`);
+        } else if (ok > 0) {
+          toast.warning(
+            `${ok}/${ids.length} rooms ${kind === "check_in" ? "checked in" : "checked out"}${lastError ? ` — ${lastError}` : ""}`
+          );
+        } else {
+          toast.danger(lastError || `Bulk ${kind.replace("_", " ")} failed`);
+          return;
+        }
+        await loadBooking();
+      } catch {
+        toast.danger(`Bulk ${kind.replace("_", " ")} failed`);
+      } finally {
+        setActionLoading(null);
+      }
+    },
+    [loadBooking]
+  );
+
   if (loading && !booking) {
     return (
       <div className="space-y-4">
@@ -138,7 +173,7 @@ export function BookingDeepLinkClient({ bookingId, currency }: Props) {
             {booking.room?.roomNumber && (
               <>
                 <span className="mx-1.5 text-muted-foreground/40">·</span>
-                Room {booking.room.roomNumber}
+                {formatRoomLabel(booking.room.roomNumber)}
               </>
             )}
           </p>
@@ -184,7 +219,11 @@ export function BookingDeepLinkClient({ bookingId, currency }: Props) {
       <div className="grid items-start gap-5 lg:grid-cols-[1fr_22rem]">
         <div className="space-y-5">
           <CardShell title="Stay details">
-            <BookingOverviewPanel booking={booking} />
+            <BookingOverviewPanel
+              booking={booking}
+              actionLoading={actionLoading}
+              onBulkAction={handleBulkAction}
+            />
           </CardShell>
           <CardShell title="Payments">
             <BookingPaymentsPanel

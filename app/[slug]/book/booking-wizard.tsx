@@ -8,11 +8,22 @@ import { toast } from "@heroui/react";
 import { format, parseISO } from "date-fns";
 import { COUNTRIES } from "@/lib/countries-data";
 import {
+  buildCartLines,
+  makeRoom,
+  MAX_ROOMS_PER_TYPE,
+  MAX_ROOM_TYPES,
+  occupancyText,
+  priceRoom,
+  remainingRoomAllowance,
+  sumRooms,
+  type CartRoom,
+  type PricedRoom,
+} from "@/lib/bookings/cart";
+import {
   Loader2,
   ChevronDown,
   ChevronUp,
   Images,
-  Check,
   CreditCard,
   Landmark,
   ShieldCheck,
@@ -39,6 +50,7 @@ import {
   BookingProgress,
   type BookingStepId,
 } from "@/components/booking/booking-progress";
+import { RESERVATION_ROOM_CAP } from "@/lib/bookings/expand-cart-lines";
 
 interface RoomImage {
   url: string;
@@ -86,21 +98,36 @@ interface Props {
 }
 
 /**
- * One room line in the cart. Keyed by room-type id: a guest picks a type once and
- * sets its quantity/occupancy on that card, so a second "Add" of the same type
- * edits the existing line rather than stacking a duplicate.
+ * One room type in the cart. Keyed by room-type id, so a second "Add" of the
+ * same type edits the existing card rather than stacking a duplicate. Each room
+ * on the card carries its OWN occupancy — the shape Mews' booking engine returns
+ * (`Reservations[]`, one per room, each with its own AdultCount/ChildCount) and
+ * what the server stores: one bookings row per room sharing a group_id.
  */
 interface CartLine {
   id: string;
   roomType: RoomType;
-  adults: number;
-  children: number;
-  quantity: number;
+  rooms: CartRoom[];
 }
 
-/** Product caps: up to 4 distinct room types (group RPC guest limit), 5 of each. */
-const MAX_ROOM_TYPES = 4;
-const MAX_QTY_PER_LINE = 5;
+/** Stable keys for cart room rows (opaque; never rendered as markup). */
+let roomKeySeq = 0;
+const nextRoomKey = () => `r${++roomKeySeq}`;
+
+/** One priced cart line: its rooms, each priced and taxed on its own. */
+type PricedLine = {
+  line: CartLine;
+  /** Sellable rooms of this card, availability-clamped and priced. */
+  rooms: PricedRoom[];
+  qty: number;
+  nightRate: number;
+  subtotal: number;
+  tax: number;
+  total: number;
+  availableCount: number | null;
+  restrictionReason: string | null;
+  blocked: boolean;
+};
 
 /**
  * Per-room children cap. A positive max_children is a hard cap; 0 (the column
@@ -144,8 +171,8 @@ export function BookingWizard({
 
   const [checkIn, setCheckIn] = React.useState(initialCheckIn ?? todayStr);
   const [checkOut, setCheckOut] = React.useState(initialCheckOut ?? tomorrowStr);
-  // Party defaults applied to the NEXT room added; each cart line then owns its
-  // own occupancy/quantity, edited on the room card.
+  // Party defaults applied to the NEXT room added; each cart room then owns its
+  // own occupancy, edited on the room card.
   const [adults, setAdults] = React.useState(Math.max(1, initialAdults));
   const [childrenCount, setChildrenCount] = React.useState(Math.max(0, initialChildren));
   const [roomsCount, setRoomsCount] = React.useState(Math.max(1, initialRooms));
@@ -153,15 +180,15 @@ export function BookingWizard({
   const [lines, setLines] = React.useState<CartLine[]>(() => {
     const seed = roomTypes.find((r) => r.id === initialRoomTypeId);
     if (!seed) return [];
-    return [
-      {
-        id: seed.id,
-        roomType: seed,
-        adults: Math.min(Math.max(1, initialAdults), seed.maxAdults || 10),
-        children: Math.min(Math.max(0, initialChildren), childrenCapFor(seed)),
-        quantity: Math.max(1, Math.min(initialRooms, MAX_QTY_PER_LINE)),
-      },
-    ];
+    const adults = Math.min(Math.max(1, initialAdults), seed.maxAdults || 10);
+    const children = Math.min(Math.max(0, initialChildren), childrenCapFor(seed));
+    // `?rooms=` seeds that many rooms of the deep-linked type, each starting
+    // with the party defaults; the guest then tunes occupancy per room.
+    const rooms = Array.from(
+      { length: Math.max(1, Math.min(initialRooms, MAX_ROOMS_PER_TYPE)) },
+      () => makeRoom(nextRoomKey(), adults, children)
+    );
+    return [{ id: seed.id, roomType: seed, rooms }];
   });
   const [galleryRoom, setGalleryRoom] = React.useState<RoomType | null>(null);
   const [guestName, setGuestName] = React.useState("");
@@ -223,7 +250,15 @@ export function BookingWizard({
       try {
         const r = await fetch(`/api/booking/${slug}/availability?check_in=${checkIn}&check_out=${checkOut}`);
         const json = r.ok ? await r.json() : null;
-        if (cancelled || !json?.rooms) return;
+        if (cancelled) return;
+        if (!json?.rooms) {
+          // A failed rate lookup must not leave the previous window's prices on
+          // screen: the guest would carry them to payment and be charged the real
+          // ones. Clear them (which blocks step 1 via `pricesResolved`) and say so.
+          setResolvedPrices({});
+          toast.danger("Could not load live rates for these dates. Please try again.");
+          return;
+        }
         const map: Record<string, ResolvedPrice> = {};
         for (const room of json.rooms) {
           map[room.id] = {
@@ -238,7 +273,7 @@ export function BookingWizard({
         setResolvedPrices(map);
 
         // Reconcile the cart with the new dates: drop any line that is sold out or
-        // no longer sellable, and clamp a line's quantity to what is left. This is
+        // no longer sellable, and clamp a card's rooms to what is left. This is
         // what stops a guest carrying a restricted or oversold stay to payment for
         // the write to refuse it.
         setLines((prev) =>
@@ -252,8 +287,9 @@ export function BookingWizard({
             })
             .map((l) => {
               const avail = map[l.roomType.id]?.availableCount;
-              if (avail != null && l.quantity > avail)
-                return { ...l, quantity: Math.max(1, avail) };
+              if (avail != null && l.rooms.length > avail) {
+                return { ...l, rooms: l.rooms.slice(0, Math.max(1, avail)) };
+              }
               return l;
             })
         );
@@ -270,37 +306,94 @@ export function BookingWizard({
   }, [checkIn, checkOut, slug, availNonce]);
 
   // ── Cart mutations ──
+  /** Occupancy a freshly added room starts with, clamped to the type's caps. */
+  const defaultRoomFor = React.useCallback(
+    (rt: RoomType): CartRoom =>
+      makeRoom(
+        nextRoomKey(),
+        Math.min(Math.max(1, adults), rt.maxAdults || 10),
+        Math.min(Math.max(0, childrenCount), childrenCapFor(rt))
+      ),
+    [adults, childrenCount]
+  );
+
   const addLine = React.useCallback(
     (rt: RoomType) => {
       setLines((prev) => {
         if (prev.some((l) => l.roomType.id === rt.id)) return prev;
         if (prev.length >= MAX_ROOM_TYPES) return prev;
         const avail = resolvedPrices[rt.id]?.availableCount;
-        const qty = Math.max(
+        // Party picker seeds how many rooms this type starts with; the guest
+        // then adds/removes rooms and sets each room's own occupancy.
+        const count = Math.max(
           1,
-          Math.min(roomsCount, MAX_QTY_PER_LINE, avail ?? MAX_QTY_PER_LINE)
+          Math.min(
+            roomsCount,
+            MAX_ROOMS_PER_TYPE,
+            avail ?? MAX_ROOMS_PER_TYPE,
+            remainingRoomAllowance(prev)
+          )
         );
         return [
           ...prev,
           {
             id: rt.id,
             roomType: rt,
-            adults: Math.min(Math.max(1, adults), rt.maxAdults || 10),
-            children: Math.min(Math.max(0, childrenCount), childrenCapFor(rt)),
-            quantity: qty,
+            rooms: Array.from({ length: count }, () => defaultRoomFor(rt)),
           },
         ];
       });
     },
-    [resolvedPrices, roomsCount, adults, childrenCount]
+    [resolvedPrices, roomsCount, defaultRoomFor]
   );
+
   const removeLine = React.useCallback(
     (id: string) => setLines((prev) => prev.filter((l) => l.id !== id)),
     []
   );
-  const updateLine = React.useCallback(
-    (id: string, patch: Partial<Omit<CartLine, "id" | "roomType">>) =>
-      setLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l))),
+
+  /** Adds one more room to a card, within every cap (type, availability, 10). */
+  const addRoom = React.useCallback(
+    (id: string) => {
+      setLines((prev) =>
+        prev.map((l) => {
+          if (l.id !== id) return l;
+          const avail = resolvedPrices[l.roomType.id]?.availableCount;
+          const max = Math.min(
+            MAX_ROOMS_PER_TYPE,
+            avail ?? MAX_ROOMS_PER_TYPE,
+            l.rooms.length + remainingRoomAllowance(prev)
+          );
+          if (l.rooms.length >= max) return l;
+          return { ...l, rooms: [...l.rooms, defaultRoomFor(l.roomType)] };
+        })
+      );
+    },
+    [resolvedPrices, defaultRoomFor]
+  );
+
+  /** Removes one room; removing the last room removes the card. */
+  const removeRoom = React.useCallback((id: string, key: string) => {
+    setLines((prev) =>
+      prev.flatMap((l) => {
+        if (l.id !== id) return [l];
+        const rooms = l.rooms.filter((r) => r.key !== key);
+        return rooms.length > 0 ? [{ ...l, rooms }] : [];
+      })
+    );
+  }, []);
+
+  /** Edits one room's occupancy. */
+  const updateRoom = React.useCallback(
+    (id: string, key: string, patch: Partial<Omit<CartRoom, "key">>) => {
+      setLines((prev) =>
+        prev.map((l) =>
+          l.id === id
+            ? { ...l, rooms: l.rooms.map((r) => (r.key === key ? { ...r, ...patch } : r)) }
+            : l
+        )
+      );
+    },
     []
   );
 
@@ -318,37 +411,29 @@ export function BookingWizard({
   // the compact formatter rounded GHS 450.50 to "451".
   const fmt = (n: number) => formatCurrency(n, hotel.currency);
 
-  // Per-line pricing mirrors POST /api/booking/[slug]/bookings exactly, per line:
-  // unit subtotal (override-resolved) × rooms, then tax on top. Summed across
-  // lines it equals the group total the payment layer charges.
-  type PricedLine = {
-    line: CartLine;
-    qty: number;
-    nightRate: number;
-    subtotal: number;
-    tax: number;
-    total: number;
-    availableCount: number | null;
-    restrictionReason: string | null;
-    blocked: boolean;
-  };
+  // Per-room pricing mirrors POST /api/booking/[slug]/bookings exactly: every
+  // room is priced and taxed on its own (the server writes one row per room and
+  // rounds tax per row), then the line and the cart are summed in minor units.
   const pricedLines: PricedLine[] = lines.map((l) => {
     const resolved = resolvedPrices[l.roomType.id];
     const avail = resolved?.availableCount ?? null;
     const restrictionReason = resolved?.restrictionReason ?? null;
-    const qty = avail != null ? Math.max(1, Math.min(l.quantity, avail)) : l.quantity;
+    // Availability caps how many rooms of this type can be sold; rows beyond
+    // that are not priced and never submitted.
+    const sellable = avail != null ? l.rooms.slice(0, Math.max(1, avail)) : l.rooms;
     const unitSubtotal = resolved?.subtotal ?? (l.roomType.basePrice ?? 0) * nights;
-    const subtotal = Math.round(unitSubtotal * qty * 100) / 100;
-    const tax = hotel.taxEnabled
-      ? Math.round(subtotal * (hotel.taxPercentage / 100) * 100) / 100
-      : 0;
+    const rooms = sellable.map((room) =>
+      priceRoom(room, unitSubtotal, hotel.taxEnabled ? hotel.taxPercentage : 0, hotel.currency)
+    );
+    const totals = sumRooms(rooms, hotel.currency);
     return {
       line: l,
-      qty,
+      rooms,
+      qty: rooms.length,
       nightRate: resolved?.displayPrice ?? l.roomType.basePrice ?? 0,
-      subtotal,
-      tax,
-      total: subtotal + tax,
+      subtotal: totals.subtotal,
+      tax: totals.tax,
+      total: totals.total,
       availableCount: avail,
       restrictionReason,
       blocked: avail === 0 || restrictionReason !== null,
@@ -362,11 +447,16 @@ export function BookingWizard({
   const subtotal = fromMinor(subtotalMinor, cur);
   const taxAmount = fromMinor(taxMinor, cur);
   const total = fromMinor(subtotalMinor + taxMinor, cur);
-  const totalRooms = pricedLines.reduce((s, p) => s + p.qty, 0);
+  const totalRooms = pricedLines.reduce((s, p) => s + p.rooms.length, 0);
 
   const datesValid = !!checkIn && !!checkOut && checkOut > checkIn;
+  // Every line must carry a server-resolved price before the guest may continue:
+  // the base-price fallback above would display one number while the server
+  // prices the real (seasonal/rate-plan) one, so a missing resolution blocks the
+  // step instead of guessing.
+  const pricesResolved = lines.every((l) => resolvedPrices[l.roomType.id] !== undefined);
   const step1Valid =
-    lines.length >= 1 && datesValid && pricedLines.every((p) => !p.blocked);
+    lines.length >= 1 && datesValid && pricesResolved && pricedLines.every((p) => !p.blocked);
 
   const nameOk = guestName.trim().length > 1;
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim());
@@ -383,6 +473,18 @@ export function BookingWizard({
     for (const p of pricedLines) m.set(p.line.id, p.total);
     return m;
   }, [pricedLines]);
+
+  // Rooms still allowed in this reservation, and the ceiling for one room type
+  // (availability, then the product cap). The server enforces the same ceiling.
+  const roomAllowance = remainingRoomAllowance(lines);
+  const maxRoomsFor = React.useCallback(
+    (rt: RoomType) =>
+      Math.min(
+        MAX_ROOMS_PER_TYPE,
+        resolvedPrices[rt.id]?.availableCount ?? MAX_ROOMS_PER_TYPE
+      ),
+    [resolvedPrices]
+  );
 
   const selectedCountryObj = countryList.find((c) => c.name === nationality);
   const selectedDialCode = selectedCountryObj?.dialCode || defaultDial;
@@ -438,9 +540,19 @@ export function BookingWizard({
 
   async function handleConfirm() {
     if (!step1Valid || !step2Valid || pricedLines.length === 0) return;
+    // Two rooms of the SAME type arrive as one line with qty 2 — still two
+    // rooms, so the group body is what keeps each room's check-in/check-out
+    // independent (one booking row per room, linked by a group). Only a true
+    // single-room cart takes the legacy single-room body.
+    const isGroup = totalRooms > 1;
+    if (totalRooms > RESERVATION_ROOM_CAP) {
+      toast.danger(
+        `A reservation can hold up to ${RESERVATION_ROOM_CAP} rooms. Split this booking into two?`
+      );
+      return;
+    }
     setSubmitting(true);
     try {
-      const isGroup = pricedLines.length >= 2;
       // Shared reservation fields — one primary guest, one payment, whatever the
       // room count. Sent identically on both the single and group paths.
       const guestFields = {
@@ -452,26 +564,26 @@ export function BookingWizard({
         special_requests: specialRequests || undefined,
       };
       // A one-line cart posts the legacy single-room body (NULL group_id path,
-      // byte-for-byte today's behaviour); 2–4 lines post the group cart.
+      // byte-for-byte today's behaviour); 2+ rooms post the group cart, one line
+      // per room so every room keeps its own occupancy.
       const body = isGroup
         ? {
             ...guestFields,
-            lines: pricedLines.map((p) => ({
-              room_type_id: p.line.roomType.id,
-              check_in: checkIn,
-              check_out: checkOut,
-              adults: p.line.adults,
-              children: p.line.children,
-              rooms_count: p.qty,
-            })),
+            lines: buildCartLines(
+              pricedLines.map((p) => ({
+                roomTypeId: p.line.roomType.id,
+                rooms: p.rooms.map((r) => ({ key: r.key, adults: r.adults, children: r.children })),
+              })),
+              { checkIn, checkOut }
+            ),
           }
         : {
             room_type_id: pricedLines[0].line.roomType.id,
             check_in: checkIn,
             check_out: checkOut,
-            adults: pricedLines[0].line.adults,
-            children: pricedLines[0].line.children,
-            rooms_count: pricedLines[0].qty,
+            adults: pricedLines[0].rooms[0].adults,
+            children: pricedLines[0].rooms[0].children,
+            rooms_count: 1,
             ...guestFields,
           };
 
@@ -659,11 +771,16 @@ export function BookingWizard({
                             lineTotal={totalById.get(rt.id) ?? null}
                             atLimit={lines.length >= MAX_ROOM_TYPES && !line}
                             fmt={fmt}
+                            maxRooms={maxRoomsFor(rt)}
+                            canAddRoom={
+                              line !== null && line.rooms.length < maxRoomsFor(rt) && roomAllowance > 0
+                            }
                             onAdd={() => addLine(rt)}
                             onRemove={() => removeLine(rt.id)}
-                            onQty={(q) => updateLine(rt.id, { quantity: q })}
-                            onAdults={(a) => updateLine(rt.id, { adults: a })}
-                            onChildren={(c) => updateLine(rt.id, { children: c })}
+                            onAddRoom={() => addRoom(rt.id)}
+                            onRemoveRoom={(key) => removeRoom(rt.id, key)}
+                            onRoomAdults={(key, a) => updateRoom(rt.id, key, { adults: a })}
+                            onRoomChildren={(key, c) => updateRoom(rt.id, key, { children: c })}
                             onPhotos={(e) => {
                               e.stopPropagation();
                               setGalleryRoom(rt);
@@ -998,17 +1115,19 @@ export function BookingWizard({
                     <div key={p.line.id} className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-[var(--bk-ink)] truncate">
-                          {p.qty > 1 ? `${p.qty} × ` : ""}
+                          {p.rooms.length > 1 ? `${p.rooms.length} × ` : ""}
                           {p.line.roomType.name}
                         </p>
                         <p className="text-xs text-[var(--bk-muted)] mt-0.5">
-                          {p.line.adults} adult{p.line.adults !== 1 ? "s" : ""}
-                          {p.line.children > 0
-                            ? `, ${p.line.children} child${p.line.children !== 1 ? "ren" : ""}`
-                            : ""}
-                          {" · "}
                           {fmt(p.nightRate)}/night
                         </p>
+                        <ul className="mt-1 space-y-0.5">
+                          {p.rooms.map((cartRoom, index) => (
+                            <li key={cartRoom.key} className="text-xs text-[var(--bk-muted)]">
+                              Room {index + 1}: {occupancyText(cartRoom.adults, cartRoom.children)}
+                            </li>
+                          ))}
+                        </ul>
                       </div>
                       <span className="booking-price text-sm text-[var(--bk-ink)] shrink-0 tabular-nums">
                         {fmt(p.subtotal)}
@@ -1252,18 +1371,6 @@ export function BookingWizard({
   );
 }
 
-type PricedCartLine = {
-  line: CartLine;
-  qty: number;
-  nightRate: number;
-  subtotal: number;
-  tax: number;
-  total: number;
-  availableCount: number | null;
-  restrictionReason: string | null;
-  blocked: boolean;
-};
-
 /**
  * Reservation cart — desktop side-rail and mobile inline. Lists every line with
  * per-line remove and a live subtotal/tax/total. `onContinue` is passed only by
@@ -1284,7 +1391,7 @@ function CartSummary({
   onContinue,
   canContinue,
 }: {
-  pricedLines: PricedCartLine[];
+  pricedLines: PricedLine[];
   nights: number;
   checkIn: string;
   checkOut: string;
@@ -1299,7 +1406,7 @@ function CartSummary({
   canContinue?: boolean;
 }) {
   const empty = pricedLines.length === 0;
-  const totalRooms = pricedLines.reduce((s, p) => s + p.qty, 0);
+  const totalRooms = pricedLines.reduce((s, p) => s + p.rooms.length, 0);
 
   return (
     <div className="booking-surface p-4 sm:p-5 space-y-4">
@@ -1331,14 +1438,17 @@ function CartSummary({
               >
                 <div className="min-w-0">
                   <p className="font-medium text-[var(--bk-ink)] truncate">
-                    {p.qty > 1 ? `${p.qty} × ` : ""}
+                    {p.rooms.length > 1 ? `${p.rooms.length} × ` : ""}
                     {p.line.roomType.name}
-                  </p>
-                  <p className="text-[11px] text-[var(--bk-muted)] mt-0.5">
-                    {p.line.adults} adult{p.line.adults !== 1 ? "s" : ""}
-                    {p.line.children > 0 ? `, ${p.line.children} ch` : ""}
                     {p.blocked ? " · unavailable" : ""}
                   </p>
+                  <ul className="mt-0.5 space-y-0.5">
+                    {p.rooms.map((cartRoom, index) => (
+                      <li key={cartRoom.key} className="text-[11px] text-[var(--bk-muted)]">
+                        Room {index + 1}: {occupancyText(cartRoom.adults, cartRoom.children)}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="booking-price text-sm text-[var(--bk-ink)] tabular-nums">
@@ -1412,9 +1522,12 @@ function RoomCard({
   fmt,
   onAdd,
   onRemove,
-  onQty,
-  onAdults,
-  onChildren,
+  onAddRoom,
+  onRemoveRoom,
+  onRoomAdults,
+  onRoomChildren,
+  canAddRoom,
+  maxRooms,
   onPhotos,
 }: {
   room: RoomType;
@@ -1430,9 +1543,13 @@ function RoomCard({
   fmt: (n: number) => string;
   onAdd: () => void;
   onRemove: () => void;
-  onQty: (q: number) => void;
-  onAdults: (a: number) => void;
-  onChildren: (c: number) => void;
+  onAddRoom: () => void;
+  onRemoveRoom: (key: string) => void;
+  onRoomAdults: (key: string, adults: number) => void;
+  onRoomChildren: (key: string, children: number) => void;
+  /** A further room may be added (within type, availability and cart caps). */
+  canAddRoom: boolean;
+  maxRooms: number;
   onPhotos: (e: React.MouseEvent) => void;
 }) {
   const img = room.images[0]?.url ?? null;
@@ -1441,7 +1558,6 @@ function RoomCard({
   const blocked = soldOut || restrictionReason !== null;
   const scarce =
     !blocked && availableCount !== null && availableCount > 0 && availableCount <= 2;
-  const maxQty = Math.min(availableCount ?? MAX_QTY_PER_LINE, MAX_QTY_PER_LINE);
   const inCart = line !== null;
 
   return (
@@ -1551,32 +1667,61 @@ function RoomCard({
       </div>
 
       {line ? (
-        <div className="mt-3 pt-3 border-t border-[var(--bk-line)] space-y-0.5">
-          <NumericStepper
-            label="Rooms"
-            value={line.quantity}
-            min={1}
-            max={maxQty}
-            onChange={onQty}
-            size="sm"
-          />
-          <NumericStepper
-            label="Adults"
-            value={line.adults}
-            min={1}
-            max={room.maxAdults}
-            onChange={onAdults}
-            size="sm"
-          />
-          <NumericStepper
-            label="Children"
-            description="Age 0 to 12"
-            value={line.children}
-            min={0}
-            max={childrenCapFor(room)}
-            onChange={onChildren}
-            size="sm"
-          />
+        <div className="mt-3 pt-3 border-t border-[var(--bk-line)] space-y-2.5">
+          {/* One block per room: occupancy belongs to the room, not the type. */}
+          {line.rooms.map((cartRoom, index) => (
+            <div
+              key={cartRoom.key}
+              className="rounded-xl bg-[var(--bk-surface-soft)] px-2.5 py-2"
+            >
+              <div className="flex items-center justify-between gap-2 pb-0.5">
+                <p className="text-xs font-semibold text-[var(--bk-ink)]">
+                  Room {index + 1}
+                  <span className="ml-1.5 font-normal text-[var(--bk-muted)]">
+                    {cartRoom.adults + cartRoom.children}{" "}
+                    {cartRoom.adults + cartRoom.children === 1 ? "guest" : "guests"}
+                  </span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onRemoveRoom(cartRoom.key)}
+                  aria-label={`Remove room ${index + 1} of ${room.name}`}
+                  className="p-1 rounded-md text-[var(--bk-muted)] hover:text-[var(--bk-danger)] transition-colors cursor-pointer touch-manipulation"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+              <NumericStepper
+                label="Adults"
+                value={cartRoom.adults}
+                min={1}
+                max={room.maxAdults}
+                onChange={(a) => onRoomAdults(cartRoom.key, a)}
+                size="sm"
+              />
+              <NumericStepper
+                label="Children"
+                description="Age 0 to 12"
+                value={cartRoom.children}
+                min={0}
+                max={childrenCapFor(room)}
+                onChange={(c) => onRoomChildren(cartRoom.key, c)}
+                size="sm"
+              />
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={onAddRoom}
+            disabled={!canAddRoom}
+            className="w-full h-9 rounded-xl border border-dashed border-[var(--bk-line)] text-xs font-semibold text-[var(--bk-ink)] hover:bg-[var(--bk-surface-soft)] disabled:opacity-45 disabled:cursor-not-allowed transition-colors cursor-pointer touch-manipulation"
+          >
+            {line.rooms.length >= maxRooms
+              ? `Only ${maxRooms} available`
+              : "Add another room"}
+          </button>
+
           <div className="flex items-center justify-between gap-3 pt-2.5 mt-1 border-t border-[var(--bk-line)]">
             <button
               type="button"

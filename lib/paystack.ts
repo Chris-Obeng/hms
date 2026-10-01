@@ -177,6 +177,19 @@ export interface TransactionInitInput {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * Charge-currency gate — deliberately parked.
+ *
+ * Paystack settles the currencies on its own supported list (GHS, NGN, ZAR, KES,
+ * USD, XOF). `SUPPORTED_CURRENCIES` in lib/money.ts is wider — it also offers
+ * EUR, GBP and UGX — so a hotel priced in one of those can pass every policy
+ * check and still be refused here. POST /api/booking/[slug]/bookings turns that
+ * refusal into "online payment unavailable" guest copy; XOF additionally needs
+ * Paystack's own scaling rather than the ISO 4217 exponent. Narrowing the
+ * offered currencies (or converting before initialize) is a product decision
+ * that has not been made yet; this note exists so the gap is not rediscovered as
+ * a surprise.
+ */
 export async function initializeTransaction(input: TransactionInitInput) {
   const res = await paystackFetch<{
     authorization_url: string;

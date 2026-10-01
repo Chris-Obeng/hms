@@ -15,6 +15,7 @@ import { PaymentVerifier } from "@/components/booking/payment-verifier";
 import { CompletePaymentPanel } from "@/components/booking/complete-payment-panel";
 import { formatCurrency } from "@/lib/format";
 import { fromMinor, sumMinor, toMinor } from "@/lib/money";
+import { occupancyText } from "@/lib/bookings/cart";
 
 export const dynamic = "force-dynamic";
 
@@ -34,12 +35,8 @@ function fmtDate(iso: string) {
   }
 }
 
-/** "2 adults" / "2 adults, 1 child" — per-line occupancy on a grouped booking. */
-function occupancyLabel(adults: number, children: number) {
-  const a = `${adults} adult${adults !== 1 ? "s" : ""}`;
-  if (children > 0) return `${a}, ${children} child${children !== 1 ? "ren" : ""}`;
-  return a;
-}
+// Per-line occupancy comes from occupancyText() in lib/bookings/cart.ts — the
+// same phrasing the booking engine, the panels and the email use.
 
 /** One sibling line of a reservation group, as this page reads it. */
 type GroupLine = {
@@ -326,7 +323,7 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
                           </p>
                           <p className="text-xs text-[var(--bk-muted)] mt-0.5">
                             {fmtDate(l.check_in)} – {fmtDate(l.check_out)} · {n} night
-                            {n !== 1 ? "s" : ""} · {occupancyLabel(l.adults ?? 1, l.children ?? 0)}
+                            {n !== 1 ? "s" : ""} · {occupancyText(l.adults ?? 1, l.children ?? 0)}
                           </p>
                         </div>
                         <span className="text-right booking-price text-[var(--bk-ink)] shrink-0">
