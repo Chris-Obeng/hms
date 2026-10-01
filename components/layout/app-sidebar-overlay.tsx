@@ -1,21 +1,19 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useUser, useOrganization, useClerk } from "@clerk/nextjs";
 import {
   CalendarDays,
+  CalendarRange,
   Users,
-  DoorOpen,
+  BedDouble,
   LifeBuoy,
   BarChart3,
   Settings,
   Moon,
   LayoutDashboard,
-  BookOpen,
-  ChevronDown,
-  DollarSign,
+  ClipboardList,
   ChevronsUpDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,19 +22,15 @@ import {
   SidebarHeader,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
 } from "@/components/ui/sidebar";
 import type { Selection } from "@heroui/react";
 import {
-  Accordion,
   Avatar,
   Chip,
   CloseButton,
   ListBox,
   Separator,
   ScrollShadow,
-  Tooltip,
 } from "@heroui/react";
 
 // ── Role helpers ───────────────────────────────────────────────
@@ -67,16 +61,10 @@ function getRoleChipColor(
 
 // ── Nav structure ──────────────────────────────────────────────
 
-interface NavSubItem {
-  title: string;
-  url: string;
-}
-
 interface NavItem {
   title: string;
   url: string;
   icon: React.ComponentType<{ className?: string }>;
-  subItems?: NavSubItem[];
 }
 
 interface NavGroup {
@@ -86,10 +74,10 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    title: "Main",
+    title: "Overview",
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-      { title: "Reservations", url: "/dashboard/bookings", icon: BookOpen },
+      { title: "Reservations", url: "/dashboard/bookings", icon: ClipboardList },
       { title: "Calendar", url: "/dashboard/calendar", icon: CalendarDays },
       { title: "Guests", url: "/dashboard/customers", icon: Users },
     ],
@@ -97,209 +85,24 @@ const navGroups: NavGroup[] = [
   {
     title: "Rooms",
     items: [
-      { title: "Rooms", url: "/dashboard/rooms", icon: DoorOpen },
-      { title: "Availability", url: "/dashboard/availability", icon: DollarSign },
+      { title: "Rooms", url: "/dashboard/rooms", icon: BedDouble },
+      { title: "Availability", url: "/dashboard/availability", icon: CalendarRange },
     ],
   },
   {
     title: "Operations",
     items: [
       { title: "Night Audit", url: "/dashboard/night-audit", icon: Moon },
-    ],
-  },
-  {
-    title: "Analytics",
-    items: [
       { title: "Reports", url: "/dashboard/reports", icon: BarChart3 },
       { title: "Settings", url: "/dashboard/settings", icon: Settings },
     ],
   },
 ];
 
-const LIST_ITEM_CLASS =
-  "rounded-md px-2.5 py-2 text-sm font-medium outline-hidden transition-[color,background-color] duration-150 ring-sidebar-ring ring-inset focus-visible:ring-2 data-[hovered=true]:bg-sidebar-foreground/10 data-[hovered=true]:text-sidebar-foreground data-[selected=true]:bg-sidebar-foreground/10 data-[selected=true]:font-semibold data-[selected=true]:text-sidebar-foreground";
-
-interface ProcessedGroup extends NavGroup {
-  leafItems: NavItem[];
-  accordionItems: NavItem[];
-}
-
-const processedGroups: ProcessedGroup[] = navGroups.map((g) => ({
-  ...g,
-  leafItems: g.items.filter((i) => !i.subItems),
-  accordionItems: g.items.filter((i) => i.subItems),
-}));
-
-// ── Accordion nav item ─────────────────────────────────────────
-
-function AccordionNavItem({
-  item,
-  pathname,
-  onNavClick,
-  collapsed,
-}: {
-  item: NavItem;
-  pathname: string;
-  onNavClick: () => void;
-  collapsed: boolean;
-}) {
-  const anySubActive = item.subItems?.some((s) => pathname === s.url) ?? false;
-  const defaultExpanded = anySubActive
-    ? new Set<string>([item.title])
-    : new Set<string>();
-
-  if (collapsed) {
-    return (
-      <Tooltip delay={500} closeDelay={0}>
-        <Tooltip.Trigger>
-          <button
-            type="button"
-            aria-label={item.title}
-            className={cn(
-              "flex size-8 items-center justify-center rounded-lg",
-              "text-sidebar-foreground/70 outline-hidden transition-[color,background-color] duration-150",
-              "ring-sidebar-ring focus-visible:ring-2",
-              "hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground",
-              anySubActive && "bg-sidebar-foreground/10 text-sidebar-foreground font-medium"
-            )}
-          >
-            <item.icon className="size-4 shrink-0" />
-          </button>
-        </Tooltip.Trigger>
-        <Tooltip.Content placement="right" showArrow className="text-xs font-medium">
-          {item.title}
-        </Tooltip.Content>
-      </Tooltip>
-    );
-  }
-
-  return (
-    <Accordion
-      defaultExpandedKeys={defaultExpanded}
-      hideSeparator
-      className="w-full bg-transparent"
-    >
-      <Accordion.Item id={item.title} className="border-0">
-        <Accordion.Heading>
-          <Accordion.Trigger
-            className={cn(
-              "flex w-full items-center gap-2 overflow-hidden rounded-md px-2.5 py-2 text-left text-[15px] font-medium",
-              "outline-hidden transition-[width,height,padding,color,background-color,transform] duration-150",
-              "ring-sidebar-ring ring-inset focus-visible:ring-2",
-              anySubActive
-                ? "bg-sidebar-foreground/10 font-semibold text-sidebar-foreground"
-                : "text-sidebar-foreground/80 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground",
-              "active:scale-[0.98]",
-              "[&_svg]:size-4 [&_svg]:shrink-0"
-            )}
-          >
-            <item.icon className="size-4 shrink-0" />
-            <span className="flex-1 truncate">{item.title}</span>
-            <Accordion.Indicator className="text-sidebar-foreground/40">
-              <ChevronDown className="size-3 transition-transform duration-150" />
-            </Accordion.Indicator>
-          </Accordion.Trigger>
-        </Accordion.Heading>
-        <Accordion.Panel>
-          <Accordion.Body>
-            <div className="ml-3 flex flex-col gap-0.5 border-l border-sidebar-border px-2.5">
-              {item.subItems!.map((sub) => {
-                const subActive = pathname === sub.url;
-                return (
-                  <Link
-                    key={sub.url}
-                    href={sub.url}
-                    onClick={onNavClick}
-                    className={cn(
-                      "flex h-7 items-center gap-2 rounded-md px-2 text-sm font-medium",
-                      "outline-hidden transition-[color,background-color] duration-150",
-                      "ring-sidebar-ring ring-inset focus-visible:ring-2",
-                      subActive
-                        ? "bg-sidebar-foreground/10 font-semibold text-sidebar-foreground"
-                        : "text-sidebar-foreground/70 hover:bg-sidebar-foreground/8 hover:text-sidebar-foreground"
-                    )}
-                  >
-                    <span className="truncate">{sub.title}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </Accordion.Body>
-        </Accordion.Panel>
-      </Accordion.Item>
-    </Accordion>
-  );
-}
-
-// ── User card (shown in sidebar footer) ────────────────────────
-// Clicking opens Clerk's default UserProfile modal
-
-function SidebarUserCard({
-  user,
-  userInitials,
-  roleLabel,
-  roleChipColor,
-  isCollapsed,
-  openUserProfile,
-}: {
-  user: ReturnType<typeof useUser>["user"];
-  userInitials: string;
-  roleLabel: string;
-  roleChipColor: "accent" | "success" | "default" | "warning" | "danger";
-  isCollapsed: boolean;
-  openUserProfile: () => void;
-}) {
-  if (isCollapsed) {
-    return (
-      <Tooltip delay={500} closeDelay={0}>
-        <Tooltip.Trigger>
-          <button
-            type="button"
-            aria-label="Open user profile"
-            onClick={openUserProfile}
-            className="flex items-center justify-center outline-hidden border-0 bg-transparent cursor-pointer rounded-lg hover:bg-sidebar-foreground/10 transition-colors p-1"
-          >
-            <SidebarAvatar user={user} userInitials={userInitials} size="sm" />
-          </button>
-        </Tooltip.Trigger>
-        <Tooltip.Content placement="right" showArrow className="text-xs font-medium">
-          {user?.fullName ?? "Account"} — Manage profile
-        </Tooltip.Content>
-      </Tooltip>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      aria-label="Open user profile"
-      onClick={openUserProfile}
-      className={cn(
-        "w-full flex items-center gap-2.5 px-2 py-2 rounded-lg border-0 bg-transparent",
-        "cursor-pointer outline-hidden",
-        "transition-[background-color] duration-150",
-        "hover:bg-sidebar-foreground/10",
-        "active:bg-sidebar-foreground/10"
-      )}
-    >
-      <SidebarAvatar user={user} userInitials={userInitials} size="sm" />
-      <div className="min-w-0 flex-1 text-left">
-        <p className="text-xs font-semibold text-sidebar-foreground truncate leading-tight">
-          {user?.fullName ?? "Staff Member"}
-        </p>
-        <Chip
-          size="sm"
-          variant="soft"
-          color={roleChipColor}
-          className="mt-0.5 h-[18px] px-1.5 text-[10px] font-medium leading-none"
-        >
-          {roleLabel}
-        </Chip>
-      </div>
-      <ChevronsUpDown className="size-3.5 shrink-0 text-sidebar-foreground/40" />
-    </button>
-  );
-}
+// Resting / hover / selected states for a nav row. One filled pill marks the
+// active route; the icon takes the brand color only while selected.
+const ITEM_CLASS =
+  "flex min-h-10 items-center gap-3 rounded-lg px-3 text-[15px] font-medium text-sidebar-foreground/75 outline-hidden cursor-pointer select-none transition-[background-color,color] duration-150 ring-sidebar-ring ring-inset focus-visible:ring-2 data-[hovered=true]:bg-sidebar-foreground/[0.055] data-[hovered=true]:text-sidebar-foreground data-[selected=true]:bg-sidebar-accent data-[selected=true]:font-semibold data-[selected=true]:text-sidebar-accent-foreground [&_svg]:size-5 [&_svg]:shrink-0 [&_svg]:text-sidebar-foreground/55 [&_svg]:transition-colors data-[hovered=true]:[&_svg]:text-sidebar-foreground data-[selected=true]:[&_svg]:text-sidebar-primary";
 
 // ── AppSidebar ─────────────────────────────────────────────────
 
@@ -308,12 +111,13 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { user } = useUser();
   const { membership } = useOrganization();
-  const { isMobile, setOpenMobile, setOpen, state } = useSidebar();
+  const { isMobile, setOpenMobile, setOpen } = useSidebar();
   const { openUserProfile } = useClerk();
 
-  const isCollapsed = !isMobile && state === "collapsed";
-  // Any /dashboard/rooms/* sub-route (room-type detail, legacy redirects) counts as "Rooms"
-  const activePath = pathname.startsWith("/dashboard/rooms/") ? "/dashboard/rooms" : pathname;
+  // Any /dashboard/rooms/* sub-route counts as "Rooms"
+  const activePath = pathname.startsWith("/dashboard/rooms/")
+    ? "/dashboard/rooms"
+    : pathname;
   const selectedKeys = React.useMemo(() => new Set([activePath]), [activePath]);
 
   const prevPathname = React.useRef(pathname);
@@ -328,19 +132,15 @@ export function AppSidebar() {
     }
   }, [pathname, setOpen, setOpenMobile]);
 
-  const handleNavClick = React.useCallback(() => {
-    if (isMobile) setOpenMobile(false);
-    else setOpen(false);
-  }, [isMobile, setOpen, setOpenMobile]);
-
   const navigateTo = React.useCallback(
     (url: string) => {
       if (url === lastNavRef.current) return;
       lastNavRef.current = url;
       router.push(url);
-      handleNavClick();
+      if (isMobile) setOpenMobile(false);
+      else setOpen(false);
     },
-    [router, handleNavClick]
+    [router, isMobile, setOpen, setOpenMobile]
   );
 
   const handleSelectionChange = React.useCallback(
@@ -358,7 +158,7 @@ export function AppSidebar() {
   const roleChipColor = getRoleChipColor(role);
 
   const userInitials =
-    ([user?.firstName?.[0], user?.lastName?.[0]])
+    [user?.firstName?.[0], user?.lastName?.[0]]
       .filter(Boolean)
       .join("")
       .toUpperCase() || "U";
@@ -366,195 +166,95 @@ export function AppSidebar() {
   return (
     <>
       {/* ── Header ─────────────────────────────────────────── */}
-      <SidebarHeader className="px-3 py-3.5 border-b border-sidebar-border/50">
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => navigateTo("/dashboard/settings/hotel")}
-            title="Hotel settings"
-            className="flex items-center gap-2.5 min-w-0 text-left group cursor-pointer outline-none rounded-lg p-0.5"
-          >
-            <span
-              className={cn(
-                "text-lg font-bold tracking-tight text-sidebar-foreground truncate leading-tight transition-colors group-hover:text-sidebar-foreground/80",
-                isCollapsed && "hidden"
-              )}
-            >
-              RoomLine
-            </span>
-          </button>
-          <CloseButton
-            onPress={() => {
-              setOpen(false);
-              setOpenMobile(false);
-            }}
-            aria-label="Close navigation"
-            className={cn(
-              "shrink-0 text-sidebar-foreground/40 hover:text-sidebar-foreground",
-              "data-[hovered=true]:text-sidebar-foreground data-[hovered=true]:bg-sidebar-foreground/10",
-              "transition-[color,background-color] duration-150",
-              isCollapsed && "hidden"
-            )}
-          />
-        </div>
+      <SidebarHeader className="h-14 flex-row items-center justify-between border-b border-sidebar-border/60 px-3 py-0">
+        <button
+          type="button"
+          onClick={() => navigateTo("/dashboard/settings/hotel")}
+          title="Hotel settings"
+          aria-label="Hotel settings"
+          className="group flex min-w-0 items-center gap-2.5 rounded-lg px-1 py-1 text-left outline-hidden ring-sidebar-ring focus-visible:ring-2"
+        >
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-sidebar-primary text-sidebar-primary-foreground shadow-sm ring-1 ring-black/5">
+            <span className="text-sm font-bold leading-none">R</span>
+          </span>
+          <span className="truncate text-[15px] font-semibold leading-tight tracking-tight text-sidebar-foreground transition-colors group-hover:text-sidebar-foreground/75">
+            RoomLine
+          </span>
+        </button>
+        <CloseButton
+          onPress={() => {
+            setOpen(false);
+            setOpenMobile(false);
+          }}
+          aria-label="Close navigation"
+          className="shrink-0 text-sidebar-foreground/40 transition-[color,background-color] duration-150 data-[hovered=true]:bg-sidebar-foreground/10 data-[hovered=true]:text-sidebar-foreground"
+        />
       </SidebarHeader>
 
       {/* ── Navigation ─────────────────────────────────────── */}
-      <SidebarContent className={cn("px-2 py-2", isCollapsed && "px-1")}>
+      <SidebarContent className="px-2 py-2">
         <ScrollShadow
           orientation="vertical"
           size={20}
           className="h-full"
-          style={{
-            // Override heroui-background so the fade gradient matches
-            // the sidebar background instead of the page background
-            "--heroui-background": "hsl(var(--sidebar))",
-          } as React.CSSProperties}
+          style={
+            {
+              "--heroui-background": "hsl(var(--sidebar))",
+            } as React.CSSProperties
+          }
         >
-          {isCollapsed ? (
-            /* Collapsed: icon-only buttons with tooltips */
-            <div className="flex flex-col items-center gap-1">
-              {processedGroups.flatMap((group) =>
-                group.items.map((item) =>
-                  item.subItems ? (
-                    <AccordionNavItem
-                      key={item.url}
-                      item={item}
-                      pathname={pathname}
-                      onNavClick={handleNavClick}
-                      collapsed
-                    />
-                  ) : (
-                    <Tooltip key={item.url} delay={500} closeDelay={0}>
-                      <Tooltip.Trigger>
-                        <button
-                          type="button"
-                          aria-label={item.title}
-                          onClick={() => navigateTo(item.url)}
-                          className={cn(
-                            "flex size-8 items-center justify-center rounded-lg",
-                            "text-sidebar-foreground/70 outline-hidden transition-[color,background-color] duration-150",
-                            "ring-sidebar-ring focus-visible:ring-2",
-                            "hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground",
-                            activePath === item.url &&
-                              "bg-sidebar-foreground/10 text-sidebar-foreground font-medium"
-                          )}
-                        >
-                          <item.icon className="size-4 shrink-0" />
-                        </button>
-                      </Tooltip.Trigger>
-                      <Tooltip.Content
-                        placement="right"
-                        showArrow
-                        className="text-xs font-medium"
-                      >
-                        {item.title}
-                      </Tooltip.Content>
-                    </Tooltip>
-                  )
-                )
-              )}
-            </div>
-          ) : (
-            /* Expanded: single flat ListBox — uniform item spacing */
-            (() => {
-              const leafItems = processedGroups.flatMap((g) => g.leafItems);
-              const accordionItems = processedGroups.flatMap((g) => g.accordionItems);
-              return (
-                <SidebarGroup className="p-0">
-                  <SidebarGroupContent>
-                    {leafItems.length > 0 && (
-                      <ListBox
-                        selectionMode="single"
-                        selectedKeys={selectedKeys}
-                        onSelectionChange={handleSelectionChange}
-                        className="w-full bg-transparent"
-                        aria-label="Navigation"
-                      >
-                        {leafItems.map((item) => (
-                          <ListBox.Item
-                            key={item.url}
-                            id={item.url}
-                            textValue={item.title}
-                            className={LIST_ITEM_CLASS}
-                          >
-                            <item.icon className="size-4 shrink-0" />
-                            <span className="flex-1 truncate text-[15px]">{item.title}</span>
-                          </ListBox.Item>
-                        ))}
-                      </ListBox>
-                    )}
-                    {accordionItems.map((item) => (
-                      <AccordionNavItem
-                        key={item.url}
-                        item={item}
-                        pathname={pathname}
-                        onNavClick={handleNavClick}
-                        collapsed={false}
-                      />
-                    ))}
-                  </SidebarGroupContent>
-                </SidebarGroup>
-              );
-            })()
-          )}
-        </ScrollShadow>
-      </SidebarContent>
-
-      {/* ── Footer ─────────────────────────────────────────── */}
-      <SidebarFooter className="border-t border-sidebar-border/50 p-3 gap-1">
-        {/* Help & Support link */}
-        {isCollapsed ? (
-          <Tooltip delay={500} closeDelay={0}>
-            <Tooltip.Trigger>
-              <button
-                type="button"
-                aria-label="Help & Support"
-                onClick={() => navigateTo("/support")}
-                className={cn(
-                  "flex size-8 items-center justify-center rounded-lg mx-auto",
-                  "text-sidebar-foreground/70 outline-hidden transition-[color,background-color] duration-150",
-                  "ring-sidebar-ring focus-visible:ring-2",
-                  "hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground",
-                  pathname === "/support" &&
-                    "bg-sidebar-foreground/10 text-sidebar-foreground font-medium"
-                )}
-              >
-                <LifeBuoy className="size-4 shrink-0" />
-              </button>
-            </Tooltip.Trigger>
-            <Tooltip.Content placement="right" showArrow className="text-xs font-medium">
-              Help & Support
-            </Tooltip.Content>
-          </Tooltip>
-        ) : (
           <ListBox
             selectionMode="single"
             selectedKeys={selectedKeys}
             onSelectionChange={handleSelectionChange}
-            className="w-full bg-transparent"
-            aria-label="Help & Support"
+            className="w-full bg-transparent p-0"
+            aria-label="Primary navigation"
           >
-            <ListBox.Item
-              id="/support"
-              textValue="Help & Support"
-              className={LIST_ITEM_CLASS}
-            >
-              <LifeBuoy className="size-4 shrink-0" />
-              <span className="flex-1 truncate text-sm">Help & Support</span>
-            </ListBox.Item>
+            {navGroups.flatMap((group, g) =>
+              group.items.map((item, i) => (
+                <ListBox.Item
+                  key={item.url}
+                  id={item.url}
+                  textValue={item.title}
+                  // Rows sit flush; a hair of air between clusters stands in
+                  // for the removed group labels — rhythm without chrome.
+                  className={cn(ITEM_CLASS, g > 0 && i === 0 && "mt-1")}
+                >
+                  <item.icon />
+                  <span className="flex-1 truncate">{item.title}</span>
+                </ListBox.Item>
+              ))
+            )}
           </ListBox>
-        )}
+        </ScrollShadow>
+      </SidebarContent>
 
-        <Separator className="bg-sidebar-border/50" />
+      {/* ── Footer ─────────────────────────────────────────── */}
+      <SidebarFooter className="gap-1 border-t border-sidebar-border/60 p-2">
+        <ListBox
+          selectionMode="single"
+          selectedKeys={selectedKeys}
+          onSelectionChange={handleSelectionChange}
+          className="w-full bg-transparent p-0"
+          aria-label="Help and support"
+        >
+          <ListBox.Item
+            id="/support"
+            textValue="Help and Support"
+            className={ITEM_CLASS}
+          >
+            <LifeBuoy />
+            <span className="flex-1 truncate">Help &amp; Support</span>
+          </ListBox.Item>
+        </ListBox>
 
-        {/* User card — clicks open Clerk's default UserProfile modal */}
+        <Separator className="my-1 bg-sidebar-border/60" />
+
         <SidebarUserCard
           user={user}
           userInitials={userInitials}
           roleLabel={roleLabel}
           roleChipColor={roleChipColor}
-          isCollapsed={isCollapsed}
           openUserProfile={openUserProfile}
         />
       </SidebarFooter>
@@ -562,33 +262,77 @@ export function AppSidebar() {
   );
 }
 
+// ── User card (sidebar footer) ─────────────────────────────────
+// Clicking opens Clerk's default UserProfile modal.
+
+function SidebarUserCard({
+  user,
+  userInitials,
+  roleLabel,
+  roleChipColor,
+  openUserProfile,
+}: {
+  user: ReturnType<typeof useUser>["user"];
+  userInitials: string;
+  roleLabel: string;
+  roleChipColor: "accent" | "success" | "default" | "warning" | "danger";
+  openUserProfile: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label="Open user profile"
+      onClick={openUserProfile}
+      className={cn(
+        "flex min-h-12 w-full items-center gap-3 rounded-lg border-0 bg-transparent px-2 py-1.5 text-left",
+        "cursor-pointer outline-hidden ring-sidebar-ring focus-visible:ring-2",
+        "transition-[background-color] duration-150",
+        "hover:bg-sidebar-foreground/[0.055] active:bg-sidebar-foreground/10"
+      )}
+    >
+      <SidebarAvatar user={user} userInitials={userInitials} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-semibold leading-tight text-sidebar-foreground">
+          {user?.fullName ?? "Staff Member"}
+        </p>
+        <Chip
+          size="sm"
+          variant="soft"
+          color={roleChipColor}
+          className="mt-1 h-[18px] px-1.5 text-[10px] font-medium leading-none"
+        >
+          {roleLabel}
+        </Chip>
+      </div>
+      <ChevronsUpDown className="size-4 shrink-0 text-sidebar-foreground/40" />
+    </button>
+  );
+}
 // ── Avatar helper ──────────────────────────────────────────────
 
 function SidebarAvatar({
   user,
   userInitials,
-  size = "sm",
 }: {
   user: { imageUrl?: string | null; fullName?: string | null } | undefined | null;
   userInitials?: string;
-  size?: "sm" | "md" | "lg";
 }) {
   if (user?.imageUrl) {
     return (
-      <Avatar size={size} className="rounded-lg shrink-0">
+      <Avatar size="sm" className="size-9 shrink-0 rounded-[10px]">
         <Avatar.Image
           src={user.imageUrl}
           alt={user.fullName ?? "User avatar"}
-          className="rounded-lg"
+          className="rounded-[10px]"
         />
-        <Avatar.Fallback className="rounded-lg bg-sidebar-accent text-sidebar-foreground text-xs font-semibold">
+        <Avatar.Fallback className="rounded-[10px] bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground">
           {userInitials ?? "U"}
         </Avatar.Fallback>
       </Avatar>
     );
   }
   return (
-    <div className="size-8 rounded-lg bg-sidebar-accent flex items-center justify-center shrink-0 text-xs font-semibold text-sidebar-foreground ring-1 ring-sidebar-border/30">
+    <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground ring-1 ring-sidebar-border/40">
       {userInitials ?? "U"}
     </div>
   );

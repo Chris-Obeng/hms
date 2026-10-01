@@ -188,8 +188,10 @@ function Sidebar({
             <Drawer.Dialog
               aria-label="Navigation sidebar"
               className={cn(
-                "flex h-[100dvh] flex-col overflow-hidden border-r border-sidebar-border/70 bg-sidebar p-0 text-sidebar-foreground shadow-2xl outline-none",
-                "w-(--sidebar-width-mobile) max-w-[88vw] rounded-r-2xl",
+                // Full-height edge drawer sits flush against the screen edge:
+                // square corners, hairline on the inner (right) edge only.
+                "flex h-[100dvh] flex-col overflow-hidden border-r border-sidebar-border bg-sidebar p-0 text-sidebar-foreground shadow-2xl outline-none rounded-none",
+                "w-(--sidebar-width-mobile) max-w-[86vw]",
                 "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
                 className
               )}
@@ -224,10 +226,10 @@ function Sidebar({
           ...props.style,
         }}
         className={cn(
-          "fixed inset-y-0 z-50 flex h-svh w-(--sidebar-width) flex-col bg-sidebar text-sidebar-foreground shadow-xl",
+          "fixed inset-y-0 z-50 flex h-svh w-(--sidebar-width) flex-col bg-sidebar text-sidebar-foreground border-sidebar-border shadow-xl",
           "transition-transform duration-200 ease-in-out",
           !open && "pointer-events-none",
-          side === "left" ? "left-0" : "right-0",
+          side === "left" ? "left-0 border-r" : "right-0 border-l",
           variant === "floating" && "m-2 h-[calc(100svh-1rem)] rounded-xl shadow-lg ring-1 ring-sidebar-border",
           className
         )}
