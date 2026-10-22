@@ -1,37 +1,43 @@
-import Image from "next/image";
-import { ArrowDown, ArrowRight, Check, CornerDownRight } from "lucide-react";
-import hotelExterior from "@/public/images/landing/hotel-exterior.jpg";
+﻿import Image from "next/image";
+import { ArrowDown, Building2, House, Hotel } from "lucide-react";
+import { ActionLink } from "./action-link";
 
 export function Hero() {
   return (
-    <section className="lp-hero" aria-labelledby="hero-heading">
-      <div className="lp-container lp-hero-intro">
-        <div>
-          <p className="lp-eyebrow"><span className="lp-brand-line" />Property management, thoughtfully connected</p>
-          <h1 id="hero-heading">Your hotel.<br /><em>Perfectly in sync.</em></h1>
-        </div>
-        <div className="lp-hero-copy">
-          <p>Reservations, rooms, payments, and people. One considered system for the way your hotel runs — calm at the desk, clear in the books.</p>
-          <div className="lp-hero-actions">
-            <a href="#demo" className="lp-btn lp-btn--accent">Book a demo<ArrowRight size={16} aria-hidden="true" /></a>
-            <a href="#platform" className="lp-text-link">Explore the platform<ArrowDown size={15} aria-hidden="true" /></a>
+    <section className="rl-hero" aria-labelledby="hero-heading">
+      <div className="rl-container rl-hero-shell">
+        <div className="rl-hero-copy">
+          <p className="rl-kicker"><span aria-hidden="true" /> Hotel operations for independent stays</p>
+          <h1 id="hero-heading" className="rl-hero-title">Make every stay <em>feel considered.</em></h1>
+          <p className="rl-description">RoomLine brings reservations, rooms, payments, and people into one calm place to work.</p>
+          <div className="rl-actions">
+            <ActionLink />
+            <a href="#how-it-works" className="rl-text-link">See the approach <ArrowDown size={16} aria-hidden="true" /></a>
           </div>
+          <ul className="rl-hero-proof" aria-label="RoomLine is built for">
+            <li><Hotel size={17} aria-hidden="true" /> Hotels</li>
+            <li><House size={17} aria-hidden="true" /> Guesthouses</li>
+            <li><Building2 size={17} aria-hidden="true" /> Boutique stays</li>
+          </ul>
         </div>
+        <figure className="rl-hero-visual">
+          <Image
+            src="/images/landing/hotel-exterior.jpg"
+            alt="A warmly lit hotel beside a reflective pool at dusk"
+            fill
+            priority
+            sizes="(max-width: 800px) 100vw, 58vw"
+          />
+          <figcaption className="rl-hero-visual-caption">
+            <span className="rl-visual-label">RoomLine / Front desk</span>
+            <strong>More clarity at the door.</strong>
+            <span>Reservations, rooms, and payments in step.</span>
+          </figcaption>
+        </figure>
       </div>
-      <div className="lp-container">
-        <div className="lp-hero-scene">
-          <Image src={hotelExterior} alt="Hotel pool at dusk, warm lights reflected on still water" fill priority sizes="(max-width: 767px) 100vw, (max-width: 1440px) 94vw, 1280px" className="lp-hero-photo" placeholder="blur" />
-          <div className="lp-photo-caption"><span>Made for the people</span><strong>behind every great stay.</strong></div>
-          <div className="lp-day-card">
-            <div className="lp-day-card-heading"><span className="lp-mini-mark" aria-hidden="true">r.</span><span>The Palm House<small>Illustrative property</small></span><span className="lp-status"><Check size={12} aria-hidden="true" />All in view</span></div>
-            <div className="lp-day-title"><h2>A good day, at a glance.</h2><span>Tuesday, 29 September</span></div>
-            <dl className="lp-day-metrics"><div><dt>Occupancy</dt><dd>83<span>%</span></dd></div><div><dt>Arrivals</dt><dd>08</dd></div><div><dt>Departures</dt><dd>05</dd></div></dl>
-            <div className="lp-day-event"><span className="lp-event-icon"><Check size={16} aria-hidden="true" /></span><span><strong>Room 204 is ready</strong><small>Inspected. Ready for the next arrival.</small></span></div>
-            <a href="#platform" className="lp-day-link">Take a look inside<ArrowRight size={16} aria-hidden="true" /></a>
-          </div>
-          <div className="lp-scene-label"><CornerDownRight size={14} aria-hidden="true" />Hospitality in focus. Operations in order.</div>
-        </div>
-        <div className="lp-property-strip"><p>Independent spirit.<br /><strong>Professional operations.</strong></p><div><span>Boutique hotels</span><span>City hotels</span><span>Resorts</span><span>Guesthouses</span></div></div>
+      <div className="rl-container rl-hero-footnote">
+        <span>Built for hospitality teams who know every guest by name.</span>
+        <span>Ghana · West Africa</span>
       </div>
     </section>
   );

@@ -504,6 +504,13 @@ export function DashboardClient({ hotelId, currency, hotelTimezone, orgId: initi
       {/* ── Mobile week strip (phone only) ───────────────────────── */}
       <MobileWeekCalendar selectedDate={selectedDate} onDateChange={handleDateChange} />
 
+      {error && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-card p-4 text-sm">
+          <p>Dashboard refresh failed. The displayed figures may be out of date.</p>
+          <Button variant="outline" className="min-h-11" onPress={() => refetch()}>Try again</Button>
+        </div>
+      )}
+
       {/* ── Main 2-column grid ──────────────────────────────────── */}
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[300px_1fr] lg:gap-6">
         {/* Date + occupancy — mobile: occupancy only; tablet: side-by-side row; desktop: stacked column */}
@@ -515,12 +522,8 @@ export function DashboardClient({ hotelId, currency, hotelTimezone, orgId: initi
 
           <div className="min-w-0 md:flex-1 lg:w-full">
             <OccupancyCard
-              occupancyPercent={data.occupancy.percent}
-              availableUnits={data.occupancy.availableRooms}
-              bookedUnits={data.occupancy.occupiedRooms}
-              outOfService={data.occupancy.outOfService}
-              blockedDates={data.occupancy.blocked}
-              totalRooms={data.occupancy.totalRooms}
+              metric={data.occupancy}
+              isDateSwitching={isDateSwitching}
             />
           </div>
         </div>

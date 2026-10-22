@@ -18,7 +18,7 @@ export function OfflineIndicator() {
         "animate-in fade-in slide-in-from-top-1 duration-200",
       )}
     >
-      Offline — changes sync when connection returns
+      Offline — reconnect before making changes
     </div>
   );
 }

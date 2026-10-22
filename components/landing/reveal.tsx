@@ -11,12 +11,14 @@ import {
 import { motion } from "motion/react";
 
 /*
- * Motion kit for the landing page, on motion/react. One law survives the
- * rewrite: content is visible by default and only hides once JS arms it, so
- * no-JS visitors and crawlers read everything. A reveal plays on load when it
- * opens near the fold and on scroll when it sits below it. Arming is a keyed
- * remount inside a layout effect, so the hidden start is committed before
- * paint and the entrance never flashes. Reduced motion stays static.
+ * Motion kit for the landing page, on motion/react.
+ *
+ * One law survives every rewrite: content is visible by default and only hides
+ * once JS arms it, so no-JS visitors and crawlers read everything. A reveal
+ * plays on load when it opens near the fold and on scroll when it sits below it.
+ * Arming is a keyed remount inside a layout effect, so the hidden start is
+ * committed before paint and the entrance never flashes. Reduced motion stays
+ * static everywhere.
  */
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -24,7 +26,17 @@ const EASE = [0.16, 1, 0.3, 1] as const;
 const useIsoLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-function useReveal<T extends HTMLElement = HTMLElement>(amount = 0.18, margin = "0px 0px -8% 0px") {
+function prefersReduced() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+function useReveal<T extends HTMLElement = HTMLElement>(
+  amount = 0.18,
+  margin = "0px 0px -8% 0px",
+) {
   const ref = useRef<T | null>(null);
   const [armed, setArmed] = useState(false);
   const [play, setPlay] = useState(false);
@@ -33,9 +45,9 @@ function useReveal<T extends HTMLElement = HTMLElement>(amount = 0.18, margin = 
   useIsoLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    if (prefersReduced()) return;
     setArmed(true);
-    if (el.getBoundingClientRect().top < window.innerHeight * 0.92) {
+    if (el.getBoundingClientRect().top < window.innerHeight * 0.94) {
       setPlay(true);
     }
   }, []);
@@ -60,24 +72,19 @@ function useReveal<T extends HTMLElement = HTMLElement>(amount = 0.18, margin = 
   return { ref, armed, play };
 }
 
-const RISE = {
-  hide: { opacity: 0, y: 8 },
-  show: { opacity: 1, y: 0 },
-} as const;
-
 export function Reveal({
   as,
   delay = 0,
   className,
   children,
-  y = 8,
+  y = 10,
   duration = 0.62,
 }: {
   as?: ElementType;
   delay?: number;
   className?: string;
   children: ReactNode;
-  /** Rise distance in px — the brief fixes this at 8. */
+  /** Rise distance in px. */
   y?: number;
   duration?: number;
 }) {
@@ -88,10 +95,7 @@ export function Reveal({
       ref={ref}
       key={armed ? "on" : "off"}
       className={className}
-      variants={{
-        hide: { opacity: 0, y },
-        show: { opacity: 1, y: 0 },
-      }}
+      variants={{ hide: { opacity: 0, y }, show: { opacity: 1, y: 0 } }}
       initial={armed ? "hide" : false}
       animate={!armed || play ? "show" : "hide"}
       transition={{ duration, ease: EASE, delay: delay / 1000 }}
@@ -101,13 +105,13 @@ export function Reveal({
   );
 }
 
-/* Stagger group: fade + 8px rise, ~60ms per child — the brief motion law.
- * Visible by default; arms the hidden start only in JS, like Reveal. */
+/* Stagger group: fade + rise, ~70ms per child. Visible by default; arms the
+ * hidden start only in JS, like Reveal. */
 export function Stagger({
   className,
   children,
   delay = 0,
-  step = 60,
+  step = 70,
 }: {
   className?: string;
   children: ReactNode;
@@ -124,7 +128,12 @@ export function Stagger({
       animate={!armed || play ? "show" : "hide"}
       variants={{
         hide: {},
-        show: { transition: { staggerChildren: step / 1000, delayChildren: delay / 1000 } },
+        show: {
+          transition: {
+            staggerChildren: step / 1000,
+            delayChildren: delay / 1000,
+          },
+        },
       }}
     >
       {children}
@@ -143,12 +152,8 @@ export function StaggerItem({
     <motion.div
       className={className}
       variants={{
-        hide: { opacity: 0, y: 8 },
-        show: {
-          opacity: 1,
-          y: 0,
-          transition: { duration: 0.62, ease: EASE },
-        },
+        hide: { opacity: 0, y: 10 },
+        show: { opacity: 1, y: 0, transition: { duration: 0.62, ease: EASE } },
       }}
     >
       {children}
@@ -177,7 +182,7 @@ export function Magnetic({
       onMouseMove={(e) => {
         const el = ref.current;
         if (!el) return;
-        if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+        if (prefersReduced()) return;
         if (window.matchMedia?.("(hover: none)").matches) return;
         const r = el.getBoundingClientRect();
         const dx = e.clientX - (r.left + r.width / 2);
@@ -205,7 +210,7 @@ export function MaskLines({
   lines,
   className,
   delay = 0,
-  step = 88,
+  step = 80,
 }: {
   lines: string[];
   className?: string;
@@ -266,7 +271,7 @@ export function CountUp({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    if (prefersReduced()) return;
     let raf = 0;
     const run = () => {
       const t0 = performance.now();

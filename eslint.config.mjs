@@ -1,6 +1,24 @@
 import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import Module from "node:module";
+import { createRequire } from "node:module";
+
+// TypeScript 7 is the project's fast native compiler, but it does not expose
+// the legacy compiler API that typescript-eslint 8 currently needs. ESLint is
+// the one local tool that still requires that API, so keep its resolution on
+// Microsoft's compatibility TypeScript 6 package without changing the
+// compiler used by `tsc` or Next.js.
+const require = createRequire(import.meta.url);
+const typescript6 = require("@typescript/typescript6");
+const originalModuleLoad = Module._load;
+Module._load = function loadTypeScript(request, parent, isMain) {
+  if (request === "typescript") return typescript6;
+  return originalModuleLoad.call(this, request, parent, isMain);
+};
+
+const [{ default: nextVitals }, { default: nextTs }] = await Promise.all([
+  import("eslint-config-next/core-web-vitals"),
+  import("eslint-config-next/typescript"),
+]);
 
 const eslintConfig = defineConfig([
   ...nextVitals,

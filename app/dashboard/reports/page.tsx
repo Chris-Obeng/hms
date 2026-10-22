@@ -1,44 +1,27 @@
-import { auth } from "@clerk/nextjs/server";
+import { AuthError, requireMinRole } from "@/lib/auth";
+import { businessToday } from "@/lib/business-date";
 import { createClient } from "@/lib/supabase/server";
-import { format, subDays } from "date-fns";
 import { ReportsClient } from "./reports-client";
-import { BarChart3 } from "lucide-react";
+import { shiftReportDate } from "./_components/report-utils";
+
 export default async function ReportsPage() {
-  const { orgId } = await auth();
-  if (!orgId) return <NoAccessState />;
+  let context;
+  try { context = await requireMinRole("read_only", "view reports"); }
+  catch (error) {
+    if (!(error instanceof AuthError)) throw error;
+    return <div className="space-y-2 py-12"><h1 className="text-page-title">Reports</h1><p>Sign in with an active hotel staff account to view reports.</p></div>;
+  }
 
   const supabase = await createClient();
-  const { data: hotel } = await supabase
-    .from("hotels")
-    .select("id, currency")
-    .eq("clerk_org_id", orgId)
-    .single();
-
-  if (!hotel) return <NoAccessState />;
-
-  const today = new Date();
-  const initialEndDate = format(today, "yyyy-MM-dd");
-  const initialStartDate = format(subDays(today, 29), "yyyy-MM-dd");
-
-  return (
-    <ReportsClient
-      currency={hotel.currency ?? "GHS"}
-      initialStartDate={initialStartDate}
-      initialEndDate={initialEndDate}
-    />
-  );
-}
-
-function NoAccessState() {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
-      <div className="size-12 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-        <BarChart3 className="size-6 text-muted-foreground/30" />
-      </div>
-      <h2 className="text-lg font-semibold text-foreground">No access</h2>
-      <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-        Sign in to view reports.
-      </p>
-    </div>
-  );
+  const { data: hotel, error } = await supabase.from("hotels").select("timezone, status")
+    .eq("id", context.hotelId).eq("clerk_org_id", context.orgId).single();
+  if (error) throw new Error("Could not load reporting settings. Try again.");
+  if (!hotel?.timezone || hotel.status !== "active") {
+    return <div className="space-y-2 py-12"><h1 className="text-page-title">Reports</h1><p>Reports require an active property with a configured timezone. Ask your hotel administrator to check the property settings.</p></div>;
+  }
+  // A property date, never the browser or server's local calendar day.
+  new Intl.DateTimeFormat("en", { timeZone: hotel.timezone }).format(new Date());
+  const today = businessToday(hotel.timezone);
+  return <ReportsClient orgId={context.orgId} hotelId={context.hotelId} timeZone={hotel.timezone} today={today}
+    initialStartDate={shiftReportDate(today, -29)} initialEndDate={today} />;
 }

@@ -1,55 +1,27 @@
-import { auth } from "@clerk/nextjs/server";
-import { createClient } from "@/lib/supabase/server";
+import { requireMinRole } from "@/lib/auth";
 import { can } from "@/lib/roles";
-import { getNightAuditData, getRateDrift } from "./actions";
+import { getNightAuditData } from "./actions";
 import { NightAuditClient } from "./night-audit-client";
-import { Moon } from "lucide-react";
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+import Link from "next/link";
 
-export default async function NightAuditPage({
-  searchParams,
-}: {
+export default async function NightAuditPage({ searchParams }: {
   searchParams: Promise<{ date?: string }>;
 }) {
-  const { orgId, userId } = await auth();
-  if (!orgId) return <NoAccessState />;
-
-  const supabase = await createClient();
   const params = await searchParams;
-
-  const [summary, rateDrift, staffResult] = await Promise.all([
-    getNightAuditData(DATE_RE.test(params.date ?? "") ? params.date : undefined),
-    getRateDrift(),
-    userId
-      ? supabase
-          .from("staff_profiles")
-          .select("role")
-          .eq("clerk_user_id", userId)
-          .eq("clerk_org_id", orgId)
-          .single()
-      : Promise.resolve({ data: null }),
-  ]);
-
-  const role = (staffResult.data?.role as string | null) ?? null;
-  const canRunAudit = can(role, "night_audit:run");
-
-  return (
-    <NightAuditClient
-      initialSummary={summary}
-      canRunAudit={canRunAudit}
-      rateDrift={rateDrift}
-    />
-  );
-}
-
-function NoAccessState() {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
-      <Moon className="size-12 text-muted-foreground/30 mb-4" />
-      <h2 className="text-section text-foreground">Night Audit</h2>
-      <p className="text-body text-muted-foreground mt-1 max-w-sm">
-        Please sign in to access Night Audit &amp; Daily Reconciliation.
-      </p>
-    </div>
-  );
+  let data;
+  try {
+    const ctx = await requireMinRole("read_only", "view Night Audit");
+    const summary = await getNightAuditData(params.date);
+    data = { summary, canRunAudit: can(ctx.role, "night_audit:run") };
+  } catch (error) {
+    return (
+      <section className="card-default mx-auto max-w-3xl space-y-3 p-6" role="alert">
+        <h1 className="text-page-title">Night Audit unavailable</h1>
+        <p className="text-body text-muted-foreground">{error instanceof Error ? error.message : "The business-date review could not be loaded."}</p>
+        <p className="text-caption text-muted-foreground">No figures or successful close are assumed when a required read fails.</p>
+        <Link className="inline-flex min-h-11 items-center font-medium underline" href="/dashboard/night-audit">Last completed property day</Link>
+      </section>
+    );
+  }
+  return <NightAuditClient key={data.summary.auditDate} initialSummary={data.summary} canRunAudit={data.canRunAudit} />;
 }

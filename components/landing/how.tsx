@@ -1,10 +1,26 @@
-import { ArrowUpRight } from "lucide-react";
+﻿const steps = [
+  { number: "01", title: "Book the stay", copy: "Capture the guest, dates, room, and rate in one reservation." },
+  { number: "02", title: "Prepare the welcome", copy: "See what is arriving, what is ready, and what your team needs next." },
+  { number: "03", title: "Close the day", copy: "Review charges, payments, and the handover before the next shift begins." },
+] as const;
 
 export function How() {
   return (
-    <section id="getting-started" className="lp-section lp-getting-started" aria-labelledby="getting-started-heading">
-      <div className="lp-container"><div className="lp-section-heading"><div><p className="lp-eyebrow">A considered start</p><h2 id="getting-started-heading">Your next chapter.<br />A clear path forward.</h2></div><a className="lp-text-link" href="#demo">Let’s talk about your property<ArrowUpRight size={18} aria-hidden="true" /></a></div>
-        <ol className="lp-onboarding-steps"><li><span>01</span><h3>See it in context</h3><p>Walk through your daily operation with us. See where RoomLine fits your team and your property.</p></li><li><span>02</span><h3>Make it your own</h3><p>Set up your room types, rates, and team access, with the details that make your hotel yours.</p></li><li><span>03</span><h3>Welcome what’s next</h3><p>Bring your reservations together and start running the day with a clearer view of your hotel.</p></li></ol>
+    <section id="how-it-works" className="rl-section" aria-labelledby="how-heading">
+      <div className="rl-container rl-process">
+        <div className="rl-process-intro">
+          <p className="rl-eyebrow">One stay, start to finish</p>
+          <h2 id="how-heading" className="rl-heading">A calmer day starts with a clearer handover.</h2>
+          <p className="rl-description">Simple enough to pick up between guests. Clear enough to keep every shift moving together.</p>
+        </div>
+        <ol className="rl-process-list">
+          {steps.map((step) => (
+            <li key={step.number}>
+              <span className="rl-process-number">{step.number}</span>
+              <div><h3>{step.title}</h3><p>{step.copy}</p></div>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );

@@ -3,6 +3,7 @@ import type { Database } from "@/types/database.types";
 import { businessDayBounds } from "@/lib/business-date";
 import { findOverlappingBookingIds, isCheckedInStayoverOnDate } from "@/lib/calendar-domain";
 import type { ActivityBooking } from "@/app/dashboard/_components/activity-list";
+import { fetchDashboardOccupancy } from "./fetch-dashboard-occupancy";
 
 interface DashboardBookingRow {
   id: string;
@@ -48,21 +49,16 @@ export async function fetchDashboardData(
   const dayBounds = businessDayBounds(dateStr, timeZone);
 
   const [
-    roomsRes,
+    occupancy,
     arrivalsRes,
     departuresRes,
     inHouseBookingsRes,
     newBookingsRes,
     cancellationsRes,
     dateBookingsRes,
-    blocksRes,
     todayPaymentsRes
   ] = await Promise.all([
-    supabase
-      .from("rooms")
-      .select("status, room_type_id")
-      .eq("hotel_id", hotelId)
-      .eq("is_active", true),
+    fetchDashboardOccupancy(supabase, hotelId, dateStr, timeZone),
     supabase
       .from("bookings")
       .select(`
@@ -131,12 +127,6 @@ export async function fetchDashboardData(
       .lte("check_in", dayStr)
       .gt("check_out", dayStr),
     supabase
-      .from("availability_blocks")
-      .select("room_id, start_date, end_date")
-      .eq("hotel_id", hotelId)
-      .lte("start_date", dayStr)
-      .gt("end_date", dayStr),
-    supabase
       .from("payments")
       .select("amount")
       .eq("hotel_id", hotelId)
@@ -145,32 +135,13 @@ export async function fetchDashboardData(
       .lt("paid_at", dayBounds.endISO)
   ]);
 
-  if (roomsRes.error) throw roomsRes.error;
   if (arrivalsRes.error) throw arrivalsRes.error;
   if (departuresRes.error) throw departuresRes.error;
   if (inHouseBookingsRes.error) throw inHouseBookingsRes.error;
   if (newBookingsRes.error) throw newBookingsRes.error;
   if (cancellationsRes.error) throw cancellationsRes.error;
   if (dateBookingsRes.error) throw dateBookingsRes.error;
-  if (blocksRes.error) throw blocksRes.error;
   if (todayPaymentsRes.error) throw todayPaymentsRes.error;
-
-  const roomStatuses = roomsRes.data || [];
-  const outOfService = roomStatuses.filter((r) => r.status === "maintenance" || r.status === "out_of_service").length;
-  const activeRooms = roomStatuses.length;
-  // Booked units: sum of rooms_count for the night. Distinct room_id undercounts
-  // legacy rows where one booking holds N units on a single room_id (group_id
-  // null, rooms_count>1) and also misses unassigned inventory-holding rows.
-  const dateBookings = (dateBookingsRes.data || []) as Array<{ room_id: string | null; rooms_count: number | null; group_id: string | null }>;
-  const occupiedUnits = dateBookings.reduce((sum, b) => sum + Math.max(1, Number(b.rooms_count) || 1), 0);
-  // For the "blocked but not already occupied" bucket we still need the set of
-  // physically assigned rooms, so a blocked room that already has a strip is
-  // not double-subtracted from Available.
-  const occupiedRoomIds = new Set(dateBookings.map((b) => b.room_id).filter(Boolean) as string[]);
-  const blockedRoomIds = new Set((blocksRes.data || []).map((b) => b.room_id));
-  const occupiedRooms = occupiedUnits;
-  const blocked = [...blockedRoomIds].filter((id) => !occupiedRoomIds.has(id)).length;
-  const availableRooms = Math.max(0, activeRooms - occupiedUnits - outOfService - blocked);
 
   const mapBooking = (b: DashboardBookingRow): ActivityBooking => ({
     id: b.id,
@@ -231,7 +202,7 @@ export async function fetchDashboardData(
   const totalRevenueToday = todayPaymentsRes.data?.reduce((s: number, p) => s + (p.amount || 0), 0) || 0;
   const roomNightsSold = uniqueBookings.reduce((s: number, b) => s + (b.nights || 1), 0);
   const adrToday = roomNightsSold > 0 ? Math.round(totalRevenueToday / roomNightsSold) : 0;
-  const revparToday = activeRooms > 0 ? Math.round(totalRevenueToday / activeRooms) : 0;
+  const revparToday = occupancy.totalRooms && occupancy.totalRooms > 0 ? Math.round(totalRevenueToday / occupancy.totalRooms) : null;
 
   return {
     stats: {
@@ -246,14 +217,7 @@ export async function fetchDashboardData(
       overbookings,
     },
     bookings: uniqueBookings,
-    occupancy: {
-      percent: activeRooms > 0 ? Math.round((Math.min(occupiedRooms, activeRooms) / activeRooms) * 100) : 0,
-      totalRooms: activeRooms,
-      occupiedRooms,
-      availableRooms,
-      outOfService,
-      blocked,
-    },
+    occupancy,
     quickStats: {
       adr: adrToday,
       revpar: revparToday,

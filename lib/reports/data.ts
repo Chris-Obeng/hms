@@ -1,0 +1,120 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database, Json } from "@/types/database.types";
+import { requireMinRole } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { businessDayBounds, businessToday } from "@/lib/business-date";
+import { addDays, format } from "date-fns";
+import { assertCurrency, moneyMinor, priorRange, type NightRow, type StayRow } from "./bi-math";
+import { resolveRange } from "./resolve-range";
+import { readAllPages, reportReadError } from "./pagination";
+import { fromMinor, sumMinor } from "@/lib/money";
+import type { InventorySnapshot } from "./inventory";
+
+// Local schema extension until the generated shared Database is refreshed after
+// the migration. The client remains the authenticated, RLS-bound request client.
+type ReportsDatabase = Omit<Database, "public"> & {
+  public: Omit<Database["public"], "Tables"> & {
+    Tables: Database["public"]["Tables"] & {
+      reports_inventory_history: {
+        Row: { id: string; hotel_id: string; effective_date: string; capacity_by_type: Json; time_zone: string; captured_at: string };
+        Insert: never; Update: never; Relationships: [];
+      };
+    };
+  };
+};
+export interface ReportScope { orgId: string; hotelId: string }
+export interface ReportMeta extends ReportScope {
+  startDate: string; endDate: string; priorStartDate: string; priorEndDate: string;
+  timeZone: string; generatedAt: string; warnings: string[];
+}
+export interface ReportStay extends StayRow { status: string | null; source: string | null; room_type_id: string | null; guest_id: string | null }
+export const STAYED = ["checked_in", "checked_out"];
+const STAY_FIELDS = "id, check_in, check_out, subtotal, currency, nights, rooms_count, adults, children, status, source, room_type_id, guest_id";
+export const ROOM_BASIS = "Room revenue and room-nights use checked-in/checked-out stays on completed property nights only (checkout exclusive). Confirmed reservations and today's/future nights are excluded; these are live stay-derived figures, not posted-ledger or physically occupied-room counts.";
+export const INVENTORY_BASIS = "Capacity uses dated active physical-room inventory at each property's day end. Maintenance, out-of-service and availability blocks are not deducted; this is not a sellable-inventory or external benchmarking denominator.";
+export const BALANCE_BASIS = "Outstanding is the current tax-inclusive balance on all non-cancelled/non-no-show bookings, including departed stays; it is not an as-of-period receivables ledger.";
+
+export async function reportContext(startDate: string, endDate: string, expectedScope: ReportScope) {
+  const auth = await requireMinRole("read_only", "view reports");
+  // Page props express the caller's expectation, never authority to select a tenant.
+  // Check before opening the report client, including the hotel settings read.
+  if (!expectedScope || typeof expectedScope !== "object" || Array.isArray(expectedScope) ||
+      typeof expectedScope.orgId !== "string" || !expectedScope.orgId.trim() ||
+      typeof expectedScope.hotelId !== "string" || !expectedScope.hotelId.trim()) {
+    throw new Error("Report unavailable: the expected organization and hotel are required.");
+  }
+  if (expectedScope.orgId !== auth.orgId || expectedScope.hotelId !== auth.hotelId) {
+    throw new Error("The active property changed. Reload this page to continue.");
+  }
+  const client = await createClient();
+  const supabase = client as unknown as SupabaseClient<ReportsDatabase>;
+  const hotelResult = await supabase.from("hotels").select("currency, timezone, status").eq("id", auth.hotelId).single();
+  if (hotelResult.error || !hotelResult.data) reportReadError("hotel settings", hotelResult.error);
+  if (hotelResult.data.status !== "active") throw new Error("Reports are unavailable for an inactive hotel.");
+  const currency = assertCurrency(hotelResult.data.currency);
+  const timeZone = hotelResult.data.timezone;
+  if (!timeZone) throw new Error("Report unavailable: the hotel timezone is missing.");
+  const now = new Date();
+  const { start, end } = resolveRange(startDate, endDate, timeZone, now);
+  const prior = priorRange(start, end);
+  const today = businessToday(timeZone, now);
+  const meta: ReportMeta = {
+    orgId: auth.orgId, hotelId: auth.hotelId,
+    startDate, endDate, priorStartDate: format(prior.start, "yyyy-MM-dd"), priorEndDate: format(prior.end, "yyyy-MM-dd"),
+    timeZone, generatedAt: now.toISOString(), warnings: [],
+  };
+  return { supabase, hotelId: auth.hotelId, currency, timeZone, today, start, end, prior, meta,
+    startISO: businessDayBounds(startDate, timeZone).startISO, endISO: businessDayBounds(endDate, timeZone).endISO };
+}
+export type ReportContext = Awaited<ReturnType<typeof reportContext>>;
+
+export function withWarnings(ctx: ReportContext, ...warnings: (string | string[])[]): ReportMeta {
+  return { ...ctx.meta, warnings: [...new Set(warnings.flat())] };
+}
+export async function loadStays(ctx: ReportContext): Promise<ReportStay[]> {
+  return readAllPages("stays", (after, size) => {
+    let q = ctx.supabase.from("bookings").select(STAY_FIELDS, { count: "exact" })
+      .eq("hotel_id", ctx.hotelId).in("status", STAYED)
+      .lt("check_in", ctx.today).lt("check_in", format(addDays(ctx.end, 1), "yyyy-MM-dd"))
+      .gt("check_out", ctx.meta.priorStartDate).order("id").limit(size);
+    if (after) q = q.gt("id", after);
+    return q;
+  });
+}
+export async function loadNights(ctx: ReportContext, stays: ReportStay[]): Promise<NightRow[]> {
+  const nights: NightRow[] = [];
+  // Bound IN filters to avoid oversized URLs, and load the ENTIRE stay before
+  // allocating discounts. A date-window-only snapshot query cannot reconcile.
+  for (let offset = 0; offset < stays.length; offset += 100) {
+    const batch = stays.slice(offset, offset + 100).map(s => s.id);
+    const rows = await readAllPages("nightly snapshots", (after, size) => {
+      let q = ctx.supabase.from("booking_nights").select("id, booking_id, stay_date, rate_minor, rooms_count, currency, source", { count: "exact" })
+        .eq("hotel_id", ctx.hotelId).in("booking_id", batch).order("id").limit(size);
+      if (after) q = q.gt("id", after);
+      return q;
+    }, 100_000 - nights.length);
+    nights.push(...rows);
+  }
+  return nights;
+}
+export async function loadInventory(ctx: ReportContext): Promise<InventorySnapshot[]> {
+  return readAllPages("inventory history (the reports inventory migration is required)", (after, size) => {
+    let q = ctx.supabase.from("reports_inventory_history").select("id, effective_date, capacity_by_type, time_zone", { count: "exact" })
+      .eq("hotel_id", ctx.hotelId).lte("effective_date", ctx.meta.endDate).order("id").limit(size);
+    if (after) q = q.gt("id", after);
+    return q;
+  });
+}
+export async function loadOutstanding(ctx: ReportContext): Promise<number> {
+  const rows = await readAllPages("outstanding balances", (after, size) => {
+    let q = ctx.supabase.from("bookings").select("id, outstanding_balance, currency", { count: "exact" })
+      .eq("hotel_id", ctx.hotelId).in("status", ["pending", "confirmed", "checked_in", "checked_out"])
+      .gt("outstanding_balance", 0).order("id").limit(size);
+    if (after) q = q.gt("id", after);
+    return q;
+  });
+  return fromMinor(sumMinor(rows.map(row => {
+    assertCurrency(row.currency, ctx.currency);
+    return moneyMinor(row.outstanding_balance, ctx.currency);
+  })), ctx.currency);
+}

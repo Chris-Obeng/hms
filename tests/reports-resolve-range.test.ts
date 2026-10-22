@@ -1,52 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { format } from "date-fns";
 import { resolveRange } from "@/lib/reports/resolve-range";
+import { businessDayBounds } from "@/lib/business-date";
 
-const day = (d: Date) => format(d, "yyyy-MM-dd");
-
-describe("resolveRange — date-range clamping", () => {
-  it("keeps a valid past range untouched", () => {
-    const { start, end } = resolveRange("2026-01-01", "2026-01-31");
-    expect(day(start)).toBe("2026-01-01");
-    expect(day(end)).toBe("2026-01-31");
+const now = new Date("2026-10-21T00:30:00Z");
+const range = (a: string, b: string, zone = "UTC") => resolveRange(a, b, zone, now);
+describe("report range validation — labels always match effective dates", () => {
+  it("preserves valid input and accepts exactly 366 days", () => {
+    const { start, end } = range("2024-01-01", "2024-12-31");
+    expect(format(start, "yyyy-MM-dd")).toBe("2024-01-01");
+    expect(format(end, "yyyy-MM-dd")).toBe("2024-12-31");
   });
-
-  it("swaps reversed ranges", () => {
-    const { start, end } = resolveRange("2026-03-10", "2026-03-01");
-    expect(day(start)).toBe("2026-03-01");
-    expect(day(end)).toBe("2026-03-10");
+  it.each([["2026-03-10", "2026-03-01"], ["2024-01-01", "2025-01-01"], ["2026-10-22", "2026-10-22"], ["not-a-date", "2026-01-01"], ["2026-02-30", "2026-03-01"], ["2026-01-01T00:00:00Z", "2026-01-02"]])("rejects invalid range %s to %s instead of silently changing it", (start, end) => {
+    expect(() => range(start, end)).toThrow();
   });
-
-  it("caps future end dates at today", () => {
-    const today = new Date();
-    const future = new Date(today);
-    future.setDate(future.getDate() + 30);
-    const { end } = resolveRange(
-      day(new Date(today.getTime() - 5 * 86400000)),
-      day(future)
-    );
-    expect(day(end)).toBe(day(today));
+  it("uses the property's current day, not the server day", () => {
+    expect(() => range("2026-10-21", "2026-10-21", "America/Los_Angeles")).toThrow("current date");
+    expect(() => range("2026-10-21", "2026-10-21", "Asia/Tokyo")).not.toThrow();
+    expect(() => range("2026-10-20", "2026-10-20", "Invalid/Zone")).toThrow();
   });
-
-  it("clamps a start in the future to today (single-day range)", () => {
-    const today = new Date();
-    const future = new Date(today);
-    future.setDate(future.getDate() + 10);
-    const { start, end } = resolveRange(day(future), day(future));
-    expect(day(start)).toBe(day(today));
-    expect(day(end)).toBe(day(today));
-  });
-
-  it("falls back to today for invalid input and collapses end to start", () => {
-    const today = new Date();
-    const { start, end } = resolveRange("not-a-date", "also-bad");
-    expect(day(start)).toBe(day(today));
-    expect(day(end)).toBe(day(today));
-  });
-
-  it("caps spans longer than 365 days at start + 365", () => {
-    const { start, end } = resolveRange("2024-01-01", "2026-08-24");
-    expect(day(start)).toBe("2024-01-01");
-    expect(day(end)).toBe("2024-12-31"); // 2024 leap year: Jan 1 + 365d
+  it("constructs half-open property timestamp bounds across DST", () => {
+    expect(businessDayBounds("2026-03-08", "America/New_York")).toEqual({ startISO: "2026-03-08T05:00:00.000Z", endISO: "2026-03-09T04:00:00.000Z" });
+    expect(businessDayBounds("2026-11-01", "America/New_York")).toEqual({ startISO: "2026-11-01T04:00:00.000Z", endISO: "2026-11-02T05:00:00.000Z" });
   });
 });

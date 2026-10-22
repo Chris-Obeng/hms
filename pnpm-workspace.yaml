@@ -1,3 +1,13 @@
-ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
+# Starting dev/tests must not implicitly reinstall a shared node_modules tree.
+# Run pnpm install explicitly when the manifest or lockfile changes.
+verifyDepsBeforeRun: error
+
+# Preserve blocked dependency scripts using the supported pnpm 10.26+ format.
+# No dependency scripts are newly approved by this startup fix.
+allowBuilds:
+  '@heroui-pro/react': false
+  '@sentry/cli': false
+  '@zowe/secrets-for-zowe-sdk': false
+  esbuild: false
+  sharp: false
+  unrs-resolver: false

@@ -120,7 +120,7 @@ export function PwaInstallPrompt({
               </p>
             ) : (
               <p className="text-base leading-relaxed text-muted-foreground">
-                Full screen, launches faster, and keeps working offline.
+                Open RoomLine from your home screen in a dedicated window.
               </p>
             )}
           </Modal.Body>

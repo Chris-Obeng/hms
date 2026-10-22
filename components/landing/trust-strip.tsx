@@ -1,38 +1,31 @@
-import { Reveal } from "@/components/landing/reveal";
+import { Building2, Hotel, KeyRound, Palmtree } from "lucide-react";
 
-const POINTS = [
-  {
-    title: "Settlement to your account",
-    body: "Card and mobile-money payments clear straight to your own bank — never held by us, never a middleman on your revenue.",
-  },
-  {
-    title: "Your data stays yours",
-    body: "Export every guest, booking and payment whenever you want, no questions asked.",
-  },
-  {
-    title: "Works when the wifi doesn't",
-    body: "A dropped connection never stops check-in. RoomLine keeps working locally and syncs the moment you're back online.",
-  },
+/*
+ * Proof strip — the property types RoomLine is built for, as a quiet band
+ * between hero and platform. Icons carry the meaning; the words carry the
+ * breadth. No logo wall we cannot back up.
+ */
+
+const PROPERTIES = [
+  { icon: Hotel, label: "Boutique hotels" },
+  { icon: Building2, label: "City hotels" },
+  { icon: Palmtree, label: "Resorts" },
+  { icon: KeyRound, label: "Guesthouses" },
 ] as const;
 
-export function TrustStrip() {
+export function ProofStrip() {
   return (
-    <section aria-labelledby="trust-heading" className="lp-section--tight lp-section border-t border-[var(--lp-line-strong)]">
-      <div className="lp-container">
-        <Reveal>
-          <h2 id="trust-heading" className="lp-index">Built to keep working</h2>
-        </Reveal>
-        <div className="mt-8 grid gap-x-10 gap-y-10 md:grid-cols-3">
-          {POINTS.map((point, i) => (
-            <Reveal key={point.title} delay={i * 80}>
-              <div className="border-t border-[var(--lp-line)] pt-5">
-                <span className="lp-index">{String(i + 1).padStart(2, "0")}</span>
-                <h3 className="lp-h3 mt-3">{point.title}</h3>
-                <p className="lp-small mt-2 max-w-xs">{point.body}</p>
-              </div>
-            </Reveal>
+    <section className="lp-strip" aria-label="Property types RoomLine supports">
+      <div className="lp-container lp-strip-inner">
+        <p>Built for</p>
+        <ul>
+          {PROPERTIES.map(({ icon: Icon, label }) => (
+            <li key={label}>
+              <Icon size={17} strokeWidth={1.6} aria-hidden="true" />
+              {label}
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
     </section>
   );

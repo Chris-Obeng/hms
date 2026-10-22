@@ -3,21 +3,53 @@
  * static caching. Served from the root scope by definition.
  */
 
-const VERSION = "v4";
+const VERSION = "v6";
 const CACHE_STATIC = `rl-static-${VERSION}`;
 const CACHE_IMAGES = `rl-images-${VERSION}`;
 const CACHE_AVAILABILITY = `rl-availability-${VERSION}`;
 const CACHE_NAVIGATION = `rl-navigation-${VERSION}`;
 const OFFLINE_URL = "/offline";
+const NETWORK_TIMEOUT_MS = 8000;
+const CACHED_AT_HEADER = "x-roomline-cached-at";
+const ROOMLINE_CACHE = /^rl-(?:static|images|availability|navigation)-v\d+$/;
+const IS_LOCAL_DEVELOPMENT = /^(?:localhost|127\.0\.0\.1|\[::1\])$/i.test(
+  new URL(self.location.origin).hostname
+);
 
-const STATIC_ASSET = /\.(?:js|css|woff2?)$/i;
-const IMAGE_ASSET = /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/i;
+const STATIC_ASSET = /\.(?:m?js|css|woff2?|ttf|otf|eot)$/i;
+const IMAGE_ASSET = /\.(?:png|jpe?g|svg|gif|webp|avif|ico)$/i;
+const AUDIO_ASSET = /\.(?:mp3|wav|ogg|m4a|aac|flac)$/i;
+const NON_DOCUMENT_ASSET = /\.(?:json|webmanifest|txt|xml|map|pdf|mp4|webm)$/i;
 // Only explicitly-public availability reads may be cached; authenticated API data is never cached.
 const PUBLIC_AVAILABILITY = /^\/api\/booking\/[^/]+\/availability\/?$/;
+const cacheWrites = new Map();
+
+function isOfflineResponse(response) {
+  return Boolean(
+    response?.ok &&
+    !response.redirected &&
+    /^text\/html(?:\s*;|$)/i.test(response.headers.get("content-type") || "") &&
+    response.headers.get("x-roomline-offline") === "1"
+  );
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAVIGATION).then((cache) => cache.add(OFFLINE_URL)).then(() => self.skipWaiting())
+    (async () => {
+      const request = new Request(OFFLINE_URL, {
+        credentials: "omit",
+        cache: "reload",
+        redirect: "error",
+      });
+      const response = await fetchWithTimeout(request);
+      if (!isOfflineResponse(response)) throw new Error("Invalid RoomLine offline document");
+
+      // Do not replace the previous offline document or activate until a fresh,
+      // public, standalone HTML response has been fetched and stored successfully.
+      const cache = await caches.open(CACHE_NAVIGATION);
+      await cache.put(OFFLINE_URL, response);
+      await self.skipWaiting();
+    })()
   );
 });
 
@@ -26,11 +58,39 @@ self.addEventListener("activate", (event) => {
     (async () => {
       const keep = new Set([CACHE_STATIC, CACHE_IMAGES, CACHE_AVAILABILITY, CACHE_NAVIGATION]);
       const names = await caches.keys();
-      await Promise.all(names.filter((name) => !keep.has(name)).map((name) => caches.delete(name)));
+      await Promise.all(
+        names.filter((name) => ROOMLINE_CACHE.test(name) && !keep.has(name)).map((name) => caches.delete(name))
+      );
       await self.clients.claim();
     })()
   );
 });
+
+async function fetchWithTimeout(request, timeoutMs = NETWORK_TIMEOUT_MS) {
+  const controller = new AbortController();
+  let timer;
+  const timeout = new Promise((_resolve, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error("RoomLine network timeout"));
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([fetch(request, { signal: controller.signal }), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function readCache(cacheName, request) {
+  try {
+    const cache = await caches.open(cacheName);
+    return await cache.match(request);
+  } catch {
+    // Storage may be unavailable; a cache failure must not block the network.
+    return undefined;
+  }
+}
 
 async function trimCache(cacheName, maxEntries) {
   const cache = await caches.open(cacheName);
@@ -40,69 +100,110 @@ async function trimCache(cacheName, maxEntries) {
 }
 
 function isExpired(response, maxAgeSeconds) {
-  if (!response) return true;
-  const dateHeader = response.headers.get("date");
-  if (!dateHeader || !maxAgeSeconds) return false;
-  return (Date.now() - new Date(dateHeader).getTime()) / 1000 > maxAgeSeconds;
+  if (!response || !Number.isFinite(maxAgeSeconds) || maxAgeSeconds <= 0) return true;
+  const cachedAt = response.headers.get(CACHED_AT_HEADER);
+  const timestamp = cachedAt === null
+    ? Date.parse(response.headers.get("date") || "")
+    : (/^\d+$/.test(cachedAt) ? Number(cachedAt) : NaN);
+  const age = Date.now() - timestamp;
+  return !Number.isFinite(timestamp) || age < 0 || age >= maxAgeSeconds * 1000;
 }
 
-async function cacheFirst(request, cacheName) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-  const response = await fetch(request);
-  if (response && response.ok) {
-    const cache = await caches.open(cacheName);
-    // Deliberately not awaited: the response goes back to the page immediately
-    // and the cache write settles behind it. Trimming is chained onto the put so
-    // it cannot race the entry it was meant to keep.
-    cache
-      .put(request, response.clone())
-      .then(() => trimCache(cacheName, 128))
-      .catch(() => {});
+function isCacheableResponse(response) {
+  return response.status === 200 &&
+    !response.redirected &&
+    !response.headers.has("set-cookie") &&
+    !/(?:^|,)\s*(?:private|no-store)\b/i.test(response.headers.get("cache-control") || "") &&
+    !/^(?:text\/html|text\/x-component)(?:\s*;|$)/i.test(response.headers.get("content-type") || "");
+}
+
+async function writeCache(cacheName, request, response, maxEntries, timestamp = false) {
+  if (!isCacheableResponse(response)) return;
+  let copy = response.clone();
+  if (timestamp) {
+    const headers = new Headers(copy.headers);
+    headers.set(CACHED_AT_HEADER, String(Date.now()));
+    copy = new Response(copy.body, { status: copy.status, statusText: copy.statusText, headers });
   }
+
+  // Serialize each cache's put + trim so concurrent fetches cannot race its bound.
+  const write = (cacheWrites.get(cacheName) || Promise.resolve())
+    .then(async () => {
+      const cache = await caches.open(cacheName);
+      await cache.put(request, copy);
+      await trimCache(cacheName, maxEntries);
+    })
+    .catch(() => {});
+  cacheWrites.set(cacheName, write);
+  return write;
+}
+
+function respondWithLifetime(event, strategy) {
+  const background = [];
+  const keepAlive = (task) => {
+    const settled = task.catch(() => {});
+    background.push(settled);
+    return settled;
+  };
+  const response = strategy(event.request, keepAlive);
+  event.respondWith(response);
+  // Register synchronously, then wait for every write/revalidation scheduled by
+  // the strategy, even when a cached response has already reached the browser.
+  event.waitUntil(response.catch(() => {}).then(() => Promise.all(background)));
+}
+
+async function cacheFirst(request, cacheName, keepAlive) {
+  const cached = await readCache(cacheName, request);
+  if (cached) return cached;
+  const response = await fetchWithTimeout(request);
+  keepAlive(writeCache(cacheName, request, response, 128));
   return response;
 }
 
-async function staleWhileRevalidate(request, cacheName) {
-  const cached = await caches.match(request);
-  const network = fetch(request)
-    .then((response) => {
-      if (response && response.ok) {
-        const clone = response.clone();
-        // Same fire-and-forget write as `cacheFirst`, for the same reason.
-        caches
-          .open(cacheName)
-          .then((cache) => cache.put(request, clone))
-          .then(() => trimCache(cacheName, 64))
-          .catch(() => {});
-      }
-      return response;
-    })
-    .catch(() => undefined);
+async function staleWhileRevalidate(request, cacheName, keepAlive) {
+  const network = fetchWithTimeout(request).catch(() => undefined);
+  keepAlive(network.then((response) => {
+    if (response) return writeCache(cacheName, request, response, 64);
+  }));
+  const cached = await readCache(cacheName, request);
   return cached || (await network) || Response.error();
 }
 
-async function networkFirst(request, cacheName, { timeoutMs = 0, maxAgeSeconds = 0 } = {}) {
-  let timer;
-  const timeout = timeoutMs
-    ? new Promise((_resolve, reject) => {
-        timer = setTimeout(() => reject(new Error("timeout")), timeoutMs);
-      })
-    : null;
+async function networkFirst(request, cacheName, keepAlive, { timeoutMs = NETWORK_TIMEOUT_MS, maxAgeSeconds = 120 } = {}) {
   try {
-    const response = timeout ? await Promise.race([fetch(request), timeout]) : await fetch(request);
-    if (response && response.ok) {
-      const cache = await caches.open(cacheName);
-      cache.put(request, response.clone());
-      trimCache(cacheName, 16);
-    }
+    const response = await fetchWithTimeout(request, timeoutMs);
+    keepAlive(writeCache(cacheName, request, response, 16, true));
     return response;
   } catch {
-    const cached = await caches.match(request);
+    const cached = await readCache(cacheName, request);
     if (cached && !isExpired(cached, maxAgeSeconds)) return cached;
-    return cached || Response.error();
-  } finally {
-    if (timer) clearTimeout(timer);
+    return Response.error();
+  }
+}
+
+function isRscRequest(request, url) {
+  return request.headers.has("rsc") ||
+    request.headers.has("next-router-state-tree") ||
+    request.headers.has("next-router-prefetch") ||
+    (request.headers.get("accept") || "").includes("text/x-component") ||
+    url.searchParams.has("_rsc");
+}
+
+function isCredentialFree(request, url) {
+  return !url.username && !url.password &&
+    !request.headers.has("authorization") &&
+    !request.headers.has("proxy-authorization") &&
+    !request.headers.has("cookie") &&
+    ![...url.searchParams.keys()].some((key) => /^(?:auth|authorization|token|access_token|api_key|key|signature|jwt)$/i.test(key));
+}
+
+async function navigationResponse(request) {
+  try {
+    // Resolved HTTP errors belong to the server, not the offline fallback.
+    return await fetchWithTimeout(request);
+  } catch {
+    const offline = await readCache(CACHE_NAVIGATION, OFFLINE_URL);
+    return isOfflineResponse(offline) ? offline : Response.error();
   }
 }
 
@@ -112,33 +213,41 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  // A production worker can remain registered when the same localhost origin
+  // is used for `next dev`. Never let it turn a slow development compilation
+  // into the app's offline document.
+  if (IS_LOCAL_DEVELOPMENT) return;
+  if (isRscRequest(request, url)) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(
-      (async () => {
-        try {
-          return await fetch(request);
-        } catch {
-          const cachedNavigation = await caches.match(request);
-          if (cachedNavigation) return cachedNavigation;
-          const offline = await caches.match(OFFLINE_URL);
-          return offline || Response.error();
-        }
-      })()
-    );
+    if (/^\/(?:api|_next|icons|images|audio)(?:\/|$)/.test(url.pathname) ||
+      STATIC_ASSET.test(url.pathname) || IMAGE_ASSET.test(url.pathname) ||
+      AUDIO_ASSET.test(url.pathname) || NON_DOCUMENT_ASSET.test(url.pathname)) return;
+    event.respondWith(navigationResponse(request));
     return;
   }
 
+  if (!isCredentialFree(request, url) || request.headers.has("range") || request.cache === "no-store") return;
+
   if (PUBLIC_AVAILABILITY.test(url.pathname)) {
-    event.respondWith(networkFirst(request, CACHE_AVAILABILITY, { timeoutMs: 10000, maxAgeSeconds: 120 }));
+    // API reads are opt-in: never persist default cookie-bearing requests.
+    if (request.credentials !== "omit") return;
+    respondWithLifetime(event, (request, keepAlive) => networkFirst(request, CACHE_AVAILABILITY, keepAlive));
     return;
   }
-  if (STATIC_ASSET.test(url.pathname)) {
-    event.respondWith(staleWhileRevalidate(request, CACHE_STATIC));
+  if (url.pathname.startsWith("/_next/static/") && STATIC_ASSET.test(url.pathname)) {
+    // These directories contain public files, not user data. Fetch without
+    // cookies even though browser asset requests default to same-origin credentials.
+    respondWithLifetime(event, (request, keepAlive) => staleWhileRevalidate(
+      new Request(request, { credentials: "omit" }), CACHE_STATIC, keepAlive
+    ));
     return;
   }
-  if (IMAGE_ASSET.test(url.pathname)) {
-    event.respondWith(cacheFirst(request, CACHE_IMAGES));
+  if ((/^\/(?:icons|images)\//.test(url.pathname) && IMAGE_ASSET.test(url.pathname)) ||
+    (url.pathname.startsWith("/audio/") && AUDIO_ASSET.test(url.pathname))) {
+    respondWithLifetime(event, (request, keepAlive) => cacheFirst(
+      new Request(request, { credentials: "omit" }), CACHE_IMAGES, keepAlive
+    ));
   }
 });
 
