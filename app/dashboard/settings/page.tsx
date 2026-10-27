@@ -66,7 +66,7 @@ export default async function SettingsPage() {
           icon: "card" as const,
           label: "Payments",
           description: "Payment policy, Paystack bank account, and subaccount setup",
-          href: "/dashboard/settings/payments",
+          href: "/dashboard/payments?tab=setup",
           minRole: "manager" as const,
         },
       ],

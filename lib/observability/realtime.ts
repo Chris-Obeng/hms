@@ -28,6 +28,7 @@ export type RealtimeLabel =
   | "bookings-list"
   | "rooms-directory"
   | "transactions"
+  | "payments"
   | "outstanding"
   | "notifications";
 

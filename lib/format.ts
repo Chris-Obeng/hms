@@ -88,6 +88,23 @@ export function formatDateTime24(
   return formatDate(value, "dd MMM yyyy, HH:mm", fallback);
 }
 
+/** Formats an instant in the property's timezone instead of the browser timezone. */
+export function formatDateInTimeZone(
+  value: string | Date | null | undefined,
+  timeZone: string,
+  options: Intl.DateTimeFormatOptions = { day: "2-digit", month: "short", year: "numeric" },
+  fallback = "—",
+): string {
+  if (!value) return fallback;
+  try {
+    return new Intl.DateTimeFormat("en-US", { ...options, timeZone }).format(
+      typeof value === "string" ? new Date(value) : value,
+    );
+  } catch {
+    return typeof value === "string" ? value : fallback;
+  }
+}
+
 /**
  * Relative time for recent timestamps: "Just now", "5m ago", "2h ago", "3d ago".
  */

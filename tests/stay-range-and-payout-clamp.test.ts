@@ -75,4 +75,13 @@ describe("payouts resolveRange — days branch honours the 366-day cap", () => {
     const { fromISO, toISO } = resolveRange({ from: "1900-01-01", to: "2100-01-01" });
     expect(spanDays(fromISO, toISO)).toBeLessThanOrEqual(366);
   });
+
+  it("resolves explicit payout dates at the property's local midnight", () => {
+    const { fromISO, toISO } = resolveRange(
+      { from: "2026-01-02", to: "2026-01-02" },
+      "America/New_York",
+    );
+    expect(fromISO).toBe("2026-01-02T05:00:00.000Z");
+    expect(toISO).toBe("2026-01-03T04:59:59.999Z");
+  });
 });

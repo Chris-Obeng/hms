@@ -140,8 +140,9 @@ export function AuditLogClient({
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
-  // Relative labels ("Today") depend on the client's clock — gate on mount.
-  const [mounted, setMounted] = React.useState(false);
+  // Relative labels ("Today") depend on the client's clock — capture them on mount.
+  const [todayKey, setTodayKey] = React.useState<string | null>(null);
+  const [yesterdayKey, setYesterdayKey] = React.useState<string | null>(null);
   // Newest day starts open; the rest stay collapsed until tapped.
   const [expandedKeys, setExpandedKeys] = React.useState<Set<string>>(
     () => new Set<string>(initialDays.length > 0 ? [initialDays[0].date] : [])
@@ -152,12 +153,18 @@ export function AuditLogClient({
   const cursorRef = React.useRef(cursor);
   const hasMoreRef = React.useRef(hasMore);
   const isLoadingRef = React.useRef(isLoading);
-  cursorRef.current = cursor;
-  hasMoreRef.current = hasMore;
-  isLoadingRef.current = isLoading;
 
   React.useEffect(() => {
-    const t = window.setTimeout(() => setMounted(true), 0);
+    cursorRef.current = cursor;
+    hasMoreRef.current = hasMore;
+  }, [cursor, hasMore]);
+
+  React.useEffect(() => {
+    const t = window.setTimeout(() => {
+      const now = new Date();
+      setTodayKey(now.toISOString().slice(0, 10));
+      setYesterdayKey(new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
+    }, 0);
     return () => window.clearTimeout(t);
   }, []);
 
@@ -207,21 +214,24 @@ export function AuditLogClient({
       .filter((d) => d.entries.length > 0);
   }, [days, query]);
 
-  // While searching, expand every day that still has matches.
-  React.useEffect(() => {
-    if (query) setExpandedKeys(new Set<string>(visibleDays.map((d) => d.date)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    const nextQuery = value.trim().toLowerCase();
+    if (nextQuery) {
+      setExpandedKeys(
+        new Set<string>(
+          days
+            .filter((day) => day.entries.some((entry) => matchesSearch(entry, nextQuery)))
+            .map((day) => day.date)
+        )
+      );
+    }
+  }
 
   const loadedCount = React.useMemo(
     () => days.reduce((sum, d) => sum + d.entries.length, 0),
     [days]
   );
-
-  const todayKey = mounted ? new Date().toISOString().slice(0, 10) : null;
-  const yesterdayKey = mounted
-    ? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-    : null;
 
   return (
     <div className="space-y-4">
@@ -230,7 +240,7 @@ export function AuditLogClient({
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="Search loaded entries…"
           className="h-10 w-full rounded-xl pl-9"
           aria-label="Search audit log"

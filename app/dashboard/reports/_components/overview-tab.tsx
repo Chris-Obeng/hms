@@ -1,36 +1,41 @@
 "use client";
 
 import type { OverviewData } from "../actions";
-import { MetricTile } from "./metric-tile";
-import { SectionCard } from "./shells";
+import { Stat, StatStrip } from "@/components/ui/stat-strip";
+import { SectionCard } from "@/components/ui/section-card";
+import { SegmentedDonut } from "@/components/ui/segmented-donut";
 import { TrendChart } from "./trend-chart";
-import { SourceTable } from "./source-table";
-import { INVENTORY_EXPLANATION, ROOM_REVENUE_BASIS, reportMoney, reportPercent } from "./report-utils";
+import { reportDelta, reportMoney, reportPercent, tenderSegments } from "./report-utils";
+
+function Delta({ value }: { value: number | null }) {
+  const delta = reportDelta(value);
+  return delta ? <span className={delta.direction === "up" ? "text-emerald-600" : delta.direction === "down" ? "text-destructive" : undefined}>{delta.text}</span> : null;
+}
 
 export function OverviewTab({ data }: { data: OverviewData }) {
   const money = (value: number | null) => reportMoney(value, data.currency);
-  return <div className="reports-tab-content">
-    <dl className="reports-kpis" aria-label="Key performance indicators">
-      <MetricTile label="Room revenue (excl. tax)" value={money(data.revenue)} delta={data.deltas.revenue} definition="Net room charges by stay date." />
-      <MetricTile label="Occupancy" value={reportPercent(data.occupancy)} delta={data.deltas.occupancy} definition="Occupied room nights ÷ available room nights." />
-      <MetricTile label="Average daily rate" value={money(data.adr)} delta={data.deltas.adr} definition="Room revenue ÷ occupied room nights." />
-      <MetricTile label="RevPAR" value={money(data.revpar)} delta={data.deltas.revpar} definition="Room revenue ÷ available room nights." />
-    </dl>
-    {(data.occupancy === null || data.revpar === null) && <p className="reports-note">{INVENTORY_EXPLANATION}</p>}
-    <div className="reports-overview-grid">
-      <SectionCard title="Daily room revenue" caption={`Net room revenue, excluding tax · ${data.currency}`}>
-        <TrendChart title="Daily room revenue" data={data.series.map((point) => ({ date: point.date, value: point.revenue }))}
-          units={data.currency} valueFormatter={money} emptyText="No room revenue in this period." />
-      </SectionCard>
-      <SectionCard title="Period summary" className="reports-summary">
-        <dl>
-          <div><dt>Room nights</dt><dd>{data.roomNights.toLocaleString("en")}</dd></div>
-          <div><dt>Bookings with a stay in period</dt><dd>{data.sources.reduce((sum, source) => sum + source.count, 0).toLocaleString("en")}</dd></div>
-          <div><dt>Revenue per guest</dt><dd>{money(data.revpag)}</dd></div>
-        </dl>
-        <p className="reports-note">{ROOM_REVENUE_BASIS}</p>
-      </SectionCard>
-    </div>
-    <SourceTable sources={data.sources} currency={data.currency} />
+  const segments = tenderSegments(data.byMethod);
+  return <div className="space-y-4">
+    <StatStrip label="Key performance indicators" columns={5}>
+      <Stat label="Room revenue" value={money(data.revenue)} hint={<Delta value={data.deltas.revenue} />} />
+      <Stat label="Occupancy" value={reportPercent(data.occupancy)} tone={data.occupancy === null ? "unavailable" : "default"} hint={<Delta value={data.deltas.occupancy} />} />
+      <Stat label="ADR" value={money(data.adr)} hint={<Delta value={data.deltas.adr} />} />
+      <Stat label="RevPAR" value={money(data.revpar)} tone={data.revpar === null ? "unavailable" : "default"} hint={<Delta value={data.deltas.revpar} />} />
+      <Stat label="Room nights" value={data.roomNights.toLocaleString("en")} hint={<Delta value={data.deltas.roomNights} />} />
+    </StatStrip>
+
+    <SectionCard title="Room revenue" caption={`Net room charges, excluding tax · ${data.currency}`}>
+      <TrendChart title="Room revenue" currency={data.currency}
+        data={data.series.map((point) => ({ date: point.date, value: point.revenue }))}
+        valueFormatter={money} emptyText="No room revenue in this period." />
+    </SectionCard>
+
+    <SectionCard title="Collected" caption={`Successful payments in the period · ${data.currency}`}>
+      {segments.length === 0
+        ? <p className="px-4 pb-5 text-sm text-muted-foreground">No payments collected in this period.</p>
+        : <div className="px-4 pb-5">
+          <SegmentedDonut label="Collected by payment method" heading="Collected" value={money(data.collected)} segments={segments} />
+        </div>}
+    </SectionCard>
   </div>;
 }

@@ -1,5 +1,6 @@
 ﻿import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
+import "./landing.css";
 import { SiteHeader } from "@/components/landing/site-header";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { Hero } from "@/components/landing/hero";

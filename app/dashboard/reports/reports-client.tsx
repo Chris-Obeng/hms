@@ -1,20 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Tabs } from "@heroui/react";
-import { Download, RotateCw } from "lucide-react";
+import { Tabs } from "@heroui/react";
 import { qk } from "@/lib/query-keys";
+import { formatDate } from "@/lib/format";
+import { NotesDisclosure } from "@/components/ui/notes-disclosure";
 import { getGuestsReport, getOccupancyReport, getRevenueReport, getReportsOverview } from "./actions";
 import { PeriodControl } from "./_components/period-control";
-import { OverviewTab } from "./_components/overview-tab";
-import { RevenueTab } from "./_components/revenue-tab";
-import { OccupancyTab } from "./_components/occupancy-tab";
-import { GuestsTab } from "./_components/guests-tab";
 import { ErrorState, TabSkeleton } from "./_components/shells";
-import { reportRangeLabel, type ReportTab } from "./_components/report-utils";
-import { buildReportCsv, canExportReport, downloadReportCsv, matchesReportContext, type ReportSnapshot } from "./_components/report-export";
+import { reportPeriodLabel, matchesReportContext, validateReportRange, type ReportRange, type ReportSnapshot, type ReportTab } from "./_components/report-utils";
+
+const OverviewTab = dynamic(() => import("./_components/overview-tab").then((mod) => mod.OverviewTab), { loading: () => <TabSkeleton /> });
+const RevenueTab = dynamic(() => import("./_components/revenue-tab").then((mod) => mod.RevenueTab), { loading: () => <TabSkeleton /> });
+const OccupancyTab = dynamic(() => import("./_components/occupancy-tab").then((mod) => mod.OccupancyTab), { loading: () => <TabSkeleton /> });
+const GuestsTab = dynamic(() => import("./_components/guests-tab").then((mod) => mod.GuestsTab), { loading: () => <TabSkeleton /> });
 
 export interface ReportsClientProps {
   orgId: string;
@@ -25,7 +28,12 @@ export interface ReportsClientProps {
   initialEndDate: string;
 }
 
-const TAB_LABELS: Record<ReportTab, string> = { overview: "Overview", revenue: "Room revenue", occupancy: "Occupancy", guests: "Guests & collections" };
+const TABS: { key: ReportTab; label: string }[] = [
+  { key: "overview", label: "Overview" },
+  { key: "revenue", label: "Room revenue" },
+  { key: "occupancy", label: "Occupancy" },
+  { key: "guests", label: "Guests & collections" },
+];
 const CONTEXT_CHANGED = "The active property, settings or report dates changed. Reload this page to continue.";
 
 /** Gate before mounting a query observer: old property data disappears immediately on sign-out/org switch.
@@ -33,15 +41,35 @@ const CONTEXT_CHANGED = "The active property, settings or report dates changed. 
 export function ReportsClient(props: ReportsClientProps) {
   const identity = useAuth();
   if (!identity.isLoaded || !identity.userId || identity.orgId !== props.orgId) {
-    return <div data-reports><h1 className="text-page-title">Reports</h1><p role="status">Loading the active property…</p></div>;
+    return <div className="mx-auto w-full max-w-6xl space-y-4"><h1 className="text-page-title">Reports</h1><p role="status" className="text-body text-muted-foreground">Loading the active property…</p></div>;
   }
   return <ReportsSession key={`${identity.userId}:${props.orgId}:${props.hotelId}`} {...props} />;
 }
 
+function isReportTab(value: string | null): value is ReportTab {
+  return value !== null && TABS.some(({ key }) => key === value);
+}
+
+/** Every link into a tab carries the same three params, so the server can bypass the router cache for them. */
+function tabHref(tab: ReportTab, range: ReportRange): string {
+  return `?${new URLSearchParams({ tab, startDate: range.startDate, endDate: range.endDate }).toString()}`;
+}
+
 function ReportsSession({ orgId, hotelId, timeZone, today, initialStartDate, initialEndDate }: ReportsClientProps) {
-  const [range, setRange] = useState({ startDate: initialStartDate, endDate: initialEndDate });
-  const [tab, setTab] = useState<ReportTab>("overview");
-  const [exportMessage, setExportMessage] = useState("");
+  const router = useRouter();
+  const pathname = usePathname();
+  // A crafted or stale link must never open a range the server would reject.
+  const readRange = (): ReportRange => {
+    const params = new URLSearchParams(window.location.search);
+    const startDate = params.get("startDate"), endDate = params.get("endDate");
+    return startDate && endDate && !validateReportRange({ startDate, endDate }, today) ? { startDate, endDate } : { startDate: initialStartDate, endDate: initialEndDate };
+  };
+  const readTab = (): ReportTab => {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return isReportTab(tab) ? tab : "overview";
+  };
+  const [range, setRange] = useState(readRange);
+  const [tab, setTab] = useState<ReportTab>(readTab);
   const requestContext = { ...range, orgId, hotelId, tab, timeZone };
   const report = useQuery({
     queryKey: qk.reports(orgId, hotelId, tab, range.startDate, range.endDate),
@@ -67,56 +95,84 @@ function ReportsSession({ orgId, hotelId, timeZone, today, initialStartDate, ini
   });
   const snapshot = matchesReportContext(report.data, requestContext) ? report.data : undefined;
   const meta = snapshot?.data.meta;
-  const exportContext = { ...requestContext, isSuccess: report.isSuccess, isFetching: report.isFetching, isStale: report.isStale };
-  const exportReady = canExportReport(snapshot, exportContext);
-  const generated = meta ? new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short", timeZone: meta.timeZone }).format(new Date(meta.generatedAt)) : null;
 
-  function exportCurrentReport() {
-    try {
-      const csv = buildReportCsv(snapshot, exportContext);
-      downloadReportCsv(csv, tab, range);
-      setExportMessage(`${TAB_LABELS[tab]} CSV downloaded for ${reportRangeLabel(range)}.`);
-    } catch (error) { setExportMessage(error instanceof Error ? error.message : "Could not export this report. Try again."); }
+  /** The URL carries the view, so a report can be linked, reloaded and stepped back to.
+   * A forced navigation bypasses the router cache, so the server always re-renders the
+   * destination params and a crafted link cannot open a rejected range. */
+  function syncUrl(next: { tab?: ReportTab; startDate?: string; endDate?: string }) {
+    const destination = tabHref(next.tab ?? tab, {
+      startDate: next.startDate ?? range.startDate,
+      endDate: next.endDate ?? range.endDate,
+    });
+    router.push(`${pathname}${destination}`, { scroll: false });
+  }
+  function selectTab(next: ReportTab) {
+    setTab(next);
+    syncUrl({ tab: next });
+  }
+  function changeRange(startDate: string, endDate: string) {
+    setRange({ startDate, endDate });
+    syncUrl({ startDate, endDate });
   }
 
-  return <div data-reports className="reports-page">
-    <header className="reports-header">
-      <div className="reports-heading"><h1>Reports</h1><p>Understand room performance, guest arrivals, and collections.</p></div>
-      <div className="reports-toolbar">
-        <PeriodControl {...range} today={today} onChange={(startDate, endDate) => { setRange({ startDate, endDate }); setExportMessage(""); }} />
-        <div className="reports-actions">
-          <Button variant="outline" className="reports-control" isDisabled={report.isFetching} onPress={() => { setExportMessage(""); void report.refetch(); }}>
-            <RotateCw size={16} className={report.isFetching ? "reports-refreshing" : undefined} aria-hidden="true" />
-            {report.isFetching ? "Refreshing…" : "Refresh"}
-          </Button>
-          <Button variant="secondary" className="reports-control" isDisabled={!exportReady} onPress={exportCurrentReport} aria-describedby="reports-export-hint">
-            <Download size={16} aria-hidden="true" />Export CSV
-          </Button>
-        </div>
+  // A crafted link that failed validation opened the server default; say so in the URL
+  // rather than leaving an address bar that disagrees with the figures on screen.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const stale = (params.get("tab") ?? tab) !== tab ||
+      (params.get("startDate") !== null && params.get("startDate") !== range.startDate) ||
+      (params.get("endDate") !== null && params.get("endDate") !== range.endDate);
+    if (stale) router.replace(`${pathname}${tabHref(tab, range)}`, { scroll: false });
+    // Runs once: later changes already write the URL through syncUrl.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const comparison = meta && (meta.priorStartDate !== meta.startDate)
+    ? `vs ${formatDate(meta.priorStartDate, "MMM d")} – ${formatDate(meta.priorEndDate, "MMM d")}`
+    : null;
+  const notes = [...(meta?.warnings ?? [])];
+
+  return <div className="mx-auto w-full max-w-6xl space-y-5">
+    <header className="flex flex-col gap-4 border-b border-border/60 pb-5 lg:flex-row lg:items-end lg:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-page-title">Reports</h1>
+        <p className="mt-1 text-body text-muted-foreground" aria-live="polite">
+          {reportPeriodLabel(range)}{comparison && <span className="text-muted-foreground/80"> · {comparison}</span>}
+        </p>
       </div>
+      <PeriodControl {...range} today={today} onChange={changeRange} />
     </header>
-    <div className="reports-effective-period" aria-live="polite">
-      <p><strong>{meta ? "Showing" : "Requested"} {reportRangeLabel(meta ?? range)}</strong> · {meta?.timeZone ?? timeZone}</p>
-      {meta && <p>Compared with {reportRangeLabel({ startDate: meta.priorStartDate, endDate: meta.priorEndDate })} · Updated {generated}</p>}
-    </div>
-    <p id="reports-export-hint" className="reports-note">CSV includes the current tab, exact values, dates, currency, and report notes. Refresh is required before exporting an out-of-date report.</p>
-    <p role="status" className="sr-only">{exportMessage || (report.isFetching ? "Updating report…" : "")}</p>
-    <Tabs variant="secondary" selectedKey={tab} onSelectionChange={(key) => { setTab(key as ReportTab); setExportMessage(""); }} className="reports-tabs">
-      <Tabs.ListContainer><Tabs.List aria-label="Report sections">
-        {(Object.entries(TAB_LABELS) as [ReportTab, string][]).map(([key, label]) => <Tabs.Tab id={key} key={key}>{label}<Tabs.Indicator /></Tabs.Tab>)}
-      </Tabs.List></Tabs.ListContainer>
-      {(Object.keys(TAB_LABELS) as ReportTab[]).map((key) => <Tabs.Panel key={key} id={key} className="reports-tab-panel" aria-busy={tab === key && report.isFetching}>
-        {tab !== key ? null : <>
-          {report.isError && snapshot ? <div role="alert" className="reports-notice"><strong>Refresh failed. The report below may be out of date.</strong><p>Last loaded {generated}. Export is disabled. Refresh to try again.</p></div> : null}
-          {report.isStale && !report.isFetching && !report.isError && snapshot ? <p role="status" className="reports-note">This report may be out of date. Refresh before exporting.</p> : null}
-          {report.isPending ? <TabSkeleton /> : !snapshot ? <ErrorState message={report.data ? CONTEXT_CHANGED : report.error instanceof Error ? report.error.message : "Check your connection and retry."} onRetry={() => void report.refetch()} /> : <>
-            <ReportContent snapshot={snapshot} />
-            {meta && meta.warnings.length > 0 && <aside className="reports-notice" aria-label="Report notes">
-              <h2>About these figures</h2><ul>{meta.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
-            </aside>}
-          </>}
-        </>}
-      </Tabs.Panel>)}
+
+    <p role="status" className="sr-only">{report.isFetching ? "Updating report…" : ""}</p>
+    <Tabs selectedKey={tab} onSelectionChange={(key) => selectTab(key as ReportTab)} className="reports-tabs">
+      <Tabs.ListContainer className="-mx-1 overflow-x-auto px-1 no-scrollbar">
+        <Tabs.List aria-label="Report sections">
+          {TABS.map(({ key, label }) => <Tabs.Tab key={key} id={key}
+            className="flex-none whitespace-nowrap px-1 pb-2.5 pt-2 text-[13.5px] font-medium text-muted-foreground [&[data-selected=true]]:font-semibold [&[data-selected=true]]:text-foreground">
+            {label}<Tabs.Indicator />
+          </Tabs.Tab>)}
+        </Tabs.List>
+      </Tabs.ListContainer>
+      {TABS.map(({ key }) => {
+        const active = tab === key;
+        // Panels stay in the a11y tree so tab-panel relationships hold, but only the
+        // selected one renders content: the header's "Updating…" status must mean the
+        // active panel, not a background refetch of a tab that is no longer shown.
+        return <Tabs.Panel key={key} id={key} className="pt-4" aria-busy={active && report.isFetching}>
+          <div inert={!active ? true : undefined}>
+            {active && <>
+              {report.isError && snapshot ? <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/40 px-4 py-2.5 text-[13px]">
+                <p>Couldn’t refresh this report. Showing the last result.</p>
+                <button type="button" className="min-h-8 font-medium text-foreground underline underline-offset-4" onClick={() => void report.refetch()}>Try again</button>
+              </div> : null}
+              {report.isPending ? <TabSkeleton /> : !snapshot ? <ErrorState message={report.data ? CONTEXT_CHANGED : report.error instanceof Error ? report.error.message : "Check your connection and try again."} onRetry={() => void report.refetch()} /> : <>
+                <ReportContent snapshot={snapshot} />
+                <div className="mt-4"><NotesDisclosure items={notes} /></div>
+              </>}
+            </>}
+          </div>
+        </Tabs.Panel>;
+      })}
     </Tabs>
   </div>;
 }

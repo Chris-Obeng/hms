@@ -27,21 +27,17 @@
 export const DEFAULT_CURRENCY = "GHS";
 
 /**
- * Currencies the hotel settings UI offers. Kept here rather than in a display
- * module because the exponent table below is what makes a currency safe to
- * offer, and the two lists must not drift apart.
+ * The one currency this version is sold in. Ghana only: hotels and the platform
+ * fee are both denominated in cedis. The formatting helpers below stay generic
+ * because historical rows and Paystack responses can still carry another ISO
+ * code; nothing in the product offers one.
  */
-export const SUPPORTED_CURRENCIES = [
-  "GHS",
-  "USD",
-  "EUR",
-  "GBP",
-  "NGN",
-  "ZAR",
-  "KES",
-  "UGX",
-] as const;
+export const SUPPORTED_CURRENCIES = ["GHS"] as const;
 export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
+
+/** Hotel pricing currency. Same list today, kept separate so the two can diverge later. */
+export const HOTEL_CURRENCIES = SUPPORTED_CURRENCIES;
+export type HotelCurrency = (typeof HOTEL_CURRENCIES)[number];
 
 /**
  * ISO 4217 minor-unit exponents that are *not* 2.

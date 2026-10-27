@@ -147,6 +147,15 @@ describe("subaccounts", () => {
     expect(init?.method).toBe("PUT");
     expect(JSON.parse(init?.body as string)).toEqual({ business_name: "New" });
   });
+
+  it("uses Paystack's update-specific bank_code field", async () => {
+    fetchMock.mockResolvedValue(okResponse({ subaccount_code: "ACCT_1" }));
+    await updateSubaccount("ACCT_1", { bank_code: "040", account_number: "123456" });
+    expect(JSON.parse(lastCall().init?.body as string)).toEqual({
+      bank_code: "040",
+      account_number: "123456",
+    });
+  });
 });
 
 describe("transactions", () => {

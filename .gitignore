@@ -69,6 +69,7 @@ next-env.d.ts
 # build artifacts / temp
 dev-output.log
 supabase/.temp/
+.tmp/
 
 # heroui-agents-md
 

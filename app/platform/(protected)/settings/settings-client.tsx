@@ -181,7 +181,7 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
                   <NumberField.Input />
                   <NumberField.IncrementButton />
                 </NumberField.Group>
-                <Description>Charged only when the payment is in the selected currency.</Description>
+                <Description>Charged only when the payment is in this currency. Ghana cedis only.</Description>
               </NumberField>
 
               <Select

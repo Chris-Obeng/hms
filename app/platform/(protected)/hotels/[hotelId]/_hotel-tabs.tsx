@@ -16,9 +16,11 @@ import { PayoutsPanel } from "@/components/payouts/payouts-panel";
 export function HotelDetailTabs({
   overview,
   payoutsLoad,
+  timeZone,
 }: {
   overview: ReactNode;
   payoutsLoad: React.ComponentProps<typeof PayoutsPanel>["load"];
+  timeZone: string;
 }) {
   const [tab, setTab] = React.useState<"overview" | "payments">("overview");
 
@@ -49,7 +51,7 @@ export function HotelDetailTabs({
               {"Online reservations and whether their funds have settled to the hotel's bank."}
             </p>
           </div>
-          <PayoutsPanel load={payoutsLoad} active={tab === "payments"} />
+          <PayoutsPanel load={payoutsLoad} active={tab === "payments"} timeZone={timeZone} />
         </section>
       </Tabs.Panel>
     </Tabs>

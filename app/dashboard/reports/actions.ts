@@ -2,21 +2,24 @@
 
 import { differenceInCalendarDays, eachDayOfInterval, format, parseISO, startOfWeek, subDays } from "date-fns";
 import { fromMinor, sumMinor } from "@/lib/money";
-import { adr, allocateNightlyRevenue, assertCurrency, moneyMinor, occupancy, pctDelta, revpag, revpar, type NightFact, type NightRow } from "@/lib/reports/bi-math";
+import { adr, allocateNightlyRevenue, occupancy, pctDelta, revpag, revpar, type NightFact, type NightRow } from "@/lib/reports/bi-math";
 import { historicalCapacity, type CapacityDay, type InventorySnapshot } from "@/lib/reports/inventory";
 import { BALANCE_BASIS, INVENTORY_BASIS, ROOM_BASIS, STAYED, loadInventory, loadNights, loadOutstanding, loadStays, reportContext, withWarnings, type ReportContext, type ReportMeta, type ReportScope, type ReportStay } from "@/lib/reports/data";
 import { readAllPages, reportReadError } from "@/lib/reports/pagination";
 import { classifyArrivingGuests } from "@/lib/reports/guests";
+import { loadTenderMix } from "@/lib/reports/collections";
+import { classifyArrivals, type StayMix } from "@/lib/reports/arrivals";
 
 export type { ReportMeta, ReportScope } from "@/lib/reports/data";
 export interface KpiDelta { revenue: number | null; revpar: number | null; adr: number | null; occupancy: number | null; roomNights: number | null }
 export interface OverviewSeriesPoint { date: string; label: string; revenue: number; occupancy: number | null; roomNights: number; adr: number; revpar: number | null }
 export interface SourceSlice { source: string; count: number; revenue: number; pct: number; roomNights: number }
-export interface OverviewData { currency: string; revenue: number; revpar: number | null; adr: number; occupancy: number | null; roomNights: number; revpag: number; deltas: KpiDelta; series: OverviewSeriesPoint[]; sources: SourceSlice[]; meta: ReportMeta }
+export interface OverviewData { currency: string; revenue: number; revpar: number | null; adr: number; occupancy: number | null; roomNights: number; revpag: number; deltas: KpiDelta; series: OverviewSeriesPoint[]; sources: SourceSlice[]; guestVisits: number; collected: number; byMethod: MethodSlice[]; meta: ReportMeta }
 export interface RevenueTrendPoint { key: string; label: string; revenue: number }
 export interface RevenueData { currency: string; totalRevenue: number; adr: number; revpar: number | null; outstanding: number; granularity: "day" | "week"; deltas: { revenue: number | null; adr: number | null; revpar: number | null }; trend: RevenueTrendPoint[]; bySource: SourceSlice[]; meta: ReportMeta }
 export interface RoomTypeOcc { name: string; booked: number; capacity: number | null; occupancy: number | null }
-export interface OccupancyData { currency: string; occupancy: number | null; roomNights: number; availableRoomNights: number | null; avgLengthOfStay: number; newBookings: number; deltas: { occupancy: number | null; roomNights: number | null }; daily: { date: string; label: string; occupancy: number | null }[]; byRoomType: RoomTypeOcc[]; meta: ReportMeta }
+export type { StayMix } from "@/lib/reports/arrivals";
+export interface OccupancyData { currency: string; occupancy: number | null; roomNights: number; availableRoomNights: number | null; avgLengthOfStay: number; newBookings: number; stayMix: StayMix; deltas: { occupancy: number | null; roomNights: number | null }; daily: { date: string; label: string; occupancy: number | null }[]; byRoomType: RoomTypeOcc[]; meta: ReportMeta }
 export interface MethodSlice { method: string; count: number; amount: number }
 export interface OriginSlice { nationality: string; count: number }
 export interface GuestsData { currency: string; totalCollected: number; outstanding: number; newGuests: number; repeatGuests: number; totalGuests: number; byMethod: MethodSlice[]; origins: OriginSlice[]; meta: ReportMeta }
@@ -85,11 +88,16 @@ function buildSources(cur: RangeCore, currency: string): SourceSlice[] {
 }
 export async function getReportsOverview(startDate: string, endDate: string, expectedScope: ReportScope): Promise<OverviewData> {
   const ctx = await reportContext(startDate, endDate, expectedScope);
-  const { cur, prev } = await comparison(ctx);
+  const [{ cur, prev }, collections] = await Promise.all([
+    comparison(ctx),
+    loadTenderMix(ctx.supabase, ctx.hotelId, ctx.currency, ctx.startISO, ctx.endISO),
+  ]);
   return { currency: ctx.currency, revenue: cur.revenue, revpar: cur.revpar, adr: cur.adr, occupancy: cur.occupancy,
     roomNights: cur.roomNights, revpag: revpag(cur.revenue, cur.guests),
     deltas: { revenue: roomDelta(ctx, cur.revenue, prev.revenue), revpar: roomDelta(ctx, cur.revpar, prev.revpar), adr: roomDelta(ctx, cur.adr, prev.adr), occupancy: roomDelta(ctx, cur.occupancy, prev.occupancy), roomNights: roomDelta(ctx, cur.roomNights, prev.roomNights) },
-    series: buildSeries(cur, ctx.currency), sources: buildSources(cur, ctx.currency), meta: roomMeta(ctx, cur, prev) };
+    series: buildSeries(cur, ctx.currency), sources: buildSources(cur, ctx.currency),
+    guestVisits: cur.guests, collected: fromMinor(collections.totalMinor, ctx.currency), byMethod: collections.byMethod,
+    meta: roomMeta(ctx, cur, prev, ["Collected covers successful payments by paid_at in the period, including tax and deposits; it is cash received, not room revenue."]) };
 }
 export async function getRevenueReport(startDate: string, endDate: string, expectedScope: ReportScope): Promise<RevenueData> {
   const ctx = await reportContext(startDate, endDate, expectedScope);
@@ -111,7 +119,7 @@ function typeCapacity(days: CapacityDay[], type: string): number | null {
 }
 export async function getOccupancyReport(startDate: string, endDate: string, expectedScope: ReportScope): Promise<OccupancyData> {
   const ctx = await reportContext(startDate, endDate, expectedScope);
-  const [{ cur, prev }, types, created] = await Promise.all([
+  const [{ cur, prev }, types, created, statuses] = await Promise.all([
     comparison(ctx),
     readAllPages("room types", (after, size) => {
       let q = ctx.supabase.from("room_types").select("id, name", { count: "exact" }).eq("hotel_id", ctx.hotelId).order("id").limit(size);
@@ -119,8 +127,16 @@ export async function getOccupancyReport(startDate: string, endDate: string, exp
       return q;
     }),
     ctx.supabase.from("bookings").select("id", { count: "exact", head: true }).eq("hotel_id", ctx.hotelId).gte("created_at", ctx.startISO).lt("created_at", ctx.endISO),
+    readAllPages("booking statuses", (after, size) => {
+      let q = ctx.supabase.from("bookings").select("id, status, check_in", { count: "exact" }).eq("hotel_id", ctx.hotelId)
+        .in("status", ["checked_in", "confirmed", "cancelled", "no_show"])
+        .gte("check_in", startDate).lte("check_in", endDate).order("id").limit(size);
+      if (after) q = q.gt("id", after);
+      return q;
+    }),
   ]);
   if (created.error || !Number.isSafeInteger(created.count)) reportReadError("new booking count", created.error);
+  const stayMix = classifyArrivals(statuses, cur.stays.map((stay) => stay.id));
   const names = new Map(types.map(t => [t.id, t.name]));
   const stays = new Map(cur.stays.map(s => [s.id, s]));
   const byType = new Map<string, number>();
@@ -136,20 +152,15 @@ export async function getOccupancyReport(startDate: string, endDate: string, exp
   }).sort((a, b) => b.booked - a.booked || a.name.localeCompare(b.name));
   const length = cur.stays.reduce((sum, stay) => sum + differenceInCalendarDays(parseISO(stay.check_out), parseISO(stay.check_in)), 0);
   return { currency: ctx.currency, occupancy: cur.occupancy, roomNights: cur.roomNights, availableRoomNights: cur.availableRoomNights,
-    avgLengthOfStay: cur.stays.length ? Math.round(length / cur.stays.length * 10) / 10 : 0, newBookings: created.count!,
+    avgLengthOfStay: cur.stays.length ? Math.round(length / cur.stays.length * 10) / 10 : 0, newBookings: created.count!, stayMix,
     deltas: { occupancy: roomDelta(ctx, cur.occupancy, prev.occupancy), roomNights: roomDelta(ctx, cur.roomNights, prev.roomNights) },
     daily: buildSeries(cur, ctx.currency).map(({ date, label, occupancy }) => ({ date, label, occupancy })), byRoomType,
     meta: roomMeta(ctx, cur, prev, ["New bookings counts all reservations created in the property's local date window, including subsequently cancelled bookings. Average stay length is the full booked span of participating stays, not just nights in this window."]) };
 }
 export async function getGuestsReport(startDate: string, endDate: string, expectedScope: ReportScope): Promise<GuestsData> {
   const ctx = await reportContext(startDate, endDate, expectedScope);
-  const [payments, arrivals, outstanding] = await Promise.all([
-    readAllPages("payments", (after, size) => {
-      let q = ctx.supabase.from("payments").select("id, amount, method, currency", { count: "exact" }).eq("hotel_id", ctx.hotelId).eq("status", "success")
-        .gte("paid_at", ctx.startISO).lt("paid_at", ctx.endISO).order("id").limit(size);
-      if (after) q = q.gt("id", after);
-      return q;
-    }),
+  const [collections, arrivals, outstanding] = await Promise.all([
+    loadTenderMix(ctx.supabase, ctx.hotelId, ctx.currency, ctx.startISO, ctx.endISO),
     readAllPages("guest arrivals", (after, size) => {
       let q = ctx.supabase.from("bookings").select("id, guest_id, check_in, check_out", { count: "exact" }).eq("hotel_id", ctx.hotelId).in("status", STAYED)
         .gte("check_in", startDate).lte("check_in", endDate).order("id").limit(size);
@@ -179,18 +190,10 @@ export async function getGuestsReport(startDate: string, endDate: string, expect
   }
   if (guests.length !== guestIds.length) reportReadError("complete guest profiles", null);
   const classification = classifyArrivingGuests(arrivals, history);
-  const methodMap = new Map<string, { count: number; minor: number[] }>();
-  for (const payment of payments) {
-    assertCurrency(payment.currency, ctx.currency);
-    const key = payment.method || "other", value = methodMap.get(key) ?? { count: 0, minor: [] };
-    value.count++; value.minor.push(moneyMinor(payment.amount, ctx.currency)); methodMap.set(key, value);
-  }
-  const byMethod = [...methodMap].map(([method, value]) => ({ method, count: value.count, amount: fromMinor(sumMinor(value.minor), ctx.currency) }))
-    .sort((a, b) => b.amount - a.amount || a.method.localeCompare(b.method));
   const originMap = new Map<string, number>();
   for (const guest of guests) { const name = guest.nationality?.trim(); if (name) originMap.set(name, (originMap.get(name) ?? 0) + 1); }
-  return { currency: ctx.currency, totalCollected: fromMinor(sumMinor([...methodMap.values()].flatMap(v => v.minor)), ctx.currency), outstanding,
-    ...classification, totalGuests: guestIds.length, byMethod,
+  return { currency: ctx.currency, totalCollected: fromMinor(collections.totalMinor, ctx.currency), outstanding,
+    ...classification, totalGuests: guestIds.length, byMethod: collections.byMethod,
     origins: [...originMap].map(([nationality, count]) => ({ nationality, count })).sort((a, b) => b.count - a.count || a.nationality.localeCompare(b.nationality)),
     meta: withWarnings(ctx, BALANCE_BASIS,
       "Collections are successful cash receipts by paid_at in the hotel's local date window, including tax and deposits; they are not room revenue or net-of-refund cash flow.",

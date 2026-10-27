@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useQuery, useQueries } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { toast, Modal, Button } from "@heroui/react";
 import { CalendarDate } from "@internationalized/date";
 
@@ -31,7 +31,6 @@ interface NewBookingModalProps {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_ROOM_TYPES = 4;
-const MAX_QTY_PER_LINE = 5;
 
 /** Wizard step order — index + 1 is the step number, used for the a11y announce. */
 const STEP_TITLES = ["Dates", "Availability", "Summary"] as const;
@@ -57,6 +56,7 @@ export function NewBookingModal({
 }: NewBookingModalProps) {
   const [step, setStep] = React.useState<WizardStep>(1);
   const [range, setRange] = React.useState<StayRangeValue | null>(null);
+  const [prefillDismissed, setPrefillDismissed] = React.useState(false);
   const [cartLines, setCartLines] = React.useState<StaffCartLine[]>([]);
 
   // Guest — either a linked existing profile (guestId set) or manual new-guest fields.
@@ -81,14 +81,21 @@ export function NewBookingModal({
     if (open) stepRef.current?.focus();
   }, [step, open]);
 
-  const checkIn = range ? cdToStr(range.start) : null;
-  const checkOut = range ? cdToStr(range.end) : null;
+  const prefillRange =
+    prefillCheckIn && prefillCheckOut
+      ? { start: dateToCalendarDate(prefillCheckIn), end: dateToCalendarDate(prefillCheckOut) }
+      : null;
+  const prefillActive = open && !prefillDismissed && Boolean(prefillRange);
+  const effectiveRange = prefillActive ? prefillRange : range;
+  const effectiveStep = prefillActive ? 2 : step;
+  const checkIn = effectiveRange ? cdToStr(effectiveRange.start) : null;
+  const checkOut = effectiveRange ? cdToStr(effectiveRange.end) : null;
   const nights = React.useMemo(() => {
-    if (!range) return 0;
-    const s = new Date(range.start.year, range.start.month - 1, range.start.day);
-    const e = new Date(range.end.year, range.end.month - 1, range.end.day);
+    if (!effectiveRange) return 0;
+    const s = new Date(effectiveRange.start.year, effectiveRange.start.month - 1, effectiveRange.start.day);
+    const e = new Date(effectiveRange.end.year, effectiveRange.end.month - 1, effectiveRange.end.day);
     return Math.max(0, Math.round((e.getTime() - s.getTime()) / 86_400_000));
-  }, [range]);
+  }, [effectiveRange]);
 
   const countryDialCode = getCountryDialCode(nationality) || "+233";
 
@@ -105,33 +112,21 @@ export function NewBookingModal({
     };
   }, [open]);
 
-  // Apply prefill once per open; dates jump the wizard straight to Availability.
-  const prefilled = React.useRef(false);
-  React.useEffect(() => {
-    if (!open) {
-      prefilled.current = false;
-      return;
-    }
-    if (prefilled.current) return;
-    prefilled.current = true;
-    if (prefillCheckIn && prefillCheckOut) {
-      setRange({ start: dateToCalendarDate(prefillCheckIn), end: dateToCalendarDate(prefillCheckOut) });
-      setStep(2);
-    }
-  }, [open, prefillCheckIn, prefillCheckOut]);
+  function handleRangeChange(next: StayRangeValue | null) {
+    const previousStayKey = checkIn && checkOut ? `${checkIn}_${checkOut}` : null;
+    const nextCheckIn = next ? cdToStr(next.start) : null;
+    const nextCheckOut = next ? cdToStr(next.end) : null;
+    const nextStayKey = nextCheckIn && nextCheckOut ? `${nextCheckIn}_${nextCheckOut}` : null;
 
-  // Changing the stay clears cart lines that no longer fit (handled inside AvailabilityStep via prune,
-  // but keep a fallback clear here for instant feedback if AvailabilityStep hasn't reconciled yet).
-  const stayKey = checkIn && checkOut ? `${checkIn}_${checkOut}` : null;
-  const prevStayKey = React.useRef<string | null>(null);
-  React.useEffect(() => {
-    if (prevStayKey.current !== null && prevStayKey.current !== stayKey) {
-      // Don't wipe cart blindly — AvailabilityStep will prune/clamp based on fresh counts.
-      // We reset only if the previous key was set and new key is null (dates cleared).
-      if (!stayKey) setCartLines([]);
-    }
-    prevStayKey.current = stayKey;
-  }, [stayKey]);
+    if (previousStayKey !== null && nextStayKey === null) setCartLines([]);
+    setPrefillDismissed(true);
+    setRange(next);
+  }
+
+  function dismissPrefill() {
+    if (prefillActive && prefillRange) setRange(prefillRange);
+    setPrefillDismissed(true);
+  }
 
   // ── Cart mutations ──
   const handleAddLine = React.useCallback((room: StaffAvailabilityRoom) => {
@@ -222,7 +217,7 @@ export function NewBookingModal({
 
   const totalRooms = React.useMemo(() => cartLines.reduce((s, l) => s + l.quantity, 0), [cartLines]);
 
-  const canReachStep2 = Boolean(range && nights > 0);
+  const canReachStep2 = Boolean(effectiveRange && nights > 0);
   const canReachStep3 = canReachStep2 && cartLines.length > 0;
   const canReach = (s: WizardStep) => (s === 1 ? true : s === 2 ? canReachStep2 : canReachStep3);
 
@@ -258,6 +253,7 @@ export function NewBookingModal({
   function resetState() {
     setStep(1);
     setRange(null);
+    setPrefillDismissed(false);
     setCartLines([]);
     setGuestId(null);
     setGuestName("");
@@ -394,13 +390,21 @@ export function NewBookingModal({
   }
 
   function handlePrimary() {
-    if (step === 1 && canReachStep2) setStep(2);
-    else if (step === 2 && canReachStep3) setStep(3);
-    else if (step === 3) void handleSubmit();
+    if (effectiveStep === 1 && canReachStep2) setStep(2);
+    else if (effectiveStep === 2 && canReachStep3) {
+      dismissPrefill();
+      setStep(3);
+    }
+    else if (effectiveStep === 3) void handleSubmit();
   }
 
-  const primaryLabel = step === 3 ? (loading ? "Creating…" : cartLines.length > 1 || totalRooms > 1 ? `Create reservation · ${totalRooms} rooms` : "Create reservation") : "Continue";
-  const primaryDisabled = step === 1 ? !canReachStep2 : step === 2 ? !canReachStep3 : !canSubmit;
+  function handleStepChange(next: WizardStep) {
+    if (prefillActive && next !== 2) dismissPrefill();
+    if (canReach(next)) setStep(next);
+  }
+
+  const primaryLabel = effectiveStep === 3 ? (loading ? "Creating…" : cartLines.length > 1 || totalRooms > 1 ? `Create reservation · ${totalRooms} rooms` : "Create reservation") : "Continue";
+  const primaryDisabled = effectiveStep === 1 ? !canReachStep2 : effectiveStep === 2 ? !canReachStep3 : !canSubmit;
 
   return (
     <Modal.Backdrop isOpen={open} onOpenChange={handleClose} variant="opaque" isDismissable={!loading}>
@@ -417,19 +421,19 @@ export function NewBookingModal({
               <Modal.Heading className="text-base font-semibold text-foreground">New reservation</Modal.Heading>
               {totalRooms > 0 && <p className="text-xs text-muted-foreground">{totalRooms} room{totalRooms !== 1 ? "s" : ""} · {cartLines.length} type{cartLines.length !== 1 ? "s" : ""}</p>}
             </div>
-            <BookingStepper current={step} canReach={canReach} onStepChange={(s) => canReach(s) && setStep(s)} />
+            <BookingStepper current={effectiveStep} canReach={canReach} onStepChange={handleStepChange} />
           </Modal.Header>
 
           <Modal.Body className="native-scroll flex-1 overflow-y-auto px-4 py-3 sm:px-6 sm:py-4">
             <div aria-live="polite" role="status" className="sr-only">
-              {`Step ${step} of ${STEP_TITLES.length}: ${STEP_TITLES[step - 1]}`}
+              {`Step ${effectiveStep} of ${STEP_TITLES.length}: ${STEP_TITLES[effectiveStep - 1]}`}
             </div>
             <div ref={stepRef} tabIndex={-1} className="outline-none">
-            {step === 1 && (
-              <DatesStep value={range} onChange={setRange} nights={nights} error={errors.checkIn} />
+            {effectiveStep === 1 && (
+              <DatesStep value={effectiveRange} onChange={handleRangeChange} nights={nights} error={errors.checkIn} />
             )}
 
-            {step === 2 && (
+            {effectiveStep === 2 && (
               <AvailabilityStep
                 checkIn={checkIn}
                 checkOut={checkOut}
@@ -444,7 +448,7 @@ export function NewBookingModal({
               />
             )}
 
-            {step === 3 && checkIn && checkOut && cartLines.length > 0 && (
+            {effectiveStep === 3 && checkIn && checkOut && cartLines.length > 0 && (
               <SummaryStep
                 cartLines={cartLines}
                 linePricings={linePricings}
@@ -483,8 +487,15 @@ export function NewBookingModal({
 
           <Modal.Footer className="flex shrink-0 items-center justify-between gap-2 border-t border-border/60 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-6">
             <div>
-              {step > 1 && (
-                <Button variant="tertiary" onPress={() => setStep((step - 1) as WizardStep)} isDisabled={loading}>
+              {effectiveStep > 1 && (
+                <Button
+                  variant="tertiary"
+                  onPress={() => {
+                    if (prefillActive) dismissPrefill();
+                    setStep((effectiveStep - 1) as WizardStep);
+                  }}
+                  isDisabled={loading}
+                >
                   Back
                 </Button>
               )}

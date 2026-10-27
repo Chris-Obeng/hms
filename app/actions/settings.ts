@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { can } from "@/lib/roles";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { SUPPORTED_CURRENCIES, type SupportedCurrency } from "@/lib/format-currency";
+import { type HotelCurrency } from "@/lib/money";
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -38,7 +38,7 @@ async function getHotelScopedClient() {
 
 // ── Hotel Profile ────────────────────────────────────────────────────
 
-const HotelProfileSchema = z.object({
+export const hotelSettingsSchema = z.object({
   name: z.string().min(1, "Hotel name is required"),
   address: z.string().optional().or(z.literal("")),
   city: z.string().optional().or(z.literal("")),
@@ -49,13 +49,13 @@ const HotelProfileSchema = z.object({
   checkInTime: z.string().optional().or(z.literal("")),
   checkOutTime: z.string().optional().or(z.literal("")),
   timezone: z.string().optional().or(z.literal("")),
-  currency: z.enum(SUPPORTED_CURRENCIES).default("GHS"),
+  currency: z.literal("GHS").default("GHS"),
   cancellationPolicy: z.string().max(500).optional().or(z.literal("")),
   taxEnabled: z.boolean().default(false),
   taxPercentage: z.number().min(0).max(100).default(0),
 });
 
-export type HotelProfileInput = z.infer<typeof HotelProfileSchema>;
+export type HotelProfileInput = z.infer<typeof hotelSettingsSchema>;
 
 export async function getHotelProfile(): Promise<
   | { success: true; data: HotelProfileInput & { id: string; logoUrl: string | null; coverImageUrl: string | null } }
@@ -92,7 +92,7 @@ export async function getHotelProfile(): Promise<
         checkInTime: data.check_in_time || "",
         checkOutTime: data.check_out_time || "",
         timezone: data.timezone || "",
-        currency: (data.currency as SupportedCurrency) || "GHS",
+        currency: (data.currency as HotelCurrency) || "GHS",
         cancellationPolicy: data.cancellation_policy || "",
         logoUrl: data.logo_url,
         coverImageUrl: data.cover_image_url,
@@ -118,7 +118,7 @@ export async function updateHotelProfile(
       return { success: false, error: "Only super admins can update settings" };
     }
 
-    const parsed = HotelProfileSchema.safeParse(input);
+    const parsed = hotelSettingsSchema.safeParse(input);
     if (!parsed.success) {
       return { success: false, error: parsed.error.issues[0]?.message || "Validation failed" };
     }

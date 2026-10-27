@@ -10,8 +10,9 @@ import {
   BedDouble,
   LifeBuoy,
   BarChart3,
-  Settings,
+  CreditCard,
   Moon,
+  Settings,
   LayoutDashboard,
   ClipboardList,
   ChevronsUpDown,
@@ -92,7 +93,8 @@ const navGroups: NavGroup[] = [
   {
     title: "Operations",
     items: [
-      { title: "Night Audit", url: "/dashboard/night-audit", icon: Moon },
+      { title: "Payments", url: "/dashboard/payments", icon: CreditCard },
+      { title: "Daily Close", url: "/dashboard/night-audit", icon: Moon },
       { title: "Reports", url: "/dashboard/reports", icon: BarChart3 },
       { title: "Settings", url: "/dashboard/settings", icon: Settings },
     ],

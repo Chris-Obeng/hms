@@ -1,8 +1,7 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { can } from "@/lib/roles";
+import { requireMinRole } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import {
   getPaystackBanks,
@@ -24,33 +23,25 @@ function validateAccountNumber(accountNumber: string, bankType: string | null): 
     : "Enter a valid account number (6–20 digits).";
 }
 
-async function getSuperAdminHotel() {
-  const { orgId, userId } = await auth();
-  if (!orgId || !userId) throw new Error("Not authenticated");
+async function getPaymentConfigContext() {
+  const ctx = await requireMinRole("manager", "manage payment settings");
+  if (ctx.hotel.status !== "active") throw new Error("Active hotel access is required.");
   const supabase = await createClient();
-  const { data: hotel } = await supabase
+  const { data: hotel, error } = await supabase
     .from("hotels")
     .select("id, name, email, paystack_subaccount_code, paystack_bank_code, paystack_account_number, paystack_business_name, paystack_settlement_schedule, settings, currency")
-    .eq("clerk_org_id", orgId)
+    .eq("id", ctx.hotelId)
+    .eq("clerk_org_id", ctx.orgId)
     .single();
-  if (!hotel) throw new Error("Hotel not found");
-  const { data: staff } = await supabase
-    .from("staff_profiles")
-    .select("role")
-    .eq("clerk_user_id", userId)
-    .eq("clerk_org_id", orgId)
-    .single();
-  if (!staff || !can(staff.role, "payments:configure")) {
-    throw new Error("Insufficient permissions");
-  }
-  return { supabase, hotel, orgId, isSuperAdmin: can(staff.role, "payments:manage_credentials") };
+  if (error || !hotel) throw new Error("Hotel not found");
+  return { supabase, hotel };
 }
 
 // ── Banks list (cached in Next.js fetch cache) ────────────────────
 
 export async function fetchPaystackBanks() {
   try {
-    await getSuperAdminHotel(); // auth check — this action spends Paystack API quota
+    await getPaymentConfigContext(); // auth check — this action spends Paystack API quota
     const banks = await getPaystackBanks();
     return { success: true as const, banks };
   } catch (err) {
@@ -62,13 +53,15 @@ export async function fetchPaystackBanks() {
 
 export async function verifyBankAccount(accountNumber: string, bankCode: string) {
   try {
-    await getSuperAdminHotel(); // auth check
+    await getPaymentConfigContext(); // auth check
     const bankType = await getPaystackBankType(bankCode);
     // Mobile money wallets: exactly 10 digits. Bank channels: 6–20.
     const validationError = validateAccountNumber(accountNumber, bankType);
     if (validationError) throw new Error(validationError);
     const data = await resolveAccount(accountNumber, bankCode);
-    return { success: true as const, accountName: data.account_name };
+    const accountName = data.account_name?.trim();
+    if (!accountName) throw new Error("Paystack did not return a registered account name.");
+    return { success: true as const, accountName };
   } catch (err) {
     return { success: false as const, error: (err as Error).message };
   }
@@ -77,31 +70,39 @@ export async function verifyBankAccount(accountNumber: string, bankCode: string)
 // ── Create or update subaccount ───────────────────────────────────
 
 export async function savePaystackBankAccount(input: {
-  businessName: string;
   bankCode: string;
   accountNumber: string;
+  confirmedAccountName?: string;
   settlementSchedule?: string;
 }) {
   try {
-    const { supabase, hotel } = await getSuperAdminHotel();
+    const { supabase, hotel } = await getPaymentConfigContext();
 
     const bankType = await getPaystackBankType(input.bankCode);
     const validationError = validateAccountNumber(input.accountNumber, bankType);
     if (validationError) throw new Error(validationError);
+    // Resolve again at save time so the Paystack-registered account name is
+    // authoritative even if the client is holding an older verification result.
+    const account = await resolveAccount(input.accountNumber, input.bankCode);
+    const accountName = account.account_name?.trim();
+    if (!accountName) throw new Error("Paystack did not return a registered account name.");
+    if (input.confirmedAccountName && input.confirmedAccountName !== accountName) {
+      throw new Error("The registered account name changed. Verify the account again before saving.");
+    }
 
     let subaccountCode = hotel.paystack_subaccount_code;
 
     if (subaccountCode) {
       // Update existing
       await updateSubaccount(subaccountCode, {
-        business_name: input.businessName,
-        settlement_bank: input.bankCode,
+        business_name: accountName,
+        bank_code: input.bankCode,
         account_number: input.accountNumber,
       });
     } else {
       // Create new
       const result = await createSubaccount({
-        business_name: input.businessName,
+        business_name: accountName,
         settlement_bank: input.bankCode,
         account_number: input.accountNumber,
         percentage_charge: 0,
@@ -110,19 +111,21 @@ export async function savePaystackBankAccount(input: {
       subaccountCode = result.subaccount_code;
     }
 
-    await supabase
+    const { error: persistenceError } = await supabase
       .from("hotels")
       .update({
         paystack_subaccount_code: subaccountCode,
         paystack_bank_code: input.bankCode,
         paystack_account_number: input.accountNumber,
-        paystack_business_name: input.businessName,
+        paystack_business_name: accountName,
         paystack_settlement_schedule: input.settlementSchedule ?? "auto",
       })
       .eq("id", hotel.id);
+    if (persistenceError) throw new Error(`Payout account could not be saved locally: ${persistenceError.message}`);
 
+    revalidatePath("/dashboard/payments");
     revalidatePath("/dashboard/settings/payments");
-    return { success: true as const, subaccountCode };
+    return { success: true as const, subaccountCode, businessName: accountName };
   } catch (err) {
     return { success: false as const, error: (err as Error).message };
   }
@@ -139,12 +142,14 @@ export async function updatePaymentPolicy(policy: PaymentPolicy) {
     if (!PAYMENT_POLICIES.includes(policy)) {
       throw new Error("Invalid payment policy.");
     }
-    const { supabase, hotel } = await getSuperAdminHotel();
+    const { supabase, hotel } = await getPaymentConfigContext();
     const currentSettings = (hotel.settings as Record<string, unknown>) ?? {};
-    await supabase
+    const { error: persistenceError } = await supabase
       .from("hotels")
       .update({ settings: { ...currentSettings, payment_policy: policy } })
       .eq("id", hotel.id);
+    if (persistenceError) throw new Error(`Payment policy could not be saved: ${persistenceError.message}`);
+    revalidatePath("/dashboard/payments");
     revalidatePath("/dashboard/settings/payments");
     return { success: true as const };
   } catch (err) {
@@ -154,7 +159,7 @@ export async function updatePaymentPolicy(policy: PaymentPolicy) {
 
 export async function getPaymentsSettings() {
   try {
-    const { hotel } = await getSuperAdminHotel();
+    const { hotel } = await getPaymentConfigContext();
     const settings = (hotel.settings as Record<string, unknown>) ?? {};
     return {
       success: true as const,

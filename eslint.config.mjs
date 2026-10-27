@@ -40,6 +40,7 @@ const eslintConfig = defineConfig([
     ".agents/**",
     ".freebuff/**",
     ".playwright/**",
+    ".tmp/**",
     "coverage/**",
     ".vercel/**",
   ]),

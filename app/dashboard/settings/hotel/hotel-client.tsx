@@ -13,32 +13,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateHotelProfile } from "@/app/actions/settings";
 import { saveHotelImageUrl } from "@/app/actions/upload";
 import { ImageUpload } from "@/components/ui/image-upload";
-import { SUPPORTED_CURRENCIES, type SupportedCurrency } from "@/lib/money";
+import { type HotelCurrency } from "@/lib/money";
 
 // ── Types ──────────────────────────────────────────────────────────
 
-/** Human labels for the currencies the settings schema accepts. */
-const CURRENCY_LABELS: Record<SupportedCurrency, string> = {
-  GHS: "GHS (Ghana Cedi)",
-  NGN: "NGN (Nigerian Naira)",
-  USD: "USD (US Dollar)",
-  EUR: "EUR (Euro)",
-  GBP: "GBP (British Pound)",
-  ZAR: "ZAR (South African Rand)",
-  KES: "KES (Kenyan Shilling)",
-  UGX: "UGX (Ugandan Shilling)",
-};
 
-/**
- * The selector mirrors SUPPORTED_CURRENCIES exactly, so the client can never
- * offer a code the settings schema (and the exponent table) would reject — and a
- * currency Paystack cannot settle is caught by the parked charge-currency gate
- * documented in lib/paystack.ts.
- */
-const CURRENCY_OPTIONS = SUPPORTED_CURRENCIES.map((value) => ({
-  value,
-  label: CURRENCY_LABELS[value],
-}));
 
 interface HotelSettingsClientProps {
   hotelId: string;
@@ -53,7 +32,7 @@ interface HotelSettingsClientProps {
     checkInTime: string;
     checkOutTime: string;
     timezone: string;
-    currency: SupportedCurrency;
+    currency: HotelCurrency;
     cancellationPolicy: string;
     taxEnabled: boolean;
     taxPercentage: number;
@@ -283,7 +262,9 @@ export function HotelSettingsClient({
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                 Currency
               </label>
-              <HeroSelectField value={values.currency} onValueChange={(v) => set("currency", v as SupportedCurrency)} options={CURRENCY_OPTIONS} placeholder="Select currency..." ariaLabel="Currency" />
+              <div className="flex h-9 items-center rounded-xl border border-border/60 bg-muted/40 px-3 text-sm text-foreground">
+                GHS <span className="ml-1.5 text-muted-foreground">· Ghana Cedi</span>
+              </div>
             </div>
           </div>
           <div>
@@ -340,7 +321,7 @@ export function HotelSettingsClient({
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-5">
-                Adds {values.taxPercentage}% to the room subtotal on guest invoices
+                Adds {values.taxPercentage}% to the room subtotal on guest invoices. Enter the combined rate you charge, including any levies.
               </p>
             </div>
           )}

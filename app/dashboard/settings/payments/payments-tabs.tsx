@@ -10,7 +10,6 @@ import { getMyHotelPayouts } from "@/app/actions/payouts";
 type PaymentsTab = "settings" | "payouts";
 
 interface Props {
-  hotelName: string;
   initialData: {
     subaccountCode: string | null;
     bankCode: string | null;
@@ -19,6 +18,7 @@ interface Props {
     settlementSchedule: string;
     paymentPolicy: string;
   };
+  timeZone?: string;
 }
 
 /**
@@ -26,7 +26,7 @@ interface Props {
  * that reads live settlement state from Paystack. The sub-header lives here so
  * it spans both tabs; each tab owns its own body.
  */
-export function PaymentsTabs({ hotelName, initialData }: Props) {
+export function PaymentsTabs({ initialData, timeZone = "UTC" }: Props) {
   const [tab, setTab] = React.useState<PaymentsTab>("payouts");
 
   return (
@@ -55,13 +55,14 @@ export function PaymentsTabs({ hotelName, initialData }: Props) {
             <PayoutsPanel
               load={getMyHotelPayouts}
               active={tab === "payouts"}
+              timeZone={timeZone}
               onGoToSetup={() => setTab("settings")}
             />
           </div>
         </Tabs.Panel>
 
         <Tabs.Panel id="settings" className="mt-5">
-          <PaymentsSettingsClient hotelName={hotelName} initialData={initialData} />
+          <PaymentsSettingsClient initialData={initialData} />
         </Tabs.Panel>
       </Tabs>
     </div>

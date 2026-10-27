@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { withSentryConfig } from "@sentry/nextjs";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
 const nextConfig: NextConfig = {
   turbopack: {},
@@ -45,9 +45,13 @@ const nextConfig: NextConfig = {
 /**
  * Sentry build-time wiring.
  *
+ * Development does not need Sentry's build-time config mutation. Error capture
+ * still comes from `instrumentation.ts` and `instrumentation-client.ts`, while
+ * skipping this wrapper avoids re-running Sentry's config/build setup every time
+ * the dev server starts. Production builds keep the complete Sentry integration.
+ *
  * This project builds with Turbopack, which means Sentry applies no build-time
- * code instrumentation — error capture comes entirely from `instrumentation.ts`
- * and `instrumentation-client.ts`. The webpack-only options (`webpack.treeshake`,
+ * code instrumentation — the webpack-only options (`webpack.treeshake`,
  * `disableLogger`, `excludeServerRoutes`, `autoInstrument*`) are therefore
  * omitted: they would silently no-op here.
  *
@@ -56,7 +60,7 @@ const nextConfig: NextConfig = {
  * from the output so they are never served to the public — which is exactly the
  * posture we want. Setting either option by hand disables that default.
  */
-export default withSentryConfig(nextConfig, {
+const sentryBuildOptions = {
   org: "chris-org-1k",
   project: "roomline",
 
@@ -80,4 +84,13 @@ export default withSentryConfig(nextConfig, {
 
   // Do not send build telemetry to Sentry.
   telemetry: false,
-});
+};
+
+export default async function config(phase: string): Promise<NextConfig> {
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
+    return nextConfig;
+  }
+
+  const { withSentryConfig } = await import("@sentry/nextjs");
+  return withSentryConfig(nextConfig, sentryBuildOptions);
+}

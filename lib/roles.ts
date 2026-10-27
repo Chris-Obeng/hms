@@ -65,6 +65,8 @@ export const CAPABILITY_MIN_ROLE = {
   "pricing:manage":                "manager",
   /** Configure payment settings (channels, surcharges, payout account). */
   "payments:configure":            "manager",
+  /** Read payment activity and payout status. */
+  "payments:view":                 "read_only",
   /** Close the business day. */
   "night_audit:run":               "manager",
   /** Read the hotel audit log. */

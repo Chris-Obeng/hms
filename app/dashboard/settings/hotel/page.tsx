@@ -5,7 +5,7 @@ import { Building2 } from "lucide-react";
 import { HotelSettingsClient } from "./hotel-client";
 import { BookingPageCard } from "./booking-page-card";
 import { SettingsSubHeader } from "../_components/settings-sub-header";
-import type { SupportedCurrency } from "@/lib/format-currency";
+import type { HotelCurrency } from "@/lib/money";
 export default async function HotelSettingsPage() {
   const { orgId, userId } = await auth();
   if (!orgId || !userId) return <NoAccessState />;
@@ -63,7 +63,7 @@ export default async function HotelSettingsPage() {
             checkInTime: hotel.check_in_time || "",
             checkOutTime: hotel.check_out_time || "",
             timezone: hotel.timezone || "",
-            currency: (hotel.currency as SupportedCurrency) || "GHS",
+            currency: (hotel.currency as HotelCurrency) || "GHS",
             cancellationPolicy: hotel.cancellation_policy || "",
             taxEnabled: ((hotel.settings as Record<string, unknown>)?.tax_enabled as boolean) ?? false,
             taxPercentage: ((hotel.settings as Record<string, unknown>)?.tax_percentage as number) ?? 0,

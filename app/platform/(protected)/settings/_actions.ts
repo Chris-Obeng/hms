@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { toMinor, SUPPORTED_CURRENCIES } from "@/lib/money";
+import { toMinor } from "@/lib/money";
 import { type PlatformFeeType } from "@/lib/platform/fees";
 import { assertPlatformAdmin } from "../_guard";
 
@@ -42,9 +42,10 @@ export async function updatePlatformFeeSettings(
       return { success: false, error: "Invalid fee type" };
     }
 
-    const currency = String(input.feeFlatCurrency ?? "").toUpperCase();
-    if (!/^[A-Z]{3}$/.test(currency) || !SUPPORTED_CURRENCIES.includes(currency as never)) {
-      return { success: false, error: "Unsupported currency" };
+    // This version is sold in Ghana: the platform fee is always denominated in GHS.
+    const currency = String(input.feeFlatCurrency ?? "GHS").toUpperCase();
+    if (currency !== "GHS") {
+      return { success: false, error: "The platform fee is charged in Ghana cedis only." };
     }
 
     if (!Number.isFinite(input.feePercent) || input.feePercent < 0 || input.feePercent > 100) {

@@ -129,6 +129,12 @@ export interface SubaccountCreateInput {
   primary_contact_email?: string;
 }
 
+export interface SubaccountUpdateInput {
+  business_name?: string;
+  bank_code?: string;
+  account_number?: string;
+}
+
 export async function createSubaccount(input: SubaccountCreateInput) {
   const res = await paystackFetch<{
     subaccount_code: string;
@@ -144,7 +150,7 @@ export async function createSubaccount(input: SubaccountCreateInput) {
 
 export async function updateSubaccount(
   code: string,
-  input: Partial<SubaccountCreateInput>
+  input: SubaccountUpdateInput
 ) {
   const res = await paystackFetch<{ subaccount_code: string }>(
     `/subaccount/${encodeURIComponent(code)}`,
@@ -180,15 +186,12 @@ export interface TransactionInitInput {
 /**
  * Charge-currency gate — deliberately parked.
  *
- * Paystack settles the currencies on its own supported list (GHS, NGN, ZAR, KES,
- * USD, XOF). `SUPPORTED_CURRENCIES` in lib/money.ts is wider — it also offers
- * EUR, GBP and UGX — so a hotel priced in one of those can pass every policy
- * check and still be refused here. POST /api/booking/[slug]/bookings turns that
- * refusal into "online payment unavailable" guest copy; XOF additionally needs
- * Paystack's own scaling rather than the ISO 4217 exponent. Narrowing the
- * offered currencies (or converting before initialize) is a product decision
- * that has not been made yet; this note exists so the gap is not rediscovered as
- * a surprise.
+ * Product decision made: this version ships in Ghana only, so hotels are priced
+ * and charged in GHS only (`SUPPORTED_CURRENCIES` in lib/money.ts) — always on
+ * Paystack's supported list. The guard below still stands for historical rows or
+ * a future currency, because POST /api/booking/[slug]/bookings turns its refusal
+ * into "online payment unavailable" guest copy; XOF additionally needs
+ * Paystack's own scaling rather than the ISO 4217 exponent.
  */
 export async function initializeTransaction(input: TransactionInitInput) {
   const res = await paystackFetch<{
@@ -377,7 +380,7 @@ export async function listSettlements(params: ListSettlementsParams): Promise<Pa
     if (rows.length < perPage) break;
     page += 1;
   }
-  return all;
+  throw new Error("Paystack settlement pagination exceeded the safety limit; results are incomplete.");
 }
 
 /**
@@ -415,5 +418,5 @@ export async function listSettlementTransactions(
     if (rows.length < perPage) break;
     page += 1;
   }
-  return all;
+  throw new Error("Paystack settlement-transaction pagination exceeded the safety limit; results are incomplete.");
 }

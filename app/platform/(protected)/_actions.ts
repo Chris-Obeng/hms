@@ -116,6 +116,7 @@ export interface Hotel360Result {
     city: string | null;
     country: string | null;
     status: string | null;
+    timezone: string | null;
     currency: string;
     created_at: string;
     custom_domain: string | null;
@@ -163,7 +164,7 @@ export async function getHotel360(hotelId: string): Promise<Hotel360Result> {
     const { data: hotel } = await supabaseAdmin
       .from("hotels")
       .select(
-        "id, name, slug, city, country, status, currency, created_at, custom_domain, clerk_org_id, paystack_business_name"
+        "id, name, slug, city, country, status, timezone, currency, created_at, custom_domain, clerk_org_id, paystack_business_name"
       )
       .eq("id", hotelId)
       .single();
@@ -326,7 +327,8 @@ export async function getHotel360(hotelId: string): Promise<Hotel360Result> {
         slug: hotel.slug,
         city: hotel.city,
         country: hotel.country,
-        status: hotel.status,
+         status: hotel.status,
+         timezone: hotel.timezone,
         currency: hotel.currency ?? "GHS",
         created_at: hotel.created_at ?? "",
         custom_domain: hotel.custom_domain,
@@ -383,15 +385,18 @@ export async function getHotelPayouts(
 
     const { data: hotel } = await supabaseAdmin
       .from("hotels")
-      .select("id, currency, paystack_subaccount_code, paystack_settlement_schedule")
+      .select("id, timezone, currency, paystack_subaccount_code, paystack_settlement_schedule, paystack_bank_code, paystack_account_number")
       .eq("id", hotelId)
       .single();
     if (!hotel) return { success: false, error: "Hotel not found" };
 
     const data = await buildHotelPayoutOverview({
       hotelId: hotel.id,
+      timeZone: hotel.timezone ?? "UTC",
       subaccountCode: hotel.paystack_subaccount_code,
       settlementSchedule: hotel.paystack_settlement_schedule,
+      payoutBankCode: hotel.paystack_bank_code,
+      payoutAccountNumber: hotel.paystack_account_number,
       currency: hotel.currency ?? "GHS",
       supabase: supabaseAdmin,
       window: range ?? { days: 30 },

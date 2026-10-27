@@ -2,12 +2,10 @@
 
 import * as React from "react";
 import { format } from "date-fns";
-import { Download, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import { PAYMENT_METHOD_LABELS, getMethodLabel } from "@/lib/booking-status";
-import { downloadCsv, toCsv } from "@/lib/csv";
-import { Button } from "@/components/ui/button";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import { HeroSelectField } from "@/components/ui/hero-select";
 import { useRouter } from "next/navigation";
@@ -36,24 +34,6 @@ const STATUS_COLORS: Record<string, string> = {
   failed: "text-destructive bg-destructive/10",
   refunded: "text-blue-600 bg-blue-50",
 };
-
-function exportCsv(rows: PaymentRow[]) {
-  const headers = ["Date", "Guest", "Booking Ref", "Amount", "Method", "Status", "Paystack Ref", "Notes"];
-  const csv = toCsv(
-    headers,
-    rows.map((r) => [
-      r.paidAt ? format(new Date(r.paidAt), "yyyy-MM-dd HH:mm") : "",
-      r.guestName,
-      r.bookingReference,
-      r.amount,
-      getMethodLabel(r.method),
-      r.status,
-      r.paystackReference,
-      r.notes,
-    ])
-  );
-  downloadCsv(`payments-${format(new Date(), "yyyy-MM-dd")}.csv`, csv);
-}
 
 export function TransactionsClient({ data, currency, hotelId }: { data: PaymentRow[]; currency: string; hotelId: string }) {
   const router = useRouter();
@@ -112,14 +92,6 @@ export function TransactionsClient({ data, currency, hotelId }: { data: PaymentR
             {filtered.length} records · {formatCurrency(totalSuccess, currency)} collected
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 rounded-xl text-xs"
-          onClick={() => exportCsv(filtered)}
-        >
-          <Download className="size-3.5 mr-1.5" /> CSV
-        </Button>
       </div>
 
       {/* Filters */}

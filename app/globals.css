@@ -312,121 +312,6 @@
   --focus: var(--ring);
 }
 
-/* Reports: quiet operational data, using the existing semantic app palette. */
-[data-reports] {
-  min-width: 0;
-  max-width: 90rem;
-  width: 100%;
-  margin-inline: auto;
-  color: var(--foreground);
-  font-variant-numeric: tabular-nums;
-  container: reports / inline-size;
-  --reports-secondary-text: color-mix(in oklch, var(--foreground) 76%, var(--background));
-}
-[data-reports] .reports-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1.5rem 2rem; }
-[data-reports] .reports-heading { flex: 1 1 16rem; }
-[data-reports] .reports-heading h1 { font-size: 1.75rem; font-weight: 650; letter-spacing: -.035em; line-height: 1.25; }
-[data-reports] .reports-heading p { margin-top: .5rem; max-width: 35rem; color: var(--reports-secondary-text); line-height: 1.6; text-wrap: pretty; }
-[data-reports] .reports-toolbar { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: flex-start; gap: .75rem 1rem; min-width: 0; max-width: 100%; }
-[data-reports] .reports-actions { display: flex; flex-wrap: wrap; gap: .5rem; padding-top: .25rem; }
-[data-reports] .reports-control { min-height: 2.75rem; min-width: 2.75rem; padding-inline: .875rem; font-size: .875rem; font-weight: 500; border-radius: .625rem; }
-[data-reports] .reports-period { max-width: 100%; min-width: 0; }
-[data-reports] .reports-presets { display: flex; flex-wrap: wrap; gap: .25rem; margin-bottom: .5rem; }
-[data-reports] .reports-presets [aria-pressed="true"] { background: var(--accent-soft); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--primary); }
-[data-reports] .reports-date-fields { display: flex; align-items: flex-end; flex-wrap: wrap; gap: .625rem; }
-[data-reports] .reports-date-fields label { display: grid; gap: .25rem; min-width: 0; flex: 1 1 8.25rem; font-size: .8125rem; font-weight: 500; }
-[data-reports] .reports-date-fields input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 2.75rem; padding: .5rem .625rem; border: 1px solid var(--input); border-radius: .625rem; color: var(--foreground); background: var(--card); font-size: .875rem; }
-[data-reports] .reports-date-hint, [data-reports] .reports-form-error { font-size: .8125rem; margin-top: .375rem; color: var(--reports-secondary-text); }
-[data-reports] .reports-form-error { color: var(--destructive); }
-[data-reports] :is(button, input, summary, [role="tab"], [tabindex="0"]):focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
-[data-reports] .reports-effective-period { margin-top: 1.25rem; padding-block: 1rem; border-top: 1px solid var(--border); line-height: 1.75; }
-[data-reports] .reports-effective-period strong { font-weight: 600; }
-[data-reports] .reports-effective-period p + p { font-size: .8125rem; color: var(--reports-secondary-text); }
-[data-reports] .reports-tabs { width: 100%; min-width: 0; margin-top: 1.25rem; }
-[data-reports] .tabs__list-container, [data-reports] .tabs__list-container__scroller { max-width: 100%; min-width: 0; overflow: visible; }
-[data-reports] .tabs__list { display: flex; flex-wrap: wrap; width: 100%; gap: .25rem .875rem; border-bottom: 1px solid var(--border); padding: 0; }
-[data-reports] .tabs__tab { min-height: 2.75rem; padding-inline: .375rem; color: var(--reports-secondary-text); font-size: .875rem; font-weight: 500; white-space: normal; }
-[data-reports] .tabs__tab[aria-selected="true"], [data-reports] .tabs__tab[data-selected="true"] { color: var(--foreground); font-weight: 600; }
-[data-reports] .tabs__indicator { background: var(--primary); }
-[data-reports] .reports-tab-panel { padding: 1.25rem 0 0; min-width: 0; }
-[data-reports] .reports-tab-content { display: grid; gap: 1.5rem; min-width: 0; }
-[data-reports] .reports-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.5rem; margin: 0; padding-block: .75rem 1.5rem; border-bottom: 1px solid var(--border); }
-[data-reports] .reports-kpis-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-[data-reports] .reports-metric { min-width: 0; }
-[data-reports] .reports-metric dt { color: var(--reports-secondary-text); font-weight: 500; font-size: .875rem; }
-[data-reports] .reports-metric dd { margin: .375rem 0 0; }
-[data-reports] .reports-metric-value { font-size: clamp(1.5rem, 1.7vw, 1.875rem); font-weight: 600; letter-spacing: -.035em; line-height: 1.35; overflow-wrap: anywhere; }
-[data-reports] .reports-metric-unavailable { font-size: 1.25rem; line-height: 1.8; font-weight: 500; }
-[data-reports] .reports-metric-definition, [data-reports] .reports-delta { font-size: .8125rem; line-height: 1.55; color: var(--reports-secondary-text); }
-[data-reports] .reports-overview-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(14rem, 17rem); gap: 1.5rem; align-items: start; }
-[data-reports] .reports-section { min-width: 0; border: 1px solid var(--border); border-radius: .875rem; background: var(--card); }
-[data-reports] .reports-section-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: .75rem; padding: 1.25rem 1.25rem .875rem; }
-[data-reports] .reports-section h2, [data-reports] .reports-current-balance h2 { font-size: 1rem; line-height: 1.5; font-weight: 600; }
-[data-reports] .reports-section-header p { margin-top: .25rem; font-size: .8125rem; line-height: 1.6; color: var(--reports-secondary-text); }
-[data-reports] .reports-trend { padding-inline: 1.25rem; padding-bottom: .25rem; min-width: 0; }
-[data-reports] .reports-chart-units { font-size: .8125rem; color: var(--reports-secondary-text); }
-[data-reports] .reports-chart { width: 100%; min-width: 0; }
-[data-reports] .reports-chart svg { overflow: visible; }
-[data-reports] .reports-data-disclosure { margin-top: .5rem; border-top: 1px solid var(--border); }
-[data-reports] .reports-data-disclosure summary { cursor: pointer; min-height: 2.75rem; align-content: center; padding-block: .75rem; font-size: .8125rem; font-weight: 500; }
-[data-reports] .reports-data-disclosure .reports-table-scroll { max-height: 24rem; }
-[data-reports] .reports-summary { border-color: transparent; background: transparent; }
-[data-reports] .reports-summary .reports-section-header { padding: .25rem 0 .75rem; }
-[data-reports] .reports-summary dl > div { padding-block: .875rem; border-bottom: 1px solid var(--border); }
-[data-reports] .reports-summary dt { font-size: .8125rem; color: var(--reports-secondary-text); }
-[data-reports] .reports-summary dd { font-size: 1.125rem; font-weight: 600; margin-top: .25rem; overflow-wrap: anywhere; }
-[data-reports] .reports-summary .reports-note { margin-top: 1.25rem; }
-[data-reports] .reports-note { font-size: .8125rem; line-height: 1.7; color: var(--reports-secondary-text); overflow-wrap: anywhere; }
-[data-reports] .reports-table-scroll { max-width: 100%; overflow: auto; overscroll-behavior-inline: contain; border-radius: 0 0 .875rem .875rem; }
-[data-reports] .reports-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
-[data-reports] .reports-table th, [data-reports] .reports-table td { padding: .875rem 1.25rem; text-align: right; border-top: 1px solid var(--border); white-space: nowrap; }
-[data-reports] .reports-table thead th { font-size: .8125rem; font-weight: 500; color: var(--reports-secondary-text); background: var(--background); }
-[data-reports] .reports-table th:first-child { text-align: left; white-space: normal; min-width: 9rem; overflow-wrap: anywhere; }
-[data-reports] .reports-table tbody th { font-weight: 500; }
-[data-reports] .reports-table tbody tr:nth-child(even) { background: color-mix(in oklch, var(--background) 45%, var(--card)); }
-[data-reports] .reports-notice { margin-block: 1.25rem; padding: 1rem 1.25rem; border-inline-start: 3px solid var(--primary); border-radius: 0 .625rem .625rem 0; background: var(--accent-soft); font-size: .8125rem; line-height: 1.7; overflow-wrap: anywhere; }
-[data-reports] .reports-notice h2 { font-size: .875rem; font-weight: 600; margin-bottom: .375rem; }
-[data-reports] .reports-notice ul { list-style: disc; padding-inline-start: 1.125rem; display: grid; gap: .375rem; }
-[data-reports] .reports-empty { padding: 3rem 1.25rem; text-align: center; }
-[data-reports] .reports-empty p:first-child { font-weight: 500; }
-[data-reports] .reports-empty p + p { font-size: .8125rem; color: var(--reports-secondary-text); margin-top: .375rem; }
-[data-reports] .reports-error { padding: 3rem 1.25rem; text-align: center; border: 1px solid var(--border); border-radius: .875rem; }
-[data-reports] .reports-error h2 { font-size: 1.125rem; font-weight: 600; }
-[data-reports] .reports-error p { margin-block: .5rem 1rem; }
-[data-reports] .reports-current-balance { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem 2rem; padding: 1.25rem; border: 1px solid var(--border); border-radius: .875rem; }
-[data-reports] .reports-current-balance > div { flex: 1 1 16rem; }
-[data-reports] .reports-current-balance p:not(.reports-balance-value) { color: var(--reports-secondary-text); font-size: .8125rem; max-width: 42rem; margin-top: .25rem; }
-[data-reports] .reports-balance-value { font-weight: 600; font-size: 1.25rem; overflow-wrap: anywhere; }
-[data-reports] .reports-loading { display: grid; gap: 1.5rem; }
-[data-reports] .reports-refreshing { animation: reports-refresh 1.2s linear infinite; }
-@keyframes reports-refresh { to { transform: rotate(360deg); } }
-@container reports (max-width: 60rem) {
-  [data-reports] .reports-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  [data-reports] .reports-overview-grid { grid-template-columns: minmax(0, 1fr); }
-}
-@container reports (max-width: 32rem) {
-  [data-reports] .reports-kpis { grid-template-columns: minmax(0, 1fr); }
-  [data-reports] .reports-metric + .reports-metric { padding-top: 1rem; border-top: 1px solid var(--border); }
-}
-@media (max-width: 1000px) {
-  [data-reports] .reports-overview-grid { grid-template-columns: minmax(0, 1fr); }
-  [data-reports] .reports-summary dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 1rem; }
-}
-@media (max-width: 600px) {
-  [data-reports] .reports-toolbar, [data-reports] .reports-period { width: 100%; }
-  [data-reports] .reports-toolbar { justify-content: flex-start; }
-  [data-reports] .reports-kpis { grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
-  [data-reports] .reports-metric + .reports-metric { padding-top: 1rem; border-top: 1px solid var(--border); }
-  [data-reports] .reports-date-fields label { flex-basis: calc(50% - .625rem); }
-  [data-reports] .reports-apply { width: 100%; }
-  [data-reports] .reports-section-header { padding-inline: 1rem; }
-  [data-reports] .reports-trend { padding-inline: .75rem; }
-  [data-reports] .tabs__list { gap: .125rem .75rem; }
-}
-@media (prefers-reduced-motion: reduce) {
-  [data-reports] *, [data-reports] *::before, [data-reports] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
-}
-
 /* Primary buttons read the brand color, not the pale --accent surface, so hover
  * darkens the brand instead of flashing a mismatched fill. */
 .button--primary {
@@ -589,6 +474,16 @@
 .card-default {
   @apply rounded-xl border border-border/40 bg-card shadow-sm;
 }
+
+/* Hairline tabs (Reports): flat strip, one rule under it, a 2px ink indicator on the active tab.
+   Inactive tabs must stay legible — muted-foreground, not the faint --muted token. */
+.reports-tabs { gap: 0; }
+.reports-tabs > .tabs__list-container { background: transparent; border-radius: 0; border-bottom: 1px solid color-mix(in oklch, var(--border) 70%, transparent); }
+.reports-tabs .tabs__list { display: inline-flex; flex-wrap: nowrap; gap: 1.5rem; padding: 0; }
+.reports-tabs .tabs__tab { position: relative; flex: none; width: auto; height: auto; justify-content: flex-start; min-width: 0; border-radius: 0; background: transparent; box-shadow: none; font-size: 0.875rem; color: color-mix(in oklch, var(--foreground) 62%, var(--background)); }
+.reports-tabs .tabs__tab:hover { color: var(--foreground); }
+.reports-tabs .tabs__tab[data-selected="true"] { color: var(--foreground); font-weight: 600; }
+.reports-tabs .tabs__indicator { top: auto; left: 0; bottom: -1px; width: 100%; height: 2px; border-radius: 0; background: var(--foreground); box-shadow: none; }
 
 /* ── HeroUI Switch — default blue when on (app-wide standard) ────────
  *  HeroUI v3 exposes BEM hooks (.switch__control) with data attributes.

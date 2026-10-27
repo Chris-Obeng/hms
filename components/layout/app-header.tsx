@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useUser, useAuth, useClerk } from "@clerk/nextjs";
 import {
@@ -20,7 +21,6 @@ import {
 } from "@heroui/react";
 import { NotificationBell } from "@/components/ui/notification-bell";
 import { DashboardSearch } from "@/app/dashboard/_components/dashboard-search";
-import { NewBookingModal } from "@/components/bookings/new-booking-modal";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/format";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -35,6 +35,11 @@ import {
   type NotificationItem,
 } from "@/app/actions/notifications";
 import { toast } from "@heroui/react";
+
+const NewBookingModal = dynamic(
+  () => import("@/components/bookings/new-booking-modal").then((mod) => mod.NewBookingModal),
+  { ssr: false },
+);
 
 // Props
 

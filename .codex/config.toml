@@ -1,0 +1,11 @@
+# Project Codex config — RoomLine
+# Provider credentials must be supplied outside the repository.
+
+model = "free/deepseek-v4.1-flash"
+model_provider = "apinex"
+model_reasoning_effort="high"
+
+[model_providers.apinex]
+name = "apinex"
+base_url = "https://api.apinex.bond/v1"
+wire_api = "responses"

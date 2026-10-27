@@ -1,8 +1,7 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { can } from "@/lib/roles";
+import { requireMinRole } from "@/lib/auth";
 import { buildHotelPayoutOverview, type HotelPayoutOverview } from "@/lib/payouts";
 
 /**
@@ -17,32 +16,27 @@ export async function getMyHotelPayouts(
   range?: { from: string; to: string }
 ): Promise<{ success: true; data: HotelPayoutOverview } | { success: false; error: string }> {
   try {
-    const { orgId, userId } = await auth();
-    if (!orgId || !userId) return { success: false, error: "Not authenticated" };
+    const ctx = await requireMinRole("read_only", "view payouts");
+    if (ctx.hotel.status !== "active") return { success: false, error: "Active hotel access is required." };
 
     const supabase = await createClient();
 
-    const { data: hotel } = await supabase
+    const { data: hotel, error: hotelError } = await supabase
       .from("hotels")
-      .select("id, currency, paystack_subaccount_code, paystack_settlement_schedule")
-      .eq("clerk_org_id", orgId)
+      .select("id, timezone, currency, paystack_subaccount_code, paystack_settlement_schedule, paystack_bank_code, paystack_account_number")
+      .eq("id", ctx.hotelId)
+      .eq("clerk_org_id", ctx.orgId)
       .single();
-    if (!hotel) return { success: false, error: "Hotel not found" };
-
-    const { data: staff } = await supabase
-      .from("staff_profiles")
-      .select("role")
-      .eq("clerk_user_id", userId)
-      .eq("clerk_org_id", orgId)
-      .single();
-    if (!staff || !can(staff.role, "payments:configure")) {
-      return { success: false, error: "Insufficient permissions" };
-    }
+    if (hotelError || !hotel) return { success: false, error: "Hotel not found" };
+    if (!hotel.timezone) return { success: false, error: "Payment payouts require a configured property timezone." };
 
     const data = await buildHotelPayoutOverview({
       hotelId: hotel.id,
+      timeZone: hotel.timezone,
       subaccountCode: hotel.paystack_subaccount_code,
       settlementSchedule: hotel.paystack_settlement_schedule,
+      payoutBankCode: hotel.paystack_bank_code,
+      payoutAccountNumber: hotel.paystack_account_number,
       currency: hotel.currency ?? "GHS",
       supabase,
       window: range ?? { days: 30 },

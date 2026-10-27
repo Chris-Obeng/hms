@@ -78,6 +78,7 @@ export default async function PlatformHotelDetailPage({
           Payouts fetch is deferred to the client tab — see HotelDetailTabs. */}
       <HotelDetailTabs
         payoutsLoad={getHotelPayouts.bind(null, hotelId)}
+        timeZone={profile.timezone ?? "UTC"}
         overview={
           <div className="space-y-6">
             {/* Operations */}

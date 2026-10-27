@@ -16,6 +16,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 import { toMinor } from "@/lib/money";
+import { businessDayBounds, businessToday } from "@/lib/business-date";
+import { readAllPages } from "@/lib/reports/pagination";
 import {
   listSettlements,
   listSettlementTransactions,
@@ -56,7 +58,10 @@ export interface HotelPayoutOverview {
   summary: {
     paidOutMinor: number;
     awaitingMinor: number;
+    failedMinor: number;
     schedule: string | null;
+    destination: string | null;
+    timeZone: string;
     currency: string;
     fromISO: string;
     toISO: string;
@@ -77,8 +82,11 @@ export interface PayoutWindow {
 
 interface BuildInput {
   hotelId: string;
+  timeZone?: string;
   subaccountCode: string | null;
   settlementSchedule: string | null;
+  payoutBankCode?: string | null;
+  payoutAccountNumber?: string | null;
   currency: string;
   supabase: SupabaseClient<Database>;
   window?: PayoutWindow;
@@ -86,6 +94,7 @@ interface BuildInput {
 
 /** Shape of the payments→bookings→guests join we read below. */
 interface PaymentJoinRow {
+  id: string;
   amount: number | string;
   currency: string | null;
   paystack_id: string | null;
@@ -121,6 +130,8 @@ function one<T>(v: T | T[] | null | undefined): T | null {
 function emptyOverview(
   setupComplete: boolean,
   schedule: string | null,
+  destination: string | null,
+  timeZone: string,
   currency: string,
   range: { fromISO: string; toISO: string },
   error?: string
@@ -130,7 +141,10 @@ function emptyOverview(
     summary: {
       paidOutMinor: 0,
       awaitingMinor: 0,
+      failedMinor: 0,
       schedule,
+      destination,
+      timeZone,
       currency,
       fromISO: range.fromISO,
       toISO: range.toISO,
@@ -145,8 +159,37 @@ function emptyOverview(
  *  Explicit from/to win over days; the range is clamped so `to` is not in the
  *  future, from <= to, and the span never exceeds 366 days (both branches). Bad
  *  input falls back to the last 30 days. */
-export function resolveRange(window?: PayoutWindow): { fromISO: string; toISO: string } {
+export function resolveRange(window?: PayoutWindow, timeZone = "UTC"): { fromISO: string; toISO: string } {
   const dayMs = 24 * 60 * 60 * 1000;
+
+  const validDate = (value: string | undefined): value is string => {
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const parsed = new Date(`${value}T00:00:00Z`);
+    return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  };
+  const shiftDate = (value: string, days: number): string => {
+    const date = new Date(`${value}T00:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + days);
+    return date.toISOString().slice(0, 10);
+  };
+
+  // Date-only ranges originate in the property calendar. Convert them to
+  // instants using the property's timezone so local midnight and DST are
+  // preserved instead of being interpreted in UTC or the browser timezone.
+  if ((window?.from && validDate(window.from)) || (window?.to && validDate(window.to))) {
+    const today = businessToday(timeZone);
+    const requestedTo = validDate(window?.to) ? window.to : today;
+    const toDate = requestedTo > today ? today : requestedTo;
+    const requestedFrom = validDate(window?.from) ? window.from : shiftDate(toDate, -30);
+    let fromDate = requestedFrom <= toDate ? requestedFrom : shiftDate(toDate, -30);
+    if (Date.parse(`${toDate}T00:00:00Z`) - Date.parse(`${fromDate}T00:00:00Z`) > 366 * dayMs) {
+      fromDate = shiftDate(toDate, -365);
+    }
+    const from = businessDayBounds(fromDate, timeZone);
+    const to = businessDayBounds(shiftDate(toDate, 1), timeZone);
+    return { fromISO: from.startISO, toISO: new Date(Date.parse(to.startISO) - 1).toISOString() };
+  }
+
   const now = new Date();
   const parse = (s: string, endOfDay: boolean): Date | null => {
     const d = new Date(
@@ -177,12 +220,13 @@ export function resolveRange(window?: PayoutWindow): { fromISO: string; toISO: s
 }
 
 export async function buildHotelPayoutOverview(input: BuildInput): Promise<HotelPayoutOverview> {
-  const { hotelId, subaccountCode, settlementSchedule, currency, supabase } = input;
-  const { fromISO, toISO } = resolveRange(input.window);
+  const { hotelId, timeZone = "UTC", subaccountCode, settlementSchedule, payoutBankCode, payoutAccountNumber, currency, supabase } = input;
+  const { fromISO, toISO } = resolveRange(input.window, timeZone);
+  const destination = payoutAccountNumber ? `${payoutBankCode ? `${payoutBankCode} · ` : ""}ending ${payoutAccountNumber.slice(-4)}` : null;
 
   // No subaccount yet → the hotel has not finished payment setup. Not an error.
   if (!subaccountCode)
-    return emptyOverview(false, settlementSchedule, currency, { fromISO, toISO });
+    return emptyOverview(false, settlementSchedule, destination, timeZone, currency, { fromISO, toISO });
 
   try {
     // 1. Numeric subaccount id (memoised) + this window's settlements.
@@ -192,39 +236,38 @@ export async function buildHotelPayoutOverview(input: BuildInput): Promise<Hotel
     // 2. Reconciliation map: Paystack tx id (string) → the settlement that paid
     //    it. Only success/processing settlements carry payout meaning, and only
     //    those need their (bounded) transaction lists fetched.
-    const txStatus = new Map<string, { settledAt: string; status: "paid_out" | "processing" }>();
+    const txStatus = new Map<string, { settledAt: string | null; status: PayoutStatus }>();
     for (const s of settlements) {
-      if (s.status !== "success" && s.status !== "processing") continue;
-      const mapped = s.status === "success" ? "paid_out" : "processing";
+      const mapped: PayoutStatus = s.status === "success" ? "paid_out" : s.status === "processing" ? "processing" : s.status === "failed" ? "failed" : "awaiting";
       const txns = await listSettlementTransactions(s.id);
       for (const t of txns) {
         if (t.id == null) continue;
         const key = String(t.id);
-        if (!txStatus.has(key)) txStatus.set(key, { settledAt: s.settlement_date, status: mapped });
+        if (!txStatus.has(key)) txStatus.set(key, { settledAt: mapped === "paid_out" ? s.settlement_date : null, status: mapped });
       }
     }
 
     // 3. Online, paid reservations for this hotel in the window. Only the anchor
     //    line of a group carries a real paystack_id; siblings share group_id.
-    const { data, error } = await supabase
-      .from("payments")
-      .select(
-        "amount, currency, paystack_id, paid_at, booking_id, bookings!inner(reference, group_id, rooms_count, source, created_by, guests(full_name))"
-      )
-      .eq("hotel_id", hotelId)
-      .eq("status", "success")
-      .not("paystack_reference", "is", null)
-      .eq("bookings.source", "direct")
-      .is("bookings.created_by", null)
-      .gte("paid_at", fromISO)
-      .lte("paid_at", toISO)
-      .order("paid_at", { ascending: false })
-      .limit(1000);
-
-    if (error)
-      return emptyOverview(true, settlementSchedule, currency, { fromISO, toISO }, error.message);
-
-    const rows = (data ?? []) as unknown as PaymentJoinRow[];
+    const rows = await readAllPages("payout reservations", (after, size) => {
+      let query = supabase
+        .from("payments")
+        .select(
+          "id, amount, currency, paystack_id, paid_at, booking_id, bookings!inner(reference, group_id, rooms_count, source, created_by, guests(full_name))",
+          { count: "exact" },
+        )
+        .eq("hotel_id", hotelId)
+        .eq("status", "success")
+        .not("paystack_reference", "is", null)
+        .eq("bookings.source", "direct")
+        .is("bookings.created_by", null)
+        .gte("paid_at", fromISO)
+        .lte("paid_at", toISO)
+        .order("id", { ascending: true })
+        .limit(size);
+      if (after) query = query.gt("id", after);
+      return query;
+    }) as unknown as PaymentJoinRow[];
 
     // 4. Fold rows into reservations, keyed by group_id ?? booking_id.
     const byKey = new Map<string, PayoutReservation>();
@@ -261,7 +304,7 @@ export async function buildHotelPayoutOverview(input: BuildInput): Promise<Hotel
         res.paidAt = row.paid_at;
         const hit = txStatus.get(row.paystack_id);
         res.status = hit ? hit.status : "awaiting";
-        res.settledAt = hit ? hit.settledAt : null;
+        res.settledAt = hit?.settledAt ?? null;
       }
     }
 
@@ -274,8 +317,10 @@ export async function buildHotelPayoutOverview(input: BuildInput): Promise<Hotel
     //    in "processing" (money in transit but not yet in the bank).
     let paidOutMinor = 0;
     let awaitingMinor = 0;
+    let failedMinor = 0;
     for (const r of reservations) {
       if (r.status === "paid_out") paidOutMinor += r.amountMinor;
+      else if (r.status === "failed") failedMinor += r.amountMinor;
       else awaitingMinor += r.amountMinor;
     }
 
@@ -293,7 +338,10 @@ export async function buildHotelPayoutOverview(input: BuildInput): Promise<Hotel
       summary: {
         paidOutMinor,
         awaitingMinor,
+        failedMinor,
         schedule: settlementSchedule,
+        destination,
+        timeZone,
         currency,
         fromISO,
         toISO,
@@ -307,6 +355,8 @@ export async function buildHotelPayoutOverview(input: BuildInput): Promise<Hotel
     return emptyOverview(
       true,
       settlementSchedule,
+      destination,
+      timeZone,
       currency,
       { fromISO, toISO },
       (err as Error)?.message ?? "Failed to load payouts"

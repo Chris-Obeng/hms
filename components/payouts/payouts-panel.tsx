@@ -1,14 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Button, Chip, Pagination, Popover, Skeleton, Table } from "@heroui/react";
-import { Calendar as CalendarIcon, ChevronDown, RotateCw, Wallet } from "lucide-react";
-import { CalendarDate, getLocalTimeZone, today } from "@internationalized/date";
+import { Button, Chip, Pagination, Skeleton, Table } from "@heroui/react";
+import { RotateCw, Wallet } from "lucide-react";
+import { CalendarDate, today } from "@internationalized/date";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/money";
-import { formatDate } from "@/lib/format";
+import { formatDateInTimeZone } from "@/lib/format";
 import type { HotelPayoutOverview, PayoutReservation } from "@/lib/payouts";
-import { StayRangeCalendar } from "@/components/ui/stay-range-calendar";
+import { PaymentDateField } from "@/components/ui/payment-date-field";
 import { PayoutStatusBadge } from "./payout-status-badge";
 
 /**
@@ -25,9 +25,14 @@ function cdToISO(cd: CalendarDate): string {
   return `${cd.year}-${String(cd.month).padStart(2, "0")}-${String(cd.day).padStart(2, "0")}`;
 }
 
+function isoToCD(value: string): CalendarDate {
+  const [year, month, day] = value.split("-").map(Number);
+  return new CalendarDate(year, month, day);
+}
+
 /** Human label for a from/to ISO pair, e.g. "12 Aug – 10 Sep 2026". */
-function rangeLabel(fromISO: string, toISO: string): string {
-  return `${formatDate(fromISO, "dd MMM")} – ${formatDate(toISO, "dd MMM yyyy")}`;
+function rangeLabel(fromISO: string, toISO: string, timeZone: string): string {
+  return `${formatDateInTimeZone(fromISO, timeZone, { day: "2-digit", month: "short" })} – ${formatDateInTimeZone(toISO, timeZone, { day: "2-digit", month: "short", year: "numeric" })}`;
 }
 
 const SCHEDULE_LABELS: Record<string, string> = {
@@ -45,6 +50,8 @@ interface Props {
   initialData?: HotelPayoutOverview;
   /** Hotel side links back to the Settings tab when the bank isn't connected. */
   onGoToSetup?: () => void;
+  /** Property timezone used for calendar bounds and payout timestamps. */
+  timeZone?: string;
 }
 
 type ViewState =
@@ -88,10 +95,11 @@ export function PayoutsPanel({
   active = true,
   initialData,
   onGoToSetup,
+  timeZone = "UTC",
 }: Props) {
   // Default range = the last 30 days (inclusive of today), matching the
   // server's fallback window so a server-rendered first page isn't refetched.
-  const todayCd = React.useMemo(() => today(getLocalTimeZone()), []);
+  const todayCd = React.useMemo(() => today(timeZone), [timeZone]);
   const [range, setRange] = React.useState<{ start: CalendarDate; end: CalendarDate }>(
     () => ({ start: todayCd.subtract({ days: 29 }), end: todayCd })
   );
@@ -101,6 +109,7 @@ export function PayoutsPanel({
   );
   // Keep the current table on screen while a new range is fetched.
   const [refreshing, setRefreshing] = React.useState(false);
+  const requestId = React.useRef(0);
   // The range we've already loaded, so re-showing the tab doesn't refetch and a
   // server-rendered first range is trusted until the user changes it.
   const rangeKey = `${cdToISO(range.start)}|${cdToISO(range.end)}`;
@@ -108,9 +117,11 @@ export function PayoutsPanel({
 
   const runLoad = React.useCallback(
     async (r: { start: CalendarDate; end: CalendarDate }) => {
+      const currentRequest = ++requestId.current;
       setState((s) => (s.kind === "ready" ? s : { kind: "loading" }));
       setRefreshing(true);
       const result = await load({ from: cdToISO(r.start), to: cdToISO(r.end) });
+      if (currentRequest !== requestId.current) return;
       if (result.success) setState({ kind: "ready", data: result.data });
       else setState({ kind: "error", message: result.error });
       setRefreshing(false);
@@ -140,23 +151,24 @@ export function PayoutsPanel({
 
   const { summary, reservations } = data;
   const scheduleLabel = SCHEDULE_LABELS[summary.schedule ?? ""] ?? "Automatic · T+1";
-  const rangeText = rangeLabel(summary.fromISO, summary.toISO);
+  const rangeText = rangeLabel(summary.fromISO, summary.toISO, timeZone);
 
   return (
     <div className="space-y-5">
       {/* Schedule + date-range control */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
-          <Chip size="sm" variant="soft" color="default">
-            {scheduleLabel}
-          </Chip>
+          <div className="flex flex-wrap items-center gap-2">
+            <Chip size="sm" variant="soft" color="default">{scheduleLabel}</Chip>
+            {summary.destination ? <span className="text-caption text-muted-foreground">{summary.destination}</span> : null}
+          </div>
           {data.error ? (
             <span className="text-[11px] text-amber-600">
               Payout status may be delayed
             </span>
           ) : null}
         </div>
-        <PayoutRangeControl value={range} onChange={setRange} pending={refreshing} />
+        <PayoutRangeControl value={range} onChange={setRange} pending={refreshing} timeZone={timeZone} />
       </div>
 
       {/* Summary */}
@@ -172,13 +184,18 @@ export function PayoutsPanel({
           value={formatMoney(summary.awaitingMinor, summary.currency)}
           hint="In transit or not yet settled"
         />
+        <StatCard
+          label="Failed"
+          value={formatMoney(summary.failedMinor, summary.currency)}
+          hint="Needs review"
+        />
       </div>
 
       {/* Reservations */}
       {reservations.length === 0 ? (
         <NoBookingsState rangeText={rangeText} />
       ) : (
-        <ReservationList reservations={reservations} />
+        <ReservationList key={rangeKey} reservations={reservations} timeZone={timeZone} />
       )}
     </div>
   );
@@ -188,56 +205,37 @@ function PayoutRangeControl({
   value,
   onChange,
   pending,
+  timeZone,
 }: {
   value: { start: CalendarDate; end: CalendarDate };
   onChange: (range: { start: CalendarDate; end: CalendarDate }) => void;
   pending?: boolean;
+  timeZone: string;
 }) {
-  const [open, setOpen] = React.useState(false);
   // Past-only: a payout can never settle in the future.
-  const maxCd = React.useMemo(() => today(getLocalTimeZone()), []);
-
-  const handleChange = (val: { start: CalendarDate; end: CalendarDate } | null) => {
-    if (val?.start && val?.end) {
-      onChange({ start: val.start, end: val.end });
-      setOpen(false);
-    }
-  };
+  const maxCd = React.useMemo(() => today(timeZone), [timeZone]);
+  const maxISO = cdToISO(maxCd);
+  const startISO = cdToISO(value.start);
+  const endISO = cdToISO(value.end);
 
   return (
-    <Popover isOpen={open} onOpenChange={setOpen}>
-      <Popover.Trigger>
-        <button
-          type="button"
-          aria-label="Select payout date range"
-          className="inline-flex h-9 items-center gap-2 rounded-lg border border-border/60 bg-card px-3 text-xs font-medium text-foreground outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {pending ? (
-            <RotateCw className="size-3.5 animate-spin text-muted-foreground/60" aria-hidden />
-          ) : (
-            <CalendarIcon className="size-3.5 text-muted-foreground" aria-hidden />
-          )}
-          <span className="tabular-nums whitespace-nowrap">
-            {rangeLabel(cdToISO(value.start), cdToISO(value.end))}
-          </span>
-          <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden />
-        </button>
-      </Popover.Trigger>
-
-      <Popover.Content
-        placement="bottom end"
-        className="w-[min(46rem,calc(100vw-0.75rem))] max-w-[calc(100vw-0.75rem)] overflow-hidden border-border/60 p-0 shadow-xl"
-      >
-        <Popover.Dialog className="p-2.5 outline-none sm:p-4" aria-label="Payout date range">
-          <StayRangeCalendar
-            value={value}
-            onChange={handleChange}
-            maxValue={maxCd}
-            aria-label="Select payout date range"
-          />
-        </Popover.Dialog>
-      </Popover.Content>
-    </Popover>
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      {pending ? <RotateCw className="hidden size-3.5 animate-spin text-muted-foreground/60 sm:block" aria-label="Updating payouts" /> : null}
+      <PaymentDateField
+        label="From"
+        value={startISO}
+        max={endISO < maxISO ? endISO : maxISO}
+        onSelect={(next) => onChange({ start: isoToCD(next), end: value.end })}
+      />
+      <span className="hidden text-muted-foreground sm:inline" aria-hidden="true">–</span>
+      <PaymentDateField
+        label="To"
+        value={endISO}
+        min={startISO}
+        max={maxISO}
+        onSelect={(next) => onChange({ start: value.start, end: isoToCD(next) })}
+      />
+    </div>
   );
 }
 
@@ -315,12 +313,9 @@ function NoBookingsState({ rangeText }: { rangeText: string }) {
   );
 }
 
-function ReservationList({ reservations }: { reservations: PayoutReservation[] }) {
+function ReservationList({ reservations, timeZone }: { reservations: PayoutReservation[]; timeZone: string }) {
   const PAGE_SIZE = 10;
   const [page, setPage] = React.useState(1);
-  // A new range loads a fresh list — always restart at the first page.
-  React.useEffect(() => setPage(1), [reservations]);
-
   const totalPages = Math.max(1, Math.ceil(reservations.length / PAGE_SIZE));
   const current = Math.min(page, totalPages);
   const startIdx = (current - 1) * PAGE_SIZE;
@@ -332,7 +327,7 @@ function ReservationList({ reservations }: { reservations: PayoutReservation[] }
       {/* Mobile cards */}
       <div className="grid grid-cols-1 gap-3 md:hidden">
         {pageRows.map((r) => (
-          <ReservationCardMobile key={r.key} r={r} />
+          <ReservationCardMobile key={r.key} r={r} timeZone={timeZone} />
         ))}
       </div>
 
@@ -364,7 +359,7 @@ function ReservationList({ reservations }: { reservations: PayoutReservation[] }
                     {r.roomsCount}
                   </Table.Cell>
                   <Table.Cell className="whitespace-nowrap text-muted-foreground">
-                    {formatDate(r.paidAt)}
+                    {formatDateInTimeZone(r.paidAt, timeZone)}
                   </Table.Cell>
                   <Table.Cell className="whitespace-nowrap text-body font-medium tabular-nums text-foreground">
                     {formatMoney(r.amountMinor, r.currency)}
@@ -374,7 +369,7 @@ function ReservationList({ reservations }: { reservations: PayoutReservation[] }
                       <PayoutStatusBadge status={r.status} />
                       {r.settledAt ? (
                         <span className="text-[10px] text-muted-foreground/60">
-                          {formatDate(r.settledAt)}
+                          {formatDateInTimeZone(r.settledAt, timeZone)}
                         </span>
                       ) : null}
                     </div>
@@ -452,7 +447,7 @@ function ReservationPagination({
   );
 }
 
-function ReservationCardMobile({ r }: { r: PayoutReservation }) {
+function ReservationCardMobile({ r, timeZone }: { r: PayoutReservation; timeZone: string }) {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
       <div className="flex items-start justify-between gap-2">
@@ -472,13 +467,13 @@ function ReservationCardMobile({ r }: { r: PayoutReservation }) {
             {formatMoney(r.amountMinor, r.currency)}
           </span>
           <span className="text-caption text-muted-foreground">
-            Paid {formatDate(r.paidAt)}
+            Paid {formatDateInTimeZone(r.paidAt, timeZone)}
             {r.roomsCount > 1 ? ` · ${r.roomsCount} rooms` : ""}
           </span>
         </div>
         {r.settledAt ? (
           <span className="text-[11px] text-muted-foreground/60">
-            Settled {formatDate(r.settledAt)}
+            Settled {formatDateInTimeZone(r.settledAt, timeZone)}
           </span>
         ) : null}
       </div>
