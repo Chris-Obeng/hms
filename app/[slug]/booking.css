@@ -1,87 +1,74 @@
 /* ============================================================================
- * Guest booking site — warm editorial hospitality palette
+ * Guest booking checkout — HeroUI / Pencil design system tokens
  *
- * Every colour on guest pages flows from --bk-* tokens (or bridged HeroUI
- * tokens) below.
+ * Scoped to both `.booking-body` (in-tree layout) and `.booking-portal`
+ * (React Aria / HeroUI overlays portaled into `document.body`) so mobile
+ * bottom sheets, popovers, calendars, and select menus inherit every token.
  * ==========================================================================*/
 
-.booking-body {
-  font-family: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
-  font-size: 15px;
-  line-height: 1.65;
-  -webkit-font-smoothing: antialiased;
-  display: block;
-  min-height: 100dvh;
-  overflow-x: clip;
-
-  /* ── Guest tokens · LIGHT (warm stone + amber highlight) ── */
-  --bk-bg: #fafaf8;
+:is(.booking-body, .booking-portal) {
+  --bk-bg: #f5f5f5;
   --bk-surface: #ffffff;
-  --bk-surface-soft: #f5f4f1;
-  --bk-ink: #1c1917;
-  --bk-ink-hover: #292524;
-  --bk-ink-soft: #44403c;
-  --bk-muted: #78716c;
-  --bk-line: #e7e5e4;
-  --bk-line-strong: #d6d3d1;
-  --bk-accent: #b45309;
-  --bk-accent-hover: #92400e;
-  --bk-accent-soft: #fef3c7;
-  --bk-success: #047857;
-  --bk-success-soft: #ecfdf5;
-  --bk-success-line: #a7f3d0;
-  --bk-danger: #be123c;
-  --bk-danger-soft: #fff1f2;
-  --bk-danger-line: #fecdd3;
-  --bk-on-ink: #fafaf8;
-  --bk-chrome: rgb(250 250 248 / 0.92);
-  --bk-hero-panel: rgb(255 255 255 / 0.95);
-  --bk-field-bg: #ffffff;
-  --bk-focus-ring: rgb(28 25 23 / 0.08);
-  --bk-radius: 1rem;
-  --bk-radius-lg: 1.25rem;
-  --bk-shadow: 0 1px 2px rgb(28 25 23 / 0.04), 0 8px 24px rgb(28 25 23 / 0.04);
-  --bk-shadow-lg: 0 4px 6px rgb(28 25 23 / 0.03), 0 16px 40px rgb(28 25 23 / 0.08);
+  --bk-surface-soft: #f5f5f5;
+  --bk-surface-muted: #ebebec;
+  --bk-ink: #18181b;
+  --bk-ink-hover: #27272a;
+  --bk-ink-soft: #3f3f46;
+  --bk-muted: #71717a;
+  --bk-subtle: #a1a1aa;
+  --bk-line: #e4e4e7;
+  --bk-line-strong: #dedee0;
+  --bk-accent: #0485f7;
+  --bk-accent-hover: #0374db;
+  --bk-accent-soft: rgb(4 133 247 / 0.15);
+  --bk-success: #17c964;
+  --bk-success-soft: rgb(23 201 100 / 0.15);
+  --bk-warning: #f5a524;
+  --bk-warning-soft: rgb(245 165 36 / 0.15);
+  --bk-danger: #ff383c;
+  --bk-danger-soft: rgb(255 56 60 / 0.1);
+  --bk-danger-line: rgb(255 56 60 / 0.25);
+  --bk-on-accent: #fcfcfc;
+  --bk-on-ink: #fcfcfc;
+  --bk-focus-ring: rgb(4 133 247 / 0.18);
+  --bk-shadow-card: 0 2px 4px rgb(0 0 0 / 0.04);
+  --bk-shadow-search-desktop: 0 6px 16px rgb(0 0 0 / 0.12);
+  --bk-shadow-search-mobile: 0 2px 6px rgb(0 0 0 / 0.08);
 
+  color-scheme: light;
   color: var(--bk-ink);
-  background: var(--bk-bg);
 
-  /* ── Force HeroUI light form tokens on guest pages ── */
-  --white: oklch(100% 0 0);
-  --snow: oklch(0.9911 0 0);
-  --eclipse: oklch(0.2103 0.0059 285.89);
-  --foreground: var(--eclipse);
-  --muted: oklch(0.5517 0.0138 285.94);
-  --default: oklch(94% 0.001 286.375);
-  --default-foreground: var(--eclipse);
-  --default-hover: oklch(92% 0.001 286.375);
-  --field-background: var(--white);
-  --field-foreground: var(--eclipse);
-  --field-placeholder: oklch(0.55 0.01 286);
-  --field-border: oklch(0.88 0.004 286);
-  --overlay: var(--white);
-  --overlay-foreground: var(--eclipse);
-  --border: oklch(90% 0.004 286.32);
-  --separator: oklch(92% 0.004 286.32);
-  --accent: oklch(0.6204 0.195 253.83);
-  --accent-foreground: var(--snow);
-  --accent-hover: color-mix(in oklab, var(--accent) 90%, var(--foreground) 10%);
-  --accent-soft: color-mix(in oklab, var(--accent) 15%, transparent);
-  --accent-soft-foreground: color-mix(
-    in oklab,
-    var(--accent) 70%,
-    var(--foreground) 30%
-  );
-  --accent-soft-hover: color-mix(in oklab, var(--accent) 20%, transparent);
+  /* HeroUI v3 light form & overlay tokens */
+  --white: #ffffff;
+  --snow: #fcfcfc;
+  --eclipse: #18181b;
+  --foreground: #18181b;
+  --muted: #71717a;
+  --default: #f5f5f5;
+  --default-foreground: #18181b;
+  --default-hover: #ebebec;
+  --field-background: #ffffff;
+  --field-foreground: #18181b;
+  --field-placeholder: #71717a;
+  --field-border: #dedee0;
+  --overlay: #ffffff;
+  --overlay-foreground: #18181b;
+  --border: #e4e4e7;
+  --separator: #e4e4e7;
+  --accent: #0485f7;
+  --accent-foreground: #fcfcfc;
+  --accent-hover: #0374db;
+  --accent-soft: rgb(4 133 247 / 0.15);
+  --accent-soft-foreground: #0485f7;
+  --accent-soft-hover: rgb(4 133 247 / 0.22);
 
-  /* Semantic tokens consumed by Tailwind utilities inside guest pages */
-  /* (bg-background, bg-card, bg-popover, text-muted-foreground, …) */
+  /* Tailwind semantic bridges */
   --background: var(--bk-surface);
   --card: var(--bk-surface);
   --popover: var(--bk-surface);
   --muted-foreground: var(--bk-muted);
   --primary: var(--bk-accent);
-  --primary-foreground: var(--bk-on-ink);
+  --primary-foreground: var(--bk-on-accent);
   --ring: var(--bk-accent);
 
   --color-foreground: var(--foreground);
@@ -100,6 +87,40 @@
   --color-border: var(--border);
 }
 
+.booking-body {
+  font-family: var(--font-booking-sans), "Inter", ui-sans-serif, system-ui,
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  display: block;
+  min-height: 100dvh;
+  overflow-x: clip;
+  background: var(--bk-bg);
+}
+
+.booking-portal {
+  font-family: var(--font-booking-sans), "Inter", ui-sans-serif, system-ui,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.booking-mono,
+.booking-price {
+  font-family: var(--font-booking-mono), "JetBrains Mono", ui-monospace,
+    SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.booking-heading {
+  font-family: var(--font-booking-sans), "Inter", ui-sans-serif, system-ui,
+    sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
 /* Keyboard skip link — offscreen until focused */
 .booking-skip-link {
   position: absolute;
@@ -107,301 +128,90 @@
   top: -100px;
   z-index: 100;
   padding: 0.5rem 1rem;
-  border-radius: 0.75rem;
-  background: var(--bk-ink);
-  color: var(--bk-on-ink);
-  font-size: 0.875rem;
+  border-radius: 999px;
+  background: var(--bk-accent);
+  color: var(--bk-on-accent);
+  font-size: 0.8125rem;
   font-weight: 600;
   text-decoration: none;
   transition: top 150ms ease;
 }
 
 .booking-skip-link:focus {
-  top: 1rem;
-  outline: 2px solid var(--bk-accent);
+  top: 0.75rem;
+  outline: 2px solid var(--bk-ink);
   outline-offset: 2px;
 }
 
-.booking-heading {
-  font-family: var(--font-cormorant), Georgia, serif;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.15;
-  text-wrap: balance;
+/* Primary pill CTA (#0485F7) */
+.booking-btn-primary {
+  background: var(--bk-accent) !important;
+  color: var(--bk-on-accent) !important;
+  border: none !important;
+  border-radius: 999px !important;
+  font-weight: 500 !important;
+  transition: background-color 160ms ease, transform 120ms ease,
+    opacity 160ms ease !important;
 }
 
-.booking-heading-italic {
-  font-family: var(--font-cormorant), Georgia, serif;
-  font-style: italic;
-  font-weight: 500;
-  line-height: 1.2;
+.booking-btn-primary:hover:not(:disabled) {
+  background: var(--bk-accent-hover) !important;
 }
 
-/* Sticky guest chrome */
-.booking-header {
-  background: var(--bk-chrome);
-  backdrop-filter: blur(14px) saturate(1.2);
-  -webkit-backdrop-filter: blur(14px) saturate(1.2);
-  border-bottom: 1px solid var(--bk-line);
-  box-shadow: 0 1px 0 rgb(28 25 23 / 0.02), 0 8px 24px rgb(28 25 23 / 0.04);
-  transition:
-    background 220ms cubic-bezier(0.32, 0.72, 0, 1),
-    border-color 220ms cubic-bezier(0.32, 0.72, 0, 1),
-    box-shadow 220ms cubic-bezier(0.32, 0.72, 0, 1),
-    backdrop-filter 220ms ease;
+.booking-btn-primary:active:not(:disabled) {
+  transform: scale(0.985);
 }
 
-.booking-header-hero {
-  /* Keep gradient tight to bar height — avoid tall wash over hero */
-  background: linear-gradient(
-    to bottom,
-    rgb(0 0 0 / 0.42) 0%,
-    rgb(0 0 0 / 0.18) 85%,
-    transparent 100%
-  );
-  border-bottom: 1px solid transparent;
-  box-shadow: none;
-  transition:
-    background 220ms cubic-bezier(0.32, 0.72, 0, 1),
-    border-color 220ms cubic-bezier(0.32, 0.72, 0, 1),
-    box-shadow 220ms cubic-bezier(0.32, 0.72, 0, 1);
+.booking-btn-primary:disabled {
+  background: var(--bk-surface-muted) !important;
+  color: var(--bk-subtle) !important;
+  cursor: not-allowed !important;
 }
 
-/* Hero header after scroll — reuses solid chrome tokens */
-.booking-header-hero[data-solid="true"] {
-  background: var(--bk-chrome);
-  backdrop-filter: blur(14px) saturate(1.2);
-  -webkit-backdrop-filter: blur(14px) saturate(1.2);
-  border-bottom: 1px solid var(--bk-line);
-  box-shadow: 0 1px 0 rgb(28 25 23 / 0.02), 0 8px 24px rgb(28 25 23 / 0.04);
-}
-
-/* White pill CTA over dark hero imagery — stays high-contrast in both themes */
-.booking-cta-on-hero {
-  background: #ffffff !important;
-  color: #1c1917 !important;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 4px 16px rgb(0 0 0 / 0.12) !important;
-}
-
-.booking-cta-on-hero:hover:not(:disabled) {
-  background: #f5f5f4 !important;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.14) !important;
-}
-
-.booking-cta-on-hero:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.booking-cta-on-hero:focus-visible {
-  outline: 2px solid #ffffff;
+.booking-btn-primary:focus-visible {
+  outline: 2px solid var(--bk-accent);
   outline-offset: 2px;
 }
 
 /* Surfaces */
+.booking-card {
+  background: var(--bk-surface);
+  border: 1px solid var(--bk-line);
+  border-radius: 1rem;
+}
+
+@media (min-width: 768px) {
+  .booking-card {
+    border-radius: 1.5rem;
+  }
+}
+
+.booking-room-card {
+  background: var(--bk-surface);
+  border-radius: 1.5rem;
+  box-shadow: var(--bk-shadow-card);
+  border: 1.5px solid transparent;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.booking-room-card[data-selected="true"] {
+  border-color: var(--bk-accent);
+  box-shadow: 0 4px 14px rgb(4 133 247 / 0.1);
+}
+
+/* Payment verification & retry panels on confirmation page */
 .booking-surface {
   background: var(--bk-surface);
   border: 1px solid var(--bk-line);
-  border-radius: var(--bk-radius-lg);
-  box-shadow: var(--bk-shadow);
+  border-radius: 1rem;
 }
 
-.booking-surface-soft {
-  background: var(--bk-surface-soft);
-  border: 1px solid var(--bk-line);
-  border-radius: var(--bk-radius);
+@media (min-width: 768px) {
+  .booking-surface {
+    border-radius: 1.5rem;
+  }
 }
 
-/* Primary guest CTA */
-.booking-cta {
-  background: var(--bk-ink) !important;
-  color: var(--bk-on-ink) !important;
-  border: none !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.01em;
-  transition: background 200ms cubic-bezier(0.32, 0.72, 0, 1),
-    transform 150ms cubic-bezier(0.32, 0.72, 0, 1),
-    box-shadow 200ms cubic-bezier(0.32, 0.72, 0, 1) !important;
-}
-
-.booking-cta:hover:not(:disabled) {
-  background: var(--bk-ink-hover) !important;
-  box-shadow: var(--bk-shadow);
-}
-
-.booking-cta:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.booking-cta:disabled {
-  background: var(--bk-line) !important;
-  color: var(--bk-muted) !important;
-  box-shadow: none !important;
-}
-
-/* Accent CTA (pay / confirm) */
-.booking-cta-accent {
-  background: var(--bk-accent) !important;
-  color: #171412 !important;
-}
-
-.booking-cta-accent:hover:not(:disabled) {
-  background: var(--bk-accent-hover) !important;
-}
-
-/* Form field shell inside booking — readable labels, values, placeholders */
-.booking-field {
-  color: var(--bk-ink);
-}
-
-.booking-field [data-slot="label"],
-.booking-field label {
-  color: var(--bk-ink);
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-
-.booking-field input,
-.booking-field textarea,
-.booking-field [data-slot="input"],
-.booking-field .input {
-  border-radius: 0.75rem;
-  color: var(--bk-ink) !important;
-  background: var(--bk-field-bg) !important;
-  border: 1px solid var(--bk-line) !important;
-  box-shadow: none;
-}
-
-.booking-field input::placeholder,
-.booking-field textarea::placeholder,
-.booking-field .input::placeholder {
-  color: var(--bk-muted) !important;
-  opacity: 1;
-}
-
-.booking-field input:focus,
-.booking-field textarea:focus,
-.booking-field .input:focus-visible {
-  border-color: var(--bk-accent) !important;
-  outline: none;
-  box-shadow: 0 0 0 3px var(--bk-focus-ring);
-}
-
-/* Nationality select trigger — match field contrast */
-.booking-field-select {
-  color: var(--bk-ink);
-}
-
-.booking-field-select [data-slot="label"],
-.booking-field-select label {
-  color: var(--bk-ink);
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-
-.booking-field-select .select__trigger,
-.booking-field-select [class*="trigger"] {
-  color: var(--bk-ink);
-  background: var(--bk-field-bg);
-  border-color: var(--bk-line);
-}
-
-/* Step connector line */
-.booking-step-track {
-  height: 2px;
-  background: var(--bk-line);
-  flex: 1;
-  min-width: 1.5rem;
-}
-
-.booking-step-track[data-done="true"] {
-  background: var(--bk-ink);
-}
-
-/* Room option selection ring */
-.booking-room-option {
-  border: 1.5px solid var(--bk-line);
-  border-radius: var(--bk-radius-lg);
-  background: var(--bk-surface);
-  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
-}
-
-.booking-room-option:hover {
-  border-color: var(--bk-line-strong);
-}
-
-.booking-room-option[data-selected="true"] {
-  border-color: var(--bk-accent);
-  background: var(--bk-bg);
-  box-shadow: inset 0 0 0 1px var(--bk-accent);
-}
-
-/* Sold out or closed by a rate plan restriction: unbookable either way. */
-.booking-room-option[data-blocked="true"] {
-  border-style: dashed;
-}
-
-.booking-room-option:focus-visible {
-  outline: 2px solid var(--bk-accent);
-  outline-offset: 2px;
-}
-
-.booking-cta:focus-visible {
-  outline: 2px solid var(--bk-accent);
-  outline-offset: 2px;
-}
-
-/* Payment option cards */
-.booking-pay-option {
-  border: 1.5px solid var(--bk-line);
-  border-radius: var(--bk-radius);
-  background: var(--bk-surface);
-  transition: border-color 180ms ease, background 180ms ease;
-}
-
-.booking-pay-option:hover {
-  border-color: var(--bk-line-strong);
-}
-
-.booking-pay-option[data-selected="true"] {
-  border-color: var(--bk-accent);
-  background: var(--bk-accent-soft);
-}
-
-/* Tabular prices */
-.booking-price {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
-}
-
-/* Soft selection chip */
-.booking-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.65rem;
-  font-weight: 500;
-  background: var(--bk-surface-soft);
-  color: var(--bk-ink-soft);
-  border: 1px solid var(--bk-line);
-}
-
-/* Trust pill */
-.booking-trust {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--bk-ink-soft);
-  background: var(--bk-surface-soft);
-  border: 1px solid var(--bk-line);
-}
-
-/* Status icon medallion (confirmation page) */
 .booking-status-icon {
   display: inline-flex;
   align-items: center;
@@ -414,180 +224,197 @@
   border: 1px solid var(--bk-line);
 }
 
-.booking-status-icon-hero {
-  width: 3.5rem;
-  height: 3.5rem;
-  color: var(--bk-success);
-  background: var(--bk-success-soft);
-  border: 1px solid var(--bk-success-line);
+.booking-cta,
+.booking-cta-accent {
+  background: var(--bk-accent) !important;
+  color: var(--bk-on-accent) !important;
+  border-radius: 999px !important;
+  font-weight: 500 !important;
 }
 
-.booking-status-icon-hero[data-state="awaiting_payment"] {
-  color: var(--bk-accent);
-  background: var(--bk-accent-soft);
-  border-color: var(--bk-accent);
+.booking-cta:hover:not(:disabled),
+.booking-cta-accent:hover:not(:disabled) {
+  background: var(--bk-accent-hover) !important;
 }
 
-.booking-status-icon-hero[data-state="expired"],
-.booking-status-icon-hero[data-state="cancelled"] {
-  color: var(--bk-danger);
-  background: var(--bk-danger-soft);
-  border-color: var(--bk-danger-line);
-}
-
-/* Payment verification pill (confirmation page) */
 .booking-verify-pill {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  font-size: 0.875rem;
-  border-radius: 0.75rem;
+  font-size: 0.8125rem;
+  border-radius: 0.875rem;
   padding: 0.625rem 1rem;
-  margin-bottom: 1rem;
 }
 
 .booking-verify-pill[data-state="confirmed"] {
   color: var(--bk-success);
   background: var(--bk-success-soft);
-  border: 1px solid var(--bk-success-line);
 }
 
 .booking-verify-pill[data-state="polling"] {
   color: var(--bk-muted);
-  background: var(--bk-surface-soft);
+  background: var(--bk-surface);
   border: 1px solid var(--bk-line);
 }
 
 .booking-verify-note {
   font-size: 0.75rem;
-  line-height: 1.6;
+  line-height: 1.5;
   text-align: center;
-  margin-bottom: 1rem;
   color: var(--bk-muted);
 }
 
-/* Mobile sticky checkout bar — fixed for reliable thumb reach (OTA pattern) */
-.booking-sticky-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 35;
-  background: var(--bk-chrome);
-  backdrop-filter: blur(14px) saturate(1.1);
-  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+/* ============================================================================
+ * Mobile bottom sheets (HeroUI Drawer portaled to document.body)
+ * ==========================================================================*/
+
+.booking-sheet-dialog {
+  width: 100% !important;
+  max-width: 100% !important;
+  max-height: min(90dvh, 44rem) !important;
+  background: var(--bk-surface) !important;
+  color: var(--bk-ink) !important;
   border-top: 1px solid var(--bk-line);
-  padding: 0.625rem max(0.875rem, env(safe-area-inset-left))
-    max(0.625rem, env(safe-area-inset-bottom))
-    max(0.875rem, env(safe-area-inset-right));
-  box-shadow: 0 -8px 28px rgb(28 25 23 / 0.08);
+  border-top-left-radius: 1.5rem !important;
+  border-top-right-radius: 1.5rem !important;
+  padding: 0.625rem max(1rem, env(safe-area-inset-left))
+    max(1rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-right)) !important;
+  box-shadow: 0 -12px 36px rgb(0 0 0 / 0.14) !important;
 }
 
-@media (min-width: 640px) {
-  .booking-sticky-bar {
-    display: none;
-  }
+.booking-sheet-dialog .drawer__handle {
+  padding-top: 0.125rem;
+  padding-bottom: 0.625rem;
 }
 
-/* Booking funnel room cards — slightly denser on narrow phones */
-@media (max-width: 379px) {
-  .booking-room-option {
-    padding: 0.625rem;
-  }
+.booking-sheet-dialog .drawer__handle > [data-slot="drawer-handle-bar"] {
+  width: 2.25rem;
+  height: 0.25rem;
+  border-radius: 999px;
+  background: var(--bk-line-strong) !important;
 }
 
-/* Prevent iOS zoom on focus — inputs need ≥16px */
-.booking-body input,
-.booking-body textarea,
-.booking-body select,
-.booking-field input,
-.booking-field textarea {
-  font-size: 16px;
+.booking-sheet-dialog .drawer__close-trigger {
+  top: 1.45rem;
+  inset-inline-end: max(1rem, env(safe-area-inset-right));
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--bk-surface-soft);
+  color: var(--bk-muted);
+  border: 1px solid var(--bk-line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-@media (min-width: 640px) {
+.booking-sheet-dialog .drawer__header {
+  padding-inline-end: 2.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--bk-line);
+  gap: 0.2rem;
+}
+
+.booking-sheet-dialog .drawer__heading {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--bk-ink) !important;
+  line-height: 1.3;
+}
+
+.booking-sheet-dialog .drawer__body {
+  color: var(--bk-ink) !important;
+  margin: 0 !important;
+  padding: 0.875rem 0 0.25rem 0 !important;
+  overflow-x: hidden;
+}
+
+.booking-sheet-dialog .drawer__header + .drawer__body {
+  margin-top: 0 !important;
+}
+
+.booking-sheet-dialog .drawer__body + .drawer__footer {
+  margin-top: 0.875rem !important;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--bk-line);
+}
+
+/* ============================================================================
+ * Calendar surface (#0485F7 range caps + soft blue range track)
+ * ==========================================================================*/
+
+.booking-calendar-surface,
+.booking-calendar-surface .range-calendar {
+  --accent: #0485f7;
+  --accent-foreground: #fcfcfc;
+  --accent-hover: #0374db;
+  --accent-soft: rgb(4 133 247 / 0.14);
+  --accent-soft-foreground: #0485f7;
+  --accent-soft-hover: rgb(4 133 247 / 0.2);
+  --muted: #71717a;
+  --foreground: #18181b;
+  --default: #f5f5f5;
+}
+
+.booking-calendar-surface .range-calendar__header {
+  padding-bottom: 0.75rem;
+}
+
+.booking-calendar-surface .range-calendar__heading {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--bk-ink) !important;
+}
+
+.booking-calendar-surface .range-calendar__nav-button {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.625rem;
+  border: 1px solid var(--bk-line);
+  background: var(--bk-surface);
+  color: var(--bk-ink) !important;
+}
+
+.booking-calendar-surface .range-calendar__nav-button:hover:not(:disabled) {
+  background: var(--bk-surface-soft);
+}
+
+.booking-calendar-surface .range-calendar__header-cell {
+  color: var(--bk-muted) !important;
+  font-weight: 500;
+  font-size: 0.75rem;
+}
+
+.booking-calendar-surface .range-calendar__cell-button {
+  color: var(--bk-ink);
+  font-weight: 500;
+}
+
+.booking-calendar-surface
+  .range-calendar__cell[data-selection-start="true"]
+  .range-calendar__cell-button,
+.booking-calendar-surface
+  .range-calendar__cell[data-selection-end="true"]
+  .range-calendar__cell-button {
+  background: var(--bk-accent) !important;
+  color: var(--bk-on-accent) !important;
+  font-weight: 600;
+}
+
+/* Prevent iOS zoom on focus — inputs need >=16px on <640px */
+@media (max-width: 639px) {
   .booking-body input,
   .booking-body textarea,
-  .booking-body select,
-  .booking-field input,
-  .booking-field textarea {
-    font-size: 0.875rem;
+  .booking-body select {
+    font-size: 16px;
   }
 }
 
-/* Popovers / dialogs stay inside viewport on narrow phones */
-.booking-popover-panel {
-  width: min(20rem, calc(100vw - 1.5rem));
-  max-width: calc(100vw - 1.5rem);
-  /* Same isolation as calendar: readable over any underlying theme */
-  color-scheme: inherit;
-  background: var(--bk-surface);
-  color: var(--bk-ink);
-  --foreground: var(--bk-ink);
-  --muted: var(--bk-muted);
-  --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
-  --color-border: var(--bk-line);
-}
-
-.booking-calendar-panel {
-  width: min(21rem, calc(100vw - 1.25rem));
-  max-width: calc(100vw - 1.25rem);
-  /* Token-driven surface — correct over both light and dark html themes */
-  color-scheme: inherit;
-  background: var(--bk-surface);
-  color: var(--bk-ink);
-  border-radius: 1rem;
-  box-shadow:
-    0 1px 2px rgb(15 23 42 / 0.06),
-    0 12px 32px rgb(15 23 42 / 0.12);
-
-  /*
-   * Isolate calendar tokens so the surrounding html theme never washes out
-   * day numbers / selection. Values derive from the guest palette so light
-   * and dark stay consistent with the rest of the funnel.
-   */
-  --white: var(--bk-surface);
-  --snow: var(--bk-surface-soft);
-  --eclipse: var(--bk-ink);
-  --background: var(--bk-bg);
-  --foreground: var(--bk-ink);
-  --overlay: var(--bk-surface);
-  --overlay-foreground: var(--bk-ink);
-  --muted: var(--bk-muted);
-  --default: var(--bk-surface-soft);
-  --default-foreground: var(--bk-ink);
-  --border: var(--bk-line);
-  --focus: var(--bk-accent);
-
-  /* HeroUI utility bridges */
-  --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
-  --color-default: var(--default);
-  --color-default-foreground: var(--default-foreground);
-  /* Selection uses the neutral HeroUI default accent, not guest amber */
-  --accent: oklch(0.6204 0.195 253.83);
-  --accent-foreground: oklch(0.9911 0 0);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-
-  /* Readability token for native day-name header / outside-month cells */
-  --muted-foreground: var(--bk-muted);
-}
-
-/* Dual-month layout needs breathing room on desktop */
-@media (min-width: 768px) {
-  .booking-calendar-panel {
-    width: auto;
-    max-width: 46rem;
-  }
-}
-
-/* Full-bleed sticky header padding on notched phones */
 .booking-safe-x {
-  padding-left: max(1.25rem, env(safe-area-inset-left));
-  padding-right: max(1.25rem, env(safe-area-inset-right));
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
 }
 
 @media (min-width: 768px) {
@@ -597,23 +424,9 @@
   }
 }
 
-/* Comfortable tap targets on coarse pointers */
-@media (pointer: coarse) {
-  .booking-cta,
-  .booking-room-option,
-  .booking-pay-option {
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .booking-room-option {
-    min-height: 4.5rem;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .booking-cta,
-  .booking-room-option,
-  .booking-pay-option {
+  .booking-btn-primary,
+  .booking-room-card {
     transition: none !important;
   }
 }

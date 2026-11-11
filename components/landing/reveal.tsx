@@ -5,309 +5,107 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type ElementType,
+  type CSSProperties,
   type ReactNode,
 } from "react";
-import { motion } from "motion/react";
-
-/*
- * Motion kit for the landing page, on motion/react.
- *
- * One law survives every rewrite: content is visible by default and only hides
- * once JS arms it, so no-JS visitors and crawlers read everything. A reveal
- * plays on load when it opens near the fold and on scroll when it sits below it.
- * Arming is a keyed remount inside a layout effect, so the hidden start is
- * committed before paint and the entrance never flashes. Reduced motion stays
- * static everywhere.
- */
-
-const EASE = [0.16, 1, 0.3, 1] as const;
 
 const useIsoLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-function prefersReduced() {
+function reducedMotion(): boolean {
   return (
     typeof window !== "undefined" &&
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
   );
 }
 
-function useReveal<T extends HTMLElement = HTMLElement>(
-  amount = 0.18,
-  margin = "0px 0px -8% 0px",
-) {
-  const ref = useRef<T | null>(null);
-  const [armed, setArmed] = useState(false);
-  const [play, setPlay] = useState(false);
+/**
+ * Off-main-thread CSS entrance. SSR-visible by default so no-JS visitors
+ * never hit empty space.
+ */
+export function Reveal({
+  children,
+  className,
+  delay = 0,
+}: {
+  children: ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [state, setState] = useState<"ssr" | "pending" | "shown">("ssr");
 
-  // Arm before paint: commits the hidden start and, near the fold, plays at once.
   useIsoLayoutEffect(() => {
     const el = ref.current;
-    if (!el) return;
-    if (prefersReduced()) return;
-    setArmed(true);
+    if (!el || reducedMotion()) return;
     if (el.getBoundingClientRect().top < window.innerHeight * 0.94) {
-      setPlay(true);
+      setState("pending");
+      const raf = requestAnimationFrame(() => setState("shown"));
+      return () => cancelAnimationFrame(raf);
     }
+    setState("pending");
   }, []);
 
-  // Watch the *armed* node, not the pre-arm one. Arming is a keyed remount, so
-  // the observer must re-bind after it or it ends up on a detached node that
-  // never intersects — which strands every below-fold reveal at opacity 0.
   useEffect(() => {
-    if (!armed || play) return;
+    if (state !== "pending") return;
     const el = ref.current;
     if (!el) return;
-    const io = new IntersectionObserver(
+    const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) setPlay(true);
+        if (entry?.isIntersecting) {
+          setState("shown");
+          observer.disconnect();
+        }
       },
-      { threshold: amount, rootMargin: margin },
+      { threshold: 0.12, rootMargin: "0px 0px -5% 0px" },
     );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [armed, play, amount, margin]);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [state]);
 
-  return { ref, armed, play };
-}
-
-export function Reveal({
-  as,
-  delay = 0,
-  className,
-  children,
-  y = 10,
-  duration = 0.62,
-}: {
-  as?: ElementType;
-  delay?: number;
-  className?: string;
-  children: ReactNode;
-  /** Rise distance in px. */
-  y?: number;
-  duration?: number;
-}) {
-  const { ref, armed, play } = useReveal();
-  const M = motion[(as ?? "div") as keyof typeof motion] as ElementType;
-  return (
-    <M
-      ref={ref}
-      key={armed ? "on" : "off"}
-      className={className}
-      variants={{ hide: { opacity: 0, y }, show: { opacity: 1, y: 0 } }}
-      initial={armed ? "hide" : false}
-      animate={!armed || play ? "show" : "hide"}
-      transition={{ duration, ease: EASE, delay: delay / 1000 }}
-    >
-      {children}
-    </M>
-  );
-}
-
-/* Stagger group: fade + rise, ~70ms per child. Visible by default; arms the
- * hidden start only in JS, like Reveal. */
-export function Stagger({
-  className,
-  children,
-  delay = 0,
-  step = 70,
-}: {
-  className?: string;
-  children: ReactNode;
-  delay?: number;
-  /** Stagger gap in ms between children. */
-  step?: number;
-}) {
-  const { ref, armed, play } = useReveal<HTMLDivElement>(0.12);
-  return (
-    <motion.div
-      ref={ref}
-      className={className}
-      initial={armed ? "hide" : false}
-      animate={!armed || play ? "show" : "hide"}
-      variants={{
-        hide: {},
-        show: {
-          transition: {
-            staggerChildren: step / 1000,
-            delayChildren: delay / 1000,
-          },
-        },
-      }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-export function StaggerItem({
-  className,
-  children,
-}: {
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <motion.div
-      className={className}
-      variants={{
-        hide: { opacity: 0, y: 10 },
-        show: { opacity: 1, y: 0, transition: { duration: 0.62, ease: EASE } },
-      }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-/* Magnetic hover for the primary CTA: the button leans toward the cursor
- * (max ~6px) and eases home on leave. Pointer-only; touch stays static. */
-export function Magnetic({
-  className,
-  children,
-  strength = 6,
-}: {
-  className?: string;
-  children: ReactNode;
-  strength?: number;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
+  const style: CSSProperties | undefined =
+    delay > 0 ? ({ "--rl-delay": `${delay}ms` } as CSSProperties) : undefined;
 
   return (
     <div
       ref={ref}
+      data-reveal={state === "ssr" ? undefined : state}
       className={className}
-      style={{ display: "inline-block" }}
-      onMouseMove={(e) => {
-        const el = ref.current;
-        if (!el) return;
-        if (prefersReduced()) return;
-        if (window.matchMedia?.("(hover: none)").matches) return;
-        const r = el.getBoundingClientRect();
-        const dx = e.clientX - (r.left + r.width / 2);
-        const dy = e.clientY - (r.top + r.height / 2);
-        const nx = Math.max(-0.5, Math.min(0.5, dx / r.width));
-        const ny = Math.max(-0.5, Math.min(0.5, dy / r.height));
-        el.style.transform = `translate(${Number((nx * strength * 2).toFixed(2))}px, ${Number((ny * strength * 2).toFixed(2))}px)`;
-        el.style.transition = "transform 120ms cubic-bezier(0.16,1,0.3,1)";
-      }}
-      onMouseLeave={() => {
-        const el = ref.current;
-        if (!el) return;
-        el.style.transition = "transform 420ms cubic-bezier(0.16,1,0.3,1)";
-        el.style.transform = "translate(0px, 0px)";
-      }}
+      style={style}
     >
       {children}
     </div>
   );
 }
 
-/* Line-by-line mask reveal for headlines. Each line rides up from behind a
- * clip; .lp-mask supplies the overflow clip and optical padding. */
-export function MaskLines({
-  lines,
-  className,
-  delay = 0,
-  step = 80,
-}: {
-  lines: string[];
-  className?: string;
-  delay?: number;
-  step?: number;
-}) {
-  const { ref, armed, play } = useReveal(0.3);
+/**
+ * Masked two-line headline reveal (signature hero move).
+ */
+export function MaskedLines({ lines }: { lines: readonly [string, string] }) {
+  const [state, setState] = useState<"ssr" | "pending" | "shown">("ssr");
+
+  useIsoLayoutEffect(() => {
+    if (reducedMotion()) return;
+    setState("pending");
+    const raf = requestAnimationFrame(() => setState("shown"));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   return (
-    <span
-      ref={ref as React.RefObject<HTMLSpanElement>}
-      className={className}
-      style={{ display: "block" }}
-    >
+    <span data-line-state={state === "ssr" ? undefined : state}>
       {lines.map((line, i) => (
-        <span key={`${i}-${line}`} className="lp-mask">
-          <motion.span
-            key={armed ? `on-${line}` : `off-${line}`}
-            className="lp-mask__inner"
-            initial={armed ? { y: "112%" } : false}
-            animate={!armed || play ? { y: "0%" } : { y: "112%" }}
-            transition={{
-              duration: 0.82,
-              ease: EASE,
-              delay: (delay + i * step) / 1000,
-            }}
-          >
-            {line}
-          </motion.span>
+        <span
+          key={`${i}-${line}`}
+          className="rl-mask-line"
+          style={
+            i > 0
+              ? ({ "--rl-delay": `${i * 95}ms` } as CSSProperties)
+              : undefined
+          }
+        >
+          <span className="rl-mask-inner">{line}</span>
         </span>
       ))}
-    </span>
-  );
-}
-
-/* Count-up on a real figure. Renders the final value for SSR/no-JS, then, when
- * scrolled into view, snaps to the start and eases up. rAF keeps it free of any
- * import-path ambiguity; reduced motion holds the final value. */
-export function CountUp({
-  to,
-  from = 0,
-  duration = 1200,
-  decimals = 0,
-  prefix = "",
-  suffix = "",
-  className,
-}: {
-  to: number;
-  from?: number;
-  duration?: number;
-  decimals?: number;
-  prefix?: string;
-  suffix?: string;
-  className?: string;
-}) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const [value, setValue] = useState(to);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (prefersReduced()) return;
-    let raf = 0;
-    const run = () => {
-      const t0 = performance.now();
-      const tick = (now: number) => {
-        const p = Math.min(1, (now - t0) / duration);
-        const eased = 1 - Math.pow(1 - p, 3);
-        setValue(from + (to - from) * eased);
-        if (p < 1) raf = requestAnimationFrame(tick);
-      };
-      setValue(from);
-      raf = requestAnimationFrame(tick);
-    };
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          run();
-          io.disconnect();
-        }
-      },
-      { threshold: 0.4 },
-    );
-    io.observe(el);
-    return () => {
-      io.disconnect();
-      cancelAnimationFrame(raf);
-    };
-  }, [from, to, duration]);
-
-  return (
-    <span ref={ref} className={className}>
-      {prefix}
-      {value.toLocaleString("en-US", {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-      })}
-      {suffix}
     </span>
   );
 }

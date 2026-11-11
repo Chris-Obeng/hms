@@ -238,6 +238,9 @@ async function handleAvailability(
         // Override-resolved prices for the selected dates
         displayPrice: resolved?.displayPrice ?? rt.base_price,
         subtotal: resolved?.subtotal ?? null,
+        nights:
+          resolved?.nights?.map((n) => ({ date: n.date, price: n.price })) ??
+          [],
         amenities: rt.amenities ?? [],
         images: rt.images ?? [],
         available: count > 0,

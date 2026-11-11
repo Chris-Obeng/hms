@@ -13,6 +13,31 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    // Forward legacy guest booking sub-routes to the consolidated direct
+    // booking flow at /:slug and /:slug/confirmation (query strings preserved).
+    // Negative lookahead ensures static app prefixes (e.g. /dashboard/rooms)
+    // are never matched.
+    const slugSegment =
+      ":slug((?!dashboard(?:/|$)|platform(?:/|$)|sign-in(?:/|$)|sign-up(?:/|$)|onboarding(?:/|$)|api(?:/|$)|_next(?:/|$)|join(?:/|$)|offline(?:/|$)|monitoring(?:/|$))[^/]+)";
+    return [
+      {
+        source: `/${slugSegment}/book/confirmation`,
+        destination: "/:slug/confirmation",
+        permanent: true,
+      },
+      {
+        source: `/${slugSegment}/book`,
+        destination: "/:slug",
+        permanent: true,
+      },
+      {
+        source: `/${slugSegment}/rooms`,
+        destination: "/:slug",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

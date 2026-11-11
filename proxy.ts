@@ -20,9 +20,7 @@ const TUNNEL_LIMIT_PER_MINUTE = 120;
 
 // Guest booking routes — fully public, path-based slug routing
 const isBookingRoute = createRouteMatcher([
-  "/:slug((?!dashboard|platform|sign-in|sign-up|onboarding|api|_next).*)",
-  "/:slug/rooms(.*)",
-  "/:slug/book(.*)",
+  "/:slug((?!dashboard(?:/|$)|platform(?:/|$)|sign-in(?:/|$)|sign-up(?:/|$)|onboarding(?:/|$)|api(?:/|$)|_next(?:/|$)|join(?:/|$)|offline(?:/|$)|monitoring(?:/|$)).*)",
 ]);
 
 // Platform admin routes — use Supabase Auth, NOT Clerk

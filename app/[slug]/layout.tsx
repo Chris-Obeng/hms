@@ -1,21 +1,20 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, DM_Sans } from "next/font/google";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { notFound } from "next/navigation";
+import { getPublicHotel } from "./_lib/get-public-hotel";
 import "./booking.css";
 
-const cormorant = Cormorant_Garamond({
+const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-cormorant",
+  variable: "--font-booking-sans",
   display: "swap",
 });
 
-const dmSans = DM_Sans({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-dm-sans",
+  weight: ["500", "600"],
+  variable: "--font-booking-mono",
   display: "swap",
 });
 
@@ -27,11 +26,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const { data: hotel } = await supabaseAdmin
-    .from("hotels")
-    .select("name, description")
-    .eq("slug", slug)
-    .single();
+  const hotel = await getPublicHotel(slug);
 
   return {
     title: hotel ? `${hotel.name} · Book Direct` : "Book a Room",
@@ -45,17 +40,13 @@ export async function generateMetadata({
 
 export default async function SlugLayout({ children, params }: Props) {
   const { slug } = await params;
-  const { data: hotel } = await supabaseAdmin
-    .from("hotels")
-    .select("id, status")
-    .eq("slug", slug)
-    .single();
+  const hotel = await getPublicHotel(slug);
 
   if (!hotel) notFound();
 
   return (
     <div
-      className={`${cormorant.variable} ${dmSans.variable} booking-body min-h-[100dvh]`}
+      className={`${inter.variable} ${jetbrainsMono.variable} booking-body min-h-[100dvh]`}
     >
       {children}
     </div>

@@ -1,24 +1,43 @@
 ﻿import Image from "next/image";
-import { Check, Users } from "lucide-react";
+import { Reveal } from "./reveal";
 
 export function DeepDive() {
   return (
-    <section className="rl-container rl-outcome" aria-labelledby="hospitality-heading">
-      <div className="rl-hospitality">
-        <div className="rl-hospitality-photo">
-          <Image src="/images/landing/hotel-suite.jpg" alt="A carefully prepared guest room with warm wood finishes and a view into a green courtyard" fill sizes="(max-width: 800px) 90vw, (max-width: 1440px) 45vw, 656px" />
-          <div className="rl-room-tag" aria-hidden="true">
-            <span>Room 104</span><div><b>Ready for the next welcome.</b><small>Good operations stay behind the scenes.</small></div>
-          </div>
-        </div>
-        <div className="rl-hospitality-copy">
-          <p className="rl-eyebrow">The outcome</p>
-          <h2 id="hospitality-heading" className="rl-heading">Keep the systems clear. Keep the welcome human.</h2>
-          <p>You already know what good hospitality feels like. RoomLine gives the work behind it a steadier rhythm, so your team can stay present with the people in front of them.</p>
-          <div className="rl-hospitality-details">
-            <span><Check size={15} aria-hidden="true" /> Figures in Ghana cedis</span>
-            <span><Users size={15} aria-hidden="true" /> A shared view for your team</span>
-          </div>
+    <section id="ghana" className="rl-ghana" aria-labelledby="ghana-heading">
+      <div className="rl-wrap rl-grid">
+        <Reveal className="rl-ghana-wide">
+          <figure className="rl-photo rl-photo--landscape rl-photo--reception rl-photo-drift">
+            <Image
+              src="/images/landing/hotel-reception-jpg.jpg"
+              alt="Twin mahogany reception desks and cane armchairs inside a quiet boutique hotel lobby"
+              fill
+              sizes="(max-width: 900px) 94vw, 56vw"
+            />
+          </figure>
+        </Reveal>
+
+        <div className="rl-ghana-side">
+          <Reveal delay={70}>
+            <figure className="rl-photo rl-photo--suite rl-photo-drift">
+              <Image
+                src="/images/landing/hotel-suite.jpg"
+                alt="Prepared hotel room with warm timber walls opening onto a lush green courtyard"
+                fill
+                sizes="(max-width: 900px) 94vw, 38vw"
+              />
+            </figure>
+          </Reveal>
+
+          <Reveal className="rl-ghana-copy" delay={120}>
+            <h2 id="ghana-heading" className="rl-h2">
+              Made for&nbsp;Ghana.
+            </h2>
+            <p className="rl-body">
+              Online payments settle straight to your Ghanaian bank or MoMo
+              account via Paystack. Reception keeps working on tablets and
+              phones even when internet drops.
+            </p>
+          </Reveal>
         </div>
       </div>
     </section>

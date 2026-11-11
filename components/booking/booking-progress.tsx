@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -8,172 +10,179 @@ export type BookingStepId = 1 | 2 | 3;
 
 export interface BookingStep {
   num: BookingStepId;
-  /** Short label for desktop / sr */
   label: string;
-  /** Mobile title for current step */
-  title: string;
 }
 
 export const BOOKING_STEPS: BookingStep[] = [
-  { num: 1, label: "Stay", title: "Choose stay" },
-  { num: 2, label: "Guest", title: "Guest details" },
-  { num: 3, label: "Confirm", title: "Review & pay" },
+  { num: 1, label: "Choose stay" },
+  { num: 2, label: "Personal details" },
+  { num: 3, label: "Confirmation" },
 ];
 
-interface BookingProgressProps {
-  current: BookingStepId;
-  /** Whether the guest can jump to a step (validation gates) */
-  canReach: (step: BookingStepId) => boolean;
-  /** Whether a step is complete */
-  isComplete: (step: BookingStepId) => boolean;
-  onStepChange: (step: BookingStepId) => void;
-  className?: string;
+interface BookingHeaderProps {
+  hotelName: string;
+  logoUrl?: string | null;
+  currentStep: BookingStepId;
+  /** Optional href when brand acts as a link (e.g. on Confirmation page). */
+  brandHref?: string;
+  /** Optional handler when brand is clicked inside the wizard (e.g. Step 2 -> Step 1). */
+  onBrandClick?: () => void;
+  /** Optional step navigation inside the wizard. */
+  canReachStep?: (step: BookingStepId) => boolean;
+  onStepChange?: (step: BookingStepId) => void;
 }
 
 /**
- * Booking funnel progress — industry pattern (Booking.com / Expedia style):
- * sits sticky *under* brand chrome, never inside the hotel logo header.
- *
- * Mobile: compact "Step X of 3" + thin progress track (saves vertical space).
- * Desktop: full labeled steps with connectors.
+ * Shared top navigation bar + 3-step checkout stepper matching `pencil-booking.pen`:
+ * - Desktop: 64px white bar, 28x28 rounded-xl logo + hotel name on left, centered
+ *   3-step stepper (`1 Choose stay` — `2 Personal details` — `3 Confirmation`),
+ *   balanced 260px right slot.
+ * - Mobile: 56px white bar, 32x32 rounded-xl logo on left, compact centered stepper
+ *   where only the active step displays its text label, balanced 64px right slot.
  */
-export function BookingProgress({
-  current,
-  canReach,
-  isComplete,
+export function BookingHeader({
+  hotelName,
+  logoUrl,
+  currentStep,
+  brandHref,
+  onBrandClick,
+  canReachStep,
   onStepChange,
-  className,
-}: BookingProgressProps) {
-  const total = BOOKING_STEPS.length;
-  const activeMeta = BOOKING_STEPS.find((s) => s.num === current) ?? BOOKING_STEPS[0];
-  const progressPct = ((current - 1) / (total - 1)) * 100;
+}: BookingHeaderProps) {
+  const monogram = hotelName.trim().charAt(0).toUpperCase() || "H";
+
+  const logoElement = logoUrl ? (
+    <Image
+      src={logoUrl}
+      alt=""
+      width={32}
+      height={32}
+      className="size-8 md:size-7 shrink-0 rounded-[12px] object-cover ring-1 ring-black/5"
+    />
+  ) : (
+    <span
+      aria-hidden
+      className="flex size-8 md:size-7 shrink-0 items-center justify-center rounded-[12px] bg-[#0485F7] text-[#FCFCFC] text-xs font-semibold"
+    >
+      {monogram}
+    </span>
+  );
+
+  const brandContent = (
+    <span className="inline-flex items-center gap-2 min-w-0">
+      {logoElement}
+      <span className="hidden md:inline truncate text-[14px] font-semibold tracking-[-0.2px] text-[#18181B]">
+        {hotelName}
+      </span>
+    </span>
+  );
 
   return (
-    <div
-      className={cn(
-        "border-b border-[var(--bk-line)] bg-[var(--bk-bg)]/95 backdrop-blur-md",
-        className
-      )}
-    >
-      {/* Mobile compact progress — OTA checkout style */}
-      <div className="sm:hidden booking-safe-x py-2.5">
-        <div className="flex items-center justify-between gap-3 mb-2">
-          <p className="text-xs font-semibold text-[var(--bk-ink)] truncate">
-            <span className="text-[var(--bk-muted)] font-medium">
-              Step {current} of {total}
-            </span>
-            <span className="mx-1.5 text-[var(--bk-line-strong)]" aria-hidden>
-              ·
-            </span>
-            {activeMeta.title}
-          </p>
-          <p className="text-[10px] font-medium text-[var(--bk-muted)] tabular-nums shrink-0">
-            {Math.round((current / total) * 100)}%
-          </p>
+    <header className="sticky top-0 z-40 w-full bg-white border-b border-[#E4E4E7] pt-[env(safe-area-inset-top)]">
+      <div className="mx-auto flex h-14 md:h-16 max-w-[1440px] items-center justify-between booking-safe-x">
+        {/* Left brand slot */}
+        <div className="flex w-16 md:w-[260px] shrink-0 items-center min-w-0">
+          {brandHref ? (
+            <Link
+              href={brandHref}
+              aria-label={`${hotelName} booking page`}
+              className="min-w-0 hover:opacity-80 transition-opacity touch-manipulation"
+            >
+              {brandContent}
+            </Link>
+          ) : onBrandClick ? (
+            <button
+              type="button"
+              onClick={onBrandClick}
+              aria-label={`Return to room selection at ${hotelName}`}
+              className="min-w-0 text-left cursor-pointer hover:opacity-80 transition-opacity touch-manipulation"
+            >
+              {brandContent}
+            </button>
+          ) : (
+            <div className="min-w-0">{brandContent}</div>
+          )}
         </div>
-        <div
-          className="h-1 w-full rounded-full bg-[var(--bk-line)] overflow-hidden"
-          role="progressbar"
-          aria-valuenow={current}
-          aria-valuemin={1}
-          aria-valuemax={total}
-          aria-label={`Booking progress: step ${current} of ${total}`}
-        >
-          <div
-            className="h-full rounded-full bg-[var(--bk-ink)] transition-[width] duration-300 ease-out"
-            style={{ width: `${Math.max(progressPct, current === 1 ? 8 : progressPct)}%` }}
-          />
-        </div>
-        {/* Jump targets — min 44px tap height via py */}
+
+        {/* Center 3-step stepper */}
         <nav
-          aria-label="Booking steps"
-          className="mt-2 flex items-stretch gap-1"
+          aria-label="Checkout progress"
+          className="flex flex-1 items-center justify-center gap-2 md:gap-2.5 min-w-0"
         >
-          {BOOKING_STEPS.map((s) => {
-            const done = isComplete(s.num);
-            const active = current === s.num;
-            const reachable = canReach(s.num);
-            return (
-              <button
-                key={s.num}
-                type="button"
-                disabled={!reachable}
-                onClick={() => reachable && onStepChange(s.num)}
+          {BOOKING_STEPS.map((step, index) => {
+            const isCompleted = currentStep > step.num;
+            const isActive = currentStep === step.num;
+            const interactive =
+              !!onStepChange &&
+              !!canReachStep &&
+              canReachStep(step.num) &&
+              step.num !== currentStep;
+
+            const badge = (
+              <span
                 className={cn(
-                  "flex-1 min-h-9 rounded-lg px-1 py-1.5 text-[10px] font-semibold tracking-wide uppercase transition-colors touch-manipulation",
-                  active && "bg-[var(--bk-ink)] text-[var(--bk-on-ink)]",
-                  !active && done && "bg-[var(--bk-surface-soft)] text-[var(--bk-ink)]",
-                  !active &&
-                    !done &&
-                    reachable &&
-                    "bg-transparent text-[var(--bk-muted)]",
-                  !reachable && "opacity-40 cursor-not-allowed"
+                  "flex size-[22px] md:size-6 shrink-0 items-center justify-center rounded-full text-[10px] md:text-[11px] font-semibold transition-colors",
+                  isCompleted || isActive
+                    ? "bg-[#0485F7] text-[#FCFCFC]"
+                    : "bg-[#EBEBEC] text-[#71717A]"
                 )}
-                aria-current={active ? "step" : undefined}
               >
-                {s.label}
-              </button>
+                {isCompleted ? (
+                  <Check className="size-3 stroke-[2.75]" aria-hidden />
+                ) : (
+                  step.num
+                )}
+              </span>
+            );
+
+            const label = (
+              <span
+                className={cn(
+                  "truncate",
+                  isActive
+                    ? "inline text-[11px] md:text-[13px] font-semibold text-[#18181B]"
+                    : "hidden md:inline text-[13px] font-medium text-[#71717A]"
+                )}
+              >
+                {step.label}
+              </span>
+            );
+
+            return (
+              <React.Fragment key={step.num}>
+                {index > 0 && (
+                  <span
+                    aria-hidden
+                    className="h-px w-3 md:w-12 shrink-0 bg-[#E4E4E7]"
+                  />
+                )}
+                {interactive ? (
+                  <button
+                    type="button"
+                    onClick={() => onStepChange(step.num)}
+                    aria-current={isActive ? "step" : undefined}
+                    className="inline-flex items-center gap-2 md:gap-2.5 rounded-full py-1 cursor-pointer hover:opacity-80 transition-opacity touch-manipulation"
+                  >
+                    {badge}
+                    {label}
+                  </button>
+                ) : (
+                  <span
+                    aria-current={isActive ? "step" : undefined}
+                    className="inline-flex items-center gap-2 md:gap-2.5 py-1"
+                  >
+                    {badge}
+                    {label}
+                  </span>
+                )}
+              </React.Fragment>
             );
           })}
         </nav>
+
+        {/* Right symmetric balance slot */}
+        <div className="flex w-16 md:w-[260px] shrink-0 items-center justify-end" />
       </div>
-
-      {/* Desktop full stepper */}
-      <nav
-        aria-label="Booking progress"
-        className="hidden sm:flex max-w-2xl mx-auto booking-safe-x py-3 items-center gap-2"
-      >
-        {BOOKING_STEPS.map((s, i) => {
-          const done = isComplete(s.num);
-          const active = current === s.num;
-          const reachable = canReach(s.num);
-
-          return (
-            <React.Fragment key={s.num}>
-              {i > 0 && (
-                <div
-                  className="booking-step-track"
-                  data-done={current > s.num - 1 ? "true" : "false"}
-                  aria-hidden
-                />
-              )}
-              <button
-                type="button"
-                disabled={!reachable}
-                onClick={() => reachable && onStepChange(s.num)}
-                className={cn(
-                  "flex items-center gap-2 shrink-0 rounded-full px-1 py-1 transition-opacity touch-manipulation",
-                  reachable ? "cursor-pointer" : "cursor-not-allowed opacity-40"
-                )}
-                aria-current={active ? "step" : undefined}
-              >
-                <span
-                  className={cn(
-                    "size-6 rounded-full text-[11px] font-semibold flex items-center justify-center shrink-0 transition-colors",
-                    (done && !active) || active
-                      ? "bg-[var(--bk-ink)] text-[var(--bk-on-ink)]"
-                      : "bg-[var(--bk-surface-soft)] text-[var(--bk-muted)] border border-[var(--bk-line)]"
-                  )}
-                >
-                  {done && !active ? (
-                    <Check className="size-3.5" strokeWidth={2.5} aria-hidden />
-                  ) : (
-                    s.num
-                  )}
-                </span>
-                <span
-                  className={cn(
-                    "text-xs font-medium",
-                    active ? "text-[var(--bk-ink)]" : "text-[var(--bk-muted)]"
-                  )}
-                >
-                  {s.label}
-                </span>
-              </button>
-            </React.Fragment>
-          );
-        })}
-      </nav>
-    </div>
+    </header>
   );
 }

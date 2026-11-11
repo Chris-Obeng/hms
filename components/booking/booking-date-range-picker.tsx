@@ -1,16 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Calendar as CalendarIcon, Moon } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronDown } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
-import { Popover, Drawer } from "@heroui/react";
+import { Popover, Drawer, Button } from "@heroui/react";
 import {
   CalendarDate,
   today,
   getLocalTimeZone,
 } from "@internationalized/date";
 import { cn } from "@/lib/utils";
-import { useIsCompactScreen } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { StayRangeCalendar } from "@/components/ui/stay-range-calendar";
 
 function stringToCalendarDate(dateStr?: string | null): CalendarDate | null {
@@ -34,31 +34,54 @@ function calendarDateToString(cd: CalendarDate): string {
 interface BookingDateRangePickerProps {
   checkIn: string;
   checkOut: string;
+  minDate?: string;
   onDatesChange: (checkIn: string, checkOut: string) => void;
   className?: string;
-  variant?: "hero" | "compact" | "card";
 }
 
 export function BookingDateRangePicker({
   checkIn,
   checkOut,
+  minDate,
   onDatesChange,
   className,
-  variant = "hero",
 }: BookingDateRangePickerProps) {
   const [open, setOpen] = React.useState(false);
-  const isCompact = useIsCompactScreen();
+  const isMobile = useIsMobile();
 
-  const nowCd = React.useMemo(() => today(getLocalTimeZone()), []);
-  const startDate = React.useMemo(() => stringToCalendarDate(checkIn) ?? nowCd, [checkIn, nowCd]);
-  const endDate = React.useMemo(() => stringToCalendarDate(checkOut) ?? nowCd.add({ days: 1 }), [checkOut, nowCd]);
-  const rangeValue = React.useMemo(() => ({ start: startDate, end: endDate }), [startDate, endDate]);
+  const minCd = React.useMemo(
+    () => stringToCalendarDate(minDate) ?? today(getLocalTimeZone()),
+    [minDate]
+  );
+  const startDate = React.useMemo(
+    () => stringToCalendarDate(checkIn) ?? minCd,
+    [checkIn, minCd]
+  );
+  const endDate = React.useMemo(
+    () => stringToCalendarDate(checkOut) ?? minCd.add({ days: 1 }),
+    [checkOut, minCd]
+  );
+  const rangeValue = React.useMemo(
+    () => ({ start: startDate, end: endDate }),
+    [startDate, endDate]
+  );
 
-  const checkInDate = React.useMemo(() => new Date(checkIn + "T00:00:00"), [checkIn]);
-  const checkOutDate = React.useMemo(() => new Date(checkOut + "T00:00:00"), [checkOut]);
-  const nights = React.useMemo(() => Math.max(1, differenceInDays(checkOutDate, checkInDate)), [checkInDate, checkOutDate]);
+  const checkInDate = React.useMemo(
+    () => new Date(checkIn + "T00:00:00"),
+    [checkIn]
+  );
+  const checkOutDate = React.useMemo(
+    () => new Date(checkOut + "T00:00:00"),
+    [checkOut]
+  );
+  const nights = React.useMemo(
+    () => Math.max(1, differenceInDays(checkOutDate, checkInDate)),
+    [checkInDate, checkOutDate]
+  );
 
-  const handleRangeChange = (val: { start: CalendarDate; end: CalendarDate } | null) => {
+  const handleRangeChange = (
+    val: { start: CalendarDate; end: CalendarDate } | null
+  ) => {
     if (val?.start && val?.end) {
       const startStr = calendarDateToString(val.start);
       let endStr = calendarDateToString(val.end);
@@ -69,73 +92,99 @@ export function BookingDateRangePicker({
       }
 
       onDatesChange(startStr, endStr);
-      setOpen(false);
+      if (!isMobile) {
+        setOpen(false);
+      }
     }
   };
 
-  const sameYear = checkInDate.getFullYear() === checkOutDate.getFullYear();
-  const formattedCheckIn = checkIn
-    ? format(checkInDate, sameYear ? "MMM d" : "MMM d, yyyy")
-    : "Select date";
+  const formattedCheckIn = checkIn ? format(checkInDate, "EEE d MMM") : "Check-in";
   const formattedCheckOut = checkOut
-    ? format(checkOutDate, sameYear ? "MMM d" : "MMM d, yyyy")
-    : "Select date";
+    ? format(checkOutDate, "EEE d MMM")
+    : "Check-out";
+  const compactCheckIn = checkIn ? format(checkInDate, "d MMM") : "Check-in";
+  const compactCheckOut = checkOut ? format(checkOutDate, "d MMM") : "Check-out";
 
   const triggerButton = (
     <button
       type="button"
       className={cn(
-        "flex min-w-0 w-full cursor-pointer items-center justify-between gap-2 outline-none transition-[border-color,box-shadow,background-color] sm:gap-3 focus-visible:ring-2 focus-visible:ring-[oklch(0.52_0.12_178)] focus-visible:ring-offset-2",
-        variant === "hero" &&
-          "h-12 sm:h-[52px] px-3 sm:px-3.5 rounded-xl bg-background/90 border border-border/80 hover:border-primary shadow-xs hover:shadow-sm text-left",
-        variant === "compact" &&
-          "h-10 px-2.5 sm:px-3 rounded-lg border border-border/60 bg-card hover:bg-accent/40 text-xs font-medium",
-        variant === "card" &&
-          "min-h-14 px-3 sm:px-3.5 rounded-xl bg-background border border-border/80 hover:border-[oklch(0.52_0.12_178)] shadow-xs text-left",
+        "group flex w-full cursor-pointer text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#0485F7] touch-manipulation",
+        // Mobile (`v24Sj`): 50px soft grey cell, stacked When + range
+        "h-[50px] flex-col justify-center gap-0.5 rounded-[12px] bg-[#F5F5F5] hover:bg-[#EBEBEC]/75 px-3",
+        // Desktop (`dZjQo`): 52px soft grey cell, left calendar icon + stacked label/range
+        "md:h-[52px] md:w-auto md:flex-row md:items-center md:justify-start md:gap-2.5 md:px-[18px]",
         className
       )}
       aria-label="Select check-in and check-out dates"
     >
-      <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
-        <div className="shrink-0 rounded-lg bg-[oklch(0.94_0.035_178)] p-2 text-[oklch(0.42_0.1_178)]">
-          <CalendarIcon className="size-4" />
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
-            Stay Dates
-          </span>
-          <span className="text-xs font-semibold text-foreground truncate font-mono">
-            {formattedCheckIn}
-            <span className="text-muted-foreground mx-1">→</span>
-            {formattedCheckOut}
-          </span>
-        </div>
-      </div>
+      <CalendarIcon
+        className="hidden md:block size-[17px] shrink-0 text-[#0485F7]"
+        strokeWidth={2}
+      />
 
-      <div className="flex shrink-0 items-center gap-1 rounded-full bg-[oklch(0.94_0.035_178)] px-2 py-1 text-[11px] font-semibold text-[oklch(0.36_0.09_178)]">
-        <Moon className="size-3" />
-        <span className="tabular-nums whitespace-nowrap">
-          {nights}
-          <span className="hidden min-[380px]:inline">
-            {" "}
-            {nights === 1 ? "night" : "nights"}
-          </span>
+      {/* Mobile top row */}
+      <span className="flex md:hidden items-center gap-1.5">
+        <CalendarIcon className="size-[11px] shrink-0 text-[#0485F7]" strokeWidth={2} />
+        <span className="text-[10px] font-medium tracking-[0.2px] text-[#71717A]">
+          When
         </span>
-      </div>
+      </span>
+
+      {/* Desktop stacked + Mobile bottom row */}
+      <span className="flex flex-col min-w-0 w-full md:w-auto gap-0.5">
+        <span className="hidden md:block text-[10px] font-medium tracking-[0.3px] text-[#71717A]">
+          When
+        </span>
+        <span className="flex items-center justify-between md:justify-start gap-2 min-w-0">
+          <span className="hidden min-[400px]:inline md:inline text-[11px] md:text-[13px] font-medium text-[#18181B] truncate whitespace-nowrap">
+            {formattedCheckIn} — {formattedCheckOut}
+          </span>
+          <span className="inline min-[400px]:hidden text-[11px] font-medium text-[#18181B] truncate whitespace-nowrap">
+            {compactCheckIn} — {compactCheckOut}
+          </span>
+          <ChevronDown
+            className={cn(
+              "size-3 md:size-3.5 shrink-0 text-[#71717A] transition-transform duration-150",
+              open && "rotate-180"
+            )}
+            strokeWidth={2}
+          />
+        </span>
+      </span>
     </button>
+  );
+
+  const summaryBar = (
+    <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-[14px] bg-[#F5F5F5] px-3.5 py-2.5">
+      <div className="min-w-0">
+        <p className="text-[10px] font-medium text-[#71717A]">Check-in</p>
+        <p className="text-xs font-semibold text-[#18181B] truncate">
+          {formattedCheckIn}
+        </p>
+      </div>
+      <div className="min-w-0 border-l border-[#E4E4E7] pl-3">
+        <p className="text-[10px] font-medium text-[#71717A]">Check-out</p>
+        <p className="text-xs font-semibold text-[#18181B] truncate">
+          {formattedCheckOut}
+        </p>
+      </div>
+      <span className="inline-flex items-center rounded-full bg-[#0485F7]/15 px-2.5 py-1 text-[11px] font-semibold text-[#0485F7] tabular-nums">
+        {nights} {nights === 1 ? "night" : "nights"}
+      </span>
+    </div>
   );
 
   const calendar = (
     <StayRangeCalendar
       value={rangeValue}
       onChange={handleRangeChange}
-      minValue={nowCd}
+      minValue={minCd}
       aria-label="Select stay dates"
     />
   );
 
-  // Compact phones: bottom sheet for a native, thumb-reachable calendar.
-  if (isCompact) {
+  if (isMobile) {
     return (
       <>
         {React.cloneElement(triggerButton, {
@@ -143,22 +192,34 @@ export function BookingDateRangePicker({
           "aria-haspopup": "dialog",
           "aria-expanded": open,
         })}
-        <Drawer.Backdrop isOpen={open} onOpenChange={setOpen} variant="blur">
-          <Drawer.Content placement="bottom">
-            <Drawer.Dialog className="rounded-t-2xl">
+        <Drawer.Backdrop
+          isOpen={open}
+          onOpenChange={setOpen}
+          variant="blur"
+          className="booking-portal"
+        >
+          <Drawer.Content placement="bottom" className="booking-portal">
+            <Drawer.Dialog className="booking-sheet-dialog">
               <Drawer.Handle />
               <Drawer.CloseTrigger />
               <Drawer.Header>
-                <Drawer.Heading>Select dates</Drawer.Heading>
+                <Drawer.Heading>When are you staying?</Drawer.Heading>
               </Drawer.Header>
-              <Drawer.Body className="pb-[max(1rem,env(safe-area-inset-bottom))]">
-                <div
-                  className="booking-calendar-panel light mx-auto p-1 outline-none"
-                  data-theme="light"
-                >
+              <Drawer.Body className="space-y-4">
+                {summaryBar}
+                <div className="booking-calendar-surface w-full pt-1">
                   {calendar}
                 </div>
               </Drawer.Body>
+              <Drawer.Footer>
+                <Button
+                  variant="primary"
+                  slot="close"
+                  className="booking-btn-primary h-11 w-full text-[15px] touch-manipulation"
+                >
+                  Apply · {nights} {nights === 1 ? "night" : "nights"}
+                </Button>
+              </Drawer.Footer>
             </Drawer.Dialog>
           </Drawer.Content>
         </Drawer.Backdrop>
@@ -171,13 +232,11 @@ export function BookingDateRangePicker({
       <Popover.Trigger>{triggerButton}</Popover.Trigger>
 
       <Popover.Content
-        placement="bottom"
-        className="w-[min(46rem,calc(100vw-0.75rem))] max-w-[calc(100vw-0.75rem)] overflow-hidden border-border/60 p-0 shadow-xl"
+        placement="bottom start"
+        className="booking-portal w-auto max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-[24px] border border-[#E4E4E7] bg-white p-0 shadow-[0_12px_32px_rgba(0,0,0,0.12)]"
       >
-        <Popover.Dialog
-          className="booking-calendar-panel light p-2.5 outline-none sm:p-5"
-          data-theme="light"
-        >
+        <Popover.Dialog className="booking-calendar-surface p-5 outline-none space-y-4">
+          {summaryBar}
           {calendar}
         </Popover.Dialog>
       </Popover.Content>

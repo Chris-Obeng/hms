@@ -17,8 +17,9 @@ interface NumericStepperProps {
 }
 
 /**
- * HeroUI Pro style Capsule Number Stepper component.
- * Matches HeroUI Pro pill track + floating circular disc buttons design.
+ * Capsule number stepper styled explicitly with guest booking `--bk-*` tokens
+ * so it remains high-contrast both inline and inside portaled bottom sheets /
+ * popovers.
  */
 export function NumericStepper({
   label,
@@ -52,31 +53,39 @@ export function NumericStepper({
     size === "sm" ? "size-3" : size === "lg" ? "size-4" : "size-3.5";
 
   return (
-    <div className={cn("flex items-center justify-between py-2", className)}>
-      {/* Label & Description */}
+    <div
+      className={cn(
+        "flex items-center justify-between gap-4",
+        size === "lg" ? "py-3.5" : "py-2",
+        className
+      )}
+    >
       {label && (
-        <div className="flex flex-col min-w-0 pr-4">
-          <span className="text-sm font-semibold text-foreground select-none">
+        <div className="flex flex-col min-w-0">
+          <span
+            className={cn(
+              "font-semibold text-[var(--bk-ink)] select-none leading-snug",
+              size === "lg" ? "text-[15px]" : "text-sm"
+            )}
+          >
             {label}
           </span>
           {description && (
-            <span className="text-xs text-muted-foreground select-none mt-0.5">
+            <span className="text-xs text-[var(--bk-muted)] select-none mt-0.5 leading-snug">
               {description}
             </span>
           )}
         </div>
       )}
 
-      {/* HeroUI Pro Style Pill Track Container */}
       <div
-        className="inline-flex items-center gap-1 p-1 rounded-full bg-muted/60 border border-border/40 shadow-inner shrink-0"
+        className="inline-flex items-center gap-1.5 p-1 rounded-full bg-[var(--bk-surface-soft)] border border-[var(--bk-line)] shrink-0"
         role="spinbutton"
         aria-label={label || "Numeric stepper"}
         aria-valuenow={value}
         aria-valuemin={min}
         aria-valuemax={max}
       >
-        {/* Decrement Disc Button */}
         <button
           type="button"
           onClick={handleDecrement}
@@ -84,18 +93,21 @@ export function NumericStepper({
           aria-label={label ? `Decrease ${label}` : "Decrease value"}
           className={cn(
             buttonSizeClass,
-            "rounded-full bg-background text-foreground flex items-center justify-center shadow-xs hover:shadow-sm active:scale-95 transition-all duration-150 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-30 disabled:pointer-events-none disabled:shadow-none"
+            "rounded-full bg-[var(--bk-surface)] text-[var(--bk-ink)] border border-[var(--bk-line)] flex items-center justify-center shadow-2xs hover:border-[var(--bk-line-strong)] active:scale-95 transition-all duration-150 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--bk-accent)] disabled:opacity-35 disabled:pointer-events-none disabled:shadow-none touch-manipulation"
           )}
         >
-          <Minus className={cn(iconSizeClass, "stroke-[2.5]")} />
+          <Minus className={cn(iconSizeClass, "stroke-[2.25]")} />
         </button>
 
-        {/* Value Display */}
-        <span className="w-7 text-center font-bold text-sm text-foreground tabular-nums select-none">
+        <span
+          className={cn(
+            "text-center font-semibold text-[var(--bk-ink)] tabular-nums select-none",
+            size === "lg" ? "w-8 text-[15px]" : "w-7 text-sm"
+          )}
+        >
           {value}
         </span>
 
-        {/* Increment Disc Button */}
         <button
           type="button"
           onClick={handleIncrement}
@@ -103,10 +115,10 @@ export function NumericStepper({
           aria-label={label ? `Increase ${label}` : "Increase value"}
           className={cn(
             buttonSizeClass,
-            "rounded-full bg-background text-foreground flex items-center justify-center shadow-xs hover:shadow-sm active:scale-95 transition-all duration-150 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-30 disabled:pointer-events-none disabled:shadow-none"
+            "rounded-full bg-[var(--bk-surface)] text-[var(--bk-ink)] border border-[var(--bk-line)] flex items-center justify-center shadow-2xs hover:border-[var(--bk-line-strong)] active:scale-95 transition-all duration-150 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--bk-accent)] disabled:opacity-35 disabled:pointer-events-none disabled:shadow-none touch-manipulation"
           )}
         >
-          <Plus className={cn(iconSizeClass, "stroke-[2.5]")} />
+          <Plus className={cn(iconSizeClass, "stroke-[2.25]")} />
         </button>
       </div>
     </div>

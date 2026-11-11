@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AlertCircle } from "lucide-react";
 import { HeroSelectField } from "@/components/ui/hero-select";
 
 interface OnboardingSelectOption {
@@ -14,6 +14,7 @@ interface OnboardingSelectProps {
   options: OnboardingSelectOption[];
   error?: string;
   hint?: string;
+  optional?: boolean;
   value?: string;
   defaultValue?: string;
   onChange?: (event: { target: { value: string } }) => void;
@@ -24,64 +25,58 @@ interface OnboardingSelectProps {
 }
 
 export function OnboardingSelect({
-  label, options, error, hint, value, defaultValue, onChange, className = "", id, required, disabled,
+  label,
+  options,
+  error,
+  hint,
+  optional = false,
+  value,
+  defaultValue,
+  onChange,
+  className = "",
+  id,
+  required,
+  disabled,
 }: OnboardingSelectProps) {
-    const uid = useId();
-    const selectId = id ?? uid;
-    const hasError = !!error;
+  const uid = useId();
+  const selectId = id ?? uid;
+  const hasError = Boolean(error);
 
-    return (
-      <div className="onboarding-form-group">
-        <label htmlFor={selectId} className="onboarding-label">
+  return (
+    <div className="ob-field">
+      <div className="ob-label-row">
+        <span id={`${selectId}-label`} className="ob-label">
           {label}
-          {required && <span className="onboarding-label-required" aria-label="required">*</span>}
-        </label>
-
-        <HeroSelectField
-          value={value ?? defaultValue}
-          onValueChange={(next) => onChange?.({ target: { value: next } })}
-          options={options}
-          label={null}
-          isInvalid={hasError}
-          isRequired={required}
-          isDisabled={disabled}
-          ariaLabel={label}
-          className={className}
-          triggerClassName="onboarding-select"
-        />
-
-        {hint && !hasError && (
-          <p id={`${selectId}-hint`} className="onboarding-hint">
-            {hint}
-          </p>
-        )}
-
-        <AnimatePresence>
-          {hasError && (
-            <motion.div
-              id={`${selectId}-error`}
-              role="alert"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.18 }}
-              className="onboarding-error-message"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 16 16"
-                fill="none"
-                aria-hidden="true"
-                style={{ flexShrink: 0 }}
-              >
-                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M8 5v3.5M8 11h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-              <span>{error}</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        </span>
+        {optional && <span className="ob-optional">Optional</span>}
       </div>
-    );
-  }
+
+      <HeroSelectField
+        value={value ?? defaultValue}
+        onValueChange={(next) => onChange?.({ target: { value: next } })}
+        options={options}
+        label={null}
+        isInvalid={hasError}
+        isRequired={required}
+        isDisabled={disabled}
+        ariaLabel={label}
+        className={className}
+        triggerClassName="ob-select-trigger"
+        popoverClassName="ob-portal"
+      />
+
+      {hint && !hasError && (
+        <p id={`${selectId}-hint`} className="ob-hint">
+          {hint}
+        </p>
+      )}
+
+      {hasError && (
+        <p id={`${selectId}-error`} role="alert" className="ob-error">
+          <AlertCircle size={14} strokeWidth={2} aria-hidden="true" />
+          <span>{error}</span>
+        </p>
+      )}
+    </div>
+  );
+}

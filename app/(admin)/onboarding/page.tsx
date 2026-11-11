@@ -1,24 +1,36 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { useOrganizationList, useAuth, useUser } from "@clerk/nextjs";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
+import Link from "next/link";
+import { useOrganizationList, useAuth, useUser, useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { AsYouType, CountryCode } from "libphonenumber-js";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import {
+  AsYouType,
+  getCountryCallingCode,
+  type CountryCode,
+} from "libphonenumber-js";
 import {
   ArrowRight,
   ArrowLeft,
   Loader2,
-  CheckCircle,
-  AlertCircle,
   Check,
+  AlertCircle,
   Copy,
-  Users,
-  LayoutDashboard,
-  Link2,
 } from "lucide-react";
 
-import { createHotelProfile, type OnboardingInput as OnboardingInputType } from "@/app/actions/onboarding";
+import {
+  createHotelProfile,
+  type OnboardingInput as OnboardingInputType,
+} from "@/app/actions/onboarding";
+import { slugify } from "@/lib/utils";
 import { StepIndicator } from "./_components/step-indicator";
 import { OnboardingInput as OBInput } from "./_components/onboarding-input";
 import { OnboardingSelect as OBSelect } from "./_components/onboarding-select";
@@ -26,12 +38,10 @@ import { RoomStepper } from "./_components/room-stepper";
 import "./onboarding.css";
 
 // ─── Draft persistence ─────────────────────────────────────────────────────────
-// Versioned key: bump v whenever the draft shape changes. Old keys are purged
-// so a stale shape can never hydrate the form.
 
 const STORAGE_KEY = "roomline.onboarding.v2";
 const LEGACY_STORAGE_KEYS = ["RoomLine_onboarding_data"];
-const STEP_COUNT = 3;
+const STEP_COUNT = 2;
 
 type DraftData = Partial<OnboardingInputType>;
 
@@ -39,7 +49,6 @@ type Draft = {
   v: 2;
   step: number;
   data: DraftData;
-  /** Org created in a previous attempt whose hotel insert failed. Reused so retries never duplicate organizations. */
   orgId?: string | null;
 };
 
@@ -59,18 +68,19 @@ function sanitizeData(raw: unknown): DraftData {
     name: str(r.name),
     hotel_type: str(r.hotel_type) ?? DEFAULT_DATA.hotel_type,
     star_rating: str(r.star_rating) ?? DEFAULT_DATA.star_rating,
-    number_of_rooms: Number.isFinite(num) && num > 0 ? Math.floor(num) : DEFAULT_DATA.number_of_rooms,
+    number_of_rooms:
+      Number.isFinite(num) && num > 0
+        ? Math.floor(num)
+        : DEFAULT_DATA.number_of_rooms,
     address: str(r.address),
     city: str(r.city),
     country: str(r.country) ?? DEFAULT_DATA.country,
     phone: str(r.phone),
     email: str(r.email),
-    website: str(r.website),
   };
 }
 
 function loadDraft(): Draft | null {
-  // Purge pre-versioning keys first.
   for (const legacy of LEGACY_STORAGE_KEYS) {
     try {
       localStorage.removeItem(legacy);
@@ -84,16 +94,17 @@ function loadDraft(): Draft | null {
     const p = parsed as Record<string, unknown>;
     if (p.v !== 2) return null;
     const stepNum = Number(p.step);
-    const step =
-      Number.isFinite(stepNum) ? Math.min(STEP_COUNT, Math.max(1, Math.floor(stepNum))) : 1;
+    const step = Number.isFinite(stepNum)
+      ? Math.min(STEP_COUNT, Math.max(1, Math.floor(stepNum)))
+      : 1;
     return {
       v: 2,
       step,
       data: sanitizeData(p.data),
-      orgId: typeof p.orgId === "string" && p.orgId.length > 0 ? p.orgId : null,
+      orgId:
+        typeof p.orgId === "string" && p.orgId.length > 0 ? p.orgId : null,
     };
   } catch {
-    // Corrupt draft: discard rather than block the owner at the door.
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {}
@@ -113,8 +124,26 @@ function clearDraft() {
   } catch {}
 }
 
-// Validation
-// Messages written for an exhausted owner reading once, at midnight, on a phone.
+function stripDialPrefix(raw: string | undefined, dialPrefix: string | undefined): string {
+  if (!raw) return "";
+  if (!dialPrefix) return raw;
+  const escaped = dialPrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return raw.replace(new RegExp(`^\\s*${escaped}\\s*`), "");
+}
+
+function normalizePhoneForSubmit(
+  raw: string | undefined,
+  dialPrefix: string | undefined
+): string {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("+")) return trimmed;
+  if (!dialPrefix) return trimmed;
+  const withoutTrunkZero = trimmed.replace(/^0+\s*/, "") || trimmed;
+  return `${dialPrefix} ${withoutTrunkZero}`.trim();
+}
+
+// ─── Validation ───────────────────────────────────────────────────────────────
 
 type FieldErrors = Partial<Record<keyof DraftData, string>>;
 
@@ -124,40 +153,44 @@ function validateStep(step: number, d: DraftData): FieldErrors {
   const errors: FieldErrors = {};
   if (step === 1) {
     const name = (d.name ?? "").trim();
-    if (!name) errors.name = "Enter the name guests know your place by.";
-    else if (name.length < 2) errors.name = "That name looks too short — enter the full property name.";
+    if (!name) {
+      errors.name = "Enter your property name.";
+    } else if (name.length < 2) {
+      errors.name = "Property name must be at least 2 characters.";
+    }
   }
   if (step === 2) {
-    if (!(d.address ?? "").trim()) errors.address = "Enter the street address guests will use to find you.";
-    if (!(d.city ?? "").trim()) errors.city = "Which town or city is the property in?";
-    if (!(d.phone ?? "").trim()) errors.phone = "Enter a phone number guests can reach you on.";
-    else if ((d.phone ?? "").replace(/\D/g, "").length < 9) errors.phone = "That number looks incomplete — include all digits.";
+    if (!(d.address ?? "").trim()) {
+      errors.address = "Enter the street address.";
+    }
+    if (!(d.city ?? "").trim()) {
+      errors.city = "Enter the town or city.";
+    }
+    if (!(d.phone ?? "").trim()) {
+      errors.phone = "Enter a contact phone number.";
+    } else if ((d.phone ?? "").replace(/\D/g, "").length < 7) {
+      errors.phone = "Enter a complete phone number.";
+    }
     const email = (d.email ?? "").trim();
-    if (!email) errors.email = "Enter an email for booking confirmations.";
-    else if (!EMAIL_RE.test(email)) errors.email = "That email doesn't look right — check it once more.";
+    if (!email) {
+      errors.email = "Enter an email for booking confirmations.";
+    } else if (!EMAIL_RE.test(email)) {
+      errors.email = "Enter a valid email address.";
+    }
   }
   return errors;
 }
 
-// Constants
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const HOTEL_TYPE_OPTIONS = [
   { value: "Hotel", label: "Hotel" },
-  { value: "Guesthouse", label: "Guesthouse" },
-  { value: "Motel", label: "Motel" },
-  { value: "Serviced Apartment", label: "Serviced Apartment" },
-  { value: "Lodge", label: "Lodge" },
   { value: "Boutique Hotel", label: "Boutique Hotel" },
+  { value: "Guesthouse", label: "Guesthouse" },
+  { value: "Serviced Apartment", label: "Serviced Apartment" },
   { value: "Resort", label: "Resort" },
-];
-
-const STAR_RATING_OPTIONS = [
-  { value: "Unrated", label: "Unrated" },
-  { value: "1", label: "★ 1 Star" },
-  { value: "2", label: "★★ 2 Stars" },
-  { value: "3", label: "★★★ 3 Stars" },
-  { value: "4", label: "★★★★ 4 Stars" },
-  { value: "5", label: "★★★★★ 5 Stars" },
+  { value: "Lodge", label: "Lodge" },
+  { value: "Motel", label: "Motel" },
 ];
 
 const COUNTRY_OPTIONS = [
@@ -191,120 +224,190 @@ const COUNTRY_OPTIONS = [
   { value: "Other", label: "Other" },
 ];
 
-const COUNTRY_TO_REGION: Record<string, string> = {
-  Ghana: "GH", Nigeria: "NG", Kenya: "KE", "South Africa": "ZA",
-  Tanzania: "TZ", Uganda: "UG", Rwanda: "RW", Ethiopia: "ET",
-  Senegal: "SN", "Côte d'Ivoire": "CI", Cameroon: "CM", Zambia: "ZM",
-  Zimbabwe: "ZW", Botswana: "BW", Namibia: "NA", Mauritius: "MU",
-  "United Kingdom": "GB", "United States": "US", Canada: "CA",
-  Germany: "DE", France: "FR", Netherlands: "NL",
-  "United Arab Emirates": "AE", India: "IN", China: "CN",
-  Australia: "AU", "New Zealand": "NZ",
+const COUNTRY_TO_REGION: Record<string, CountryCode> = {
+  Ghana: "GH",
+  Nigeria: "NG",
+  Kenya: "KE",
+  "South Africa": "ZA",
+  Tanzania: "TZ",
+  Uganda: "UG",
+  Rwanda: "RW",
+  Ethiopia: "ET",
+  Senegal: "SN",
+  "Côte d'Ivoire": "CI",
+  Cameroon: "CM",
+  Zambia: "ZM",
+  Zimbabwe: "ZW",
+  Botswana: "BW",
+  Namibia: "NA",
+  Mauritius: "MU",
+  "United Kingdom": "GB",
+  "United States": "US",
+  Canada: "CA",
+  Germany: "DE",
+  France: "FR",
+  Netherlands: "NL",
+  "United Arab Emirates": "AE",
+  India: "IN",
+  China: "CN",
+  Australia: "AU",
+  "New Zealand": "NZ",
 };
 
-// Motion variants
-
-const slideVariants = {
-  initial: (dir: number) => ({ opacity: 0, x: dir * 24, filter: "blur(4px)" }),
-  animate: { opacity: 1, x: 0, filter: "blur(0px)" },
-  exit: (dir: number) => ({ opacity: 0, x: dir * -24, filter: "blur(4px)" }),
+const PHONE_PLACEHOLDERS: Partial<Record<CountryCode, string>> = {
+  GH: "030 274 8900",
+  NG: "0803 123 4567",
+  KE: "0712 345 678",
+  ZA: "021 555 0192",
+  GB: "020 7946 0921",
+  US: "(415) 555-0132",
 };
 
-const TRANSITION = { duration: 0.32, ease: [0.32, 0.72, 0, 1] as const };
+const STEP_LABELS = ["Property", "Location & contact"];
 
-// Step metadata
+// ─── Brand Mark ───────────────────────────────────────────────────────────────
 
-const STEP_META = [
-  {
-    label: "Property Details",
-    description: "Name, room count and property type. You can adjust these later in Settings.",
-  },
-  {
-    label: "Location & Contact",
-    description: "How guests find you and reach you. Kept private until you publish.",
-  },
-  {
-    label: "Review & Launch",
-    description: "Check everything once, then create your workspace.",
-  },
-];
+function BrandLink() {
+  return (
+    <Link href="/" className="ob-brand" aria-label="RoomLine home">
+      <span className="ob-brand-mark" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <rect x="2" y="7" width="5" height="7.5" rx="1" fill="currentColor" fillOpacity="0.92" />
+          <rect x="9" y="3.5" width="5" height="11" rx="1" fill="currentColor" fillOpacity="0.65" />
+          <rect x="1.5" y="14" width="13" height="1.2" rx="0.6" fill="currentColor" />
+        </svg>
+      </span>
+      <span className="ob-brand-name">RoomLine</span>
+    </Link>
+  );
+}
 
-//  Loading skeleton
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function LoadingSkeleton() {
   return (
-    <div className="onboarding-container" style={{ alignItems: "center", justifyContent: "center" }}>
-      <div className="flex flex-col items-center gap-3">
-        <div
-          className="w-8 h-8 rounded-full border-2 animate-spin"
-          style={{ borderColor: "var(--onboarding-accent)", borderTopColor: "transparent" }}
-          aria-label="Loading"
-        />
-        <p className="text-[13px]" style={{ color: "var(--onboarding-text-muted)" }}>
-          Loading…
-        </p>
-      </div>
+    <div className="ob-root" aria-busy="true" aria-label="Loading property setup">
+      <header className="ob-topbar">
+        <div className="ob-topbar-inner">
+          <BrandLink />
+          <div className="ob-skel" style={{ width: "6rem", height: "1.25rem" }} />
+        </div>
+      </header>
+      <main className="ob-main">
+        <div className="ob-column">
+          <div className="ob-skel" style={{ width: "5.875rem", height: "0.25rem", marginBottom: "1.75rem" }} />
+          <div className="ob-skel" style={{ width: "13rem", height: "1.75rem" }} />
+          <div className="ob-skel" style={{ width: "18rem", height: "1rem", marginTop: "0.5rem", marginBottom: "1.75rem" }} />
+          <div style={{ display: "grid", gap: "1.125rem" }}>
+            <div className="ob-skel" style={{ width: "100%", height: "2.625rem" }} />
+            <div className="ob-skel" style={{ width: "100%", height: "2.625rem" }} />
+            <div className="ob-skel" style={{ width: "100%", height: "2.625rem" }} />
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
 
-// Summary icons (inline SVG — no emoji)
+// ─── Auth Gate ────────────────────────────────────────────────────────────────
 
-function SummaryIconBuilding() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M9 8h2M13 8h2M9 12h2M13 12h2M10 21v-4h4v4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
+interface OrgBridge {
+  isLoaded: boolean;
+  hasExistingMembership: boolean;
+  firstMembershipOrgId: string | null;
+  ownsDraftOrg: (draftOrgId: string | null) => boolean;
+  createOrg: ((name: string) => Promise<{ id: string }>) | null;
+  activateOrg: ((orgId: string) => Promise<unknown>) | null;
 }
-
-function SummaryIconPin() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 21s-7-5.1-7-11a7 7 0 1114 0c0 5.9-7 11-7 11z" stroke="currentColor" strokeWidth="1.7" />
-      <circle cx="12" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.7" />
-    </svg>
-  );
-}
-
-function SummaryIconPhone() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M5 4h4l2 5-2.5 1.5a12 12 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function SummaryIconGlobe() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3z" stroke="currentColor" strokeWidth="1.7" />
-    </svg>
-  );
-}
-
-// Page
 
 export default function OnboardingPage() {
-  const { isLoaded, setActive, createOrganization, userMemberships } =
-    useOrganizationList({ userMemberships: true });
-  const { orgId } = useAuth();
+  const { orgId, userId, isLoaded: authLoaded } = useAuth();
   const { user } = useUser();
+  const { signOut } = useClerk();
   const router = useRouter();
 
-  /*
-   * Draft restore happens in lazy initializers: the first client render still
-   * outputs the loading skeleton (Clerk !isLoaded), so localStorage-backed
-   * state is ready before the wizard ever mounts — no setState-in-effect,
-   * no hydration mismatch.
-   */
+  useEffect(() => {
+    if (authLoaded && !userId) {
+      router.replace("/sign-up");
+    }
+  }, [authLoaded, userId, router]);
+
+  if (!authLoaded || !userId) return <LoadingSkeleton />;
+
+  return (
+    <AuthenticatedOnboarding
+      orgId={orgId ?? null}
+      clerkEmail={user?.primaryEmailAddress?.emailAddress ?? ""}
+      onSignOut={() => signOut({ redirectUrl: "/sign-in" })}
+    />
+  );
+}
+
+function AuthenticatedOnboarding({
+  orgId,
+  clerkEmail,
+  onSignOut,
+}: {
+  orgId: string | null;
+  clerkEmail: string;
+  onSignOut: () => void;
+}) {
+  const { isLoaded, setActive, createOrganization, userMemberships } =
+    useOrganizationList({ userMemberships: true });
+
+  const memberships = userMemberships?.data;
+  const bridge: OrgBridge = useMemo(
+    () => ({
+      isLoaded,
+      hasExistingMembership: Boolean(memberships?.length),
+      firstMembershipOrgId: memberships?.[0]?.organization.id ?? null,
+      ownsDraftOrg: (targetId: string | null) =>
+        Boolean(
+          targetId &&
+            memberships?.some(
+              (m) => m.organization.id === targetId && m.role === "org:admin"
+            )
+        ),
+      createOrg: createOrganization
+        ? (name: string) => createOrganization({ name })
+        : null,
+      activateOrg: setActive
+        ? (targetId: string) => setActive({ organization: targetId })
+        : null,
+    }),
+    [isLoaded, memberships, createOrganization, setActive]
+  );
+
+  return (
+    <OnboardingWizard
+      orgId={orgId}
+      clerkEmail={clerkEmail}
+      hasSession
+      onSignOut={onSignOut}
+      bridge={bridge}
+    />
+  );
+}
+
+// ─── Wizard ───────────────────────────────────────────────────────────────────
+
+function OnboardingWizard({
+  orgId,
+  clerkEmail,
+  hasSession,
+  onSignOut,
+  bridge,
+}: {
+  orgId: string | null;
+  clerkEmail: string;
+  hasSession: boolean;
+  onSignOut?: () => void;
+  bridge: OrgBridge;
+}) {
+  const router = useRouter();
+  const shouldReduceMotion = useReducedMotion();
+  const isLoaded = bridge.isLoaded;
+
   const [boot] = useState<Draft | null>(() =>
     typeof window === "undefined" ? null : loadDraft()
   );
@@ -312,18 +415,25 @@ export default function OnboardingPage() {
   const [direction, setDirection] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** Fields flagged by step-boundary validation; messages are re-derived live so fixes clear instantly. */
   const [flagged, setFlagged] = useState<Partial<Record<keyof DraftData, boolean>>>({});
   const [draftOrgId, setDraftOrgId] = useState<string | null>(boot?.orgId ?? null);
   const [done, setDone] = useState<{ name: string; slug: string | null } | null>(null);
+
+  const submittingOrDoneRef = useRef(false);
+  const didMountRef = useRef(false);
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+
+  const nameRef = useRef<HTMLInputElement>(null);
+  const addressRef = useRef<HTMLInputElement>(null);
+  const cityRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
 
   const [rawData, setRawData] = useState<DraftData>(() => ({
     ...DEFAULT_DATA,
     ...(boot?.data ?? {}),
   }));
 
-  // Smart prefill from the Clerk account, derived at render — no effect needed.
-  const clerkEmail = user?.primaryEmailAddress?.emailAddress ?? "";
   const values: DraftData = useMemo(
     () => ({
       ...DEFAULT_DATA,
@@ -333,32 +443,51 @@ export default function OnboardingPage() {
     [rawData, clerkEmail]
   );
 
-  // Redirect if already has org
   useEffect(() => {
-    if (isLoaded && orgId) router.push("/dashboard");
-  }, [isLoaded, orgId, router]);
-
-  // Auto-select first org if user has one
-  useEffect(() => {
-    if (isLoaded && !orgId && userMemberships?.data?.length && setActive) {
-      setActive({ organization: userMemberships.data[0].organization.id });
+    if (isLoaded && orgId && !done && !submittingOrDoneRef.current) {
+      router.push("/dashboard");
     }
-  }, [isLoaded, orgId, userMemberships, setActive]);
+  }, [isLoaded, orgId, done, router]);
 
-  // Persist every change so a crash or dead battery loses nothing.
   useEffect(() => {
+    if (
+      isLoaded &&
+      !orgId &&
+      !draftOrgId &&
+      !done &&
+      !submittingOrDoneRef.current &&
+      bridge.hasExistingMembership &&
+      bridge.firstMembershipOrgId &&
+      bridge.activateOrg
+    ) {
+      bridge.activateOrg(bridge.firstMembershipOrgId);
+    }
+  }, [isLoaded, orgId, draftOrgId, done, bridge]);
+
+  useEffect(() => {
+    if (done) return;
     writeDraft({ v: 2, step, data: values, orgId: draftOrgId });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, rawData, draftOrgId, clerkEmail]);
+  }, [step, rawData, draftOrgId, clerkEmail, done]);
 
-  // Exit warning — same pattern as the hotel settings dirty guard.
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+    const id = window.requestAnimationFrame(() => {
+      stepHeadingRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [step]);
+
   const isDirty = useMemo(() => {
     if (done) return false;
     const base: DraftData = { ...DEFAULT_DATA, email: clerkEmail };
     const touched = Object.keys(values).some(
       (k) =>
-        String((values as Record<string, unknown>)[k]) !==
-        String((base as Record<string, unknown>)[k])
+        String((values as Record<string, unknown>)[k] ?? "") !==
+        String((base as Record<string, unknown>)[k] ?? "")
     );
     return touched || step > 1 || !!draftOrgId;
   }, [values, step, draftOrgId, done, clerkEmail]);
@@ -377,58 +506,104 @@ export default function OnboardingPage() {
     setRawData((prev) => ({ ...prev, ...patch }));
   }, []);
 
+  const focusFirstError = (errs: FieldErrors) => {
+    if (errs.name) nameRef.current?.focus();
+    else if (errs.address) addressRef.current?.focus();
+    else if (errs.city) cityRef.current?.focus();
+    else if (errs.phone) phoneRef.current?.focus();
+    else if (errs.email) emailRef.current?.focus();
+  };
+
   const goNext = (e: FormEvent) => {
     e.preventDefault();
-    const errs = validateStep(step, values);
+    const errs = validateStep(1, values);
     const flags: Partial<Record<keyof DraftData, boolean>> = {};
     for (const k of Object.keys(errs) as Array<keyof DraftData>) flags[k] = true;
     setFlagged(flags);
-    if (Object.values(errs).some(Boolean)) return;
-    const n = Math.min(STEP_COUNT, step + 1);
+    if (Object.values(errs).some(Boolean)) {
+      focusFirstError(errs);
+      return;
+    }
     setDirection(1);
-    setStep(n);
+    setFlagged({});
+    setStep(2);
     setError(null);
   };
 
-  const goBack = () => {
-    const n = Math.max(1, step - 1);
-    setDirection(-1);
-    setStep(n);
+  const jumpToStep = (target: number) => {
+    if (loading || target === step || target < 1 || target > STEP_COUNT) return;
+    setDirection(target < step ? -1 : 1);
+    setFlagged({});
+    setStep(target);
     setError(null);
   };
+
+  const goBack = () => jumpToStep(1);
+
+  const regionCode: CountryCode | undefined =
+    COUNTRY_TO_REGION[values.country ?? "Ghana"];
+
+  const dialPrefix = useMemo(() => {
+    if (!regionCode) return undefined;
+    try {
+      return `+${getCountryCallingCode(regionCode)}`;
+    } catch {
+      return undefined;
+    }
+  }, [regionCode]);
+
+  const phonePlaceholder =
+    (regionCode && PHONE_PLACEHOLDERS[regionCode]) || "Phone number";
 
   const handlePhoneChange = (rawText: string) => {
-    const region = COUNTRY_TO_REGION[values.country ?? "Ghana"] ?? "GH";
-    const formatter = new AsYouType(region as CountryCode);
-    updateField({ phone: formatter.input(rawText) });
+    const stripped = stripDialPrefix(rawText, dialPrefix);
+    const prevPhone = values.phone ?? "";
+    if (!regionCode || stripped.length < prevPhone.length) {
+      updateField({ phone: stripped });
+      return;
+    }
+    const formatter = new AsYouType(regionCode);
+    updateField({ phone: stripDialPrefix(formatter.input(stripped), dialPrefix) });
   };
 
   const activeErrors = validateStep(step, values);
   const errFor = (k: keyof DraftData) => (flagged[k] ? activeErrors[k] : undefined);
 
   const submit = useCallback(async () => {
-    if (!createOrganization || !setActive) return;
+    if (!bridge.createOrg || !bridge.activateOrg) return;
 
+    const step1Errs = validateStep(1, values);
+    if (Object.values(step1Errs).some(Boolean)) {
+      const flags: Partial<Record<keyof DraftData, boolean>> = {};
+      for (const k of Object.keys(step1Errs) as Array<keyof DraftData>) flags[k] = true;
+      setDirection(-1);
+      setStep(1);
+      setFlagged(flags);
+      window.requestAnimationFrame(() => focusFirstError(step1Errs));
+      return;
+    }
+
+    const step2Errs = validateStep(2, values);
+    if (Object.values(step2Errs).some(Boolean)) {
+      const flags: Partial<Record<keyof DraftData, boolean>> = {};
+      for (const k of Object.keys(step2Errs) as Array<keyof DraftData>) flags[k] = true;
+      setFlagged(flags);
+      focusFirstError(step2Errs);
+      return;
+    }
+
+    submittingOrDoneRef.current = true;
     setLoading(true);
     setError(null);
 
     try {
-      /*
-       * Reuse an org from an earlier partial attempt so a failed hotel insert
-       * can never leave two organizations behind.
-       */
       let targetOrgId = draftOrgId;
-      const ownsDraftOrg =
-        !!targetOrgId &&
-        !!userMemberships?.data?.some(
-          (m) => m.organization.id === targetOrgId && m.role === "org:admin"
-        );
+      const ownsDraftOrg = bridge.ownsDraftOrg(targetOrgId);
 
       if (!ownsDraftOrg) {
-        const org = await createOrganization({ name: values.name!.trim() });
+        const org = await bridge.createOrg(values.name!.trim());
         targetOrgId = org.id;
         setDraftOrgId(targetOrgId);
-        // Persist immediately — the next lines are the ones that can fail.
         writeDraft({ v: 2, step, data: values, orgId: targetOrgId });
       }
 
@@ -438,514 +613,385 @@ export default function OnboardingPage() {
         address: values.address!.trim(),
         city: values.city!.trim(),
         country: values.country || "Ghana",
-        phone: values.phone!.trim(),
+        phone: normalizePhoneForSubmit(values.phone, dialPrefix),
         email: values.email!.trim(),
         hotel_type: values.hotel_type || "Hotel",
         number_of_rooms: Number(values.number_of_rooms),
-        star_rating: values.star_rating,
-        website: values.website,
+        star_rating: values.star_rating ?? "Unrated",
       };
 
       const result = await createHotelProfile(payload);
       if ("error" in result) throw new Error(result.error);
 
       try {
-        await setActive({ organization: targetOrgId! });
-      } catch {
-        // Org activation is recoverable later; the workspace itself exists.
-      }
+        await bridge.activateOrg(targetOrgId!);
+      } catch {}
 
       clearDraft();
       setDone({ name: payload.name, slug: result.slug });
     } catch (err: unknown) {
+      submittingOrDoneRef.current = false;
       setError(
         err instanceof Error && err.message
           ? err.message
-          : "Something went wrong. Your details are saved — try again."
+          : "Couldn't finish setup right now. Your details are saved — try again."
       );
     } finally {
       setLoading(false);
     }
-  }, [createOrganization, setActive, userMemberships, draftOrgId, values, step]);
+  }, [bridge, draftOrgId, values, step, dialPrefix]);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleFinalSubmit = (e: FormEvent) => {
     e.preventDefault();
     submit();
   };
 
+  const stepMotion = shouldReduceMotion
+    ? {
+        initial: { opacity: 0 },
+        animate: { opacity: 1, transition: { duration: 0.12 } },
+        exit: { opacity: 0, transition: { duration: 0.1 } },
+      }
+    : {
+        initial: {
+          opacity: 0,
+          transform: `translateX(${direction * 12}px)`,
+        },
+        animate: {
+          opacity: 1,
+          transform: "translateX(0px)",
+          transition: {
+            duration: 0.18,
+            ease: [0.23, 1, 0.32, 1] as const,
+          },
+        },
+        exit: {
+          opacity: 0,
+          transform: `translateX(${direction * -10}px)`,
+          transition: {
+            duration: 0.11,
+            ease: [0.23, 1, 0.32, 1] as const,
+          },
+        },
+      };
+
   if (!isLoaded) return <LoadingSkeleton />;
 
-  if (done) return <CompletionScreen name={done.name} slug={done.slug} />;
+  if (done) {
+    return (
+      <CompletionScreen
+        name={done.name}
+        slug={done.slug}
+        email={clerkEmail}
+        onSignOut={hasSession ? onSignOut : undefined}
+      />
+    );
+  }
+
+  const trimmedName = (values.name ?? "").trim();
+  const slugPreview = trimmedName ? slugify(trimmedName, 32) : "";
+  const roomCount = values.number_of_rooms ?? 10;
 
   return (
-    <div className="onboarding-container">
-      {/* Skip link for accessibility */}
-      <a href="#main-content" className="visually-hidden">
-        Skip to main content
+    <div className="ob-root">
+      <a href="#main-content" className="ob-skip">
+        Skip to setup
       </a>
 
-      {/* LEFT SIDEBAR  */}
-      <aside className="onboarding-sidebar" aria-label="Onboarding information">
-        <div className="onboarding-sidebar-texture" aria-hidden="true" />
+      <div role="status" aria-live="polite" className="visually-hidden">
+        {`Step ${step} of ${STEP_COUNT}: ${STEP_LABELS[step - 1]}`}
+      </div>
 
-        <div>
-          {/* Logo */}
-          <div className="flex items-center gap-2.5 mb-16">
-            <div
-              className="flex items-center justify-center w-8 h-8 rounded-lg"
-              style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
-              aria-hidden="true"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="1" y="7" width="6" height="8" rx="0.5" fill="white" fillOpacity="0.9" />
-                <rect x="9" y="4" width="6" height="11" rx="0.5" fill="white" fillOpacity="0.6" />
-                <rect x="3" y="1" width="10" height="1" rx="0.5" fill="white" fillOpacity="0.4" />
-              </svg>
-            </div>
-            <span className="text-[15px] font-semibold text-white tracking-[-0.01em]">
-              RoomLine
-            </span>
+      {/* Minimal Borderless Top Chrome */}
+      <header className="ob-topbar">
+        <div className="ob-topbar-inner">
+          <BrandLink />
+
+          <div className="ob-topbar-right">
+            {clerkEmail && (
+              <span className="ob-user-email" title={clerkEmail}>
+                {clerkEmail}
+              </span>
+            )}
+            {hasSession && onSignOut && (
+              <button
+                type="button"
+                className="ob-ghost-btn"
+                onClick={onSignOut}
+              >
+                Sign out
+              </button>
+            )}
           </div>
-
-          {/* Step-aware content */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={step}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
-            >
-              <p className="onboarding-eyebrow">
-                Step {step} of {STEP_META.length}
-              </p>
-              <h1 className="onboarding-heading">{STEP_META[step - 1].label}</h1>
-              <p className="onboarding-subheading">{STEP_META[step - 1].description}</p>
-            </motion.div>
-          </AnimatePresence>
         </div>
+      </header>
 
-        {/* Bottom: reassurance */}
-        <div
-          className="rounded-xl p-5 flex items-start gap-3"
-          style={{
-            backgroundColor: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.07)",
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="shrink-0 mt-0.5" aria-hidden="true">
-            <path
-              d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
-              stroke="#94a3b8"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+      {/* Focused Single-Axis Onboarding Column */}
+      <main id="main-content" className="ob-main" tabIndex={-1}>
+        <div className="ob-column">
+          <div className="ob-progress-row">
+            <StepIndicator
+              currentStep={step}
+              totalSteps={STEP_COUNT}
+              labels={STEP_LABELS}
+              onStepSelect={jumpToStep}
+              disabled={loading}
             />
-          </svg>
-          <div>
-            <p className="text-[13px] font-medium mb-1" style={{ color: "#e2e8f0" }}>
-              Your progress is saved
-            </p>
-            <p className="text-[12px] leading-relaxed" style={{ color: "#64748b" }}>
-              Close this page anytime and pick up where you left off on this device.
-            </p>
+            {isDirty && (
+              <span className="ob-saved-note">
+                <span className="ob-saved-dot" aria-hidden="true" />
+                Draft saved
+              </span>
+            )}
           </div>
-        </div>
-      </aside>
 
-      {/* RIGHT CONTENT AREA  */}
-      <main className="onboarding-content">
-        {/* Mobile header */}
-        <div
-          className="lg:hidden flex items-center gap-2.5 px-5 py-4 border-b"
-          style={{ backgroundColor: "var(--onboarding-card-bg)", borderColor: "var(--onboarding-border)" }}
-        >
-          <div
-            className="flex items-center justify-center w-7 h-7 rounded-lg"
-            style={{ backgroundColor: "var(--onboarding-sidebar-bg)" }}
-            aria-hidden="true"
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <rect x="1" y="7" width="6" height="8" rx="0.5" fill="white" fillOpacity="0.9" />
-              <rect x="9" y="4" width="6" height="11" rx="0.5" fill="white" fillOpacity="0.6" />
-            </svg>
-          </div>
-          <span className="text-[14px] font-semibold" style={{ color: "var(--onboarding-text-primary)" }}>
-            RoomLine
-          </span>
-        </div>
+          {error && (
+            <div className="ob-alert" role="alert">
+              <AlertCircle size={16} strokeWidth={2} aria-hidden="true" />
+              <div>
+                <p>{error}</p>
+                {!loading && (
+                  <button
+                    type="button"
+                    onClick={submit}
+                    className="ob-alert-retry"
+                  >
+                    Try again
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
-        {/* Step indicator bar */}
-        <div
-          className="px-6 sm:px-10 py-5 border-b bg-card"
-          style={{ borderColor: "var(--onboarding-border)", backgroundColor: "var(--onboarding-card-bg)" }}
-        >
-          <StepIndicator currentStep={step} totalSteps={STEP_COUNT} labels={STEP_META.map((m) => m.label)} />
-        </div>
+          <AnimatePresence mode="wait" initial={false}>
+            {step === 1 && (
+              <motion.div
+                key="step-1"
+                initial={stepMotion.initial}
+                animate={stepMotion.animate}
+                exit={stepMotion.exit}
+              >
+                <div className="ob-header-block">
+                  <h1
+                    id="ob-step-heading"
+                    ref={stepHeadingRef}
+                    tabIndex={-1}
+                    className="ob-title"
+                  >
+                    Create your property
+                  </h1>
+                  <p className="ob-subtitle">
+                    Three basics to set up your workspace. Everything stays editable in Settings.
+                  </p>
+                </div>
 
-        {/* Scrollable form area */}
-        <div
-          id="main-content"
-          className="flex-1 flex items-start justify-center px-5 sm:px-10 py-8 overflow-y-auto native-scroll"
-        >
-          <div className="w-full max-w-[32rem] pb-2">
-            {/* Error banner */}
-            <AnimatePresence>
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={TRANSITION}
-                  className="onboarding-alert onboarding-alert-error"
-                  role="alert"
-                >
-                  <AlertCircle size={16} className="onboarding-alert-icon" aria-hidden="true" />
-                  <div className="onboarding-alert-message">
-                    <p>{error}</p>
-                    {!loading && (
-                      <button
-                        type="button"
-                        onClick={submit}
-                        className="mt-1 font-semibold underline underline-offset-2"
-                      >
-                        Try again
-                      </button>
+                <form onSubmit={goNext} className="ob-form" noValidate>
+                  <div>
+                    <OBInput
+                      ref={nameRef}
+                      label="Property name"
+                      required
+                      autoComplete="organization"
+                      placeholder="Labadi Courtyard Hotel"
+                      value={values.name ?? ""}
+                      error={errFor("name")}
+                      onChange={(e) => updateField({ name: e.target.value })}
+                    />
+                    {slugPreview && !errFor("name") && (
+                      <p className="ob-slug-preview" style={{ marginTop: "0.375rem" }}>
+                        Booking link: <strong>/{slugPreview}</strong>
+                      </p>
                     )}
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
 
-            {/* Step content with animations */}
-            <div className="overflow-hidden">
-              <AnimatePresence mode="wait" custom={direction} initial={false}>
-                {/* ── Step 1: Property Details  */}
-                {step === 1 && (
-                  <motion.div
-                    key="step-1"
-                    custom={direction}
-                    variants={slideVariants}
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
-                    transition={TRANSITION}
+                  <div className="ob-row-2">
+                    <OBSelect
+                      label="Property type"
+                      required
+                      options={HOTEL_TYPE_OPTIONS}
+                      value={values.hotel_type ?? "Hotel"}
+                      onChange={(e) => updateField({ hotel_type: e.target.value })}
+                    />
+                    <RoomStepper
+                      label="Number of rooms"
+                      value={roomCount}
+                      onChange={(val) => updateField({ number_of_rooms: val })}
+                    />
+                  </div>
+
+                  <div className="ob-actions">
+                    <button type="submit" className="ob-btn-primary">
+                      <span>Continue</span>
+                      <ArrowRight
+                        size={15}
+                        strokeWidth={2.2}
+                        className="ob-btn-arrow"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+
+            {step === 2 && (
+              <motion.div
+                key="step-2"
+                initial={stepMotion.initial}
+                animate={stepMotion.animate}
+                exit={stepMotion.exit}
+              >
+                <div className="ob-header-block">
+                  <h1
+                    id="ob-step-heading"
+                    ref={stepHeadingRef}
+                    tabIndex={-1}
+                    className="ob-title"
                   >
-                    <div className="mb-8">
-                      <h2 className="onboarding-section-title">Tell us about your property</h2>
-                      <p className="onboarding-section-desc">
-                        Three details to open your workspace. Everything here stays editable in
-                        Settings later.
-                      </p>
-                    </div>
+                    Location &amp; contact
+                  </h1>
+                  <p className="ob-subtitle">
+                    Shown on guest confirmations once your property is verified.
+                  </p>
+                </div>
 
-                    <form onSubmit={goNext} className="onboarding-form" noValidate>
-                      <OBInput
-                        label="Property Name"
-                        required
-                        autoFocus
-                        autoComplete="organization"
-                        placeholder="e.g. Ashanti Suites"
-                        value={values.name ?? ""}
-                        error={errFor("name")}
-                        onChange={(e) => updateField({ name: e.target.value })}
-                      />
+                <form onSubmit={handleFinalSubmit} className="ob-form" noValidate>
+                  <OBInput
+                    ref={addressRef}
+                    label="Street address"
+                    required
+                    autoComplete="street-address"
+                    placeholder="14 Liberation Road, Airport Residential"
+                    value={values.address ?? ""}
+                    error={errFor("address")}
+                    disabled={loading}
+                    onChange={(e) => updateField({ address: e.target.value })}
+                  />
 
-                      <RoomStepper
-                        label="Total Rooms"
-                        value={values.number_of_rooms ?? 10}
-                        onChange={(val) => updateField({ number_of_rooms: val })}
-                        hint="All rooms, including suites. Affects how availability is tracked."
-                      />
+                  <div className="ob-row-2">
+                    <OBInput
+                      ref={cityRef}
+                      label="Town or city"
+                      required
+                      autoComplete="address-level2"
+                      placeholder="Accra"
+                      value={values.city ?? ""}
+                      error={errFor("city")}
+                      disabled={loading}
+                      onChange={(e) => updateField({ city: e.target.value })}
+                    />
+                    <OBSelect
+                      label="Country"
+                      required
+                      disabled={loading}
+                      options={COUNTRY_OPTIONS}
+                      value={values.country ?? "Ghana"}
+                      onChange={(e) =>
+                        updateField({ country: e.target.value, phone: "" })
+                      }
+                    />
+                  </div>
 
-                      <div className="onboarding-form-row">
-                        <OBSelect
-                          label="Property Type"
-                          required
-                          options={HOTEL_TYPE_OPTIONS}
-                          value={values.hotel_type ?? "Hotel"}
-                          onChange={(e) => updateField({ hotel_type: e.target.value })}
-                        />
-                        <OBSelect
-                          label="Star Rating"
-                          options={STAR_RATING_OPTIONS}
-                          hint="Optional — change later in Settings"
-                          value={values.star_rating ?? "Unrated"}
-                          onChange={(e) => updateField({ star_rating: e.target.value })}
-                        />
-                      </div>
+                  <div className="ob-row-2">
+                    <OBInput
+                      ref={phoneRef}
+                      label="Phone number"
+                      required
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      spellCheck={false}
+                      mono
+                      disabled={loading}
+                      prefixText={dialPrefix}
+                      placeholder={phonePlaceholder}
+                      value={values.phone ?? ""}
+                      error={errFor("phone")}
+                      onChange={(e) => handlePhoneChange(e.target.value)}
+                    />
+                    <OBInput
+                      ref={emailRef}
+                      label="Booking email"
+                      required
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      disabled={loading}
+                      placeholder="stay@yourhotel.com"
+                      value={values.email ?? ""}
+                      error={errFor("email")}
+                      onChange={(e) => updateField({ email: e.target.value })}
+                    />
+                  </div>
 
-                      <div className="onboarding-action-bar">
-                        <button type="submit" className="onboarding-button-primary flex-1">
-                          Continue
-                          <ArrowRight size={15} strokeWidth={2.5} aria-hidden="true" />
-                        </button>
-                      </div>
-                    </form>
-                  </motion.div>
-                )}
+                  <p className="ob-verify-caption">
+                    Public booking activates once we verify the property — usually within 24 hours.
+                  </p>
 
-                {/*  Step 2: Location & Contact  */}
-                {step === 2 && (
-                  <motion.div
-                    key="step-2"
-                    custom={direction}
-                    variants={slideVariants}
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
-                    transition={TRANSITION}
-                  >
-                    <div className="mb-8">
-                      <h2 className="onboarding-section-title">Location & contact</h2>
-                      <p className="onboarding-section-desc">
-                        Where the property is and how guests reach you. Nothing is published yet.
-                      </p>
-                    </div>
-
-                    <form onSubmit={goNext} className="onboarding-form" noValidate>
-                      <OBInput
-                        label="Street Address"
-                        required
-                        autoFocus
-                        autoComplete="street-address"
-                        placeholder="e.g. 14 Independence Avenue"
-                        value={values.address ?? ""}
-                        error={errFor("address")}
-                        onChange={(e) => updateField({ address: e.target.value })}
-                      />
-
-                      <div className="onboarding-form-row">
-                        <OBInput
-                          label="City"
-                          required
-                          autoComplete="address-level2"
-                          placeholder="e.g. Accra"
-                          value={values.city ?? ""}
-                          error={errFor("city")}
-                          onChange={(e) => updateField({ city: e.target.value })}
-                        />
-                        <OBSelect
-                          label="Country"
-                          required
-                          options={COUNTRY_OPTIONS}
-                          value={values.country ?? "Ghana"}
-                          onChange={(e) =>
-                            updateField({ country: e.target.value, phone: "" })
-                          }
-                        />
-                      </div>
-
-                      <div className="onboarding-form-row">
-                        <OBInput
-                          label="Phone Number"
-                          required
-                          type="tel"
-                          inputMode="tel"
-                          autoComplete="tel"
-                          placeholder="e.g. 030 200 0000"
-                          value={values.phone ?? ""}
-                          error={errFor("phone")}
-                          onChange={(e) => handlePhoneChange(e.target.value)}
-                          hint="Formatted for you"
-                        />
-                        <OBInput
-                          label="Email Address"
-                          required
-                          type="email"
-                          inputMode="email"
-                          autoComplete="email"
-                          placeholder="info@yourhotel.com"
-                          value={values.email ?? ""}
-                          error={errFor("email")}
-                          onChange={(e) => updateField({ email: e.target.value })}
-                          hint="Booking confirmations go here"
-                        />
-                      </div>
-
-                      <OBInput
-                        label="Website"
-                        type="url"
-                        inputMode="url"
-                        autoComplete="url"
-                        placeholder="https://yourhotel.com"
-                        value={values.website ?? ""}
-                        onChange={(e) => updateField({ website: e.target.value })}
-                        hint="Optional — shown on your public page"
-                      />
-
-                      <div className="onboarding-action-bar">
-                        <button
-                          type="button"
-                          onClick={goBack}
-                          className="onboarding-button-secondary"
-                        >
-                          <ArrowLeft size={14} strokeWidth={2} aria-hidden="true" />
-                          Back
-                        </button>
-                        <button type="submit" className="onboarding-button-primary flex-1">
-                          Review & Confirm
-                          <ArrowRight size={15} strokeWidth={2.5} aria-hidden="true" />
-                        </button>
-                      </div>
-                    </form>
-                  </motion.div>
-                )}
-
-                {/* ── Step 3: Review & Launch  */}
-                {step === 3 && (
-                  <motion.div
-                    key="step-3"
-                    custom={direction}
-                    variants={slideVariants}
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
-                    transition={TRANSITION}
-                  >
-                    <div className="mb-8">
-                      <h2 className="onboarding-section-title">Review your details</h2>
-                      <p className="onboarding-section-desc">
-                        One last look. Creating your workspace takes a few seconds.
-                      </p>
-                    </div>
-
-                    <form onSubmit={handleSubmit} className="onboarding-form" noValidate>
-                      {/* Summary card */}
-                      <div className="onboarding-summary-card">
-                        <div className="onboarding-summary-row">
-                          <span className="onboarding-summary-icon" aria-hidden="true">
-                            <SummaryIconBuilding />
-                          </span>
-                          <div className="onboarding-summary-content">
-                            <p className="onboarding-summary-label">Property</p>
-                            <p className="onboarding-summary-value">{values.name}</p>
-                            <p className="onboarding-summary-sub">
-                              {values.hotel_type} ·{" "}
-                              {values.star_rating !== "Unrated"
-                                ? `${values.star_rating}★`
-                                : "Unrated"}{" "}
-                              · {values.number_of_rooms} rooms
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="onboarding-summary-row">
-                          <span className="onboarding-summary-icon" aria-hidden="true">
-                            <SummaryIconPin />
-                          </span>
-                          <div className="onboarding-summary-content">
-                            <p className="onboarding-summary-label">Location</p>
-                            <p className="onboarding-summary-value">{values.address}</p>
-                            <p className="onboarding-summary-sub">
-                              {values.city}, {values.country}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="onboarding-summary-row">
-                          <span className="onboarding-summary-icon" aria-hidden="true">
-                            <SummaryIconPhone />
-                          </span>
-                          <div className="onboarding-summary-content">
-                            <p className="onboarding-summary-label">Contact</p>
-                            <p className="onboarding-summary-value">{values.phone ?? "—"}</p>
-                            <p className="onboarding-summary-sub">{values.email ?? "—"}</p>
-                          </div>
-                        </div>
-
-                        {values.website && (
-                          <div className="onboarding-summary-row">
-                            <span className="onboarding-summary-icon" aria-hidden="true">
-                              <SummaryIconGlobe />
-                            </span>
-                            <div className="onboarding-summary-content">
-                              <p className="onboarding-summary-label">Website</p>
-                              <p className="onboarding-summary-value">{values.website}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <p className="text-[12px] text-center" style={{ color: "var(--onboarding-text-muted)" }}>
-                        Your booking page goes live after we verify the property — usually within
-                        a day. Terms are shared at that point.
-                      </p>
-
-                      <div className="onboarding-action-bar">
-                        <button
-                          type="button"
-                          onClick={goBack}
-                          disabled={loading}
-                          className="onboarding-button-secondary"
-                        >
-                          <ArrowLeft size={14} strokeWidth={2} aria-hidden="true" />
-                          Back
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={loading}
-                          className="onboarding-button-primary flex-1"
-                        >
-                          {loading ? (
-                            <>
-                              <Loader2 size={15} strokeWidth={2} className="animate-spin" aria-hidden="true" />
-                              Setting up…
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle size={15} strokeWidth={2} aria-hidden="true" />
-                              Create my workspace
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </form>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div
-          className="px-6 py-4 flex items-center justify-between border-t"
-          style={{
-            borderColor: "var(--onboarding-border)",
-            backgroundColor: "var(--onboarding-card-bg)",
-          }}
-        >
-          <p className="text-[11px]" style={{ color: "var(--onboarding-text-muted)" }}>
-            © 2026 RoomLine
-          </p>
-          <div className="flex items-center gap-1.5">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <path
-                d="M6 1a5 5 0 100 10A5 5 0 006 1zM4 6l1.5 1.5L8 4"
-                stroke="#16a34a"
-                strokeWidth="1.3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <p className="text-[11px]" style={{ color: "var(--onboarding-text-muted)" }}>
-              Sign-in secured by Clerk
-            </p>
-          </div>
+                  <div className="ob-actions">
+                    <button
+                      type="button"
+                      onClick={goBack}
+                      disabled={loading}
+                      className="ob-btn-secondary"
+                    >
+                      <ArrowLeft size={14} strokeWidth={2} aria-hidden="true" />
+                      <span>Back</span>
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="ob-btn-primary"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2
+                            size={15}
+                            strokeWidth={2.2}
+                            className="animate-spin"
+                            aria-hidden="true"
+                          />
+                          <span>Creating workspace…</span>
+                        </>
+                      ) : (
+                        <span>Create workspace</span>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </main>
     </div>
   );
 }
 
-// ─── Completion screen ─────────────────────────────────────────────────────────
+// ─── Completion Screen ─────────────────────────────────────────────────────────
 
-function CompletionScreen({ name, slug }: { name: string; slug: string | null }) {
+function CompletionScreen({
+  name,
+  slug,
+  email,
+  onSignOut,
+}: {
+  name: string;
+  slug: string | null;
+  email?: string;
+  onSignOut?: () => void;
+}) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
 
-  const bookingUrl = slug ? `${window.location.origin}/${slug}` : null;
+  const bookingUrl =
+    slug && typeof window !== "undefined"
+      ? `${window.location.origin}/${slug}`
+      : slug
+        ? `/${slug}`
+        : null;
 
   const copyBookingUrl = async () => {
     if (!bookingUrl) return;
@@ -957,121 +1003,112 @@ function CompletionScreen({ name, slug }: { name: string; slug: string | null })
   };
 
   return (
-    <div className="onboarding-container" style={{ justifyContent: "center" }}>
-      <div className="w-full max-w-[34rem] px-5 sm:px-10 py-10">
-        <div className="onboarding-success-badge" aria-hidden="true">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M5 12.5l4.5 4.5L19 7.5"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-
-        <h1 className="onboarding-section-title mt-5" style={{ fontSize: "1.75rem" }}>
-          {name} is ready.
-        </h1>
-        <p className="onboarding-section-desc mt-2">
-          Your workspace is live and you&apos;re signed in as its admin. The public booking page
-          switches on after we verify the property — usually within a day.
-        </p>
-
-        <div className="mt-8 flex flex-col gap-3">
-          {slug && (
-            <div className="onboarding-next-card">
-              <div className="flex items-start gap-3.5">
-                <span className="onboarding-next-icon" aria-hidden="true">
-                  <Link2 size={17} strokeWidth={2} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold" style={{ color: "var(--onboarding-text-primary)" }}>
-                    Share your booking link
-                  </p>
-                  <p className="text-[12px] mt-0.5 mb-3" style={{ color: "var(--onboarding-text-secondary)" }}>
-                    Put it on WhatsApp, socials or your site. It opens for guests once
-                    verification completes.
-                  </p>
-                  <div className="flex items-stretch gap-2">
-                    <code
-                      className="onboarding-booking-url"
-                      title={bookingUrl ?? `/${slug}`}
-                    >
-                      {`/${slug}`}
-                    </code>
-                    <button
-                      type="button"
-                      onClick={copyBookingUrl}
-                      className="onboarding-button-secondary shrink-0"
-                      aria-live="polite"
-                    >
-                      {copied ? (
-                        <>
-                          <Check size={13} strokeWidth={2.5} aria-hidden="true" /> Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={13} strokeWidth={2} aria-hidden="true" /> Copy
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="onboarding-next-card">
-            <div className="flex items-center gap-3.5">
-              <span className="onboarding-next-icon" aria-hidden="true">
-                <Users size={17} strokeWidth={2} />
+    <div className="ob-root">
+      <header className="ob-topbar">
+        <div className="ob-topbar-inner">
+          <BrandLink />
+          <div className="ob-topbar-right">
+            {email && (
+              <span className="ob-user-email" title={email}>
+                {email}
               </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-semibold" style={{ color: "var(--onboarding-text-primary)" }}>
-                  Invite your staff
-                </p>
-                <p className="text-[12px] mt-0.5" style={{ color: "var(--onboarding-text-secondary)" }}>
-                  Create join links for front desk, managers and housekeeping.
-                </p>
-              </div>
+            )}
+            {onSignOut && (
               <button
                 type="button"
-                onClick={() => router.push("/dashboard/staff")}
-                className="onboarding-button-secondary shrink-0"
+                className="ob-ghost-btn"
+                onClick={onSignOut}
               >
-                Invite staff
-                <ArrowRight size={13} strokeWidth={2.5} aria-hidden="true" />
+                Sign out
               </button>
-            </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <main id="main-content" className="ob-main">
+        <div className="ob-column">
+          <div className="ob-done-icon" aria-hidden="true">
+            <Check size={20} strokeWidth={2.4} />
           </div>
 
-          <div className="onboarding-next-card">
-            <div className="flex items-center gap-3.5">
-              <span className="onboarding-next-icon" aria-hidden="true">
-                <LayoutDashboard size={17} strokeWidth={2} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-semibold" style={{ color: "var(--onboarding-text-primary)" }}>
-                  Set up rooms and rates
-                </p>
-                <p className="text-[12px] mt-0.5" style={{ color: "var(--onboarding-text-secondary)" }}>
-                  Add room types from the dashboard — takes about five minutes.
-                </p>
+          <div className="ob-header-block">
+            <h1 className="ob-title">{name} is ready</h1>
+            <p className="ob-subtitle">
+              Your admin workspace is live. Direct booking opens once property verification completes.
+            </p>
+          </div>
+
+          <div className="ob-form">
+            {slug && bookingUrl && (
+              <div className="ob-field">
+                <div className="ob-label-row">
+                  <span className="ob-label">Booking link</span>
+                  <span className="ob-optional">Live after verification</span>
+                </div>
+                <div className="ob-copy-field">
+                  <code className="ob-copy-url" title={bookingUrl}>
+                    {bookingUrl}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={copyBookingUrl}
+                    data-copied={copied ? "true" : undefined}
+                    className="ob-copy-btn"
+                    aria-live="polite"
+                  >
+                    {copied ? (
+                      <>
+                        <Check size={13} strokeWidth={2.4} aria-hidden="true" />
+                        <span>Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={13} strokeWidth={2} aria-hidden="true" />
+                        <span>Copy</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
+            )}
+
+            <div className="ob-actions">
               <button
                 type="button"
                 onClick={() => router.push("/dashboard/rooms")}
-                className="onboarding-button-primary shrink-0"
+                className="ob-btn-primary"
               >
-                Go to dashboard
-                <ArrowRight size={13} strokeWidth={2.5} aria-hidden="true" />
+                <span>Set up rooms &amp; rates</span>
+                <ArrowRight
+                  size={15}
+                  strokeWidth={2.2}
+                  className="ob-btn-arrow"
+                  aria-hidden="true"
+                />
               </button>
             </div>
           </div>
+
+          <div className="ob-secondary-links">
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard/staff")}
+              className="ob-text-action"
+            >
+              <span>Invite staff members</span>
+              <ArrowRight size={13} strokeWidth={2} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard")}
+              className="ob-text-action"
+            >
+              <span>Open dashboard</span>
+            </button>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

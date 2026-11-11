@@ -1,11 +1,10 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "RoomLine — the property system for independent hotels";
+export const alt =
+  "RoomLine — Hotel software for independent properties in Ghana";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-// Social card mirrors the landing's night band: paper ink on evergreen
-// ground, a single brass accent for the settled figure.
 export default function OpengraphImage() {
   return new ImageResponse(
     (
@@ -16,66 +15,69 @@ export default function OpengraphImage() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          backgroundColor: "#0F241F",
+          backgroundColor: "#10241E",
           padding: 72,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 5 }}>
+            <div
+              style={{
+                width: 9,
+                height: 22,
+                backgroundColor: "#F4F4F0",
+              }}
+            />
+            <div
+              style={{
+                width: 9,
+                height: 35,
+                backgroundColor: "#D8B25C",
+              }}
+            />
+            <div
+              style={{
+                width: 9,
+                height: 27,
+                backgroundColor: "#F4F4F0",
+              }}
+            />
+          </div>
+          <span
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: 12,
-              backgroundColor: "#E7C46A",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              color: "#F4F4F0",
+              fontSize: 34,
+              fontWeight: 700,
+              letterSpacing: "-0.03em",
             }}
           >
-            <svg width="24" height="24" viewBox="0 0 16 16" fill="none">
-              <rect x="1" y="7" width="6" height="8" rx="1" fill="#0F241F" />
-              <rect x="9" y="4" width="6" height="11" rx="1" fill="#0F241F" fillOpacity="0.55" />
-            </svg>
-          </div>
-          <span style={{ color: "#FBFAF8", fontSize: 30, fontWeight: 700 }}>
-            RoomLine
+            RoomLine.
           </span>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div
             style={{
-              color: "#FBFAF8",
-              fontSize: 64,
-              fontWeight: 800,
-              lineHeight: 1.05,
-              letterSpacing: "-0.02em",
-              maxWidth: 900,
+              color: "#F4F4F0",
+              fontSize: 76,
+              fontWeight: 700,
+              lineHeight: 0.98,
+              letterSpacing: "-0.04em",
               display: "flex",
               flexDirection: "column",
             }}
           >
-            <span>One screen for the</span>
-            <span style={{ color: "#8FD9B8" }}>entire front desk.</span>
+            <span>Run a calmer</span>
+            <span>front desk.</span>
           </div>
-          <div style={{ color: "rgba(251,250,248,0.62)", fontSize: 26 }}>
-            Bookings · mobile money, cash and card · night audit
+          <div style={{ color: "#A6B6B0", fontSize: 26, maxWidth: 820 }}>
+            Reservations, rooms, Mobile Money payments, and night audit for
+            independent hotels in Ghana.
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 10 }}>
-          {[82, 64, 40].map((w, i) => (
-            <div
-              key={i}
-              style={{
-                width: w * 2,
-                height: 14,
-                borderRadius: 8,
-                backgroundColor:
-                  i === 0 ? "#E7C46A" : "rgba(251,250,248,0.14)",
-              }}
-            />
-          ))}
+        <div style={{ color: "#D8B25C", fontSize: 20, fontWeight: 600 }}>
+          Accra, Ghana
         </div>
       </div>
     ),

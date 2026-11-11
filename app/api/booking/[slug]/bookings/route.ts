@@ -285,7 +285,11 @@ export async function POST(
     if (!hotel) return NextResponse.json({ error: "Hotel not found" }, { status: 404 });
 
     const policy = ((hotel.settings as Record<string, unknown>)?.payment_policy as string) ?? "choice";
-    if (policy === "pay_now_only" && data.payment_preference === "pay_at_checkin") {
+    if (
+      policy === "pay_now_only" &&
+      hotel.paystack_subaccount_code &&
+      data.payment_preference === "pay_at_checkin"
+    ) {
       return NextResponse.json({ error: "This hotel requires payment to confirm your booking." }, { status: 400 });
     }
     if (policy === "pay_later_only" && data.payment_preference === "pay_now") {
@@ -435,7 +439,7 @@ export async function POST(
     // ── pay_now: hand off to Paystack ────────────────────────────
     // Derive the callback from the request URL, never from the client-supplied
     // Origin header — Paystack would otherwise redirect guests to any host.
-    const callbackUrl = `${req.nextUrl.origin}/${slug}/book/confirmation?bref=${booking.reference}`;
+    const callbackUrl = `${req.nextUrl.origin}/${slug}/confirmation?bref=${booking.reference}`;
     const payRef = `${booking.reference}-${Date.now()}`;
 
     try {
@@ -649,7 +653,11 @@ async function createGroupBooking(
   if (!hotel) return NextResponse.json({ error: "Hotel not found" }, { status: 404 });
 
   const policy = ((hotel.settings as Record<string, unknown>)?.payment_policy as string) ?? "choice";
-  if (policy === "pay_now_only" && data.payment_preference === "pay_at_checkin") {
+  if (
+    policy === "pay_now_only" &&
+    hotel.paystack_subaccount_code &&
+    data.payment_preference === "pay_at_checkin"
+  ) {
     return NextResponse.json({ error: "This hotel requires payment to confirm your booking." }, { status: 400 });
   }
   if (policy === "pay_later_only" && data.payment_preference === "pay_now") {
@@ -798,7 +806,7 @@ async function createGroupBooking(
 
   // ── pay_now: one Paystack handoff for the whole group total ──────
   // Callback carries the group reference, same shape the single path uses.
-  const callbackUrl = `${req.nextUrl.origin}/${slug}/book/confirmation?bref=${group.group_reference}`;
+  const callbackUrl = `${req.nextUrl.origin}/${slug}/confirmation?bref=${group.group_reference}`;
   const payRef = `${group.group_reference}-${Date.now()}`;
 
   try {

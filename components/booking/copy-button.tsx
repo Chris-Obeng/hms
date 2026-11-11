@@ -7,16 +7,22 @@ export function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
+      type="button"
       onClick={() => {
         navigator.clipboard.writeText(text).then(() => {
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
         });
       }}
-      className="inline-flex size-9 items-center justify-center rounded-lg text-[var(--bk-muted)] hover:text-[var(--bk-ink)] hover:bg-[var(--bk-surface-soft)] transition-colors cursor-pointer touch-manipulation"
+      className="inline-flex size-[34px] md:size-9 shrink-0 items-center justify-center rounded-[12px] bg-white text-[#0485F7] shadow-[0_1px_3px_rgb(0_0_0/0.08)] hover:bg-[#F5F5F5] active:scale-95 transition-all cursor-pointer touch-manipulation"
+      aria-label={copied ? "Copied booking reference" : "Copy booking reference"}
       title="Copy reference"
     >
-      {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+      {copied ? (
+        <Check className="size-4 text-[#17C964]" strokeWidth={2.25} />
+      ) : (
+        <Copy className="size-[14px] md:size-[15px]" strokeWidth={2} />
+      )}
     </button>
   );
 }

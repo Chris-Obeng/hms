@@ -1,12 +1,36 @@
 ﻿import Link from "next/link";
-import { buttonVariants } from "@heroui/styles";
 import { ArrowRight } from "lucide-react";
 
-/** Native route navigation with HeroUI's server-safe button styling. */
-export function ActionLink() {
+interface ActionLinkProps {
+  href?: string;
+  label?: string;
+  variant?: "primary" | "brass";
+  size?: "md" | "sm";
+}
+
+export function ActionLink({
+  href = "/sign-up",
+  label = "Get started",
+  variant = "primary",
+  size = "md",
+}: ActionLinkProps) {
+  const classes = [
+    "rl-btn",
+    `rl-btn--${variant}`,
+    size === "sm" ? "rl-btn--sm" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <Link href="/sign-up" prefetch={false} className={`${buttonVariants({ variant: "primary", size: "lg" })} rl-button`}>
-      Get started <ArrowRight aria-hidden="true" size={17} />
+    <Link href={href} prefetch={false} className={classes}>
+      <span>{label}</span>
+      <ArrowRight
+        aria-hidden="true"
+        size={16}
+        strokeWidth={2}
+        className="rl-btn-arrow"
+      />
     </Link>
   );
 }

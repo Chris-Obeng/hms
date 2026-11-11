@@ -1,70 +1,75 @@
 "use client";
 
 import { forwardRef, InputHTMLAttributes, useId } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AlertCircle } from "lucide-react";
 
 interface OnboardingInputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string;
   hint?: string;
+  optional?: boolean;
+  prefixText?: string;
+  mono?: boolean;
 }
 
 export const OnboardingInput = forwardRef<HTMLInputElement, OnboardingInputProps>(
-  ({ label, error, hint, className = "", id, ...props }, ref) => {
+  (
+    {
+      label,
+      error,
+      hint,
+      optional = false,
+      prefixText,
+      mono = false,
+      className = "",
+      id,
+      ...props
+    },
+    ref
+  ) => {
     const uid = useId();
     const inputId = id ?? uid;
-    const hasError = !!error;
+    const hasError = Boolean(error);
 
     return (
-      <div className="onboarding-form-group">
-        <label htmlFor={inputId} className="onboarding-label">
-          {label}
-          {props.required && <span className="onboarding-label-required" aria-label="required">*</span>}
-        </label>
+      <div className="ob-field">
+        <div className="ob-label-row">
+          <label htmlFor={inputId} className="ob-label">
+            {label}
+          </label>
+          {optional && <span className="ob-optional">Optional</span>}
+        </div>
 
-        <input
-          ref={ref}
-          id={inputId}
-          className={`onboarding-input ${className}`}
-          aria-invalid={hasError}
-          aria-describedby={
-            hasError ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined
-          }
-          {...props}
-        />
+        <div className="ob-input-wrap" data-invalid={hasError ? "true" : undefined}>
+          {prefixText && (
+            <span className="ob-input-prefix" aria-hidden="true">
+              {prefixText}
+            </span>
+          )}
+          <input
+            ref={ref}
+            id={inputId}
+            className={`ob-input ${mono ? "ob-input--mono" : ""} ${className}`.trim()}
+            aria-invalid={hasError}
+            aria-describedby={
+              hasError ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined
+            }
+            {...props}
+          />
+        </div>
 
         {hint && !hasError && (
-          <p id={`${inputId}-hint`} className="onboarding-hint">
+          <p id={`${inputId}-hint`} className="ob-hint">
             {hint}
           </p>
         )}
 
-        <AnimatePresence>
-          {hasError && (
-            <motion.div
-              id={`${inputId}-error`}
-              role="alert"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.18 }}
-              className="onboarding-error-message"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 16 16"
-                fill="none"
-                aria-hidden="true"
-                style={{ flexShrink: 0 }}
-              >
-                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M8 5v3.5M8 11h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-              <span>{error}</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {hasError && (
+          <p id={`${inputId}-error`} role="alert" className="ob-error">
+            <AlertCircle size={14} strokeWidth={2} aria-hidden="true" />
+            <span>{error}</span>
+          </p>
+        )}
       </div>
     );
   }

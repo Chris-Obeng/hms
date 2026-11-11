@@ -1,23 +1,43 @@
-﻿const steps = [
-  { number: "01", title: "Book the stay", copy: "Capture the guest, dates, room, and rate in one reservation." },
-  { number: "02", title: "Prepare the welcome", copy: "See what is arriving, what is ready, and what your team needs next." },
-  { number: "03", title: "Close the day", copy: "Review charges, payments, and the handover before the next shift begins." },
+﻿import { ActionLink } from "./action-link";
+import { Reveal } from "./reveal";
+
+const STEPS = [
+  {
+    title: "First, add your rooms",
+    body: "Set room types, GHS rates, staff roles, and your payout account in fifteen minutes.",
+  },
+  {
+    title: "Daily, run reception",
+    body: "Check in arrivals, assign inspected rooms, and log payments from one screen.",
+  },
+  {
+    title: "Nightly, close the books",
+    body: "Lock the business date at midnight and wake up to exact occupancy and revenue.",
+  },
 ] as const;
 
 export function How() {
   return (
-    <section id="how-it-works" className="rl-section" aria-labelledby="how-heading">
-      <div className="rl-container rl-process">
-        <div className="rl-process-intro">
-          <p className="rl-eyebrow">One stay, start to finish</p>
-          <h2 id="how-heading" className="rl-heading">A calmer day starts with a clearer handover.</h2>
-          <p className="rl-description">Simple enough to pick up between guests. Clear enough to keep every shift moving together.</p>
-        </div>
-        <ol className="rl-process-list">
-          {steps.map((step) => (
-            <li key={step.number}>
-              <span className="rl-process-number">{step.number}</span>
-              <div><h3>{step.title}</h3><p>{step.copy}</p></div>
+    <section
+      id="how-it-works"
+      className="rl-dark-band"
+      aria-labelledby="how-heading"
+    >
+      <div className="rl-wrap">
+        <Reveal className="rl-how-head">
+          <h2 id="how-heading" className="rl-h2">
+            Live in one&nbsp;afternoon.
+          </h2>
+          <ActionLink variant="brass" />
+        </Reveal>
+
+        <ol className="rl-how-steps">
+          {STEPS.map((step, idx) => (
+            <li key={step.title}>
+              <Reveal className="rl-how-cell" delay={idx * 65}>
+                <h3 className="rl-h3">{step.title}</h3>
+                <p className="rl-body">{step.body}</p>
+              </Reveal>
             </li>
           ))}
         </ol>

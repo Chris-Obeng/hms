@@ -148,7 +148,7 @@ async function handleRetryPayment(
   const guest = booking.guests as { email?: string | null } | null;
 
   // Derive the callback from the request origin — never client-supplied headers.
-  const callbackUrl = `${req.nextUrl.origin}/${slug}/book/confirmation?bref=${booking.reference}`;
+  const callbackUrl = `${req.nextUrl.origin}/${slug}/confirmation?bref=${booking.reference}`;
   const payRef = `${booking.reference}-r${Date.now()}`;
 
   const attemptCurrency = booking.currency ?? hotel.currency ?? "GHS";
@@ -329,7 +329,7 @@ async function handleGroupRetryPayment(
   }
 
   const guest = anchor.guests as { email?: string | null } | null;
-  const callbackUrl = `${req.nextUrl.origin}/${slug}/book/confirmation?bref=${anchor.reference}`;
+  const callbackUrl = `${req.nextUrl.origin}/${slug}/confirmation?bref=${anchor.reference}`;
   const payRef = `${anchor.reference}-r${Date.now()}`;
 
   try {
