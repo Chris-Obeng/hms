@@ -14,7 +14,7 @@ import { NotificationTemplatesClient } from "./templates-client";
 import type { NotificationEventType, NotificationTemplate } from "@/lib/notification-templates";
 import { disableWebPush, enableWebPush } from "@/lib/push";
 import { sendTestPushAction } from "@/app/actions/push-test";
-import { SettingsSubHeader } from "../_components/settings-sub-header";
+
 
 // ── Event Types ────────────────────────────────────────────────────
 
@@ -203,7 +203,7 @@ export default function NotificationSettingsPage() {
   if (loading) {
     return (
       <div className="space-y-6 max-w-lg" aria-busy="true" aria-label="Loading notification settings">
-        <SettingsSubHeader icon="bell" title="Notifications" subtitle="Control what notifications you receive" />
+
         <div className="space-y-3 animate-pulse">
           {[0, 1, 2].map((i) => (
             <div key={i} className="h-24 rounded-xl bg-muted/40" />
@@ -215,7 +215,7 @@ export default function NotificationSettingsPage() {
 
   return (
     <div className="space-y-6 max-w-lg">
-      <SettingsSubHeader icon="bell" title="Notifications" subtitle="Control what notifications you receive" />
+
 
       {/* Sound Settings */}
       <Card>

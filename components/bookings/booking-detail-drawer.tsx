@@ -1,25 +1,25 @@
 "use client";
 
 import * as React from "react";
-import { Accordion, Drawer, ScrollShadow, Skeleton, Tabs, toast } from "@heroui/react";
-import { CalendarX2 } from "lucide-react";
+import { Button, Drawer, Dropdown, Skeleton, Tabs, toast } from "@heroui/react";
+import { Ban, CalendarX2, Ellipsis, RotateCcw, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSnapshotPatch } from "@/hooks/use-snapshot-patch";
 import { SegmentedTab } from "@/components/ui/segmented-tab";
-import { deriveReservationStatus } from "@/lib/booking-status";
+import { canTransitionBooking, deriveReservationStatus } from "@/lib/booking-status";
+import { formatRoomLabel } from "@/lib/format";
 import type { FullBookingDetail } from "@/app/actions/bookings-detail";
+import { updateBookingStatus } from "@/app/actions/bookings";
+import { checkInBooking, checkOutBooking } from "@/app/dashboard/actions";
 import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
 import { takeBookingDetail } from "@/lib/detail-prefetch";
 
 import { BookingStatusPill, ReferenceChip } from "./_components/booking-status-pill";
 import { BookingPanelBoundary } from "./_components/booking-panel-boundary";
-import { BookingActionBar } from "./_components/booking-action-bar";
 import { BookingOverviewPanel } from "./_components/booking-overview-panel";
-import { BookingPaymentsPanel } from "./_components/booking-payments-panel";
-import { BookingNotesPanel } from "./_components/booking-notes-panel";
-import { BookingGuestPanel } from "./_components/booking-guest-panel";
+import { BookingPaymentsPanel, getBookingPaymentAvailability } from "./_components/booking-payments-panel";
 
 interface BookingDetailDrawerProps {
   bookingId: string | null;
@@ -29,6 +29,8 @@ interface BookingDetailDrawerProps {
   initialTab?: "overview" | "payments";
   onBookingChanged?: () => void;
 }
+
+type DrawerTab = "overview" | "payments";
 
 export function BookingDetailDrawer({
   bookingId,
@@ -41,6 +43,9 @@ export function BookingDetailDrawer({
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [actionLoading, setActionLoading] = React.useState<string | null>(null);
+  const [tab, setTab] = React.useState<DrawerTab>(initialTab);
+  const [paymentFormOpen, setPaymentFormOpen] = React.useState(false);
+  const [confirmAction, setConfirmAction] = React.useState<"cancel" | "reinstate" | null>(null);
 
   // Seed from legacy detail-prefetch Map on first open (one-shot migration) → instant if hover-warmed before hydration
   const seededRef = React.useRef<string | null>(null);
@@ -95,6 +100,12 @@ export function BookingDetailDrawer({
     if (open && query.isError && errorMsg) toast.danger(errorMsg);
   }, [open, query.isError, errorMsg]);
 
+  // Closing the drawer clears transient UI state (render-time reset, not an effect).
+  if (!open && (paymentFormOpen || confirmAction !== null)) {
+    setPaymentFormOpen(false);
+    setConfirmAction(null);
+  }
+
   const handleAction = async (
     action: string,
     optimisticStatus: string,
@@ -124,6 +135,7 @@ export function BookingDetailDrawer({
                   ? "Reservation reinstated"
                   : "Reservation confirmed"
         );
+        setConfirmAction(null);
         refresh();
       } else {
         setOptimisticPatch(null);
@@ -152,11 +164,10 @@ export function BookingDetailDrawer({
       },
     } as unknown as Partial<FullBookingDetail>);
     try {
-      const { checkInBooking: doIn, checkOutBooking: doOut } = await import("@/app/dashboard/actions");
       let ok = 0;
       let lastError: string | undefined;
       for (const id of ids) {
-        const fn = kind === "check_in" ? () => doIn(id) : () => doOut(id);
+        const fn = kind === "check_in" ? () => checkInBooking(id) : () => checkOutBooking(id);
         const r = await fn();
         if (r.success) ok += 1;
         else lastError = r.error;
@@ -184,24 +195,43 @@ export function BookingDetailDrawer({
   const isPending = open && !!bookingId && query.isPending;
   const isErrorEmpty = open && !!bookingId && query.isError && !booking;
 
+  const anchorStatus = booking?.status ?? "";
+  const anchorRoomNumber = booking?.room?.roomNumber ?? null;
+  const roomLabel = formatRoomLabel(anchorRoomNumber) ?? "reservation";
+  const canCancel = booking ? canTransitionBooking(anchorStatus, "cancelled") : false;
+  const canReinstate = booking
+    ? canTransitionBooking(anchorStatus, "confirmed") &&
+      (anchorStatus === "cancelled" || anchorStatus === "no_show")
+    : false;
+  const paymentAvail = booking ? getBookingPaymentAvailability(booking) : null;
+  const canRecordPayment = Boolean(paymentAvail?.canTakePayment && !paymentAvail?.isFullyPaid);
+  const footerAction = booking
+    ? canTransitionBooking(anchorStatus, "checked_in")
+      ? { key: "check_in", label: `Check in ${roomLabel}`, run: () => handleAction("check_in", "checked_in", () => checkInBooking(booking.id)) }
+      : canTransitionBooking(anchorStatus, "checked_out")
+        ? { key: "check_out", label: `Check out ${roomLabel}`, run: () => handleAction("check_out", "checked_out", () => checkOutBooking(booking.id)) }
+        : canTransitionBooking(anchorStatus, "confirmed") && anchorStatus === "pending"
+          ? { key: "confirm", label: "Confirm reservation", run: () => handleAction("confirm", "confirmed", () => updateBookingStatus(booking.id, "confirmed")) }
+          : null
+    : null;
+
   return (
     <Drawer.Backdrop isOpen={open} onOpenChange={(isOpen) => !isOpen && onClose()} variant="opaque" className="bg-black/40">
       <Drawer.Content placement={isMobile ? "bottom" : "right"}>
         <Drawer.Dialog
           className={`
-            flex w-full flex-col overflow-hidden rounded-t-3xl bg-background p-0 shadow-[0_-24px_80px_rgb(0_0_0/0.35)]
+            flex w-full flex-col overflow-hidden rounded-t-3xl bg-card p-0 shadow-[0_-24px_80px_rgb(0_0_0/0.35)]
             h-[min(94dvh,56rem)] max-h-[94dvh]
-            md:h-dvh md:max-h-dvh md:w-[min(28rem,100vw)] md:rounded-none
-            md:border-l md:border-border/60 md:shadow-[-32px_0_90px_rgb(0_0_0/0.16)]
+            md:h-dvh md:max-h-dvh md:w-[min(30rem,100vw)]
+            md:rounded-l-3xl md:rounded-r-none
+            md:border-l md:border-border/70 md:shadow-[-32px_0_90px_rgb(0_0_0/0.16)]
           `}
         >
           {isMobile && <Drawer.Handle className="mt-2.5 shrink-0" />}
 
-          <Drawer.CloseTrigger className="absolute right-4 top-4 z-30 grid size-8 place-items-center rounded-full bg-muted/70 text-muted-foreground shadow-xs backdrop-blur transition-all hover:bg-muted hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-
           {isPending ? (
             <DrawerSkeleton />
-          ) : isErrorEmpty ? (
+          ) : isErrorEmpty || !booking ? (
             <Drawer.Body className="flex flex-1 flex-col items-center justify-center px-6 pb-16 text-center">
               <div className="mb-4 grid size-14 place-items-center rounded-2xl bg-muted/50">
                 <CalendarX2 className="size-6 text-muted-foreground/40" />
@@ -209,72 +239,161 @@ export function BookingDetailDrawer({
               <p className="text-sm font-semibold text-foreground">Reservation not found</p>
               <p className="mt-1 max-w-[15rem] text-xs text-muted-foreground">It may have been removed, or you don&apos;t have access to it.</p>
             </Drawer.Body>
-          ) : booking ? (
+          ) : (
             <>
-              <Drawer.Header className="shrink-0 flex-col items-start gap-2.5 border-b border-border/50 bg-background px-4 pb-4 pr-14 pt-[max(1rem,env(safe-area-inset-top))] sm:px-5 md:pt-14">
-                <div className="flex w-full min-w-0 items-center gap-2.5">
+              {/* Header band */}
+              <Drawer.Header className="shrink-0 flex-col items-start gap-2.5 border-b border-border/60 bg-card px-6 pb-4 pt-[max(1.25rem,env(safe-area-inset-top))] md:pt-[max(1.25rem,4.5rem)]">
+                <div className="flex w-full min-w-0 items-center gap-2">
                   <BookingStatusPill status={reservationStatus} className="shrink-0" />
                   <ReferenceChip reference={booking.reference} className="min-w-0" />
+                  <span className="min-w-0 flex-1" aria-hidden="true" />
                   {(booking.group?.totalRooms ?? booking.roomsCount ?? 0) > 1 && (
-                    <span className="shrink-0 rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-semibold text-foreground/80">
+                    <span className="shrink-0 rounded-lg bg-muted/70 px-2 py-1 text-[11px] font-semibold text-muted-foreground">
                       {booking.group?.totalRooms ?? booking.roomsCount} rooms
                     </span>
                   )}
+                  <Dropdown>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="tertiary"
+                      aria-label="Reservation actions"
+                      className="size-7 min-w-7 shrink-0 rounded-full bg-muted/70 p-0 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <Ellipsis className="size-3.5" aria-hidden="true" />
+                    </Button>
+                    <Dropdown.Popover placement="bottom end">
+                      <Dropdown.Menu
+                        onAction={(key) => {
+                          if (key === "reinstate" && canReinstate) setConfirmAction("reinstate");
+                          else if (key === "cancel" && canCancel) setConfirmAction("cancel");
+                        }}
+                      >
+                        {canReinstate ? (
+                          <Dropdown.Item id="reinstate" textValue="Reinstate reservation" className="text-foreground">
+                            <RotateCcw className="size-3.5 text-muted-foreground" />
+                            <span>Reinstate reservation</span>
+                          </Dropdown.Item>
+                        ) : (
+                          <Dropdown.Item id="cancel" textValue="Cancel reservation" isDisabled={!canCancel} className="text-[var(--danger)] data-[hovered=true]:bg-[var(--danger)]/10">
+                            <Ban className="size-3.5 text-[var(--danger)]" />
+                            <span>Cancel reservation</span>
+                          </Dropdown.Item>
+                        )}
+                      </Dropdown.Menu>
+                    </Dropdown.Popover>
+                  </Dropdown>
+                  <button
+                    type="button"
+                    aria-label="Close reservation drawer"
+                    onClick={onClose}
+                    className="hidden md:grid size-7 shrink-0 place-items-center rounded-full bg-muted/70 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <X className="size-3.5" aria-hidden="true" />
+                  </button>
                 </div>
-                <Drawer.Heading className="w-full truncate text-xl font-bold leading-tight tracking-tight text-foreground">
+                <Drawer.Heading className="w-full truncate text-xl font-semibold leading-tight tracking-[-0.3px] text-foreground">
                   {booking.guest?.fullName || "Unknown Guest"}
                 </Drawer.Heading>
               </Drawer.Header>
 
-              <BookingActionBar
-                booking={booking}
-                actionLoading={actionLoading}
-                onAction={handleAction}
-              />
-
               <Tabs
                 key={`${open ? bookingId : "closed"}:${initialTab}`}
-                defaultSelectedKey={initialTab}
+                selectedKey={tab}
+                onSelectionChange={(key) => setTab(key as DrawerTab)}
                 className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
               >
-                <ScrollShadow hideScrollBar className="min-h-0 flex-1 overscroll-contain">
-                  <Tabs.ListContainer className="sticky top-0 z-10 border-b border-border/40 bg-background/95 px-4 py-2 backdrop-blur-md sm:px-5">
+                <div className="shrink-0 border-b border-border/60 bg-card px-6 py-2.5">
+                  <Tabs.ListContainer>
                     <Tabs.List aria-label="Reservation sections" className="grid w-full grid-cols-2">
                       <SegmentedTab id="overview">Overview</SegmentedTab>
                       <SegmentedTab id="payments">Payment</SegmentedTab>
                     </Tabs.List>
                   </Tabs.ListContainer>
+                </div>
 
+                <ScrollArea>
                   <BookingPanelBoundary label="overview">
-                    <Tabs.Panel id="overview">
-                      <BookingOverviewPanel booking={booking} actionLoading={actionLoading} onBulkAction={handleBulkAction} />
-                      <div className="px-4 pb-5 sm:px-5">
-                        <Accordion variant="surface" allowsMultipleExpanded defaultExpandedKeys={["guest"]} className="w-full">
-                          <BookingGuestPanel booking={booking} />
-                          <BookingNotesPanel booking={booking} onRefresh={refresh} />
-                        </Accordion>
-                      </div>
+                    <Tabs.Panel id="overview" className="flex min-h-full flex-col">
+                      <BookingOverviewPanel booking={booking} actionLoading={actionLoading} onBulkAction={handleBulkAction}
+                        onSaveNotes={async (notes) => {
+                          const { updateBookingNotes } = await import("@/app/actions/bookings-detail");
+                          return updateBookingNotes(booking.id, { notes });
+                        }} />
                     </Tabs.Panel>
                   </BookingPanelBoundary>
 
                   <BookingPanelBoundary label="payments">
-                    <Tabs.Panel id="payments">
-                      <BookingPaymentsPanel booking={booking} currency={booking.currency ?? currency} onBookingChanged={onBookingChanged} onRefresh={refresh} />
+                    <Tabs.Panel id="payments" className="flex min-h-full flex-col">
+                      <BookingPaymentsPanel
+                        booking={booking}
+                        currency={booking.currency ?? currency}
+                        onBookingChanged={onBookingChanged}
+                        onRefresh={refresh}
+                        formOpen={paymentFormOpen}
+                        onFormOpenChange={setPaymentFormOpen}
+                      />
                     </Tabs.Panel>
                   </BookingPanelBoundary>
-                </ScrollShadow>
+                </ScrollArea>
+
+                {/* Footer CTA: lifecycle on Overview, Record payment on Payment */}
+                <div className="shrink-0 border-t border-border/60 bg-card px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3.5 max-md:pt-3">
+                  {tab === "payments" ? (
+                    canRecordPayment || paymentFormOpen ? (
+                      <button type="button"
+                        onClick={() => setPaymentFormOpen((prev) => !prev)}
+                        className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--pen-accent)] text-[13px] font-semibold text-white transition-transform active:scale-[0.99]">
+                        {paymentFormOpen ? "Close form" : "Record payment"}
+                      </button>
+                    ) : (
+                      <button type="button" disabled
+                        className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-muted text-[13px] font-semibold text-muted-foreground">
+                        {paymentAvail?.isFullyPaid
+                          ? "Paid in full"
+                          : anchorStatus === "cancelled"
+                            ? "Cancelled"
+                            : anchorStatus === "checked_out"
+                              ? "Checked out"
+                              : "No payment due"}
+                      </button>
+                    )
+                  ) : footerAction ? (
+                    <button type="button"
+                      disabled={actionLoading !== null}
+                      onClick={() => footerAction?.run()}
+                      className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--pen-accent)] text-[13px] font-semibold text-white transition-transform active:scale-[0.99] disabled:opacity-60">
+                      {actionLoading === footerAction.key ? "Working…" : footerAction.label}
+                    </button>
+                  ) : (
+                    <button type="button" disabled
+                      className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-muted text-[13px] font-semibold text-muted-foreground">
+                      {anchorStatus === "checked_out" ? "Checked out" : anchorStatus === "cancelled" ? "Cancelled" : "No action needed"}
+                    </button>
+                  )}
+                </div>
               </Tabs>
 
               <div aria-hidden className="h-[max(0.25rem,env(safe-area-inset-bottom))] shrink-0 md:hidden" />
             </>
-          ) : (
-            <Drawer.Body className="flex flex-1 flex-col items-center justify-center px-6 pb-16 text-center">
-              <div className="mb-4 grid size-14 place-items-center rounded-2xl bg-muted/50">
-                <CalendarX2 className="size-6 text-muted-foreground/40" />
-              </div>
-              <p className="text-sm font-semibold text-foreground">Reservation not found</p>
-              <p className="mt-1 max-w-[15rem] text-xs text-muted-foreground">It may have been removed, or you don&apos;t have access to it.</p>
-            </Drawer.Body>
+          )}
+
+          {/* Cancel / reinstate confirmation */}
+          {booking && (
+            <AlertDialogish
+              open={confirmAction !== null}
+              mode={confirmAction ?? "cancel"}
+              busy={actionLoading === "cancel" || actionLoading === "reinstate"}
+              onClose={() => setConfirmAction(null)}
+              onConfirm={() => {
+                if (!booking) return;
+                if (confirmAction === "reinstate") {
+                  void handleAction("reinstate", "confirmed", () => updateBookingStatus(booking.id, "confirmed"));
+                } else {
+                  void handleAction("cancel", "cancelled", () => updateBookingStatus(booking.id, "cancelled"));
+                }
+              }}
+            />
           )}
         </Drawer.Dialog>
       </Drawer.Content>
@@ -282,19 +401,82 @@ export function BookingDetailDrawer({
   );
 }
 
+/** Minimal confirm dialog for the overflow actions (danger styling on cancel). */
+function AlertDialogish({ open, mode, busy, onClose, onConfirm }: {
+  open: boolean;
+  mode: "cancel" | "reinstate";
+  busy: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) return null;
+  const cancel = mode === "cancel";
+  return (
+    <div
+      role="presentation"
+      className="absolute inset-0 z-50 bg-black/40 px-4 transition-opacity opacity-100"
+      onClick={onClose}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.stopPropagation();
+          onClose();
+        }
+      }}
+    >
+      <div role="dialog" aria-modal="true" aria-label={cancel ? "Cancel reservation" : "Reinstate reservation"}
+        className="mx-auto mt-[35vh] w-[min(22rem,90vw)] rounded-2xl border border-border/60 bg-card p-5 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}>
+        <h2 className="text-sm font-semibold text-foreground">{cancel ? "Cancel this reservation?" : "Reinstate this reservation?"}</h2>
+        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+          {cancel
+            ? "The rooms are released and the guest is notified by email. Other rooms in the reservation are not affected."
+            : "The reservation returns to confirmed and its rooms are held again."}
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" autoFocus onClick={onClose}
+            className="h-9 rounded-full px-3.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+            Keep reservation
+          </button>
+          <button type="button" disabled={busy} onClick={onConfirm}
+            className={`h-9 rounded-full px-4 text-xs font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-60 ${cancel ? "bg-[var(--danger)]" : "bg-[var(--pen-accent)]"}`}>
+            {cancel ? "Cancel reservation" : "Reinstate"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Hairline-band loading skeleton per the design, not a stack of cards. */
 function DrawerSkeleton() {
   return (
-    <Drawer.Body className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-14">
+    <Drawer.Body className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,4.5rem)]">
       <div className="flex items-center gap-2">
         <Skeleton className="h-6 w-24 rounded-full" />
-        <Skeleton className="h-6 w-28 rounded-lg" />
+        <Skeleton className="h-6 w-20 rounded-lg" />
       </div>
-      <Skeleton className="h-7 w-48 rounded-lg" />
-      <div className="mt-2 grid grid-cols-2 gap-3">
-        <Skeleton className="h-24 rounded-2xl" />
-        <Skeleton className="h-24 rounded-2xl" />
+      <Skeleton className="mt-2.5 h-7 w-44 rounded-lg" />
+      <Skeleton className="mt-4 h-10 w-full rounded-full" />
+      <div className="mt-4 border-b border-border/60 pb-5">
+        <Skeleton className="h-6 w-40 rounded" />
+        <Skeleton className="mt-2 h-4 w-56 rounded" />
       </div>
-      <Skeleton className="h-36 rounded-2xl" />
+      <div className="border-b border-border/60 py-2">
+        <Skeleton className="my-2 h-10 w-full rounded" />
+        <Skeleton className="my-2 h-10 w-full rounded" />
+      </div>
+      <div className="border-b border-border/60 py-2">
+        <Skeleton className="my-2 h-5 w-full rounded" />
+        <Skeleton className="my-2 h-5 w-3/4 rounded" />
+      </div>
     </Drawer.Body>
+  );
+}
+
+function ScrollArea({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      {children}
+    </div>
   );
 }

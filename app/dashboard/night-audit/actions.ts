@@ -8,11 +8,27 @@ import type { NightAuditSummary } from "@/lib/night-audit/summary";
 
 export type { NightAuditSummary };
 
-export async function getNightAuditData(dateStr?: string): Promise<NightAuditSummary> {
+export interface NightAuditView {
+  summary: NightAuditSummary;
+  /** Room revenue with the hotel's configured tax added — display only; the close receipt stays net. */
+  roomRevenueInclTax: number | null;
+}
+
+export async function getNightAuditData(dateStr?: string): Promise<NightAuditView> {
   const ctx = await requireMinRole("read_only", "view Night Audit");
   if (ctx.hotel.status !== "active") throw new Error("Active hotel access is required.");
   const supabase = await createClient();
-  return requestNightAudit(supabase, ctx.hotelId, { close: false, date: dateStr });
+  const summary = await requestNightAudit(supabase, ctx.hotelId, { close: false, date: dateStr });
+  // Gross-up with the hotel's own tax rate, mirroring lib/bookings/cart.ts
+  // (tax = subtotal × percentage, charged on top of the net rate).
+  const settings = (ctx.hotel.settings ?? {}) as { tax_enabled?: boolean; tax_percentage?: number };
+  const taxRate = settings.tax_enabled === true ? (settings.tax_percentage ?? 0) : 0;
+  const roomRevenueInclTax = summary.roomRevenue === null
+    ? null
+    : taxRate > 0
+      ? summary.roomRevenue * (1 + taxRate / 100)
+      : summary.roomRevenue;
+  return { summary, roomRevenueInclTax };
 }
 
 export async function executeNightAudit(

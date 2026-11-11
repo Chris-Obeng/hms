@@ -4,20 +4,25 @@ import { differenceInCalendarDays, eachDayOfInterval, format, parseISO, startOfW
 import { fromMinor, sumMinor } from "@/lib/money";
 import { adr, allocateNightlyRevenue, occupancy, pctDelta, revpag, revpar, type NightFact, type NightRow } from "@/lib/reports/bi-math";
 import { historicalCapacity, type CapacityDay, type InventorySnapshot } from "@/lib/reports/inventory";
-import { BALANCE_BASIS, INVENTORY_BASIS, ROOM_BASIS, STAYED, loadInventory, loadNights, loadOutstanding, loadStays, reportContext, withWarnings, type ReportContext, type ReportMeta, type ReportScope, type ReportStay } from "@/lib/reports/data";
+import { BALANCE_BASIS, INVENTORY_BASIS, ROOM_BASIS, STAYED, loadInventory, loadNights, loadOutstanding, loadOutstandingSummary, loadStays, reportContext, resolveReportScope, withWarnings, type ReportContext, type ReportMeta, type ReportScope, type ReportStay } from "@/lib/reports/data";
 import { readAllPages, reportReadError } from "@/lib/reports/pagination";
 import { classifyArrivingGuests } from "@/lib/reports/guests";
 import { loadTenderMix } from "@/lib/reports/collections";
 import { classifyArrivals, type StayMix } from "@/lib/reports/arrivals";
+import { fetchDashboardOccupancy } from "@/lib/dashboard/fetch-dashboard-occupancy";
+import { requestNightAudit } from "@/lib/night-audit/durable-close";
+import type { RoomsSoldMetric } from "@/lib/metrics/dashboard-occupancy";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database.types";
 
 export type { ReportMeta, ReportScope } from "@/lib/reports/data";
 export interface KpiDelta { revenue: number | null; revpar: number | null; adr: number | null; occupancy: number | null; roomNights: number | null }
 export interface OverviewSeriesPoint { date: string; label: string; revenue: number; occupancy: number | null; roomNights: number; adr: number; revpar: number | null }
 export interface SourceSlice { source: string; count: number; revenue: number; pct: number; roomNights: number }
-export interface OverviewData { currency: string; revenue: number; revpar: number | null; adr: number; occupancy: number | null; roomNights: number; revpag: number; deltas: KpiDelta; series: OverviewSeriesPoint[]; sources: SourceSlice[]; guestVisits: number; collected: number; byMethod: MethodSlice[]; meta: ReportMeta }
+export interface OverviewData { currency: string; revenue: number; revpar: number | null; adr: number; occupancy: number | null; roomNights: number; revpag: number; deltas: KpiDelta; series: OverviewSeriesPoint[]; priorSeries: OverviewSeriesPoint[]; sources: SourceSlice[]; guestVisits: number; collected: number; byMethod: MethodSlice[]; meta: ReportMeta }
 export interface RevenueTrendPoint { key: string; label: string; revenue: number }
-export interface RevenueData { currency: string; totalRevenue: number; adr: number; revpar: number | null; outstanding: number; granularity: "day" | "week"; deltas: { revenue: number | null; adr: number | null; revpar: number | null }; trend: RevenueTrendPoint[]; bySource: SourceSlice[]; meta: ReportMeta }
-export interface RoomTypeOcc { name: string; booked: number; capacity: number | null; occupancy: number | null }
+export interface RevenueData { currency: string; totalRevenue: number; adr: number; revpar: number | null; outstanding: number; outstandingCount: number; granularity: "day" | "week"; deltas: { revenue: number | null; adr: number | null; revpar: number | null }; trend: RevenueTrendPoint[]; bySource: SourceSlice[]; meta: ReportMeta }
+export interface RoomTypeOcc { name: string; booked: number; capacity: number | null; occupancy: number | null; revenue: number; adr: number | null; revpar: number | null }
 export type { StayMix } from "@/lib/reports/arrivals";
 export interface OccupancyData { currency: string; occupancy: number | null; roomNights: number; availableRoomNights: number | null; avgLengthOfStay: number; newBookings: number; stayMix: StayMix; deltas: { occupancy: number | null; roomNights: number | null }; daily: { date: string; label: string; occupancy: number | null }[]; byRoomType: RoomTypeOcc[]; meta: ReportMeta }
 export interface MethodSlice { method: string; count: number; amount: number }
@@ -95,13 +100,13 @@ export async function getReportsOverview(startDate: string, endDate: string, exp
   return { currency: ctx.currency, revenue: cur.revenue, revpar: cur.revpar, adr: cur.adr, occupancy: cur.occupancy,
     roomNights: cur.roomNights, revpag: revpag(cur.revenue, cur.guests),
     deltas: { revenue: roomDelta(ctx, cur.revenue, prev.revenue), revpar: roomDelta(ctx, cur.revpar, prev.revpar), adr: roomDelta(ctx, cur.adr, prev.adr), occupancy: roomDelta(ctx, cur.occupancy, prev.occupancy), roomNights: roomDelta(ctx, cur.roomNights, prev.roomNights) },
-    series: buildSeries(cur, ctx.currency), sources: buildSources(cur, ctx.currency),
+    series: buildSeries(cur, ctx.currency), priorSeries: buildSeries(prev, ctx.currency), sources: buildSources(cur, ctx.currency),
     guestVisits: cur.guests, collected: fromMinor(collections.totalMinor, ctx.currency), byMethod: collections.byMethod,
     meta: roomMeta(ctx, cur, prev, ["Collected covers successful payments by paid_at in the period, including tax and deposits; it is cash received, not room revenue."]) };
 }
 export async function getRevenueReport(startDate: string, endDate: string, expectedScope: ReportScope): Promise<RevenueData> {
   const ctx = await reportContext(startDate, endDate, expectedScope);
-  const [{ cur, prev }, outstanding] = await Promise.all([comparison(ctx), loadOutstanding(ctx)]);
+  const [{ cur, prev }, outstanding] = await Promise.all([comparison(ctx), loadOutstandingSummary(ctx)]);
   const granularity = differenceInCalendarDays(ctx.end, ctx.start) < 14 ? "day" : "week";
   const buckets = new Map<string, number[]>();
   for (const day of eachDayOfInterval({ start: ctx.start, end: ctx.end })) buckets.set(ymd(granularity === "day" ? day : startOfWeek(day, { weekStartsOn: 1 })), []);
@@ -109,7 +114,8 @@ export async function getRevenueReport(startDate: string, endDate: string, expec
     const key = granularity === "day" ? fact.date : ymd(startOfWeek(parseISO(fact.date), { weekStartsOn: 1 }));
     buckets.get(key)!.push(fact.revenueMinor);
   }
-  return { currency: ctx.currency, totalRevenue: cur.revenue, adr: cur.adr, revpar: cur.revpar, outstanding, granularity,
+  return { currency: ctx.currency, totalRevenue: cur.revenue, adr: cur.adr, revpar: cur.revpar,
+    outstanding: outstanding.amount, outstandingCount: outstanding.count, granularity,
     deltas: { revenue: roomDelta(ctx, cur.revenue, prev.revenue), adr: roomDelta(ctx, cur.adr, prev.adr), revpar: roomDelta(ctx, cur.revpar, prev.revpar) },
     trend: [...buckets].map(([key, values]) => ({ key, label: format(parseISO(key), "MMM d"), revenue: fromMinor(sumMinor(values), ctx.currency) })),
     bySource: buildSources(cur, ctx.currency), meta: roomMeta(ctx, cur, prev, [BALANCE_BASIS]) };
@@ -146,9 +152,16 @@ export async function getOccupancyReport(startDate: string, endDate: string, exp
   }
   const completed = cur.capacity.filter(day => day.date < ctx.today);
   const typeIds = new Set([...names.keys(), ...byType.keys(), ...completed.flatMap(day => [...(day.byType?.keys() ?? [])])]);
+  const revenueByType = new Map<string, number>();
+  for (const fact of cur.facts) {
+    const type = stays.get(fact.bookingId)?.room_type_id ?? "unknown";
+    revenueByType.set(type, (revenueByType.get(type) ?? 0) + fact.revenueMinor);
+  }
   const byRoomType = [...typeIds].map(id => {
     const booked = byType.get(id) ?? 0, capacity = id === "unknown" ? null : typeCapacity(completed, id);
-    return { name: names.get(id) ?? "Unknown / retired room type", booked, capacity, occupancy: occupancy(booked, capacity) };
+    const revenue = fromMinor(revenueByType.get(id) ?? 0, ctx.currency);
+    return { name: names.get(id) ?? "Unknown / retired room type", booked, capacity, occupancy: occupancy(booked, capacity),
+      revenue, adr: adr(revenue, booked), revpar: revpar(revenue, capacity) };
   }).sort((a, b) => b.booked - a.booked || a.name.localeCompare(b.name));
   const length = cur.stays.reduce((sum, stay) => sum + differenceInCalendarDays(parseISO(stay.check_out), parseISO(stay.check_in)), 0);
   return { currency: ctx.currency, occupancy: cur.occupancy, roomNights: cur.roomNights, availableRoomNights: cur.availableRoomNights,
@@ -199,4 +212,23 @@ export async function getGuestsReport(startDate: string, endDate: string, expect
       "Collections are successful cash receipts by paid_at in the hotel's local date window, including tax and deposits; they are not room revenue or net-of-refund cash flow.",
       "Guests are unique identified checked-in/checked-out arrivals in the period. New/repeat is determined at each guest's first arrival in the window: repeat requires an earlier qualifying stay completed by that arrival. Concurrent/multi-room stays count once; later returns do not rewrite earlier periods.",
       "Guest classification uses recorded arrival/departure dates and current stay statuses, not lifetime counters. Nationality uses the current guest profile; anonymous/deleted guest links are excluded.") };
+}
+
+export interface RoomsSoldTonight { metric: RoomsSoldMetric; timeZone: string }
+/** Tonight's sales snapshot for the BI rooms-sold ring; same primitive the dashboard donut uses. */
+export async function getRoomsSoldTonight(expectedScope: ReportScope): Promise<RoomsSoldTonight> {
+  const scope = await resolveReportScope(expectedScope);
+  const metric = await fetchDashboardOccupancy(scope.supabase as unknown as SupabaseClient<Database>, scope.hotelId, scope.today, scope.timeZone);
+  return { metric, timeZone: scope.timeZone };
+}
+export interface BiFreshness { lastCloseAt: string | null; timeZone: string }
+/** Whether the latest business day has been closed, for the freshness footer. Best effort: an unset night-audit RPC is not a report failure. */
+export async function getBiFreshness(expectedScope: ReportScope): Promise<BiFreshness> {
+  const scope = await resolveReportScope(expectedScope);
+  try {
+    const summary = await requestNightAudit(scope.supabase as unknown as Parameters<typeof requestNightAudit>[0], scope.hotelId, { close: false });
+    return { lastCloseAt: summary.isClosed ? (summary.lastAudit?.at ?? summary.capturedAt ?? null) : null, timeZone: scope.timeZone };
+  } catch {
+    return { lastCloseAt: null, timeZone: scope.timeZone };
+  }
 }

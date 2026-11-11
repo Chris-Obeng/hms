@@ -1,4 +1,4 @@
-﻿import Image from "next/image";
+import Image from "next/image";
 import { ActionLink } from "./action-link";
 import { MaskedLines, Reveal } from "./reveal";
 

@@ -3,22 +3,25 @@
 /**
  * app/actions/audit-log.ts
  *
- * Paginated read of the hotel audit trail for the day-segmented,
- * infinite-scroll audit log page. Auth goes through requireAuth() plus the
- * "audit:read" capability (super_admin only), matching the page-level gate.
+ * Paginated read of the hotel audit trail for the audit log page. Auth goes
+ * through requireAuth() plus the "audit:read" capability (super_admin only),
+ * matching the page-level gate.
  */
 
 import { AuthError, requireAuth, toActionError } from "@/lib/auth";
 import { can } from "@/lib/roles";
-import { fetchAuditLogPage, type AuditLogPageData } from "@/lib/audit-feed";
+import { fetchAuditLogPage, type AuditLogPage } from "@/lib/audit-feed";
+import type { AuditCategoryId } from "@/lib/audit-format";
 
-export type FetchAuditLogDaysResult =
-  | { success: true; page: AuditLogPageData }
+export type FetchAuditLogResult =
+  | { success: true; page: AuditLogPage }
   | { success: false; error: string };
 
-export async function fetchAuditLogDays(
-  cursor: string | null
-): Promise<FetchAuditLogDaysResult> {
+export async function fetchAuditLogEntries(filters: {
+  page: number;
+  category: AuditCategoryId;
+  query: string;
+}): Promise<FetchAuditLogResult> {
   try {
     const ctx = await requireAuth();
     if (!can(ctx.role, "audit:read")) {
@@ -27,9 +30,9 @@ export async function fetchAuditLogDays(
         "FORBIDDEN"
       );
     }
-    const page = await fetchAuditLogPage(ctx.hotelId, cursor);
+    const page = await fetchAuditLogPage(ctx.hotelId, filters);
     return { success: true, page };
   } catch (err) {
-    return toActionError(err, { action: "audit_log.fetch_days" });
+    return toActionError(err, { action: "audit_log.fetch_entries" });
   }
 }

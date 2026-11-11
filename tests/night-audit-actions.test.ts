@@ -98,7 +98,7 @@ describe("durable night audit actions", () => {
   });
 
   it("reads the saved summary by business date without fetching live rooms", async () => {
-    expect((await getNightAuditData("2026-10-20")).roomRevenue).toBe(100.01);
+    expect((await getNightAuditData("2026-10-20")).summary.roomRevenue).toBe(100.01);
     expect(mocks.requireMinRole).toHaveBeenCalledWith("read_only", "view Night Audit");
     expect(mocks.rpc).toHaveBeenCalledWith("get_night_audit_summary", { p_hotel_id: "hotel-A", p_business_date: "2026-10-20" });
     expect(mocks.from).not.toHaveBeenCalled();

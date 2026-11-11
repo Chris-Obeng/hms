@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
@@ -78,11 +78,13 @@ export type Database = {
           action: string
           after_state: Json | null
           before_state: Json | null
+          category: string | null
           created_at: string | null
           entity_id: string | null
           entity_type: string | null
           hotel_id: string
           id: string
+          search_text: string | null
           staff_id: string | null
           staff_name: string | null
         }
@@ -90,11 +92,13 @@ export type Database = {
           action: string
           after_state?: Json | null
           before_state?: Json | null
+          category?: string | null
           created_at?: string | null
           entity_id?: string | null
           entity_type?: string | null
           hotel_id: string
           id?: string
+          search_text?: string | null
           staff_id?: string | null
           staff_name?: string | null
         }
@@ -102,11 +106,13 @@ export type Database = {
           action?: string
           after_state?: Json | null
           before_state?: Json | null
+          category?: string | null
           created_at?: string | null
           entity_id?: string | null
           entity_type?: string | null
           hotel_id?: string
           id?: string
+          search_text?: string | null
           staff_id?: string | null
           staff_name?: string | null
         }
@@ -442,6 +448,56 @@ export type Database = {
             columns: ["room_type_id"]
             isOneToOne: false
             referencedRelation: "room_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_date_closes: {
+        Row: {
+          business_date: string
+          closed_at: string | null
+          closed_by: string | null
+          closed_by_name: string | null
+          hotel_id: string
+          id: string
+          legacy_audit_log_id: string | null
+          notes: string | null
+          source: string
+          summary: Json
+          time_zone: string | null
+        }
+        Insert: {
+          business_date: string
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_by_name?: string | null
+          hotel_id: string
+          id?: string
+          legacy_audit_log_id?: string | null
+          notes?: string | null
+          source: string
+          summary: Json
+          time_zone?: string | null
+        }
+        Update: {
+          business_date?: string
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_by_name?: string | null
+          hotel_id?: string
+          id?: string
+          legacy_audit_log_id?: string | null
+          notes?: string | null
+          source?: string
+          summary?: Json
+          time_zone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_date_closes_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
             referencedColumns: ["id"]
           },
         ]
@@ -1516,6 +1572,41 @@ export type Database = {
           },
         ]
       }
+      reports_inventory_history: {
+        Row: {
+          capacity_by_type: Json
+          captured_at: string
+          effective_date: string
+          hotel_id: string
+          id: string
+          time_zone: string
+        }
+        Insert: {
+          capacity_by_type: Json
+          captured_at?: string
+          effective_date: string
+          hotel_id: string
+          id?: string
+          time_zone: string
+        }
+        Update: {
+          capacity_by_type?: Json
+          captured_at?: string
+          effective_date?: string
+          hotel_id?: string
+          id?: string
+          time_zone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_inventory_history_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       room_types: {
         Row: {
           amenities: Json | null
@@ -1970,6 +2061,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      close_night_audit: {
+        Args: { p_business_date: string; p_hotel_id: string; p_notes?: string }
+        Returns: Json
+      }
       create_booking_atomic: { Args: { p_payload: Json }; Returns: Json }
       create_booking_group_atomic: { Args: { p_payload: Json }; Returns: Json }
       currency_exponent: { Args: { p_currency: string }; Returns: number }
@@ -1999,6 +2094,10 @@ export type Database = {
       generate_booking_reference: {
         Args: { p_hotel_id: string; p_prefix?: string }
         Returns: string
+      }
+      get_night_audit_summary: {
+        Args: { p_business_date?: string; p_hotel_id: string }
+        Returns: Json
       }
       get_user_clerk_org_ids: { Args: never; Returns: string[] }
       get_user_hotel_ids: { Args: never; Returns: string[] }

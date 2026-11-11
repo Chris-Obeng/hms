@@ -190,6 +190,13 @@ export function AppHeader({
     return () => window.cancelAnimationFrame(frame);
   }, [notificationCount]);
 
+  // Other surfaces (guest profile sheet) can open the booking wizard via this event.
+  React.useEffect(() => {
+    const open = () => setNewBookingOpen(true);
+    window.addEventListener("roomline:new-booking", open);
+    return () => window.removeEventListener("roomline:new-booking", open);
+  }, []);
+
   //  Realtime subscription
   React.useEffect(() => {
     if (!hotelId || !isLoaded) return;

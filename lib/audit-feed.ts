@@ -1,176 +1,149 @@
 /**
  * lib/audit-feed.ts
  *
- * Server-only reader for the audit trail, paginated in DAY WINDOWS so the
- * UI can render one collapsible section per day and lazy-load older days on
- * scroll instead of fetching the whole log up front.
+ * Server-only reader for the audit trail, paginated in fixed-size PAGE
+ * WINDOWS so the UI can render numbered pagination with an exact page count.
  *
  * Pagination model:
- *   - Each call reads a WINDOW_DAYS calendar window ending at `cursor`.
- *   - Rows are ordered by (created_at DESC, id DESC) with a keyset cursor
- *     ("<iso>|<uuid>") so no row is ever skipped or duplicated, even when a
- *     window is cut mid-day or two rows share a timestamp.
- *   - Empty windows (no activity that week) are skipped server-side — up to
- *     MAX_EMPTY_WINDOWS hops per call — so a hotel with sparse activity does
- *     not burn client round-trips on empty weeks.
+ *   - Each call reads one offset page of `AUDIT_PAGE_SIZE` rows, newest
+ *     first, ordered by (created_at DESC, id DESC) so simultaneous writes
+ *     never reshuffle the pages mid-flight.
+ *   - `category` narrows to one filter-menu bucket and `query` to free text.
+ *     Both are plain column filters: `audit_logs.category` and
+ *     `audit_logs.search_text` are generated columns (migration
+ *     20261108094249), so filtering needs no casts and no pattern algebra.
+ *   - `total` is the exact count for the current filters — the client turns
+ *     it into the page count and the "213 entries" header.
+ *   - Rows are enriched with a display reference (booking reference, staff
+ *     full name) resolved from the entity id in one batched lookup each.
  *
- * Days are bucketed by UTC calendar date ("yyyy-MM-dd"), which is
- * deterministic on both server and client regardless of timezone, so
+ * Rows are bucketed by UTC calendar date ("yyyy-MM-dd") on the client, which
+ * is deterministic on both server and client regardless of timezone, so
  * hydration never mismatches on the day headers.
  */
 
 import { createClient } from "@/lib/supabase/server";
 
-export interface AuditLogRow {
-  id: string;
-  action: string;
-  entity_type: string | null;
-  entity_id: string | null;
-  staff_name: string | null;
-  before_state: unknown;
-  after_state: unknown;
-  created_at: string | null;
-}
+import {
+  AUDIT_PAGE_SIZE,
+  type AuditCategoryId,
+  type AuditLogRow,
+} from "./audit-format";
 
-export interface AuditDayGroup {
-  /** UTC calendar date, "yyyy-MM-dd". */
-  date: string;
-  entries: AuditLogRow[];
-}
-
-export interface AuditLogPageData {
-  /** Days in this window, newest first; entries within a day newest first. */
-  days: AuditDayGroup[];
-  /** Opaque keyset cursor for the next call; null when the trail is exhausted. */
-  nextCursor: string | null;
+export interface AuditLogPage {
+  rows: AuditLogRow[];
+  /** Exact count of entries matching the current filters. */
+  total: number;
   hasMore: boolean;
 }
 
-const WINDOW_DAYS = 7;
-/** Empty-window hops per call — caps lookback at ~3 months of silence. */
-const MAX_EMPTY_WINDOWS = 12;
-/** Hard row cap per call; overflow is resumed via the keyset cursor. */
-const ROW_LIMIT = 200;
+export interface AuditLogQuery {
+  /** 1-based page number. */
+  page: number;
+  category?: AuditCategoryId;
+  /** Free-text search; empty string disables it. */
+  query?: string;
+}
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const ZERO_UUID = "00000000-0000-0000-0000-000000000000";
-const MAX_UUID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
 const COLUMNS =
-  "id, action, entity_type, entity_id, staff_name, before_state, after_state, created_at";
+  "id, action, category, entity_type, entity_id, staff_name, before_state, after_state, created_at";
 
-type ServerSupabase = Awaited<ReturnType<typeof createClient>>;
-
-interface KeysetCursor {
-  t: string;
-  id: string;
-}
-
-function parseCursor(cursor: string | null): KeysetCursor {
-  if (!cursor) return { t: new Date().toISOString(), id: MAX_UUID };
-  const sep = cursor.lastIndexOf("|");
-  const t = sep === -1 ? "" : cursor.slice(0, sep);
-  const id = sep === -1 ? "" : cursor.slice(sep + 1);
-  if (!t || !id || Number.isNaN(new Date(t).getTime())) {
-    throw new Error("Invalid audit log cursor");
-  }
-  return { t, id };
-}
-
-/** UTC day key — stable across every timezone, so SSR and client agree. */
-function utcDayKey(iso: string | null): string {
-  if (!iso) return "unknown";
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "unknown" : d.toISOString().slice(0, 10);
-}
-
-function groupByUtcDay(rows: AuditLogRow[]): AuditDayGroup[] {
-  const days: AuditDayGroup[] = [];
-  for (const row of rows) {
-    const key = utcDayKey(row.created_at);
-    const last = days[days.length - 1];
-    if (last && last.date === key) {
-      last.entries.push(row);
-    } else {
-      days.push({ date: key, entries: [row] });
-    }
-  }
-  return days;
-}
-
-async function existsBefore(
-  supabase: ServerSupabase,
-  hotelId: string,
-  before: string
-): Promise<boolean> {
-  const { data, error } = await supabase
-    .from("audit_logs")
-    .select("id")
-    .eq("hotel_id", hotelId)
-    .lt("created_at", before)
-    .limit(1);
-  if (error) throw new Error(`audit_logs fetch failed: ${error.message}`);
-  return (data?.length ?? 0) > 0;
+/**
+ * PostgREST's `or()` syntax reserves commas and parens; strip them from user
+ * input so a query like "guest, (cancelled)" cannot break the filter.
+ */
+function sanitizeQuery(raw: string): string {
+  return raw.replace(/[,()]/g, " ").trim().slice(0, 100);
 }
 
 /**
- * Fetch the next window of audit log days for a hotel.
- * Caller is responsible for authorization (role gate lives in the caller).
+ * Fetch one page of audit entries for a hotel.
+ * Caller is responsible for authorization (the action applies the role gate).
  */
 export async function fetchAuditLogPage(
   hotelId: string,
-  cursor: string | null
-): Promise<AuditLogPageData> {
+  { page, category = "all", query = "" }: AuditLogQuery
+): Promise<AuditLogPage> {
   const supabase = await createClient();
-  let upper = parseCursor(cursor);
+  const safePage = Math.max(1, Math.floor(page) || 1);
+  const offset = (safePage - 1) * AUDIT_PAGE_SIZE;
+  const search = sanitizeQuery(query);
 
-  for (let hop = 0; hop <= MAX_EMPTY_WINDOWS; hop++) {
-    const lower = new Date(new Date(upper.t).getTime() - WINDOW_DAYS * DAY_MS).toISOString();
-
-    const { data, error } = await supabase
-      .from("audit_logs")
-      .select(COLUMNS)
-      .eq("hotel_id", hotelId)
-      .gte("created_at", lower)
-      // Keyset: rows strictly before (upper.t, upper.id) in (created_at, id) order.
-      .or(`created_at.lt.${upper.t},and(created_at.eq.${upper.t},id.lt.${upper.id})`)
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: false })
-      .limit(ROW_LIMIT + 1);
-
-    if (error) throw new Error(`audit_logs fetch failed: ${error.message}`);
-
-    const rows = (data ?? []) as AuditLogRow[];
-    const overflow = rows.length > ROW_LIMIT;
-    const kept = overflow ? rows.slice(0, ROW_LIMIT) : rows;
-
-    if (kept.length === 0) {
-      // Silent week — walk back while older entries exist.
-      const hasOlder = await existsBefore(supabase, hotelId, lower);
-      if (!hasOlder) return { days: [], nextCursor: null, hasMore: false };
-      upper = { t: lower, id: ZERO_UUID };
-      continue;
-    }
-
-    if (overflow) {
-      // Window cut mid-day: resume exactly where we stopped.
-      const last = kept[kept.length - 1];
-      return {
-        days: groupByUtcDay(kept),
-        nextCursor: `${last.created_at ?? lower}|${last.id}`,
-        hasMore: true,
-      };
-    }
-
-    const hasOlder = await existsBefore(supabase, hotelId, lower);
-    return {
-      days: groupByUtcDay(kept),
-      // id=ZERO_UUID makes the keyset filter equivalent to created_at < lower.
-      nextCursor: hasOlder ? `${lower}|${ZERO_UUID}` : null,
-      hasMore: hasOlder,
-    };
+  // Filtered rows and the exact total must always agree, so both start from
+  // the same (hotel, category, search) predicate.
+  const rowsQuery = supabase.from("audit_logs").select(COLUMNS).eq("hotel_id", hotelId);
+  const countQuery = supabase
+    .from("audit_logs")
+    .select("id", { count: "exact", head: true })
+    .eq("hotel_id", hotelId);
+  for (const q of [rowsQuery, countQuery]) {
+    if (category !== "all") q.eq("category", category);
+    if (search) q.ilike("search_text", `%${search}%`);
   }
 
-  // Hit the lookback cap with no rows — hand the walk back to the client so
-  // the next scroll continues from where we stopped instead of restarting.
-  return { days: [], nextCursor: `${upper.t}|${ZERO_UUID}`, hasMore: true };
+  const [rowsResult, countResult] = await Promise.all([
+    rowsQuery
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(offset, offset + AUDIT_PAGE_SIZE - 1),
+    countQuery,
+  ]);
+
+  if (rowsResult.error) throw new Error(`audit_logs fetch failed: ${rowsResult.error.message}`);
+  if (countResult.error) throw new Error(`audit_logs count failed: ${countResult.error.message}`);
+
+  const total = countResult.count ?? 0;
+  const rows = await enrichRows((rowsResult.data ?? []) as AuditLogRow[], hotelId);
+
+  return { rows, total, hasMore: offset + rows.length < total };
+}
+
+/**
+ * Resolve display references for the page's entities: booking rows get their
+ * human reference, staff rows the target's full name. Two batched lookups
+ * per page — never per row.
+ */
+async function enrichRows(rows: AuditLogRow[], hotelId: string): Promise<AuditLogRow[]> {
+  const bookingIds = rows
+    .filter((r) => r.entity_type === "booking" && r.entity_id)
+    .map((r) => r.entity_id as string);
+  const staffIds = rows
+    .filter((r) => r.entity_type === "staff_profile" && r.entity_id)
+    .map((r) => r.entity_id as string);
+
+  if (bookingIds.length === 0 && staffIds.length === 0) return rows;
+
+  const refs = new Map<string, string>();
+  const supabase = await createClient();
+
+  await Promise.all([
+    bookingIds.length
+      ? supabase
+          .from("bookings")
+          .select("id, reference")
+          .eq("hotel_id", hotelId)
+          .in("id", bookingIds)
+          .then(({ data }) => {
+            for (const b of data ?? []) {
+              if (b.reference) refs.set(b.id, b.reference);
+            }
+          })
+      : Promise.resolve(),
+    staffIds.length
+      ? supabase
+          .from("staff_profiles")
+          .select("id, full_name")
+          .in("id", staffIds)
+          .then(({ data }) => {
+            for (const s of data ?? []) {
+              if (s.full_name) refs.set(s.id, s.full_name);
+            }
+          })
+      : Promise.resolve(),
+  ]);
+
+  if (refs.size === 0) return rows;
+  return rows.map((r) =>
+    r.entity_id && refs.has(r.entity_id) ? { ...r, entity_ref: refs.get(r.entity_id) } : r
+  );
 }

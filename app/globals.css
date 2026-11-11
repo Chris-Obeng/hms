@@ -277,6 +277,8 @@
   --chart-4: oklch(0.6 0.18 300);    /* violet        */
   --chart-5: oklch(0.64 0.19 22);    /* coral red     */
   --radius: 0.625rem;
+  /* The pen design file's accent blue — charts and icon chips on staff pages. */
+  --pen-accent: #0485F7;
   /* Sidebar: soft cool-tinted panel with navy active states */
   --sidebar: oklch(0.978 0.006 253);
   --sidebar-foreground: oklch(0.24 0.025 261);
@@ -475,15 +477,83 @@
   @apply rounded-xl border border-border/40 bg-card shadow-sm;
 }
 
-/* Hairline tabs (Reports): flat strip, one rule under it, a 2px ink indicator on the active tab.
-   Inactive tabs must stay legible — muted-foreground, not the faint --muted token. */
-.reports-tabs { gap: 0; }
-.reports-tabs > .tabs__list-container { background: transparent; border-radius: 0; border-bottom: 1px solid color-mix(in oklch, var(--border) 70%, transparent); }
-.reports-tabs .tabs__list { display: inline-flex; flex-wrap: nowrap; gap: 1.5rem; padding: 0; }
-.reports-tabs .tabs__tab { position: relative; flex: none; width: auto; height: auto; justify-content: flex-start; min-width: 0; border-radius: 0; background: transparent; box-shadow: none; font-size: 0.875rem; color: color-mix(in oklch, var(--foreground) 62%, var(--background)); }
-.reports-tabs .tabs__tab:hover { color: var(--foreground); }
-.reports-tabs .tabs__tab[data-selected="true"] { color: var(--foreground); font-weight: 600; }
-.reports-tabs .tabs__indicator { top: auto; left: 0; bottom: -1px; width: 100%; height: 2px; border-radius: 0; background: var(--foreground); box-shadow: none; }
+
+
+/* Payments page tabs per the pen design: quiet text tabs over one hairline,
+   a 2px accent underline on the active tab. */
+.payments-tabs { gap: 0; }
+.payments-tabs > .tabs__list-container {
+  background: transparent;
+  border-radius: 0;
+  border-bottom: 1px solid var(--separator, var(--border));
+}
+.payments-tabs .tabs__list { display: inline-flex; flex-wrap: nowrap; gap: 1.5rem; padding: 0; }
+.payments-tabs .tabs__tab {
+  position: relative;
+  flex: none;
+  min-width: 0;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 8px 2px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+.payments-tabs .tabs__tab:hover { color: var(--foreground); }
+.payments-tabs .tabs__tab[data-selected="true"] {
+  color: var(--foreground);
+  font-weight: 600;
+  box-shadow: none;
+}
+.payments-tabs .tabs__indicator {
+  top: auto;
+  left: 0;
+  bottom: -1px;
+  width: 100%;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--pen-accent);
+  box-shadow: none;
+}
+
+/* Guest profile tabs per the pen design: small underline tabs (12px labels,
+   2px accent indicator under the active one, transparent slot on inactive). */
+.guest-tabs { gap: 0; }
+.guest-tabs > .tabs__list-container { background: transparent; border-radius: 0; border: none; padding: 0; }
+.guest-tabs .tabs__list { display: inline-flex; gap: 22px; padding: 6px 0 0; }
+.guest-tabs .guest-tabs-tab {
+  position: relative;
+  flex: none;
+  min-width: 0;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+.guest-tabs .guest-tabs-tab:hover { color: var(--foreground); }
+.guest-tabs .guest-tabs-tab[data-selected="true"] {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.guest-tabs .guest-tabs-tab .tabs__indicator {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 2px;
+  border-radius: 1px;
+  background: transparent;
+  box-shadow: none;
+}
+.guest-tabs .guest-tabs-tab[data-selected="true"] .tabs__indicator {
+  background: var(--pen-accent);
+}
 
 /* ── HeroUI Switch — default blue when on (app-wide standard) ────────
  *  HeroUI v3 exposes BEM hooks (.switch__control) with data attributes.

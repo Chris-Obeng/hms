@@ -38,7 +38,7 @@ export function BookingGuestPanel({ booking }: BookingGuestPanelProps) {
 
       {guest?.id && (
         <Link
-          href={`/dashboard/customers?id=${guest.id}`}
+          href={`/dashboard/customers?guestId=${guest.id}`}
           className="mt-1 inline-flex items-center gap-1 text-[13px] font-medium text-primary transition-opacity hover:opacity-80"
         >
           View full profile

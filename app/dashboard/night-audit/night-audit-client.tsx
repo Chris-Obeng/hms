@@ -2,16 +2,15 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AlertDialog, Button, Chip, toast } from "@heroui/react";
-import { ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, CircleAlert, Moon } from "lucide-react";
+import { AlertDialog, Button, toast } from "@heroui/react";
+import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, CheckCircle2, Globe, ReceiptText, Wallet } from "lucide-react";
 import { executeNightAudit } from "./actions";
 import { PaymentDateField } from "@/components/ui/payment-date-field";
-import { Stat, StatStrip } from "@/components/ui/stat-strip";
-import { SectionCard } from "@/components/ui/section-card";
+import { PenKpi } from "@/components/ui/pen/pen-kpi";
+import { PenCard, PenCardHead } from "@/components/ui/pen/pen-card";
+import { DonutRing } from "@/components/ui/pen/donut-ring";
 import { NotesDisclosure } from "@/components/ui/notes-disclosure";
-import { SegmentedDonut, type DonutSegment } from "@/components/ui/segmented-donut";
 import { Textarea } from "@/components/ui/textarea";
-import { PAYMENT_METHOD_LABELS } from "@/lib/booking-status";
 import { MIN_AUDIT_DATE, type NightAuditSummary } from "@/lib/night-audit/summary";
 import { formatCurrency, formatDate } from "@/lib/format";
 
@@ -33,13 +32,28 @@ type AttentionItem =
   | { kind: "arrival" | "departure"; id: string; title: string; detail: string; href: string }
   | { kind: "charge"; id: string; title: string; detail: string; href: string };
 
+/** Design-file tender palette: online stays aggregated; staff-collected splits by type. */
 const TENDER_COLORS: Record<string, string> = {
-  cash: "var(--chart-1)", card: "var(--chart-2)", mobile_money: "var(--chart-3)",
-  bank_transfer: "var(--chart-4)", pos: "var(--chart-5)", paystack_link: "var(--chart-5)",
+  paystack_link: "var(--pen-accent)",
+  cash: "#94a3b8",
+  mobile_money: "#14b8a6",
+  card: "#f59e0b",
+  bank_transfer: "#8b5cf6",
+  pos: "#f59e0b",
 };
 
-export function NightAuditClient({ initialSummary, canRunAudit }: {
+const TENDER_SHORT_LABELS: Record<string, string> = {
+  paystack_link: "Online",
+  cash: "Cash",
+  mobile_money: "MoMo",
+  card: "Card",
+  bank_transfer: "Bank",
+  pos: "POS",
+};
+
+export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAudit }: {
   initialSummary: NightAuditSummary;
+  roomRevenueInclTax: number | null;
   canRunAudit: boolean;
 }) {
   const router = useRouter();
@@ -58,12 +72,13 @@ export function NightAuditClient({ initialSummary, canRunAudit }: {
   React.useEffect(() => () => { if (navigationTimer.current) clearTimeout(navigationTimer.current); }, []);
   const busy = isExecuting || isNavigating;
   const money = (value: number | null) => value === null || !summary.currency ? "Unavailable" : formatCurrency(value, summary.currency);
+  const moneyWhole = (value: number) => value.toLocaleString("en", { maximumFractionDigits: 0 });
   const unresolved = (summary.pendingArrivals ?? 0) + (summary.pendingDepartures ?? 0);
   const blockers = unresolved + (summary.rateIssues ?? 0) + (summary.paymentIssues ?? 0);
   const waitingForMidnight = !summary.isClosed && blockers === 0 && summary.auditDate >= summary.propertyToday;
   const canClose = !summary.isClosed && blockers === 0 && summary.auditDate < summary.propertyToday && canRunAudit;
-  const cash = summary.paymentsByMethod.find((method) => method.method === "cash");
-  const electronic = summary.paymentsByMethod.filter((method) => method.method !== "cash");
+  const online = summary.paymentsByMethod.find((method) => method.method === "paystack_link");
+  const staff = summary.paymentsByMethod.filter((method) => method.method !== "paystack_link");
 
   function navigate(date: string) {
     if (!date || date < MIN_AUDIT_DATE || date > summary.propertyToday || date === summary.auditDate || isNavigating) return;
@@ -115,25 +130,35 @@ export function NightAuditClient({ initialSummary, canRunAudit }: {
   ];
   const attentionHidden = blockers - attention.length;
 
-  const ranked = [...summary.paymentsByMethod].sort((a, b) => b.amount - a.amount);
-  const segments: DonutSegment[] = ranked.slice(0, 3).map((method) => ({
-    key: method.method, label: PAYMENT_METHOD_LABELS[method.method] ?? method.method.replaceAll("_", " "),
-    value: method.amount, color: TENDER_COLORS[method.method] ?? "var(--muted-foreground)",
-  }));
-  const others = ranked.slice(3);
-  if (others.length > 0) segments.push({ key: "other", label: "Other", value: others.reduce((sum, method) => sum + method.amount, 0), color: "var(--muted-foreground)" });
+  const statusHeading = summary.isClosed
+    ? "Closed"
+    : waitingForMidnight ? "Waiting for midnight" : blockers > 0 ? `Blocked · ${blockers} to resolve` : "Ready to close";
+  const statusDetail = summary.isClosed
+    ? `Recorded${summary.lastAudit?.staffName ? ` by ${summary.lastAudit.staffName}` : ""} · ${timestamp(summary.lastAudit?.at ?? null, summary.timeZone)}`
+    : waitingForMidnight
+      ? "This day is still in progress in the property's timezone. It can be closed after midnight."
+      : blockers > 0
+        ? `${summary.pendingArrivals ?? 0} arrival${summary.pendingArrivals === 1 ? "" : "s"}, ${summary.pendingDepartures ?? 0} departure${summary.pendingDepartures === 1 ? "" : "s"} and ${(summary.rateIssues ?? 0) + (summary.paymentIssues ?? 0)} charge issue${(summary.rateIssues ?? 0) + (summary.paymentIssues ?? 0) === 1 ? "" : "s"} open. Resolve them to close the day.`
+        : "All close checks passed.";
+  const statusDot = summary.isClosed ? "bg-[var(--success)]" : blockers > 0 || waitingForMidnight ? "bg-[var(--warning)]" : "bg-muted-foreground";
 
-  return <div className="mx-auto w-full max-w-6xl space-y-5" aria-busy={busy}>
-    <header className="flex flex-col gap-4 border-b border-border/60 pb-5 sm:flex-row sm:items-end sm:justify-between">
+  const tenderSegments = [...summary.paymentsByMethod]
+    .filter((method) => method.amount > 0)
+    .sort((a, b) => b.amount - a.amount)
+    .map((method) => ({ key: method.method, amount: method.amount, color: TENDER_COLORS[method.method] ?? "var(--muted-foreground)" }));
+  const tenderTotal = tenderSegments.reduce((sum, segment) => sum + segment.amount, 0);
+
+  return <div className="daily-close-page mx-auto w-full max-w-7xl space-y-5" aria-busy={busy}>
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
-        <h1 className="flex items-center gap-2 text-page-title"><Moon className="size-5 text-muted-foreground" aria-hidden="true" /> Daily close</h1>
-        <p className="mt-1 text-body text-muted-foreground">Review {formatDate(summary.auditDate, "EEEE, MMM d, yyyy")} and record it.</p>
+        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.3px] text-foreground max-md:text-xl">Night audit</h1>
+        <p className="mt-1 max-md:text-xs text-sm text-muted-foreground">Review {formatDate(summary.auditDate, "EEEE, MMM d, yyyy")} and record it.</p>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" isIconOnly className="size-9" aria-label="Previous day" isDisabled={busy || summary.auditDate <= MIN_AUDIT_DATE}
+      <div className="flex items-center gap-2">
+        <Button variant="outline" isIconOnly className="size-9 rounded-[10px]" aria-label="Previous day" isDisabled={busy || summary.auditDate <= MIN_AUDIT_DATE}
           onPress={() => navigate(shiftDay(summary.auditDate, -1))}><ChevronLeft className="size-4" /></Button>
         <PaymentDateField label="Business date" value={summary.auditDate} min={MIN_AUDIT_DATE} max={summary.propertyToday} onSelect={navigate} />
-        <Button variant="outline" isIconOnly className="size-9" aria-label="Next day" isDisabled={busy || summary.auditDate >= summary.propertyToday}
+        <Button variant="outline" isIconOnly className="size-9 rounded-[10px]" aria-label="Next day" isDisabled={busy || summary.auditDate >= summary.propertyToday}
           onPress={() => navigate(shiftDay(summary.auditDate, 1))}><ChevronRight className="size-4" /></Button>
       </div>
     </header>
@@ -141,84 +166,93 @@ export function NightAuditClient({ initialSummary, canRunAudit }: {
     {busy && <p role="status" className="text-[13px] text-muted-foreground">{isExecuting ? "Recording the close…" : "Loading this day…"}</p>}
     {error && !confirmOpen && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive">{error}</p>}
 
-    <section className={`rounded-xl border px-4 py-4 ${canClose || summary.isClosed ? "border-border/60 bg-card" : waitingForMidnight ? "border-border/60 bg-card" : "border-amber-500/30 bg-amber-50/60"}`} aria-labelledby="close-status">
+    {/* Close status band */}
+    <section className="space-y-1.5 border-b border-border/60 pb-5" aria-labelledby="close-status">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
-            {summary.isClosed
-              ? <CheckCircle2 className="size-4 text-emerald-600" aria-hidden="true" />
-              : blockers > 0 ? <CircleAlert className="size-4 text-amber-600" aria-hidden="true" /> : null}
-            <h2 id="close-status" className="text-section">
-              {summary.isClosed ? "Closed" : waitingForMidnight ? "Waiting for midnight" : blockers > 0 ? `Blocked · ${blockers} to resolve` : "Ready to close"}
-            </h2>
-            {summary.source === "legacy_audit_log" && <Chip size="sm" variant="soft" color="default">Imported</Chip>}
+            <span className={`size-2 rounded-full ${statusDot}`} aria-hidden="true" />
+            <h2 id="close-status" className="text-base font-semibold text-foreground">{statusHeading}</h2>
+            {summary.source === "legacy_audit_log" && <span className="text-caption text-muted-foreground">Imported</span>}
           </div>
           {/* The heading itself is not a live region; announce the new state after a close. */}
           <p className="sr-only" aria-live="polite" aria-atomic="true">
             {summary.isClosed ? "This day is closed." : waitingForMidnight ? "This day is still in progress." : blockers > 0 ? `${blockers} items still need resolving before this day can close.` : "This day is ready to close."}
           </p>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            {summary.isClosed
-              ? `Recorded${summary.lastAudit?.staffName ? ` by ${summary.lastAudit.staffName}` : ""} · ${timestamp(summary.lastAudit?.at ?? null, summary.timeZone)}`
-              : waitingForMidnight
-                ? "This day is still in progress in the property's timezone. It can be closed after midnight."
-                : blockers > 0
-                  ? `${summary.pendingArrivals ?? 0} arrival${summary.pendingArrivals === 1 ? "" : "s"}, ${summary.pendingDepartures ?? 0} departure${summary.pendingDepartures === 1 ? "" : "s"} and ${(summary.rateIssues ?? 0) + (summary.paymentIssues ?? 0)} charge issue${(summary.rateIssues ?? 0) + (summary.paymentIssues ?? 0) === 1 ? "" : "s"} open.`
-                  : "Everything scheduled for this day is settled. Closing records the figures below permanently."}
-          </p>
-          {!canRunAudit && !summary.isClosed && <p className="mt-1 text-[13px] text-muted-foreground">A manager or super admin can close the day.</p>}
-          {summary.lastAudit?.notes && <p className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-muted/50 px-3 py-2 text-[13px]">{summary.lastAudit.notes}</p>}
+          <p className="max-md:text-xs text-[13px] text-muted-foreground">{statusDetail}</p>
+          {!canRunAudit && !summary.isClosed && <p className="max-md:text-xs text-[13px] text-muted-foreground">A manager or super admin can close the day.</p>}
+          {summary.lastAudit?.notes && <p className="mt-1 whitespace-pre-wrap break-words rounded-lg bg-muted/50 px-3 py-2 max-md:text-xs text-[13px]">{summary.lastAudit.notes}</p>}
         </div>
         {summary.isClosed
           ? <a className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium text-foreground underline-offset-4 hover:underline"
             href={`/dashboard/reports?startDate=${summary.auditDate}&endDate=${summary.auditDate}`}>View in reports <ArrowRight className="size-3.5" aria-hidden="true" /></a>
-          : waitingForMidnight
-            ? <Button className="min-h-9" isDisabled>Close {formatDate(summary.auditDate, "MMM d")}</Button>
-            : <Button className="min-h-9" isDisabled={!canClose || busy} onPress={() => setDialogOpen(true)}>Close {formatDate(summary.auditDate, "MMM d")}</Button>}
+          : <Button className="min-h-9 rounded-full px-5 text-sm font-medium" isDisabled={waitingForMidnight || !canClose || busy} onPress={() => setDialogOpen(true)}>
+            Close {formatDate(summary.auditDate, "MMM d")}
+          </Button>}
       </div>
     </section>
 
-    <StatStrip label="This day" columns={5}>
-      <Stat label="Room revenue" value={money(summary.roomRevenue)} hint="excl. tax" tone={summary.roomRevenue === null ? "unavailable" : "default"} />
-      <Stat label="Room nights" value={summary.roomNights?.toLocaleString() ?? "Unavailable"} hint="stayed" />
-      <Stat label="ADR" value={money(summary.adr)} hint="revenue ÷ room nights" />
-      <Stat label="Cash collected" value={money(cash?.amount ?? 0)} hint={cash ? `${cash.count} payment${cash.count === 1 ? "" : "s"}` : "none"} />
-      <Stat label="Card & mobile" value={money(electronic.reduce((sum, method) => sum + method.amount, 0))}
-        hint={electronic.length > 0 ? `${electronic.reduce((sum, method) => sum + method.count, 0)} payments` : "none"} />
-    </StatStrip>
+    {/* Day stats */}
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+      <PenKpi label="Room revenue" value={money(roomRevenueInclTax)} icon={Wallet} hint="incl. taxes" className="max-sm:col-span-2" />
+      <PenKpi label="Room nights" value={summary.roomNights?.toLocaleString() ?? "Unavailable"} icon={CalendarDays} hint="stayed" />
+      <PenKpi label="ADR" value={money(summary.adr)} icon={ReceiptText} hint="revenue ÷ room nights" />
+      <PenKpi label="Collected by staff" value={money(staff.reduce((sum, method) => sum + method.amount, 0))} icon={Wallet} hint={staff.length > 0 ? `${staff.reduce((sum, method) => sum + method.count, 0)} payments` : "none"} />
+      <PenKpi label="Online payments" value={money(online?.amount ?? 0)} icon={Globe} hint={online ? `${online.count} payments` : "none"} />
+    </div>
 
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-      <SectionCard title="Needs attention" caption={blockers > 0 ? "Resolve these before closing." : undefined}
-        action={blockers > 0 ? <span className="rounded-full bg-amber-500/12 px-2 py-0.5 text-[12px] font-semibold tabular-nums text-amber-700">{blockers}</span> : undefined}>
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_432px]">
+      <PenCard>
+        <PenCardHead title="Needs attention" caption={blockers > 0 ? "Resolve these before closing." : undefined}
+          actions={blockers > 0 ? <span className="rounded-full bg-[#F5A5241F] px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-[var(--warning)]">{blockers}</span> : undefined} />
         {attention.length === 0
-          ? <div className="flex items-center gap-2.5 px-4 pb-4 pt-1 text-[13px] text-muted-foreground">
-            <CheckCircle2 className="size-4 shrink-0 text-emerald-600" aria-hidden="true" /> Nothing outstanding.
+          ? <div className="flex items-center gap-2.5 pt-2 text-[13px] text-muted-foreground">
+            <CheckCircle2 className="size-4 shrink-0 text-[var(--success)]" aria-hidden="true" /> Nothing outstanding.
           </div>
-          : <ul className="divide-y divide-border/50 border-t border-border/50">
-            {attention.map((item) => <li key={item.id}>
-              <a href={item.href} className="group flex min-h-11 items-center gap-3 px-4 py-2.5 transition-colors duration-150 hover:bg-muted/40">
+          : <ul>
+            {attention.map((item, index) => <li key={item.id}>
+              {index > 0 && <div className="h-px bg-border/50" aria-hidden="true" />}
+              <a href={item.href} className="group flex items-center gap-3 py-3">
+                <span className={`size-[7px] shrink-0 rounded-full ${item.kind === "charge" ? "bg-[var(--danger)]" : "bg-[var(--warning)]"}`} aria-hidden="true" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-medium">{item.title}</span>
-                  <span className="block truncate text-caption text-muted-foreground">{item.detail}</span>
+                  <span className="block truncate text-[13px] font-medium text-foreground">{item.title}</span>
+                  <span className="block truncate text-[11px] text-muted-foreground">{item.detail}</span>
                 </span>
-                <span className="shrink-0 text-caption font-medium text-muted-foreground transition-colors group-hover:text-foreground">
+                <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-[var(--pen-accent)]">
                   {item.kind === "charge" ? "Review" : "Manage"}
+                  <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                 </span>
-                <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
               </a>
             </li>)}
-            {attentionHidden > 0 && <li className="px-4 py-2.5 text-caption text-muted-foreground">{attentionHidden} more not shown; the close checks every booking.</li>}
+            {attentionHidden > 0 && <li className="pt-1 text-caption text-muted-foreground">{attentionHidden} more not shown; the close checks every booking.</li>}
           </ul>}
-      </SectionCard>
+      </PenCard>
 
-      <SectionCard title="Taken this day" caption={summary.currency ? `Successful payments · ${summary.currency}` : undefined}
-        action={<a className="inline-flex min-h-8 items-center text-[13px] font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          href={`/dashboard/payments?tab=activity&startDate=${summary.auditDate}&endDate=${summary.auditDate}`}>Payments <ArrowRight className="ml-1 size-3" aria-hidden="true" /></a>}>
-        {summary.paymentIssues ? <p className="px-4 pb-4 text-[13px] text-muted-foreground">Collections are unavailable until payments in other currencies are reconciled.</p>
-          : segments.length === 0 ? <p className="px-4 pb-4 text-[13px] text-muted-foreground">No payments recorded for this day.</p>
-            : <div className="px-4 pb-4"><SegmentedDonut label="Payments taken this day" heading="Collected" value={money(summary.collections)}
-              delta={summary.paymentCount ? `${summary.paymentCount} payments` : undefined} segments={segments} /></div>}
-      </SectionCard>
+      <PenCard className="gap-3.5">
+        <PenCardHead title="Taken this day" caption={summary.currency ? `Successful payments · ${summary.currency}` : undefined}
+          actions={<a className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            href={`/dashboard/payments?tab=activity&startDate=${summary.auditDate}&endDate=${summary.auditDate}`}>Payments <ArrowRight className="size-3" aria-hidden="true" /></a>} />
+        {summary.paymentIssues ? <p className="py-6 text-[13px] text-muted-foreground">Collections are unavailable until payments in other currencies are reconciled.</p>
+          : tenderTotal === 0 ? <p className="py-6 text-[13px] text-muted-foreground">No payments recorded for this day.</p>
+            : <div className="flex items-center gap-5">
+              <DonutRing size={150} valueSize={15} labelSize={10}
+                segments={tenderSegments} total={tenderTotal}
+                value={money(summary.collections)}
+                label={`collected · ${summary.paymentCount ?? 0}`}
+                ariaLabel={`Payments taken this day: ${money(summary.collections)} across ${summary.paymentCount ?? 0} payments.`} />
+              <ul className="min-w-0 flex-1 space-y-2">
+                {tenderSegments.map((segment) => {
+                  const source = summary.paymentsByMethod.find((method) => method.method === segment.key);
+                  return <li key={segment.key} className="flex items-center gap-2 text-xs">
+                    <span className="size-2 shrink-0 rounded-full" style={{ background: segment.color }} aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate text-foreground">{TENDER_SHORT_LABELS[segment.key] ?? segment.key.replaceAll("_", " ")}</span>
+                    <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{moneyWhole(source?.amount ?? segment.amount)}</span>
+                  </li>;
+                })}
+              </ul>
+            </div>}
+        <p className="text-[11px] text-muted-foreground">Money received today — includes deposits for future stays, so it differs from room revenue.</p>
+      </PenCard>
     </div>
 
     <NotesDisclosure title="About this close" items={summary.warnings} />
@@ -229,7 +263,7 @@ export function NightAuditClient({ initialSummary, canRunAudit }: {
         <AlertDialog.Body className="space-y-4">
           <p className="text-[13px] text-muted-foreground">These figures are recorded permanently and cannot be changed later. The server re-checks every booking first; asking twice returns the original record.</p>
           <dl className="divide-y divide-border/50 rounded-lg border border-border/50">
-            <div className="flex justify-between gap-3 px-3 py-2 text-[13px]"><dt className="text-muted-foreground">Room revenue</dt><dd className="tabular-nums">{money(summary.roomRevenue)}</dd></div>
+            <div className="flex justify-between gap-3 px-3 py-2 text-[13px]"><dt className="text-muted-foreground">Room revenue (incl. taxes)</dt><dd className="tabular-nums">{money(roomRevenueInclTax)}</dd></div>
             <div className="flex justify-between gap-3 px-3 py-2 text-[13px]"><dt className="text-muted-foreground">Room nights</dt><dd className="tabular-nums">{summary.roomNights?.toLocaleString() ?? "Unavailable"}</dd></div>
             <div className="flex justify-between gap-3 px-3 py-2 text-[13px]"><dt className="text-muted-foreground">Collected</dt><dd className="tabular-nums">{money(summary.collections)}</dd></div>
           </dl>

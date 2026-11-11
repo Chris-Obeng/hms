@@ -3,351 +3,540 @@
 /**
  * audit-log-client.tsx
  *
- * Day-segmented audit trail with infinite scroll.
+ * Audit trail as a day-grouped legal record, matching the design in
+ * pencil-audit-log.pen:
  *
- * - Entries arrive pre-grouped into UTC-day buckets (see lib/audit-feed.ts).
- * - Each day is a collapsible Disclosure section; the newest day starts open.
- * - An IntersectionObserver sentinel near the bottom loads the next day
- *   window via the `fetchAuditLogDays` server action as the user scrolls.
- * - Search filters only the days that have loaded so far — the caption under
- *   the toolbar says so, so nobody mistakes it for a global search.
+ * - A toolbar (search + category filter) that lives inside the panel card on
+ *   desktop and floats above it on phones — one DOM tree, the card chrome
+ *   swaps via responsive classes.
+ * - Entries grouped under sticky-free day bands ("Sunday, 8 November 2026"),
+ *   each row an append-only record: actor, verb, booking reference, and a
+ *   mono meta line (see lib/audit-format.ts).
+ * - Numbered pagination with an exact page count from the server action.
+ * - The three designed states: loading skeletons, empty search, load failed.
  */
 
 import * as React from "react";
-import { FileClock, Search } from "lucide-react";
-import { Button, Chip, Disclosure, DisclosureGroup, Skeleton, Spinner } from "@heroui/react";
+import type { Selection } from "@heroui/react";
+import { Dropdown, Separator, Skeleton, Spinner } from "@heroui/react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
+  CircleX,
+  FileClock,
+  Funnel,
+  Search,
+  SearchX,
+} from "lucide-react";
 
-import { fetchAuditLogDays } from "@/app/actions/audit-log";
-import type { AuditDayGroup, AuditLogRow } from "@/lib/audit-feed";
+import { fetchAuditLogEntries } from "@/app/actions/audit-log";
+import {
+  AUDIT_CATEGORIES,
+  AUDIT_PAGE_SIZE,
+  auditMeta,
+  auditSummary,
+  auditTime,
+  groupRowsByUtcDay,
+  isAuditCategoryId,
+  type AuditCategoryId,
+  type AuditLogRow,
+} from "@/lib/audit-format";
 import { formatDate } from "@/lib/format";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type ChipColor = "success" | "danger" | "warning" | "accent" | "default";
+// ── Entry row ──────────────────────────────────────────────────────────
 
-/** Semantic color by action outcome. */
-function actionColor(action: string): ChipColor {
-  if (/(cancelled|deactivated|refunded|rejected)/.test(action)) return "danger";
-  if (/(created|approved|reactivated|confirmed)/.test(action)) return "success";
-  if (/(role_changed|block_created|settings_updated|configured|completed)/.test(action)) return "warning";
-  if (/(checked_in|checked_out|recorded|notes_updated|status_changed|move|room_type_change)/.test(action)) return "accent";
-  return "default";
-}
+function AuditEntryRow({ row, isLast }: { row: AuditLogRow; isLast: boolean }) {
+  const { actor, verb, ref } = auditSummary(row);
+  const meta = auditMeta(row);
+  const time = auditTime(row.created_at);
 
-function ActionBadge({ action }: { action: string }) {
-  const label = action.replace(".", " · ").replace(/_/g, " ");
   return (
-    <Chip size="sm" variant="soft" color={actionColor(action)} className="whitespace-nowrap">
-      <Chip.Label>{label}</Chip.Label>
-    </Chip>
-  );
-}
-
-function stateSnippet(state: unknown): string {
-  if (!state || typeof state !== "object" || Array.isArray(state)) return "";
-  const entries = Object.entries(state as Record<string, unknown>).slice(0, 3);
-  return entries.map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(" · ");
-}
-
-/** Append newly fetched days, merging a day split across the page boundary. */
-function mergeDays(prev: AuditDayGroup[], next: AuditDayGroup[]): AuditDayGroup[] {
-  if (next.length === 0) return prev;
-  const seen = new Set(prev.flatMap((d) => d.entries.map((e) => e.id)));
-  const merged = prev.map((d) => ({ ...d, entries: [...d.entries] }));
-  for (const day of next) {
-    const fresh = day.entries.filter((e) => !seen.has(e.id));
-    if (fresh.length === 0) continue;
-    fresh.forEach((e) => seen.add(e.id));
-    const last = merged[merged.length - 1];
-    if (last && last.date === day.date) {
-      last.entries.push(...fresh);
-    } else {
-      merged.push({ date: day.date, entries: fresh });
-    }
-  }
-  return merged;
-}
-
-function matchesSearch(log: AuditLogRow, q: string): boolean {
-  return (
-    log.action.toLowerCase().includes(q) ||
-    (log.staff_name ?? "").toLowerCase().includes(q) ||
-    (log.entity_type ?? "").toLowerCase().includes(q) ||
-    JSON.stringify(log.after_state ?? {}).toLowerCase().includes(q)
-  );
-}
-
-/** "Tuesday, 22 September 2026" — date-only strings never shift across timezones. */
-function dayTitle(date: string): string {
-  return formatDate(date, "EEEE, d MMMM yyyy", date);
-}
-
-/** One entry row — flex layout (no table) so it reflows cleanly on phones. */
-function AuditEntryRow({ log }: { log: AuditLogRow }) {
-  const snippet = stateSnippet(log.after_state);
-  return (
-    <li className="flex gap-3 px-4 py-3 transition-colors hover:bg-muted/20 sm:px-5">
-      <span className="w-10 shrink-0 pt-1 text-caption tabular-nums text-muted-foreground">
-        {formatDate(log.created_at, "HH:mm", "")}
-      </span>
+    <li
+      className={cn(
+        "flex items-start gap-3 px-3.5 py-2.5 sm:px-5 sm:py-[11px]",
+        !isLast && "border-b border-border"
+      )}
+    >
+      <time className="hidden w-11 shrink-0 pt-[2px] text-right font-mono text-xs font-medium tabular-nums text-foreground sm:block">
+        {time}
+      </time>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-          <ActionBadge action={log.action} />
-          <span className="max-w-40 truncate text-xs font-medium text-foreground">
-            {log.staff_name ?? <span className="text-muted-foreground">System</span>}
+        <div className="flex items-center gap-[5px]">
+          <span className="shrink-0 text-[12.5px] font-semibold text-foreground sm:text-[13px]">
+            {actor}
           </span>
-          {log.entity_type && (
-            <span className="rounded bg-muted/40 px-1.5 py-0.5 font-mono text-caption text-muted-foreground">
-              {log.entity_type}
+          <span className="min-w-0 truncate text-[12.5px] text-foreground sm:text-[13px]">
+            {verb}
+          </span>
+          {ref && (
+            <span className="hidden shrink-0 font-mono text-xs font-medium text-foreground sm:inline">
+              {ref}
             </span>
           )}
+          <span className="flex-1" />
+          <time className="shrink-0 font-mono text-[11px] font-medium tabular-nums text-foreground sm:hidden">
+            {time}
+          </time>
         </div>
-        {snippet && (
-          <p className="mt-1 truncate font-mono text-caption text-muted-foreground/80">{snippet}</p>
+        {(ref || meta) && (
+          <p className="mt-[3px] truncate font-mono text-[10px] text-muted-foreground sm:mt-1 sm:text-xs">
+            {/* Phones move the reference here — on a 390px row the long
+                numeric codes would crowd the verb off the first line. */}
+            {ref && (
+              <span className="font-medium text-foreground sm:hidden">
+                {ref}
+                {meta ? " · " : ""}
+              </span>
+            )}
+            {meta}
+          </p>
         )}
       </div>
     </li>
   );
 }
 
-/** Day-shaped shimmer placeholder shown while the next window loads. */
-function DaySkeleton() {
+// ── Day group ──────────────────────────────────────────────────────────
+
+function DayGroup({
+  date,
+  entries,
+  isLastGroup,
+}: {
+  date: string;
+  entries: AuditLogRow[];
+  isLastGroup: boolean;
+}) {
   return (
-    <div aria-hidden className="card-default px-4 py-4 sm:px-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="space-y-1.5">
-          <Skeleton className="h-4 w-44 rounded-md" />
-          <Skeleton className="h-3 w-20 rounded-md" />
+    <section>
+      <div className="flex h-[34px] items-center gap-2 bg-muted px-3.5 sm:h-10 sm:px-5">
+        <span className="text-xs font-semibold text-foreground sm:text-[13px]">
+          {formatDate(date, "EEEE, d MMMM yyyy", date)}
+        </span>
+        <span className="flex-1" />
+        <span className="font-mono text-[10px] font-medium text-foreground/60 sm:text-[11px]">
+          {entries.length} {entries.length === 1 ? "entry" : "entries"}
+        </span>
+      </div>
+      <ul>
+        {entries.map((row, i) => (
+          <AuditEntryRow key={row.id} row={row} isLast={isLastGroup && i === entries.length - 1} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+// ── States ─────────────────────────────────────────────────────────────
+
+/** Shimmer placeholders for the whole page, per the "Loading" state design. */
+function LoadingState({ page }: { page: number }) {
+  return (
+    <div aria-live="polite" aria-busy="true">
+      <div className="flex h-[34px] items-center justify-between gap-2 bg-muted px-3.5 sm:h-10 sm:px-5">
+        <Skeleton className="h-[13px] w-40 rounded-md bg-foreground/15" />
+        <Skeleton className="h-2.5 w-24 rounded bg-foreground/15" />
+      </div>
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="flex items-center gap-3 border-b border-border px-3.5 py-2.5 sm:px-5 sm:py-[11px]"
+        >
+          <Skeleton className="hidden h-2.5 w-9 rounded sm:block" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-3 w-[250px] max-w-full rounded-md" />
+            <Skeleton className="h-2.5 w-[330px] max-w-full rounded" />
+          </div>
         </div>
-        <Skeleton className="h-4 w-4 rounded-full" />
+      ))}
+      <div className="flex items-center justify-center gap-2 px-5 py-3">
+        <Spinner size="sm" className="text-primary" />
+        <span className="text-xs text-muted-foreground">Loading page {page}…</span>
       </div>
     </div>
   );
+}
+
+function EmptyState({
+  title,
+  caption,
+  icon,
+}: {
+  title: React.ReactNode;
+  caption: React.ReactNode;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-3 px-5 py-14 sm:py-16">
+      <div className="flex size-11 items-center justify-center rounded-2xl bg-secondary">
+        {icon}
+      </div>
+      <p className="text-sm font-semibold text-foreground">{title}</p>
+      <p className="text-xs text-muted-foreground">{caption}</p>
+    </div>
+  );
+}
+
+function ErrorBand({ page, onRetry }: { page: number; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-2.5 border-t border-border px-5 pb-6 pt-5">
+      <div className="flex items-center gap-2">
+        <CircleAlert className="size-[15px] shrink-0 text-destructive" aria-hidden />
+        <p className="text-[12.5px] font-medium text-destructive">
+          Couldn&apos;t load page {page}. Check your connection and try again.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="flex h-8 items-center rounded-full bg-secondary px-3.5 text-[13px] font-medium text-primary transition-colors hover:bg-secondary/70"
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
+
+// ── Pagination ─────────────────────────────────────────────────────────
+
+/** 1…count when short; otherwise first/last + current±1 with gaps. */
+function pagerItems(current: number, count: number): (number | "gap")[] {
+  if (count <= 7) return Array.from({ length: count }, (_, i) => i + 1);
+  const wanted = new Set(
+    [1, count, current - 1, current, current + 1].filter((p) => p >= 1 && p <= count)
+  );
+  const items: (number | "gap")[] = [];
+  let prev = 0;
+  for (const p of [...wanted].sort((a, b) => a - b)) {
+    if (p - prev > 1) items.push("gap");
+    items.push(p);
+    prev = p;
+  }
+  return items;
+}
+
+function Pagination({
+  page,
+  pageCount,
+  onChange,
+}: {
+  page: number;
+  pageCount: number;
+  onChange: (page: number) => void;
+}) {
+  return (
+    <nav
+      aria-label="Audit log pages"
+      className="flex items-center justify-center gap-1.5 border-t border-border px-3.5 pb-4 pt-3.5 sm:gap-2 sm:px-5 sm:pb-[18px] sm:pt-4"
+    >
+      <button
+        type="button"
+        aria-label="Previous page"
+        disabled={page <= 1}
+        onClick={() => onChange(page - 1)}
+        className="flex h-8 w-8 items-center justify-center gap-1.5 rounded-full text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:text-muted-foreground/50 sm:h-9 sm:w-auto sm:px-2.5 sm:text-sm"
+      >
+        <ChevronLeft className="size-4" aria-hidden />
+        <span className="hidden lg:inline">Previous</span>
+      </button>
+
+      {pagerItems(page, pageCount).map((item, i) =>
+        item === "gap" ? (
+          <span key={`gap-${i}`} aria-hidden className="px-1 text-sm text-muted-foreground">
+            …
+          </span>
+        ) : (
+          <button
+            key={item}
+            type="button"
+            aria-current={item === page ? "page" : undefined}
+            aria-label={`Page ${item}`}
+            onClick={() => onChange(item)}
+            className={cn(
+              "flex size-8 items-center justify-center rounded-full text-[13px] font-medium transition-colors sm:size-9 sm:text-sm",
+              item === page
+                ? "bg-secondary text-secondary-foreground"
+                : "text-foreground hover:bg-muted"
+            )}
+          >
+            {item}
+          </button>
+        )
+      )}
+
+      <button
+        type="button"
+        aria-label="Next page"
+        disabled={page >= pageCount}
+        onClick={() => onChange(page + 1)}
+        className="flex h-8 w-8 items-center justify-center gap-1.5 rounded-full text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:text-muted-foreground/50 sm:h-9 sm:w-auto sm:px-2.5 sm:text-sm"
+      >
+        <span className="hidden lg:inline">Next</span>
+        <ChevronRight className="size-4" aria-hidden />
+      </button>
+    </nav>
+  );
+}
+
+// ── Toolbar ────────────────────────────────────────────────────────────
+
+function Toolbar({
+  input,
+  onInputChange,
+  onClear,
+  category,
+  onCategoryChange,
+  counts,
+}: {
+  input: string;
+  onInputChange: (value: string) => void;
+  onClear: () => void;
+  category: AuditCategoryId;
+  onCategoryChange: (id: AuditCategoryId) => void;
+  counts: Record<AuditCategoryId, number | null>;
+}) {
+  function handleSelection(keys: Selection) {
+    const key = keys === "all" ? null : [...keys][0];
+    if (!key) return; // ignore deselect of the active filter
+    onCategoryChange(String(key) as AuditCategoryId);
+  }
+
+  return (
+    <div className="mb-4 flex items-center gap-2 lg:mb-0 lg:border-b lg:border-border lg:px-5 lg:py-4">
+      <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-xl bg-card px-3 shadow-sm lg:w-[360px] lg:flex-none">
+        <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => onInputChange(e.target.value)}
+          placeholder="Search actions, staff, or references"
+          aria-label="Search audit log"
+          className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
+        />
+        {input && (
+          <button
+            type="button"
+            aria-label="Clear search"
+            onClick={onClear}
+            className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <CircleX className="size-3.5" aria-hidden />
+          </button>
+        )}
+      </div>
+
+      <Dropdown>
+        <Dropdown.Trigger
+          className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card shadow-sm transition-colors hover:bg-muted/50 lg:w-auto lg:gap-2 lg:border lg:border-border lg:bg-transparent lg:px-3.5 lg:shadow-none"
+          aria-label="Filter by action"
+        >
+          <Funnel className="size-4 text-foreground" aria-hidden />
+          <span className="hidden text-[13px] font-medium text-foreground lg:inline">Filters</span>
+        </Dropdown.Trigger>
+        <Dropdown.Popover placement="bottom end" className="w-[260px] rounded-3xl p-1 shadow-lg">
+          <Dropdown.Menu
+            aria-label="Filter by action"
+            selectionMode="single"
+            selectedKeys={new Set([category])}
+            onSelectionChange={handleSelection}
+          >
+            <Dropdown.Item id="all" textValue="All actions" className="h-9 rounded-2xl px-2.5">
+              <Dropdown.ItemIndicator />
+              <span className="text-sm text-foreground">All actions</span>
+              <span className="flex-1" />
+              {counts.all !== null && (
+                <span className="font-mono text-xs text-foreground/60">{counts.all}</span>
+              )}
+            </Dropdown.Item>
+            <Separator className="mx-2 my-1" />
+            {AUDIT_CATEGORIES.filter((c) => c.id !== "all").map((c) => (
+              <Dropdown.Item
+                key={c.id}
+                id={c.id}
+                textValue={c.label}
+                className="h-9 rounded-2xl px-2.5"
+              >
+                <Dropdown.ItemIndicator />
+                <span className="text-sm text-foreground">{c.label}</span>
+                <span className="flex-1" />
+                {counts[c.id] !== null && (
+                  <span className="font-mono text-xs text-muted-foreground">{counts[c.id]}</span>
+                )}
+              </Dropdown.Item>
+            ))}
+          </Dropdown.Menu>
+        </Dropdown.Popover>
+      </Dropdown>
+    </div>
+  );
+}
+
+// ── Root ───────────────────────────────────────────────────────────────
+
+/** One page/filter request; `null` means "whatever the server rendered". */
+interface AuditRequest {
+  page: number;
+  category: AuditCategoryId;
+  query: string;
 }
 
 export function AuditLogClient({
-  initialDays,
-  initialCursor,
-  initialHasMore,
+  initialRows,
+  initialTotal,
 }: {
-  initialDays: AuditDayGroup[];
-  initialCursor: string | null;
-  initialHasMore: boolean;
+  initialRows: AuditLogRow[];
+  initialTotal: number;
 }) {
-  const [days, setDays] = React.useState<AuditDayGroup[]>(initialDays);
-  const [cursor, setCursor] = React.useState<string | null>(initialCursor);
-  const [hasMore, setHasMore] = React.useState(initialHasMore);
+  // `request` is what the user asked for, `loaded` is the last answer that
+  // came back. Before the first request the server-rendered props are the
+  // truth, so the first paint never refetches page 1.
+  const [request, setRequest] = React.useState<AuditRequest | null>(null);
+  const [loaded, setLoaded] = React.useState<{
+    page: number;
+    rows: AuditLogRow[];
+    total: number;
+  } | null>(null);
+  const [input, setInput] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [search, setSearch] = React.useState("");
-  // Relative labels ("Today") depend on the client's clock — capture them on mount.
-  const [todayKey, setTodayKey] = React.useState<string | null>(null);
-  const [yesterdayKey, setYesterdayKey] = React.useState<string | null>(null);
-  // Newest day starts open; the rest stay collapsed until tapped.
-  const [expandedKeys, setExpandedKeys] = React.useState<Set<string>>(
-    () => new Set<string>(initialDays.length > 0 ? [initialDays[0].date] : [])
-  );
+  // Set when a request fails; the pager then keeps pointing at the rows that
+  // are still on screen (and "Try again" retries this page).
+  const [errorPage, setErrorPage] = React.useState<number | null>(null);
+  // Bumped so an identical request (retry, re-click) still re-runs.
+  const [reloadKey, setReloadKey] = React.useState(0);
 
-  const sentinelRef = React.useRef<HTMLDivElement | null>(null);
-  // Refs mirror state so loadMore stays referentially stable for the observer.
-  const cursorRef = React.useRef(cursor);
-  const hasMoreRef = React.useRef(hasMore);
-  const isLoadingRef = React.useRef(isLoading);
+  const panelRef = React.useRef<HTMLElement | null>(null);
 
   React.useEffect(() => {
-    cursorRef.current = cursor;
-    hasMoreRef.current = hasMore;
-  }, [cursor, hasMore]);
-
-  React.useEffect(() => {
-    const t = window.setTimeout(() => {
-      const now = new Date();
-      setTodayKey(now.toISOString().slice(0, 10));
-      setYesterdayKey(new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
-    }, 0);
-    return () => window.clearTimeout(t);
-  }, []);
-
-  const loadMore = React.useCallback(async () => {
-    if (isLoadingRef.current || !hasMoreRef.current) return;
-    isLoadingRef.current = true;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await fetchAuditLogDays(cursorRef.current);
-      if (!res.success) {
-        setError(res.error);
-        return;
+    if (!request) return;
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      setErrorPage(null);
+      const res = await fetchAuditLogEntries(request);
+      if (cancelled) return;
+      if (res.success) {
+        setLoaded({ page: request.page, rows: res.page.rows, total: res.page.total });
+      } else {
+        setErrorPage(request.page);
       }
-      setDays((prev) => mergeDays(prev, res.page.days));
-      setCursor(res.page.nextCursor);
-      setHasMore(res.page.hasMore);
-    } catch {
-      setError("Couldn't load older entries. Check your connection and try again.");
-    } finally {
-      isLoadingRef.current = false;
       setIsLoading(false);
-    }
-  }, []);
+      if (request.page > 1) {
+        panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [request, reloadKey]);
 
-  // Infinite scroll: the sentinel sits just below the last day card; when it
-  // nears the viewport we fetch the next window. rootMargin pre-loads before
-  // the user actually hits the bottom, so scrolling feels continuous.
+  // Debounce the search box into a committed request, skipping the initial
+  // empty mount so SSR page 1 is never refetched automatically.
   React.useEffect(() => {
-    const node = sentinelRef.current;
-    if (!node || !hasMore || error) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) void loadMore();
-      },
-      { rootMargin: "600px 0px" }
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [loadMore, hasMore, error]);
+    const nextQuery = input.trim();
+    if (!request && nextQuery === "") return;
+    if (request && nextQuery === request.query) return;
+    const t = window.setTimeout(() => {
+      setRequest((prev) => ({ page: 1, category: prev?.category ?? "all", query: nextQuery }));
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [input, request]);
 
-  const query = search.trim().toLowerCase();
-  const visibleDays = React.useMemo(() => {
-    if (!query) return days;
-    return days
-      .map((d) => ({ ...d, entries: d.entries.filter((e) => matchesSearch(e, query)) }))
-      .filter((d) => d.entries.length > 0);
-  }, [days, query]);
+  const category = request?.category ?? "all";
+  const query = request?.query ?? "";
+  const page = loaded?.page ?? 1;
+  const rows = loaded?.rows ?? initialRows;
+  const total = loaded?.total ?? initialTotal;
 
-  function handleSearchChange(value: string) {
-    setSearch(value);
-    const nextQuery = value.trim().toLowerCase();
-    if (nextQuery) {
-      setExpandedKeys(
-        new Set<string>(
-          days
-            .filter((day) => day.entries.some((entry) => matchesSearch(entry, nextQuery)))
-            .map((day) => day.date)
-        )
-      );
-    }
+  function changeCategory(next: AuditCategoryId) {
+    setRequest({ page: 1, category: next, query });
   }
 
-  const loadedCount = React.useMemo(
-    () => days.reduce((sum, d) => sum + d.entries.length, 0),
-    [days]
-  );
+  /** Pagination and retry both land here, so a repeat click still refetches. */
+  function goToPage(next: number) {
+    setRequest({ page: next, category, query });
+    setReloadKey((k) => k + 1);
+  }
+
+  const days = React.useMemo(() => groupRowsByUtcDay(rows), [rows]);
+
+  // Exact filter counts: only show per-bucket tallies when they are exact
+  // (either all matching rows fit on page 1, or for the currently active bucket).
+  const counts = React.useMemo(() => {
+    const completeWindow = category === "all" && total <= rows.length;
+    const tally = Object.fromEntries(
+      AUDIT_CATEGORIES.map((c) => [c.id, completeWindow ? 0 : null])
+    ) as Record<AuditCategoryId, number | null>;
+
+    if (completeWindow) {
+      for (const row of rows) {
+        const bucket = isAuditCategoryId(row.category) ? row.category : "settings";
+        tally[bucket] = (tally[bucket] ?? 0) + 1;
+      }
+      tally.all = total;
+    } else {
+      tally.all = category === "all" ? total : query === "" ? initialTotal : null;
+      if (category !== "all") {
+        tally[category] = total;
+      }
+    }
+    return tally;
+  }, [rows, category, total, query, initialTotal]);
+
+  const pageCount = Math.max(1, Math.ceil(total / AUDIT_PAGE_SIZE));
+  const showEmptySearch = !isLoading && rows.length === 0 && query !== "";
 
   return (
-    <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          placeholder="Search loaded entries…"
-          className="h-10 w-full rounded-xl pl-9"
-          aria-label="Search audit log"
-        />
+    <section
+      ref={panelRef}
+      className="scroll-mt-6 lg:overflow-hidden lg:rounded-3xl lg:bg-card lg:shadow-sm"
+    >
+      <Toolbar
+        input={input}
+        onInputChange={setInput}
+        onClear={() => setInput("")}
+        category={category}
+        onCategoryChange={changeCategory}
+        counts={counts}
+      />
+
+      {/* Card chrome: a full card on phones (the toolbar floats above it); on
+          desktop the toolbar is the panel's first row instead. */}
+      <div className="overflow-hidden rounded-3xl bg-card shadow-sm lg:rounded-none lg:bg-transparent lg:shadow-none">
+        {isLoading ? (
+          <LoadingState page={request?.page ?? 1} />
+        ) : showEmptySearch ? (
+          <EmptyState
+            icon={<SearchX className="size-5 text-muted-foreground/70" aria-hidden />}
+            title={<>No entries match &ldquo;{query}&rdquo;</>}
+            caption={`No matches on page ${request?.page ?? 1} — try a different search term.`}
+          />
+        ) : rows.length === 0 ? (
+          <EmptyState
+            icon={<FileClock className="size-5 text-muted-foreground/70" aria-hidden />}
+            title="No activity yet"
+            caption="Staff actions — bookings, payments, rate changes — will appear here, grouped by day."
+          />
+        ) : (
+          <div>
+            {days.map((day, i) => (
+              <DayGroup
+                key={day.date}
+                date={day.date}
+                entries={day.entries}
+                isLastGroup={i === days.length - 1}
+              />
+            ))}
+          </div>
+        )}
+
+        {errorPage !== null && !isLoading && (
+          <ErrorBand page={errorPage} onRetry={() => goToPage(errorPage)} />
+        )}
+
+        <Pagination page={page} pageCount={pageCount} onChange={goToPage} />
       </div>
-
-      {days.length === 0 && !isLoading ? (
-        /* Empty state — hotel has no audit entries yet */
-        <div className="card-default flex flex-col items-center justify-center px-6 py-14 text-center">
-          <div className="mb-3 flex size-11 items-center justify-center rounded-2xl bg-muted/40">
-            <FileClock className="size-5 text-muted-foreground/60" />
-          </div>
-          <h2 className="text-section text-foreground">No activity yet</h2>
-          <p className="mt-1 max-w-xs text-caption text-muted-foreground">
-            Staff actions — bookings, payments, rate changes — will appear here, grouped by day.
-          </p>
-        </div>
-      ) : visibleDays.length === 0 ? (
-        <div className="card-default px-6 py-10 text-center">
-          <p className="text-xs text-muted-foreground">
-            No matches in the {loadedCount} loaded entries — keep scrolling to search older days.
-          </p>
-        </div>
-      ) : (
-        <DisclosureGroup
-          allowsMultipleExpanded
-          expandedKeys={expandedKeys}
-          onExpandedChange={(keys) => setExpandedKeys(new Set<string>(Array.from(keys, String)))}
-          className="space-y-3"
-        >
-          {visibleDays.map((day) => {
-            const relLabel =
-              day.date === todayKey ? "Today" : day.date === yesterdayKey ? "Yesterday" : null;
-            return (
-              <Disclosure key={day.date} id={day.date} className="card-default overflow-hidden">
-                <Disclosure.Heading>
-                  <Disclosure.Trigger
-                    className={cn(
-                      "flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors",
-                      "hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-                      "sm:px-5"
-                    )}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate text-section text-foreground">
-                          {dayTitle(day.date)}
-                        </span>
-                        {relLabel && (
-                          <Chip size="sm" variant="soft" color="accent" className="shrink-0">
-                            <Chip.Label>{relLabel}</Chip.Label>
-                          </Chip>
-                        )}
-                      </div>
-                      <span className="mt-0.5 block text-caption text-muted-foreground">
-                        {day.entries.length} {day.entries.length === 1 ? "entry" : "entries"}
-                      </span>
-                    </div>
-                    <Disclosure.Indicator className="shrink-0 text-muted-foreground/70" />
-                  </Disclosure.Trigger>
-                </Disclosure.Heading>
-                <Disclosure.Content>
-                  <Disclosure.Body className="border-t border-border/40 p-0">
-                    <ul className="divide-y divide-border/40">
-                      {day.entries.map((log) => (
-                        <AuditEntryRow key={log.id} log={log} />
-                      ))}
-                    </ul>
-                  </Disclosure.Body>
-                </Disclosure.Content>
-              </Disclosure>
-            );
-          })}
-        </DisclosureGroup>
-      )}
-
-      {/* Infinite-scroll sentinel + load states */}
-      {hasMore && !error && <div ref={sentinelRef} className="h-px w-full" aria-hidden />}
-
-      {isLoading && (
-        <div className="space-y-3">
-          <DaySkeleton />
-          <div className="flex items-center justify-center gap-2 py-1 text-muted-foreground">
-            <Spinner size="sm" color="current" />
-            <span className="text-caption">Loading older days…</span>
-          </div>
-        </div>
-      )}
-
-      {error && (
-        <div className="card-default flex flex-col items-center gap-3 px-6 py-8 text-center">
-          <p className="text-xs text-danger">{error}</p>
-          <Button size="sm" variant="secondary" onPress={() => void loadMore()}>
-            Try again
-          </Button>
-        </div>
-      )}
-
-      <p className="text-caption text-muted-foreground/70">
-        {hasMore
-          ? `${loadedCount} entries loaded — scroll for older days.`
-          : loadedCount > 0
-            ? `Beginning of the audit trail — ${loadedCount} ${loadedCount === 1 ? "entry" : "entries"} total.`
-            : ""}{" "}
-        Audit logs are append-only and cannot be modified.
-      </p>
-    </div>
+    </section>
   );
 }
-

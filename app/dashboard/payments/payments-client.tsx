@@ -2,18 +2,32 @@
 
 import * as React from "react";
 import { Tabs, Button, Chip } from "@heroui/react";
-import { CalendarDays, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import {
+  Banknote,
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
+  Eye,
+  Globe,
+  RefreshCw,
+  ReceiptText,
+  Search,
+  Wallet,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { onRealtimeStatus } from "@/lib/observability/realtime";
 import { createCoalescer } from "@/lib/realtime/coalesce";
 import { formatCurrency, formatDateInTimeZone } from "@/lib/format";
 import { getMethodLabel, PAYMENT_METHOD_LABELS } from "@/lib/booking-status";
+import { cn } from "@/lib/utils";
 import { HeroSelectField } from "@/components/ui/hero-select";
-import { PaymentDateField } from "@/components/ui/payment-date-field";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import { PaymentsSettingsClient } from "@/app/dashboard/settings/payments/payments-client";
 import { PayoutsPanel } from "@/components/payouts/payouts-panel";
+import { PenKpi } from "@/components/ui/pen/pen-kpi";
+import { RangeControl } from "@/components/ui/pen/range-control";
+import { reportPeriodLabel } from "@/lib/report-dates";
 import { getMyHotelPayouts } from "@/app/actions/payouts";
 import { getPaymentActivity, type PaymentActivityResult, type PaymentActivityStatus } from "./actions";
 
@@ -118,70 +132,189 @@ export function PaymentsClient({
     void loadActivity({ page: 1 });
   }
 
-  return <div className="payments-page mx-auto w-full max-w-7xl space-y-6" data-payments>
-    <header className="flex flex-col gap-4 border-b border-border/60 pb-5 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 className="text-page-title">Payments</h1>
-        <p className="mt-1 max-w-xl text-body text-muted-foreground">See what was recorded, what will settle, and where guests pay.</p>
+  return <div className="payments-page mx-auto w-full max-w-7xl space-y-5" data-payments>
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.3px] text-foreground max-md:text-xl">Payments</h1>
+        <p className="mt-1 max-md:text-xs text-sm text-muted-foreground">Reconcile guest payments and trace each record back to its reservation.</p>
+      </div>
+      {/* The chip sits alone top-right; choosing dates applies them. */}
+      <div className="max-sm:hidden">
+        <RangeControl range={{ startDate, endDate }} today={today} onChange={applyRange} />
       </div>
     </header>
 
-    <Tabs variant="secondary" selectedKey={tab} onSelectionChange={(key) => selectTab(key as Tab)} className="payments-tabs">
+    <Tabs variant="secondary" selectedKey={tab} onSelectionChange={(key) => selectTab(key as Tab)} className="payments-tabs w-full">
       <Tabs.ListContainer><Tabs.List aria-label="Payment sections">
         <Tabs.Tab id="activity">Payment activity<Tabs.Indicator /></Tabs.Tab>
         <Tabs.Tab id="payouts">Online payouts<Tabs.Indicator /></Tabs.Tab>
         {canConfigure && <Tabs.Tab id="setup">Setup<Tabs.Indicator /></Tabs.Tab>}
       </Tabs.List></Tabs.ListContainer>
       <Tabs.Panel id="activity" className="pt-5"><ActivityView
-        activity={activity} error={error} loading={loading} startDate={startDate} endDate={endDate} today={today}
-        status={status} method={method} search={search} page={page} onStartDate={(value) => applyRange(value, endDate)} onEndDate={(value) => applyRange(startDate, value)}
+        activity={activity} error={error} loading={loading} startDate={startDate} endDate={endDate} today={today} currency={currency} timeZone={timeZone}
+        status={status} method={method} search={search} page={page}
+        onApplyRange={applyRange}
         onStatus={(value) => { setStatus(value); setPage(1); }} onMethod={(value) => { setMethod(value); setPage(1); }} onSearch={setSearch} onApply={applyFilters}
-         onPage={(next) => { setPage(next); router.replace(activityUrl({ tab: "activity", page: next }), { scroll: false }); void loadActivity({ page: next }); }} onOpenBooking={(id) => { setBookingId(id); setDrawerOpen(true); }} currency={currency} timeZone={timeZone}
+        onPage={(next) => { setPage(next); router.replace(activityUrl({ tab: "activity", page: next }), { scroll: false }); void loadActivity({ page: next }); }}
+        onOpenBooking={(id) => { setBookingId(id); setDrawerOpen(true); }}
       /></Tabs.Panel>
-     <Tabs.Panel id="payouts" className="pt-5"><PayoutsPanel load={getMyHotelPayouts} timeZone={timeZone} /></Tabs.Panel>
+      <Tabs.Panel id="payouts" className="pt-5"><PayoutsPanel load={getMyHotelPayouts} timeZone={timeZone} range={{ start: startDate, end: endDate }} /></Tabs.Panel>
       {canConfigure && <Tabs.Panel id="setup" className="pt-5"><PaymentsSettingsClient initialData={initialSetup} /></Tabs.Panel>}
     </Tabs>
     <BookingDetailDrawer bookingId={bookingId} open={drawerOpen} onClose={() => { setDrawerOpen(false); setBookingId(null); }} currency={currency} />
-     <p className="text-caption text-muted-foreground">Dates use the property timezone: {timeZone}</p>
-   </div>;
+  </div>;
 }
 
-function ActivityView({ activity, error, loading, startDate, endDate, today, status, method, search, page, onStartDate, onEndDate, onStatus, onMethod, onSearch, onApply, onPage, onOpenBooking, currency, timeZone }: {
-  activity: PaymentActivityResult | null; error: string | null; loading: boolean; startDate: string; endDate: string; today: string; status: PaymentActivityStatus; method: string; search: string; page: number;
-  onStartDate: (value: string) => void; onEndDate: (value: string) => void; onStatus: (value: PaymentActivityStatus) => void; onMethod: (value: string) => void; onSearch: (value: string) => void; onApply: () => void; onPage: (page: number) => void; onOpenBooking: (id: string) => void; currency: string; timeZone: string;
+function ActivityView({ activity, error, loading, startDate, endDate, today, currency, timeZone, status, method, search, page, onApplyRange, onStatus, onMethod, onSearch, onApply, onPage, onOpenBooking }: {
+  activity: PaymentActivityResult | null; error: string | null; loading: boolean; startDate: string; endDate: string; today: string; currency: string; timeZone: string;
+  status: PaymentActivityStatus; method: string; search: string; page: number;
+  onApplyRange: (start: string, end: string) => void; onStatus: (value: PaymentActivityStatus) => void;
+  onMethod: (value: string) => void; onSearch: (value: string) => void; onApply: () => void; onPage: (page: number) => void;
+  onOpenBooking: (id: string) => void;
 }) {
   const methods = [{ value: "all", label: "All methods" }, ...Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => ({ value, label }))];
-  return <div className="space-y-5">
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.9fr)]">
-      <div className="payments-total-block rounded-2xl border border-border/60 bg-card p-5">
-        <p className="text-label text-muted-foreground">Recorded for this day</p>
-        <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{formatCurrency(activity?.totals.successfulAmount ?? 0, currency)}</p>
-        <p className="mt-2 text-sm text-muted-foreground">{activity?.totals.successfulCount ?? 0} successful payments</p>
-      </div>
-      <div className="rounded-2xl border border-border/60 bg-card p-5">
-        <div className="flex items-center justify-between gap-3">
-          <div><p className="text-label text-muted-foreground">Date</p><p className="mt-1 text-sm font-medium">Choose the day to reconcile</p></div>
-          <CalendarDays className="size-5 text-muted-foreground" aria-hidden="true" />
-        </div>
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <PaymentDateField label="From" value={startDate} max={endDate > today ? today : endDate} onSelect={onStartDate} />
-          <span className="hidden text-muted-foreground sm:inline" aria-hidden="true">–</span>
-          <PaymentDateField label="To" value={endDate} min={startDate} max={today} onSelect={onEndDate} />
-        </div>
+  const rangeLabel = reportPeriodLabel({ startDate, endDate });
+  const totals = activity?.totals;
+
+  return <div className="space-y-4">
+    {/* Desktop: the range chip owns the dates and the strip states the totals. */}
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 max-sm:hidden">
+      <PenKpi label="Collected" value={moneyLabel(totals?.successfulAmount ?? 0, currency)} icon={Banknote} hint={rangeLabel} />
+      <PenKpi label="Online payments" value={moneyLabel(totals?.onlineAmount ?? 0, currency)} icon={Globe} hint={`${(totals?.onlineCount ?? 0).toLocaleString("en")} payments`} />
+      <PenKpi label="Collected by staff" value={moneyLabel(totals?.staffAmount ?? 0, currency)} icon={Wallet} hint={`${(totals?.staffCount ?? 0).toLocaleString("en")} payments`} />
+    </div>
+    {/* Mobile: full-width collected figure, then the channel split. */}
+    <div className="sm:hidden">
+      <PenKpi label="Collected" value={moneyLabel(totals?.successfulAmount ?? 0, currency)} icon={Banknote} hint={rangeLabel} mobile />
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <PenKpi label="Online payments" value={moneyLabel(totals?.onlineAmount ?? 0, currency)} icon={Globe} hint={`${(totals?.onlineCount ?? 0).toLocaleString("en")} payments`} mobile />
+        <PenKpi label="Collected by staff" value={moneyLabel(totals?.staffAmount ?? 0, currency)} icon={Wallet} hint={`${(totals?.staffCount ?? 0).toLocaleString("en")} payments`} mobile />
       </div>
     </div>
-    <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_10rem_10rem_auto]">
-      <input value={search} onChange={(event) => onSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") onApply(); }} placeholder="Search guest, booking, or Paystack reference" className="h-10 rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+
+    {error ? <div className="flex items-start gap-3 rounded-xl border border-danger/30 bg-danger/5 p-4 text-sm text-danger" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" /><span>{error}</span></div> : null}
+
+    <LedgerCard
+      activity={activity} loading={loading} currency={currency} timeZone={timeZone}
+      startDate={startDate} endDate={endDate} today={today}
+      status={status} method={method} search={search} page={page}
+      methods={methods}
+      onApplyRange={onApplyRange} onStatus={onStatus} onMethod={onMethod}
+      onSearch={onSearch} onApply={onApply} onPage={onPage} onOpenBooking={onOpenBooking}
+    />
+  </div>;
+}
+
+function moneyLabel(amount: number, currency: string): string {
+  return `${currency} ${amount.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+const LEDGER_COLUMNS = [
+  { label: "Payment", width: "190px" },
+  { label: "Guest / booking", width: "1fr" },
+  { label: "Amount", width: "140px", align: "right" as const },
+  { label: "Status", width: "120px" },
+  { label: "Recorded by", width: "150px" },
+  { label: "", width: "56px" },
+];
+
+function LedgerCard({ activity, loading, currency, timeZone, startDate, endDate, today, status, method, search, page, methods, onApplyRange, onStatus, onMethod, onSearch, onApply, onPage, onOpenBooking }: {
+  activity: PaymentActivityResult | null; loading: boolean; currency: string; timeZone: string;
+  startDate: string; endDate: string; today: string;
+  status: PaymentActivityStatus; method: string; search: string; page: number;
+  methods: { value: string; label: string }[];
+  onApplyRange: (start: string, end: string) => void; onStatus: (value: PaymentActivityStatus) => void;
+  onMethod: (value: string) => void; onSearch: (value: string) => void; onApply: () => void; onPage: (page: number) => void;
+  onOpenBooking: (id: string) => void;
+}) {
+  return <section className="flex flex-col gap-3 rounded-3xl bg-card p-4 shadow-[0_2px_4px_rgb(0_0_0/0.04)]" aria-label="Payment ledger">
+    <header className="flex items-start justify-between gap-4">
+      <div className="min-w-0 space-y-0.5">
+        <h2 className="text-[15px] font-semibold text-foreground">Payment ledger</h2>
+        <p className="text-xs text-muted-foreground">Search and filter the records in your current window.</p>
+      </div>
+      <p className="shrink-0 font-mono text-xs text-muted-foreground">{activity ? `${activity.totalCount.toLocaleString("en")} records` : "—"}</p>
+    </header>
+
+    <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_10rem_10rem_auto] max-md:hidden">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/70" aria-hidden="true" />
+        <input type="search" value={search} onChange={(event) => onSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") onApply(); }} placeholder="Search guest, booking, or reference" aria-label="Search payments" className="h-10 w-full rounded-[10px] border border-border/70 bg-card pl-9 pr-3 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/80 hover:border-border focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20" />
+      </div>
       <HeroSelectField value={status} onValueChange={(value) => onStatus(value as PaymentActivityStatus)} options={STATUS_OPTIONS.map((option) => ({ value: option.value, label: option.label }))} ariaLabel="Payment status" />
       <HeroSelectField value={method} onValueChange={onMethod} options={methods} ariaLabel="Payment method" />
-      <Button variant="secondary" onPress={onApply} isPending={loading}>Apply</Button>
+      <Button variant="primary" onPress={onApply} isPending={loading}>Apply filters</Button>
     </div>
-    {error ? <div className="rounded-xl border border-danger/30 bg-danger/5 p-4 text-sm text-danger" role="alert">{error}</div> : null}
-    <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
-      <div className="overflow-x-auto"><table className="w-full min-w-[860px] text-sm"><thead><tr className="border-b border-border/60 text-left text-xs text-muted-foreground"><th className="px-4 py-3">Paid at</th><th className="px-4 py-3">Guest</th><th className="px-4 py-3">Booking</th><th className="px-4 py-3 text-right">Amount</th><th className="px-4 py-3">Method</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Recorded by</th><th className="px-4 py-3" /></tr></thead><tbody>
-       {loading && !activity ? <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">Loading payments…</td></tr> : activity?.rows.length ? activity.rows.map((row) => <tr key={row.id} className="border-b border-border/40 last:border-0 hover:bg-muted/30"><td className="whitespace-nowrap px-4 py-3 text-muted-foreground tabular-nums">{row.paidAt ? formatDateInTimeZone(row.paidAt, timeZone, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "—"}</td><td className="px-4 py-3 font-medium">{row.guestName ?? "Guest"}</td><td className="px-4 py-3 font-mono text-xs text-muted-foreground">{row.bookingReference ?? "—"}</td><td className="px-4 py-3 text-right font-medium tabular-nums">{formatCurrency(row.amount, row.currency)}</td><td className="px-4 py-3 text-muted-foreground">{getMethodLabel(row.method)}</td><td className="px-4 py-3"><Chip size="sm" variant="soft" color={statusTone(row.status)}>{statusLabel(row.status)}</Chip></td><td className="px-4 py-3 text-muted-foreground">{row.recordedBy ?? (row.paystackReference ? "Online" : "—")}</td><td className="px-4 py-3">{row.bookingId && <Button isIconOnly variant="ghost" size="sm" aria-label={`View booking ${row.bookingReference ?? ""}`} onPress={() => onOpenBooking(row.bookingId!)}><Eye className="size-4" /></Button>}</td></tr>) : <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">No payments match this view.</td></tr>}
-      </tbody></table></div>
-      {activity && <div className="flex flex-col gap-3 border-t border-border/60 px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><span>Page {page} · {activity.totalCount.toLocaleString()} records</span><div className="flex gap-2"><Button variant="outline" size="sm" isDisabled={page <= 1 || loading} onPress={() => onPage(page - 1)}><ChevronLeft className="size-3.5" />Previous</Button><Button variant="outline" size="sm" isDisabled={!activity.hasNextPage || loading} onPress={() => onPage(page + 1)}>Next<ChevronRight className="size-3.5" /></Button></div></div>}
+
+    {activity && <div className="md:hidden">
+      <RangeControl range={{ startDate, endDate }} today={today} onChange={onApplyRange} />
+    </div>}
+
+    {/* Desktop table */}
+    <div className="rounded-[20px] bg-secondary p-1 pt-0 max-md:hidden">
+      <table className="w-full border-collapse text-[13px]">
+        <caption className="sr-only">Payment ledger records</caption>
+        <thead><tr>
+          {LEDGER_COLUMNS.map((column, index) => <th key={column.label + index} scope="col"
+            className={cn("border-b border-border/70 px-4 py-2.5 text-left text-xs font-medium text-muted-foreground", column.align === "right" && "text-right")}>
+            {column.label}
+          </th>)}
+        </tr></thead>
+        <tbody>
+          {loading && !activity ? <tr><td colSpan={6} className="px-4 py-16 text-center text-muted-foreground">Loading payments…</td></tr>
+            : activity?.rows.length ? activity.rows.map((row) => <tr key={row.id} className="border-b border-border/50 bg-card last:border-b-0">
+              <td className="whitespace-nowrap px-4 py-3 align-top">
+                <p className="font-medium tabular-nums">{row.paidAt ? formatDateInTimeZone(row.paidAt, timeZone, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "—"}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{onlineRow(row) ? "Online" : getMethodLabel(row.method)}</p>
+              </td>
+              <td className="px-4 py-3 align-top">
+                <p className="font-medium">{row.guestName ?? "Guest"}</p>
+                <p className="mt-1 font-mono text-[11px] text-muted-foreground">{row.bookingReference ?? "No booking reference"}</p>
+              </td>
+              <td className="px-4 py-3 text-right align-top font-mono font-semibold tabular-nums">{formatCurrency(row.amount, row.currency)}</td>
+              <td className="px-4 py-3 align-top"><Chip size="sm" variant="soft" color={statusTone(row.status)}>{statusLabel(row.status)}</Chip></td>
+              <td className="px-4 py-3 align-top text-xs text-muted-foreground">{onlineRow(row) ? "Online" : row.recordedBy ?? "—"}</td>
+              <td className="px-4 py-3 text-right align-top">{row.bookingId && <Button isIconOnly variant="ghost" size="sm" className="size-8 rounded-lg" aria-label={`View booking ${row.bookingReference ?? ""}`} onPress={() => onOpenBooking(row.bookingId!)}><Eye className="size-4" /></Button>}</td>
+            </tr>)
+            : <tr><td colSpan={6} className="px-4 py-16 text-center"><div className="mx-auto flex max-w-xs flex-col items-center"><span className="flex size-11 items-center justify-center rounded-2xl bg-muted text-muted-foreground"><ReceiptText className="size-5" aria-hidden="true" /></span><p className="mt-3 text-sm font-semibold">No payments match this view</p><p className="mt-1 text-sm text-muted-foreground">Try another date range, status, or search term.</p></div></td></tr>}
+        </tbody>
+      </table>
     </div>
-  </div>;
+
+    {/* Mobile compact rows */}
+    {activity && <div className="md:hidden">
+      {activity.rows.length ? activity.rows.map((row, index) => <div key={row.id}>
+        {index > 0 && <div className="h-px bg-border/50" aria-hidden="true" />}
+        <div className="flex flex-col gap-1.5 py-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[13px] font-medium text-foreground">{row.guestName ?? "Guest"}</span>
+            <span className="font-mono text-[13px] font-semibold tabular-nums text-foreground">{formatCurrency(row.amount, row.currency)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[11px] text-muted-foreground">{onlineRow(row) ? "Online" : getMethodLabel(row.method)}</span>
+            <Chip size="sm" variant="soft" color={statusTone(row.status)}>{statusLabel(row.status)}</Chip>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-mono text-[10px] text-muted-foreground">{row.bookingReference ?? "—"}</span>
+            {row.bookingId && <button type="button" className="flex items-center gap-1 text-[10px] font-medium text-[var(--pen-accent)]" onClick={() => onOpenBooking(row.bookingId!)}>
+              View booking <Eye className="size-[11px]" aria-hidden="true" />
+            </button>}
+          </div>
+        </div>
+      </div>) : <p className="py-10 text-center text-sm text-muted-foreground">No payments match this view.</p>}
+    </div>}
+
+    {activity && <div className="flex flex-col gap-3 border-t border-border/50 px-1 pt-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+      <span>Page {page} · {activity.totalCount.toLocaleString("en")} records</span>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" isDisabled={page <= 1 || loading} onPress={() => onPage(page - 1)}><ChevronLeft className="size-3.5" />Previous</Button>
+        <Button variant="outline" size="sm" isDisabled={!activity.hasNextPage || loading} onPress={() => onPage(page + 1)}>Next<ChevronRight className="size-3.5" /></Button>
+      </div>
+    </div>}
+  </section>;
+}
+
+/** Online payments stay aggregated as "Online" (never split by rail type); staff-collected rows name the tender. */
+function onlineRow(row: { method: string | null }): boolean {
+  return row.method === "paystack_link";
 }

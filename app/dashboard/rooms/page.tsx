@@ -39,8 +39,9 @@ export default async function RoomsPage({
     return <NoHotelState />;
   }
 
-  // Independent queries — resolve in one pass.
-  const [{ data: roomTypes }, { data: rooms }, resolvedParams] = await Promise.all([
+  // Independent queries — resolve in one pass. Active check-ins join in so an
+  // occupied room can name its guest and departure date.
+  const [{ data: roomTypes }, { data: rooms }, { data: activeStays }, resolvedParams] = await Promise.all([
     supabase
       .from("room_types")
       .select("id, name, bed_configuration, max_adults, max_children, base_price, is_active, sort_order")
@@ -52,8 +53,27 @@ export default async function RoomsPage({
       .select("id, room_type_id, room_number, floor, status, is_active, notes")
       .eq("hotel_id", hotel.id)
       .order("room_number", { ascending: true }),
+    supabase
+      .from("bookings")
+      .select("room_id, check_out, guests(full_name)")
+      .eq("hotel_id", hotel.id)
+      .eq("status", "checked_in")
+      .not("room_id", "is", "null"),
     searchParams,
   ]);
+
+  // One in-house stay per room; the latest check-out wins if data ever disagrees.
+  const stayByRoom = new Map<string, { guestName: string; checkOut: string }>();
+  for (const stay of activeStays ?? []) {
+    if (!stay.room_id) continue;
+    const name = Array.isArray(stay.guests)
+      ? stay.guests[0]?.full_name ?? null
+      : (stay.guests as { full_name: string | null } | null)?.full_name ?? null;
+    const existing = stayByRoom.get(stay.room_id);
+    if (!existing || (stay.check_out ?? "") > existing.checkOut) {
+      stayByRoom.set(stay.room_id, { guestName: name ?? "Guest", checkOut: stay.check_out ?? "" });
+    }
+  }
 
   const roomsByType = new Map<string, NonNullable<typeof rooms>>();
   for (const room of rooms ?? []) {
@@ -71,6 +91,7 @@ export default async function RoomsPage({
       status: room.status,
       isActive: room.is_active,
       notes: room.notes,
+      stay: stayByRoom.get(room.id) ?? null,
     }));
 
     return {

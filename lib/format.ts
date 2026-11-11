@@ -37,6 +37,24 @@ export function formatCurrencyCompact(amount: number, currency = DEFAULT_CURRENC
   return formatMajor(amount, currency, { showDecimals: false });
 }
 
+/**
+ * "GHS 1,150" — ISO code prefix instead of the ₵ symbol, per the booking
+ * funnel design (pencil-booking.pen). `showDecimals: false` renders the
+ * rounded nightly rate on room cards; totals keep the currency's decimals.
+ */
+export function formatCurrencyCode(
+  amount: number,
+  currency = DEFAULT_CURRENCY,
+  options: { showDecimals?: boolean } = {}
+): string {
+  const { showDecimals = true } = options;
+  const digits = showDecimals ? 2 : 0;
+  return `${currency.toUpperCase()} ${amount.toLocaleString("en-GH", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })}`;
+}
+
 // ── Dates ────────────────────────────────────────────────────────
 
 /** Date-only strings are parsed as local time so the displayed day never shifts. */

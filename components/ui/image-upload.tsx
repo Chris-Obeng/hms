@@ -24,16 +24,18 @@ interface ImageUploadProps {
   aspect?: string;
   label?: string;
   hint?: string;
+  disabled?: boolean;
 }
 
 export function ImageUpload({
   currentUrl, storagePath, onUpload, onRemove,
-  className, aspect = "aspect-video", label, hint,
+  className, aspect = "aspect-video", label, hint, disabled = false,
 }: ImageUploadProps) {
   const [uploading, setUploading] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File) {
+    if (disabled) return;
     if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
       toast.danger("Use a JPEG, PNG, WebP, or AVIF image");
       return;
@@ -70,34 +72,36 @@ export function ImageUpload({
 
       <div
         className={cn(
-          "relative rounded-xl border-2 border-dashed border-border/60 overflow-hidden transition-colors",
-          "hover:border-border cursor-pointer bg-muted/20",
+          "relative rounded-xl border-2 border-dashed border-border/60 overflow-hidden transition-colors bg-muted/20",
+          disabled ? "cursor-default opacity-70" : "hover:border-border cursor-pointer",
           aspect
         )}
-        onClick={() => !uploading && inputRef.current?.click()}
+        onClick={() => !disabled && !uploading && inputRef.current?.click()}
       >
         {currentUrl ? (
           <>
-            <Image src={currentUrl} alt="Uploaded image" fill className="object-cover" />
+            <Image src={currentUrl} alt={label ?? "Uploaded image"} fill className="object-cover" />
             {/* Overlay controls */}
-            <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors flex items-center justify-center gap-2 opacity-0 hover:opacity-100">
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
-                className="flex items-center gap-1.5 bg-white/90 text-foreground text-xs font-medium px-2.5 py-1.5 rounded-lg"
-              >
-                <Upload className="size-3" /> Replace
-              </button>
-              {onRemove && (
+            {!disabled && (
+              <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors flex items-center justify-center gap-2 opacity-0 hover:opacity-100">
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); onRemove(); }}
-                  className="flex items-center gap-1.5 bg-destructive text-destructive-foreground text-xs font-medium px-2.5 py-1.5 rounded-lg"
+                  onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
+                  className="flex items-center gap-1.5 bg-white/90 text-foreground text-xs font-medium px-2.5 py-1.5 rounded-lg"
                 >
-                  <X className="size-3" /> Remove
+                  <Upload className="size-3" /> Replace
                 </button>
-              )}
-            </div>
+                {onRemove && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onRemove(); }}
+                    className="flex items-center gap-1.5 bg-destructive text-destructive-foreground text-xs font-medium px-2.5 py-1.5 rounded-lg"
+                  >
+                    <X className="size-3" /> Remove
+                  </button>
+                )}
+              </div>
+            )}
           </>
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
@@ -106,7 +110,7 @@ export function ImageUpload({
             ) : (
               <>
                 <Upload className="size-5 text-muted-foreground/50" />
-                <p className="text-xs text-muted-foreground/70">Click to upload</p>
+                <p className="text-xs text-muted-foreground/70">{disabled ? "No image" : "Click to upload"}</p>
               </>
             )}
           </div>
@@ -125,6 +129,7 @@ export function ImageUpload({
         ref={inputRef}
         type="file"
         accept="image/*"
+        disabled={disabled}
         className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
       />

@@ -1,5 +1,6 @@
 import { formatCurrency, formatDate } from "@/lib/format";
 import { PAYMENT_METHOD_LABELS } from "@/lib/booking-status";
+import { shiftReportDate, validateReportRange, reportPeriodLabel } from "@/lib/report-dates";
 import type { GuestsData, OccupancyData, OverviewData, RevenueData } from "../actions";
 
 export type ReportTab = "overview" | "revenue" | "occupancy" | "guests";
@@ -9,39 +10,10 @@ export type ReportSnapshot =
   | { tab: "revenue"; data: RevenueData }
   | { tab: "occupancy"; data: OccupancyData }
   | { tab: "guests"; data: GuestsData };
-const DAY_MS = 86_400_000;
 
-function validDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00Z`);
-  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
-}
-
-/** Calendar-only arithmetic avoids browser/server timezone and DST shifts. */
-export function shiftReportDate(value: string, days: number): string {
-  return new Date(Date.parse(`${value}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
-}
-
-export function validateReportRange(range: ReportRange, today: string): string | null {
-  if (!validDate(range.startDate) || !validDate(range.endDate)) return "Enter a valid start and end date.";
-  if (range.startDate > range.endDate) return "End date must be on or after start date.";
-  if (range.endDate > today) return "End date cannot be after the current property date.";
-  const days = (Date.parse(range.endDate) - Date.parse(range.startDate)) / DAY_MS + 1;
-  if (days > 366) return "Choose a date range of 366 days or fewer.";
-  return null;
-}
-
-export function reportRangeLabel(range: ReportRange): string {
-  return `${formatDate(range.startDate, "MMM d, yyyy")} – ${formatDate(range.endDate, "MMM d, yyyy")}`;
-}
-
-/** A short, calm period label: "Sep 23 – Oct 22, 2026" within one year. */
-export function reportPeriodLabel(range: ReportRange): string {
-  const sameYear = range.startDate.slice(0, 4) === range.endDate.slice(0, 4);
-  return sameYear
-    ? `${formatDate(range.startDate, "MMM d")} – ${formatDate(range.endDate, "MMM d, yyyy")}`
-    : reportRangeLabel(range);
-}
+// Date arithmetic lives in lib/report-dates.ts so the shared range control and
+// the reports page validate identically; re-exported for existing callers.
+export { shiftReportDate, validateReportRange, reportPeriodLabel };
 
 /** Server metadata is the only authority for tenant identity, including for older cached responses. */
 export function matchesReportContext(
@@ -73,6 +45,7 @@ export function reportPercent(value: number | null): string {
 }
 
 /** Calendar days covered by an inclusive range. */
+const DAY_MS = 86_400_000;
 export function reportDayCount(range: ReportRange): number {
   return (Date.parse(`${range.endDate}T00:00:00Z`) - Date.parse(`${range.startDate}T00:00:00Z`)) / DAY_MS + 1;
 }

@@ -1,14 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Button, Chip, Pagination, Skeleton, Table } from "@heroui/react";
-import { RotateCw, Wallet } from "lucide-react";
+import { Button, Pagination, Skeleton } from "@heroui/react";
+import { Banknote, RotateCw, TriangleAlert, Wallet, XCircle } from "lucide-react";
 import { CalendarDate, today } from "@internationalized/date";
-import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/money";
 import { formatDateInTimeZone } from "@/lib/format";
 import type { HotelPayoutOverview, PayoutReservation } from "@/lib/payouts";
-import { PaymentDateField } from "@/components/ui/payment-date-field";
+import { PenKpi } from "@/components/ui/pen/pen-kpi";
 import { PayoutStatusBadge } from "./payout-status-badge";
 
 /**
@@ -35,13 +34,6 @@ function rangeLabel(fromISO: string, toISO: string, timeZone: string): string {
   return `${formatDateInTimeZone(fromISO, timeZone, { day: "2-digit", month: "short" })} – ${formatDateInTimeZone(toISO, timeZone, { day: "2-digit", month: "short", year: "numeric" })}`;
 }
 
-const SCHEDULE_LABELS: Record<string, string> = {
-  auto: "Automatic · T+1",
-  weekly: "Weekly",
-  monthly: "Monthly",
-  manual: "Manual",
-};
-
 interface Props {
   /** Bound server action: date range → payout overview for one hotel. */
   load: (range: { from: string; to: string }) => Promise<PayoutResult>;
@@ -52,6 +44,8 @@ interface Props {
   onGoToSetup?: () => void;
   /** Property timezone used for calendar bounds and payout timestamps. */
   timeZone?: string;
+  /** Optional externally owned window (ISO dates) from the page header chip. */
+  range?: { start: string; end: string };
 }
 
 type ViewState =
@@ -59,36 +53,14 @@ type ViewState =
   | { kind: "error"; message: string }
   | { kind: "ready"; data: HotelPayoutOverview };
 
-function StatCard({
-  label,
-  value,
-  hint,
-  tone = "default",
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  tone?: "success" | "default";
-}) {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
-      <p className="text-caption font-medium text-muted-foreground">{label}</p>
-      <p
-        className={cn(
-          "mt-1 text-xl font-semibold tabular-nums",
-          tone === "success"
-            ? "text-emerald-600"
-            : "text-foreground"
-        )}
-      >
-        {value}
-      </p>
-      {hint ? (
-        <p className="mt-0.5 text-[11px] text-muted-foreground/70">{hint}</p>
-      ) : null}
-    </div>
-  );
-}
+const PAYOUT_COLUMNS = [
+  { label: "Reservation", width: "1fr" },
+  { label: "Paid", width: "120px" },
+  { label: "Rooms", width: "70px", align: "right" as const },
+  { label: "Amount", width: "140px", align: "right" as const },
+  { label: "Settles", width: "120px" },
+  { label: "Status", width: "130px" },
+];
 
 export function PayoutsPanel({
   load,
@@ -96,13 +68,17 @@ export function PayoutsPanel({
   initialData,
   onGoToSetup,
   timeZone = "UTC",
+  range,
 }: Props) {
   // Default range = the last 30 days (inclusive of today), matching the
   // server's fallback window so a server-rendered first page isn't refetched.
   const todayCd = React.useMemo(() => today(timeZone), [timeZone]);
-  const [range, setRange] = React.useState<{ start: CalendarDate; end: CalendarDate }>(
+  const [ownRange, setOwnRange] = React.useState<{ start: CalendarDate; end: CalendarDate }>(
     () => ({ start: todayCd.subtract({ days: 29 }), end: todayCd })
   );
+  const effective = range
+    ? { start: isoToCD(range.start), end: isoToCD(range.end) }
+    : ownRange;
 
   const [state, setState] = React.useState<ViewState>(
     initialData ? { kind: "ready", data: initialData } : { kind: "loading" }
@@ -112,7 +88,7 @@ export function PayoutsPanel({
   const requestId = React.useRef(0);
   // The range we've already loaded, so re-showing the tab doesn't refetch and a
   // server-rendered first range is trusted until the user changes it.
-  const rangeKey = `${cdToISO(range.start)}|${cdToISO(range.end)}`;
+  const rangeKey = `${cdToISO(effective.start)}|${cdToISO(effective.end)}`;
   const loadedKey = React.useRef<string | null>(initialData ? rangeKey : null);
 
   const runLoad = React.useCallback(
@@ -133,10 +109,10 @@ export function PayoutsPanel({
     if (!active) return;
     if (loadedKey.current === rangeKey) return;
     loadedKey.current = rangeKey;
-    void runLoad(range);
-  }, [active, rangeKey, range, runLoad]);
+    void runLoad(effective);
+  }, [active, rangeKey, effective, runLoad]);
 
-  const retry = React.useCallback(() => void runLoad(range), [runLoad, range]);
+  const retry = React.useCallback(() => void runLoad(effective), [runLoad, effective]);
 
   // First load, nothing to show yet.
   if (state.kind === "loading") return <PayoutsSkeleton />;
@@ -150,91 +126,36 @@ export function PayoutsPanel({
   if (!data.setupComplete) return <NotSetUpState onGoToSetup={onGoToSetup} />;
 
   const { summary, reservations } = data;
-  const scheduleLabel = SCHEDULE_LABELS[summary.schedule ?? ""] ?? "Automatic · T+1";
-  const rangeText = rangeLabel(summary.fromISO, summary.toISO, timeZone);
+  const windowLabel = rangeLabel(summary.fromISO, summary.toISO, timeZone);
 
   return (
-    <div className="space-y-5">
-      {/* Schedule + date-range control */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Chip size="sm" variant="soft" color="default">{scheduleLabel}</Chip>
-            {summary.destination ? <span className="text-caption text-muted-foreground">{summary.destination}</span> : null}
-          </div>
-          {data.error ? (
-            <span className="text-[11px] text-amber-600">
-              Payout status may be delayed
-            </span>
-          ) : null}
-        </div>
-        <PayoutRangeControl value={range} onChange={setRange} pending={refreshing} timeZone={timeZone} />
+    <div className="space-y-4">
+      {/* Stats: paid out, awaiting, failed. No schedule or destination info —
+          Paystack's automatic T+1 is the default, not a user choice. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <PenKpi label="Paid out" value={formatMoney(summary.paidOutMinor, summary.currency)} icon={Banknote} hint={`Settled to your bank · ${windowLabel}`} />
+        <PenKpi label="Awaiting payout" value={formatMoney(summary.awaitingMinor, summary.currency)} icon={TriangleAlert} chipTone="warning" hint="In transit or not yet settled" />
+        <PenKpi label="Failed" value={formatMoney(summary.failedMinor, summary.currency)} icon={XCircle} chipTone="danger" hint="Needs review" />
       </div>
-
-      {/* Summary */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <StatCard
-          label="Paid out"
-          value={formatMoney(summary.paidOutMinor, summary.currency)}
-          hint={`Settled to your bank · ${rangeText}`}
-          tone="success"
-        />
-        <StatCard
-          label="Awaiting payout"
-          value={formatMoney(summary.awaitingMinor, summary.currency)}
-          hint="In transit or not yet settled"
-        />
-        <StatCard
-          label="Failed"
-          value={formatMoney(summary.failedMinor, summary.currency)}
-          hint="Needs review"
-        />
-      </div>
+      {data.error ? (
+        <p className="text-[11px] text-amber-600">Payout status may be delayed</p>
+      ) : null}
 
       {/* Reservations */}
       {reservations.length === 0 ? (
-        <NoBookingsState rangeText={rangeText} />
+        <NoBookingsState rangeText={windowLabel} />
       ) : (
-        <ReservationList key={rangeKey} reservations={reservations} timeZone={timeZone} />
+        <section className="flex flex-col gap-3 rounded-3xl bg-card p-4 shadow-[0_2px_4px_rgb(0_0_0/0.04)]" aria-label="Payout reservations">
+          <header className="flex items-start justify-between gap-4">
+            <div className="min-w-0 space-y-0.5">
+              <h2 className="text-[15px] font-semibold text-foreground">Payout reservations</h2>
+              <p className="text-xs text-muted-foreground">Charges in the window and where each settles.</p>
+            </div>
+            <p className="shrink-0 font-mono text-xs text-muted-foreground">{reservations.length.toLocaleString("en")} reservations</p>
+          </header>
+          <ReservationList key={rangeKey} reservations={reservations} timeZone={timeZone} />
+        </section>
       )}
-    </div>
-  );
-}
-
-function PayoutRangeControl({
-  value,
-  onChange,
-  pending,
-  timeZone,
-}: {
-  value: { start: CalendarDate; end: CalendarDate };
-  onChange: (range: { start: CalendarDate; end: CalendarDate }) => void;
-  pending?: boolean;
-  timeZone: string;
-}) {
-  // Past-only: a payout can never settle in the future.
-  const maxCd = React.useMemo(() => today(timeZone), [timeZone]);
-  const maxISO = cdToISO(maxCd);
-  const startISO = cdToISO(value.start);
-  const endISO = cdToISO(value.end);
-
-  return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      {pending ? <RotateCw className="hidden size-3.5 animate-spin text-muted-foreground/60 sm:block" aria-label="Updating payouts" /> : null}
-      <PaymentDateField
-        label="From"
-        value={startISO}
-        max={endISO < maxISO ? endISO : maxISO}
-        onSelect={(next) => onChange({ start: isoToCD(next), end: value.end })}
-      />
-      <span className="hidden text-muted-foreground sm:inline" aria-hidden="true">–</span>
-      <PaymentDateField
-        label="To"
-        value={endISO}
-        min={startISO}
-        max={maxISO}
-        onSelect={(next) => onChange({ start: value.start, end: isoToCD(next) })}
-      />
     </div>
   );
 }
@@ -242,18 +163,19 @@ function PayoutRangeControl({
 function PayoutsSkeleton() {
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Skeleton className="h-[92px] rounded-2xl" />
-        <Skeleton className="h-[92px] rounded-2xl" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Skeleton className="h-[104px] rounded-3xl" />
+        <Skeleton className="h-[104px] rounded-3xl" />
+        <Skeleton className="h-[104px] rounded-3xl" />
       </div>
-      <Skeleton className="h-64 rounded-2xl" />
+      <Skeleton className="h-64 rounded-3xl" />
     </div>
   );
 }
 
 function StateShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-border/60 bg-card px-6 py-16 text-center shadow-sm">
+    <div className="flex flex-col items-center justify-center rounded-3xl bg-card px-6 py-16 text-center shadow-[0_2px_4px_rgb(0_0_0/0.04)]">
       {children}
     </div>
   );
@@ -324,62 +246,40 @@ function ReservationList({ reservations, timeZone }: { reservations: PayoutReser
 
   return (
     <>
+      {/* Desktop table */}
+      <div className="hidden rounded-[20px] bg-secondary p-1 pt-0 md:block">
+        <table className="w-full min-w-[720px] border-collapse text-[13px]">
+          <caption className="sr-only">Payout reservations</caption>
+          <thead><tr>
+            {PAYOUT_COLUMNS.map((column, index) => <th key={column.label + index} scope="col"
+              className={`border-b border-border/70 px-4 py-2.5 text-left text-xs font-medium text-muted-foreground ${column.align === "right" ? "text-right" : ""}`}>
+              {column.label}
+            </th>)}
+          </tr></thead>
+          <tbody>
+            {pageRows.map((r) => <tr key={r.key} className="border-b border-border/50 bg-card last:border-b-0">
+              <td className="px-4 py-3 align-top">
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate font-medium text-foreground">{r.guestName ?? "Guest"}</span>
+                  <span className="font-mono text-[11px] text-muted-foreground">{r.reference}</span>
+                </div>
+              </td>
+              <td className="whitespace-nowrap px-4 py-3 align-top">{r.paidAt ? formatDateInTimeZone(r.paidAt, timeZone, { month: "short", day: "numeric" }) : "—"}</td>
+              <td className="px-4 py-3 text-right align-top font-mono tabular-nums text-muted-foreground">{r.roomsCount}</td>
+              <td className="whitespace-nowrap px-4 py-3 text-right align-top font-mono font-semibold tabular-nums text-foreground">{formatMoney(r.amountMinor, r.currency)}</td>
+              <td className="whitespace-nowrap px-4 py-3 align-top">{r.settledAt ? formatDateInTimeZone(r.settledAt, timeZone, { month: "short", day: "numeric" }) : "—"}</td>
+              <td className="px-4 py-3 align-top"><PayoutStatusBadge status={r.status} /></td>
+            </tr>)}
+          </tbody>
+        </table>
+      </div>
+
       {/* Mobile cards */}
       <div className="grid grid-cols-1 gap-3 md:hidden">
         {pageRows.map((r) => (
           <ReservationCardMobile key={r.key} r={r} timeZone={timeZone} />
         ))}
       </div>
-
-      {/* Desktop table */}
-      <Table variant="secondary" className="hidden md:block">
-        <Table.ScrollContainer>
-          <Table.Content aria-label="Online reservations" className="min-w-[720px]">
-            <Table.Header>
-              <Table.Column isRowHeader>Guest</Table.Column>
-              <Table.Column>Rooms</Table.Column>
-              <Table.Column>Paid</Table.Column>
-              <Table.Column>Amount</Table.Column>
-              <Table.Column>Payout</Table.Column>
-            </Table.Header>
-            <Table.Body>
-              {pageRows.map((r) => (
-                <Table.Row key={r.key} id={r.key}>
-                  <Table.Cell>
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-body font-medium text-foreground">
-                        {r.guestName ?? "Guest"}
-                      </span>
-                      <span className="font-mono text-caption tracking-wide text-muted-foreground">
-                        {r.reference}
-                      </span>
-                    </div>
-                  </Table.Cell>
-                  <Table.Cell className="tabular-nums text-muted-foreground">
-                    {r.roomsCount}
-                  </Table.Cell>
-                  <Table.Cell className="whitespace-nowrap text-muted-foreground">
-                    {formatDateInTimeZone(r.paidAt, timeZone)}
-                  </Table.Cell>
-                  <Table.Cell className="whitespace-nowrap text-body font-medium tabular-nums text-foreground">
-                    {formatMoney(r.amountMinor, r.currency)}
-                  </Table.Cell>
-                  <Table.Cell>
-                    <div className="flex flex-col gap-0.5">
-                      <PayoutStatusBadge status={r.status} />
-                      {r.settledAt ? (
-                        <span className="text-[10px] text-muted-foreground/60">
-                          {formatDateInTimeZone(r.settledAt, timeZone)}
-                        </span>
-                      ) : null}
-                    </div>
-                  </Table.Cell>
-                </Table.Row>
-              ))}
-            </Table.Body>
-          </Table.Content>
-        </Table.ScrollContainer>
-      </Table>
 
       {showPagination ? (
         <ReservationPagination
@@ -449,7 +349,7 @@ function ReservationPagination({
 
 function ReservationCardMobile({ r, timeZone }: { r: PayoutReservation; timeZone: string }) {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+    <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-[0_2px_4px_rgb(0_0_0/0.04)]">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-body font-semibold text-foreground">
@@ -473,7 +373,7 @@ function ReservationCardMobile({ r, timeZone }: { r: PayoutReservation; timeZone
         </div>
         {r.settledAt ? (
           <span className="text-[11px] text-muted-foreground/60">
-            Settled {formatDateInTimeZone(r.settledAt, timeZone)}
+            Settles {formatDateInTimeZone(r.settledAt, timeZone)}
           </span>
         ) : null}
       </div>

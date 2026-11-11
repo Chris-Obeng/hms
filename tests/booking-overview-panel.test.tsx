@@ -98,17 +98,17 @@ function setup(lines: GroupLineItem[], onBulkAction = vi.fn()) {
   return { onBulkAction };
 }
 
-describe("BookingOverviewPanel — the rooms list is read-only", () => {
-  it("lists every room with no inline check-in, cancel or no-show control", () => {
+describe("BookingOverviewPanel — per-room lifecycle buttons", () => {
+  it("lists every room and offers only the actions its status allows", () => {
     // Anchor already out, sibling still in house: the only action left is the
-    // group-wide check-out, and it lives in the bulk bar under the list.
+    // sibling's check-out, on its own row.
     setup([line({ status: "checked_out" }), sibling({ status: "checked_in" })]);
 
     expect(screen.getByText("Middle-Room")).toBeDefined();
     expect(screen.getByText("Premium Room")).toBeDefined();
 
     const buttons = screen.getAllByRole("button").map((b) => b.textContent);
-    expect(buttons).toEqual(["Check out all (1)"]);
+    expect(buttons).toEqual(["Check out"]);
   });
 
   it("renders no controls at all without a bulk handler", () => {
@@ -117,36 +117,45 @@ describe("BookingOverviewPanel — the rooms list is read-only", () => {
   });
 });
 
-describe("BookingOverviewPanel — the bulk bar is the only group-wide control", () => {
-  it("checks in every eligible room", async () => {
+describe("BookingOverviewPanel — one button per eligible room", () => {
+  it("checks in every eligible room from its own row", async () => {
     const { onBulkAction } = setup([line({}), sibling({})]);
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Check in all (2)" }));
+    const buttons = screen.getAllByRole("button", { name: "Check in" });
+    expect(buttons).toHaveLength(2);
+    await user.click(buttons[0]);
+    await user.click(buttons[1]);
 
-    expect(onBulkAction).toHaveBeenCalledTimes(1);
-    expect(onBulkAction).toHaveBeenCalledWith([ANCHOR_ID, SIBLING_ID], "checked_in", "check_in");
+    expect(onBulkAction).toHaveBeenCalledTimes(2);
+    expect(onBulkAction).toHaveBeenCalledWith([ANCHOR_ID], "checked_in", "check_in");
+    expect(onBulkAction).toHaveBeenCalledWith([SIBLING_ID], "checked_in", "check_in");
   });
 
-  it("checks out every eligible room", async () => {
+  it("checks out every eligible room from its own row", async () => {
     const { onBulkAction } = setup([
       line({ status: "checked_in" }),
       sibling({ status: "checked_in" }),
     ]);
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Check out all (2)" }));
+    const buttons = screen.getAllByRole("button", { name: "Check out" });
+    expect(buttons).toHaveLength(2);
+    await user.click(buttons[0]);
+    await user.click(buttons[1]);
 
-    expect(onBulkAction).toHaveBeenCalledWith([ANCHOR_ID, SIBLING_ID], "checked_out", "check_out");
+    expect(onBulkAction).toHaveBeenCalledWith([ANCHOR_ID], "checked_out", "check_out");
+    expect(onBulkAction).toHaveBeenCalledWith([SIBLING_ID], "checked_out", "check_out");
   });
 
-  it("still offers the group control when only one room needs it", async () => {
+  it("offers the single room's control only on that room's row", async () => {
     const { onBulkAction } = setup([line({}), sibling({ status: "checked_in" })]);
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Check in all (1)" }));
+    await user.click(screen.getByRole("button", { name: "Check in" }));
 
+    expect(onBulkAction).toHaveBeenCalledTimes(1);
     expect(onBulkAction).toHaveBeenCalledWith([ANCHOR_ID], "checked_in", "check_in");
   });
 
-  it("hides the bar when no room can move", () => {
+  it("hides the buttons when no room can move", () => {
     setup([line({ status: "checked_out" }), sibling({ status: "cancelled" })]);
     expect(screen.queryAllByRole("button")).toHaveLength(0);
   });

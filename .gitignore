@@ -91,3 +91,15 @@ nul
 # session artifacts
 /*.log
 .claude/worktrees/
+.tmp-*
+
+# local design sources (Pencil)
+*.pen
+
+# local-only Claude skills & binaries not tracked in skills-lock.json
+.claude/skills/impeccable/
+.claude/skills/boardui/
+.claude/agents/impeccable-*.md
+
+# zcode workspace state & config (contains Supabase MCP access token - never commit)
+.zcode/

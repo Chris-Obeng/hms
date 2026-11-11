@@ -2,10 +2,12 @@ import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { can } from "@/lib/roles";
 import { redirect } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
+import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
-import { AuditLogClient } from "./audit-log-client";
-import { SettingsSubHeader } from "../_components/settings-sub-header";
+
 import { fetchAuditLogPage } from "@/lib/audit-feed";
+import { AuditLogClient } from "./audit-log-client";
 
 export default async function AuditLogPage() {
   const { orgId, userId } = await auth();
@@ -40,31 +42,54 @@ export default async function AuditLogPage() {
     );
   }
 
-  // First day-window only — older days stream in on scroll via the
-  // fetchAuditLogDays server action. The exact count feeds the subtitle.
-  const [initialPage, countResult] = await Promise.all([
-    fetchAuditLogPage(hotel.id, null),
-    supabase
-      .from("audit_logs")
-      .select("id", { count: "exact", head: true })
-      .eq("hotel_id", hotel.id),
-  ]);
-
-  const total = countResult.count ?? 0;
+  // First page of the trail — older pages stream in through the
+  // fetchAuditLogEntries server action. The exact total feeds the header.
+  const initialPage = await fetchAuditLogPage(hotel.id, { page: 1 });
+  const total = initialPage.total;
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <SettingsSubHeader
-        icon="audit"
-        title="Audit log"
-        subtitle={`Append-only record of all staff actions — ${total.toLocaleString()} ${total === 1 ? "entry" : "entries"}`}
-      />
+    <div className="mx-auto w-full max-w-5xl">
+      {/* Mobile header — back row, title, two-line caption (per design) */}
+      <div className="mb-4 lg:hidden">
+        <div className="flex items-center justify-between">
+          <Link
+            href="/dashboard/settings"
+            className="tap-target -m-2 rounded-xl text-[13px] font-medium text-foreground"
+          >
+            <ChevronLeft className="size-[18px]" aria-hidden />
+            Settings
+          </Link>
+          <span className="font-mono text-[11px] font-medium text-muted-foreground">
+            {total} entries
+          </span>
+        </div>
+        <h1 className="mt-4 text-xl font-semibold tracking-[-0.012em] text-foreground">
+          Audit log
+        </h1>
+        <div className="mt-1 text-[11px] leading-[1.45] text-muted-foreground">
+          <p>Append-only record of staff actions.</p>
+          <p>Entries cannot be edited or removed.</p>
+        </div>
+      </div>
 
-      <AuditLogClient
-        initialDays={initialPage.days}
-        initialCursor={initialPage.nextCursor}
-        initialHasMore={initialPage.hasMore}
-      />
+      {/* Desktop header — title block + mono count on the right (per design) */}
+      <div className="hidden items-center justify-between lg:flex">
+        <div>
+          <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.012em] text-foreground">
+            Audit log
+          </h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Append-only record of staff actions. Entries cannot be edited or removed.
+          </p>
+        </div>
+        <span className="font-mono text-[13px] font-medium text-muted-foreground">
+          {total} entries
+        </span>
+      </div>
+
+      <div className="mt-6">
+        <AuditLogClient initialRows={initialPage.rows} initialTotal={total} />
+      </div>
     </div>
   );
 }

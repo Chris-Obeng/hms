@@ -42,6 +42,12 @@ export interface PaymentActivityResult {
     successfulCount: number;
     allAmount: number;
     allCount: number;
+    /** Successful payments taken online (Paystack rails), never split by rail type. */
+    onlineAmount: number;
+    onlineCount: number;
+    /** Successful payments collected by staff, by tender type. */
+    staffAmount: number;
+    staffCount: number;
   };
 }
 
@@ -189,7 +195,7 @@ export async function getPaymentActivity(input: PaymentActivityInput = {}): Prom
       }
       paymentIds = [...matchedPaymentIds];
       if (paymentIds.length === 0) {
-        return { success: true, data: { rows: [], currency: ctx.hotel.currency, timeZone: hotel.timezone, startDate, endDate, page, pageSize: PAGE_SIZE, totalCount: 0, hasNextPage: false, totals: { successfulAmount: 0, successfulCount: 0, allAmount: 0, allCount: 0 } } };
+        return { success: true, data: { rows: [], currency: ctx.hotel.currency, timeZone: hotel.timezone, startDate, endDate, page, pageSize: PAGE_SIZE, totalCount: 0, hasNextPage: false, totals: { successfulAmount: 0, successfulCount: 0, allAmount: 0, allCount: 0, onlineAmount: 0, onlineCount: 0, staffAmount: 0, staffCount: 0 } } };
       }
       bookingIds = null;
     }
@@ -225,7 +231,7 @@ export async function getPaymentActivity(input: PaymentActivityInput = {}): Prom
     const allRows = await readAllPages("payment totals", (after, size) => {
       let query = supabase
         .from("payments")
-        .select("id, amount, currency, status", { count: "exact" })
+        .select("id, amount, currency, status, method", { count: "exact" })
         .eq("hotel_id", ctx.hotelId)
         .gte("paid_at", startBounds.startISO)
         .lt("paid_at", endBounds.startISO)
@@ -240,7 +246,11 @@ export async function getPaymentActivity(input: PaymentActivityInput = {}): Prom
     });
     const successfulMinor: number[] = [];
     const allMinor: number[] = [];
+    const onlineMinor: number[] = [];
+    const staffMinor: number[] = [];
     let successfulCount = 0;
+    let onlineCount = 0;
+    let staffCount = 0;
     for (const row of allRows) {
       const rowCurrency = assertCurrency(row.currency ?? ctx.hotel.currency, ctx.hotel.currency);
       const minor = moneyMinor(row.amount, rowCurrency);
@@ -248,6 +258,13 @@ export async function getPaymentActivity(input: PaymentActivityInput = {}): Prom
       if (row.status === "success") {
         successfulMinor.push(minor);
         successfulCount += 1;
+        if (row.method === "paystack_link") {
+          onlineMinor.push(minor);
+          onlineCount += 1;
+        } else {
+          staffMinor.push(minor);
+          staffCount += 1;
+        }
       }
     }
 
@@ -268,6 +285,10 @@ export async function getPaymentActivity(input: PaymentActivityInput = {}): Prom
           successfulCount,
           allAmount: fromMinor(sumMinor(allMinor), ctx.hotel.currency),
           allCount: allRows.length,
+          onlineAmount: fromMinor(sumMinor(onlineMinor), ctx.hotel.currency),
+          onlineCount,
+          staffAmount: fromMinor(sumMinor(staffMinor), ctx.hotel.currency),
+          staffCount,
         },
       },
     };

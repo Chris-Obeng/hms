@@ -30,14 +30,14 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
 
 describe("Daily close", () => {
   it("offers one close action when everything is settled", () => {
-    renderPage(<NightAuditClient initialSummary={summary()} canRunAudit />);
+    renderPage(<NightAuditClient roomRevenueInclTax={100} initialSummary={summary()} canRunAudit />);
     expect(screen.getByRole("heading", { name: "Ready to close" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Close Oct 20" })).toBeDefined();
     expect(screen.getByText("Nothing outstanding.")).toBeDefined();
   });
 
   it("blocks the close and names the work to do", () => {
-    renderPage(<NightAuditClient canRunAudit initialSummary={summary({
+    renderPage(<NightAuditClient roomRevenueInclTax={100} canRunAudit initialSummary={summary({
       pendingArrivals: 1, rateIssues: 1,
       unresolvedBookings: [{ id: "b1", reference: "RL-1", guestName: "Ama Mensah", roomNumber: "102", type: "pending_arrival" }],
       rateIssueBookings: [{ id: "b2", reference: "RL-2" }],
@@ -49,13 +49,13 @@ describe("Daily close", () => {
   });
 
   it("waits for the property day to finish", () => {
-    renderPage(<NightAuditClient initialSummary={summary({ auditDate: "2026-10-21", propertyToday: "2026-10-21" })} canRunAudit />);
+    renderPage(<NightAuditClient roomRevenueInclTax={100} initialSummary={summary({ auditDate: "2026-10-21", propertyToday: "2026-10-21" })} canRunAudit />);
     expect(screen.getByRole("heading", { name: "Waiting for midnight" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Close Oct 21" }).getAttribute("disabled")).not.toBeNull();
   });
 
   it("shows the receipt, not a close button, once the day is closed", () => {
-    renderPage(<NightAuditClient initialSummary={readNightAuditSummary(nightAuditReceipt(true))} canRunAudit />);
+    renderPage(<NightAuditClient roomRevenueInclTax={100} initialSummary={readNightAuditSummary(nightAuditReceipt(true))} canRunAudit />);
     expect(screen.getByRole("heading", { name: "Closed" })).toBeDefined();
     expect(screen.getByText(/Recorded by Night manager/)).toBeDefined();
     expect(screen.getByText("First handover")).toBeDefined();
@@ -64,7 +64,7 @@ describe("Daily close", () => {
 
   it("requires confirmation inside a dialog before recording the close", async () => {
     const user = userEvent.setup();
-    renderPage(<NightAuditClient initialSummary={summary()} canRunAudit />);
+    renderPage(<NightAuditClient roomRevenueInclTax={100} initialSummary={summary()} canRunAudit />);
     await user.click(screen.getByRole("button", { name: "Close Oct 20" }));
     const dialog = await screen.findByRole("alertdialog");
     expect(dialog.textContent).toContain("cannot be changed later");
@@ -72,7 +72,7 @@ describe("Daily close", () => {
   });
 
   it("hides the close action from staff who cannot run it", () => {
-    renderPage(<NightAuditClient initialSummary={summary()} canRunAudit={false} />);
+    renderPage(<NightAuditClient roomRevenueInclTax={100} initialSummary={summary()} canRunAudit={false} />);
     expect(screen.getByRole("button", { name: "Close Oct 20" }).getAttribute("disabled")).not.toBeNull();
     expect(screen.getByText("A manager or super admin can close the day.")).toBeDefined();
   });
@@ -80,7 +80,7 @@ describe("Daily close", () => {
   it("announces the new state after the day closes", async () => {
     const user = userEvent.setup();
     mocks.close.mockResolvedValue({ success: true, message: "Day closed.", summary: readNightAuditSummary(nightAuditReceipt(true)) });
-    renderPage(<NightAuditClient initialSummary={summary()} canRunAudit />);
+    renderPage(<NightAuditClient roomRevenueInclTax={100} initialSummary={summary()} canRunAudit />);
     // The pre-close state is announced on mount; the post-close state must replace it.
     expect(screen.getAllByText(/This day is ready to close\./).length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: "Close Oct 20" }));
@@ -96,7 +96,7 @@ describe("Daily close", () => {
   it("clears a failed close's error when the dialog is reopened", async () => {
     const user = userEvent.setup();
     mocks.close.mockResolvedValueOnce({ success: false, error: "Already closed by another manager." });
-    renderPage(<NightAuditClient initialSummary={summary()} canRunAudit />);
+    renderPage(<NightAuditClient roomRevenueInclTax={100} initialSummary={summary()} canRunAudit />);
     await user.click(screen.getByRole("button", { name: "Close Oct 20" }));
     const dialog = await screen.findByRole("alertdialog");
     const submit = [...dialog.querySelectorAll("button")].at(-1)!;

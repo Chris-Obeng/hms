@@ -16,7 +16,10 @@ export function OccupancyCard({ metric, isDateSwitching = false }: { metric: Roo
         {isDateSwitching && <p role="status" className="mt-2 text-sm text-muted-foreground">Loading selected date…</p>}
       </header>
 
-      <OccupancyDonut metric={metric} dateLabel={dateLabel} />
+      {/* Donut is a glanceable extra; phones get the figures from the rows below. */}
+      <div className="hidden md:block">
+        <OccupancyDonut metric={metric} dateLabel={dateLabel} />
+      </div>
 
       {metric.sellableRooms !== null && metric.soldRooms !== null && (
         <p className="text-center text-sm text-muted-foreground">

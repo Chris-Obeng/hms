@@ -4,18 +4,19 @@ import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useUser, useOrganization, useClerk } from "@clerk/nextjs";
 import {
-  CalendarDays,
-  CalendarRange,
   Users,
-  BedDouble,
   LifeBuoy,
   BarChart3,
   CreditCard,
-  Moon,
+  Clock,
   Settings,
   LayoutDashboard,
   ClipboardList,
   ChevronsUpDown,
+  ChevronDown,
+  CalendarRange,
+  CalendarDays,
+  BedDouble,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -30,7 +31,6 @@ import {
   Chip,
   CloseButton,
   ListBox,
-  Separator,
   ScrollShadow,
 } from "@heroui/react";
 
@@ -62,6 +62,9 @@ function getRoleChipColor(
 
 // ── Nav structure ──────────────────────────────────────────────
 
+// The Settings entry expands in place instead of navigating to a hub page.
+const SETTINGS_KEY = "/dashboard/settings";
+
 interface NavItem {
   title: string;
   url: string;
@@ -75,28 +78,29 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    title: "Overview",
+    title: "Main",
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       { title: "Reservations", url: "/dashboard/bookings", icon: ClipboardList },
       { title: "Calendar", url: "/dashboard/calendar", icon: CalendarDays },
-      { title: "Guests", url: "/dashboard/customers", icon: Users },
-    ],
-  },
-  {
-    title: "Rooms",
-    items: [
-      { title: "Rooms", url: "/dashboard/rooms", icon: BedDouble },
       { title: "Availability", url: "/dashboard/availability", icon: CalendarRange },
+      { title: "Rooms", url: "/dashboard/rooms", icon: BedDouble },
+      { title: "Guests", url: "/dashboard/customers", icon: Users },
+      { title: "Payments", url: "/dashboard/payments", icon: CreditCard },
     ],
   },
   {
-    title: "Operations",
+    title: "Insights",
     items: [
-      { title: "Payments", url: "/dashboard/payments", icon: CreditCard },
-      { title: "Daily Close", url: "/dashboard/night-audit", icon: Moon },
-      { title: "Reports", url: "/dashboard/reports", icon: BarChart3 },
-      { title: "Settings", url: "/dashboard/settings", icon: Settings },
+      { title: "Business Intelligence", url: "/dashboard/reports", icon: BarChart3 },
+      { title: "Night audit", url: "/dashboard/night-audit", icon: Clock },
+    ],
+  },
+  {
+    title: "Settings",
+    items: [
+      { title: "Settings", url: SETTINGS_KEY, icon: Settings },
+      { title: "Support", url: "/support", icon: LifeBuoy },
     ],
   },
 ];
@@ -104,7 +108,43 @@ const navGroups: NavGroup[] = [
 // Resting / hover / selected states for a nav row. One filled pill marks the
 // active route; the icon takes the brand color only while selected.
 const ITEM_CLASS =
-  "flex min-h-10 items-center gap-3 rounded-lg px-3 text-[15px] font-medium text-sidebar-foreground/75 outline-hidden cursor-pointer select-none transition-[background-color,color] duration-150 ring-sidebar-ring ring-inset focus-visible:ring-2 data-[hovered=true]:bg-sidebar-foreground/[0.055] data-[hovered=true]:text-sidebar-foreground data-[selected=true]:bg-sidebar-accent data-[selected=true]:font-semibold data-[selected=true]:text-sidebar-accent-foreground [&_svg]:size-5 [&_svg]:shrink-0 [&_svg]:text-sidebar-foreground/55 [&_svg]:transition-colors data-[hovered=true]:[&_svg]:text-sidebar-foreground data-[selected=true]:[&_svg]:text-sidebar-primary";
+  "flex h-9 items-center gap-3 rounded-lg px-2 text-sm font-medium text-sidebar-foreground/75 outline-hidden cursor-pointer select-none transition-[background-color,color] duration-150 ring-sidebar-ring ring-inset focus-visible:ring-2 data-[hovered=true]:bg-sidebar-foreground/[0.055] data-[hovered=true]:text-sidebar-foreground data-[selected=true]:bg-sidebar-accent data-[selected=true]:font-medium data-[selected=true]:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-sidebar-foreground/55 [&_svg]:transition-colors data-[hovered=true]:[&_svg]:text-sidebar-foreground data-[selected=true]:[&_svg]:text-sidebar-primary";
+
+// Child rows sit under their parent, quieter and smaller; the pill still marks
+// the active destination.
+const CHILD_ITEM_CLASS =
+  "flex h-8 cursor-pointer select-none items-center rounded-lg pl-9 pr-2 text-[13px] font-normal text-sidebar-foreground/60 outline-hidden ring-sidebar-ring ring-inset transition-[background-color,color] duration-150 focus-visible:ring-2 data-[hovered=true]:bg-sidebar-foreground/[0.055] data-[hovered=true]:text-sidebar-foreground data-[selected=true]:bg-sidebar-accent data-[selected=true]:font-medium data-[selected=true]:text-sidebar-accent-foreground";
+
+const SETTINGS_CHILDREN: { title: string; url: string; match: (pathname: string) => boolean }[] = [
+  {
+    title: "Hotel profile",
+    url: "/dashboard/settings/hotel",
+    match: (p) => p.startsWith("/dashboard/settings/hotel"),
+  },
+  {
+    title: "Notifications",
+    url: "/dashboard/settings/notifications",
+    match: (p) => p === "/dashboard/settings/notifications",
+  },
+  {
+    title: "Guest emails",
+    url: "/dashboard/settings/notifications#message-templates",
+    match: () => false, // shares the Notifications path; the hash decides in-page
+  },
+  { title: "Payments", url: "/dashboard/payments?tab=setup", match: () => false },
+  { title: "Staff", url: "/dashboard/staff", match: (p) => p.startsWith("/dashboard/staff") },
+  {
+    title: "Audit log",
+    url: "/dashboard/settings/audit-log",
+    match: (p) => p.startsWith("/dashboard/settings/audit-log"),
+  },
+];
+
+// Group label per the design: a small quiet title above each nav cluster,
+// with a hairline divider between clusters.
+const GROUP_TITLE_CLASS =
+  "px-2 pb-1 pt-3 text-xs font-medium text-sidebar-foreground/45 first:pt-1";
+const GROUP_DIVIDER_CLASS = "mx-2 my-1 h-px bg-sidebar-border/60";
 
 // ── AppSidebar ─────────────────────────────────────────────────
 
@@ -116,11 +156,28 @@ export function AppSidebar() {
   const { isMobile, setOpenMobile, setOpen } = useSidebar();
   const { openUserProfile } = useClerk();
 
-  // Any /dashboard/rooms/* sub-route counts as "Rooms"
-  const activePath = pathname.startsWith("/dashboard/rooms/")
-    ? "/dashboard/rooms"
-    : pathname;
+  // Sub-routes keep their parent entry lit (the pill marks the destination).
+  const activePath = React.useMemo(() => {
+    if (pathname.startsWith("/dashboard/rooms/")) return "/dashboard/rooms";
+    const child = SETTINGS_CHILDREN.find((c) => c.match(pathname));
+    if (child) return child.url;
+    return pathname;
+  }, [pathname]);
   const selectedKeys = React.useMemo(() => new Set([activePath]), [activePath]);
+
+  // Settings children stay hidden until Settings is opened, and open by
+  // themselves when the user is already somewhere inside that section.
+  const insideSettings = React.useMemo(() => {
+    if (pathname.startsWith("/dashboard/settings")) return true;
+    return SETTINGS_CHILDREN.some((c) => c.match(pathname));
+  }, [pathname]);
+  // Expanded by default inside that section; a click stores an explicit choice
+  // for the current route so it survives re-renders but not navigation.
+  const [settingsToggle, setSettingsToggle] = React.useState<{ path: string; open: boolean } | null>(
+    null
+  );
+  const settingsOpen =
+    settingsToggle?.path === pathname ? settingsToggle.open : insideSettings;
 
   const prevPathname = React.useRef(pathname);
   const lastNavRef = React.useRef<string | null>(null);
@@ -149,9 +206,25 @@ export function AppSidebar() {
     (keys: Selection) => {
       if (keys === "all") return;
       const key = [...keys][0] as string | undefined;
-      if (key) navigateTo(key);
+      if (!key) return;
+      if (key === SETTINGS_KEY) {
+        if (!settingsOpen) setSettingsToggle({ path: pathname, open: true });
+        navigateTo("/dashboard/settings/hotel");
+        return;
+      }
+      navigateTo(key);
     },
-    [navigateTo]
+    [navigateTo, settingsOpen, pathname]
+  );
+
+  // React Aria fires onAction even for an already-selected row, which is what
+  // lets a second click on Settings collapse the tree again.
+  const handleAction = React.useCallback(
+    (key: React.Key) => {
+      if (key !== SETTINGS_KEY) return;
+      setSettingsToggle({ path: pathname, open: !settingsOpen });
+    },
+    [pathname, settingsOpen]
   );
 
   const clerkRole = membership?.role ?? null;
@@ -205,53 +278,57 @@ export function AppSidebar() {
             } as React.CSSProperties
           }
         >
-          <ListBox
-            selectionMode="single"
-            selectedKeys={selectedKeys}
-            onSelectionChange={handleSelectionChange}
-            className="w-full bg-transparent p-0"
-            aria-label="Primary navigation"
-          >
-            {navGroups.flatMap((group, g) =>
-              group.items.map((item, i) => (
-                <ListBox.Item
-                  key={item.url}
-                  id={item.url}
-                  textValue={item.title}
-                  // Rows sit flush; a hair of air between clusters stands in
-                  // for the removed group labels — rhythm without chrome.
-                  className={cn(ITEM_CLASS, g > 0 && i === 0 && "mt-1")}
-                >
-                  <item.icon />
-                  <span className="flex-1 truncate">{item.title}</span>
-                </ListBox.Item>
-              ))
-            )}
-          </ListBox>
+          {navGroups.map((group, g) => <React.Fragment key={group.title}>
+            {g > 0 && <div className={GROUP_DIVIDER_CLASS} role="presentation" />}
+            <p className={GROUP_TITLE_CLASS}>{group.title}</p>
+            <ListBox
+              selectionMode="single"
+              selectedKeys={selectedKeys}
+              onSelectionChange={handleSelectionChange}
+              onAction={handleAction}
+              className="w-full bg-transparent p-0"
+              aria-label={`${group.title} navigation`}
+            >
+              {group.items.map((item) => (
+                <React.Fragment key={item.url}>
+                  <ListBox.Item
+                    key={item.url}
+                    id={item.url}
+                    textValue={item.title}
+                    className={ITEM_CLASS}
+                  >
+                    <item.icon />
+                    <span className="flex-1 truncate">{item.title}</span>
+                    {item.url === SETTINGS_KEY && (
+                      <ChevronDown
+                        aria-hidden
+                        className={cn(
+                          "size-3.5! shrink-0 text-sidebar-foreground/40 transition-transform duration-150",
+                          settingsOpen && "rotate-180"
+                        )}
+                      />
+                    )}
+                  </ListBox.Item>
+                  {item.url === SETTINGS_KEY && settingsOpen &&
+                    SETTINGS_CHILDREN.map((child) => (
+                      <ListBox.Item
+                        key={child.url}
+                        id={child.url}
+                        textValue={child.title}
+                        className={CHILD_ITEM_CLASS}
+                      >
+                        <span className="truncate">{child.title}</span>
+                      </ListBox.Item>
+                    ))}
+                </React.Fragment>
+              ))}
+            </ListBox>
+          </React.Fragment>)}
         </ScrollShadow>
       </SidebarContent>
 
       {/* ── Footer ─────────────────────────────────────────── */}
       <SidebarFooter className="gap-1 border-t border-sidebar-border/60 p-2">
-        <ListBox
-          selectionMode="single"
-          selectedKeys={selectedKeys}
-          onSelectionChange={handleSelectionChange}
-          className="w-full bg-transparent p-0"
-          aria-label="Help and support"
-        >
-          <ListBox.Item
-            id="/support"
-            textValue="Help and Support"
-            className={ITEM_CLASS}
-          >
-            <LifeBuoy />
-            <span className="flex-1 truncate">Help &amp; Support</span>
-          </ListBox.Item>
-        </ListBox>
-
-        <Separator className="my-1 bg-sidebar-border/60" />
-
         <SidebarUserCard
           user={user}
           userInitials={userInitials}

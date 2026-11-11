@@ -1,0 +1,82 @@
+"use client";
+
+import { Download } from "lucide-react";
+import { Button } from "@heroui/react";
+import type { RoomsSoldMetric } from "@/lib/metrics/dashboard-occupancy";
+import type { GuestsData, OccupancyData, OverviewData, RevenueData } from "../../actions";
+
+/**
+ * Exports the loaded BI figures as CSV. Only what is on screen is exported —
+ * the server actions remain the single authority over these numbers.
+ */
+export function ExportButton({ range, overview, occupancy, guests, revenue, roomsSold, disabled }: {
+  range: { startDate: string; endDate: string };
+  overview?: OverviewData;
+  occupancy?: OccupancyData;
+  guests?: GuestsData;
+  revenue?: RevenueData;
+  roomsSold?: RoomsSoldMetric;
+  disabled?: boolean;
+}) {
+  function download() {
+    const rows: string[][] = [];
+    const add = (...cells: (string | number | null | undefined)[]) => rows.push(cells.map(toCell));
+    if (overview) {
+      add("KPI", "Value", "Change vs prior period %");
+      add("Room revenue", overview.revenue, overview.deltas.revenue);
+      add("Occupancy %", overview.occupancy, overview.deltas.occupancy);
+      add("ADR", overview.adr, overview.deltas.adr);
+      add("RevPAR", overview.revpar, overview.deltas.revpar);
+      add("Room nights", overview.roomNights, overview.deltas.roomNights);
+      add("Collections", overview.collected, null);
+      add();
+      add("Daily series", "Revenue", "Occupancy %", "ADR", "RevPAR", "Room nights");
+      for (const point of overview.series) add(point.date, point.revenue, point.occupancy, point.adr, point.revpar, point.roomNights);
+      add();
+      add("Collections by method", "Payments", "Amount");
+      for (const method of overview.byMethod) add(method.method, method.count, method.amount);
+      add();
+      add("Booking sources", "Bookings", "Room nights", "Revenue", "Share %");
+      for (const source of overview.sources) add(source.source, source.count, source.roomNights, source.revenue, source.pct);
+    }
+    if (occupancy) {
+      add();
+      add("Room type", "Occupied nights", "Capacity", "Occupancy %", "ADR", "RevPAR", "Revenue");
+      for (const type of occupancy.byRoomType) add(type.name, type.booked, type.capacity, type.occupancy, type.adr, type.revpar, type.revenue);
+    }
+    if (guests) {
+      add();
+      add("Guest origins", "Guests");
+      for (const origin of guests.origins) add(origin.nationality, origin.count);
+      add("New guests", guests.newGuests);
+      add("Repeat guests", guests.repeatGuests);
+    }
+    if (revenue) {
+      add();
+      add("Outstanding", revenue.outstanding, "Open bookings", revenue.outstandingCount);
+    }
+    if (roomsSold) {
+      add();
+      add("Rooms sold tonight", "Sold", "Pending holds", "Available to sell", "Sellable", "Active rooms");
+      add(roomsSold.soldRooms, roomsSold.heldRooms, roomsSold.availableRooms, roomsSold.sellableRooms, roomsSold.totalRooms);
+    }
+    const csv = rows.map((row) => row.join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `roomline-bi-${range.startDate}_${range.endDate}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return <Button variant="outline" isDisabled={disabled || !overview} onPress={download}
+    className="h-9 gap-2 rounded-full border-border px-4 text-sm font-medium">
+    <Download size={16} aria-hidden="true" /> Export
+  </Button>;
+}
+
+function toCell(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return "";
+  const text = String(value);
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}

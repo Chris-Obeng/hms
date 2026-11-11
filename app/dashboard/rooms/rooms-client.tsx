@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
-  Accordion,
   AlertDialog,
   Button,
   Dropdown,
@@ -11,7 +10,6 @@ import {
   Modal,
   SearchField,
   TextArea,
-  Tooltip,
   toast,
 } from "@heroui/react";
 import {
@@ -50,10 +48,10 @@ import { BlockRoomSheet } from "../calendar/_components/block-room-sheet";
 type RoomStatus = "available" | "occupied" | "maintenance" | "out_of_service";
 
 const STATUS_CONFIG: Record<RoomStatus, { label: string; dot: string }> = {
-  available: { label: "Available", dot: "bg-emerald-500" },
-  occupied: { label: "Occupied", dot: "bg-blue-500" },
+  available: { label: "Available", dot: "bg-[var(--success)]" },
+  occupied: { label: "Occupied", dot: "bg-[var(--pen-accent)]" },
   maintenance: { label: "Maintenance", dot: "bg-orange-500" },
-  out_of_service: { label: "Out of Service", dot: "bg-red-500" },
+  out_of_service: { label: "Out of Service", dot: "bg-[var(--danger)]" },
 };
 
 const STATUS_TRANSITIONS: Record<RoomStatus, RoomStatus[]> = {
@@ -70,6 +68,8 @@ export interface RoomItem {
   status: string | null;
   isActive: boolean | null;
   notes: string | null;
+  /** The in-house guest on an occupied room, from the bookings join. */
+  stay: { guestName: string; checkOut: string } | null;
 }
 
 export interface RoomTypeGroup {
@@ -89,9 +89,6 @@ interface VisibleType {
   rooms: RoomItem[];
 }
 
-// react-aria `Key` without the extra dependency.
-type AccordionKey = string | number;
-
 interface RoomsClientProps {
   roomTypes: RoomTypeGroup[];
   currency: string;
@@ -106,17 +103,6 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
   // Deep link support: /dashboard/rooms?search=<room_number> seeds the filter,
   // which expands the matching type and highlights the matching room.
   const [query, setQuery] = React.useState(initialSearch ?? "");
-  const [expandedKeys, setExpandedKeys] = React.useState<Set<string>>(() => {
-    const needle = initialSearch?.trim().toLowerCase();
-    if (needle) {
-      const match = roomTypes.find((type) =>
-        type.rooms.some((room) => room.roomNumber.toLowerCase().includes(needle)),
-      );
-      if (match) return new Set([match.id]);
-    }
-    return roomTypes[0] ? new Set([roomTypes[0].id]) : new Set();
-  });
-
   const [pendingRoomId, setPendingRoomId] = React.useState<string | null>(null);
   const [pendingTypeId, setPendingTypeId] = React.useState<string | null>(null);
 
@@ -161,6 +147,11 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
     [roomTypes],
   );
 
+  const totalAvailable = React.useMemo(
+    () => roomTypes.reduce((sum, type) => sum + type.availableRooms, 0),
+    [roomTypes],
+  );
+
   const normalizedQuery = query.trim().toLowerCase();
   const isFiltering = normalizedQuery.length > 0;
 
@@ -186,16 +177,7 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
       );
   }, [roomTypes, normalizedQuery, isFiltering]);
 
-  // While filtering, every matching group is expanded so results are visible.
-  // The user's own open/close state is preserved underneath and restored when
-  // the filter clears — and it survives server revalidation untouched.
-  const effectiveExpandedKeys: Set<AccordionKey> = isFiltering
-    ? new Set(visibleTypes.map((entry) => entry.type.id))
-    : expandedKeys;
-
-  const handleExpandedChange = (keys: Set<AccordionKey>) => {
-    setExpandedKeys(new Set(Array.from(keys, String)));
-  };
+  // Every type stays expanded; the design shows one flat panel.
 
   const blockSheetRooms = React.useMemo(
     () =>
@@ -352,8 +334,6 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
       }
       toast.success(`Room ${payload.roomNumber} added successfully`);
       setIsAddRoomOpen(false);
-      // Surface the new room without waiting for the user to open the group.
-      setExpandedKeys((prev) => new Set(prev).add(payload.roomTypeId));
     } catch {
       toast.danger("An unexpected error occurred");
     } finally {
@@ -565,71 +545,55 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
   // --- Render ---------------------------------------------------------------
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-page-title">Rooms</h1>
-          <p className="text-body text-muted-foreground">
-            {roomTypes.length} {roomTypes.length === 1 ? "room type" : "room types"} ·{" "}
-            {totalRooms} {totalRooms === 1 ? "room" : "rooms"}
-          </p>
-        </div>
-        {roomTypes.length > 0 && (
-          <div className="flex items-center gap-2">
-            <SearchField
-              value={query}
-              onChange={setQuery}
-              aria-label="Search rooms"
-              className="w-full sm:w-64"
-            >
-              <SearchField.Group className="rounded-xl border-border/60 bg-background">
-                <SearchField.SearchIcon className="size-4 text-muted-foreground" />
-                <SearchField.Input
-                  placeholder="Search room or type..."
-                  className="text-body"
-                />
-                <SearchField.ClearButton />
-              </SearchField.Group>
-            </SearchField>
-            <Button
-              variant="outline"
-              onPress={() => openAddRoom()}
-              aria-label="Add room"
-              className="min-h-11 shrink-0 rounded-xl sm:min-h-10"
-            >
-              <Plus className="size-4" />
-              <span className="hidden md:inline">Add Room</span>
-            </Button>
-            <Button
-              onPress={() => setIsAddTypeOpen(true)}
-              aria-label="Add room type"
-              className="min-h-11 shrink-0 rounded-xl sm:min-h-10"
-            >
-              <Plus className="size-4" />
-              <span className="hidden md:inline">Add Room Type</span>
-            </Button>
-            <Tooltip delay={350}>
-              <Tooltip.Trigger>
-                <Button
-                  variant="outline"
-                  isIconOnly
-                  onPress={openReorder}
-                  aria-label="Reorder room types"
-                  className="min-h-11 w-11 shrink-0 rounded-xl sm:min-h-10 sm:w-10"
-                >
-                  <ArrowUpDown className="size-4" />
-                </Button>
-              </Tooltip.Trigger>
-              <Tooltip.Content>Reorder room types</Tooltip.Content>
-            </Tooltip>
-          </div>
-        )}
+      <div>
+        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.3px] text-foreground max-md:text-xl">Rooms</h1>
+        <p className="mt-1 max-md:text-xs text-sm text-muted-foreground">
+          {roomTypes.length} {roomTypes.length === 1 ? "room type" : "room types"} · {totalRooms} {totalRooms === 1 ? "room" : "rooms"} · {totalAvailable} available
+        </p>
+      </div>
+
+      {/* Toolbar: search + one overflow menu */}
+      <div className="flex items-center gap-3">
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          aria-label="Search rooms"
+          className="w-full sm:w-[420px]"
+        >
+          <SearchField.Group className="h-10 rounded-xl border-border/70 bg-card">
+            <SearchField.SearchIcon className="size-3.5 text-muted-foreground/70" />
+            <SearchField.Input placeholder="Search room or type" className="text-[13px]" />
+            <SearchField.ClearButton />
+          </SearchField.Group>
+        </SearchField>
+        <div className="flex-1" aria-hidden="true" />
+        <Dropdown>
+          <Button variant="outline" isIconOnly aria-label="Room settings" className="size-10 rounded-xl">
+            <EllipsisVertical className="size-4" />
+          </Button>
+          <Dropdown.Popover placement="bottom end">
+            <Dropdown.Menu onAction={(key) => {
+              if (key === "add-type") setIsAddTypeOpen(true);
+              if (key === "reorder") openReorder();
+            }}>
+              <Dropdown.Item id="add-type" textValue="Add room type">
+                <Plus className="size-4 text-muted-foreground" />
+                <span>Add room type</span>
+              </Dropdown.Item>
+              <Dropdown.Item id="reorder" textValue="Reorder room types">
+                <ArrowUpDown className="size-4 text-muted-foreground" />
+                <span>Reorder room types</span>
+              </Dropdown.Item>
+            </Dropdown.Menu>
+          </Dropdown.Popover>
+        </Dropdown>
       </div>
 
       {/* Body */}
       {roomTypes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/70 py-16 text-center">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/70 py-16 text-center">
           <BedDouble className="size-8 text-muted-foreground/40" aria-hidden="true" />
           <div className="space-y-1">
             <p className="text-body font-medium text-foreground">No room types yet</p>
@@ -637,11 +601,7 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
               Room types group your rooms and drive pricing on the booking site.
             </p>
           </div>
-          <Button
-            size="sm"
-            onPress={() => setIsAddTypeOpen(true)}
-            className="mt-1 rounded-xl"
-          >
+          <Button size="sm" onPress={() => setIsAddTypeOpen(true)} className="mt-1 rounded-xl">
             <Plus className="size-4" />
             Add Room Type
           </Button>
@@ -651,128 +611,48 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
           No rooms or types match &ldquo;{query.trim()}&rdquo;.
         </p>
       ) : (
-        <Accordion
-          allowsMultipleExpanded
-          expandedKeys={effectiveExpandedKeys}
-          onExpandedChange={isFiltering ? undefined : handleExpandedChange}
-          className="w-full"
-        >
-          {visibleTypes.map(({ type, rooms }) => {
-            const facts = [
-              type.bedConfiguration,
-              type.maxAdults || type.maxChildren
-                ? `Sleeps ${(type.maxAdults ?? 0) + (type.maxChildren ?? 0)}`
-                : null,
-              `${formatCurrency(type.basePrice, currency)}/night`,
-            ]
-              .filter(Boolean)
-              .join(" · ");
-
-            return (
-              <Accordion.Item key={type.id} id={type.id}>
-                {/* Row actions live outside the trigger so the header stays one
-                    tab stop and never nests interactive elements. */}
-                <div className="flex items-center">
-                  <Accordion.Heading className="min-w-0 flex-1">
-                    <Accordion.Trigger className="group flex w-full items-center gap-3 rounded-lg px-3 py-3.5 text-left transition-colors duration-200 hover:bg-muted/40 sm:px-4">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate text-body font-medium text-foreground">
-                            {type.name}
-                          </span>
-                          {type.isActive === false && (
-                            <span className="shrink-0 rounded-full border border-border/70 px-2 py-px text-caption text-muted-foreground">
-                              Inactive
-                            </span>
-                          )}
-                        </div>
-                        <p className="mt-0.5 truncate text-caption text-muted-foreground">
-                          {facts}
-                          <span className="sm:hidden">
-                            {" "}
-                            · {rooms.length} {rooms.length === 1 ? "room" : "rooms"},{" "}
-                            {type.availableRooms} free
-                          </span>
-                        </p>
-                      </div>
-                      <span className="hidden shrink-0 text-caption text-muted-foreground tabular-nums sm:block">
-                        {rooms.length} {rooms.length === 1 ? "room" : "rooms"} ·{" "}
-                        {type.availableRooms} available
-                      </span>
-                      <Accordion.Indicator className="shrink-0 text-muted-foreground/70 [&>svg]:size-4" />
-                    </Accordion.Trigger>
-                  </Accordion.Heading>
-                  <TypeActionsDropdown
-                    type={type}
-                    isPending={pendingTypeId === type.id}
-                    onEdit={() => router.push(`/dashboard/rooms/types/${type.id}`)}
-                    onToggleActive={() => void handleToggleTypeActive(type)}
-                    onDelete={() => setTypeToDelete(type)}
-                  />
-                </div>
-                <Accordion.Panel>
-                  <div className="px-3 pb-3 sm:px-4">
-                    {rooms.length === 0 ? (
-                      <div className="flex flex-col items-center gap-2.5 rounded-xl border border-dashed border-border/60 py-8 text-center">
-                        <p className="text-caption text-muted-foreground">
-                          {isFiltering
-                            ? "No rooms in this type match your search."
-                            : "No rooms in this type yet."}
-                        </p>
-                        {!isFiltering && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onPress={() => openAddRoom(type.id)}
-                            className="min-h-11 sm:min-h-9"
-                          >
-                            <Plus className="size-4" />
-                            Add room
-                          </Button>
-                        )}
-                      </div>
-                    ) : (
-                      <ul className="divide-y divide-border/50">
-                        {rooms.map((room) => (
-                          <RoomRow
-                            key={room.id}
-                            room={room}
-                            isHighlighted={
-                              isFiltering &&
-                              room.roomNumber.toLowerCase().includes(normalizedQuery)
-                            }
-                            isPending={pendingRoomId === room.id}
-                            registerRef={(element) => {
-                              if (element) rowRefs.current.set(room.id, element);
-                              else rowRefs.current.delete(room.id);
-                            }}
-                            onStatusChange={(status) => void handleStatusChange(room, status)}
-                            onBlockDates={() => setBlockRoomId(room.id)}
-                            onEditNotes={() => openNotesEditor(room)}
-                            onEditDetails={() => openEditRoom(room, type.id)}
-                          />
-                        ))}
-                      </ul>
-                    )}
-                    {rooms.length > 0 && !isFiltering && (
-                      <div className="pt-1.5">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onPress={() => openAddRoom(type.id)}
-                          className="min-h-11 text-muted-foreground sm:min-h-9"
-                        >
-                          <Plus className="size-4" />
-                          Add room
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </Accordion.Panel>
-              </Accordion.Item>
-            );
-          })}
-        </Accordion>
+        /* One white panel per the design; type sections stack inside it on
+           desktop and split into one card per type on mobile. */
+        <>
+          <div className="overflow-hidden rounded-2xl border border-border/70 bg-card max-lg:hidden">
+            {visibleTypes.map(({ type, rooms }) => (
+              <TypeSection key={type.id} type={type} rooms={rooms}
+                isFiltering={isFiltering} pendingTypeId={pendingTypeId}
+                currency={currency} registerRef={rowRefs}
+                onTypeEdit={() => router.push("/dashboard/rooms/types/" + type.id)}
+                onTypeToggleActive={() => void handleToggleTypeActive(type)}
+                onTypeDelete={() => setTypeToDelete(type)}
+                onAddRoom={() => openAddRoom(type.id)}
+                onStatusChange={handleStatusChange}
+                onBlockDates={(id) => setBlockRoomId(id)}
+                onEditNotes={openNotesEditor}
+                onEditDetails={openEditRoom}
+                pendingRoomId={pendingRoomId}
+                isHighlighted={(room) => isFiltering && room.roomNumber.toLowerCase().includes(normalizedQuery)}
+              />
+            ))}
+          </div>
+          <div className="flex flex-col gap-4 lg:hidden">
+            {visibleTypes.map(({ type, rooms }) => (
+              <div key={type.id} className="overflow-hidden rounded-2xl border border-border/70 bg-card">
+                <TypeSection type={type} rooms={rooms}
+                  isFiltering={isFiltering} pendingTypeId={pendingTypeId}
+                  currency={currency} registerRef={rowRefs}
+                  onTypeEdit={() => router.push("/dashboard/rooms/types/" + type.id)}
+                  onTypeToggleActive={() => void handleToggleTypeActive(type)}
+                  onTypeDelete={() => setTypeToDelete(type)}
+                  onAddRoom={() => openAddRoom(type.id)}
+                  onStatusChange={handleStatusChange}
+                  onBlockDates={(id) => setBlockRoomId(id)}
+                  onEditNotes={openNotesEditor}
+                  onEditDetails={openEditRoom}
+                  pendingRoomId={pendingRoomId}
+                  isHighlighted={(room) => isFiltering && room.roomNumber.toLowerCase().includes(normalizedQuery)}
+                />
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Add Room Type Modal */}
@@ -833,16 +713,16 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
                     Room Number
                   </label>
                   <Input
-                    id="new-room-number"
-                    value={newRoomNumber}
-                    onChange={(e) => {
-                      setNewRoomNumber(e.target.value);
-                      if (roomNumberError) setRoomNumberError("");
-                    }}
-                    placeholder="e.g., 101"
-                    aria-invalid={!!roomNumberError}
-                    aria-describedby={roomNumberError ? "new-room-number-error" : undefined}
-                    className="rounded-xl border-border/60 bg-background"
+                  id="new-room-number"
+                  value={newRoomNumber}
+                  onChange={(e) => {
+                    setNewRoomNumber(e.target.value);
+                    if (roomNumberError) setRoomNumberError("");
+                  }}
+                  placeholder="e.g., 101"
+                  aria-invalid={!!roomNumberError}
+                  aria-describedby={roomNumberError ? "new-room-number-error" : undefined}
+                  className="rounded-xl border-border/60 bg-background"
                   />
                   {roomNumberError && (
                     <p id="new-room-number-error" className="text-caption text-destructive">
@@ -855,11 +735,11 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
                     Floor (Optional)
                   </label>
                   <Input
-                    id="new-room-floor"
-                    value={newRoomFloor}
-                    onChange={(e) => setNewRoomFloor(e.target.value)}
-                    placeholder="e.g., 1"
-                    className="rounded-xl border-border/60 bg-background"
+                  id="new-room-floor"
+                  value={newRoomFloor}
+                  onChange={(e) => setNewRoomFloor(e.target.value)}
+                  placeholder="e.g., 1"
+                  className="rounded-xl border-border/60 bg-background"
                   />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -867,12 +747,12 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
                     Notes (Optional)
                   </label>
                   <TextArea
-                    id="new-room-notes"
-                    value={newRoomNotes}
-                    onChange={(e) => setNewRoomNotes(e.target.value)}
-                    placeholder="Any additional notes about this room..."
-                    rows={2}
-                    className="rounded-xl border-border/60 bg-background"
+                  id="new-room-notes"
+                  value={newRoomNotes}
+                  onChange={(e) => setNewRoomNotes(e.target.value)}
+                  placeholder="Any additional notes about this room..."
+                  rows={2}
+                  className="rounded-xl border-border/60 bg-background"
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
@@ -880,12 +760,12 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
                     Cancel
                   </Button>
                   <Button
-                    type="submit"
-                    isPending={isCreatingRoom}
-                    isDisabled={isCreatingRoom || !newRoomNumber.trim() || !newRoomTypeId}
-                    className="rounded-xl"
+                  type="submit"
+                  isPending={isCreatingRoom}
+                  isDisabled={isCreatingRoom || !newRoomNumber.trim() || !newRoomTypeId}
+                  className="rounded-xl"
                   >
-                    {isCreatingRoom ? "Adding..." : "Add Room"}
+                  {isCreatingRoom ? "Adding..." : "Add Room"}
                   </Button>
                 </div>
               </form>
@@ -922,15 +802,15 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
                     Room Number
                   </label>
                   <Input
-                    id="edit-room-number"
-                    value={editRoomNumber}
-                    onChange={(e) => {
-                      setEditRoomNumber(e.target.value);
-                      if (editRoomError) setEditRoomError("");
-                    }}
-                    placeholder="e.g., 101"
-                    aria-invalid={!!editRoomError}
-                    className="rounded-xl border-border/60 bg-background"
+                  id="edit-room-number"
+                  value={editRoomNumber}
+                  onChange={(e) => {
+                    setEditRoomNumber(e.target.value);
+                    if (editRoomError) setEditRoomError("");
+                  }}
+                  placeholder="e.g., 101"
+                  aria-invalid={!!editRoomError}
+                  className="rounded-xl border-border/60 bg-background"
                   />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -938,11 +818,11 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
                     Floor (Optional)
                   </label>
                   <Input
-                    id="edit-room-floor"
-                    value={editRoomFloor}
-                    onChange={(e) => setEditRoomFloor(e.target.value)}
-                    placeholder="e.g., 1"
-                    className="rounded-xl border-border/60 bg-background"
+                  id="edit-room-floor"
+                  value={editRoomFloor}
+                  onChange={(e) => setEditRoomFloor(e.target.value)}
+                  placeholder="e.g., 1"
+                  className="rounded-xl border-border/60 bg-background"
                   />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -950,12 +830,12 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
                     Notes (Optional)
                   </label>
                   <TextArea
-                    id="edit-room-notes"
-                    value={editRoomNotes}
-                    onChange={(e) => setEditRoomNotes(e.target.value)}
-                    placeholder="Any additional notes about this room..."
-                    rows={2}
-                    className="rounded-xl border-border/60 bg-background"
+                  id="edit-room-notes"
+                  value={editRoomNotes}
+                  onChange={(e) => setEditRoomNotes(e.target.value)}
+                  placeholder="Any additional notes about this room..."
+                  rows={2}
+                  className="rounded-xl border-border/60 bg-background"
                   />
                 </div>
                 {editRoomError && (
@@ -966,12 +846,12 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
                     Cancel
                   </Button>
                   <Button
-                    type="submit"
-                    isPending={isSavingRoom}
-                    isDisabled={isSavingRoom || !editRoomNumber.trim() || !editRoomTypeId}
-                    className="rounded-xl"
+                  type="submit"
+                  isPending={isSavingRoom}
+                  isDisabled={isSavingRoom || !editRoomNumber.trim() || !editRoomTypeId}
+                  className="rounded-xl"
                   >
-                    {isSavingRoom ? "Saving..." : "Save Changes"}
+                  {isSavingRoom ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
               </form>
@@ -1099,9 +979,9 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
                         !isSavingReorder && "cursor-grab active:cursor-grabbing",
                         reorderDragIndex === index && "opacity-40",
                         reorderOverIndex === index &&
-                          reorderDragIndex !== null &&
-                          reorderDragIndex !== index &&
-                          "border-primary ring-2 ring-primary/20 scale-[1.01] bg-muted/40",
+                        reorderDragIndex !== null &&
+                        reorderDragIndex !== index &&
+                        "border-primary ring-2 ring-primary/20 scale-[1.01] bg-muted/40",
                       )}
                     >
                       <GripVertical className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -1182,100 +1062,87 @@ interface RoomRowProps {
   onEditDetails: () => void;
 }
 
+/** One aligned row: mono number, floor, guest/notes middle, status column, kebab. */
 function RoomRow({
-  room,
-  isHighlighted,
-  isPending,
-  registerRef,
-  onStatusChange,
-  onBlockDates,
-  onEditNotes,
-  onEditDetails,
+  room, isHighlighted, isPending, registerRef, onStatusChange, onBlockDates, onEditNotes, onEditDetails,
 }: RoomRowProps) {
   const status = (room.status ?? "available") as RoomStatus;
   const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.available;
   const transitions = STATUS_TRANSITIONS[status] ?? [];
+  const checkout = room.stay?.checkOut
+    ? new Date(`${room.stay.checkOut}T00:00:00Z`).toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })
+    : null;
 
   return (
     <li
       ref={registerRef}
       className={cn(
-        "flex items-center gap-2 py-2.5 transition-colors duration-200 sm:gap-3",
-        isHighlighted && "-mx-2 rounded-lg bg-primary/[0.05] px-2",
+        "flex items-center gap-3.5 border-b border-border/50 px-5 py-3 last:border-b-0 transition-colors duration-150 max-lg:border-b-0 max-lg:px-3.5 max-lg:py-2.5",
+        isHighlighted && "bg-[#0485F70A]",
       )}
     >
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2">
-          <span className="text-body font-medium tabular-nums text-foreground">
-            {room.roomNumber}
+      <span className="w-12 shrink-0 font-mono text-[13px] font-semibold tabular-nums text-foreground max-lg:w-9 max-lg:text-xs">
+        {room.roomNumber}
+      </span>
+      {room.floor && (
+        <span className="w-16 shrink-0 text-xs text-muted-foreground max-lg:hidden">Floor {room.floor}</span>
+      )}
+      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground max-lg:hidden">
+        {room.isActive === false && <span className="text-muted-foreground/70">Inactive · </span>}
+        {room.stay ? (
+          <span>
+            <span className="font-medium text-foreground">{room.stay.guestName}</span>
+            {checkout ? <span className="text-muted-foreground"> · until {checkout}</span> : null}
           </span>
-          {room.floor && (
-            <span className="text-caption text-muted-foreground">Floor {room.floor}</span>
-          )}
-          {room.isActive === false && (
-            <span className="text-caption text-muted-foreground">· Inactive</span>
-          )}
-        </div>
-        {room.notes && (
-          <p className="mt-0.5 truncate text-caption text-muted-foreground/80">
-            {room.notes}
-          </p>
-        )}
-      </div>
-
-      {/* Status: quiet dot + label, transitions per STATUS_TRANSITIONS */}
+        ) : room.notes ? room.notes : null}
+      </span>
+      {/* Mobile stack: number + floor on one line, guest line under it */}
+      <span className="min-w-0 flex-1 flex-col gap-0.5 lg:hidden">
+        <span className="flex items-center gap-1.5">
+          {room.floor && <span className="text-[10px] text-muted-foreground">Floor {room.floor}</span>}
+          {room.isActive === false && <span className="text-[10px] text-muted-foreground/70">Inactive</span>}
+        </span>
+        {room.stay ? (
+          <span className="truncate text-[10px]">
+            <span className="font-medium text-foreground">{room.stay.guestName}</span>
+            {checkout ? <span className="text-muted-foreground"> · until {checkout}</span> : null}
+          </span>
+        ) : room.notes ? (
+          <span className="truncate text-[10px] text-muted-foreground">{room.notes}</span>
+        ) : null}
+      </span>
+      <span className="w-[130px] shrink-0 max-lg:w-[106px]">
+        <Dropdown>
+          <Button variant="ghost" size="sm" isDisabled={isPending}
+            aria-label={`Change status of room ${room.roomNumber}`}
+            className="h-9 gap-1.5 rounded-lg px-1.5 max-lg:h-8 max-lg:px-1">
+            <span className={cn("size-[7px] shrink-0 rounded-full max-lg:size-1.5", config.dot)} aria-hidden="true" />
+            <span className="text-xs font-medium text-foreground max-lg:text-[11px]">{config.label}</span>
+            <ChevronDown className="size-2.5 text-muted-foreground/70" aria-hidden="true" />
+          </Button>
+          <Dropdown.Popover placement="bottom end">
+            <Dropdown.Menu onAction={(key) => onStatusChange(key as RoomStatus)}>
+              {transitions.map((nextStatus) => (
+                <Dropdown.Item key={nextStatus} id={nextStatus} textValue={STATUS_CONFIG[nextStatus].label}>
+                  <span className={cn("size-2 rounded-full", STATUS_CONFIG[nextStatus].dot)} aria-hidden="true" />
+                  <span>{STATUS_CONFIG[nextStatus].label}</span>
+                </Dropdown.Item>
+              ))}
+            </Dropdown.Menu>
+          </Dropdown.Popover>
+        </Dropdown>
+      </span>
       <Dropdown>
-        <Button
-          variant="ghost"
-          size="sm"
-          isDisabled={isPending}
-          aria-label={`Change status of room ${room.roomNumber}`}
-          className="min-h-11 gap-1.5 rounded-full px-2.5 sm:min-h-9"
-        >
-          <span
-            className={cn("size-2 shrink-0 rounded-full", config.dot)}
-            aria-hidden="true"
-          />
-          <span className="text-body text-foreground">{config.label}</span>
-          <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden="true" />
+        <Button variant="ghost" isIconOnly aria-label={`Actions for room ${room.roomNumber}`}
+          className="size-8 rounded-lg text-muted-foreground max-lg:size-7">
+          <EllipsisVertical className="size-3.5" />
         </Button>
         <Dropdown.Popover placement="bottom end">
-          <Dropdown.Menu onAction={(key) => onStatusChange(key as RoomStatus)}>
-            {transitions.map((nextStatus) => (
-              <Dropdown.Item
-                key={nextStatus}
-                id={nextStatus}
-                textValue={STATUS_CONFIG[nextStatus].label}
-              >
-                <span
-                  className={cn("size-2 rounded-full", STATUS_CONFIG[nextStatus].dot)}
-                  aria-hidden="true"
-                />
-                <span>{STATUS_CONFIG[nextStatus].label}</span>
-              </Dropdown.Item>
-            ))}
-          </Dropdown.Menu>
-        </Dropdown.Popover>
-      </Dropdown>
-
-      {/* Row actions */}
-      <Dropdown>
-        <Button
-          variant="ghost"
-          isIconOnly
-          aria-label={`Actions for room ${room.roomNumber}`}
-          className="min-h-11 min-w-11 rounded-full text-muted-foreground sm:min-h-9 sm:min-w-9"
-        >
-          <EllipsisVertical className="size-4" />
-        </Button>
-        <Dropdown.Popover placement="bottom end">
-          <Dropdown.Menu
-            onAction={(key) => {
-              if (key === "edit") onEditDetails();
-              if (key === "block") onBlockDates();
-              if (key === "notes") onEditNotes();
-            }}
-          >
+          <Dropdown.Menu onAction={(key) => {
+            if (key === "edit") onEditDetails();
+            if (key === "block") onBlockDates();
+            if (key === "notes") onEditNotes();
+          }}>
             <Dropdown.Item id="edit" textValue="Edit details">
               <Pencil className="size-4 text-muted-foreground" />
               <span>Edit details</span>
@@ -1295,6 +1162,96 @@ function RoomRow({
   );
 }
 
+interface TypeSectionProps {
+  type: RoomTypeGroup;
+  rooms: RoomItem[];
+  isFiltering: boolean;
+  pendingTypeId: string | null;
+  currency: string;
+  registerRef: React.RefObject<Map<string, HTMLLIElement>>;
+  onTypeEdit: () => void;
+  onTypeToggleActive: () => void;
+  onTypeDelete: () => void;
+  onAddRoom: () => void;
+  onStatusChange: (room: RoomItem, status: RoomStatus) => void;
+  onBlockDates: (id: string) => void;
+  onEditNotes: (room: RoomItem) => void;
+  onEditDetails: (room: RoomItem, typeId: string) => void;
+  pendingRoomId: string | null;
+  isHighlighted: (room: RoomItem) => boolean;
+}
+
+/** Tinted type header + its room rows + the quiet Add-room row. */
+function TypeSection({
+  type, rooms, isFiltering, pendingTypeId, currency, registerRef,
+  onTypeEdit, onTypeToggleActive, onTypeDelete, onAddRoom,
+  onStatusChange, onBlockDates, onEditNotes, onEditDetails, pendingRoomId, isHighlighted,
+}: TypeSectionProps) {
+  const facts = [
+    type.bedConfiguration,
+    type.maxAdults || type.maxChildren ? `Sleeps ${(type.maxAdults ?? 0) + (type.maxChildren ?? 0)}` : null,
+  ].filter(Boolean).join(" · ");
+
+  return <>
+    <div className="border-b border-border/70 bg-secondary px-5 py-3 max-lg:px-3.5 max-lg:py-2.5">
+      <div className="flex items-center gap-3">
+        <span className="text-[15px] font-semibold text-foreground max-lg:text-[13px]">{type.name}</span>
+        {type.isActive === false && (
+          <span className="shrink-0 rounded-full border border-border/70 px-2 py-px text-[10px] text-muted-foreground">Inactive</span>
+        )}
+        <span className="min-w-0 flex-1" aria-hidden="true" />
+        <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-foreground max-lg:text-xs">
+          {formatCurrency(type.basePrice, currency)}
+        </span>
+        <span className="shrink-0 text-xs text-muted-foreground max-lg:hidden">/ night</span>
+        <TypeActionsDropdown
+          type={type}
+          isPending={pendingTypeId === type.id}
+          onEdit={onTypeEdit}
+          onToggleActive={onTypeToggleActive}
+          onDelete={onTypeDelete}
+        />
+      </div>
+      <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground/90 max-lg:mt-0.5 max-lg:text-[10px]">
+        <span className="truncate">{facts}</span>
+        <span className="min-w-0 flex-1" aria-hidden="true" />
+        <span className="shrink-0 tabular-nums">
+          {rooms.length} {rooms.length === 1 ? "room" : "rooms"} · {type.availableRooms} available
+        </span>
+      </div>
+    </div>
+    {rooms.length === 0 ? (
+      <p className="px-5 py-6 text-[13px] text-muted-foreground">
+        {isFiltering ? "No rooms in this type match your search." : "No rooms in this type yet."}
+      </p>
+    ) : (
+      <ul>
+        {rooms.map((room) => (
+          <RoomRow
+            key={room.id}
+            room={room}
+            isHighlighted={isHighlighted(room)}
+            isPending={pendingRoomId === room.id}
+            registerRef={(element) => {
+              if (element) registerRef.current.set(room.id, element);
+              else registerRef.current.delete(room.id);
+            }}
+            onStatusChange={(status) => onStatusChange(room, status)}
+            onBlockDates={() => onBlockDates(room.id)}
+            onEditNotes={() => onEditNotes(room)}
+            onEditDetails={() => onEditDetails(room, type.id)}
+          />
+        ))}
+      </ul>
+    )}
+    {!isFiltering && (
+      <button type="button" onClick={onAddRoom}
+        className="flex w-full items-center gap-1.5 border-t border-border/50 px-5 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground max-lg:px-3.5">
+        <Plus className="size-3" aria-hidden="true" /> Add room
+      </button>
+    )}
+  </>;
+}
 interface TypeActionsDropdownProps {
   type: RoomTypeGroup;
   isPending: boolean;

@@ -34,7 +34,8 @@ export const ROOM_BASIS = "Room revenue and room-nights use checked-in/checked-o
 export const INVENTORY_BASIS = "Capacity uses dated active physical-room inventory at each property's day end. Maintenance, out-of-service and availability blocks are not deducted; this is not a sellable-inventory or external benchmarking denominator.";
 export const BALANCE_BASIS = "Outstanding is the current tax-inclusive balance on all non-cancelled/non-no-show bookings, including departed stays; it is not an as-of-period receivables ledger.";
 
-export async function reportContext(startDate: string, endDate: string, expectedScope: ReportScope) {
+/** Auth, tenant match and hotel settings — everything a report needs before dates are involved. */
+export async function resolveReportScope(expectedScope: ReportScope) {
   const auth = await requireMinRole("read_only", "view reports");
   // Page props express the caller's expectation, never authority to select a tenant.
   // Check before opening the report client, including the hotel settings read.
@@ -55,16 +56,22 @@ export async function reportContext(startDate: string, endDate: string, expected
   const timeZone = hotelResult.data.timezone;
   if (!timeZone) throw new Error("Report unavailable: the hotel timezone is missing.");
   const now = new Date();
-  const { start, end } = resolveRange(startDate, endDate, timeZone, now);
-  const prior = priorRange(start, end);
   const today = businessToday(timeZone, now);
+  return { auth, supabase, hotelId: auth.hotelId, currency, timeZone, now, today };
+}
+
+export async function reportContext(startDate: string, endDate: string, expectedScope: ReportScope) {
+  const scope = await resolveReportScope(expectedScope);
+  const { start, end } = resolveRange(startDate, endDate, scope.timeZone, scope.now);
+  const prior = priorRange(start, end);
   const meta: ReportMeta = {
-    orgId: auth.orgId, hotelId: auth.hotelId,
+    orgId: scope.auth.orgId, hotelId: scope.hotelId,
     startDate, endDate, priorStartDate: format(prior.start, "yyyy-MM-dd"), priorEndDate: format(prior.end, "yyyy-MM-dd"),
-    timeZone, generatedAt: now.toISOString(), warnings: [],
+    timeZone: scope.timeZone, generatedAt: scope.now.toISOString(), warnings: [],
   };
-  return { supabase, hotelId: auth.hotelId, currency, timeZone, today, start, end, prior, meta,
-    startISO: businessDayBounds(startDate, timeZone).startISO, endISO: businessDayBounds(endDate, timeZone).endISO };
+  return { supabase: scope.supabase, hotelId: scope.hotelId, currency: scope.currency, timeZone: scope.timeZone,
+    today: scope.today, start, end, prior, meta,
+    startISO: businessDayBounds(startDate, scope.timeZone).startISO, endISO: businessDayBounds(endDate, scope.timeZone).endISO };
 }
 export type ReportContext = Awaited<ReturnType<typeof reportContext>>;
 
@@ -105,7 +112,12 @@ export async function loadInventory(ctx: ReportContext): Promise<InventorySnapsh
     return q;
   });
 }
+export interface OutstandingSummary { amount: number; count: number }
 export async function loadOutstanding(ctx: ReportContext): Promise<number> {
+  return (await loadOutstandingSummary(ctx)).amount;
+}
+/** Amount plus the open-bookings count, so the balance can carry its own denominator. */
+export async function loadOutstandingSummary(ctx: ReportContext): Promise<OutstandingSummary> {
   const rows = await readAllPages("outstanding balances", (after, size) => {
     let q = ctx.supabase.from("bookings").select("id, outstanding_balance, currency", { count: "exact" })
       .eq("hotel_id", ctx.hotelId).in("status", ["pending", "confirmed", "checked_in", "checked_out"])
@@ -113,8 +125,8 @@ export async function loadOutstanding(ctx: ReportContext): Promise<number> {
     if (after) q = q.gt("id", after);
     return q;
   });
-  return fromMinor(sumMinor(rows.map(row => {
+  return { count: rows.length, amount: fromMinor(sumMinor(rows.map(row => {
     assertCurrency(row.currency, ctx.currency);
     return moneyMinor(row.outstanding_balance, ctx.currency);
-  })), ctx.currency);
+  })), ctx.currency) };
 }
