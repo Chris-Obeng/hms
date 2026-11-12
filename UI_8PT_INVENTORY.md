@@ -265,3 +265,16 @@ Generated for branch `ui/8pt-grid`. Baseline smell counts come from `ui-audit/ba
 | `app/dashboard/calendar/calendar.css` | 180 | TODO |
 | `app/globals.css` | 14 | TODO |
 | `app/landing.css` | 83 | TODO |
+
+## Notes and Needs decision (running)
+
+FEAT-002 (foundation) result: components/ui + components/layout (odd steps + arbitrary) 246 -> 137. Repo odd steps 1577 -> 1468.
+Applied: half steps (0.5/1.5/2.5/3.5) snapped to 1/2/3/4 in components/ui and components/layout (max 2px shift); line-height tokens snapped to 16/20/24/28px (max 1.6px shift).
+
+Needs decision (not applied):
+- Radius tokens: --radius 10px gives sm 6 / md 8 / lg 10 / xl 14 / 2xl 18 / 3xl 22 / 4xl 26px, off the 4/8/12/16 scale. Changing affects every page.
+- Control heights h-7/h-9 (28/36px) in button-styles, view-mode-toggle, segmented-tab, entity-filters (sm:h-9): mapping to 32/40 visibly changes many screens. Mobile already uses 44px (h-11) touch targets.
+- Odd steps 5/7/9/11 (20/28/36/44px) are 4px multiples used for icons and sizes; left as documented exceptions in shared components.
+- Arbitrary font sizes (text-[13px], [11px], [10px], [9px], [12.5px]) kept: changing alters type hierarchy.
+- Body line-height 22.4 -> 24px affects all .text-body copy by 1.6px per line (applied; revert --text-body-lh in globals.css if unwanted).
+- Page padding/container shells (16/24/32) not retrofitted in layout files; no shared page padding wrapper exists, left to per-page features FEAT-003/004.
