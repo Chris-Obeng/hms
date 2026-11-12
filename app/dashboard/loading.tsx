@@ -2,36 +2,35 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardLoading() {
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <Skeleton className="h-7 w-32 rounded-lg" />
-          <Skeleton className="h-4 w-56 rounded-lg" />
+    <div className="mx-auto w-full max-w-[1440px] space-y-4 pt-1 md:space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="space-y-1.5">
+          <Skeleton className="h-7 w-36 rounded-lg" />
+          <Skeleton className="h-4 w-48 rounded-md" />
         </div>
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-8 w-48 rounded-lg" />
-        </div>
+        <Skeleton className="h-11 w-32 shrink-0 rounded-xl sm:h-9" />
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2">
-        {Array.from({ length: 7 }).map((_, i) => (
-          <Skeleton key={i} className="h-20 flex-1 rounded-xl" />
-        ))}
-      </div>
+      <Skeleton className="h-[108px] w-full rounded-[20px] md:hidden" />
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div className="xl:col-span-3 space-y-3">
-          <Skeleton className="h-8 w-48 rounded-lg" />
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-xl" />
-          ))}
+      <div className="grid grid-cols-1 items-start gap-4 md:gap-5 lg:grid-cols-[312px_minmax(0,1fr)] lg:gap-6">
+        <div className="order-2 flex flex-col gap-4 md:order-1 md:grid md:grid-cols-[260px_minmax(0,1fr)] md:gap-5 lg:flex lg:flex-col lg:gap-5">
+          <Skeleton className="hidden h-[176px] w-full rounded-[20px] md:block" />
+          <Skeleton className="h-[220px] w-full rounded-[20px] lg:h-[360px]" />
         </div>
-        <div className="space-y-4">
-          <Skeleton className="h-72 w-full rounded-xl" />
-          <Skeleton className="h-44 w-full rounded-xl" />
+
+        <div className="order-1 overflow-hidden rounded-[20px] border border-border/60 bg-card md:order-2">
+          <div className="flex gap-2 border-b border-border/50 bg-muted/20 p-2.5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-9 w-24 shrink-0 rounded-xl" />
+            ))}
+          </div>
+          <div className="space-y-3 p-5">
+            <Skeleton className="h-9 w-full rounded-xl" />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full rounded-2xl" />
+            ))}
+          </div>
         </div>
       </div>
     </div>

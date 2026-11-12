@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { parseISO } from "date-fns";
 import {
   AlertDialog,
   Button,
@@ -24,14 +25,15 @@ import {
   Pencil,
   Plus,
   Power,
+  Tag,
   Trash2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
-import { writeAuditLog } from "@/lib/audit";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { HeroSelectField } from "@/components/ui/hero-select";
+import { EmptyStatePanel, PageHeader } from "@/components/ui/page-header";
 import {
   createRoom,
   createRoomType,
@@ -39,6 +41,7 @@ import {
   reorderRoomTypes,
   toggleRoomTypeActive,
   updateRoom,
+  updateRoomStatus,
 } from "@/app/actions/rooms";
 import { toAmenityObjects } from "@/lib/amenities";
 
@@ -48,10 +51,10 @@ import { BlockRoomSheet } from "../calendar/_components/block-room-sheet";
 type RoomStatus = "available" | "occupied" | "maintenance" | "out_of_service";
 
 const STATUS_CONFIG: Record<RoomStatus, { label: string; dot: string }> = {
-  available: { label: "Available", dot: "bg-[var(--success)]" },
+  available: { label: "Available", dot: "bg-emerald-500" },
   occupied: { label: "Occupied", dot: "bg-[var(--pen-accent)]" },
-  maintenance: { label: "Maintenance", dot: "bg-orange-500" },
-  out_of_service: { label: "Out of Service", dot: "bg-[var(--danger)]" },
+  maintenance: { label: "Maintenance", dot: "bg-amber-500" },
+  out_of_service: { label: "Out of service", dot: "bg-destructive" },
 };
 
 const STATUS_TRANSITIONS: Record<RoomStatus, RoomStatus[]> = {
@@ -68,7 +71,6 @@ export interface RoomItem {
   status: string | null;
   isActive: boolean | null;
   notes: string | null;
-  /** The in-house guest on an occupied room, from the bookings join. */
   stay: { guestName: string; checkOut: string } | null;
 }
 
@@ -93,18 +95,121 @@ interface RoomsClientProps {
   roomTypes: RoomTypeGroup[];
   currency: string;
   hotelId: string;
+  propertyToday?: string;
+  canEditStatus?: boolean;
+  canBlockRooms?: boolean;
+  canManageRooms?: boolean;
+  canDeleteRoomTypes?: boolean;
   initialSearch?: string;
 }
 
-export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: RoomsClientProps) {
+type OptimisticRoomsAction =
+  | { kind: "room_status"; roomId: string; status: RoomStatus }
+  | { kind: "room_notes"; roomId: string; notes: string | null }
+  | {
+      kind: "room_details";
+      roomId: string;
+      toTypeId: string;
+      roomNumber: string;
+      floor: string | null;
+      notes: string | null;
+    }
+  | { kind: "type_active"; typeId: string; isActive: boolean }
+  | { kind: "type_delete"; typeId: string }
+  | { kind: "reorder"; ids: string[] };
+
+function recountAvailable(rooms: RoomItem[]): number {
+  return rooms.filter((r) => r.isActive !== false && (r.status ?? "available") === "available")
+    .length;
+}
+
+function applyOptimisticRooms(
+  state: RoomTypeGroup[],
+  action: OptimisticRoomsAction
+): RoomTypeGroup[] {
+  switch (action.kind) {
+    case "room_status":
+      return state.map((group) => {
+        if (!group.rooms.some((r) => r.id === action.roomId)) return group;
+        const rooms = group.rooms.map((r) =>
+          r.id === action.roomId ? { ...r, status: action.status } : r
+        );
+        return { ...group, rooms, availableRooms: recountAvailable(rooms) };
+      });
+    case "room_notes":
+      return state.map((group) =>
+        group.rooms.some((r) => r.id === action.roomId)
+          ? {
+              ...group,
+              rooms: group.rooms.map((r) =>
+                r.id === action.roomId ? { ...r, notes: action.notes } : r
+              ),
+            }
+          : group
+      );
+    case "room_details": {
+      let movedRoom: RoomItem | null = null;
+      const stripped = state.map((group) => {
+        const found = group.rooms.find((r) => r.id === action.roomId);
+        if (!found) return group;
+        movedRoom = {
+          ...found,
+          roomNumber: action.roomNumber,
+          floor: action.floor,
+          notes: action.notes,
+        };
+        if (group.id === action.toTypeId) {
+          const rooms = group.rooms.map((r) => (r.id === action.roomId ? movedRoom! : r));
+          return { ...group, rooms, availableRooms: recountAvailable(rooms) };
+        }
+        const rooms = group.rooms.filter((r) => r.id !== action.roomId);
+        return { ...group, rooms, availableRooms: recountAvailable(rooms) };
+      });
+      if (!movedRoom) return state;
+      return stripped.map((group) => {
+        if (group.id !== action.toTypeId || group.rooms.some((r) => r.id === action.roomId)) {
+          return group;
+        }
+        const rooms = [...group.rooms, movedRoom!];
+        return { ...group, rooms, availableRooms: recountAvailable(rooms) };
+      });
+    }
+    case "type_active":
+      return state.map((group) =>
+        group.id === action.typeId ? { ...group, isActive: action.isActive } : group
+      );
+    case "type_delete":
+      return state.filter((group) => group.id !== action.typeId);
+    case "reorder": {
+      const byId = new Map(state.map((g) => [g.id, g]));
+      const ordered = action.ids
+        .map((id) => byId.get(id))
+        .filter((g): g is RoomTypeGroup => Boolean(g));
+      return ordered.length === state.length ? ordered : state;
+    }
+  }
+}
+
+export function RoomsClient({
+  roomTypes,
+  currency,
+  hotelId,
+  propertyToday,
+  canEditStatus = true,
+  canBlockRooms = true,
+  canManageRooms = true,
+  canDeleteRoomTypes = true,
+  initialSearch,
+}: RoomsClientProps) {
   const router = useRouter();
   const supabase = React.useMemo(() => createBrowserClient(), []);
+  const [, startTransition] = React.useTransition();
+  const [optimisticRoomTypes, dispatchOptimistic] = React.useOptimistic(
+    roomTypes,
+    applyOptimisticRooms
+  );
 
-  // Deep link support: /dashboard/rooms?search=<room_number> seeds the filter,
-  // which expands the matching type and highlights the matching room.
   const [query, setQuery] = React.useState(initialSearch ?? "");
-  const [pendingRoomId, setPendingRoomId] = React.useState<string | null>(null);
-  const [pendingTypeId, setPendingTypeId] = React.useState<string | null>(null);
 
   const [isAddTypeOpen, setIsAddTypeOpen] = React.useState(false);
   const [addTypeErrors, setAddTypeErrors] = React.useState<Record<string, string>>({});
@@ -133,23 +238,19 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
 
   const [isReorderOpen, setIsReorderOpen] = React.useState(false);
   const [reorderIds, setReorderIds] = React.useState<string[]>([]);
-  const [isSavingReorder, setIsSavingReorder] = React.useState(false);
   const [reorderDragIndex, setReorderDragIndex] = React.useState<number | null>(null);
   const [reorderOverIndex, setReorderOverIndex] = React.useState<number | null>(null);
 
   const [typeToDelete, setTypeToDelete] = React.useState<RoomTypeGroup | null>(null);
-  const [isDeletingType, setIsDeletingType] = React.useState(false);
-
-  // --- Derived data ---------------------------------------------------------
 
   const totalRooms = React.useMemo(
-    () => roomTypes.reduce((sum, type) => sum + type.rooms.length, 0),
-    [roomTypes],
+    () => optimisticRoomTypes.reduce((sum, type) => sum + type.rooms.length, 0),
+    [optimisticRoomTypes]
   );
 
   const totalAvailable = React.useMemo(
-    () => roomTypes.reduce((sum, type) => sum + type.availableRooms, 0),
-    [roomTypes],
+    () => optimisticRoomTypes.reduce((sum, type) => sum + type.availableRooms, 0),
+    [optimisticRoomTypes]
   );
 
   const normalizedQuery = query.trim().toLowerCase();
@@ -157,9 +258,9 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
 
   const visibleTypes = React.useMemo<VisibleType[]>(() => {
     if (!isFiltering) {
-      return roomTypes.map((type) => ({ type, rooms: type.rooms }));
+      return optimisticRoomTypes.map((type) => ({ type, rooms: type.rooms }));
     }
-    return roomTypes
+    return optimisticRoomTypes
       .map((type) => {
         if (type.name.toLowerCase().includes(normalizedQuery)) {
           return { type, rooms: type.rooms };
@@ -167,45 +268,40 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
         return {
           type,
           rooms: type.rooms.filter((room) =>
-            room.roomNumber.toLowerCase().includes(normalizedQuery),
+            room.roomNumber.toLowerCase().includes(normalizedQuery)
           ),
         };
       })
       .filter(
         (entry) =>
-          entry.rooms.length > 0 || entry.type.name.toLowerCase().includes(normalizedQuery),
+          entry.rooms.length > 0 || entry.type.name.toLowerCase().includes(normalizedQuery)
       );
-  }, [roomTypes, normalizedQuery, isFiltering]);
-
-  // Every type stays expanded; the design shows one flat panel.
+  }, [optimisticRoomTypes, normalizedQuery, isFiltering]);
 
   const blockSheetRooms = React.useMemo(
     () =>
-      roomTypes.flatMap((type) =>
+      optimisticRoomTypes.flatMap((type) =>
         type.rooms.map((room) => ({
           id: room.id,
           roomNumber: room.roomNumber,
           roomTypeName: type.name,
-        })),
+        }))
       ),
-    [roomTypes],
+    [optimisticRoomTypes]
   );
 
-  // --- Effects --------------------------------------------------------------
-
-  // Other tabs / staff devices: re-pull server data when rooms or types change.
   React.useEffect(() => {
     const channel = supabase
       .channel("dashboard-rooms")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "rooms", filter: `hotel_id=eq.${hotelId}` },
-        () => router.refresh(),
+        () => router.refresh()
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "room_types", filter: `hotel_id=eq.${hotelId}` },
-        () => router.refresh(),
+        () => router.refresh()
       )
       .subscribe();
 
@@ -214,60 +310,44 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
     };
   }, [supabase, hotelId, router]);
 
-  // Scroll the deep-linked room into view once, after the panel has expanded.
   const rowRefs = React.useRef(new Map<string, HTMLLIElement>());
   const didScrollToMatch = React.useRef(false);
   React.useEffect(() => {
     if (didScrollToMatch.current || !initialSearch) return;
     const needle = initialSearch.trim().toLowerCase();
-    const match = roomTypes
+    const match = optimisticRoomTypes
       .flatMap((type) => type.rooms)
       .find((room) => room.roomNumber.toLowerCase().includes(needle));
     const element = match ? rowRefs.current.get(match.id) : undefined;
     if (!element) return;
     didScrollToMatch.current = true;
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const timer = window.setTimeout(
       () =>
         element.scrollIntoView({
           behavior: prefersReducedMotion ? "auto" : "smooth",
           block: "center",
         }),
-      350,
+      250
     );
     return () => window.clearTimeout(timer);
-    // Mount-only deep-link scroll; roomTypes/initialSearch are fixed at first paint.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- Mutations (all via existing server actions) --------------------------
+  // --- Optimistic Mutations -------------------------------------------------
 
-  const handleStatusChange = async (room: RoomItem, newStatus: RoomStatus) => {
-    if (room.status === newStatus) return;
-    const previousStatus = room.status ?? "available";
-    setPendingRoomId(room.id);
-    try {
-      const result = await updateRoom(room.id, { status: newStatus });
+  const handleStatusChange = (room: RoomItem, newStatus: RoomStatus) => {
+    if (!canEditStatus || room.status === newStatus) return;
+    startTransition(async () => {
+      dispatchOptimistic({ kind: "room_status", roomId: room.id, status: newStatus });
+      const result = await updateRoomStatus(room.id, newStatus);
       if (!result.success) {
         toast.danger("Couldn't update room status", { description: result.error });
+        router.refresh();
         return;
       }
-      toast.success(
-        `Room ${room.roomNumber} marked as ${STATUS_CONFIG[newStatus].label.toLowerCase()}`,
-      );
-      void writeAuditLog(supabase, {
-        hotelId,
-        action: "room.status_changed",
-        entityType: "room",
-        entityId: room.id,
-        beforeState: { status: previousStatus },
-        afterState: { status: newStatus },
-      });
-    } finally {
-      setPendingRoomId(null);
-    }
+      router.refresh();
+    });
   };
 
   const openNotesEditor = (room: RoomItem) => {
@@ -275,21 +355,34 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
     setNotesDraft(room.notes ?? "");
   };
 
-  const handleSaveNotes = async () => {
-    if (!notesRoom) return;
+  const handleSaveNotes = () => {
+    if (!notesRoom || isSavingNotes) return;
+    const target = notesRoom;
+    const cleaned = notesDraft.trim();
+    setNotesRoom(null);
     setIsSavingNotes(true);
-    try {
-      // Empty string clears the note server-side (updateRoom stores `"" || null`).
-      const result = await updateRoom(notesRoom.id, { notes: notesDraft.trim() });
-      if (!result.success) {
-        toast.danger("Couldn't save notes", { description: result.error });
-        return;
+    startTransition(async () => {
+      dispatchOptimistic({
+        kind: "room_notes",
+        roomId: target.id,
+        notes: cleaned || null,
+      });
+      try {
+        const result = await updateRoom(target.id, { notes: cleaned });
+        if (!result.success) {
+          toast.danger("Couldn't save notes", { description: result.error });
+          router.refresh();
+          return;
+        }
+        toast.success(`Notes saved for room ${target.roomNumber}`);
+        router.refresh();
+      } catch {
+        toast.danger("Couldn't save notes — check your connection and try again");
+        router.refresh();
+      } finally {
+        setIsSavingNotes(false);
       }
-      toast.success(`Notes saved for room ${notesRoom.roomNumber}`);
-      setNotesRoom(null);
-    } finally {
-      setIsSavingNotes(false);
-    }
+    });
   };
 
   const openAddRoom = (typeId?: string) => {
@@ -297,7 +390,7 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
     setNewRoomFloor("");
     setNewRoomNotes("");
     setRoomNumberError("");
-    setNewRoomTypeId(typeId ?? roomTypes[0]?.id ?? "");
+    setNewRoomTypeId(typeId ?? optimisticRoomTypes[0]?.id ?? "");
     setIsAddRoomOpen(true);
   };
 
@@ -308,9 +401,7 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
       return;
     }
     if (!newRoomTypeId) {
-      toast.danger("Add a room type first", {
-        description: "Rooms must belong to a room type.",
-      });
+      toast.danger("Create a room type first");
       return;
     }
     setIsCreatingRoom(true);
@@ -332,8 +423,9 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
         }
         return;
       }
-      toast.success(`Room ${payload.roomNumber} added successfully`);
+      toast.success(`Room ${payload.roomNumber} added`);
       setIsAddRoomOpen(false);
+      router.refresh();
     } catch {
       toast.danger("An unexpected error occurred");
     } finally {
@@ -341,8 +433,6 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
     }
   };
 
-  // Edit details: type, number, floor, and notes. Status and active flag are
-  // left untouched — they have their own inline controls.
   const openEditRoom = (room: RoomItem, typeId: string) => {
     setEditingRoom(room);
     setEditRoomTypeId(typeId);
@@ -354,7 +444,7 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
 
   const handleSaveRoomDetails = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!editingRoom) return;
+    if (!editingRoom || isSavingRoom) return;
     if (!editRoomNumber.trim()) {
       setEditRoomError("Room number is required");
       return;
@@ -363,48 +453,48 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
       setEditRoomError("Select a room type");
       return;
     }
+    const target = editingRoom;
+    const nextNumber = editRoomNumber.trim();
+    const nextFloor = editRoomFloor.trim();
+    const nextNotes = editRoomNotes.trim();
+    const nextTypeId = editRoomTypeId;
+
     setIsSavingRoom(true);
+    setEditRoomError("");
     try {
-      const result = await updateRoom(editingRoom.id, {
-        roomTypeId: editRoomTypeId,
-        roomNumber: editRoomNumber.trim(),
-        floor: editRoomFloor.trim(),
-        notes: editRoomNotes.trim(),
+      const result = await updateRoom(target.id, {
+        roomTypeId: nextTypeId,
+        roomNumber: nextNumber,
+        floor: nextFloor,
+        notes: nextNotes,
       });
       if (!result.success) {
+        setEditRoomError(result.error);
         toast.danger("Couldn't update room", { description: result.error });
         return;
       }
-      toast.success(`Room ${editRoomNumber.trim()} updated`);
-      void writeAuditLog(supabase, {
-        hotelId,
-        action: "room.updated",
-        entityType: "room",
-        entityId: editingRoom.id,
-        beforeState: {
-          roomTypeId:
-            roomTypes.find((t) => t.rooms.some((r) => r.id === editingRoom.id))?.id ?? null,
-          roomNumber: editingRoom.roomNumber,
-          floor: editingRoom.floor,
-          notes: editingRoom.notes,
-        },
-        afterState: {
-          roomTypeId: editRoomTypeId,
-          roomNumber: editRoomNumber.trim(),
-          floor: editRoomFloor.trim() || null,
-          notes: editRoomNotes.trim() || null,
-        },
-      });
       setEditingRoom(null);
+      startTransition(() => {
+        dispatchOptimistic({
+          kind: "room_details",
+          roomId: target.id,
+          toTypeId: nextTypeId,
+          roomNumber: nextNumber,
+          floor: nextFloor || null,
+          notes: nextNotes || null,
+        });
+        router.refresh();
+      });
+      toast.success(`Room ${nextNumber} updated`);
+    } catch {
+      toast.danger("Couldn't update room — check your connection and try again");
     } finally {
       setIsSavingRoom(false);
     }
   };
 
-  // Reorder types: opens with the current sort order; moves are tracked in a
-  // local copy until Save persists them (drives dashboard + calendar ordering).
   const openReorder = () => {
-    setReorderIds(roomTypes.map((type) => type.id));
+    setReorderIds(optimisticRoomTypes.map((type) => type.id));
     setIsReorderOpen(true);
   };
 
@@ -422,14 +512,11 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
   };
 
   const handleReorderDragStart = (index: number) => {
-    // Defer setting state to next frame so native drag image snapshot is taken
-    // before opacity/styling changes apply to the dragged element
     requestAnimationFrame(() => {
       setReorderDragIndex(index);
     });
   };
 
-  // Drag-and-drop reorder — same pattern as components/ui/room-images-upload.tsx.
   const handleReorderDrop = (targetIndex: number) => {
     if (reorderDragIndex === null || reorderDragIndex === targetIndex) return;
     setReorderIds((prev) => {
@@ -445,29 +532,26 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
   };
 
   const isReorderDirty =
-    reorderIds.length === roomTypes.length &&
-    reorderIds.some((id, index) => id !== roomTypes[index]?.id);
+    reorderIds.length === optimisticRoomTypes.length &&
+    reorderIds.some((id, index) => id !== optimisticRoomTypes[index]?.id);
 
-  const handleSaveReorder = async () => {
+  const handleSaveReorder = () => {
     if (!isReorderDirty) return;
-    setIsSavingReorder(true);
-    try {
-      const result = await reorderRoomTypes(reorderIds);
+    const ids = [...reorderIds];
+    setIsReorderOpen(false);
+    startTransition(async () => {
+      dispatchOptimistic({ kind: "reorder", ids });
+      const result = await reorderRoomTypes(ids);
       if (!result.success) {
-        toast.danger("Couldn't save the new order", { description: result.error });
+        toast.danger("Couldn't save order", { description: result.error });
+        router.refresh();
         return;
       }
-      toast.success("Room type order updated", {
-        description: "The dashboard and calendar now use this order.",
-      });
-      setIsReorderOpen(false);
-    } finally {
-      setIsSavingReorder(false);
-    }
+      toast.success("Room type order updated");
+      router.refresh();
+    });
   };
 
-  // RoomTypeForm owns its submitting state and ignores the resolved value, so
-  // this handler drives toasts, field errors, modal close, and redirect itself.
   const handleAddType = async (values: RoomTypeFormValues) => {
     const result = await createRoomType({
       name: values.name,
@@ -486,9 +570,7 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
     if (result.success) {
       setAddTypeErrors({});
       setIsAddTypeOpen(false);
-      toast.success("Room type created successfully", {
-        description: "Complete the remaining details to make it bookable.",
-      });
+      toast.success("Room type created");
       router.push(`/dashboard/rooms/types/${result.id}?new=1`);
       return { success: true };
     }
@@ -504,155 +586,197 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
     return { success: false, error: result.error };
   };
 
-  const handleToggleTypeActive = async (type: RoomTypeGroup) => {
-    setPendingTypeId(type.id);
-    try {
-      const result = await toggleRoomTypeActive(type.id, !type.isActive);
+  const handleToggleTypeActive = (type: RoomTypeGroup) => {
+    const nextActive = !type.isActive;
+    startTransition(async () => {
+      dispatchOptimistic({ kind: "type_active", typeId: type.id, isActive: nextActive });
+      const result = await toggleRoomTypeActive(type.id, nextActive);
       if (!result.success) {
         toast.danger("Failed to update status", { description: result.error });
+        router.refresh();
         return;
       }
-      toast.success(`"${type.name}" is now ${type.isActive ? "inactive" : "active"}.`, {
-        description: type.isActive
-          ? "It will be hidden from the public booking site."
-          : "It is now live on the public booking site.",
-      });
-    } catch {
-      toast.danger("An unexpected error occurred");
-    } finally {
-      setPendingTypeId(null);
-    }
+      toast.success(`${type.name} ${nextActive ? "activated" : "deactivated"}`);
+      router.refresh();
+    });
   };
 
-  const handleDeleteType = async () => {
+  const handleDeleteType = () => {
     if (!typeToDelete) return;
-    setIsDeletingType(true);
-    try {
-      const result = await deleteRoomType(typeToDelete.id);
+    const target = typeToDelete;
+    setTypeToDelete(null);
+    startTransition(async () => {
+      dispatchOptimistic({ kind: "type_delete", typeId: target.id });
+      const result = await deleteRoomType(target.id);
       if (!result.success) {
         toast.danger("Failed to delete room type", { description: result.error });
+        router.refresh();
         return;
       }
-      toast.success(`"${typeToDelete.name}" has been permanently removed.`);
-      setTypeToDelete(null);
-    } catch {
-      toast.danger("An unexpected error occurred");
-    } finally {
-      setIsDeletingType(false);
-    }
+      toast.success(`${target.name} removed`);
+      router.refresh();
+    });
   };
 
-  // --- Render ---------------------------------------------------------------
+  const modalInputCn =
+    "h-11 rounded-xl border-border/70 bg-background text-base sm:h-10 sm:text-sm";
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div>
-        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.3px] text-foreground max-md:text-xl">Rooms</h1>
-        <p className="mt-1 max-md:text-xs text-sm text-muted-foreground">
-          {roomTypes.length} {roomTypes.length === 1 ? "room type" : "room types"} · {totalRooms} {totalRooms === 1 ? "room" : "rooms"} · {totalAvailable} available
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-7xl space-y-4 pt-1 md:space-y-5">
+      <PageHeader
+        title="Rooms"
+        subtitle={`${optimisticRoomTypes.length} ${optimisticRoomTypes.length === 1 ? "type" : "types"} · ${totalRooms} ${totalRooms === 1 ? "room" : "rooms"} · ${totalAvailable} available`}
+        actions={
+          <>
+            {canManageRooms && optimisticRoomTypes.length > 0 && (
+              <Button
+                variant="primary"
+                size="sm"
+                onPress={() => openAddRoom()}
+                className="ui-press h-11 gap-1.5 rounded-xl px-3.5 text-xs font-semibold shadow-2xs sm:h-9"
+              >
+                <Plus className="size-3.5" aria-hidden="true" />
+                Add room
+              </Button>
+            )}
+            <Dropdown>
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label="Room type actions"
+                className="ui-press h-11 min-w-11 gap-1.5 rounded-xl px-3 text-xs font-semibold sm:h-9 sm:min-w-0"
+              >
+                <span className="hidden sm:inline">Room types</span>
+                <EllipsisVertical className="size-4 sm:hidden" />
+                <ChevronDown className="hidden size-3.5 text-muted-foreground sm:inline" />
+              </Button>
+              <Dropdown.Popover placement="bottom end">
+                <Dropdown.Menu
+                  onAction={(key) => {
+                    if (key === "add-type" && canManageRooms) setIsAddTypeOpen(true);
+                    if (key === "reorder" && canManageRooms) openReorder();
+                    if (key === "pricing") router.push("/dashboard/rooms/pricing?tab=seasons");
+                  }}
+                >
+                  {canManageRooms && (
+                    <Dropdown.Item id="add-type" textValue="New room type">
+                      <Plus className="size-4 text-muted-foreground" />
+                      <span>New room type</span>
+                    </Dropdown.Item>
+                  )}
+                  {canManageRooms && optimisticRoomTypes.length > 1 && (
+                    <Dropdown.Item id="reorder" textValue="Reorder room types">
+                      <ArrowUpDown className="size-4 text-muted-foreground" />
+                      <span>Reorder room types</span>
+                    </Dropdown.Item>
+                  )}
+                  <Dropdown.Item id="pricing" textValue="Seasonal rates">
+                    <Tag className="size-4 text-muted-foreground" />
+                    <span>Seasonal rates</span>
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+          </>
+        }
+      />
 
-      {/* Toolbar: search + one overflow menu */}
-      <div className="flex items-center gap-3">
-        <SearchField
-          value={query}
-          onChange={setQuery}
-          aria-label="Search rooms"
-          className="w-full sm:w-[420px]"
-        >
-          <SearchField.Group className="h-10 rounded-xl border-border/70 bg-card">
-            <SearchField.SearchIcon className="size-3.5 text-muted-foreground/70" />
-            <SearchField.Input placeholder="Search room or type" className="text-[13px]" />
-            <SearchField.ClearButton />
-          </SearchField.Group>
-        </SearchField>
-        <div className="flex-1" aria-hidden="true" />
-        <Dropdown>
-          <Button variant="outline" isIconOnly aria-label="Room settings" className="size-10 rounded-xl">
-            <EllipsisVertical className="size-4" />
-          </Button>
-          <Dropdown.Popover placement="bottom end">
-            <Dropdown.Menu onAction={(key) => {
-              if (key === "add-type") setIsAddTypeOpen(true);
-              if (key === "reorder") openReorder();
-            }}>
-              <Dropdown.Item id="add-type" textValue="Add room type">
-                <Plus className="size-4 text-muted-foreground" />
-                <span>Add room type</span>
-              </Dropdown.Item>
-              <Dropdown.Item id="reorder" textValue="Reorder room types">
-                <ArrowUpDown className="size-4 text-muted-foreground" />
-                <span>Reorder room types</span>
-              </Dropdown.Item>
-            </Dropdown.Menu>
-          </Dropdown.Popover>
-        </Dropdown>
-      </div>
+      {/* Search toolbar */}
+      {optimisticRoomTypes.length > 0 && (
+        <div className="flex items-center gap-3">
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            aria-label="Search rooms"
+            className="w-full sm:max-w-sm"
+          >
+            <SearchField.Group className="h-11 rounded-xl border-border/70 bg-card sm:h-9">
+              <SearchField.SearchIcon className="size-3.5 text-muted-foreground/70" />
+              <SearchField.Input
+                placeholder="Search room number or type…"
+                className="text-base sm:text-[13px]"
+              />
+              <SearchField.ClearButton />
+            </SearchField.Group>
+          </SearchField>
+        </div>
+      )}
 
-      {/* Body */}
-      {roomTypes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/70 py-16 text-center">
-          <BedDouble className="size-8 text-muted-foreground/40" aria-hidden="true" />
-          <div className="space-y-1">
-            <p className="text-body font-medium text-foreground">No room types yet</p>
-            <p className="text-caption text-muted-foreground">
-              Room types group your rooms and drive pricing on the booking site.
-            </p>
-          </div>
-          <Button size="sm" onPress={() => setIsAddTypeOpen(true)} className="mt-1 rounded-xl">
-            <Plus className="size-4" />
-            Add Room Type
-          </Button>
+      {/* Body — single responsive DOM tree */}
+      {optimisticRoomTypes.length === 0 ? (
+        <div className="rounded-[20px] border border-border/60 bg-card">
+          <EmptyStatePanel
+            icon={BedDouble}
+            title="No room types yet"
+            description={
+              canManageRooms
+                ? "Create a room type first, then add individual room numbers."
+                : "A manager or super admin can configure room types for this property."
+            }
+            action={
+              canManageRooms ? (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onPress={() => setIsAddTypeOpen(true)}
+                  className="ui-press rounded-xl text-xs font-semibold"
+                >
+                  <Plus className="size-3.5" aria-hidden="true" />
+                  New room type
+                </Button>
+              ) : undefined
+            }
+          />
         </div>
       ) : visibleTypes.length === 0 ? (
-        <p className="py-12 text-center text-body text-muted-foreground">
-          No rooms or types match &ldquo;{query.trim()}&rdquo;.
-        </p>
+        <div className="rounded-[20px] border border-border/60 bg-card">
+          <EmptyStatePanel
+            icon={BedDouble}
+            title={`No matches for “${query.trim()}”`}
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                onPress={() => setQuery("")}
+                className="ui-press rounded-xl text-xs font-semibold"
+              >
+                Clear search
+              </Button>
+            }
+          />
+        </div>
       ) : (
-        /* One white panel per the design; type sections stack inside it on
-           desktop and split into one card per type on mobile. */
-        <>
-          <div className="overflow-hidden rounded-2xl border border-border/70 bg-card max-lg:hidden">
-            {visibleTypes.map(({ type, rooms }) => (
-              <TypeSection key={type.id} type={type} rooms={rooms}
-                isFiltering={isFiltering} pendingTypeId={pendingTypeId}
-                currency={currency} registerRef={rowRefs}
+        <div className="flex flex-col gap-4 lg:gap-0 lg:overflow-hidden lg:rounded-[20px] lg:border lg:border-border/60 lg:bg-card lg:shadow-[0_1px_3px_rgb(0_0_0/0.04)]">
+          {visibleTypes.map(({ type, rooms }) => (
+            <div
+              key={type.id}
+              className="max-lg:overflow-hidden max-lg:rounded-[20px] max-lg:border max-lg:border-border/60 max-lg:bg-card max-lg:shadow-[0_1px_3px_rgb(0_0_0/0.04)] lg:border-b lg:border-border/60 lg:last:border-b-0"
+            >
+              <TypeSection
+                type={type}
+                rooms={rooms}
+                isFiltering={isFiltering}
+                currency={currency}
+                canEditStatus={canEditStatus}
+                canBlockRooms={canBlockRooms}
+                canManageRooms={canManageRooms}
+                canDeleteRoomTypes={canDeleteRoomTypes}
+                registerRef={rowRefs}
                 onTypeEdit={() => router.push("/dashboard/rooms/types/" + type.id)}
-                onTypeToggleActive={() => void handleToggleTypeActive(type)}
+                onTypeToggleActive={() => handleToggleTypeActive(type)}
                 onTypeDelete={() => setTypeToDelete(type)}
                 onAddRoom={() => openAddRoom(type.id)}
                 onStatusChange={handleStatusChange}
                 onBlockDates={(id) => setBlockRoomId(id)}
                 onEditNotes={openNotesEditor}
                 onEditDetails={openEditRoom}
-                pendingRoomId={pendingRoomId}
-                isHighlighted={(room) => isFiltering && room.roomNumber.toLowerCase().includes(normalizedQuery)}
+                isHighlighted={(room) =>
+                  isFiltering && room.roomNumber.toLowerCase().includes(normalizedQuery)
+                }
               />
-            ))}
-          </div>
-          <div className="flex flex-col gap-4 lg:hidden">
-            {visibleTypes.map(({ type, rooms }) => (
-              <div key={type.id} className="overflow-hidden rounded-2xl border border-border/70 bg-card">
-                <TypeSection type={type} rooms={rooms}
-                  isFiltering={isFiltering} pendingTypeId={pendingTypeId}
-                  currency={currency} registerRef={rowRefs}
-                  onTypeEdit={() => router.push("/dashboard/rooms/types/" + type.id)}
-                  onTypeToggleActive={() => void handleToggleTypeActive(type)}
-                  onTypeDelete={() => setTypeToDelete(type)}
-                  onAddRoom={() => openAddRoom(type.id)}
-                  onStatusChange={handleStatusChange}
-                  onBlockDates={(id) => setBlockRoomId(id)}
-                  onEditNotes={openNotesEditor}
-                  onEditDetails={openEditRoom}
-                  pendingRoomId={pendingRoomId}
-                  isHighlighted={(room) => isFiltering && room.roomNumber.toLowerCase().includes(normalizedQuery)}
-                />
-              </div>
-            ))}
-          </div>
-        </>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Add Room Type Modal */}
@@ -667,11 +791,7 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
           <Modal.Dialog className="sm:max-w-xl">
             <Modal.CloseTrigger />
             <Modal.Header>
-              <Modal.Heading>Add Room Type</Modal.Heading>
-              <p className="mt-1 text-caption text-muted-foreground">
-                Create a new room category. You&apos;ll be redirected to complete its
-                details and upload photos.
-              </p>
+              <Modal.Heading>New room type</Modal.Heading>
             </Modal.Header>
             <Modal.Body>
               <RoomTypeForm
@@ -679,10 +799,10 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
                 currency={currency}
                 onSubmit={handleAddType}
                 onCancel={() => setIsAddTypeOpen(false)}
-                submitLabel="Create Room Type"
-                submittingLabel="Creating..."
-                title="New Room Type"
-                subtitle="Add a new room category. You'll add photos on the next step."
+                submitLabel="Create room type"
+                submittingLabel="Creating…"
+                title="New room type"
+                subtitle="Photos can be added on the next screen."
                 errors={addTypeErrors}
               />
             </Modal.Body>
@@ -693,79 +813,82 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
       {/* Add Room Modal */}
       <Modal.Backdrop isOpen={isAddRoomOpen} onOpenChange={setIsAddRoomOpen}>
         <Modal.Container>
-          <Modal.Dialog>
+          <Modal.Dialog className="sm:max-w-md">
             <Modal.CloseTrigger />
             <Modal.Header>
-              <Modal.Heading>Add New Room</Modal.Heading>
+              <Modal.Heading>Add room</Modal.Heading>
             </Modal.Header>
             <Modal.Body>
               <form onSubmit={handleCreateRoom} className="flex flex-col gap-4">
                 <HeroSelectField
-                  label="Room Type"
+                  label="Room type"
                   value={newRoomTypeId}
                   onValueChange={setNewRoomTypeId}
-                  options={roomTypes.map((type) => ({ value: type.id, label: type.name }))}
-                  placeholder="Select a room type"
+                  options={optimisticRoomTypes.map((type) => ({
+                    value: type.id,
+                    label: type.name,
+                  }))}
+                  placeholder="Select room type"
                   ariaLabel="Room type"
                 />
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="new-room-number" className="text-sm font-medium">
-                    Room Number
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="new-room-number" className="text-xs font-medium text-muted-foreground">
+                    Room number
                   </label>
                   <Input
-                  id="new-room-number"
-                  value={newRoomNumber}
-                  onChange={(e) => {
-                    setNewRoomNumber(e.target.value);
-                    if (roomNumberError) setRoomNumberError("");
-                  }}
-                  placeholder="e.g., 101"
-                  aria-invalid={!!roomNumberError}
-                  aria-describedby={roomNumberError ? "new-room-number-error" : undefined}
-                  className="rounded-xl border-border/60 bg-background"
+                    id="new-room-number"
+                    value={newRoomNumber}
+                    onChange={(e) => {
+                      setNewRoomNumber(e.target.value);
+                      if (roomNumberError) setRoomNumberError("");
+                    }}
+                    placeholder="e.g. 101"
+                    aria-invalid={!!roomNumberError}
+                    aria-describedby={roomNumberError ? "new-room-number-error" : undefined}
+                    className={modalInputCn}
                   />
                   {roomNumberError && (
-                    <p id="new-room-number-error" className="text-caption text-destructive">
+                    <p id="new-room-number-error" className="text-xs text-destructive">
                       {roomNumberError}
                     </p>
                   )}
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="new-room-floor" className="text-sm font-medium">
-                    Floor (Optional)
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="new-room-floor" className="text-xs font-medium text-muted-foreground">
+                    Floor <span className="font-normal text-muted-foreground/70">(optional)</span>
                   </label>
                   <Input
-                  id="new-room-floor"
-                  value={newRoomFloor}
-                  onChange={(e) => setNewRoomFloor(e.target.value)}
-                  placeholder="e.g., 1"
-                  className="rounded-xl border-border/60 bg-background"
+                    id="new-room-floor"
+                    value={newRoomFloor}
+                    onChange={(e) => setNewRoomFloor(e.target.value)}
+                    placeholder="e.g. 1"
+                    className={modalInputCn}
                   />
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="new-room-notes" className="text-sm font-medium">
-                    Notes (Optional)
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="new-room-notes" className="text-xs font-medium text-muted-foreground">
+                    Notes <span className="font-normal text-muted-foreground/70">(optional)</span>
                   </label>
                   <TextArea
-                  id="new-room-notes"
-                  value={newRoomNotes}
-                  onChange={(e) => setNewRoomNotes(e.target.value)}
-                  placeholder="Any additional notes about this room..."
-                  rows={2}
-                  className="rounded-xl border-border/60 bg-background"
+                    id="new-room-notes"
+                    value={newRoomNotes}
+                    onChange={(e) => setNewRoomNotes(e.target.value)}
+                    placeholder="Housekeeping or room note…"
+                    rows={2}
+                    className="rounded-xl border-border/70 bg-background text-base sm:text-sm"
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
-                  <Button type="button" variant="outline" slot="close" className="rounded-xl">
+                  <Button type="button" variant="outline" slot="close" className="ui-press rounded-xl">
                     Cancel
                   </Button>
                   <Button
-                  type="submit"
-                  isPending={isCreatingRoom}
-                  isDisabled={isCreatingRoom || !newRoomNumber.trim() || !newRoomTypeId}
-                  className="rounded-xl"
+                    type="submit"
+                    isPending={isCreatingRoom}
+                    isDisabled={isCreatingRoom || !newRoomNumber.trim() || !newRoomTypeId}
+                    className="ui-press rounded-xl"
                   >
-                  {isCreatingRoom ? "Adding..." : "Add Room"}
+                    {isCreatingRoom ? "Adding…" : "Add room"}
                   </Button>
                 </div>
               </form>
@@ -774,7 +897,7 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
         </Modal.Container>
       </Modal.Backdrop>
 
-      {/* Edit Room Details Modal — status and active flag are untouched here */}
+      {/* Edit Room Details Modal */}
       <Modal.Backdrop
         isOpen={editingRoom !== null}
         onOpenChange={(open) => {
@@ -782,76 +905,83 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
         }}
       >
         <Modal.Container>
-          <Modal.Dialog>
+          <Modal.Dialog className="sm:max-w-md">
             <Modal.CloseTrigger />
             <Modal.Header>
-              <Modal.Heading>Edit Room {editingRoom?.roomNumber}</Modal.Heading>
+              <Modal.Heading>Edit room {editingRoom?.roomNumber}</Modal.Heading>
             </Modal.Header>
             <Modal.Body>
               <form onSubmit={handleSaveRoomDetails} className="flex flex-col gap-4">
                 <HeroSelectField
-                  label="Room Type"
+                  label="Room type"
                   value={editRoomTypeId}
                   onValueChange={setEditRoomTypeId}
-                  options={roomTypes.map((type) => ({ value: type.id, label: type.name }))}
-                  placeholder="Select a room type"
+                  options={optimisticRoomTypes.map((type) => ({
+                    value: type.id,
+                    label: type.name,
+                  }))}
+                  placeholder="Select room type"
                   ariaLabel="Room type"
                 />
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="edit-room-number" className="text-sm font-medium">
-                    Room Number
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="edit-room-number" className="text-xs font-medium text-muted-foreground">
+                    Room number
                   </label>
                   <Input
-                  id="edit-room-number"
-                  value={editRoomNumber}
-                  onChange={(e) => {
-                    setEditRoomNumber(e.target.value);
-                    if (editRoomError) setEditRoomError("");
-                  }}
-                  placeholder="e.g., 101"
-                  aria-invalid={!!editRoomError}
-                  className="rounded-xl border-border/60 bg-background"
+                    id="edit-room-number"
+                    value={editRoomNumber}
+                    onChange={(e) => {
+                      setEditRoomNumber(e.target.value);
+                      if (editRoomError) setEditRoomError("");
+                    }}
+                    placeholder="e.g. 101"
+                    aria-invalid={!!editRoomError}
+                    className={modalInputCn}
                   />
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="edit-room-floor" className="text-sm font-medium">
-                    Floor (Optional)
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="edit-room-floor" className="text-xs font-medium text-muted-foreground">
+                    Floor <span className="font-normal text-muted-foreground/70">(optional)</span>
                   </label>
                   <Input
-                  id="edit-room-floor"
-                  value={editRoomFloor}
-                  onChange={(e) => setEditRoomFloor(e.target.value)}
-                  placeholder="e.g., 1"
-                  className="rounded-xl border-border/60 bg-background"
+                    id="edit-room-floor"
+                    value={editRoomFloor}
+                    onChange={(e) => setEditRoomFloor(e.target.value)}
+                    placeholder="e.g. 1"
+                    className={modalInputCn}
                   />
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="edit-room-notes" className="text-sm font-medium">
-                    Notes (Optional)
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="edit-room-notes" className="text-xs font-medium text-muted-foreground">
+                    Notes <span className="font-normal text-muted-foreground/70">(optional)</span>
                   </label>
                   <TextArea
-                  id="edit-room-notes"
-                  value={editRoomNotes}
-                  onChange={(e) => setEditRoomNotes(e.target.value)}
-                  placeholder="Any additional notes about this room..."
-                  rows={2}
-                  className="rounded-xl border-border/60 bg-background"
+                    id="edit-room-notes"
+                    value={editRoomNotes}
+                    onChange={(e) => setEditRoomNotes(e.target.value)}
+                    placeholder="Housekeeping or room note…"
+                    rows={2}
+                    className="rounded-xl border-border/70 bg-background text-base sm:text-sm"
                   />
                 </div>
-                {editRoomError && (
-                  <p className="text-caption text-destructive">{editRoomError}</p>
-                )}
+                {editRoomError && <p className="text-xs text-destructive">{editRoomError}</p>}
                 <div className="flex justify-end gap-2 pt-2">
-                  <Button type="button" variant="outline" slot="close" className="rounded-xl">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    slot="close"
+                    isDisabled={isSavingRoom}
+                    className="ui-press rounded-xl"
+                  >
                     Cancel
                   </Button>
                   <Button
-                  type="submit"
-                  isPending={isSavingRoom}
-                  isDisabled={isSavingRoom || !editRoomNumber.trim() || !editRoomTypeId}
-                  className="rounded-xl"
+                    type="submit"
+                    isPending={isSavingRoom}
+                    isDisabled={isSavingRoom || !editRoomNumber.trim() || !editRoomTypeId}
+                    className="ui-press rounded-xl"
                   >
-                  {isSavingRoom ? "Saving..." : "Save Changes"}
+                    {isSavingRoom ? "Saving…" : "Save changes"}
                   </Button>
                 </div>
               </form>
@@ -864,11 +994,11 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
       <Modal.Backdrop
         isOpen={notesRoom !== null}
         onOpenChange={(open) => {
-          if (!open) setNotesRoom(null);
+          if (!open && !isSavingNotes) setNotesRoom(null);
         }}
       >
         <Modal.Container>
-          <Modal.Dialog>
+          <Modal.Dialog className="sm:max-w-md">
             <Modal.CloseTrigger />
             <Modal.Header>
               <Modal.Heading>Room {notesRoom?.roomNumber} notes</Modal.Heading>
@@ -878,23 +1008,29 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
                 autoFocus
                 value={notesDraft}
                 onChange={(e) => setNotesDraft(e.target.value)}
-                placeholder="Housekeeping or maintenance notes for this room..."
+                placeholder="Housekeeping or maintenance note…"
                 rows={4}
                 aria-label="Room notes"
-                className="rounded-xl border-border/60 bg-background"
+                className="rounded-xl border-border/70 bg-background text-base sm:text-sm"
               />
             </Modal.Body>
             <Modal.Footer>
-              <Button type="button" variant="outline" slot="close" className="rounded-xl">
+              <Button
+                type="button"
+                variant="outline"
+                slot="close"
+                isDisabled={isSavingNotes}
+                className="ui-press rounded-xl"
+              >
                 Cancel
               </Button>
               <Button
                 onPress={() => void handleSaveNotes()}
                 isPending={isSavingNotes}
                 isDisabled={isSavingNotes}
-                className="rounded-xl"
+                className="ui-press rounded-xl"
               >
-                {isSavingNotes ? "Saving..." : "Save notes"}
+                {isSavingNotes ? "Saving…" : "Save notes"}
               </Button>
             </Modal.Footer>
           </Modal.Dialog>
@@ -903,34 +1039,27 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
 
       {/* Delete Room Type Confirmation */}
       <AlertDialog.Backdrop
+        variant="blur"
         isOpen={typeToDelete !== null}
         onOpenChange={(open) => {
           if (!open) setTypeToDelete(null);
         }}
       >
-        <AlertDialog.Container>
-          <AlertDialog.Dialog>
-            <AlertDialog.CloseTrigger />
+        <AlertDialog.Container placement="center" size="sm">
+          <AlertDialog.Dialog className="rounded-[24px] border border-border/70 bg-card p-6 shadow-2xl sm:max-w-[380px]">
             <AlertDialog.Header>
-              <AlertDialog.Icon status="danger" />
-              <AlertDialog.Heading>Delete Room Type</AlertDialog.Heading>
+              <AlertDialog.Heading className="text-base font-semibold text-foreground">
+                Delete {typeToDelete?.name}?
+              </AlertDialog.Heading>
             </AlertDialog.Header>
-            <AlertDialog.Body>
-              <p>
-                Are you sure you want to delete &quot;{typeToDelete?.name}&quot;? This action
-                cannot be undone.
-              </p>
+            <AlertDialog.Body className="py-2 text-[13px] text-muted-foreground">
+              <p>This permanently deletes the room type and its pricing rules.</p>
             </AlertDialog.Body>
-            <AlertDialog.Footer>
-              <Button slot="close" variant="outline">
+            <AlertDialog.Footer className="flex justify-end gap-2 pt-3">
+              <Button slot="close" variant="outline" className="ui-press rounded-xl">
                 Cancel
               </Button>
-              <Button
-                variant="danger"
-                onPress={() => void handleDeleteType()}
-                isPending={isDeletingType}
-                isDisabled={isDeletingType}
-              >
+              <Button variant="danger" onPress={handleDeleteType} className="ui-press rounded-xl">
                 Delete
               </Button>
             </AlertDialog.Footer>
@@ -938,7 +1067,7 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
         </AlertDialog.Container>
       </AlertDialog.Backdrop>
 
-      {/* Reorder Room Types Modal — the saved order drives dashboard + calendar order */}
+      {/* Reorder Room Types Modal */}
       <Modal.Backdrop
         isOpen={isReorderOpen}
         onOpenChange={(open) => {
@@ -946,24 +1075,20 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
         }}
       >
         <Modal.Container>
-          <Modal.Dialog>
+          <Modal.Dialog className="sm:max-w-md">
             <Modal.CloseTrigger />
             <Modal.Header>
-              <Modal.Heading>Reorder Room Types</Modal.Heading>
-              <p className="mt-1 text-caption text-muted-foreground">
-                Drag rows or use the arrows — this order is used on the rooms page and the
-                calendar.
-              </p>
+              <Modal.Heading>Reorder room types</Modal.Heading>
             </Modal.Header>
             <Modal.Body>
               <ol className="flex flex-col gap-2">
                 {reorderIds.map((id, index) => {
-                  const type = roomTypes.find((entry) => entry.id === id);
+                  const type = optimisticRoomTypes.find((entry) => entry.id === id);
                   if (!type) return null;
                   return (
                     <li
                       key={id}
-                      draggable={!isSavingReorder}
+                      draggable
                       onDragStart={() => handleReorderDragStart(index)}
                       onDragOver={(event) => {
                         event.preventDefault();
@@ -975,20 +1100,19 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
                         setReorderOverIndex(null);
                       }}
                       className={cn(
-                        "flex items-center gap-2 rounded-xl border border-border/60 bg-background px-3 py-2 transition-all",
-                        !isSavingReorder && "cursor-grab active:cursor-grabbing",
+                        "flex cursor-grab items-center gap-2 rounded-xl border border-border/60 bg-background px-3 py-2 transition-[border-color,opacity,background-color] duration-150 active:cursor-grabbing",
                         reorderDragIndex === index && "opacity-40",
                         reorderOverIndex === index &&
-                        reorderDragIndex !== null &&
-                        reorderDragIndex !== index &&
-                        "border-primary ring-2 ring-primary/20 scale-[1.01] bg-muted/40",
+                          reorderDragIndex !== null &&
+                          reorderDragIndex !== index &&
+                          "border-primary bg-muted/40 ring-2 ring-primary/20"
                       )}
                     >
                       <GripVertical className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                      <span className="w-6 shrink-0 text-center text-caption tabular-nums text-muted-foreground">
+                      <span className="w-6 shrink-0 text-center font-mono text-xs tabular-nums text-muted-foreground">
                         {index + 1}
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-body font-medium text-foreground">
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                         {type.name}
                       </span>
                       <Button
@@ -996,9 +1120,9 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
                         isIconOnly
                         size="sm"
                         aria-label={`Move ${type.name} up`}
-                        isDisabled={index === 0 || isSavingReorder}
+                        isDisabled={index === 0}
                         onPress={() => moveReorderItem(index, -1)}
-                        className="min-h-9 min-w-9 rounded-lg text-muted-foreground"
+                        className="ui-press size-9 min-w-9 rounded-lg text-muted-foreground"
                       >
                         <ChevronUp className="size-4" />
                       </Button>
@@ -1007,9 +1131,9 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
                         isIconOnly
                         size="sm"
                         aria-label={`Move ${type.name} down`}
-                        isDisabled={index === reorderIds.length - 1 || isSavingReorder}
+                        isDisabled={index === reorderIds.length - 1}
                         onPress={() => moveReorderItem(index, 1)}
-                        className="min-h-9 min-w-9 rounded-lg text-muted-foreground"
+                        className="ui-press size-9 min-w-9 rounded-lg text-muted-foreground"
                       >
                         <ChevronDown className="size-4" />
                       </Button>
@@ -1019,16 +1143,15 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
               </ol>
             </Modal.Body>
             <Modal.Footer>
-              <Button type="button" variant="outline" slot="close" className="rounded-xl">
+              <Button type="button" variant="outline" slot="close" className="ui-press rounded-xl">
                 Cancel
               </Button>
               <Button
-                onPress={() => void handleSaveReorder()}
-                isPending={isSavingReorder}
-                isDisabled={isSavingReorder || !isReorderDirty}
-                className="rounded-xl"
+                onPress={handleSaveReorder}
+                isDisabled={!isReorderDirty}
+                className="ui-press rounded-xl"
               >
-                {isSavingReorder ? "Saving..." : "Save Order"}
+                Save order
               </Button>
             </Modal.Footer>
           </Modal.Dialog>
@@ -1043,18 +1166,19 @@ export function RoomsClient({ roomTypes, currency, hotelId, initialSearch }: Roo
         }}
         rooms={blockSheetRooms}
         prefillRoomId={blockRoomId ?? undefined}
+        minDate={propertyToday ? parseISO(propertyToday) : undefined}
         onSuccess={() => router.refresh()}
       />
     </div>
   );
 }
 
-// --- Subcomponents ----------------------------------------------------------
-
 interface RoomRowProps {
   room: RoomItem;
   isHighlighted: boolean;
-  isPending: boolean;
+  canEditStatus: boolean;
+  canBlockRooms: boolean;
+  canManageRooms: boolean;
   registerRef: (element: HTMLLIElement | null) => void;
   onStatusChange: (status: RoomStatus) => void;
   onBlockDates: () => void;
@@ -1062,102 +1186,142 @@ interface RoomRowProps {
   onEditDetails: () => void;
 }
 
-/** One aligned row: mono number, floor, guest/notes middle, status column, kebab. */
 function RoomRow({
-  room, isHighlighted, isPending, registerRef, onStatusChange, onBlockDates, onEditNotes, onEditDetails,
+  room,
+  isHighlighted,
+  canEditStatus,
+  canBlockRooms,
+  canManageRooms,
+  registerRef,
+  onStatusChange,
+  onBlockDates,
+  onEditNotes,
+  onEditDetails,
 }: RoomRowProps) {
   const status = (room.status ?? "available") as RoomStatus;
   const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.available;
   const transitions = STATUS_TRANSITIONS[status] ?? [];
+  const hasRowActions = canManageRooms || canBlockRooms;
   const checkout = room.stay?.checkOut
-    ? new Date(`${room.stay.checkOut}T00:00:00Z`).toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })
+    ? new Date(`${room.stay.checkOut}T00:00:00Z`).toLocaleDateString("en", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      })
     : null;
 
   return (
     <li
       ref={registerRef}
       className={cn(
-        "flex items-center gap-3.5 border-b border-border/50 px-5 py-3 last:border-b-0 transition-colors duration-150 max-lg:border-b-0 max-lg:px-3.5 max-lg:py-2.5",
-        isHighlighted && "bg-[#0485F70A]",
+        "flex items-center gap-3 border-b border-border/50 px-4 py-2.5 last:border-b-0 transition-colors duration-150 sm:px-5 sm:py-3",
+        "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/20",
+        isHighlighted && "bg-[#0485F70A]"
       )}
     >
-      <span className="w-12 shrink-0 font-mono text-[13px] font-semibold tabular-nums text-foreground max-lg:w-9 max-lg:text-xs">
+      <span className="w-12 shrink-0 font-mono text-[13px] font-semibold tabular-nums text-foreground">
         {room.roomNumber}
       </span>
+
       {room.floor && (
-        <span className="w-16 shrink-0 text-xs text-muted-foreground max-lg:hidden">Floor {room.floor}</span>
-      )}
-      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground max-lg:hidden">
-        {room.isActive === false && <span className="text-muted-foreground/70">Inactive · </span>}
-        {room.stay ? (
-          <span>
-            <span className="font-medium text-foreground">{room.stay.guestName}</span>
-            {checkout ? <span className="text-muted-foreground"> · until {checkout}</span> : null}
-          </span>
-        ) : room.notes ? room.notes : null}
-      </span>
-      {/* Mobile stack: number + floor on one line, guest line under it */}
-      <span className="min-w-0 flex-1 flex-col gap-0.5 lg:hidden">
-        <span className="flex items-center gap-1.5">
-          {room.floor && <span className="text-[10px] text-muted-foreground">Floor {room.floor}</span>}
-          {room.isActive === false && <span className="text-[10px] text-muted-foreground/70">Inactive</span>}
+        <span className="hidden w-16 shrink-0 text-xs text-muted-foreground sm:inline">
+          Floor {room.floor}
         </span>
-        {room.stay ? (
-          <span className="truncate text-[10px]">
-            <span className="font-medium text-foreground">{room.stay.guestName}</span>
-            {checkout ? <span className="text-muted-foreground"> · until {checkout}</span> : null}
-          </span>
-        ) : room.notes ? (
-          <span className="truncate text-[10px] text-muted-foreground">{room.notes}</span>
-        ) : null}
-      </span>
-      <span className="w-[130px] shrink-0 max-lg:w-[106px]">
+      )}
+
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-xs text-muted-foreground">
+          {room.floor && <span className="sm:hidden">Floor {room.floor} · </span>}
+          {room.isActive === false && <span className="text-muted-foreground/70">Inactive · </span>}
+          {room.stay ? (
+            <span>
+              <span className="font-medium text-foreground">{room.stay.guestName}</span>
+              {checkout ? <span> · out {checkout}</span> : null}
+            </span>
+          ) : (
+            room.notes || null
+          )}
+        </div>
+      </div>
+
+      {canEditStatus ? (
         <Dropdown>
-          <Button variant="ghost" size="sm" isDisabled={isPending}
+          <Button
+            variant="ghost"
+            size="sm"
             aria-label={`Change status of room ${room.roomNumber}`}
-            className="h-9 gap-1.5 rounded-lg px-1.5 max-lg:h-8 max-lg:px-1">
-            <span className={cn("size-[7px] shrink-0 rounded-full max-lg:size-1.5", config.dot)} aria-hidden="true" />
-            <span className="text-xs font-medium text-foreground max-lg:text-[11px]">{config.label}</span>
-            <ChevronDown className="size-2.5 text-muted-foreground/70" aria-hidden="true" />
+            className="ui-press h-11 shrink-0 gap-1.5 rounded-lg px-2.5 sm:h-9"
+          >
+            <span className={cn("size-2 shrink-0 rounded-full", config.dot)} aria-hidden="true" />
+            <span className="text-xs font-medium text-foreground">{config.label}</span>
+            <ChevronDown className="size-3 text-muted-foreground/70" aria-hidden="true" />
           </Button>
           <Dropdown.Popover placement="bottom end">
             <Dropdown.Menu onAction={(key) => onStatusChange(key as RoomStatus)}>
               {transitions.map((nextStatus) => (
-                <Dropdown.Item key={nextStatus} id={nextStatus} textValue={STATUS_CONFIG[nextStatus].label}>
-                  <span className={cn("size-2 rounded-full", STATUS_CONFIG[nextStatus].dot)} aria-hidden="true" />
+                <Dropdown.Item
+                  key={nextStatus}
+                  id={nextStatus}
+                  textValue={STATUS_CONFIG[nextStatus].label}
+                >
+                  <span
+                    className={cn("size-2 rounded-full", STATUS_CONFIG[nextStatus].dot)}
+                    aria-hidden="true"
+                  />
                   <span>{STATUS_CONFIG[nextStatus].label}</span>
                 </Dropdown.Item>
               ))}
             </Dropdown.Menu>
           </Dropdown.Popover>
         </Dropdown>
-      </span>
-      <Dropdown>
-        <Button variant="ghost" isIconOnly aria-label={`Actions for room ${room.roomNumber}`}
-          className="size-8 rounded-lg text-muted-foreground max-lg:size-7">
-          <EllipsisVertical className="size-3.5" />
-        </Button>
-        <Dropdown.Popover placement="bottom end">
-          <Dropdown.Menu onAction={(key) => {
-            if (key === "edit") onEditDetails();
-            if (key === "block") onBlockDates();
-            if (key === "notes") onEditNotes();
-          }}>
-            <Dropdown.Item id="edit" textValue="Edit details">
-              <Pencil className="size-4 text-muted-foreground" />
-              <span>Edit details</span>
-            </Dropdown.Item>
-            <Dropdown.Item id="block" textValue="Block dates">
-              <CalendarOff className="size-4 text-muted-foreground" />
-              <span>Block dates</span>
-            </Dropdown.Item>
-            <Dropdown.Item id="notes" textValue="Edit notes">
-              <NotebookPen className="size-4 text-muted-foreground" />
-              <span>Edit notes</span>
-            </Dropdown.Item>
-          </Dropdown.Menu>
-        </Dropdown.Popover>
-      </Dropdown>
+      ) : (
+        <span className="inline-flex h-9 shrink-0 items-center gap-1.5 px-2.5 text-xs font-medium text-foreground">
+          <span className={cn("size-2 shrink-0 rounded-full", config.dot)} aria-hidden="true" />
+          {config.label}
+        </span>
+      )}
+
+      {hasRowActions && (
+        <Dropdown>
+          <Button
+            variant="ghost"
+            isIconOnly
+            aria-label={`Actions for room ${room.roomNumber}`}
+            className="ui-press size-11 min-w-11 shrink-0 rounded-lg text-muted-foreground sm:size-9 sm:min-w-9"
+          >
+            <EllipsisVertical className="size-4" />
+          </Button>
+          <Dropdown.Popover placement="bottom end">
+            <Dropdown.Menu
+              onAction={(key) => {
+                if (key === "edit" && canManageRooms) onEditDetails();
+                if (key === "block" && canBlockRooms) onBlockDates();
+                if (key === "notes" && canManageRooms) onEditNotes();
+              }}
+            >
+              {canManageRooms && (
+                <Dropdown.Item id="edit" textValue="Edit details">
+                  <Pencil className="size-4 text-muted-foreground" />
+                  <span>Edit details</span>
+                </Dropdown.Item>
+              )}
+              {canBlockRooms && (
+                <Dropdown.Item id="block" textValue="Block dates">
+                  <CalendarOff className="size-4 text-muted-foreground" />
+                  <span>Block dates</span>
+                </Dropdown.Item>
+              )}
+              {canManageRooms && (
+                <Dropdown.Item id="notes" textValue="Edit notes">
+                  <NotebookPen className="size-4 text-muted-foreground" />
+                  <span>Edit notes</span>
+                </Dropdown.Item>
+              )}
+            </Dropdown.Menu>
+          </Dropdown.Popover>
+        </Dropdown>
+      )}
     </li>
   );
 }
@@ -1166,8 +1330,11 @@ interface TypeSectionProps {
   type: RoomTypeGroup;
   rooms: RoomItem[];
   isFiltering: boolean;
-  pendingTypeId: string | null;
   currency: string;
+  canEditStatus: boolean;
+  canBlockRooms: boolean;
+  canManageRooms: boolean;
+  canDeleteRoomTypes: boolean;
   registerRef: React.RefObject<Map<string, HTMLLIElement>>;
   onTypeEdit: () => void;
   onTypeToggleActive: () => void;
@@ -1177,84 +1344,118 @@ interface TypeSectionProps {
   onBlockDates: (id: string) => void;
   onEditNotes: (room: RoomItem) => void;
   onEditDetails: (room: RoomItem, typeId: string) => void;
-  pendingRoomId: string | null;
   isHighlighted: (room: RoomItem) => boolean;
 }
 
-/** Tinted type header + its room rows + the quiet Add-room row. */
 function TypeSection({
-  type, rooms, isFiltering, pendingTypeId, currency, registerRef,
-  onTypeEdit, onTypeToggleActive, onTypeDelete, onAddRoom,
-  onStatusChange, onBlockDates, onEditNotes, onEditDetails, pendingRoomId, isHighlighted,
+  type,
+  rooms,
+  isFiltering,
+  currency,
+  canEditStatus,
+  canBlockRooms,
+  canManageRooms,
+  canDeleteRoomTypes,
+  registerRef,
+  onTypeEdit,
+  onTypeToggleActive,
+  onTypeDelete,
+  onAddRoom,
+  onStatusChange,
+  onBlockDates,
+  onEditNotes,
+  onEditDetails,
+  isHighlighted,
 }: TypeSectionProps) {
   const facts = [
     type.bedConfiguration,
-    type.maxAdults || type.maxChildren ? `Sleeps ${(type.maxAdults ?? 0) + (type.maxChildren ?? 0)}` : null,
-  ].filter(Boolean).join(" · ");
+    type.maxAdults || type.maxChildren
+      ? `Sleeps ${(type.maxAdults ?? 0) + (type.maxChildren ?? 0)}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
-  return <>
-    <div className="border-b border-border/70 bg-secondary px-5 py-3 max-lg:px-3.5 max-lg:py-2.5">
-      <div className="flex items-center gap-3">
-        <span className="text-[15px] font-semibold text-foreground max-lg:text-[13px]">{type.name}</span>
-        {type.isActive === false && (
-          <span className="shrink-0 rounded-full border border-border/70 px-2 py-px text-[10px] text-muted-foreground">Inactive</span>
-        )}
-        <span className="min-w-0 flex-1" aria-hidden="true" />
-        <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-foreground max-lg:text-xs">
-          {formatCurrency(type.basePrice, currency)}
-        </span>
-        <span className="shrink-0 text-xs text-muted-foreground max-lg:hidden">/ night</span>
-        <TypeActionsDropdown
-          type={type}
-          isPending={pendingTypeId === type.id}
-          onEdit={onTypeEdit}
-          onToggleActive={onTypeToggleActive}
-          onDelete={onTypeDelete}
-        />
+  return (
+    <>
+      <div className="border-b border-border/60 bg-secondary/70 px-4 py-3 sm:px-5">
+        <div className="flex items-center gap-2.5">
+          <span className="truncate text-[14px] font-semibold text-foreground sm:text-[15px]">
+            {type.name}
+          </span>
+          {type.isActive === false && (
+            <span className="shrink-0 rounded-md border border-border/70 bg-background px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+              Inactive
+            </span>
+          )}
+          <span className="min-w-0 flex-1" aria-hidden="true" />
+          <span className="shrink-0 font-mono text-xs font-semibold tabular-nums text-foreground sm:text-sm">
+            {formatCurrency(type.basePrice, currency)}
+          </span>
+          <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">/ night</span>
+          {canManageRooms && (
+            <TypeActionsDropdown
+              type={type}
+              canDelete={canDeleteRoomTypes}
+              onEdit={onTypeEdit}
+              onToggleActive={onTypeToggleActive}
+              onDelete={onTypeDelete}
+            />
+          )}
+        </div>
+        <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="truncate">{facts}</span>
+          <span className="min-w-0 flex-1" aria-hidden="true" />
+          <span className="shrink-0 font-mono text-[11px] tabular-nums">
+            {rooms.length} {rooms.length === 1 ? "room" : "rooms"} · {type.availableRooms} available
+          </span>
+        </div>
       </div>
-      <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground/90 max-lg:mt-0.5 max-lg:text-[10px]">
-        <span className="truncate">{facts}</span>
-        <span className="min-w-0 flex-1" aria-hidden="true" />
-        <span className="shrink-0 tabular-nums">
-          {rooms.length} {rooms.length === 1 ? "room" : "rooms"} · {type.availableRooms} available
-        </span>
-      </div>
-    </div>
-    {rooms.length === 0 ? (
-      <p className="px-5 py-6 text-[13px] text-muted-foreground">
-        {isFiltering ? "No rooms in this type match your search." : "No rooms in this type yet."}
-      </p>
-    ) : (
-      <ul>
-        {rooms.map((room) => (
-          <RoomRow
-            key={room.id}
-            room={room}
-            isHighlighted={isHighlighted(room)}
-            isPending={pendingRoomId === room.id}
-            registerRef={(element) => {
-              if (element) registerRef.current.set(room.id, element);
-              else registerRef.current.delete(room.id);
-            }}
-            onStatusChange={(status) => onStatusChange(room, status)}
-            onBlockDates={() => onBlockDates(room.id)}
-            onEditNotes={() => onEditNotes(room)}
-            onEditDetails={() => onEditDetails(room, type.id)}
-          />
-        ))}
-      </ul>
-    )}
-    {!isFiltering && (
-      <button type="button" onClick={onAddRoom}
-        className="flex w-full items-center gap-1.5 border-t border-border/50 px-5 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground max-lg:px-3.5">
-        <Plus className="size-3" aria-hidden="true" /> Add room
-      </button>
-    )}
-  </>;
+
+      {rooms.length === 0 ? (
+        <p className="px-4 py-5 text-xs text-muted-foreground sm:px-5">
+          {isFiltering ? "No matching rooms in this type." : "No rooms added yet."}
+        </p>
+      ) : (
+        <ul>
+          {rooms.map((room) => (
+            <RoomRow
+              key={room.id}
+              room={room}
+              isHighlighted={isHighlighted(room)}
+              canEditStatus={canEditStatus}
+              canBlockRooms={canBlockRooms}
+              canManageRooms={canManageRooms}
+              registerRef={(element) => {
+                if (element) registerRef.current.set(room.id, element);
+                else registerRef.current.delete(room.id);
+              }}
+              onStatusChange={(status) => onStatusChange(room, status)}
+              onBlockDates={() => onBlockDates(room.id)}
+              onEditNotes={() => onEditNotes(room)}
+              onEditDetails={() => onEditDetails(room, type.id)}
+            />
+          ))}
+        </ul>
+      )}
+
+      {canManageRooms && !isFiltering && (
+        <button
+          type="button"
+          onClick={onAddRoom}
+          className="ui-press flex min-h-11 w-full cursor-pointer items-center gap-1.5 border-t border-border/50 px-4 py-2.5 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-10 sm:px-5 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/20 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+        >
+          <Plus className="size-3.5" aria-hidden="true" />
+          Add room
+        </button>
+      )}
+    </>
+  );
 }
+
 interface TypeActionsDropdownProps {
   type: RoomTypeGroup;
-  isPending: boolean;
+  canDelete: boolean;
   onEdit: () => void;
   onToggleActive: () => void;
   onDelete: () => void;
@@ -1262,7 +1463,7 @@ interface TypeActionsDropdownProps {
 
 function TypeActionsDropdown({
   type,
-  isPending,
+  canDelete,
   onEdit,
   onToggleActive,
   onDelete,
@@ -1275,7 +1476,7 @@ function TypeActionsDropdown({
         variant="ghost"
         isIconOnly
         aria-label={`Actions for ${type.name}`}
-        className="mr-1 min-h-11 min-w-11 rounded-full text-muted-foreground sm:mr-2 sm:min-h-9 sm:min-w-9"
+        className="ui-press size-11 min-w-11 rounded-lg text-muted-foreground sm:size-9 sm:min-w-9"
       >
         <EllipsisVertical className="size-4" />
       </Button>
@@ -1284,7 +1485,7 @@ function TypeActionsDropdown({
           onAction={(key) => {
             if (key === "edit") onEdit();
             if (key === "toggle-active") onToggleActive();
-            if (key === "delete") onDelete();
+            if (key === "delete" && canDelete) onDelete();
           }}
         >
           <Dropdown.Item id="edit" textValue="Edit details">
@@ -1294,25 +1495,23 @@ function TypeActionsDropdown({
           <Dropdown.Item
             id="toggle-active"
             textValue={type.isActive ? "Deactivate" : "Activate"}
-            isDisabled={isPending}
           >
             <Power className="size-4 text-muted-foreground" />
             <span>{type.isActive ? "Deactivate" : "Activate"}</span>
           </Dropdown.Item>
-          <Dropdown.Item
-            id="delete"
-            textValue="Delete"
-            isDisabled={hasRooms || isPending}
-            className="text-danger"
-          >
-            <Trash2 className="size-4" />
-            <span>{hasRooms ? "Delete (remove rooms first)" : "Delete"}</span>
-          </Dropdown.Item>
+          {canDelete && (
+            <Dropdown.Item
+              id="delete"
+              textValue="Delete"
+              isDisabled={hasRooms}
+              className="text-danger"
+            >
+              <Trash2 className="size-4" />
+              <span>{hasRooms ? "Delete (remove rooms first)" : "Delete"}</span>
+            </Dropdown.Item>
+          )}
         </Dropdown.Menu>
       </Dropdown.Popover>
     </Dropdown>
   );
 }
-
-
-

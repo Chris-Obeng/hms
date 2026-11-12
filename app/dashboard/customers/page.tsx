@@ -46,25 +46,13 @@ export default async function CustomersPage() {
   if (rlsToken && guestList.length > 0) {
     const warmIds = guestList.slice(0, SERVER_WARM_N).map((g) => g.id);
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-page-title text-foreground">Customers</h1>
-        </div>
-        <CustomersWarmBoundary warmIds={warmIds}>
-          <CustomersTable data={guestList} currency={currency} />
-        </CustomersWarmBoundary>
-      </div>
+      <CustomersWarmBoundary warmIds={warmIds}>
+        <CustomersTable data={guestList} currency={currency} />
+      </CustomersWarmBoundary>
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-page-title text-foreground">Customers</h1>
-      </div>
-      <CustomersTable data={guestList} currency={currency} />
-    </div>
-  );
+  return <CustomersTable data={guestList} currency={currency} />;
 }
 
 async function CustomersWarmBoundary({ warmIds, children }: { warmIds: string[]; children: React.ReactNode }) {

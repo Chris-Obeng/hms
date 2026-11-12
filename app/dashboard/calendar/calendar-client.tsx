@@ -4,8 +4,16 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { addDays, format, parseISO } from "date-fns";
-import { CalendarDays, Plus, RefreshCw, TriangleAlert, X } from "lucide-react";
-import { AlertDialog, Button, Chip, Drawer, Switch, toast } from "@heroui/react";
+import {
+  BedDouble,
+  CalendarDays,
+  CalendarOff,
+  RefreshCw,
+  SlidersHorizontal,
+  TriangleAlert,
+  X,
+} from "lucide-react";
+import { AlertDialog, Button, Drawer, Switch, toast } from "@heroui/react";
 import { keepPreviousData, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { qk } from "@/lib/query-keys";
@@ -28,32 +36,35 @@ import {
 import { formatMoney } from "@/lib/money";
 import type { TypeChangeRequest as DragTypeChangeRequest } from "./_components/timeline/timeline-calendar";
 import { pickBestRoom } from "./_components/timeline/auto-assign";
-import { PAST_LEAD_MAX_DAYS, VIEW_PRESETS, pastLeadDays, type ViewPreset } from "./_components/calendar-helpers";
+import {
+  CALENDAR_LEGEND,
+  PAST_LEAD_MAX_DAYS,
+  VIEW_PRESETS,
+  pastLeadDays,
+  type ViewPreset,
+} from "./_components/calendar-helpers";
 import { businessToday } from "@/lib/business-date";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 import { CalendarToolbar } from "./_components/calendar-toolbar";
 import { TimelineCalendar } from "./_components/timeline/timeline-calendar";
 import "./calendar.css";
 
-// ── Lazy overlays (L6) ──────────────────────────────────────────────────
-// Rarely-mounted heavy surfaces (multi-step form, two drawers, one sheet).
-// Splitting them keeps the timeline's initial chunk small; ssr:false is
-// safe because they only render after user interaction.
 const NewBookingModal = dynamic(
   () => import("@/components/bookings/new-booking-modal").then((mod) => mod.NewBookingModal),
-  { ssr: false },
+  { ssr: false }
 );
 const BookingDetailDrawer = dynamic(
   () => import("@/components/bookings/booking-detail-drawer").then((mod) => mod.BookingDetailDrawer),
-  { ssr: false },
+  { ssr: false }
 );
 const BlockDetailDrawer = dynamic(
   () => import("./_components/block-detail-drawer").then((mod) => mod.BlockDetailDrawer),
-  { ssr: false },
+  { ssr: false }
 );
 const BlockRoomSheet = dynamic(
   () => import("./_components/block-room-sheet").then((mod) => mod.BlockRoomSheet),
-  { ssr: false },
+  { ssr: false }
 );
 
 interface CalendarClientProps {
@@ -62,7 +73,6 @@ interface CalendarClientProps {
   hotelId: string;
   hotelName: string;
   currency: string;
-  /** Property timezone — the calendar anchors its business date to this. */
   hotelTimezone: string;
   canEdit: boolean;
   canBlock: boolean;
@@ -78,16 +88,18 @@ interface RoomTypeFilter {
 const STATUS_OPTIONS = ["pending", "confirmed", "checked_in"] as const;
 const SOURCE_OPTIONS = ["direct", "manual", "phone", "walk_in"] as const;
 
-/** Drag request enriched with display names for the confirmation dialog. */
 interface TypeChangeRequest extends DragTypeChangeRequest {
   guestName: string;
   fromTypeName: string | null;
   toTypeName: string;
 }
 
-/** True when [startDate, startDate+days) fits inside the server-seeded window,
- *  letting the first paint reuse the payload the page already fetched. */
-function withinSeededRange(startDate: Date, days: number, seededStart: Date, seededDays: number): boolean {
+function withinSeededRange(
+  startDate: Date,
+  days: number,
+  seededStart: Date,
+  seededDays: number
+): boolean {
   return (
     startDate.getTime() >= seededStart.getTime() &&
     addDays(startDate, days).getTime() <= addDays(seededStart, seededDays).getTime()
@@ -95,10 +107,6 @@ function withinSeededRange(startDate: Date, days: number, seededStart: Date, see
 }
 
 export function CalendarClient(props: CalendarClientProps) {
-  // Share the app-wide QueryClient singleton (M1): a calendar-scoped client
-  // silently duplicated every cached query under the same keys. In isolated
-  // previews without app providers, getQueryClient() still returns the one
-  // stable browser client, so this boundary remains safe.
   const [queryClient] = React.useState(() => getQueryClient());
 
   return (
@@ -122,78 +130,121 @@ function CalendarClientContent({
   const queryClient = useQueryClient();
   const { orgId } = useAuth();
 
-  // Calendar mutations move money + occupancy, so dashboard KPIs and any open
-  // booking-detail view would serve stale numbers without these (M1).
   const invalidateCalendarData = React.useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["calendar", orgId, hotelId] });
     void queryClient.invalidateQueries({ queryKey: ["dashboard", orgId, hotelId] });
     void queryClient.invalidateQueries({ queryKey: ["bookingDetail"] });
   }, [queryClient, orgId, hotelId]);
 
-  // Property business date — the single anchor for seeding, the default view
-  // window, and the "today" marker. Never derived from the device clock.
   const businessDateKey = businessToday(hotelTimezone);
 
-  // Seeded window mirrors the server payload exactly
-  // ([businessDate − PAST_LEAD_MAX_DAYS, +30 + PAST_LEAD_MAX_DAYS]), so the
-  // first paint can only reuse data anchored to the requested range.
   const [seededRange] = React.useState(() => ({
     start: addDays(parseISO(businessDateKey), -PAST_LEAD_MAX_DAYS),
     days: 30 + PAST_LEAD_MAX_DAYS,
   }));
   const [viewPreset, setViewPreset] = React.useState<ViewPreset>("2 Wks");
   const days = VIEW_PRESETS.find((preset) => preset.label === viewPreset)?.days ?? 14;
-  // The window opens a few days BEFORE the business date and the timeline
-  // scrolls today to the left edge: refresh lands on the current date, yet
-  // past dates stay one scroll away — no date-picker round trip.
-  const [startDate, setStartDate] = React.useState(() => addDays(parseISO(businessDateKey), -pastLeadDays(days)));
-  // Asserted on mount and by the Today control; the timeline scrolls to the
-  // today column only when this changes, never on manual navigation.
+  const [startDate, setStartDate] = React.useState(() =>
+    addDays(parseISO(businessDateKey), -pastLeadDays(days))
+  );
   const [todayAnchor, setTodayAnchor] = React.useState(0);
 
   const dateStr = format(startDate, "yyyy-MM-dd");
+  const unblockKeysRef = React.useRef(new Map<string, readonly unknown[]>());
+  const assigningRef = React.useRef(new Set<string>());
+  const movingRef = React.useRef(new Set<string>());
+  const [assigningIds, setAssigningIds] = React.useState<Set<string>>(() => new Set());
+  const [movingIds, setMovingIds] = React.useState<Set<string>>(() => new Set());
+  const rateRadioRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
 
-  const [newBookingIds, setNewBookingIds] = React.useState<Set<string>>(new Set());
-  const knownBookingIdsRef = React.useRef(new Set(initialData.bookings.map((booking) => booking.id)));
-
-  // ── Main calendar data query ──────────────────────────────────────
-  const canReuseSeed = React.useMemo(
-    () => withinSeededRange(startDate, days, seededRange.start, seededRange.days),
-    [days, seededRange, startDate],
+  const handleBlockUnblocked = React.useCallback(
+    async (optimisticDeletedId?: string, restoreBlock?: CalendarAvailabilityBlock) => {
+      if (optimisticDeletedId) {
+        const queryKey = qk.calendar(orgId || "", hotelId, dateStr, days);
+        unblockKeysRef.current.set(optimisticDeletedId, queryKey);
+        await queryClient.cancelQueries({ queryKey });
+        queryClient.setQueryData<CalendarData>(queryKey, (old) =>
+          old
+            ? {
+                ...old,
+                availabilityBlocks: old.availabilityBlocks.filter(
+                  (b) => b.id !== optimisticDeletedId
+                ),
+              }
+            : old
+        );
+        return;
+      }
+      if (restoreBlock) {
+        const savedKey =
+          unblockKeysRef.current.get(restoreBlock.id) ??
+          qk.calendar(orgId || "", hotelId, dateStr, days);
+        unblockKeysRef.current.delete(restoreBlock.id);
+        queryClient.setQueryData<CalendarData>(savedKey, (old) => {
+          if (!old) return old;
+          if (old.availabilityBlocks.some((b) => b.id === restoreBlock.id)) return old;
+          return {
+            ...old,
+            availabilityBlocks: [...old.availabilityBlocks, restoreBlock],
+          };
+        });
+        return;
+      }
+      invalidateCalendarData();
+    },
+    [dateStr, days, hotelId, invalidateCalendarData, orgId, queryClient]
   );
 
-  const { data: calendarData, isFetching, isError, error, refetch } = useQuery({
+  const [newBookingIds, setNewBookingIds] = React.useState<Set<string>>(new Set());
+  const knownBookingIdsRef = React.useRef(
+    new Set(initialData.bookings.map((booking) => booking.id))
+  );
+
+  const canReuseSeed = React.useMemo(
+    () => withinSeededRange(startDate, days, seededRange.start, seededRange.days),
+    [days, seededRange, startDate]
+  );
+
+  const {
+    data: calendarData,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: qk.calendar(orgId || "", hotelId, dateStr, days),
     queryFn: () => getCalendarData(dateStr, days),
     enabled: !!orgId,
-    // Only the seeded window may start from server data; every other range
-    // fetches fresh so bookings never render against a mismatched anchor.
     initialData: canReuseSeed ? initialData : undefined,
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
   });
 
-  // Stable array identities keep downstream memos/effects dependency-safe.
   const rooms = React.useMemo(() => calendarData?.rooms ?? [], [calendarData]);
   const bookings = React.useMemo(() => calendarData?.bookings ?? [], [calendarData]);
-  const availabilityBlocks = React.useMemo(() => calendarData?.availabilityBlocks ?? [], [calendarData]);
+  const availabilityBlocks = React.useMemo(
+    () => calendarData?.availabilityBlocks ?? [],
+    [calendarData]
+  );
 
   const [roomTypeFilters, setRoomTypeFilters] = React.useState<RoomTypeFilter[]>(() =>
-    roomTypes.map((roomType) => ({ id: roomType.id, name: roomType.name, visible: true })),
+    roomTypes.map((roomType) => ({ id: roomType.id, name: roomType.name, visible: true }))
   );
   const [statusFilters, setStatusFilters] = React.useState<string[]>([]);
   const [sourceFilters, setSourceFilters] = React.useState<string[]>([]);
   const [showFilters, setShowFilters] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
-  // Defer so each keystroke stays responsive while the timeline re-filters
-  // and re-renders hundreds of bars (M8).
   const deferredSearchQuery = React.useDeferredValue(searchQuery);
-  const [realtimeStatus, setRealtimeStatus] = React.useState<"live" | "reconnecting">("reconnecting");
+  const [realtimeStatus, setRealtimeStatus] = React.useState<"live" | "reconnecting">(
+    "reconnecting"
+  );
 
   const [selectedBookingId, setSelectedBookingId] = React.useState<string | null>(null);
   const [detailPanelOpen, setDetailPanelOpen] = React.useState(false);
-  const [detailInitialTab, setDetailInitialTab] = React.useState<"overview" | "payments">("overview");
+  const [detailInitialTab, setDetailInitialTab] = React.useState<"overview" | "payments">(
+    "overview"
+  );
   const [newBookingOpen, setNewBookingOpen] = React.useState(false);
   const [newBookingPrefill, setNewBookingPrefill] = React.useState<{
     roomId?: string;
@@ -206,13 +257,10 @@ function CalendarClientContent({
   const [selectedBlock, setSelectedBlock] = React.useState<CalendarAvailabilityBlock | null>(null);
   const [blockPrefillRoomId, setBlockPrefillRoomId] = React.useState<string | undefined>();
   const [pendingTypeChange, setPendingTypeChange] = React.useState<TypeChangeRequest | null>(null);
-  /** The dialog's price choice. "keep" is the industry default (Opera/Mews):
-   *  the agreed rate survives the move unless the desk explicitly reprices. */
-  const [typeChangeRateChoice, setTypeChangeRateChoice] = React.useState<"keep" | "reprice">("keep");
+  const [typeChangeRateChoice, setTypeChangeRateChoice] = React.useState<"keep" | "reprice">(
+    "keep"
+  );
 
-  // Quote both price choices for the pending cross-type move. The numbers come
-  // from the same resolvers the write path uses, so the dialog's reprice
-  // figure is the figure the move will store.
   const typeChangePreviewQuery = useQuery({
     queryKey: [
       "calendar-move-preview",
@@ -228,7 +276,12 @@ function CalendarClientContent({
     queryFn: async () => {
       const request = pendingTypeChange;
       if (!request) throw new Error("No pending move");
-      const result = await previewRoomTypeMove(request.bookingId, request.toRoomTypeId, request.checkIn, request.checkOut);
+      const result = await previewRoomTypeMove(
+        request.bookingId,
+        request.toRoomTypeId,
+        request.checkIn,
+        request.checkOut
+      );
       if (!result.success) throw new Error(result.error);
       return result.preview;
     },
@@ -236,7 +289,6 @@ function CalendarClientContent({
 
   const typeChangePreview = typeChangePreviewQuery.data ?? null;
   const typeChangePreviewBusy = pendingTypeChange !== null && typeChangePreviewQuery.isPending;
-  /** No active plan on the target type blocks the move whichever price is chosen. */
   const typeChangeBlocked = typeChangePreview?.noRatePlan === true;
   const repriceUnavailable =
     typeChangePreviewBusy ||
@@ -246,10 +298,13 @@ function CalendarClientContent({
 
   const visibleRoomTypeIds = React.useMemo(
     () => new Set(roomTypeFilters.filter((filter) => filter.visible).map((filter) => filter.id)),
-    [roomTypeFilters],
+    [roomTypeFilters]
   );
 
-  const filteredRooms = React.useMemo(() => rooms.filter((room) => visibleRoomTypeIds.has(room.roomTypeId)), [rooms, visibleRoomTypeIds]);
+  const filteredRooms = React.useMemo(
+    () => rooms.filter((room) => visibleRoomTypeIds.has(room.roomTypeId)),
+    [rooms, visibleRoomTypeIds]
+  );
 
   const visibleBookings = React.useMemo(
     () =>
@@ -258,15 +313,23 @@ function CalendarClientContent({
           (!b.roomId || filteredRooms.some((r) => r.id === b.roomId)) &&
           (!statusFilters.length || statusFilters.includes(b.status)) &&
           (!sourceFilters.length || sourceFilters.includes(b.source ?? "")) &&
-          (!deferredSearchQuery.trim() || `${b.guestName} ${b.reference} ${b.roomNumber}`.toLowerCase().includes(deferredSearchQuery.toLowerCase())),
+          (!deferredSearchQuery.trim() ||
+            `${b.guestName} ${b.reference} ${b.roomNumber}`
+              .toLowerCase()
+              .includes(deferredSearchQuery.toLowerCase()))
       ),
-    [bookings, deferredSearchQuery, filteredRooms, sourceFilters, statusFilters],
+    [bookings, deferredSearchQuery, filteredRooms, sourceFilters, statusFilters]
   );
 
-  // Tier 2+3: detail prefetch for calendar bars — idle + viewport (calendar has SSR warm via page HydrationBoundary)
   const calendarPrefetchEnabled = !!orgId;
   const calendarIdleKey = React.useMemo(
-    () => (calendarPrefetchEnabled ? visibleBookings.slice(0, CAPS.clientIdle).map((b) => b.id.replace(/:v\d+$/, "")).join(",") : ""),
+    () =>
+      calendarPrefetchEnabled
+        ? visibleBookings
+            .slice(0, CAPS.clientIdle)
+            .map((b) => b.id.replace(/:v\d+$/, ""))
+            .join(",")
+        : "",
     [visibleBookings, calendarPrefetchEnabled]
   );
   const observedCalendarRef = React.useRef<Set<string>>(new Set());
@@ -291,6 +354,7 @@ function CalendarClientContent({
     );
     return calendarObsRef.current;
   }, [queryClient]);
+
   const attachCalendarBarRef = React.useCallback(
     (el: HTMLElement | null) => {
       if (!el) return;
@@ -302,7 +366,6 @@ function CalendarClientContent({
   );
   React.useEffect(() => () => calendarObsRef.current?.disconnect(), []);
 
-  // ── New-booking highlight animation ────────────────────────────────
   const dateRangeKey = `${dateStr}_${days}`;
   const knownDateRangeKeyRef = React.useRef(dateRangeKey);
 
@@ -310,7 +373,9 @@ function CalendarClientContent({
     const rangeChanged = dateRangeKey !== knownDateRangeKeyRef.current;
     knownDateRangeKeyRef.current = dateRangeKey;
     const current = new Set(bookings.map((booking) => booking.id));
-    const added = rangeChanged ? [] : [...current].filter((id) => !knownBookingIdsRef.current.has(id));
+    const added = rangeChanged
+      ? []
+      : [...current].filter((id) => !knownBookingIdsRef.current.has(id));
     knownBookingIdsRef.current = current;
     if (added.length === 0) return;
 
@@ -330,7 +395,6 @@ function CalendarClientContent({
     return () => window.clearTimeout(timer);
   }, [bookings, dateRangeKey]);
 
-  // Prefetch booking detail for visible calendar bars (idle)
   React.useEffect(() => {
     if (!calendarPrefetchEnabled || !calendarIdleKey) return;
     const ids = calendarIdleKey.split(",").filter(Boolean);
@@ -342,7 +406,6 @@ function CalendarClientContent({
     });
   }, [calendarIdleKey, calendarPrefetchEnabled, queryClient]);
 
-  // ── Realtime subscription → invalidate React Query cache ────────────
   React.useEffect(() => {
     if (!orgId) return;
     let cancelled = false;
@@ -359,24 +422,20 @@ function CalendarClientContent({
         queryKey: ["calendar", orgId, hotelId],
         refetchType: "active",
       });
-      // Bookings feed dashboard KPIs and the detail drawer too (M1); only
-      // active observers refetch, so idle views cost nothing.
-      void queryClient.invalidateQueries({ queryKey: ["dashboard", orgId, hotelId], refetchType: "active" });
+      void queryClient.invalidateQueries({
+        queryKey: ["dashboard", orgId, hotelId],
+        refetchType: "active",
+      });
       void queryClient.invalidateQueries({ queryKey: ["bookingDetail"], refetchType: "active" });
     };
 
     const batchRefresh = () => {
-      // Several rows can change in one reservation operation. Batch those
-      // events, then immediately refetch the active calendar query.
       if (refreshTimer) window.clearTimeout(refreshTimer);
       refreshTimer = window.setTimeout(invalidate, 75);
     };
 
     const refreshRealtimeAuth = async () => {
       try {
-        // The websocket bypasses the REST fetch wrapper that injects the Clerk
-        // JWT, so the realtime socket must be authenticated explicitly or RLS
-        // filters out every change.
         const token = await window.Clerk?.session?.getToken({ template: "supabase" });
         if (!cancelled && token) supabase.realtime.setAuth(token);
       } catch (error) {
@@ -398,16 +457,10 @@ function CalendarClientContent({
         return;
       }
       if (status !== "CHANNEL_ERROR" && status !== "TIMED_OUT") return;
-      // Reported once per outage rather than once per retry: the loop below
-      // makes up to five attempts on the same broken channel, and each would
-      // otherwise be its own event.
       if (resubscribeAttempts === 0) reportStatus(status, err);
       if (cancelled || resubscribeAttempts >= 5) return;
       resubscribeAttempts += 1;
       retryTimer = window.setTimeout(async () => {
-        // A refreshed token only takes effect on a new subscription, and
-        // subscribe() is a no-op unless the channel is closed — so the
-        // channel is torn down and rebuilt with the same handlers.
         await refreshRealtimeAuth();
         if (!cancelled) openChannel();
       }, resubscribeAttempts * 2_000);
@@ -419,12 +472,17 @@ function CalendarClientContent({
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
-          batchRefresh,
+          batchRefresh
         )
         .on(
           "postgres_changes",
-          { event: "*", schema: "public", table: "availability_blocks", filter: `hotel_id=eq.${hotelId}` },
-          batchRefresh,
+          {
+            event: "*",
+            schema: "public",
+            table: "availability_blocks",
+            filter: `hotel_id=eq.${hotelId}`,
+          },
+          batchRefresh
         );
 
     const openChannel = () => {
@@ -432,7 +490,6 @@ function CalendarClientContent({
       channel = buildChannel().subscribe(handleStatus);
     };
 
-    // Safety net after laptop sleep / long tab background: pull fresh state.
     const onVisible = () => {
       if (document.visibilityState === "visible") invalidate();
     };
@@ -453,33 +510,30 @@ function CalendarClientContent({
     };
   }, [hotelId, orgId, queryClient]);
 
-  // ── Navigation — always exactly ±view-period steps ───────────────────
   const navigate = React.useCallback(
     (direction: -1 | 1) => {
       setStartDate((previous) => addDays(previous, direction * days));
     },
-    [days],
+    [days]
   );
-  // Anchor on the business date (never the device clock) with the past
-  // lead-in, then re-assert the scroll anchor so the jump lands on today.
+
   const goToToday = React.useCallback(() => {
     setStartDate(addDays(parseISO(businessDateKey), -pastLeadDays(days)));
     setTodayAnchor((n) => n + 1);
   }, [businessDateKey, days]);
+
   const selectDate = React.useCallback((date: Date) => setStartDate(date), []);
+
   const changeViewPreset = React.useCallback(
     (preset: ViewPreset) => {
       setViewPreset(preset);
-      // A window still anchored on today (initial load / Today) re-anchors
-      // for the new span, so narrow presets never strand today outside it.
-      if (startDate.getTime() !== addDays(parseISO(businessDateKey), -pastLeadDays(days)).getTime()) return;
+      if (startDate.getTime() !== addDays(parseISO(businessDateKey), -pastLeadDays(days)).getTime())
+        return;
       const nextDays = VIEW_PRESETS.find((p) => p.label === preset)?.days ?? 14;
       setStartDate(addDays(parseISO(businessDateKey), -pastLeadDays(nextDays)));
-      // The lead-in changes with the span, so a stale scrollLeft would clamp
-      // and hide today behind the room gutter — re-assert the scroll anchor.
       setTodayAnchor((n) => n + 1);
     },
-    [businessDateKey, days, startDate],
+    [businessDateKey, days, startDate]
   );
 
   const clearFilters = React.useCallback(() => {
@@ -491,56 +545,64 @@ function CalendarClientContent({
 
   const toggleRoomTypeFilter = React.useCallback((typeId: string) => {
     setRoomTypeFilters((previous) =>
-      previous.map((filter) => (filter.id === typeId ? { ...filter, visible: !filter.visible } : filter)),
+      previous.map((filter) =>
+        filter.id === typeId ? { ...filter, visible: !filter.visible } : filter
+      )
     );
   }, []);
 
   const toggleStatusFilter = React.useCallback((status: string) => {
     setStatusFilters((previous) =>
-      previous.includes(status) ? previous.filter((item) => item !== status) : [...previous, status],
+      previous.includes(status)
+        ? previous.filter((item) => item !== status)
+        : [...previous, status]
     );
   }, []);
 
   const toggleSourceFilter = React.useCallback((source: string) => {
     setSourceFilters((previous) =>
-      previous.includes(source) ? previous.filter((item) => item !== source) : [...previous, source],
+      previous.includes(source)
+        ? previous.filter((item) => item !== source)
+        : [...previous, source]
     );
   }, []);
 
-  const openBooking = React.useCallback((bookingId: string) => {
-    const raw = bookingId.replace(/:v\d+$/, "");
-    void (async () => {
-      const [{ bookingDetailCache }, { isFresh }] = await Promise.all([
-        import("@/lib/cache/booking-detail-cache"),
-        import("@/lib/cache/prefetch-helpers"),
-      ]);
-      if (!isFresh(queryClient, bookingDetailCache.key(raw))) {
-        void queryClient.prefetchQuery(bookingDetailCache.options(raw));
+  const openBooking = React.useCallback(
+    (bookingId: string) => {
+      const raw = bookingId.replace(/:v\d+$/, "");
+      void (async () => {
+        const [{ bookingDetailCache }, { isFresh }] = await Promise.all([
+          import("@/lib/cache/booking-detail-cache"),
+          import("@/lib/cache/prefetch-helpers"),
+        ]);
+        if (!isFresh(queryClient, bookingDetailCache.key(raw))) {
+          void queryClient.prefetchQuery(bookingDetailCache.options(raw));
+        }
+      })();
+      setDetailInitialTab("overview");
+      setSelectedBookingId(raw);
+      setDetailPanelOpen(true);
+    },
+    [queryClient]
+  );
+
+  const openNewBooking = React.useCallback(
+    (prefill: typeof newBookingPrefill) => {
+      if (!canEdit) {
+        toast.danger("No permission to create bookings");
+        return;
       }
-    })();
-    setDetailInitialTab("overview");
-    setSelectedBookingId(raw);
-    setDetailPanelOpen(true);
-  }, [queryClient]);
+      setNewBookingPrefill(prefill);
+      setNewBookingOpen(true);
+    },
+    [canEdit]
+  );
 
-  const openNewBooking = React.useCallback((prefill: typeof newBookingPrefill) => {
-    if (!canEdit) {
-      toast.danger("No permission to create bookings");
-      return;
-    }
-    setNewBookingPrefill(prefill);
-    setNewBookingOpen(true);
-  }, [canEdit]);
-
-  // Edit handoff (H6): the detail drawer closes itself, then asks us to
-  // reopen the block sheet in edit mode with this block prefilled.
   const openBlockEditor = React.useCallback((block: CalendarAvailabilityBlock) => {
     setEditingBlock(block);
     setBlockRoomOpen(true);
   }, []);
 
-  // Clear the edit target whenever the sheet closes so the next open via the
-  // toolbar always starts in create mode.
   const handleBlockSheetOpenChange = React.useCallback((open: boolean) => {
     setBlockRoomOpen(open);
     if (!open) {
@@ -549,8 +611,6 @@ function CalendarClientContent({
     }
   }, []);
 
-  // Stable identity keeps RoomRow's React.memo intact across parent renders
-  // (search keystrokes, filter toggles) — an inline arrow would defeat it.
   const handleCellCreate = React.useCallback(
     (room: CalendarRoom, date: string) => {
       openNewBooking({
@@ -560,10 +620,8 @@ function CalendarClientContent({
         checkOut: addDays(parseISO(date), 1),
       });
     },
-    [openNewBooking],
+    [openNewBooking]
   );
-
-  // ── Mutations ────────────────────────────────────────────────────────
 
   const handleTimelineChange = React.useCallback(
     async (
@@ -572,35 +630,48 @@ function CalendarClientContent({
       checkIn: string,
       checkOut: string,
       roomTypeIdOverride?: string,
-      /** Cross-type moves only: the dialog's "Keep current rate" choice. */
-      keepRates?: boolean,
+      keepRates?: boolean
     ) => {
       if (!canEdit) {
         toast.danger("No permission to update bookings");
         return;
       }
+      if (movingRef.current.has(booking.id)) return;
+      movingRef.current.add(booking.id);
+      setMovingIds((prev) => new Set(prev).add(booking.id));
       const queryKey = qk.calendar(orgId || "", hotelId, dateStr, days);
+      await queryClient.cancelQueries({ queryKey });
       const snapshot = queryClient.getQueryData<CalendarData>(queryKey);
+      const previousItem = snapshot?.bookings.find((item) => item.id === booking.id);
       const room = rooms.find((item) => item.id === roomId);
-      if (snapshot) {
-        queryClient.setQueryData<CalendarData>(queryKey, {
-          ...snapshot,
-          bookings: snapshot.bookings.map((item) =>
-            item.id === booking.id
-              ? {
-                  ...item,
-                  roomId,
-                  roomNumber: room?.roomNumber ?? null,
-                  checkIn,
-                  checkOut,
-                  nights: Math.max(1, Math.round((parseISO(checkOut).getTime() - parseISO(checkIn).getTime()) / 86_400_000)),
-                  roomTypeId: roomTypeIdOverride ?? item.roomTypeId,
-                  roomTypeName: roomTypeIdOverride ? room?.roomTypeName ?? item.roomTypeName : item.roomTypeName,
-                }
-              : item,
-          ),
-        });
-      }
+      queryClient.setQueryData<CalendarData>(queryKey, (old) =>
+        old
+          ? {
+              ...old,
+              bookings: old.bookings.map((item) =>
+                item.id === booking.id
+                  ? {
+                      ...item,
+                      roomId,
+                      roomNumber: room?.roomNumber ?? null,
+                      checkIn,
+                      checkOut,
+                      nights: Math.max(
+                        1,
+                        Math.round(
+                          (parseISO(checkOut).getTime() - parseISO(checkIn).getTime()) / 86_400_000
+                        )
+                      ),
+                      roomTypeId: roomTypeIdOverride ?? item.roomTypeId,
+                      roomTypeName: roomTypeIdOverride
+                        ? room?.roomTypeName ?? item.roomTypeName
+                        : item.roomTypeName,
+                    }
+                  : item
+              ),
+            }
+          : old
+      );
       try {
         const result = roomId
           ? await moveBooking(booking.id, {
@@ -611,15 +682,32 @@ function CalendarClientContent({
               ...(keepRates ? { keepRates: true } : {}),
             })
           : await unassignBooking(booking.id);
-        // Toast discipline (Opera/Mews style): the moved bar IS the success
-        // feedback. Only failures surface a toast.
         if (!result.success) throw new Error(result.error);
       } catch (error) {
-        if (snapshot) queryClient.setQueryData(queryKey, snapshot);
+        if (previousItem) {
+          queryClient.setQueryData<CalendarData>(queryKey, (old) =>
+            old
+              ? {
+                  ...old,
+                  bookings: old.bookings.map((item) =>
+                    item.id === booking.id ? previousItem : item
+                  ),
+                }
+              : old
+          );
+        }
         toast.danger(error instanceof Error ? error.message : "Booking update failed");
+      } finally {
+        movingRef.current.delete(booking.id);
+        setMovingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(booking.id);
+          return next;
+        });
+        invalidateCalendarData();
       }
     },
-    [canEdit, dateStr, days, hotelId, orgId, queryClient, rooms],
+    [canEdit, dateStr, days, hotelId, invalidateCalendarData, orgId, queryClient, rooms]
   );
 
   const handleRequestTypeChange = React.useCallback(
@@ -627,7 +715,6 @@ function CalendarClientContent({
       const booking = bookings.find((item) => item.id === request.bookingId);
       const room = rooms.find((item) => item.id === request.roomId);
       if (!booking || !room) return;
-      // Every new drag re-asks the price question from the safe default.
       setTypeChangeRateChoice("keep");
       setPendingTypeChange({
         ...request,
@@ -636,7 +723,7 @@ function CalendarClientContent({
         toTypeName: room.roomTypeName,
       });
     },
-    [bookings, rooms],
+    [bookings, rooms]
   );
 
   const confirmTypeChange = React.useCallback(() => {
@@ -645,46 +732,80 @@ function CalendarClientContent({
     setPendingTypeChange(null);
     const booking = bookings.find((item) => item.id === request.bookingId);
     if (!booking) return;
-    void handleTimelineChange(booking, request.roomId, request.checkIn, request.checkOut, request.toRoomTypeId, typeChangeRateChoice === "keep");
+    void handleTimelineChange(
+      booking,
+      request.roomId,
+      request.checkIn,
+      request.checkOut,
+      request.toRoomTypeId,
+      typeChangeRateChoice === "keep"
+    );
   }, [bookings, handleTimelineChange, pendingTypeChange, typeChangeRateChoice]);
 
-  /** Smart auto-assignment: best vacant, type-matched, conflict-free room.
-   *  Optimistic — the chip leaves the tray immediately; toast only on failure. */
   const handleAutoAssign = React.useCallback(
     async (bookingId: string) => {
       if (!canEdit) {
         toast.danger("No permission to assign bookings");
         return;
       }
+      if (assigningRef.current.has(bookingId)) return;
       const booking = bookings.find((item) => item.id === bookingId);
       if (!booking) return;
 
-      // Auto-assign searches ALL rooms — visibility filters are a viewing
-      // aid and must never hide assignable inventory from staff.
       const target = pickBestRoom(booking, { rooms, bookings });
       if (!target) {
         toast.danger("No compatible room available for these dates");
         return;
       }
 
+      assigningRef.current.add(bookingId);
+      setAssigningIds((prev) => new Set(prev).add(bookingId));
       const queryKey = qk.calendar(orgId || "", hotelId, dateStr, days);
+      await queryClient.cancelQueries({ queryKey });
       const snapshot = queryClient.getQueryData<CalendarData>(queryKey);
-      if (snapshot) {
-        queryClient.setQueryData<CalendarData>(queryKey, {
-          ...snapshot,
-          bookings: snapshot.bookings.map((item) =>
-            item.id === bookingId ? { ...item, roomId: target.id, roomNumber: target.roomNumber } : item,
-          ),
-        });
-      }
+      const previousItem = snapshot?.bookings.find((item) => item.id === bookingId);
 
-      const result = await assignBookingToRoom(bookingId, target.id);
-      if (!result.success) {
-        if (snapshot) queryClient.setQueryData(queryKey, snapshot);
-        toast.danger(result.error);
+      queryClient.setQueryData<CalendarData>(queryKey, (old) =>
+        old
+          ? {
+              ...old,
+              bookings: old.bookings.map((item) =>
+                item.id === bookingId
+                  ? { ...item, roomId: target.id, roomNumber: target.roomNumber }
+                  : item
+              ),
+            }
+          : old
+      );
+
+      try {
+        const result = await assignBookingToRoom(bookingId, target.id);
+        if (!result.success) throw new Error(result.error);
+      } catch (err) {
+        if (previousItem) {
+          queryClient.setQueryData<CalendarData>(queryKey, (old) =>
+            old
+              ? {
+                  ...old,
+                  bookings: old.bookings.map((item) =>
+                    item.id === bookingId ? previousItem : item
+                  ),
+                }
+              : old
+          );
+        }
+        toast.danger(err instanceof Error ? err.message : "Assignment failed — try again");
+      } finally {
+        assigningRef.current.delete(bookingId);
+        setAssigningIds((prev) => {
+          const next = new Set(prev);
+          next.delete(bookingId);
+          return next;
+        });
+        invalidateCalendarData();
       }
     },
-    [bookings, canEdit, dateStr, days, hotelId, orgId, queryClient, rooms],
+    [bookings, canEdit, dateStr, days, hotelId, invalidateCalendarData, orgId, queryClient, rooms]
   );
 
   React.useEffect(() => {
@@ -693,11 +814,11 @@ function CalendarClientContent({
     return () => window.removeEventListener("roomline-calendar-error", report);
   }, []);
 
-  // ── Keyboard shortcuts ───────────────────────────────────────────────
   React.useEffect(() => {
     const down = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+        return;
       if (event.shiftKey && event.key === "ArrowLeft") {
         event.preventDefault();
         navigate(-1);
@@ -719,21 +840,23 @@ function CalendarClientContent({
     return () => window.removeEventListener("keydown", down);
   }, [goToToday, navigate, openNewBooking]);
 
-  const activeFilterCount =
+  const activeDrawerFilterCount =
     roomTypeFilters.filter((filter) => !filter.visible).length +
     statusFilters.length +
-    sourceFilters.length +
-    (searchQuery ? 1 : 0);
+    sourceFilters.length;
+
+  const hasAnyActiveFilter = activeDrawerFilterCount > 0 || Boolean(searchQuery.trim());
 
   return (
-    <div className="cal-wrap flex h-[calc(100vh-3rem)] min-h-0 flex-col overflow-hidden bg-background">
+    <div className="cal-wrap flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col overflow-hidden bg-background">
       <CalendarToolbar
         startDate={startDate}
         days={days}
         viewPreset={viewPreset}
         realtimeStatus={realtimeStatus}
-        activeFilterCount={activeFilterCount}
+        activeFilterCount={activeDrawerFilterCount}
         searchQuery={searchQuery}
+        canEdit={canEdit}
         canBlock={canBlockProp}
         onNavigate={navigate}
         onToday={goToToday}
@@ -741,6 +864,7 @@ function CalendarClientContent({
         onViewPresetChange={changeViewPreset}
         onSearchQueryChange={setSearchQuery}
         onOpenFilters={() => setShowFilters(true)}
+        onNewBooking={() => openNewBooking(null)}
         onBlockRoom={() => {
           setEditingBlock(null);
           setBlockPrefillRoomId(undefined);
@@ -748,24 +872,39 @@ function CalendarClientContent({
         }}
       />
 
-      {/* Active filter chips */}
-      {activeFilterCount > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 border-b border-border bg-background px-4 py-2">
+      {/* Active filter strip */}
+      {hasAnyActiveFilter && (
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-border/60 bg-muted/20 px-3 py-1.5 md:px-4">
           {roomTypeFilters
             .filter((f) => !f.visible)
             .map((f) => (
-              <FilterChip key={f.id} label={`Type: ${f.name}`} onClick={() => toggleRoomTypeFilter(f.id)} />
+              <FilterChip
+                key={f.id}
+                label={`Hidden: ${f.name}`}
+                onClick={() => toggleRoomTypeFilter(f.id)}
+              />
             ))}
           {statusFilters.map((s) => (
-            <FilterChip key={s} label={`Status: ${s.replace(/_/g, " ")}`} onClick={() => toggleStatusFilter(s)} />
+            <FilterChip
+              key={s}
+              label={`Status: ${s.replace(/_/g, " ")}`}
+              onClick={() => toggleStatusFilter(s)}
+            />
           ))}
           {sourceFilters.map((s) => (
-            <FilterChip key={s} label={`Source: ${s.replace(/_/g, " ")}`} onClick={() => toggleSourceFilter(s)} />
+            <FilterChip
+              key={s}
+              label={`Source: ${s.replace(/_/g, " ")}`}
+              onClick={() => toggleSourceFilter(s)}
+            />
           ))}
-          {searchQuery && <FilterChip label={`"${searchQuery}"`} onClick={() => setSearchQuery("")} />}
+          {searchQuery.trim() && (
+            <FilterChip label={`“${searchQuery.trim()}”`} onClick={() => setSearchQuery("")} />
+          )}
           <button
+            type="button"
             onClick={clearFilters}
-            className="ml-1 text-caption text-muted-foreground transition-colors hover:text-primary"
+            className="ui-press ml-1 inline-flex min-h-9 cursor-pointer items-center rounded-md px-2.5 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-7 [@media(hover:hover)_and_(pointer:fine)]:hover:text-primary"
           >
             Clear all
           </button>
@@ -776,21 +915,34 @@ function CalendarClientContent({
       <div className="relative min-h-0 flex-1 overflow-hidden">
         {isFetching && (
           <div className="absolute left-0 right-0 top-0 z-30 h-0.5 overflow-hidden bg-primary/10">
-            <div className="h-full w-1/3 bg-primary/60" style={{ animation: "shimmer 1.5s ease-in-out infinite" }} />
+            <div
+              className="h-full w-1/3 bg-primary/60 motion-reduce:w-full motion-reduce:animate-none!"
+              style={{ animation: "shimmer 1.5s ease-in-out infinite" }}
+            />
           </div>
         )}
 
         {isError ? (
-          <div className="flex h-[500px] flex-col items-center justify-center px-6 text-center" role="alert">
-            <div className="mb-5 flex size-14 items-center justify-center rounded-2xl bg-danger/10">
-              <TriangleAlert className="size-7 text-danger" />
-            </div>
-            <h3 className="mb-1.5 text-base font-bold text-foreground">Calendar failed to load</h3>
-            <p className="mb-5 max-w-md text-sm text-muted-foreground">
-              {error instanceof Error ? error.message : "Something went wrong while loading the calendar."}
+          <div
+            className="flex h-full min-h-[360px] flex-col items-center justify-center px-6 text-center"
+            role="alert"
+          >
+            <span className="mb-3 grid size-11 place-items-center rounded-2xl border border-destructive/20 bg-destructive/10 text-destructive">
+              <TriangleAlert className="size-5" aria-hidden="true" />
+            </span>
+            <h2 className="text-[15px] font-semibold text-foreground">
+              Couldn&apos;t load the calendar
+            </h2>
+            <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+              {error instanceof Error ? error.message : "Check your connection and try again."}
             </p>
-            <Button variant="outline" size="sm" onPress={() => void refetch()}>
-              <RefreshCw className="size-4" />
+            <Button
+              variant="outline"
+              size="sm"
+              className="ui-press mt-4 rounded-xl"
+              onPress={() => void refetch()}
+            >
+              <RefreshCw className="size-3.5" aria-hidden="true" />
               Retry
             </Button>
           </div>
@@ -805,6 +957,8 @@ function CalendarClientContent({
             hotelTimezone={hotelTimezone}
             todayAnchor={todayAnchor}
             highlightIds={newBookingIds}
+            assigningIds={assigningIds}
+            movingIds={movingIds}
             onOpenBooking={openBooking}
             onOpenBlock={setSelectedBlock}
             onChange={handleTimelineChange}
@@ -813,40 +967,60 @@ function CalendarClientContent({
             onCreate={handleCellCreate}
             attachBarRef={attachCalendarBarRef}
           />
-        ) : (
-          <div className="flex h-[500px] flex-col items-center justify-center px-6 text-center">
-            <div className="relative mb-6">
-              <CalendarDays className="size-20 text-muted-foreground/20" />
-              <div className="absolute -bottom-2 -right-2 flex size-10 items-center justify-center rounded-full bg-primary/10">
-                <Plus className="size-5 text-primary" />
-              </div>
-            </div>
-            <h3 className="mb-2 text-lg font-bold text-foreground">No rooms configured yet</h3>
-            <p className="mb-6 max-w-md text-sm text-muted-foreground">
-              Set up your room types and rooms to start managing bookings on the calendar. You can drag and drop
-              bookings between rooms, resize to change dates, and create new bookings by clicking on empty cells.
+        ) : rooms.length > 0 ? (
+          <div className="flex h-full min-h-[360px] flex-col items-center justify-center px-6 text-center">
+            <span className="mb-3 grid size-11 place-items-center rounded-2xl border border-border/60 bg-muted/40 text-muted-foreground">
+              <SlidersHorizontal className="size-5" aria-hidden="true" />
+            </span>
+            <h2 className="text-[15px] font-semibold text-foreground">
+              All room types are hidden
+            </h2>
+            <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+              Turn on at least one room type in filters to see the room rack.
             </p>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onPress={() => router.push("/dashboard/rooms")}>
-                Set up rooms
+            <Button
+              variant="outline"
+              size="sm"
+              className="ui-press mt-4 rounded-xl"
+              onPress={clearFilters}
+            >
+              Reset filters
+            </Button>
+          </div>
+        ) : (
+          <div className="flex h-full min-h-[360px] flex-col items-center justify-center px-6 text-center">
+            <span className="mb-3 grid size-11 place-items-center rounded-2xl border border-border/60 bg-muted/40 text-muted-foreground">
+              <BedDouble className="size-5" aria-hidden="true" />
+            </span>
+            <h2 className="text-[15px] font-semibold text-foreground">No rooms configured</h2>
+            <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+              Add your room types and room numbers to manage stays on the timeline.
+            </p>
+            <div className="mt-4 flex items-center gap-2.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="ui-press rounded-xl"
+                onPress={() => router.push("/dashboard/rooms")}
+              >
+                Manage rooms
               </Button>
-              <Button variant="primary" size="sm" onPress={() => router.push("/dashboard/rooms/types/new")} className={linkButtonCn}>
-                Create room type
+              <Button
+                variant="primary"
+                size="sm"
+                className="ui-press rounded-xl"
+                onPress={() => router.push("/dashboard/rooms/types/new")}
+              >
+                New room type
               </Button>
-            </div>
-
-            {/* Quick tips */}
-            <div className="mt-12 grid max-w-2xl grid-cols-3 gap-6">
-              <Tip title="Click to create" body="Click any empty cell to book" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />} />
-              <Tip title="Drag to move" body="Drag bookings between rooms" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />} />
-              <Tip title="Resize dates" body="Drag edges to change stay" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />} />
             </div>
           </div>
         )}
       </div>
 
-      {/* Room-type change confirmation (industry-standard upgrade/downgrade guard) */}
+      {/* Room-type change confirmation */}
       <AlertDialog.Backdrop
+        variant="blur"
         isOpen={pendingTypeChange !== null}
         onOpenChange={(isOpen) => {
           if (!isOpen) setPendingTypeChange(null);
@@ -854,114 +1028,161 @@ function CalendarClientContent({
         isDismissable
         isKeyboardDismissDisabled={false}
       >
-        <AlertDialog.Container placement="auto" size="md">
-          <AlertDialog.Dialog className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-6 shadow-2xl">
-            <AlertDialog.CloseTrigger className="absolute right-4 top-4 inline-flex size-8 items-center justify-center rounded-full border border-border/60 bg-muted/80 text-foreground/80 shadow-xs transition-all hover:scale-105 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95" />
-            <AlertDialog.Header className="gap-3 pb-1">
-              <AlertDialog.Icon
-                status="warning"
-                className="flex size-12 items-center justify-center rounded-2xl border border-amber-500/25 bg-amber-500/15 text-amber-600 shadow-xs"
+        <AlertDialog.Container placement="center" size="md">
+          <AlertDialog.Dialog className="relative overflow-hidden rounded-[24px] border border-border/70 bg-card p-6 shadow-2xl outline-none sm:max-w-[440px]">
+            <AlertDialog.Header className="flex items-center gap-3 pb-1">
+              <span
+                aria-hidden="true"
+                className="grid size-10 shrink-0 place-items-center rounded-xl border border-amber-500/25 bg-amber-500/12 text-amber-700"
               >
-                <CalendarDays className="size-6" />
-              </AlertDialog.Icon>
-              <AlertDialog.Heading className="text-lg font-bold tracking-tight text-foreground">
-                Change room type?
-              </AlertDialog.Heading>
+                <CalendarDays className="size-5" />
+              </span>
+              <div className="min-w-0">
+                <AlertDialog.Heading className="text-base font-semibold text-foreground">
+                  Change room type?
+                </AlertDialog.Heading>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {pendingTypeChange?.guestName} ·{" "}
+                  {pendingTypeChange?.fromTypeName ?? "Current"} → {pendingTypeChange?.toTypeName} (
+                  {pendingTypeChange ? format(parseISO(pendingTypeChange.checkIn), "MMM d") : ""} –{" "}
+                  {pendingTypeChange ? format(parseISO(pendingTypeChange.checkOut), "MMM d") : ""})
+                </p>
+              </div>
             </AlertDialog.Header>
-            <AlertDialog.Body className="space-y-2.5 py-2 text-sm leading-relaxed text-muted-foreground">
-              <p>
-                Move <strong className="font-semibold text-foreground">{pendingTypeChange?.guestName}</strong> from{" "}
-                <strong className="font-semibold text-foreground">{pendingTypeChange?.fromTypeName ?? "current type"}</strong> to{" "}
-                <strong className="font-semibold text-foreground">{pendingTypeChange?.toTypeName}</strong>?
-              </p>
-              <p>
-                Stay {pendingTypeChange ? format(parseISO(pendingTypeChange.checkIn), "MMM d") : ""} –{" "}
-                {pendingTypeChange ? format(parseISO(pendingTypeChange.checkOut), "MMM d") : ""}. Choose what happens to the rate:
-              </p>
-              <div role="radiogroup" aria-label="Rate for the moved stay" className="space-y-2 pt-0.5">
+
+            <AlertDialog.Body className="space-y-2.5 py-3 text-sm">
+              <div
+                role="radiogroup"
+                aria-label="Rate for the moved stay"
+                onKeyDown={(e) => {
+                  if (
+                    e.key === "ArrowDown" ||
+                    e.key === "ArrowRight" ||
+                    e.key === "ArrowUp" ||
+                    e.key === "ArrowLeft"
+                  ) {
+                    e.preventDefault();
+                    if (typeChangeRateChoice === "keep" && !repriceUnavailable) {
+                      setTypeChangeRateChoice("reprice");
+                      rateRadioRefs.current[1]?.focus();
+                    } else if (typeChangeRateChoice === "reprice") {
+                      setTypeChangeRateChoice("keep");
+                      rateRadioRefs.current[0]?.focus();
+                    }
+                  }
+                }}
+                className="space-y-2"
+              >
                 <button
+                  ref={(el) => {
+                    rateRadioRefs.current[0] = el;
+                  }}
                   type="button"
                   role="radio"
                   aria-checked={typeChangeRateChoice === "keep"}
+                  tabIndex={typeChangeRateChoice === "keep" ? 0 : -1}
                   onClick={() => setTypeChangeRateChoice("keep")}
-                  className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                  className={cn(
+                    "ui-press flex w-full cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     typeChangeRateChoice === "keep"
-                      ? "border-primary bg-primary/8 ring-1 ring-primary/25"
-                      : "border-border bg-background hover:border-foreground/25 hover:bg-muted/35"
-                  }`}
+                      ? "border-primary bg-primary/[0.06] ring-1 ring-primary/20"
+                      : "border-border bg-background [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/35"
+                  )}
                 >
                   <span className="flex-1">
                     <span className="flex items-center justify-between gap-3">
-                      <span className="font-medium text-foreground">Keep current rate</span>
+                      <span className="text-[13px] font-semibold text-foreground">
+                        Keep current rate
+                      </span>
                       {typeChangePreview && (
-                        <span className="shrink-0 font-semibold tabular-nums text-foreground">
-                          {formatMoney(typeChangePreview.currentTotalMinor, typeChangePreview.currency)}
+                        <span className="shrink-0 font-mono text-[13px] font-semibold tabular-nums text-foreground">
+                          {formatMoney(
+                            typeChangePreview.currentTotalMinor,
+                            typeChangePreview.currency
+                          )}
                         </span>
                       )}
                     </span>
                     <span className="mt-0.5 block text-xs text-muted-foreground">
-                      Every night keeps the price already on the booking — only the room changes.
+                      Keep existing nightly prices
                     </span>
                   </span>
                 </button>
+
                 <button
+                  ref={(el) => {
+                    rateRadioRefs.current[1] = el;
+                  }}
                   type="button"
                   role="radio"
                   aria-checked={typeChangeRateChoice === "reprice"}
+                  tabIndex={typeChangeRateChoice === "reprice" ? 0 : -1}
                   disabled={repriceUnavailable}
                   onClick={() => setTypeChangeRateChoice("reprice")}
-                  className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-55 ${
+                  className={cn(
+                    "ui-press flex w-full cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-55",
                     typeChangeRateChoice === "reprice"
-                      ? "border-primary bg-primary/8 ring-1 ring-primary/25"
-                      : "border-border bg-background hover:border-foreground/25 hover:bg-muted/35"
-                  }`}
+                      ? "border-primary bg-primary/[0.06] ring-1 ring-primary/20"
+                      : "border-border bg-background [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/35"
+                  )}
                 >
                   <span className="flex-1">
                     <span className="flex items-center justify-between gap-3">
-                      <span className="font-medium text-foreground">Reprice at {pendingTypeChange?.toTypeName} rate</span>
+                      <span className="text-[13px] font-semibold text-foreground">
+                        Reprice at {pendingTypeChange?.toTypeName} rate
+                      </span>
                       {typeChangePreview?.repriceTotalMinor != null && (
-                        <span className="shrink-0 font-semibold tabular-nums text-foreground">
-                          {formatMoney(typeChangePreview.repriceTotalMinor, typeChangePreview.currency)}
+                        <span className="shrink-0 font-mono text-[13px] font-semibold tabular-nums text-foreground">
+                          {formatMoney(
+                            typeChangePreview.repriceTotalMinor,
+                            typeChangePreview.currency
+                          )}
                         </span>
                       )}
                     </span>
                     <span className="mt-0.5 block text-xs text-muted-foreground">
                       {typeChangePreviewBusy
-                        ? `Checking ${pendingTypeChange?.toTypeName} rates…`
+                        ? "Checking target rates…"
                         : typeChangePreviewQuery.isError
-                          ? "Couldn't preview the new rate — confirming will re-check it."
+                          ? "Rate preview unavailable — will re-verify on confirm"
                           : typeChangeBlocked
-                            ? `${pendingTypeChange?.toTypeName} has no active rate plan — set one up before moving bookings onto it.`
+                            ? `No active rate plan on ${pendingTypeChange?.toTypeName}`
                             : (typeChangePreview?.unpricedNights ?? 0) > 0
-                              ? `No rate is set for ${typeChangePreview?.unpricedNights} of those nights — set pricing first.`
-                              : typeChangePreview
-                                ? `All nights are re-rated at the ${pendingTypeChange?.toTypeName} rate${typeChangePreview.manualNights > 0 ? ` — ${typeChangePreview.manualNights} hand-priced night${typeChangePreview.manualNights === 1 ? "" : "s"} will lose their custom price` : ""}.`
-                                : `All nights are re-rated at the ${pendingTypeChange?.toTypeName} rate.`}
+                              ? `${typeChangePreview?.unpricedNights} nights lack pricing`
+                              : typeChangePreview && typeChangePreview.manualNights > 0
+                                ? `Replaces ${typeChangePreview.manualNights} custom-priced night${typeChangePreview.manualNights === 1 ? "" : "s"}`
+                                : `Apply ${pendingTypeChange?.toTypeName} rate plan`}
                     </span>
                   </span>
                 </button>
               </div>
+
               {typeChangeBlocked && (
-                <p className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                <p className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
                   <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-                  This move cannot go ahead either way until {pendingTypeChange?.toTypeName} has an active rate plan.
+                  Set up an active rate plan on {pendingTypeChange?.toTypeName} first.
                 </p>
               )}
             </AlertDialog.Body>
-            <AlertDialog.Footer className="flex items-center justify-end gap-2.5 pt-3">
+
+            <AlertDialog.Footer className="flex items-center justify-end gap-2 pt-2">
               <Button
                 variant="tertiary"
                 onPress={() => setPendingTypeChange(null)}
-                className="h-10 cursor-pointer rounded-xl border border-border/80 bg-background/80 px-4 font-medium text-foreground shadow-xs transition-all hover:border-border hover:bg-muted/80"
+                className="ui-press h-10 rounded-xl border border-border/70 bg-background px-4 text-xs font-semibold text-foreground"
               >
                 Cancel
               </Button>
               <Button
                 onPress={confirmTypeChange}
-                isDisabled={typeChangePreviewBusy || typeChangeBlocked || (typeChangeRateChoice === "reprice" && repriceUnavailable)}
-                className="h-10 cursor-pointer rounded-xl bg-amber-600 px-5 font-semibold text-white shadow-xs transition-all hover:bg-amber-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55"
+                isDisabled={
+                  typeChangePreviewBusy ||
+                  typeChangeBlocked ||
+                  (typeChangeRateChoice === "reprice" && repriceUnavailable)
+                }
+                className="ui-press h-10 rounded-xl bg-amber-600 px-4 text-xs font-semibold text-white [@media(hover:hover)_and_(pointer:fine)]:hover:bg-amber-700"
               >
-                Confirm type change
+                Confirm move
               </Button>
             </AlertDialog.Footer>
           </AlertDialog.Dialog>
@@ -983,14 +1204,12 @@ function CalendarClientContent({
         block={selectedBlock}
         open={selectedBlock !== null}
         onClose={() => setSelectedBlock(null)}
-        roomNumber={
-          rooms.find((r) => r.id === selectedBlock?.roomId)?.roomNumber ?? "—"
-        }
+        roomNumber={rooms.find((r) => r.id === selectedBlock?.roomId)?.roomNumber ?? "—"}
         roomTypeName={rooms.find((r) => r.id === selectedBlock?.roomId)?.roomTypeName}
         canUnblock={canUnblock}
         canEditBlocks={canBlockProp}
         onEdit={openBlockEditor}
-        onUnblocked={invalidateCalendarData}
+        onUnblocked={handleBlockUnblocked}
       />
       <BlockRoomSheet
         open={blockRoomOpen}
@@ -1027,6 +1246,15 @@ function CalendarClientContent({
       <FilterDrawer
         isOpen={showFilters}
         onOpenChange={setShowFilters}
+        viewPreset={viewPreset}
+        onViewPresetChange={changeViewPreset}
+        canBlock={canBlockProp}
+        onBlockRoom={() => {
+          setShowFilters(false);
+          setEditingBlock(null);
+          setBlockPrefillRoomId(undefined);
+          setBlockRoomOpen(true);
+        }}
         roomTypeFilters={roomTypeFilters}
         statusFilters={statusFilters}
         sourceFilters={sourceFilters}
@@ -1039,36 +1267,16 @@ function CalendarClientContent({
   );
 }
 
-const linkButtonCn = "bg-primary text-primary-foreground";
-
-function Tip({ title, body, icon }: { title: string; body: string; icon: React.ReactNode }) {
-  return (
-    <div className="flex flex-col items-center text-center">
-      <div className="mb-3 flex size-10 items-center justify-center rounded-lg bg-primary/10">
-        <svg className="size-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          {icon}
-        </svg>
-      </div>
-      <p className="mb-1 text-xs font-semibold text-foreground">{title}</p>
-      <p className="text-[10px] text-muted-foreground">{body}</p>
-    </div>
-  );
-}
-
-/** Removable active-filter pill. HeroUI Chip is display-only, so the press
- *  affordance lives on a reset-styled wrapper button (whole chip removes). */
 function FilterChip({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={`Remove filter ${label}`}
-      className="group inline-flex items-center rounded-full transition-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="ui-press inline-flex min-h-9 max-w-[210px] cursor-pointer items-center gap-1.5 rounded-lg border border-border/70 bg-card px-2.5 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-7 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
     >
-      <Chip size="sm" variant="soft" className="max-w-[180px] cursor-pointer">
-        <span className="truncate capitalize">{label}</span>
-      </Chip>
-      <X className="mr-1 size-3 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" aria-hidden />
+      <span className="truncate capitalize">{label}</span>
+      <X className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
     </button>
   );
 }
@@ -1076,6 +1284,10 @@ function FilterChip({ label, onClick }: { label: string; onClick: () => void }) 
 function FilterDrawer({
   isOpen,
   onOpenChange,
+  viewPreset,
+  onViewPresetChange,
+  canBlock,
+  onBlockRoom,
   roomTypeFilters,
   statusFilters,
   sourceFilters,
@@ -1086,6 +1298,10 @@ function FilterDrawer({
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  viewPreset: ViewPreset;
+  onViewPresetChange: (preset: ViewPreset) => void;
+  canBlock: boolean;
+  onBlockRoom: () => void;
   roomTypeFilters: RoomTypeFilter[];
   statusFilters: string[];
   sourceFilters: string[];
@@ -1106,41 +1322,126 @@ function FilterDrawer({
       <Drawer.Content placement={isMobile ? "bottom" : "right"}>
         <Drawer.Dialog
           aria-labelledby="calendar-filters-title"
-          className="flex h-[85dvh] max-h-[85dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-background shadow-[0_-24px_80px_rgb(0_0_0/0.35)] md:h-dvh md:max-h-dvh md:w-[min(21rem,100vw)] md:rounded-none md:border-l md:border-border/70 md:shadow-[-24px_0_80px_rgb(0_0_0/0.18)]"
+          className="flex h-[84dvh] max-h-[84dvh] w-full flex-col overflow-hidden rounded-t-[24px] bg-background shadow-2xl md:h-dvh md:max-h-dvh md:w-[min(21rem,100vw)] md:rounded-none md:border-l md:border-border/70"
         >
           {isMobile && <Drawer.Handle className="mt-2.5 shrink-0" />}
-          <Drawer.CloseTrigger className="absolute right-3.5 top-3.5 z-10 inline-flex size-11 items-center justify-center rounded-full bg-muted/70 text-muted-foreground shadow-xs backdrop-blur transition-all hover:bg-muted hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+          <Drawer.CloseTrigger className="ui-press absolute right-3.5 top-3.5 z-10 inline-flex size-10 items-center justify-center rounded-xl bg-muted/70 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" />
 
-          <Drawer.Header className="shrink-0 flex-col items-start gap-1 border-b border-border/50 px-5 pb-4 pr-14 pt-12">
-            <Drawer.Heading id="calendar-filters-title" className="text-section text-foreground">
-              Filters
+          <Drawer.Header className="shrink-0 flex-row items-center justify-between border-b border-border/50 px-5 pb-3.5 pr-14 pt-5">
+            <Drawer.Heading id="calendar-filters-title" className="text-[15px] font-semibold text-foreground">
+              View &amp; filters
             </Drawer.Heading>
-            <p className="text-caption text-muted-foreground">Show or hide rooms and bookings</p>
           </Drawer.Header>
 
-          <Drawer.Body className="min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-5">
-            <FilterGroup title="Room Types">
+          <Drawer.Body className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-5 py-4">
+            {/* Mobile-only view horizon, block room & color legend */}
+            <div className="space-y-4 md:hidden">
+              <FilterGroup title="Horizon">
+                <div className="grid grid-cols-3 gap-1.5 rounded-xl bg-muted/40 p-1">
+                  {VIEW_PRESETS.map((preset) => {
+                    const active = viewPreset === preset.label;
+                    return (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => onViewPresetChange(preset.label)}
+                        className={cn(
+                          "ui-press min-h-10 cursor-pointer rounded-lg text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          active
+                            ? "bg-card font-semibold text-foreground shadow-2xs ring-1 ring-border/60"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterGroup>
+
+              {canBlock && (
+                <button
+                  type="button"
+                  onClick={onBlockRoom}
+                  className="ui-press flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-border/70 bg-card px-4 text-xs font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <CalendarOff className="size-4 text-muted-foreground" aria-hidden="true" />
+                  Block room dates
+                </button>
+              )}
+            </div>
+
+            <FilterGroup title="Room types">
               {roomTypeFilters.map((f) => (
-                <FilterToggle key={f.id} label={f.name} active={f.visible} onToggle={() => onToggleRoomType(f.id)} />
+                <FilterToggle
+                  key={f.id}
+                  label={f.name}
+                  active={f.visible}
+                  onToggle={() => onToggleRoomType(f.id)}
+                />
               ))}
             </FilterGroup>
-            <FilterGroup title="Booking Status">
+
+            <FilterGroup title="Booking status">
               {STATUS_OPTIONS.map((s) => (
-                <FilterToggle key={s} label={s.replace(/_/g, " ")} active={statusFilters.includes(s)} onToggle={() => onToggleStatus(s)} />
+                <FilterToggle
+                  key={s}
+                  label={s.replace(/_/g, " ")}
+                  active={statusFilters.includes(s)}
+                  onToggle={() => onToggleStatus(s)}
+                />
               ))}
             </FilterGroup>
-            <FilterGroup title="Booking Source">
+
+            <FilterGroup title="Booking source">
               {SOURCE_OPTIONS.map((s) => (
-                <FilterToggle key={s} label={s.replace(/_/g, " ")} active={sourceFilters.includes(s)} onToggle={() => onToggleSource(s)} />
+                <FilterToggle
+                  key={s}
+                  label={s.replace(/_/g, " ")}
+                  active={sourceFilters.includes(s)}
+                  onToggle={() => onToggleSource(s)}
+                />
               ))}
+            </FilterGroup>
+
+            <FilterGroup title="Status colors">
+              <ul className="grid grid-cols-2 gap-2 pt-1">
+                {CALENDAR_LEGEND.map((item) => (
+                  <li key={item.label} className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span
+                      className="size-2.5 shrink-0 rounded-sm"
+                      style={
+                        item.type === "block"
+                          ? {
+                              background:
+                                "repeating-linear-gradient(135deg, color-mix(in oklch, var(--cal-closure) 25%, transparent) 0 3px, color-mix(in oklch, var(--cal-closure) 50%, transparent) 3px 6px)",
+                            }
+                          : { background: item.color }
+                      }
+                    />
+                    <span className="truncate">{item.label}</span>
+                  </li>
+                ))}
+              </ul>
             </FilterGroup>
           </Drawer.Body>
 
           <Drawer.Footer className="flex shrink-0 items-center justify-between gap-2 border-t border-border/50 bg-muted/10 px-5 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3">
-            <Button variant="ghost" size="sm" onPress={onClear} className="min-h-11 font-medium text-primary">
+            <Button
+              variant="ghost"
+              size="sm"
+              onPress={onClear}
+              className="ui-press min-h-10 rounded-xl font-medium text-primary"
+            >
               Reset all
             </Button>
-            <Button size="sm" slot="close" onPress={() => onOpenChange(false)} className="min-h-11 min-w-24">
+            <Button
+              size="sm"
+              slot="close"
+              onPress={() => onOpenChange(false)}
+              className="ui-press min-h-10 min-w-24 rounded-xl font-semibold"
+            >
               Done
             </Button>
           </Drawer.Footer>
@@ -1153,17 +1454,25 @@ function FilterDrawer({
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-1.5">
-      <p className="px-1 text-label font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+      <p className="px-1 text-xs font-semibold text-muted-foreground">{title}</p>
       <div className="space-y-0.5">{children}</div>
     </section>
   );
 }
 
-function FilterToggle({ label, active, onToggle }: { label: string; active: boolean; onToggle(): void }) {
+function FilterToggle({
+  label,
+  active,
+  onToggle,
+}: {
+  label: string;
+  active: boolean;
+  onToggle(): void;
+}) {
   return (
     <Switch isSelected={active} onChange={onToggle} aria-label={label} className="w-full">
-      <Switch.Content className="min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 transition-colors hover:bg-muted/60">
-        <span className="text-body font-medium capitalize text-foreground">{label}</span>
+      <Switch.Content className="min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 transition-colors [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60">
+        <span className="text-sm font-medium capitalize text-foreground">{label}</span>
         <Switch.Control className="shrink-0">
           <Switch.Thumb />
         </Switch.Control>

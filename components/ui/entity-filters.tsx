@@ -99,7 +99,7 @@ export function EntityFilters({
   const [open, setOpen] = React.useState(false);
   const activeCount = countActiveFilters(fields, values);
 
-  const triggerClass = cn("shrink-0 rounded-xl text-sm", activeCount > 0 && "bg-muted");
+  const triggerClass = cn("ui-press h-11 shrink-0 rounded-xl text-sm sm:h-9", activeCount > 0 && "bg-muted");
 
   const label = (
     <>
@@ -123,7 +123,7 @@ export function EntityFilters({
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-label={activeCount > 0 ? `${title}, ${activeCount} active` : title}
-          className={cn(triggerClass, "h-11")}
+          className={triggerClass}
         >
           {label}
         </Button>
@@ -143,11 +143,11 @@ export function EntityFilters({
                   variant="ghost"
                   onPress={onClearAll}
                   isDisabled={activeCount === 0}
-                  className="rounded-xl"
+                  className="ui-press min-h-11 rounded-xl"
                 >
                   Clear all
                 </Button>
-                <Button variant="primary" slot="close" className="rounded-xl">
+                <Button variant="primary" slot="close" className="ui-press min-h-11 rounded-xl">
                   Show {filteredCount} {resultNoun}
                   {filteredCount !== 1 ? "s" : ""}
                 </Button>
@@ -166,7 +166,7 @@ export function EntityFilters({
           variant="ghost"
           size="sm"
           aria-label={activeCount > 0 ? `${title}, ${activeCount} active` : title}
-          className={cn(triggerClass, "h-9")}
+          className={triggerClass}
         >
           {label}
         </Button>
@@ -226,7 +226,7 @@ export function EntityFilterChips({
             type="button"
             aria-label={`Remove ${(f.chipPrefix ?? f.label).toLowerCase()} filter`}
             onClick={() => onChange(f.key, "all")}
-            className="-mr-0.5 ml-1 inline-flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="ui-press -mr-0.5 ml-1 inline-flex size-7 cursor-pointer items-center justify-center rounded-full text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
           >
             <X className="size-3" />
           </button>
@@ -235,7 +235,7 @@ export function EntityFilterChips({
       <button
         type="button"
         onClick={onClearAll}
-        className="rounded px-1 text-xs font-medium text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="ui-press min-h-9 cursor-pointer rounded px-2 text-xs font-medium text-muted-foreground underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-0 sm:px-1 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:underline"
       >
         Clear all
       </button>

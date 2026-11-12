@@ -28,6 +28,9 @@ function EventEditor({
   onChange: (patch: Partial<NotificationTemplate>) => void;
 }) {
   const [open, setOpen] = React.useState(false);
+  const subjectId = React.useId();
+  const bodyId = React.useId();
+  const panelId = React.useId();
   const focusedRef = React.useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
 
   const insertVariable = (variable: string) => {
@@ -50,8 +53,10 @@ function EventEditor({
     <section className="overflow-hidden rounded-lg border border-border/70">
       <button
         type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
         onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+        className="ui-press flex min-h-12 w-full cursor-pointer items-center justify-between gap-4 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/35"
       >
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">{EVENT_LABELS[eventType]}</p>
@@ -61,12 +66,12 @@ function EventEditor({
           <span className={cn("flex items-center gap-1 text-xs", template.email_enabled ? "text-foreground" : "text-muted-foreground/40")}>
             <Mail className="size-3" /> Email
           </span>
-          <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", open && "rotate-180")} />
+          <ChevronDown className={cn("size-4 text-muted-foreground transition-transform duration-150 ease-[var(--ease-out-ui)] motion-reduce:transition-none", open && "rotate-180")} />
         </div>
       </button>
 
       {open && (
-        <div className="space-y-4 border-t border-border/60 bg-muted/15 p-4">
+        <div id={panelId} className="space-y-4 border-t border-border/60 bg-muted/15 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-foreground">Send this email</p>
@@ -86,25 +91,28 @@ function EventEditor({
           {template.email_enabled && (
             <>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Subject</label>
+                <label htmlFor={subjectId} className="text-xs font-medium text-muted-foreground">Subject</label>
                 <Input
+                  id={subjectId}
                   data-field="email_subject"
                   value={template.email_subject}
                   onChange={(event) => onChange({ email_subject: event.target.value })}
                   onFocus={(event) => { focusedRef.current = event.currentTarget; }}
                   variant="secondary"
                   fullWidth
+                  className="h-11 text-base sm:h-9 sm:text-sm"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Body</label>
+                <label htmlFor={bodyId} className="text-xs font-medium text-muted-foreground">Body</label>
                 <Textarea
+                  id={bodyId}
                   data-field="email_template"
                   value={template.email_template}
                   onChange={(event) => onChange({ email_template: event.target.value })}
                   onFocus={(event) => { focusedRef.current = event.currentTarget; }}
                   rows={7}
-                  className="resize-y font-mono text-xs"
+                  className="resize-y font-mono text-base sm:text-xs"
                 />
               </div>
               <div>
@@ -115,7 +123,7 @@ function EventEditor({
                       key={variable}
                       type="button"
                       onClick={() => insertVariable(variable)}
-                      className="rounded border border-border bg-background px-2 py-1 font-mono text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+                      className="ui-press min-h-9 cursor-pointer rounded-md border border-border bg-background px-2.5 py-1 font-mono text-[11px] text-muted-foreground sm:min-h-7 sm:px-2 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
                     >
                       {variable}
                     </button>
@@ -166,7 +174,7 @@ export function NotificationTemplatesClient({ initialTemplates }: { initialTempl
         <span className="text-caption text-muted-foreground">
           {hasChanges ? "Unsaved changes" : undefined}
         </span>
-        <Button variant="primary" isPending={saving} onPress={save} isDisabled={!hasChanges}>
+        <Button variant="primary" className="ui-press min-h-11 rounded-xl sm:min-h-9" isPending={saving} onPress={save} isDisabled={!hasChanges}>
           Save email templates
         </Button>
       </div>

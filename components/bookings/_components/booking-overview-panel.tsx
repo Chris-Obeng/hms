@@ -210,7 +210,7 @@ function NotesBand({ booking, onSaveNotes }: { booking: FullBookingDetail; onSav
           <textarea rows={4} value={draft} maxLength={2000} autoFocus
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Housekeeping requests, arrival notes…"
-            className="w-full resize-none rounded-xl border border-border/60 bg-card px-3 py-2.5 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20" />
+            className="w-full resize-none rounded-xl border border-border/60 bg-card px-3 py-2.5 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:text-xs" />
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => { setEditing(false); setDraft(booking.internalNotes ?? ""); }}
               className="h-8 rounded-full px-3 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">

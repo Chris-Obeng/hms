@@ -4,7 +4,6 @@ import * as React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Command } from "cmdk";
-import { useReducedMotion } from "motion/react";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -98,7 +97,7 @@ function useActions(
 const LIST_CLASSES =
   "no-scrollbar max-h-[min(60dvh,26rem)] scroll-py-2 overflow-x-hidden overflow-y-auto overscroll-contain p-1 outline-none";
 const GROUP_CLASSES =
-  "overflow-hidden p-1 text-foreground **:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1.5 **:[[cmdk-group-heading]]:text-[11px] **:[[cmdk-group-heading]]:font-semibold **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:tracking-wider **:[[cmdk-group-heading]]:text-muted-foreground/60";
+  "overflow-hidden p-1 text-foreground **:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1.5 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-muted-foreground";
 const ITEM_CLASSES =
   "group/item relative flex cursor-default select-none items-center gap-3 rounded-lg px-2.5 py-2 text-sm outline-none transition-colors data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-muted [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
 
@@ -107,7 +106,6 @@ type Status = "idle" | "loading" | "done" | "error";
 export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void }) {
   const router = useRouter();
   const pathname = usePathname();
-  const reduced = useReducedMotion();
 
   const [open, setOpen] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -324,7 +322,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
               setStatus("loading");
               setNonce((n) => n + 1);
             }}
-            className="rounded-md px-2 py-1 text-xs font-medium text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="ui-press min-h-9 rounded-md px-3 py-1 text-xs font-medium text-foreground underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 [@media(hover:hover)_and_(pointer:fine)]:hover:underline"
           >
             Try again
           </button>
@@ -401,7 +399,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
               "flex h-9 items-center gap-2 rounded-lg border px-3 transition-colors",
               open
                 ? "border-border bg-background ring-2 ring-ring/30"
-                : "border-border bg-muted/40 hover:bg-muted/60"
+                : "border-border bg-muted/40 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
             )}
           >
             <Search className="size-4 shrink-0 text-muted-foreground" />
@@ -425,13 +423,13 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
                   reset();
                   inputRef.current?.focus();
                 }}
-                className="inline-flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                className="ui-press inline-flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
               >
                 <X className="size-3.5" />
               </button>
             ) : (
               modKey && (
-                <kbd className="pointer-events-none hidden select-none rounded border border-border bg-background px-1.5 font-mono text-[10px] leading-5 text-muted-foreground/70 lg:inline-block">
+                <kbd className="pointer-events-none hidden select-none rounded border border-border bg-background px-1.5 font-mono text-[11px] leading-5 text-muted-foreground/70 lg:inline-block">
                   {modKey}
                 </kbd>
               )
@@ -439,12 +437,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
           </div>
 
           {open && (
-            <div
-              className={cn(
-                "absolute inset-x-0 top-[calc(100%+6px)] z-40 overflow-hidden rounded-xl border border-border bg-popover p-1 shadow-xl",
-                !reduced && "animate-in fade-in-0 zoom-in-95 slide-in-from-top-1 duration-150"
-              )}
-            >
+            <div className="absolute inset-x-0 top-[calc(100%+6px)] z-40 overflow-hidden rounded-xl border border-border bg-popover p-1 shadow-xl">
               <Command.List className={LIST_CLASSES}>{listBody()}</Command.List>
             </div>
           )}
@@ -459,14 +452,14 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
         type="button"
         aria-label="Search"
         onClick={() => setMobileOpen(true)}
-        className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:hidden"
+        className="ui-press inline-flex size-11 items-center justify-center rounded-lg text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:hidden [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
       >
         <Search className="size-5" />
       </button>
 
       {mobileOpen &&
         createPortal(
-          <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
+          <div className="fixed inset-0 z-50 flex flex-col bg-background pt-[env(safe-area-inset-top)] md:hidden">
             <Command
               shouldFilter={false}
               loop
@@ -483,7 +476,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
                   type="button"
                   aria-label="Close search"
                   onClick={dismiss}
-                  className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                  className="ui-press inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                 >
                   <ArrowLeft className="size-5" />
                 </button>
@@ -507,7 +500,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
                       reset();
                       mobileInputRef.current?.focus();
                     }}
-                    className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground/70 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                    className="ui-press inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
                   >
                     <X className="size-4" />
                   </button>

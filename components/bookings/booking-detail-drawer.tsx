@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { Button, Drawer, Dropdown, Skeleton, Tabs, toast } from "@heroui/react";
-import { Ban, CalendarX2, Ellipsis, RotateCcw, X } from "lucide-react";
+import { ArrowUpRight, Ban, CalendarX2, Ellipsis, RotateCcw, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -41,6 +42,7 @@ export function BookingDetailDrawer({
   onBookingChanged,
 }: BookingDetailDrawerProps) {
   const isMobile = useIsMobile();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [actionLoading, setActionLoading] = React.useState<string | null>(null);
   const [tab, setTab] = React.useState<DrawerTab>(initialTab);
@@ -258,17 +260,27 @@ export function BookingDetailDrawer({
                       size="sm"
                       variant="tertiary"
                       aria-label="Reservation actions"
-                      className="size-7 min-w-7 shrink-0 rounded-full bg-muted/70 p-0 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      className="ui-press size-9 min-w-9 shrink-0 rounded-xl bg-muted/70 p-0 text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
                     >
-                      <Ellipsis className="size-3.5" aria-hidden="true" />
+                      <Ellipsis className="size-4" aria-hidden="true" />
                     </Button>
                     <Dropdown.Popover placement="bottom end">
                       <Dropdown.Menu
                         onAction={(key) => {
-                          if (key === "reinstate" && canReinstate) setConfirmAction("reinstate");
-                          else if (key === "cancel" && canCancel) setConfirmAction("cancel");
+                          if (key === "open-page") {
+                            onClose();
+                            router.push(`/dashboard/bookings/${booking.id}`);
+                          } else if (key === "reinstate" && canReinstate) {
+                            setConfirmAction("reinstate");
+                          } else if (key === "cancel" && canCancel) {
+                            setConfirmAction("cancel");
+                          }
                         }}
                       >
+                        <Dropdown.Item id="open-page" textValue="Open full folio" className="text-foreground">
+                          <ArrowUpRight className="size-3.5 text-muted-foreground" />
+                          <span>Open full folio</span>
+                        </Dropdown.Item>
                         {canReinstate ? (
                           <Dropdown.Item id="reinstate" textValue="Reinstate reservation" className="text-foreground">
                             <RotateCcw className="size-3.5 text-muted-foreground" />
@@ -287,9 +299,9 @@ export function BookingDetailDrawer({
                     type="button"
                     aria-label="Close reservation drawer"
                     onClick={onClose}
-                    className="hidden md:grid size-7 shrink-0 place-items-center rounded-full bg-muted/70 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="ui-press hidden size-9 shrink-0 place-items-center rounded-xl bg-muted/70 text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:grid [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
                   >
-                    <X className="size-3.5" aria-hidden="true" />
+                    <X className="size-4" aria-hidden="true" />
                   </button>
                 </div>
                 <Drawer.Heading className="w-full truncate text-xl font-semibold leading-tight tracking-[-0.3px] text-foreground">
@@ -317,8 +329,12 @@ export function BookingDetailDrawer({
                     <Tabs.Panel id="overview" className="flex min-h-full flex-col">
                       <BookingOverviewPanel booking={booking} actionLoading={actionLoading} onBulkAction={handleBulkAction}
                         onSaveNotes={async (notes) => {
+                          setOptimisticPatch({ internalNotes: notes || null } as Partial<FullBookingDetail>);
                           const { updateBookingNotes } = await import("@/app/actions/bookings-detail");
-                          return updateBookingNotes(booking.id, { notes });
+                          const res = await updateBookingNotes(booking.id, { notes });
+                          if (res.success) refresh();
+                          else setOptimisticPatch(null);
+                          return res;
                         }} />
                     </Tabs.Panel>
                   </BookingPanelBoundary>
@@ -330,6 +346,51 @@ export function BookingDetailDrawer({
                         currency={booking.currency ?? currency}
                         onBookingChanged={onBookingChanged}
                         onRefresh={refresh}
+                        onOptimisticPayment={(entry) => {
+                          const nowIso = new Date().toISOString();
+                          const optimisticRecord = {
+                            id: `optimistic-${nowIso}`,
+                            bookingId: entry.bookingId,
+                            amount: entry.amount,
+                            method: entry.method,
+                            status: "success",
+                            paidAt: nowIso,
+                            createdAt: nowIso,
+                            notes: entry.notes || null,
+                            recordedByName: null,
+                            roomLabel: null,
+                          };
+                          if (booking.group) {
+                            const nextPaid = booking.group.amountPaid + entry.amount;
+                            setOptimisticPatch({
+                              payments: [optimisticRecord, ...booking.payments],
+                              group: {
+                                ...booking.group,
+                                amountPaid: nextPaid,
+                                outstanding: Math.max(0, booking.group.total - nextPaid),
+                                lines: booking.group.lines.map((l) =>
+                                  l.id === entry.bookingId
+                                    ? {
+                                        ...l,
+                                        amountPaid: l.amountPaid + entry.amount,
+                                        outstanding: Math.max(0, l.outstanding - entry.amount),
+                                      }
+                                    : l
+                                ),
+                              },
+                            } as Partial<FullBookingDetail>);
+                          } else {
+                            const nextPaid = (booking.amountPaid || 0) + entry.amount;
+                            const nextOut = Math.max(0, booking.totalAmount - nextPaid);
+                            setOptimisticPatch({
+                              amountPaid: nextPaid,
+                              outstandingBalance: nextOut,
+                              paymentStatus: nextOut <= 0 ? "paid" : "partial",
+                              payments: [optimisticRecord, ...booking.payments],
+                            } as Partial<FullBookingDetail>);
+                          }
+                          return () => setOptimisticPatch(null);
+                        }}
                         formOpen={paymentFormOpen}
                         onFormOpenChange={setPaymentFormOpen}
                       />

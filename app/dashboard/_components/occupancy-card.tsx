@@ -2,80 +2,188 @@
 
 import { useId } from "react";
 import { formatSoldPercent, type RoomsSoldMetric } from "@/lib/metrics/dashboard-occupancy";
+import { cn } from "@/lib/utils";
 import { OccupancyDonut } from "./occupancy-donut";
 
-export function OccupancyCard({ metric, isDateSwitching = false }: { metric: RoomsSoldMetric; isDateSwitching?: boolean }) {
+export function OccupancyCard({
+  metric,
+  isDateSwitching = false,
+}: {
+  metric: RoomsSoldMetric;
+  isDateSwitching?: boolean;
+}) {
   const titleId = useId();
-  const dateLabel = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
-    .format(new Date(`${metric.date}T00:00:00Z`));
+  const dateLabel = new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${metric.date}T00:00:00Z`));
+
+  const isDeficit = metric.availableRooms !== null && metric.availableRooms < 0;
+  const hasExcluded =
+    (metric.outOfService !== null && metric.outOfService > 0) ||
+    (metric.blocked !== null && metric.blocked > 0);
+
   return (
-    <section aria-labelledby={titleId} aria-busy={isDateSwitching} className="space-y-4 rounded-2xl border border-border/60 bg-card p-5 shadow-xs">
-      <header>
-        <h2 id={titleId} className="text-base font-semibold tracking-tight text-foreground">Rooms sold</h2>
-        <p className="mt-1 text-sm text-muted-foreground"><time dateTime={metric.date}>{dateLabel}</time> · night</p>
-        {isDateSwitching && <p role="status" className="mt-2 text-sm text-muted-foreground">Loading selected date…</p>}
+    <section
+      aria-labelledby={titleId}
+      aria-busy={isDateSwitching}
+      className="flex h-full flex-col justify-between gap-4 rounded-[20px] border border-border/60 bg-card p-5 shadow-[0_1px_3px_rgb(0_0_0/0.04)]"
+    >
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2
+            id={titleId}
+            className="text-[15px] font-semibold leading-snug text-foreground"
+          >
+            Rooms sold
+          </h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            <time dateTime={metric.date}>{dateLabel}</time> · night
+          </p>
+        </div>
+
+        {isDateSwitching ? (
+          <span
+            role="status"
+            className="shrink-0 rounded-lg bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
+          >
+            Loading selected date…
+          </span>
+        ) : (
+          metric.sellableRooms !== null &&
+          metric.soldRooms !== null && (
+            <span className="shrink-0 font-mono text-xs font-medium tabular-nums text-muted-foreground">
+              {metric.soldRooms}/{metric.sellableRooms}
+            </span>
+          )
+        )}
       </header>
 
-      {/* Donut is a glanceable extra; phones get the figures from the rows below. */}
-      <div className="hidden md:block">
-        <OccupancyDonut metric={metric} dateLabel={dateLabel} />
-      </div>
-
-      {metric.sellableRooms !== null && metric.soldRooms !== null && (
-        <p className="text-center text-sm text-muted-foreground">
-          <span className="font-medium tabular-nums text-foreground">{metric.soldRooms} sold</span>
-          {" ÷ "}<span className="tabular-nums">{metric.sellableRooms}</span> sellable rooms
-          {metric.state === "inconsistent" && metric.soldPercent !== null && ` (${formatSoldPercent(metric.soldPercent)}%)`}
-        </p>
-      )}
-
       {metric.issues.length > 0 && (
-        <div role={metric.state === "inconsistent" ? "alert" : "note"} className="space-y-2 border-l-2 border-border pl-3 text-sm leading-relaxed text-foreground">
-          {metric.issues.map((issue) => <p key={issue}>{issue}</p>)}
+        <div
+          role={metric.state === "inconsistent" ? "alert" : "note"}
+          className={cn(
+            "space-y-1.5 rounded-2xl border px-3.5 py-2.5 text-xs leading-relaxed",
+            metric.state === "inconsistent"
+              ? "border-amber-500/30 bg-amber-500/[0.07] text-foreground"
+              : "border-border/60 bg-muted/35 text-muted-foreground"
+          )}
+        >
+          {metric.issues.map((issue) => (
+            <p key={issue}>{issue}</p>
+          ))}
         </div>
       )}
 
-      {metric.totalRooms !== null && (
-        <>
-          <dl className="space-y-3 text-sm">
-            <Row count={metric.soldRooms} label="Sold" marker="bg-primary" />
-            <Row count={metric.heldRooms} label="Pending holds" marker="border-2 border-dashed border-muted-foreground" />
-            <Row count={metric.availableRooms} label={metric.availableRooms !== null && metric.availableRooms < 0 ? "Availability deficit" : "Available to sell"} marker="border border-muted-foreground bg-card" />
-          </dl>
-          <div className="border-t border-border/60 pt-4">
-            <p className="mb-3 text-xs font-medium text-muted-foreground">Excluded from sellable inventory</p>
-            <dl className="space-y-2.5 text-sm">
-              <Row count={metric.outOfService} label="Out of service" />
-              <Row count={metric.blocked} label="Blocked" />
-              <Row count={metric.totalRooms} label="Total active rooms" />
+      {/* Responsive body: side-by-side on phones/tablets, stacked on desktop rail */}
+      <div
+        className={cn(
+          "flex flex-col gap-4",
+          metric.state === "ready" &&
+            "min-[380px]:flex-row min-[380px]:items-center min-[380px]:gap-5 lg:flex-col lg:items-stretch lg:gap-4"
+        )}
+      >
+        <OccupancyDonut
+          metric={metric}
+          dateLabel={dateLabel}
+          className={metric.state !== "ready" ? "w-full" : undefined}
+        />
+
+        {metric.totalRooms !== null && (
+          <div className="min-w-0 flex-1 space-y-3">
+            {metric.sellableRooms !== null && metric.soldRooms !== null && (
+              <p className="text-xs text-muted-foreground lg:text-center">
+                <span className="font-semibold tabular-nums text-foreground">
+                  {metric.soldRooms} sold
+                </span>{" "}
+                of <span className="tabular-nums">{metric.sellableRooms}</span> sellable rooms
+                {metric.state === "inconsistent" &&
+                  metric.soldPercent !== null &&
+                  ` (${formatSoldPercent(metric.soldPercent)}%)`}
+              </p>
+            )}
+
+            <dl className="space-y-2.5 text-[13px]">
+              <Row count={metric.soldRooms} label="Sold" marker="bg-primary" />
+              <Row
+                count={metric.heldRooms}
+                label="Pending holds"
+                marker="border-[1.5px] border-dashed border-amber-600 bg-amber-500/15"
+              />
+              <Row
+                count={metric.availableRooms}
+                label={isDeficit ? "Availability deficit" : "Available to sell"}
+                marker={
+                  isDeficit
+                    ? "bg-destructive"
+                    : "border-[1.5px] border-muted-foreground/60 bg-card"
+                }
+                valueTone={isDeficit ? "text-destructive" : undefined}
+              />
             </dl>
           </div>
-        </>
-      )}
+        )}
+      </div>
 
-      {metric.basis !== "historical-unavailable" && (
-        <div className="border-t border-border/60 pt-3 text-sm leading-relaxed text-muted-foreground">
-          <p>{metric.basis === "projection"
-            ? "Forward booking snapshot using today's active rooms and service status, plus blocks for this night. Future capacity may change."
-            : "Live booking snapshot for this night. This measures rooms sold, not guests currently in house."}</p>
-          <details className="mt-1">
-            <summary className="min-h-11 cursor-pointer rounded-md py-3 font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">How this is calculated</summary>
-            <p className="pb-1">Confirmed and checked-in room units count as sold; check-out night is excluded. Pending reservations hold inventory separately, excluding abandoned unpaid direct pay-now holds older than 30 minutes. Sellable rooms exclude maintenance, out-of-service and dated blocks; a room that is both blocked and out of service is excluded only once.</p>
-          </details>
+      {metric.totalRooms !== null && (
+        <div className="border-t border-border/50 pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span>
+              <span className="font-semibold tabular-nums text-foreground">
+                {metric.sellableRooms ?? 0}
+              </span>{" "}
+              sellable of{" "}
+              <span className="font-medium tabular-nums text-foreground">
+                {metric.totalRooms}
+              </span>{" "}
+              active
+            </span>
+            {hasExcluded && (
+              <span className="tabular-nums text-[11px] text-muted-foreground">
+                {[
+                  metric.outOfService ? `${metric.outOfService} out of service` : null,
+                  metric.blocked ? `${metric.blocked} blocked` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            )}
+          </div>
         </div>
       )}
     </section>
   );
 }
 
-function Row({ count, label, marker }: { count: number | null; label: string; marker?: string }) {
+function Row({
+  count,
+  label,
+  marker,
+  valueTone,
+}: {
+  count: number | null;
+  label: string;
+  marker?: string;
+  valueTone?: string;
+}) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
+    <div className="flex items-center justify-between gap-3">
       <dt className="flex min-w-0 items-center gap-2.5 text-muted-foreground">
-        {marker && <span aria-hidden="true" className={`size-2.5 shrink-0 rounded-full ${marker}`} />}
+        {marker && (
+          <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-full", marker)} />
+        )}
         {label}
       </dt>
-      <dd className="shrink-0 font-semibold tabular-nums text-foreground">{count ?? "—"}</dd>
+      <dd
+        className={cn(
+          "shrink-0 font-mono text-[13px] font-semibold tabular-nums text-foreground",
+          valueTone
+        )}
+      >
+        {count ?? "—"}
+      </dd>
     </div>
   );
 }

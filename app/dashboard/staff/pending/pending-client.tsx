@@ -20,8 +20,6 @@ import {
 } from "@/components/ui/dialog";
 import { approveStaff, rejectStaff } from "@/app/actions/staff";
 
-// ── Types ──────────────────────────────────────────────────────────
-
 export interface PendingStaffRow {
   id: string;
   clerkUserId: string;
@@ -36,69 +34,136 @@ interface PendingStaffClientProps {
   data: PendingStaffRow[];
 }
 
-// ── Component ──────────────────────────────────────────────────────
+const ROLE_OPTIONS = [
+  {
+    value: "front_desk" as const,
+    label: "Front desk",
+    desc: "Manage bookings, check-in/out, and guest profiles",
+  },
+  {
+    value: "manager" as const,
+    label: "Manager",
+    desc: "Full operational access including rooms and rates",
+  },
+  {
+    value: "read_only" as const,
+    label: "Read only",
+    desc: "View bookings, guests, and reports only",
+  },
+];
 
 export function PendingStaffClient({ data }: PendingStaffClientProps) {
   const router = useRouter();
   const [localData, setLocalData] = React.useState(data);
   const [syncedData, setSyncedData] = React.useState(data);
-  const [loadingId, setLoadingId] = React.useState<string | null>(null);
-  const [approveRole, setApproveRole] = React.useState<"front_desk" | "manager" | "read_only">("front_desk");
+  const [pendingIds, setPendingIds] = React.useState<Set<string>>(() => new Set());
+  const [approveRole, setApproveRole] = React.useState<"front_desk" | "manager" | "read_only">(
+    "front_desk"
+  );
   const [approveDialogOpen, setApproveDialogOpen] = React.useState(false);
   const [approveTarget, setApproveTarget] = React.useState<PendingStaffRow | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = React.useState(false);
   const [rejectTarget, setRejectTarget] = React.useState<PendingStaffRow | null>(null);
+  const radioRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
 
-  // Re-sync when the server sends fresh rows after `router.refresh()`. Adjusting
-  // state during render rather than from an effect re-renders before the browser
-  // paints, so the stale list is never shown for a frame.
+  // Re-sync when the server sends fresh rows after `router.refresh()`, preserving
+  // any in-flight optimistic removals so concurrent actions never flicker back.
   if (data !== syncedData) {
     setSyncedData(data);
-    setLocalData(data);
+    setLocalData(data.filter((s) => !pendingIds.has(s.id)));
   }
 
-  const handleApprove = async () => {
-    if (!approveTarget) return;
-    setLoadingId(approveTarget.id);
-    const result = await approveStaff(approveTarget.id, approveRole);
-    setLoadingId(null);
-    setApproveDialogOpen(false);
+  const restoreFailedRow = React.useCallback((row: PendingStaffRow) => {
+    setLocalData((prev) => (prev.some((s) => s.id === row.id) ? prev : [...prev, row]));
+  }, []);
 
-    if (result.success) {
-      setLocalData((prev) => prev.filter((s) => s.id !== approveTarget.id));
-      toast.success(`${approveTarget.fullName || "Staff member"} approved as ${approveRole.replace(/_/g, " ")}`);
-      router.refresh();
-    } else {
-      toast.danger(result.error || "Failed to approve");
-    }
+  const handleApprove = async () => {
+    if (!approveTarget || pendingIds.has(approveTarget.id)) return;
+    const target = approveTarget;
+    const chosenRole = approveRole;
+    setApproveDialogOpen(false);
     setApproveTarget(null);
+    setPendingIds((prev) => new Set(prev).add(target.id));
+    setLocalData((prev) => prev.filter((s) => s.id !== target.id));
+
+    try {
+      const result = await approveStaff(target.id, chosenRole);
+      if (result.success) {
+        toast.success(
+          `${target.fullName || "Staff member"} approved as ${chosenRole.replace(/_/g, " ")}`
+        );
+        router.refresh();
+      } else {
+        restoreFailedRow(target);
+        toast.danger(result.error || "Failed to approve");
+      }
+    } catch {
+      restoreFailedRow(target);
+      toast.danger("Failed to approve — check your connection and try again");
+    } finally {
+      setPendingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(target.id);
+        return next;
+      });
+    }
   };
 
   const handleReject = async () => {
-    if (!rejectTarget) return;
-    setLoadingId(rejectTarget.id);
-    const result = await rejectStaff(rejectTarget.id);
-    setLoadingId(null);
+    if (!rejectTarget || pendingIds.has(rejectTarget.id)) return;
+    const target = rejectTarget;
     setRejectDialogOpen(false);
-
-    if (result.success) {
-      setLocalData((prev) => prev.filter((s) => s.id !== rejectTarget.id));
-      toast.success(`${rejectTarget.fullName || "Staff member"} rejected`);
-      router.refresh();
-    } else {
-      toast.danger(result.error || "Failed to reject");
-    }
     setRejectTarget(null);
+    setPendingIds((prev) => new Set(prev).add(target.id));
+    setLocalData((prev) => prev.filter((s) => s.id !== target.id));
+
+    try {
+      const result = await rejectStaff(target.id);
+      if (result.success) {
+        toast.success(`${target.fullName || "Staff member"} rejected`);
+        router.refresh();
+      } else {
+        restoreFailedRow(target);
+        toast.danger(result.error || "Failed to reject");
+      }
+    } catch {
+      restoreFailedRow(target);
+      toast.danger("Failed to reject — check your connection and try again");
+    } finally {
+      setPendingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(target.id);
+        return next;
+      });
+    }
+  };
+
+  const handleRoleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const currentIndex = ROLE_OPTIONS.findIndex((o) => o.value === approveRole);
+    if (currentIndex === -1) return;
+
+    let nextIndex: number | null = null;
+    if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+      nextIndex = (currentIndex + 1) % ROLE_OPTIONS.length;
+    } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+      nextIndex = (currentIndex - 1 + ROLE_OPTIONS.length) % ROLE_OPTIONS.length;
+    }
+
+    if (nextIndex !== null) {
+      e.preventDefault();
+      setApproveRole(ROLE_OPTIONS[nextIndex].value);
+      radioRefs.current[nextIndex]?.focus();
+    }
   };
 
   if (localData.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center px-6">
-        <div className="size-12 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-          <Shield className="size-6 text-muted-foreground/30" />
+      <div className="flex min-h-[40vh] flex-col items-center justify-center px-6 text-center">
+        <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-muted/30">
+          <Shield className="size-6 text-muted-foreground/30" aria-hidden="true" />
         </div>
         <h2 className="text-lg font-semibold text-foreground">No pending requests</h2>
-        <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
           All staff access requests have been reviewed.
         </p>
       </div>
@@ -108,133 +173,146 @@ export function PendingStaffClient({ data }: PendingStaffClientProps) {
   return (
     <>
       <div className="grid gap-4 md:grid-cols-2">
-        {localData.map((staff) => (
-          <div
-            key={staff.id}
-            className="rounded-xl border border-border/60 bg-card p-5 space-y-4 shadow-sm"
-          >
-            {/* Header */}
-            <div className="flex items-start gap-3">
-              <Avatar className="size-10 rounded-lg">
-                <AvatarImage src={staff.avatarUrl || undefined} alt={staff.fullName || ""} />
-                <AvatarFallback className="text-sm font-medium rounded-lg bg-muted">
-                  {getInitials(staff.fullName)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-foreground truncate">
-                  {staff.fullName || "Unnamed"}
-                </p>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                  <Mail className="size-3" />
-                  <span className="truncate">{staff.email}</span>
+        {localData.map((staff) => {
+          const busy = pendingIds.has(staff.id);
+          return (
+            <div
+              key={staff.id}
+              className="space-y-4 rounded-[20px] border border-border/60 bg-card p-5 shadow-[0_1px_3px_rgb(0_0_0/0.04)]"
+            >
+              {/* Header */}
+              <div className="flex items-start gap-3">
+                <Avatar className="size-10 rounded-lg">
+                  <AvatarImage src={staff.avatarUrl || undefined} alt={staff.fullName || ""} />
+                  <AvatarFallback className="rounded-lg bg-muted text-sm font-medium">
+                    {getInitials(staff.fullName)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {staff.fullName || "Unnamed"}
+                  </p>
+                  <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Mail className="size-3 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{staff.email}</span>
+                  </div>
                 </div>
+                <Badge
+                  variant="outline"
+                  className="shrink-0 border-amber-300 bg-amber-50 text-[11px] text-amber-700"
+                >
+                  <Clock className="mr-1 size-3" aria-hidden="true" />
+                  Pending
+                </Badge>
               </div>
-              <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300 bg-amber-50 shrink-0">
-                <Clock className="size-2.5 mr-1" />
-                Pending
-              </Badge>
-            </div>
 
-            {/* Meta */}
-            <div className="space-y-1 text-xs text-muted-foreground">
-              <p>Registered: {formatDate(staff.createdAt, "MMM d, yyyy 'at' h:mm a")}</p>
-            </div>
+              {/* Meta */}
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p>Registered {formatDate(staff.createdAt, "MMM d, yyyy 'at' h:mm a")}</p>
+              </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-2 pt-1">
-              <Button
-                size="sm"
-                className="flex-1 rounded-lg text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
-                onClick={() => {
-                  setApproveTarget(staff);
-                  setApproveRole("front_desk");
-                  setApproveDialogOpen(true);
-                }}
-                disabled={loadingId === staff.id}
-              >
-                <Check className="size-3 mr-1" />
-                Approve
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="flex-1 rounded-lg text-xs h-8 text-destructive border-destructive/30 hover:bg-destructive/5"
-                onClick={() => {
-                  setRejectTarget(staff);
-                  setRejectDialogOpen(true);
-                }}
-                disabled={loadingId === staff.id}
-              >
-                <X className="size-3 mr-1" />
-                Reject
-              </Button>
+              {/* Actions */}
+              <div className="flex items-center gap-2 pt-1">
+                <Button
+                  size="sm"
+                  className="ui-press h-11 flex-1 rounded-xl bg-emerald-600 text-xs font-semibold text-white sm:h-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-emerald-700"
+                  onClick={() => {
+                    setApproveTarget(staff);
+                    setApproveRole("front_desk");
+                    setApproveDialogOpen(true);
+                  }}
+                  disabled={busy}
+                >
+                  <Check className="mr-1 size-3.5" aria-hidden="true" />
+                  Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="ui-press h-11 flex-1 rounded-xl border-destructive/30 text-xs font-semibold text-destructive sm:h-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-destructive/5"
+                  onClick={() => {
+                    setRejectTarget(staff);
+                    setRejectDialogOpen(true);
+                  }}
+                  disabled={busy}
+                >
+                  <X className="mr-1 size-3.5" aria-hidden="true" />
+                  Reject
+                </Button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Approve Dialog */}
       <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Approve Staff Access</DialogTitle>
+            <DialogTitle>Approve staff access</DialogTitle>
             <DialogDescription>
-              Grant <strong>{approveTarget?.fullName || "this person"}</strong> access to the hotel dashboard.
-              Choose their role:
+              Grant <strong>{approveTarget?.fullName || "this person"}</strong> access to the hotel
+              dashboard. Choose their role:
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 py-2">
-            {[
-              { value: "front_desk", label: "Front Desk", desc: "Manage bookings, check-in/out, view guests" },
-              { value: "manager", label: "Manager", desc: "Full operational access except staff & settings" },
-              { value: "read_only", label: "Read Only", desc: "View bookings, guests, and reports only" },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setApproveRole(opt.value as typeof approveRole)}
-                className={cn(
-                  "flex items-start gap-3 w-full rounded-lg border p-3 text-left transition-all",
-                  approveRole === opt.value
-                    ? "border-foreground bg-foreground/5"
-                    : "border-border/60 hover:border-border"
-                )}
-              >
-                <div
+          <div
+            role="radiogroup"
+            aria-label="Staff role"
+            onKeyDown={handleRoleKeyDown}
+            className="space-y-2 py-2"
+          >
+            {ROLE_OPTIONS.map((opt, idx) => {
+              const selected = approveRole === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  ref={(el) => {
+                    radioRefs.current[idx] = el;
+                  }}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => setApproveRole(opt.value)}
                   className={cn(
-                    "mt-0.5 size-4 rounded-full border-2 flex items-center justify-center shrink-0",
-                    approveRole === opt.value
-                      ? "border-foreground"
-                      : "border-muted-foreground/30"
+                    "ui-press flex w-full cursor-pointer items-start gap-3 rounded-xl border p-3 text-left outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
+                    selected
+                      ? "border-primary bg-primary/[0.06] ring-1 ring-primary/20"
+                      : "border-border/60 [@media(hover:hover)_and_(pointer:fine)]:hover:border-border"
                   )}
                 >
-                  {approveRole === opt.value && (
-                    <div className="size-2 rounded-full bg-foreground" />
-                  )}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{opt.label}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
-                </div>
-              </button>
-            ))}
+                  <div
+                    aria-hidden="true"
+                    className={cn(
+                      "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border-2",
+                      selected ? "border-primary" : "border-muted-foreground/30"
+                    )}
+                  >
+                    {selected && <div className="size-2 rounded-full bg-primary" />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{opt.label}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{opt.desc}</p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
           <DialogFooter>
             <Button
               variant="outline"
               size="sm"
-              className="rounded-lg text-xs"
+              className="ui-press h-11 rounded-xl text-xs sm:h-10"
               onClick={() => setApproveDialogOpen(false)}
             >
               Cancel
             </Button>
             <Button
               size="sm"
-              className="rounded-lg text-xs bg-foreground text-background hover:bg-foreground/90"
-              onClick={handleApprove}
+              className="ui-press h-11 rounded-xl bg-primary text-xs font-semibold text-primary-foreground sm:h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/90"
+              onClick={() => void handleApprove()}
             >
-              Grant Access
+              Grant access
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -244,28 +322,27 @@ export function PendingStaffClient({ data }: PendingStaffClientProps) {
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Reject Access Request</DialogTitle>
+            <DialogTitle>Reject access request</DialogTitle>
             <DialogDescription>
-              Are you sure you want to reject{" "}
-              <strong>{rejectTarget?.fullName || "this person"}</strong>?
-              This will permanently remove their access request.
+              Reject <strong>{rejectTarget?.fullName || "this person"}</strong>? This permanently
+              removes their access request.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
               variant="outline"
               size="sm"
-              className="rounded-lg text-xs"
+              className="ui-press h-11 rounded-xl text-xs sm:h-10"
               onClick={() => setRejectDialogOpen(false)}
             >
               Cancel
             </Button>
             <Button
               size="sm"
-              className="rounded-lg text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={handleReject}
+              className="ui-press h-11 rounded-xl bg-destructive text-xs font-semibold text-destructive-foreground sm:h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-destructive/90"
+              onClick={() => void handleReject()}
             >
-              Reject Request
+              Reject request
             </Button>
           </DialogFooter>
         </DialogContent>

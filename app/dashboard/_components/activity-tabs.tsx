@@ -26,18 +26,53 @@ interface ActivityTabsProps {
 }
 
 /**
- * Segmented filter bar. A muted track holds text+count pills; the active
- * segment lifts to an elevated card chip (iOS-style). Overflow scrolls
- * horizontally with faded edges rather than wrapping or crushing.
+ * Segmented operational filter bar. Scrolls horizontally on narrow viewports
+ * with faded edges and explicit pan-x/pan-y touch handling so horizontal swipes
+ * never fight vertical page scroll.
  */
 export function ActivityTabs({ tabs, activeTab, onTabChange }: ActivityTabsProps) {
+  const tabRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const currentIndex = tabs.findIndex((t) => t.key === activeTab);
+    if (currentIndex === -1) return;
+
+    let nextIndex: number | null = null;
+    if (e.key === "ArrowRight") {
+      nextIndex = (currentIndex + 1) % tabs.length;
+    } else if (e.key === "ArrowLeft") {
+      nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    } else if (e.key === "Home") {
+      nextIndex = 0;
+    } else if (e.key === "End") {
+      nextIndex = tabs.length - 1;
+    }
+
+    if (nextIndex !== null) {
+      e.preventDefault();
+      const target = tabs[nextIndex];
+      onTabChange(target.key);
+      tabRefs.current[nextIndex]?.focus();
+    }
+  };
+
   return (
-    <div className="border-b border-border/40 bg-muted/[0.15]">
-      <ScrollShadow orientation="horizontal" hideScrollBar className="px-2 py-2">
-        <div role="group" aria-label="Activity filter" className="flex items-center gap-1">
-          {tabs.map((tab) => {
+    <div className="border-b border-border/50 bg-muted/25">
+      <ScrollShadow
+        orientation="horizontal"
+        hideScrollBar
+        className="touch-pan-x px-2.5 py-2 sm:px-3"
+      >
+        <div
+          role="tablist"
+          aria-label="Front-desk activity views"
+          onKeyDown={handleKeyDown}
+          className="flex items-center gap-1"
+        >
+          {tabs.map((tab, index) => {
             const isActive = activeTab === tab.key;
             const isZero = tab.count === 0;
+            const isAlert = tab.key === "overbookings" && tab.count > 0;
             const showDue =
               typeof tab.remaining === "number" &&
               tab.remaining > 0 &&
@@ -46,36 +81,49 @@ export function ActivityTabs({ tabs, activeTab, onTabChange }: ActivityTabsProps
             return (
               <button
                 key={tab.key}
+                id={`activity-tab-${tab.key}`}
+                ref={(el) => {
+                  tabRefs.current[index] = el;
+                }}
                 type="button"
-                aria-pressed={isActive}
+                role="tab"
+                tabIndex={isActive ? 0 : -1}
+                aria-selected={isActive}
+                aria-controls={`activity-panel-${tab.key}`}
                 onClick={() => onTabChange(tab.key)}
                 className={cn(
-                  "inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium whitespace-nowrap outline-none transition-all duration-150",
+                  "ui-press inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl px-3.5 py-2 text-[13px] font-semibold whitespace-nowrap outline-none sm:min-h-9 sm:px-3",
                   "focus-visible:ring-2 focus-visible:ring-ring",
                   isActive
-                    ? "bg-card text-foreground shadow-sm ring-1 ring-border/60"
-                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                    ? "bg-card text-foreground shadow-[0_1px_3px_rgb(0_0_0/0.06)] ring-1 ring-border/70"
+                    : isAlert
+                      ? "bg-destructive/[0.06] text-destructive [@media(hover:hover)_and_(pointer:fine)]:hover:bg-destructive/10"
+                      : "text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-background/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
                 )}
               >
-                <span className={cn(!isActive && isZero && "opacity-50")}>{tab.label}</span>
+                <span className={cn(!isActive && isZero && "opacity-55")}>{tab.label}</span>
+
                 <span
                   className={cn(
-                    "inline-flex min-w-[1.375rem] justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums leading-none",
-                    isActive
-                      ? "bg-primary/12 text-primary"
-                      : isZero
-                        ? "text-muted-foreground/50"
-                        : "bg-muted text-muted-foreground"
+                    "inline-flex min-w-[1.25rem] items-center justify-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-medium leading-none tabular-nums",
+                    isAlert
+                      ? "bg-destructive/15 text-destructive"
+                      : isActive
+                        ? "bg-primary/12 text-primary font-semibold"
+                        : isZero
+                          ? "text-muted-foreground/45"
+                          : "text-muted-foreground"
                   )}
                 >
                   {tab.count}
                 </span>
+
                 {showDue && (
                   <span
                     aria-label={`${tab.remaining} pending`}
-                    className="inline-flex items-center rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none text-amber-700"
+                    className="inline-flex items-center rounded-md bg-amber-500/15 px-1.5 py-0.5 font-mono text-[11px] font-semibold leading-none tabular-nums text-amber-700"
                   >
-                    {tab.remaining}
+                    {tab.remaining} due
                   </span>
                 )}
               </button>

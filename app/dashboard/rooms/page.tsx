@@ -1,6 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { Hotel } from "lucide-react";
 
+import { businessToday } from "@/lib/business-date";
+import { asStaffRole, can, roleAtLeast } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 
 import { RoomsClient, type RoomTypeGroup } from "./rooms-client";
@@ -22,22 +24,39 @@ export default async function RoomsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { orgId } = await auth();
+  const { orgId, userId } = await auth();
 
   if (!orgId) {
     return <NoHotelState />;
   }
 
   const supabase = await createClient();
-  const { data: hotel } = await supabase
-    .from("hotels")
-    .select("id, name, currency")
-    .eq("clerk_org_id", orgId)
-    .maybeSingle();
+  const [{ data: hotel }, { data: staffProfile }] = await Promise.all([
+    supabase
+      .from("hotels")
+      .select("id, name, currency, timezone")
+      .eq("clerk_org_id", orgId)
+      .maybeSingle(),
+    userId
+      ? supabase
+          .from("staff_profiles")
+          .select("role, is_active")
+          .eq("clerk_user_id", userId)
+          .eq("clerk_org_id", orgId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
 
   if (!hotel) {
     return <NoHotelState />;
   }
+
+  const role = staffProfile?.is_active ? asStaffRole(staffProfile.role) : "pending";
+  const canEditStatus = roleAtLeast(role, "front_desk");
+  const canBlockRooms = can(role, "availability:block");
+  const canManageRooms = roleAtLeast(role, "manager");
+  const canDeleteRoomTypes = roleAtLeast(role, "super_admin");
+  const propertyToday = businessToday(hotel.timezone || "UTC");
 
   // Independent queries — resolve in one pass. Active check-ins join in so an
   // occupied room can name its guest and departure date.
@@ -103,7 +122,9 @@ export default async function RoomsPage({
       basePrice: roomType.base_price ?? 0,
       isActive: roomType.is_active,
       rooms: typeRooms,
-      availableRooms: typeRooms.filter((room) => room.status === "available").length,
+      availableRooms: typeRooms.filter(
+        (room) => room.isActive !== false && (room.status ?? "available") === "available"
+      ).length,
     };
   });
 
@@ -115,6 +136,11 @@ export default async function RoomsPage({
       roomTypes={groups}
       currency={hotel.currency ?? "GHS"}
       hotelId={hotel.id}
+      propertyToday={propertyToday}
+      canEditStatus={canEditStatus}
+      canBlockRooms={canBlockRooms}
+      canManageRooms={canManageRooms}
+      canDeleteRoomTypes={canDeleteRoomTypes}
       initialSearch={initialSearch}
     />
   );

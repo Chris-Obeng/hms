@@ -2,8 +2,6 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { asStaffRole } from "@/lib/roles";
 import { Users } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { StaffClient } from "./staff-client";
 export default async function StaffPage() {
   const { orgId, userId } = await auth();
@@ -81,34 +79,10 @@ export default async function StaffPage() {
   }));
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-page-title text-foreground">
-            Staff
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          {pendingCount > 0 && (
-            <Link href="/dashboard/staff/pending">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 text-sm rounded-xl border-amber-300 text-amber-700 hover:bg-amber-50"
-              >
-                <span className="flex items-center gap-1.5">
-                  <span className="size-1.5 rounded-full bg-amber-500" />
-                  {pendingCount} Pending
-                </span>
-              </Button>
-            </Link>
-          )}
-        </div>
-      </div>
-
+    <div className="mx-auto w-full max-w-7xl space-y-4 pt-1 md:space-y-5">
       <StaffClient
         data={enrichedStaff}
+        pendingCount={pendingCount}
         currentUserId={userId}
         currentUserRole={asStaffRole(currentUser?.role)}
       />

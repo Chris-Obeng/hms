@@ -8,6 +8,7 @@ import { Plus, Menu } from "lucide-react";
 import { Avatar, Button } from "@heroui/react";
 import { NotificationCenter } from "@/components/notifications/notification-center";
 import { DashboardSearch } from "@/app/dashboard/_components/dashboard-search";
+import type { GuestSearchResult } from "@/app/actions/customers";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
 
@@ -42,11 +43,19 @@ export function AppHeader({
   void _bookingUrl;
 
   const [newBookingOpen, setNewBookingOpen] = React.useState(false);
-  const openNewBooking = React.useCallback(() => setNewBookingOpen(true), []);
+  const [prefillGuest, setPrefillGuest] = React.useState<GuestSearchResult | null>(null);
+  const openNewBooking = React.useCallback(() => {
+    setPrefillGuest(null);
+    setNewBookingOpen(true);
+  }, []);
 
-  // Other surfaces (guest profile sheet) can open the booking wizard via this event.
+  // Other surfaces (guest profile sheet, empty states) can open the booking wizard via this event.
   React.useEffect(() => {
-    const open = () => setNewBookingOpen(true);
+    const open = (event: Event) => {
+      const detail = (event as CustomEvent<{ guest?: GuestSearchResult } | undefined>).detail;
+      setPrefillGuest(detail?.guest ?? null);
+      setNewBookingOpen(true);
+    };
     window.addEventListener("roomline:new-booking", open);
     return () => window.removeEventListener("roomline:new-booking", open);
   }, []);
@@ -62,14 +71,14 @@ export function AppHeader({
         )}
       >
         {/* Left */}
-        <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex min-w-0 items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
             isIconOnly
             onPress={toggleSidebar}
             aria-label="Toggle sidebar"
-            className="size-8 shrink-0 rounded-lg text-muted-foreground transition-[transform,background-color,color] duration-150 ease-[var(--ease-out-ui)] active:scale-[0.97] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+            className="size-11 min-w-11 shrink-0 rounded-lg text-muted-foreground transition-[transform,background-color,color] duration-150 ease-[var(--ease-out-ui)] active:scale-[0.97] sm:size-8 sm:min-w-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
           >
             <Menu className="size-5" />
           </Button>
@@ -78,9 +87,9 @@ export function AppHeader({
             type="button"
             onClick={() => router.push("/dashboard/settings/hotel")}
             title="Hotel settings"
-            className="group flex min-w-0 cursor-pointer items-center gap-2 rounded-lg p-0.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            className="group flex min-h-11 min-w-0 cursor-pointer items-center gap-2 rounded-lg px-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-0 sm:p-0.5"
           >
-            <span className="truncate text-lg font-bold tracking-tight text-foreground transition-colors group-hover:text-foreground/80">
+            <span className="truncate text-lg font-bold tracking-tight text-foreground transition-colors [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-foreground/80">
               RoomLine
             </span>
           </button>
@@ -96,11 +105,11 @@ export function AppHeader({
           <Button
             variant="primary"
             size="sm"
-            onPress={() => setNewBookingOpen(true)}
+            onPress={openNewBooking}
             aria-label="New booking"
-            className="inline-flex h-8 gap-1.5 rounded-lg text-xs"
+            className="ui-press inline-flex size-11 min-w-11 gap-1.5 rounded-lg text-xs sm:h-8 sm:w-auto sm:min-w-8"
           >
-            <Plus className="size-3.5" />
+            <Plus className="size-4 sm:size-3.5" />
           </Button>
 
           <NotificationCenter
@@ -123,7 +132,7 @@ export function AppHeader({
                     src={user.imageUrl}
                     alt={user.fullName || "User"}
                   />
-                  <Avatar.Fallback className="rounded-md bg-foreground/10 text-[10px] font-medium">
+                  <Avatar.Fallback className="rounded-md bg-foreground/10 text-[11px] font-medium">
                     {(user.firstName?.[0] ?? "U") + (user.lastName?.[0] ?? "")}
                   </Avatar.Fallback>
                 </Avatar>
@@ -135,7 +144,11 @@ export function AppHeader({
 
       <NewBookingModal
         open={newBookingOpen}
-        onOpenChange={setNewBookingOpen}
+        onOpenChange={(next) => {
+          setNewBookingOpen(next);
+          if (!next) setPrefillGuest(null);
+        }}
+        prefillGuest={prefillGuest}
         currency={currency}
       />
     </>

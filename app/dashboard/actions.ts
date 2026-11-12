@@ -1,59 +1,28 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
-import { requireMinRole } from "@/lib/auth";
+import { requireMinRole, toActionError } from "@/lib/auth";
 
-// ── Get Hotel ID Helper ────────────────────────────────────────
-
-async function getHotelScopedClient() {
-  const { orgId, userId } = await auth();
-  if (!orgId) throw new Error("Not authenticated");
-
-  const supabase = await createClient();
-
-  const { data: hotel, error: hotelError } = await supabase
-    .from("hotels")
-    .select("id, name, currency, logo_url")
-    .eq("clerk_org_id", orgId)
-    .limit(1)
-    .maybeSingle();
-
-  if (hotelError) throw new Error(`DB error fetching hotel: ${hotelError.message}`);
-  if (!hotel) throw new Error("Hotel not found");
-
-  // Resolve current staff for audit logs
-  const { data: staffProfile } = userId
-    ? await supabase
-        .from("staff_profiles")
-        .select("id, full_name")
-        .eq("clerk_user_id", userId)
-        .eq("clerk_org_id", orgId)
-        .maybeSingle()
-    : { data: null };
-
-  return {
-    supabase,
-    hotelId: hotel.id,
-    hotel,
-    staffId: staffProfile?.id ?? null,
-    staffName: staffProfile?.full_name ?? null,
-  };
-}
+const uuidSchema = z.string().uuid();
 
 // ── Check In ───────────────────────────────────────────────────
 
 export async function checkInBooking(bookingId: string): Promise<{ success: boolean; error?: string }> {
+  if (!uuidSchema.safeParse(bookingId).success) {
+    return { success: false, error: "Invalid booking ID" };
+  }
   try {
-    await requireMinRole("front_desk", "check guests in");
-    const { supabase, hotelId, staffId, staffName } = await getHotelScopedClient();
+    const ctx = await requireMinRole("front_desk", "check guests in");
+    const supabase = await createClient();
 
     const { data: booking } = await supabase
       .from("bookings")
       .select("id, reference, status, room_id")
       .eq("id", bookingId)
+      .eq("hotel_id", ctx.hotelId)
       .single();
 
     if (!booking) return { success: false, error: "Booking not found" };
@@ -62,18 +31,25 @@ export async function checkInBooking(bookingId: string): Promise<{ success: bool
     const { error } = await supabase
       .from("bookings")
       .update({ status: "checked_in", check_in_at: new Date().toISOString() })
-      .eq("id", bookingId);
+      .eq("id", bookingId)
+      .eq("hotel_id", ctx.hotelId);
 
     if (error) return { success: false, error: error.message };
 
     if (booking.room_id) {
-      await supabase.from("rooms").update({ status: "occupied" }).eq("id", booking.room_id);
+      const { error: roomError } = await supabase
+        .from("rooms")
+        .update({ status: "occupied" })
+        .eq("id", booking.room_id)
+        .eq("hotel_id", ctx.hotelId)
+        .in("status", ["available", "occupied"]);
+      if (roomError) return { success: false, error: roomError.message };
     }
 
     await writeAuditLog(supabase, {
-      hotelId,
-      staffId,
-      staffName,
+      hotelId: ctx.hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
       action: "booking.checked_in",
       entityType: "booking",
       entityId: bookingId,
@@ -81,23 +57,29 @@ export async function checkInBooking(bookingId: string): Promise<{ success: bool
     });
 
     revalidatePath("/dashboard");
+    revalidatePath("/dashboard/calendar");
+    revalidatePath("/dashboard/rooms");
     return { success: true };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Check-in failed" };
+    return toActionError(err, { action: "dashboard.checkInBooking", bookingId });
   }
 }
 
 // ── Check Out ──────────────────────────────────────────────────
 
 export async function checkOutBooking(bookingId: string): Promise<{ success: boolean; error?: string }> {
+  if (!uuidSchema.safeParse(bookingId).success) {
+    return { success: false, error: "Invalid booking ID" };
+  }
   try {
-    await requireMinRole("front_desk", "check guests out");
-    const { supabase, hotelId, staffId, staffName } = await getHotelScopedClient();
+    const ctx = await requireMinRole("front_desk", "check guests out");
+    const supabase = await createClient();
 
     const { data: booking } = await supabase
       .from("bookings")
       .select("id, reference, status, room_id")
       .eq("id", bookingId)
+      .eq("hotel_id", ctx.hotelId)
       .single();
 
     if (!booking) return { success: false, error: "Booking not found" };
@@ -106,18 +88,36 @@ export async function checkOutBooking(bookingId: string): Promise<{ success: boo
     const { error } = await supabase
       .from("bookings")
       .update({ status: "checked_out", check_out_at: new Date().toISOString() })
-      .eq("id", bookingId);
+      .eq("id", bookingId)
+      .eq("hotel_id", ctx.hotelId);
 
     if (error) return { success: false, error: error.message };
 
     if (booking.room_id) {
-      await supabase.from("rooms").update({ status: "available" }).eq("id", booking.room_id);
+      const { count: otherActiveCount, error: countError } = await supabase
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("hotel_id", ctx.hotelId)
+        .eq("room_id", booking.room_id)
+        .eq("status", "checked_in")
+        .neq("id", bookingId);
+      if (countError) return { success: false, error: countError.message };
+
+      if ((otherActiveCount ?? 0) === 0) {
+        const { error: roomError } = await supabase
+          .from("rooms")
+          .update({ status: "available" })
+          .eq("id", booking.room_id)
+          .eq("hotel_id", ctx.hotelId)
+          .eq("status", "occupied");
+        if (roomError) return { success: false, error: roomError.message };
+      }
     }
 
     await writeAuditLog(supabase, {
-      hotelId,
-      staffId,
-      staffName,
+      hotelId: ctx.hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
       action: "booking.checked_out",
       entityType: "booking",
       entityId: bookingId,
@@ -125,8 +125,10 @@ export async function checkOutBooking(bookingId: string): Promise<{ success: boo
     });
 
     revalidatePath("/dashboard");
+    revalidatePath("/dashboard/calendar");
+    revalidatePath("/dashboard/rooms");
     return { success: true };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Check-out failed" };
+    return toActionError(err, { action: "dashboard.checkOutBooking", bookingId });
   }
 }

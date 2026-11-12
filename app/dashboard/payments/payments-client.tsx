@@ -9,7 +9,6 @@ import {
   CircleAlert,
   Eye,
   Globe,
-  RefreshCw,
   ReceiptText,
   Search,
   Wallet,
@@ -133,10 +132,9 @@ export function PaymentsClient({
   }
 
   return <div className="payments-page mx-auto w-full max-w-7xl space-y-5" data-payments>
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
-        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.3px] text-foreground max-md:text-xl">Payments</h1>
-        <p className="mt-1 max-md:text-xs text-sm text-muted-foreground">Reconcile guest payments and trace each record back to its reservation.</p>
+        <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-[24px]">Payments</h1>
       </div>
       {/* The chip sits alone top-right; choosing dates applies them. */}
       <div className="max-sm:hidden">
@@ -154,7 +152,9 @@ export function PaymentsClient({
         activity={activity} error={error} loading={loading} startDate={startDate} endDate={endDate} today={today} currency={currency} timeZone={timeZone}
         status={status} method={method} search={search} page={page}
         onApplyRange={applyRange}
-        onStatus={(value) => { setStatus(value); setPage(1); }} onMethod={(value) => { setMethod(value); setPage(1); }} onSearch={setSearch} onApply={applyFilters}
+        onStatus={(value) => { setStatus(value); setPage(1); router.replace(activityUrl({ tab: "activity", status: value, page: 1 }), { scroll: false }); void loadActivity({ status: value, page: 1 }); }}
+        onMethod={(value) => { setMethod(value); setPage(1); router.replace(activityUrl({ tab: "activity", method: value, page: 1 }), { scroll: false }); void loadActivity({ method: value, page: 1 }); }}
+        onSearch={setSearch} onApply={applyFilters}
         onPage={(next) => { setPage(next); router.replace(activityUrl({ tab: "activity", page: next }), { scroll: false }); void loadActivity({ page: next }); }}
         onOpenBooking={(id) => { setBookingId(id); setDrawerOpen(true); }}
       /></Tabs.Panel>
@@ -185,17 +185,17 @@ function ActivityView({ activity, error, loading, startDate, endDate, today, cur
     </div>
     {/* Mobile: full-width collected figure, then the channel split. */}
     <div className="sm:hidden">
-      <PenKpi label="Collected" value={moneyLabel(totals?.successfulAmount ?? 0, currency)} icon={Banknote} hint={rangeLabel} mobile />
+      <PenKpi label="Collected" value={moneyLabel(totals?.successfulAmount ?? 0, currency)} icon={Banknote} hint={rangeLabel} mobile className="w-full min-w-0 shrink" />
       <div className="mt-3 grid grid-cols-2 gap-3">
-        <PenKpi label="Online payments" value={moneyLabel(totals?.onlineAmount ?? 0, currency)} icon={Globe} hint={`${(totals?.onlineCount ?? 0).toLocaleString("en")} payments`} mobile />
-        <PenKpi label="Collected by staff" value={moneyLabel(totals?.staffAmount ?? 0, currency)} icon={Wallet} hint={`${(totals?.staffCount ?? 0).toLocaleString("en")} payments`} mobile />
+        <PenKpi label="Online payments" value={moneyLabel(totals?.onlineAmount ?? 0, currency)} icon={Globe} hint={`${(totals?.onlineCount ?? 0).toLocaleString("en")} payments`} mobile className="w-full min-w-0 shrink" />
+        <PenKpi label="Collected by staff" value={moneyLabel(totals?.staffAmount ?? 0, currency)} icon={Wallet} hint={`${(totals?.staffCount ?? 0).toLocaleString("en")} payments`} mobile className="w-full min-w-0 shrink" />
       </div>
     </div>
 
     {error ? <div className="flex items-start gap-3 rounded-xl border border-danger/30 bg-danger/5 p-4 text-sm text-danger" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" /><span>{error}</span></div> : null}
 
     <LedgerCard
-      activity={activity} loading={loading} currency={currency} timeZone={timeZone}
+      activity={activity} loading={loading} timeZone={timeZone}
       startDate={startDate} endDate={endDate} today={today}
       status={status} method={method} search={search} page={page}
       methods={methods}
@@ -218,8 +218,8 @@ const LEDGER_COLUMNS = [
   { label: "", width: "56px" },
 ];
 
-function LedgerCard({ activity, loading, currency, timeZone, startDate, endDate, today, status, method, search, page, methods, onApplyRange, onStatus, onMethod, onSearch, onApply, onPage, onOpenBooking }: {
-  activity: PaymentActivityResult | null; loading: boolean; currency: string; timeZone: string;
+function LedgerCard({ activity, loading, timeZone, startDate, endDate, today, status, method, search, page, methods, onApplyRange, onStatus, onMethod, onSearch, onApply, onPage, onOpenBooking }: {
+  activity: PaymentActivityResult | null; loading: boolean; timeZone: string;
   startDate: string; endDate: string; today: string;
   status: PaymentActivityStatus; method: string; search: string; page: number;
   methods: { value: string; label: string }[];
@@ -228,27 +228,24 @@ function LedgerCard({ activity, loading, currency, timeZone, startDate, endDate,
   onOpenBooking: (id: string) => void;
 }) {
   return <section className="flex flex-col gap-3 rounded-3xl bg-card p-4 shadow-[0_2px_4px_rgb(0_0_0/0.04)]" aria-label="Payment ledger">
-    <header className="flex items-start justify-between gap-4">
-      <div className="min-w-0 space-y-0.5">
-        <h2 className="text-[15px] font-semibold text-foreground">Payment ledger</h2>
-        <p className="text-xs text-muted-foreground">Search and filter the records in your current window.</p>
-      </div>
-      <p className="shrink-0 font-mono text-xs text-muted-foreground">{activity ? `${activity.totalCount.toLocaleString("en")} records` : "—"}</p>
+    <header className="flex items-center justify-between gap-4">
+      <h2 className="text-[15px] font-semibold text-foreground">Payment ledger</h2>
+      <p className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">{activity ? `${activity.totalCount.toLocaleString("en")} records` : "—"}</p>
     </header>
 
-    <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_10rem_10rem_auto] max-md:hidden">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/70" aria-hidden="true" />
-        <input type="search" value={search} onChange={(event) => onSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") onApply(); }} placeholder="Search guest, booking, or reference" aria-label="Search payments" className="h-10 w-full rounded-[10px] border border-border/70 bg-card pl-9 pr-3 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/80 hover:border-border focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20" />
-      </div>
-      <HeroSelectField value={status} onValueChange={(value) => onStatus(value as PaymentActivityStatus)} options={STATUS_OPTIONS.map((option) => ({ value: option.value, label: option.label }))} ariaLabel="Payment status" />
-      <HeroSelectField value={method} onValueChange={onMethod} options={methods} ariaLabel="Payment method" />
-      <Button variant="primary" onPress={onApply} isPending={loading}>Apply filters</Button>
-    </div>
-
-    {activity && <div className="md:hidden">
+    {activity && <div className="sm:hidden">
       <RangeControl range={{ startDate, endDate }} today={today} onChange={onApplyRange} />
     </div>}
+
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-[minmax(0,1fr)_10rem_10rem_auto]">
+      <div className="relative sm:col-span-2 md:col-span-1">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/70" aria-hidden="true" />
+        <input type="search" value={search} onChange={(event) => onSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") onApply(); }} placeholder="Search guest, booking, or reference…" aria-label="Search payments" className="h-11 w-full rounded-xl border border-border/70 bg-card pl-9 pr-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/80 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:h-10 sm:text-[13px] [@media(hover:hover)_and_(pointer:fine)]:hover:border-border" />
+      </div>
+      <HeroSelectField value={status} triggerClassName="min-h-11 sm:min-h-10" onValueChange={(value) => onStatus(value as PaymentActivityStatus)} options={STATUS_OPTIONS.map((option) => ({ value: option.value, label: option.label }))} ariaLabel="Payment status" />
+      <HeroSelectField value={method} triggerClassName="min-h-11 sm:min-h-10" onValueChange={onMethod} options={methods} ariaLabel="Payment method" />
+      <Button variant="primary" onPress={onApply} isPending={loading} className="ui-press h-11 rounded-xl text-xs font-semibold sm:col-span-2 sm:h-10 md:col-span-1">Search</Button>
+    </div>
 
     {/* Desktop table */}
     <div className="rounded-[20px] bg-secondary p-1 pt-0 max-md:hidden">
@@ -295,9 +292,9 @@ function LedgerCard({ activity, loading, currency, timeZone, startDate, endDate,
             <Chip size="sm" variant="soft" color={statusTone(row.status)}>{statusLabel(row.status)}</Chip>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <span className="font-mono text-[10px] text-muted-foreground">{row.bookingReference ?? "—"}</span>
-            {row.bookingId && <button type="button" className="flex items-center gap-1 text-[10px] font-medium text-[var(--pen-accent)]" onClick={() => onOpenBooking(row.bookingId!)}>
-              View booking <Eye className="size-[11px]" aria-hidden="true" />
+            <span className="font-mono text-[11px] text-muted-foreground">{row.bookingReference ?? "—"}</span>
+            {row.bookingId && <button type="button" className="ui-press inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-lg px-2 text-[11px] font-medium text-[var(--pen-accent)] outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => onOpenBooking(row.bookingId!)}>
+              View booking <Eye className="size-3" aria-hidden="true" />
             </button>}
           </div>
         </div>
@@ -307,8 +304,8 @@ function LedgerCard({ activity, loading, currency, timeZone, startDate, endDate,
     {activity && <div className="flex flex-col gap-3 border-t border-border/50 px-1 pt-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
       <span>Page {page} · {activity.totalCount.toLocaleString("en")} records</span>
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" isDisabled={page <= 1 || loading} onPress={() => onPage(page - 1)}><ChevronLeft className="size-3.5" />Previous</Button>
-        <Button variant="outline" size="sm" isDisabled={!activity.hasNextPage || loading} onPress={() => onPage(page + 1)}>Next<ChevronRight className="size-3.5" /></Button>
+        <Button variant="outline" size="sm" className="ui-press min-h-11 rounded-xl sm:min-h-8" isDisabled={page <= 1 || loading} onPress={() => onPage(page - 1)}><ChevronLeft className="size-3.5" />Previous</Button>
+        <Button variant="outline" size="sm" className="ui-press min-h-11 rounded-xl sm:min-h-8" isDisabled={!activity.hasNextPage || loading} onPress={() => onPage(page + 1)}>Next<ChevronRight className="size-3.5" /></Button>
       </div>
     </div>}
   </section>;

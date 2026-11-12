@@ -2,34 +2,28 @@
 
 import * as React from "react";
 import {
-  MessageSquareText,
+  AlertTriangle,
+  BedDouble,
+  CalendarPlus,
   CalendarX,
-  MoonStar,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
-  MoreVertical,
+  MessageSquareText,
+  MoonStar,
   RotateCw,
+  Search,
+  X,
 } from "lucide-react";
-import { MorphIcon, type IconInput } from "morphicons/react";
 import { AlertDialog, Button, Dropdown, Label, Skeleton } from "@heroui/react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
-import { formatDate, getNights, getInitials, formatRoomLabel } from "@/lib/format";
-import { getStatusLabel } from "@/lib/booking-status";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useQueryClient } from "@tanstack/react-query";
+import { formatDate, formatRoomLabel, getInitials, getNights } from "@/lib/format";
+import { getPaymentLabel, getStatusLabel } from "@/lib/booking-status";
 import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
-import { CAPS, onIdle, isFresh } from "@/lib/cache/prefetch-helpers";
-
-// ── Morphicon geometry (module scope — stable refs for plan caches) ──
-const SEARCH_ICON: IconInput = [
-  ["circle", { cx: "11", cy: "11", r: "8" }],
-  ["path", { d: "m21 21-4.34-4.34" }],
-];
-const CLOSE_ICON: IconInput = [
-  ["path", { d: "M18 6 6 18" }],
-  ["path", { d: "m6 6 12 12" }],
-];
+import { CAPS, isFresh, onIdle } from "@/lib/cache/prefetch-helpers";
+import type { ActivityTab } from "./activity-tabs";
 
 export interface ActivityBooking {
   id: string;
@@ -59,6 +53,8 @@ export interface ActivityBooking {
 
 interface ActivityListProps {
   bookings: ActivityBooking[];
+  activeTab?: ActivityTab;
+  pendingCount?: number;
   loading?: boolean;
   onCheckIn?: (bookingId: string) => void;
   onCheckOut?: (bookingId: string) => void;
@@ -67,6 +63,7 @@ interface ActivityListProps {
   onViewDetails?: (booking: ActivityBooking) => void;
   onTakePayment?: (booking: ActivityBooking) => void;
   onRefresh?: () => void;
+  onNewBooking?: () => void;
 }
 
 type PendingConfirm =
@@ -74,14 +71,42 @@ type PendingConfirm =
   | { kind: "noshow"; booking: ActivityBooking }
   | null;
 
-/**
- * Cancel / no-show confirmation dialog.
- *
- * Apple HIG `alerts.md` › Content + Buttons: short fragment title naming the
- * exact outcome, one plain-language consequence sentence (no button
- * walkthrough), 44pt+ stacked actions with the preferred outcome first,
- * destructive styling only for the irreversible cancel, Keep as plain Cancel.
- */
+const TAB_COPY: Record<
+  ActivityTab,
+  { title: string; emptyTitle: string; emptyHint: string }
+> = {
+  arrivals: {
+    title: "Arrivals",
+    emptyTitle: "No arrivals scheduled",
+    emptyHint: "Guests checking in on this date will appear here ready for room assignment.",
+  },
+  departures: {
+    title: "Departures",
+    emptyTitle: "No departures scheduled",
+    emptyHint: "Guests checking out on this date will appear here for folio settlement.",
+  },
+  in_house: {
+    title: "In-house guests",
+    emptyTitle: "No checked-in guests",
+    emptyHint: "Checked-in stays spanning this business date will appear here.",
+  },
+  bookings: {
+    title: "New bookings",
+    emptyTitle: "No bookings created on this date",
+    emptyHint: "Direct online and front-desk reservations recorded on this day show up here.",
+  },
+  cancellations: {
+    title: "Cancellations",
+    emptyTitle: "No cancellations recorded",
+    emptyHint: "Reservations cancelled on this business date will be listed here.",
+  },
+  overbookings: {
+    title: "Room conflicts",
+    emptyTitle: "Zero room conflicts",
+    emptyHint: "Every assigned stay on this date has a dedicated, non-overlapping room.",
+  },
+};
+
 function CancelConfirmContent({
   pendingConfirm,
   onConfirm,
@@ -100,13 +125,12 @@ function CancelConfirmContent({
 
   return (
     <>
-      {/* Centered emblem on a soft status wash — the single glanceable cue. */}
       <div
         className={cn(
-          "mx-auto grid size-14 place-items-center rounded-[18px] border shadow-sm",
+          "mx-auto grid size-14 place-items-center rounded-[18px] border shadow-xs",
           isNoShow
-            ? "bg-amber-700/10 text-amber-700 border-amber-700/15 dark:bg-amber-500/12 dark:text-amber-400"
-            : "bg-destructive/10 text-destructive border-destructive/15"
+            ? "border-amber-700/15 bg-amber-700/10 text-amber-700"
+            : "border-destructive/15 bg-destructive/10 text-destructive"
         )}
       >
         {isNoShow ? (
@@ -127,7 +151,6 @@ function CancelConfirmContent({
         </p>
       </div>
 
-      {/* Booking facts — grouped via spacing + alignment only, no boxing. */}
       <dl className="mt-5 space-y-2.5 text-left">
         <div className="flex items-baseline justify-between gap-4">
           <dt className="shrink-0 text-[12px] font-medium text-muted-foreground">Guest</dt>
@@ -147,14 +170,13 @@ function CancelConfirmContent({
         </div>
       </dl>
 
-      {/* Stacked actions: primary first (48px min per HIG), rounded-3xl. Warning amber for no-show, danger red only for cancel. */}
       <div className="mt-6 flex flex-col gap-2.5">
         <Button
           variant={isNoShow ? undefined : "danger"}
           onPress={onConfirm}
           className={cn(
-            "h-12 w-full rounded-full text-[15px] font-semibold text-white shadow-sm transition-all active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-            isNoShow && "bg-amber-700 hover:bg-amber-800"
+            "ui-press h-12 w-full rounded-full text-[15px] font-semibold text-white shadow-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            isNoShow && "bg-amber-700 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-amber-800"
           )}
         >
           {isNoShow ? "Mark No-Show" : "Cancel Reservation"}
@@ -162,7 +184,7 @@ function CancelConfirmContent({
         <Button
           slot="close"
           variant="tertiary"
-          className="h-12 w-full rounded-full border border-border/70 bg-background text-[15px] font-semibold text-foreground hover:bg-muted/60 hover:border-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="ui-press h-12 w-full rounded-full border border-border/70 bg-background text-[15px] font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
         >
           Keep Reservation
         </Button>
@@ -180,8 +202,16 @@ type RowHandlers = {
   onTakePayment?: (b: ActivityBooking) => void;
 };
 
+/**
+ * Single-DOM responsive activity queue:
+ * - Phones (<640px): stacked touch card with 44px action buttons
+ * - Tablets & compact laptops (640px–1279px): 2-zone horizontal row (zero horizontal scroll)
+ * - Wide desktops (≥1280px): precision 4-column grid aligned with column headers
+ */
 export function ActivityList({
   bookings,
+  activeTab,
+  pendingCount,
   loading = false,
   onCheckIn,
   onCheckOut,
@@ -190,40 +220,49 @@ export function ActivityList({
   onViewDetails,
   onTakePayment,
   onRefresh,
+  onNewBooking,
   onHoverPrefetch,
 }: ActivityListProps & { onHoverPrefetch?: (id: string) => void }) {
-  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [mobileSearchOpen, setMobileSearchOpen] = React.useState(false);
+  const [pendingConfirm, setPendingConfirm] = React.useState<PendingConfirm>(null);
+  const mobileInputRef = React.useRef<HTMLInputElement>(null);
+
   const handleHoverPrefetch = React.useCallback(
     (id: string) => {
-      const fn = onHoverPrefetch ?? ((bid: string) => {
-        if (isFresh(queryClient, bookingDetailCache.key(bid))) return;
-        void queryClient.prefetchQuery(bookingDetailCache.options(bid));
-      });
+      const fn =
+        onHoverPrefetch ??
+        ((bid: string) => {
+          if (isFresh(queryClient, bookingDetailCache.key(bid))) return;
+          void queryClient.prefetchQuery(bookingDetailCache.options(bid));
+        });
       fn(id);
     },
     [onHoverPrefetch, queryClient]
   );
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [searchOpen, setSearchOpen] = React.useState(false);
-  const [pendingConfirm, setPendingConfirm] = React.useState<PendingConfirm>(null);
 
   const filteredBookings = React.useMemo(() => {
-    let list = bookings;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(
-        (b) =>
-          b.guestName.toLowerCase().includes(q) ||
-          b.reference.toLowerCase().includes(q) ||
-          (b.roomNumber && b.roomNumber.toLowerCase().includes(q)) ||
-          (b.roomType && b.roomType.toLowerCase().includes(q))
-      );
-    }
-    return list;
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return bookings;
+    return bookings.filter(
+      (b) =>
+        b.guestName.toLowerCase().includes(q) ||
+        b.reference.toLowerCase().includes(q) ||
+        (b.roomNumber && b.roomNumber.toLowerCase().includes(q)) ||
+        (b.roomType && b.roomType.toLowerCase().includes(q))
+    );
   }, [bookings, searchQuery]);
 
-  const visibleActivityIds = React.useMemo(() => filteredBookings.slice(0, CAPS.clientIdle).map((b) => b.id).join(","), [filteredBookings]);
+  const visibleActivityIds = React.useMemo(
+    () =>
+      filteredBookings
+        .slice(0, CAPS.clientIdle)
+        .map((b) => b.id)
+        .join(","),
+    [filteredBookings]
+  );
+
   React.useEffect(() => {
     if (!visibleActivityIds) return;
     const ids = visibleActivityIds.split(",").filter(Boolean);
@@ -234,6 +273,7 @@ export function ActivityList({
       }
     });
   }, [visibleActivityIds, queryClient]);
+
   const observedActivityRef = React.useRef<Set<string>>(new Set());
   const activityObsRef = React.useRef<IntersectionObserver | null>(null);
   const getActivityObs = React.useCallback(() => {
@@ -256,6 +296,7 @@ export function ActivityList({
     );
     return activityObsRef.current;
   }, [queryClient]);
+
   const attachActivityRef = React.useCallback(
     (el: HTMLElement | null) => {
       if (!el) return;
@@ -265,10 +306,17 @@ export function ActivityList({
     },
     [getActivityObs]
   );
+
   React.useEffect(() => () => activityObsRef.current?.disconnect(), []);
 
-  const requestCancel = (b: ActivityBooking) => setPendingConfirm({ kind: "cancel", booking: b });
-  const requestNoShow = (b: ActivityBooking) => setPendingConfirm({ kind: "noshow", booking: b });
+  const requestCancel = React.useCallback(
+    (b: ActivityBooking) => setPendingConfirm({ kind: "cancel", booking: b }),
+    []
+  );
+  const requestNoShow = React.useCallback(
+    (b: ActivityBooking) => setPendingConfirm({ kind: "noshow", booking: b }),
+    []
+  );
 
   const confirmPending = () => {
     if (!pendingConfirm) return;
@@ -279,113 +327,240 @@ export function ActivityList({
 
   if (loading) {
     return (
-      <div className="space-y-3 p-6">
+      <div className="space-y-3 p-5 sm:p-6">
         <Skeleton className="h-10 w-full rounded-xl" />
-        <Skeleton className="h-16 w-full rounded-xl" />
-        <Skeleton className="h-16 w-full rounded-xl" />
-        <Skeleton className="h-16 w-full rounded-xl" />
+        <Skeleton className="h-16 w-full rounded-2xl" />
+        <Skeleton className="h-16 w-full rounded-2xl" />
+        <Skeleton className="h-16 w-full rounded-2xl" />
       </div>
     );
   }
 
-  const rowProps = { onCheckIn, onCheckOut, onCancel: requestCancel, onNoShow: requestNoShow, onViewDetails, onTakePayment };
+  const copy = activeTab ? TAB_COPY[activeTab] : null;
+  const heading = copy ? copy.title : "Activity";
+  const subtitle = buildSubtitle(bookings.length, pendingCount, activeTab);
+  const rowProps: RowHandlers = {
+    onCheckIn,
+    onCheckOut,
+    onCancel: requestCancel,
+    onNoShow: requestNoShow,
+    onViewDetails,
+    onTakePayment,
+  };
 
   return (
-    <div className="space-y-0">
-      {/* Top bar */}
-      <div className="flex items-center justify-between border-b border-border/40 px-4 py-3.5 sm:px-6 sm:py-4">
-        <h2 className="text-section text-foreground">Activity</h2>
-        <div className="flex items-center gap-1.5">
-          {searchOpen ? (
+    <div>
+      {/* Header & filter toolbar */}
+      <div className="border-b border-border/50 px-4 py-3 sm:px-5 sm:py-3.5 xl:px-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="truncate text-[15px] font-semibold text-foreground">
+                {heading}
+              </h2>
+              {subtitle && (
+                <span className="hidden text-xs tabular-nums text-muted-foreground sm:inline">
+                  · {subtitle}
+                </span>
+              )}
+            </div>
+            {subtitle && (
+              <p className="mt-0.5 text-xs tabular-nums text-muted-foreground sm:hidden">
+                {subtitle}
+              </p>
+            )}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1.5">
+            {/* Persistent inline filter on sm+ (static width, no layout reflow) */}
+            <div className="relative hidden sm:block">
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                type="search"
+                placeholder="Filter guest, room, ref…"
+                aria-label="Filter activity"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape" && searchQuery) {
+                    e.preventDefault();
+                    setSearchQuery("");
+                  }
+                }}
+                className="h-9 w-48 rounded-xl border border-border/60 bg-background/70 pl-8 pr-7 text-[13px] text-foreground outline-none transition-[border-color,background-color] duration-150 placeholder:text-muted-foreground/70 focus:border-ring focus:bg-background focus-visible:ring-2 focus-visible:ring-ring/30 lg:w-60"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  aria-label="Clear filter"
+                  onClick={() => setSearchQuery("")}
+                  className="ui-press absolute right-1.5 top-1/2 grid size-6 -translate-y-1/2 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Phone filter toggle (44px target) */}
+            <button
+              type="button"
+              aria-label={mobileSearchOpen ? "Close filter" : "Filter activity"}
+              aria-expanded={mobileSearchOpen}
+              onClick={() => {
+                const next = !mobileSearchOpen;
+                setMobileSearchOpen(next);
+                if (next) {
+                  requestAnimationFrame(() => mobileInputRef.current?.focus());
+                } else {
+                  setSearchQuery("");
+                }
+              }}
+              className={cn(
+                "ui-press grid size-11 cursor-pointer place-items-center rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring sm:hidden",
+                mobileSearchOpen || searchQuery
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground active:bg-muted/70"
+              )}
+            >
+              <Search className="size-4" />
+            </button>
+
+            {onRefresh && (
+              <Button
+                variant="ghost"
+                isIconOnly
+                onPress={onRefresh}
+                aria-label="Refresh activity"
+                className="ui-press size-11 min-w-11 rounded-xl text-muted-foreground sm:size-9 sm:min-w-9 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+              >
+                <RotateCw className="size-4 sm:size-3.5" />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile inline filter bar — 16px text-base prevents iOS Safari zoom */}
+        {(mobileSearchOpen || searchQuery) && (
+          <div className="relative mt-2.5 sm:hidden">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            />
             <input
-              type="text"
-              placeholder="Filter guest, room, reference…"
+              ref={mobileInputRef}
+              type="search"
+              enterKeyHint="search"
+              placeholder="Filter guest, room, or reference…"
+              aria-label="Filter activity"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              autoFocus
-              onBlur={() => {
-                if (!searchQuery) setSearchOpen(false);
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  if (searchQuery) setSearchQuery("");
+                  else setMobileSearchOpen(false);
+                }
               }}
-              className="h-8 w-44 rounded-lg border border-border/60 bg-background px-3 text-xs outline-none transition-all focus:w-56 focus:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 sm:w-52"
+              className="h-11 w-full rounded-xl border border-border/70 bg-background pl-10 pr-10 text-base text-foreground outline-none transition-[border-color] duration-150 placeholder:text-muted-foreground/70 focus:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
             />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setSearchOpen(true)}
-              aria-label="Search activity"
-              className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-            >
-              <MorphIcon icon={SEARCH_ICON} size={16} strokeWidth={2} />
-            </button>
-          )}
-          {searchOpen && (
-            <button
-              type="button"
-              aria-label="Clear search"
-              onClick={() => {
-                setSearchQuery("");
-                setSearchOpen(false);
-              }}
-              className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-            >
-              <MorphIcon icon={CLOSE_ICON} size={16} strokeWidth={2} />
-            </button>
-          )}
-
-          {onRefresh && (
-            <Button
-              variant="ghost"
-              isIconOnly
-              onPress={onRefresh}
-              aria-label="Refresh activity"
-              className="size-8 min-w-8 rounded-lg text-muted-foreground hover:text-foreground"
-            >
-              <RotateCw className="size-3.5" />
-            </Button>
-          )}
-        </div>
+            {searchQuery && (
+              <button
+                type="button"
+                aria-label="Clear filter"
+                onClick={() => {
+                  setSearchQuery("");
+                  mobileInputRef.current?.focus();
+                }}
+                className="ui-press absolute right-1 top-1/2 grid size-10 -translate-y-1/2 cursor-pointer place-items-center rounded-lg text-muted-foreground"
+              >
+                <X className="size-4" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Empty state */}
       {filteredBookings.length === 0 ? (
-        <div className="py-16 text-center text-sm text-muted-foreground">
-          No records found{searchQuery ? ` for “${searchQuery}”` : " for this view"}.
-        </div>
-      ) : isMobile ? (
-        <div className="space-y-3 p-4">
-          {filteredBookings.map((b) => (
-            <div
-              key={b.id}
-              ref={attachActivityRef}
-              data-booking-id={b.id}
-              onMouseEnter={() => handleHoverPrefetch(b.id)}
-              onFocusCapture={() => handleHoverPrefetch(b.id)}
+        <div className="flex flex-col items-center justify-center px-6 py-14 text-center sm:py-16">
+          <span
+            aria-hidden="true"
+            className={cn(
+              "mb-3 grid size-11 place-items-center rounded-2xl border",
+              activeTab === "overbookings" && !searchQuery
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600"
+                : "border-border/60 bg-muted/40 text-muted-foreground"
+            )}
+          >
+            {activeTab === "overbookings" && !searchQuery ? (
+              <CheckCircle2 className="size-5" />
+            ) : (
+              <BedDouble className="size-5" />
+            )}
+          </span>
+          <p className="text-[14px] font-semibold text-foreground">
+            {searchQuery
+              ? `No matches for “${searchQuery.trim()}”`
+              : copy?.emptyTitle ?? "No records for this view"}
+          </p>
+          <p className="mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
+            {searchQuery
+              ? "Check the guest name, room number, or booking reference, or clear your filter."
+              : copy?.emptyHint ?? "Reservations matching this view will appear here."}
+          </p>
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="ui-press mt-4 inline-flex min-h-10 cursor-pointer items-center rounded-xl border border-border bg-background px-4 text-xs font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
             >
-              <MobileBookingRow booking={b} {...rowProps} />
-            </div>
-          ))}
+              Clear filter
+            </button>
+          ) : (
+            onNewBooking &&
+            (activeTab === "arrivals" || activeTab === "bookings") && (
+              <button
+                type="button"
+                onClick={onNewBooking}
+                className="ui-press mt-4 inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
+              >
+                <CalendarPlus className="size-3.5" aria-hidden="true" />
+                New booking
+              </button>
+            )
+          )}
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="border-b border-border/40 bg-muted/[0.14] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <th className="px-6 py-3">Guest</th>
-                <th className="px-4 py-3">Accommodation</th>
-                <th className="px-4 py-3">Stay</th>
-                <th className="whitespace-nowrap px-6 py-3">Status &amp; actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/30 text-sm">
-              {filteredBookings.map((b) => (
-                <DesktopBookingRow key={b.id} booking={b} {...rowProps} onHoverPrefetch={handleHoverPrefetch} attachRef={attachActivityRef} />
-              ))}
-            </tbody>
-          </table>
+        <div>
+          {/* Wide desktop column header band (xl+) — sentence case per PenTable */}
+          <div
+            aria-hidden="true"
+            className="hidden border-b border-border/50 bg-muted/20 px-6 py-2.5 text-xs font-medium text-muted-foreground xl:grid xl:grid-cols-[minmax(210px,1.35fr)_minmax(150px,1fr)_minmax(150px,0.95fr)_minmax(215px,auto)] xl:items-center xl:gap-4"
+          >
+            <span>Guest</span>
+            <span>Accommodation</span>
+            <span>Stay</span>
+            <span className="text-right">Status &amp; actions</span>
+          </div>
+
+          <ul role="list" className="divide-y divide-border/45">
+            {filteredBookings.map((b) => (
+              <BookingActivityRow
+                key={b.id}
+                booking={b}
+                {...rowProps}
+                onHoverPrefetch={handleHoverPrefetch}
+                attachRef={attachActivityRef}
+              />
+            ))}
+          </ul>
         </div>
       )}
 
-      {/* Destructive confirmation — replaces brittle window.confirm */}
+      {/* Cancel / No-Show destructive confirmation */}
       <AlertDialog.Backdrop
         variant="blur"
         isOpen={pendingConfirm !== null}
@@ -404,7 +579,7 @@ export function ActivityList({
   );
 }
 
-function DesktopBookingRow({
+function BookingActivityRow({
   booking,
   onCheckIn,
   onCheckOut,
@@ -414,244 +589,205 @@ function DesktopBookingRow({
   onTakePayment,
   onHoverPrefetch,
   attachRef,
-}: { booking: ActivityBooking; onHoverPrefetch?: (id: string) => void; attachRef?: (el: HTMLElement | null) => void } & RowHandlers) {
+}: {
+  booking: ActivityBooking;
+  onHoverPrefetch?: (id: string) => void;
+  attachRef?: (el: HTMLElement | null) => void;
+} & RowHandlers) {
   const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
   const totalGuests = (booking.adults || 1) + (booking.children || 0);
-  const room = roomLabel(booking.roomNumber, booking.roomType);
+  const assignedRoom = formatRoomLabel(booking.roomNumber);
+  const isUnpaid = booking.paymentStatus !== "paid" && booking.status !== "cancelled";
 
   return (
-    <tr
-      ref={attachRef as unknown as React.Ref<HTMLTableRowElement>}
+    <li
+      ref={attachRef}
       data-booking-id={booking.id}
       onClick={() => onViewDetails?.(booking)}
       onMouseEnter={() => onHoverPrefetch?.(booking.id)}
       onFocusCapture={() => onHoverPrefetch?.(booking.id)}
-      className="group cursor-pointer transition-colors hover:bg-muted/25"
+      className={cn(
+        "group cursor-pointer px-4 py-4 transition-colors duration-150 active:bg-muted/35 sm:px-5 sm:py-3.5 xl:px-6",
+        "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/25",
+        "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4",
+        "xl:grid xl:grid-cols-[minmax(210px,1.35fr)_minmax(150px,1fr)_minmax(150px,0.95fr)_minmax(215px,auto)] xl:items-center xl:gap-4"
+      )}
     >
-      {/* Guest */}
-      <td className="px-6 py-3.5 align-top">
-        <div className="flex items-center gap-3">
-          <GuestAvatar name={booking.guestName} />
-          <div className="flex min-w-0 flex-col">
-            <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-              <span className="truncate">{booking.guestName}</span>
-              {booking.hasNotes && (
-                <MessageSquareText
-                  className="size-3.5 shrink-0 text-amber-500"
-                  aria-label="Booking has notes or special requests"
-                />
-              )}
-            </span>
-            <span className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
-              {booking.reference}
-            </span>
-          </div>
-        </div>
-      </td>
-
-      {/* Accommodation */}
-      <td className="px-4 py-3.5 align-top">
-        <span className="flex items-center gap-1 text-sm font-medium text-foreground">
-          {room}
-          {booking.roomsCount > 1 && (
-            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
-              ×{booking.roomsCount}
-            </span>
-          )}
-          <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground/60" />
-        </span>
-        {!booking.roomNumber && booking.roomType && (
-          <span className="text-[11px] text-muted-foreground/60">Unassigned</span>
-        )}
-      </td>
-
-      {/* Stay */}
-      <td className="px-4 py-3.5 align-top">
-        <div className="flex flex-col gap-1">
-          <div className="font-mono text-xs font-medium tabular-nums text-foreground">
-            {formatDate(booking.checkIn, "dd MMM")} – {formatDate(booking.checkOut, "dd MMM")}
-          </div>
-          <div className="flex items-center gap-3 font-mono text-xs tabular-nums text-muted-foreground">
-            <span>{nights}n</span>
-            <span>{totalGuests} {totalGuests === 1 ? "guest" : "guests"}</span>
-          </div>
-        </div>
-      </td>
-
-      {/* Status & actions */}
-      <td className="whitespace-nowrap px-6 py-3.5 align-top">
-        <div className="flex items-center justify-end gap-2.5 whitespace-nowrap">
-          {booking.paymentStatus !== "paid" && booking.status !== "cancelled" && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onTakePayment?.(booking);
-              }}
-              className="rounded-lg border border-amber-500/40 px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40"
-            >
-              Take payment
-            </button>
-          )}
-          {booking.status === "confirmed" && onCheckIn ? (
-            <SplitAction
-              tone="primary"
-              mainLabel="Check-in"
-              onMain={(e) => {
-                e.stopPropagation();
-                onCheckIn(booking.id);
-              }}
-              items={[
-                { key: "cancel", label: "Cancel booking", onSelect: () => onCancel?.(booking) },
-                { key: "noshow", label: "Mark no-show", onSelect: () => onNoShow?.(booking) },
-              ]}
-            />
-          ) : booking.status === "checked_in" && onCheckOut ? (
-            <SplitAction
-              tone="neutral"
-              mainLabel="Check-out"
-              onMain={(e) => {
-                e.stopPropagation();
-                onCheckOut(booking.id);
-              }}
-            />
-          ) : (
-            <StatusChip status={booking.status} />
-          )}
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-function MobileBookingRow({
-  booking,
-  onCheckIn,
-  onCheckOut,
-  onCancel,
-  onNoShow,
-  onViewDetails,
-  onTakePayment,
-}: { booking: ActivityBooking } & RowHandlers) {
-  return (
-    <div
-      onClick={() => onViewDetails?.(booking)}
-      className="cursor-pointer space-y-2.5 rounded-2xl border border-border/50 bg-card p-4 shadow-xs transition-colors active:bg-muted/30"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <GuestAvatar name={booking.guestName} />
-          <div className="min-w-0">
-            <span
-              className={cn(
-                "mb-0.5 block text-[10px] font-bold uppercase tracking-wide",
-                statusTextTone(booking.status)
-              )}
-            >
-              {getStatusLabel(booking.status ?? "")}
-            </span>
-            <span className="flex items-center gap-1.5 text-base font-semibold text-foreground">
-              <span className="truncate">{booking.guestName}</span>
-              {booking.hasNotes && (
-                <MessageSquareText
-                  className="size-3.5 shrink-0 text-amber-500"
-                  aria-label="Booking has notes"
-                />
-              )}
-            </span>
-          </div>
-        </div>
-        <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{booking.reference}</span>
-      </div>
-      <div className="text-xs tabular-nums text-muted-foreground">
-        {roomLabel(booking.roomNumber, booking.roomType)}
-        {booking.roomsCount > 1 ? ` ×${booking.roomsCount}` : ""}
-        {" · "}
-        {formatDate(booking.checkIn, "dd MMM")} – {formatDate(booking.checkOut, "dd MMM")}
-      </div>
-      <div className="flex items-center gap-2 pt-1.5">
-        {booking.paymentStatus !== "paid" && booking.status !== "cancelled" && (
-          <Button
-            size="sm"
-            variant="tertiary"
-            className="h-9 flex-1 rounded-xl border border-amber-500/40 text-xs font-semibold text-amber-700 hover:bg-muted/50"
-            onPress={() => onTakePayment?.(booking)}
-          >
-            Pay
-          </Button>
-        )}
-        {booking.status === "confirmed" && onCheckIn && (
-          <>
-            <Button
-              size="sm"
-              onPress={() => onCheckIn(booking.id)}
-              className="h-9 flex-1 rounded-xl bg-primary text-xs font-semibold text-primary-foreground hover:bg-[var(--accent-hover)]"
-            >
-              Check-in
-            </Button>
-            <div
-              onClick={(e) => e.stopPropagation()}
-              onTouchEnd={(e) => e.stopPropagation()}
-            >
-              <Dropdown>
-                <Dropdown.Trigger
-                  aria-label="More actions"
-                  className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-xl border border-border text-muted-foreground outline-none hover:bg-muted/50 transition-colors"
+      {/* Zone 1 (sm–lg combined info wrapper; xl unwraps into grid columns via xl:contents) */}
+      <div className="min-w-0 flex-1 space-y-2.5 sm:space-y-1.5 xl:contents">
+        {/* Col 1: Guest + reference */}
+        <div className="flex items-start justify-between gap-3 sm:items-center">
+          <div className="flex min-w-0 items-center gap-3">
+            <GuestAvatar name={booking.guestName} hasConflict={booking.hasConflict} />
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewDetails?.(booking);
+                  }}
+                  className="min-w-0 truncate text-left text-[15px] font-semibold text-foreground outline-none focus-visible:underline sm:text-sm"
                 >
-                  <MoreVertical className="size-4" />
-                </Dropdown.Trigger>
-                <Dropdown.Popover placement="bottom end">
-                  <Dropdown.Menu
-                    onAction={(key) => {
-                      const action = String(key);
-                      if (action === "cancel") onCancel?.(booking);
-                      if (action === "noshow") onNoShow?.(booking);
-                    }}
-                  >
-                    <Dropdown.Item id="cancel" key="cancel" textValue="Cancel booking">
-                      <Label>Cancel booking</Label>
-                    </Dropdown.Item>
-                    <Dropdown.Item id="noshow" key="noshow" textValue="Mark no-show">
-                      <Label>Mark no-show</Label>
-                    </Dropdown.Item>
-                  </Dropdown.Menu>
-                </Dropdown.Popover>
-              </Dropdown>
+                  {booking.guestName}
+                </button>
+                {booking.hasNotes && (
+                  <MessageSquareText
+                    className="size-3.5 shrink-0 text-amber-500"
+                    aria-label="Booking has notes or special requests"
+                  />
+                )}
+                {booking.hasConflict && (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-destructive/12 px-2 py-0.5 text-[11px] font-semibold text-destructive">
+                    <AlertTriangle className="size-3" aria-hidden="true" />
+                    Conflict
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] tabular-nums text-muted-foreground">
+                <span className="font-mono">{booking.reference}</span>
+                {booking.paymentStatus === "paid" && booking.status !== "cancelled" && (
+                  <span className="font-medium text-emerald-600">· Paid</span>
+                )}
+                {booking.paymentStatus === "partial" && booking.status !== "cancelled" && (
+                  <span className="font-medium text-amber-700">· Partial</span>
+                )}
+              </div>
             </div>
-          </>
-        )}
-        {booking.status === "checked_in" && onCheckOut && (
-          <Button
-            size="sm"
-            onPress={() => onCheckOut(booking.id)}
-            className="h-9 flex-1 rounded-xl bg-foreground text-xs font-semibold text-background hover:bg-foreground/90"
+          </div>
+
+          {/* Mobile-only top-right status pill so phone cards show status before actions */}
+          <StatusChip status={booking.status} className="shrink-0 sm:hidden" />
+        </div>
+
+        {/* Metadata strip on mobile/tablet; splits into Col 2 (Accommodation) & Col 3 (Stay) on xl */}
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-0 text-xs text-muted-foreground sm:pl-12 xl:contents">
+          {/* Col 2: Accommodation */}
+          <div className="flex min-w-0 items-center gap-1.5 xl:pl-0">
+            {assignedRoom ? (
+              <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                <span className="truncate">{assignedRoom}</span>
+                {booking.roomType && (
+                  <span className="hidden truncate text-xs font-normal text-muted-foreground xl:inline">
+                    · {booking.roomType}
+                  </span>
+                )}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="rounded-md bg-amber-500/12 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">
+                  Unassigned
+                </span>
+                {booking.roomType && (
+                  <span className="truncate font-medium text-foreground">{booking.roomType}</span>
+                )}
+              </span>
+            )}
+
+            {booking.roomsCount > 1 && (
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+                ×{booking.roomsCount}
+              </span>
+            )}
+
+            <ChevronRight
+              aria-hidden="true"
+              className="hidden size-3.5 shrink-0 text-muted-foreground/35 transition-transform duration-150 xl:inline [@media(hover:hover)_and_(pointer:fine)]:group-hover:translate-x-0.5 [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-muted-foreground/70"
+            />
+          </div>
+
+          <span aria-hidden="true" className="text-border xl:hidden">
+            ·
+          </span>
+
+          {/* Col 3: Stay dates & guest count */}
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 font-mono text-xs tabular-nums xl:flex-col xl:items-start xl:gap-0.5">
+            <span className="font-medium text-foreground">
+              {formatDate(booking.checkIn, "dd MMM")} – {formatDate(booking.checkOut, "dd MMM")}
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              {nights}n · {totalGuests} {totalGuests === 1 ? "guest" : "guests"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Col 4: Status & primary actions (44px height on mobile, crisp 36px on sm+) */}
+      <div className="flex items-center justify-end gap-2 pt-0.5 sm:shrink-0 sm:pt-0">
+        {isUnpaid && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTakePayment?.(booking);
+            }}
+            className="ui-press inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-xl border border-amber-500/40 bg-amber-500/[0.06] px-3.5 text-xs font-semibold whitespace-nowrap text-amber-800 outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 sm:min-h-9 sm:flex-initial sm:rounded-lg sm:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-amber-500/12"
           >
-            Check-out
-          </Button>
+            {booking.paymentStatus === "partial" ? "Collect balance" : "Take payment"}
+          </button>
         )}
-        {!["confirmed", "checked_in"].includes(booking.status) && (
-          <StatusChip status={booking.status} className="ml-auto" />
+
+        {booking.status === "confirmed" && onCheckIn ? (
+          <SplitAction
+            tone="primary"
+            mainLabel="Check-in"
+            onMain={(e) => {
+              e.stopPropagation();
+              onCheckIn(booking.id);
+            }}
+            items={[
+              { key: "cancel", label: "Cancel booking", onSelect: () => onCancel?.(booking) },
+              { key: "noshow", label: "Mark no-show", onSelect: () => onNoShow?.(booking) },
+            ]}
+          />
+        ) : booking.status === "checked_in" && onCheckOut ? (
+          <SplitAction
+            tone="neutral"
+            mainLabel="Check-out"
+            onMain={(e) => {
+              e.stopPropagation();
+              onCheckOut(booking.id);
+            }}
+          />
+        ) : (
+          <StatusChip status={booking.status} className="hidden sm:inline-flex" />
         )}
       </div>
-    </div>
+    </li>
   );
 }
 
-// ── Shared bits ────────────────────────────────────────────────────
-
-/** "room 2"/"Room2"/"RM 2" → "Room 2", "204" → "Room 204"; never doubles "Room". */
-function roomLabel(roomNumber?: string | null, roomType?: string | null): string {
-  // "room 6" is stored with its word — formatRoomLabel is the one place that
-  // normalises it, so the list cannot drift from the drawer or the table.
-  return formatRoomLabel(roomNumber) ?? roomType ?? "Unassigned";
+function buildSubtitle(
+  total: number,
+  pendingCount: number | undefined,
+  activeTab: ActivityTab | undefined
+): string {
+  if (total === 0) return "0 reservations";
+  const noun = total === 1 ? "reservation" : "reservations";
+  if (activeTab === "arrivals" && typeof pendingCount === "number") {
+    return pendingCount > 0
+      ? `${total} scheduled · ${pendingCount} awaiting check-in`
+      : `${total} scheduled · all checked in`;
+  }
+  if (activeTab === "departures" && typeof pendingCount === "number") {
+    return pendingCount > 0
+      ? `${total} scheduled · ${pendingCount} due out`
+      : `${total} scheduled · all checked out`;
+  }
+  return `${total} ${noun}`;
 }
 
-/** Neutral initials circle — matches the app-wide guest avatar pattern. */
-function GuestAvatar({ name }: { name: string }) {
+function GuestAvatar({ name, hasConflict }: { name: string; hasConflict?: boolean }) {
   return (
     <span
       aria-hidden
-      className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground"
+      className={cn(
+        "grid size-9 shrink-0 place-items-center rounded-full text-[11px] font-semibold",
+        hasConflict
+          ? "bg-destructive/12 text-destructive ring-1 ring-inset ring-destructive/25"
+          : "bg-secondary text-secondary-foreground"
+      )}
     >
       {getInitials(name)}
     </span>
@@ -670,21 +806,24 @@ function SplitAction({
   items?: Array<{ key: string; label: string; onSelect: () => void }>;
 }) {
   const tones = {
-    primary: "border-primary bg-primary hover:bg-[var(--accent-hover)]",
-    neutral: "border-foreground bg-foreground hover:bg-foreground/90",
+    primary:
+      "border-primary bg-primary text-primary-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]",
+    neutral:
+      "border-foreground bg-foreground text-background [@media(hover:hover)_and_(pointer:fine)]:hover:bg-foreground/90",
   };
+
   return (
     <div
       onClick={(e) => e.stopPropagation()}
       className={cn(
-        "inline-flex overflow-hidden rounded-lg border text-xs font-semibold text-white divide-x divide-white/20",
+        "inline-flex min-h-11 flex-1 overflow-hidden rounded-xl border text-xs font-semibold shadow-2xs divide-x divide-white/20 sm:min-h-9 sm:flex-initial sm:rounded-lg",
         tones[tone]
       )}
     >
       <button
         type="button"
         onClick={onMain}
-        className="px-3 py-1.5 transition-colors active:brightness-95"
+        className="ui-press flex-1 cursor-pointer px-3.5 py-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/80 sm:flex-initial sm:px-3 sm:py-1.5"
       >
         {mainLabel}
       </button>
@@ -692,9 +831,9 @@ function SplitAction({
         <Dropdown>
           <Dropdown.Trigger
             aria-label={`${mainLabel} options`}
-            className="cursor-pointer px-1.5 py-1.5 outline-none active:brightness-95"
+            className="ui-press grid w-11 shrink-0 cursor-pointer place-items-center outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/80 sm:w-8"
           >
-            <ChevronDown className="size-3.5" />
+            <ChevronDown className="size-4 sm:size-3.5" />
           </Dropdown.Trigger>
           <Dropdown.Popover placement="bottom end">
             <Dropdown.Menu
@@ -702,7 +841,7 @@ function SplitAction({
                 const item = items.find((i) => i.key === String(key));
                 if (item) item.onSelect();
               }}
-              className="w-40 text-xs"
+              className="w-44 text-xs"
             >
               {items.map((item) => (
                 <Dropdown.Item id={item.key} key={item.key} textValue={item.label}>
@@ -721,7 +860,7 @@ export function StatusChip({ status, className }: { status: string; className?: 
   return (
     <span
       className={cn(
-        "rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ring-1 ring-inset",
+        "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ring-1 ring-inset",
         chipTone(status),
         className
       )}
@@ -735,26 +874,16 @@ function chipTone(status: string): string {
   switch (status) {
     case "checked_in":
       return "bg-emerald-500/10 text-emerald-700 ring-emerald-500/25";
+    case "confirmed":
+      return "bg-blue-500/10 text-blue-700 ring-blue-500/20";
     case "pending":
       return "bg-amber-500/10 text-amber-700 ring-amber-500/25";
     case "cancelled":
-      return "bg-red-500/10 text-red-600 ring-red-500/25";
-    case "confirmed":
     case "no_show":
+      return "bg-red-500/10 text-red-600 ring-red-500/25";
     default:
       return "bg-muted text-muted-foreground ring-border";
   }
 }
 
-function statusTextTone(status: string): string {
-  switch (status) {
-    case "checked_in":
-      return "text-emerald-600";
-    case "pending":
-      return "text-amber-600";
-    case "cancelled":
-      return "text-red-500";
-    default:
-      return "text-muted-foreground";
-  }
-}
+export { getPaymentLabel };

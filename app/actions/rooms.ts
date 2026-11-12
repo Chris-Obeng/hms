@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { requireAuth, requireMinRole, toActionError } from "@/lib/auth";
+import { writeAuditLog } from "@/lib/audit";
 import { slugify } from "@/lib/utils";
 import { toStoredBlockRange } from "@/lib/calendar-domain";
 import { toRoomTypeInsert } from "@/lib/supabase/trigger-derived";
@@ -382,31 +383,59 @@ export async function createRoom(input: RoomInput) {
 }
 
 export async function updateRoomStatus(id: string, status: string) {
-  try { await requireMinRole("front_desk", "update room status"); }
-  catch (err) { return toActionError(err, { action: "rooms.updateRoomStatus" }); }
-  const result = await getHotelId();
-  if ("error" in result) return { success: false as const, error: result.error };
+  let ctx;
+  try {
+    ctx = await requireMinRole("front_desk", "update room status");
+  } catch (err) {
+    return toActionError(err, { action: "rooms.updateRoomStatus" });
+  }
 
   const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("rooms")
+    .select("status, room_number")
+    .eq("id", id)
+    .eq("hotel_id", ctx.hotelId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("rooms")
     .update({ status })
     .eq("id", id)
-    .eq("hotel_id", result.hotelId);
+    .eq("hotel_id", ctx.hotelId);
 
   if (error) return { success: false as const, error: error.message };
+
+  await writeAuditLog(supabase, {
+    hotelId: ctx.hotelId,
+    staffId: ctx.staffId,
+    staffName: ctx.staffName,
+    action: "room.status_changed",
+    entityType: "room",
+    entityId: id,
+    beforeState: { status: before?.status ?? null, room_number: before?.room_number ?? null },
+    afterState: { status },
+  });
 
   revalidatePath("/dashboard/rooms");
   return { success: true as const };
 }
 
 export async function updateRoom(id: string, input: Partial<RoomInput>) {
-  try { await requireMinRole("manager", "update rooms"); }
-  catch (err) { return toActionError(err, { action: "rooms.updateRoom" }); }
-  const result = await getHotelId();
-  if ("error" in result) return { success: false as const, error: result.error };
+  let ctx;
+  try {
+    ctx = await requireMinRole("manager", "update rooms");
+  } catch (err) {
+    return toActionError(err, { action: "rooms.updateRoom" });
+  }
 
   const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("rooms")
+    .select("room_type_id, room_number, floor, notes, status, is_active")
+    .eq("id", id)
+    .eq("hotel_id", ctx.hotelId)
+    .maybeSingle();
 
   const { error } = await supabase
     .from("rooms")
@@ -419,9 +448,32 @@ export async function updateRoom(id: string, input: Partial<RoomInput>) {
       ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
     })
     .eq("id", id)
-    .eq("hotel_id", result.hotelId);
+    .eq("hotel_id", ctx.hotelId);
 
   if (error) return { success: false as const, error: error.message };
+
+  await writeAuditLog(supabase, {
+    hotelId: ctx.hotelId,
+    staffId: ctx.staffId,
+    staffName: ctx.staffName,
+    action: "room.updated",
+    entityType: "room",
+    entityId: id,
+    beforeState: before
+      ? {
+          roomTypeId: before.room_type_id,
+          roomNumber: before.room_number,
+          floor: before.floor,
+          notes: before.notes,
+        }
+      : null,
+    afterState: {
+      ...(input.roomTypeId !== undefined ? { roomTypeId: input.roomTypeId } : {}),
+      ...(input.roomNumber !== undefined ? { roomNumber: input.roomNumber } : {}),
+      ...(input.floor !== undefined ? { floor: input.floor || null } : {}),
+      ...(input.notes !== undefined ? { notes: input.notes || null } : {}),
+    },
+  });
 
   revalidatePath("/dashboard/rooms");
   return { success: true as const };

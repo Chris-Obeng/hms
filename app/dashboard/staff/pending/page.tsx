@@ -34,13 +34,13 @@ export default async function PendingStaffPage() {
 
   const isSuperAdmin = can(currentUser?.role, "staff:manage");
 
-  // Fetch pending staff
+    // Fetch pending staff
   const { data: pending } = await supabase
     .from("staff_profiles")
     .select(
       "id, clerk_user_id, email, full_name, avatar_url, role, created_at"
     )
-    .eq("clerk_org_id", hotel.id)
+    .eq("clerk_org_id", orgId)
     .eq("role", "pending")
     .eq("is_active", false)
     .order("created_at", { ascending: true });
@@ -56,20 +56,21 @@ export default async function PendingStaffPage() {
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-7xl space-y-5 pt-1">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <Link
           href="/dashboard/staff"
-          className="inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          aria-label="Back to staff"
+          className="ui-press inline-flex size-11 items-center justify-center rounded-xl text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
         </Link>
         <div>
-          <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-foreground">
-            Pending Requests
+          <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-[24px]">
+            Pending requests
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="mt-0.5 text-xs text-muted-foreground">
             {pendingList.length} staff member{pendingList.length !== 1 ? "s" : ""} awaiting approval
           </p>
         </div>

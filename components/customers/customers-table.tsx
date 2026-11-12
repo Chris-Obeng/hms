@@ -18,6 +18,7 @@ import { Button, Chip, Table } from "@heroui/react";
 
 import { formatCurrency, formatDate } from "@/lib/format";
 import { HeroTablePagination } from "@/components/ui/hero-table-pagination";
+import { EmptyStatePanel, PageHeader } from "@/components/ui/page-header";
 import { TableSearchField } from "@/components/ui/table-search-field";
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle";
 import {
@@ -123,7 +124,7 @@ function GuestCard({
       }}
       onPointerEnter={() => onHoverPrefetch?.(guest.id)}
       onFocus={() => onHoverPrefetch?.(guest.id)}
-      className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 text-left shadow-sm transition-all duration-150 hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:bg-muted/40"
+      className="ui-press flex cursor-pointer flex-col gap-3 rounded-[20px] border border-border/60 bg-card p-4 text-left shadow-[0_1px_3px_rgb(0_0_0/0.04)] outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:border-border"
     >
       <div className="flex items-center gap-3">
         <GuestInitials fullName={guest.fullName} />
@@ -494,56 +495,62 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
   }
 
   const emptyState = (
-    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-      <Users className="mb-3 size-10 text-muted-foreground/30" />
-      <p className="text-body font-medium text-muted-foreground">
-        {isFiltered ? "No guests match your filters" : "No guest profiles yet"}
-      </p>
-      <p className="mt-1 max-w-[280px] text-caption text-muted-foreground/60">
-        {isFiltered
-          ? "Try adjusting your search or filters."
-          : "Guest profiles are created automatically when bookings are made."}
-      </p>
-      {isFiltered && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mt-4 rounded-lg text-sm"
-          onPress={() => {
-            clearAllFilters();
-            setGlobalFilter("");
-          }}
-        >
-          Clear all filters
-        </Button>
-      )}
-    </div>
+    <EmptyStatePanel
+      icon={Users}
+      title={isFiltered ? "No matching guests" : "No guest profiles yet"}
+      description={
+        isFiltered
+          ? undefined
+          : "Profiles are created automatically when reservations are made."
+      }
+      action={
+        isFiltered ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="ui-press rounded-xl text-xs font-semibold"
+            onPress={() => {
+              clearAllFilters();
+              setGlobalFilter("");
+            }}
+          >
+            Clear filters
+          </Button>
+        ) : undefined
+      }
+    />
   );
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="mx-auto w-full max-w-7xl space-y-4 pt-1 md:space-y-5">
+        <PageHeader
+          title="Guests"
+          subtitle={
+            isFiltered
+              ? `${filteredCount} of ${totalCount} shown`
+              : `${totalCount} ${totalCount === 1 ? "guest" : "guests"}`
+          }
+        />
+
         {/* Toolbar + active-filter chips */}
-        <div className="space-y-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              <TableSearchField
-                ariaLabel="Search guests"
-                value={globalFilter}
-                onChange={setGlobalFilter}
-                placeholder="Search name, email, phone…"
-                className="max-w-xs"
-              />
-              <EntityFilters
-                fields={filterFields}
-                values={filterValues}
-                onChange={setFilter}
-                onClearAll={clearAllFilters}
-                filteredCount={filteredCount}
-                resultNoun="guest"
-              />
-            </div>
-            <ViewModeToggle value={viewMode} onChange={setViewMode} />
+        <div className="space-y-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <TableSearchField
+              ariaLabel="Search guests"
+              value={globalFilter}
+              onChange={setGlobalFilter}
+              placeholder="Search name, email, phone…"
+            />
+            <EntityFilters
+              fields={filterFields}
+              values={filterValues}
+              onChange={setFilter}
+              onClearAll={clearAllFilters}
+              filteredCount={filteredCount}
+              resultNoun="guest"
+            />
+            <ViewModeToggle value={viewMode} onChange={setViewMode} className="ml-auto" />
           </div>
           <EntityFilterChips
             fields={filterFields}
@@ -555,7 +562,8 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
 
         {/* Desktop table view */}
         {viewMode === "table" && (
-          <Table variant="secondary" className="hidden md:block">
+          <div className="hidden overflow-hidden rounded-[20px] border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)] md:block">
+            <Table variant="secondary">
           <Table.ScrollContainer>
             <Table.Content aria-label="Guests" className="min-w-[760px]">
               <Table.Header>
@@ -608,7 +616,8 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
               filteredRows={filteredCount}
             />
           </Table.Footer>
-        </Table>
+            </Table>
+          </div>
         )}
 
         {/* Desktop grid view */}
@@ -629,7 +638,9 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
               />
             </div>
           ) : (
-            <div className="hidden md:block">{emptyState}</div>
+            <div className="hidden rounded-[20px] border border-border/60 bg-card md:block">
+              {emptyState}
+            </div>
           ))}
 
         {/* Mobile cards — always */}
@@ -648,7 +659,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
               />
             </>
           ) : (
-            <div className="rounded-xl border border-dashed border-border/60 p-4">
+            <div className="rounded-[20px] border border-border/60 bg-card">
               {emptyState}
             </div>
           )}

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Input, toast } from "@heroui/react";
-import { Banknote, CircleDollarSign, CreditCard, Landmark, Smartphone, Wallet, X } from "lucide-react";
+import { Banknote, CircleDollarSign, CreditCard, Landmark, Plus, Smartphone, Wallet, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { HeroSelectField } from "@/components/ui/hero-select";
@@ -16,20 +16,32 @@ interface BookingPaymentsPanelProps {
   currency: string;
   onBookingChanged?: () => void;
   onRefresh: () => void;
+  /** Optional optimistic callback fired immediately before server action resolves. */
+  onOptimisticPayment?: (entry: {
+    bookingId: string;
+    amount: number;
+    method: string;
+    notes: string;
+  }) => () => void;
   /** Drawer owns the "Record payment" footer; the panel renders its own CTA when standalone. */
   formOpen?: boolean;
   onFormOpenChange?: (open: boolean) => void;
 }
 
 function PaymentMethodIcon({ method }: { method: string | null }) {
-  const className = "size-3.5 text-muted-foreground/60";
+  const className = "size-3.5 text-muted-foreground";
   switch (method) {
-    case "cash": return <Banknote className={className} />;
+    case "cash":
+      return <Banknote className={className} />;
     case "pos":
-    case "card": return <CreditCard className={className} />;
-    case "mobile_money": return <Smartphone className={className} />;
-    case "bank_transfer": return <Landmark className={className} />;
-    default: return <CircleDollarSign className={className} />;
+    case "card":
+      return <CreditCard className={className} />;
+    case "mobile_money":
+      return <Smartphone className={className} />;
+    case "bank_transfer":
+      return <Landmark className={className} />;
+    default:
+      return <CircleDollarSign className={className} />;
   }
 }
 
@@ -50,18 +62,23 @@ export function getBookingPaymentAvailability(booking: FullBookingDetail) {
     ? payableLines.length > 0
     : !["cancelled", "checked_out"].includes(booking.status ?? "");
 
-  return { group, totalDue, amountPaid, outstandingBalance, isFullyPaid, payableLines, canTakePayment };
+  return {
+    group,
+    totalDue,
+    amountPaid,
+    outstandingBalance,
+    isFullyPaid,
+    payableLines,
+    canTakePayment,
+  };
 }
 
-/**
- * Payment bands per the design: soft balance block (no progress bar), charges
- * rows, payment history, and the record form opened from the footer CTA.
- */
 export function BookingPaymentsPanel({
   booking,
   currency,
   onBookingChanged,
   onRefresh,
+  onOptimisticPayment,
   formOpen,
   onFormOpenChange,
 }: BookingPaymentsPanelProps) {
@@ -79,8 +96,6 @@ export function BookingPaymentsPanel({
   >("cash");
   const [paymentNotes, setPaymentNotes] = React.useState("");
   const [savingPayment, setSavingPayment] = React.useState(false);
-  // Grouped reservations credit a chosen line — record_payment_atomic settles one
-  // booking id, so posting a group amount to the anchor would leave siblings unpaid.
   const [selectedLineId, setSelectedLineId] = React.useState("");
 
   const {
@@ -99,16 +114,14 @@ export function BookingPaymentsPanel({
       setSelectedLineId(first?.id ?? "");
       setPaymentAmount(first ? String(Math.round(first.outstanding * 100) / 100) : "");
     } else {
-      const suggested = outstandingBalance > 0
-        ? String(Math.round(outstandingBalance * 100) / 100)
-        : "";
+      const suggested =
+        outstandingBalance > 0 ? String(Math.round(outstandingBalance * 100) / 100) : "";
       setPaymentAmount(suggested);
     }
     setPaymentMethod("cash");
     setPaymentNotes("");
   };
 
-  // Prefill whenever a controlled drawer footer opens the form or switches bookings.
   const formSessionKey = showForm ? booking.id : null;
   const [initializedKey, setInitializedKey] = React.useState<string | null>(null);
   if (formSessionKey !== initializedKey) {
@@ -132,26 +145,47 @@ export function BookingPaymentsPanel({
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetId = group ? selectedLineId : booking.id;
-    if (!targetId || !paymentAmount) return;
+    const numericAmount = parseFloat(paymentAmount);
+    if (!targetId || !numericAmount || numericAmount <= 0) return;
 
-    setSavingPayment(true);
+    const methodSnapshot = paymentMethod;
+    const notesSnapshot = paymentNotes.trim();
+    const rollback = onOptimisticPayment?.({
+      bookingId: targetId,
+      amount: numericAmount,
+      method: methodSnapshot,
+      notes: notesSnapshot,
+    });
+
+    if (rollback) {
+      setShowForm(false);
+      setPaymentAmount("");
+      setPaymentMethod("cash");
+      setPaymentNotes("");
+    } else {
+      setSavingPayment(true);
+    }
+
     const result = await recordPayment({
       bookingId: targetId,
-      amount: parseFloat(paymentAmount),
-      method: paymentMethod,
-      notes: paymentNotes,
+      amount: numericAmount,
+      method: methodSnapshot,
+      notes: notesSnapshot,
     });
     setSavingPayment(false);
 
     if (result.success) {
       toast.success("Payment recorded");
-      setShowForm(false);
-      setPaymentAmount("");
-      setPaymentMethod("cash");
-      setPaymentNotes("");
+      if (!rollback) {
+        setShowForm(false);
+        setPaymentAmount("");
+        setPaymentMethod("cash");
+        setPaymentNotes("");
+      }
       onRefresh();
       if (onBookingChanged) onBookingChanged();
     } else {
+      rollback?.();
       toast.danger(result.error || "Failed to record payment");
     }
   };
@@ -159,94 +193,70 @@ export function BookingPaymentsPanel({
   return (
     <div className="flex min-h-full flex-col">
       {/* Balance band */}
-      <section aria-label="Balance" className="border-b border-border/60 px-6 py-5">
-        <div className={cn(
-          "flex flex-col gap-2 rounded-2xl bg-secondary px-5 py-4",
-          isFullyPaid && "bg-[var(--success)]/[0.06]",
-        )}>
-          <div className="flex items-center gap-2">
-            <p className="text-xs font-medium text-muted-foreground">
-              {isFullyPaid ? "Balance settled" : "Balance due"}
+      <section aria-label="Balance" className="border-b border-border/50 px-5 py-4 sm:px-6">
+        <div
+          className={cn(
+            "flex flex-wrap items-center justify-between gap-4 rounded-2xl border px-4 py-3.5",
+            isFullyPaid
+              ? "border-emerald-500/20 bg-emerald-500/[0.05]"
+              : "border-border/60 bg-secondary/50"
+          )}
+        >
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                {isFullyPaid ? "Balance settled" : "Balance due"}
+              </p>
+              {isFullyPaid ? (
+                <span className="rounded-md bg-emerald-500/12 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                  Paid in full
+                </span>
+              ) : amountPaid > 0 ? (
+                <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                  Partial
+                </span>
+              ) : (
+                <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  Unpaid
+                </span>
+              )}
+            </div>
+            <p className="mt-1.5 font-mono text-2xl font-semibold leading-none tracking-[-0.02em] tabular-nums text-foreground">
+              {formatCurrency(isFullyPaid ? 0 : outstandingBalance, currency)}
             </p>
-            <span className="min-w-0 flex-1" aria-hidden="true" />
-            {isFullyPaid ? (
-              <span className="rounded-full bg-[var(--success)]/15 px-2 py-0.5 text-[10px] font-semibold text-[var(--success)]">Paid in full</span>
-            ) : amountPaid > 0 ? (
-              <span className="rounded-full bg-[var(--warning)]/15 px-2 py-0.5 text-[10px] font-semibold text-[var(--warning)]">Partial</span>
-            ) : null}
+            <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
+              Paid {formatCurrency(amountPaid, currency)} of {formatCurrency(totalDue, currency)}
+            </p>
           </div>
-          <p className="font-mono text-[26px] font-semibold leading-none tracking-[-0.5px] text-foreground tabular-nums">
-            {formatCurrency(isFullyPaid ? totalDue : outstandingBalance, currency)}
-          </p>
-          <p className="max-md:text-xs text-xs text-muted-foreground">of {formatCurrency(totalDue, currency)} total</p>
+
+          {!controlled && canTakePayment && !isFullyPaid && !showForm && (
+            <button
+              type="button"
+              onClick={openForm}
+              className="ui-press inline-flex h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
+            >
+              <Plus className="size-3.5" aria-hidden="true" />
+              Record payment
+            </button>
+          )}
         </div>
       </section>
 
-      {/* Charges band */}
-      <section aria-label="Charges" className="border-b border-border/60 px-6 py-1.5">
-        {group ? (
-          group.lines.map((l, index) => <ChargeRow
-            key={l.id}
-            name={`${(Math.max(1, l.roomsCount ?? 1) > 1 ? `${Math.max(1, l.roomsCount ?? 1)} × ` : "") + (l.roomTypeName ?? "Room")}${l.roomNumber ? ` · ${l.roomNumber}` : ""}`}
-            sub={`${l.nights ?? booking.nights ?? ""} ${(l.nights ?? booking.nights ?? 1) === 1 ? "night" : "nights"}`.trim() || null}
-            amount={formatCurrency(l.totalAmount, currency)}
-            first={index === 0}
-          />)
-        ) : (
-          <>
-            <ChargeRow first name={booking.roomType?.name ?? "Room"}
-              sub={booking.roomRate ? `${booking.nights ?? ""} nights × ${formatCurrency(booking.roomRate, currency)}` : null}
-              amount={formatCurrency(booking.subtotal, currency)} />
-            {(booking.taxAmount ?? 0) > 0 && (
-              <ChargeRow name="Tax (VAT)" amount={formatCurrency(booking.taxAmount ?? 0, currency)} quiet />
-            )}
-            <ChargeRow name="Total" amount={formatCurrency(booking.totalAmount, currency)} strong />
-          </>
-        )}
-        {group && (
-          <>
-            <ChargeRow name="Tax (VAT)" amount={formatCurrency(group.taxAmount, currency)} quiet />
-            <ChargeRow name="Total" amount={formatCurrency(group.total, currency)} strong />
-          </>
-        )}
-      </section>
-
-      {/* Payment history band */}
-      <section aria-label="Payment history" className="border-b border-border/60 px-6 py-1.5">
-        {booking.payments.length > 0 ? booking.payments.map((payment, index) => (
-          <div key={payment.id}>
-            {index > 0 && <div className="h-px bg-border/50" aria-hidden="true" />}
-            <div className="flex items-center gap-2.5 py-3">
-              <PaymentMethodIcon method={payment.method} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-medium text-foreground">{getMethodLabel(payment.method)}</p>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {formatDateTime(payment.paidAt ?? payment.createdAt)}
-                  {payment.notes ? ` · ${payment.notes}` : ""}
-                </p>
-              </div>
-              <span className={cn("shrink-0 font-mono text-xs font-semibold tabular-nums",
-                payment.status === "success" ? "text-[var(--success)]" : "text-muted-foreground")}>
-                {formatCurrency(payment.amount, currency)}
-              </span>
-            </div>
-          </div>
-        )) : (
-          <div className="flex flex-col items-center py-6 text-center">
-            <Wallet className="mb-2 size-6 text-muted-foreground/25" aria-hidden="true" />
-            <p className="text-xs text-muted-foreground/70">No payments recorded yet</p>
-          </div>
-        )}
-      </section>
-
-      {/* Record payment form — opened from the footer CTA */}
+      {/* Inline Record payment form (when opened) */}
       {showForm && (
-        <form onSubmit={handleRecordPayment} className="flex flex-1 flex-col gap-3 px-6 py-4">
+        <form
+          onSubmit={handleRecordPayment}
+          className="flex flex-col gap-3 border-b border-border/50 bg-muted/20 px-5 py-4 sm:px-6"
+        >
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-semibold text-foreground">Record payment</span>
-            <button type="button" aria-label="Close payment form" onClick={() => setShowForm(false)}
-              className="grid size-6 place-items-center rounded-md text-muted-foreground/60 hover:bg-muted hover:text-foreground">
-              <X className="size-3.5" aria-hidden="true" />
+            <button
+              type="button"
+              aria-label="Close payment form"
+              onClick={() => setShowForm(false)}
+              className="ui-press grid size-8 cursor-pointer place-items-center rounded-lg text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+            >
+              <X className="size-4" aria-hidden="true" />
             </button>
           </div>
 
@@ -263,14 +273,20 @@ export function BookingPaymentsPanel({
             />
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Amount ({currency})</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Amount ({currency})
+              </label>
               <Input
-                type="number" inputMode="decimal" step="0.01" min="0" placeholder="0.00"
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
                 value={paymentAmount}
                 onChange={(e) => setPaymentAmount(e.target.value)}
-                className="h-10 rounded-[10px] text-[13px] tabular-nums"
+                className="h-11 rounded-xl border-border/70 bg-card text-base tabular-nums sm:h-10 sm:text-sm"
                 required
               />
             </div>
@@ -295,37 +311,141 @@ export function BookingPaymentsPanel({
           <Input
             value={paymentNotes}
             onChange={(e) => setPaymentNotes(e.target.value)}
-            placeholder="Reference or note (optional)"
-            className="h-10 rounded-[10px] text-[13px]"
+            placeholder="Receipt reference or note (optional)"
+            className="h-11 rounded-xl border-border/70 bg-card text-base sm:h-10 sm:text-sm"
           />
 
-          <div className="flex items-center justify-end gap-2">
-            <button type="button" onClick={() => setShowForm(false)}
-              className="h-9 rounded-full px-3.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+          <div className="flex items-center justify-end gap-2 pt-0.5">
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="ui-press h-9 cursor-pointer rounded-xl border border-border/70 bg-card px-3.5 text-xs font-semibold text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
+            >
               Cancel
             </button>
-            <button type="submit" disabled={savingPayment || !paymentAmount || Number(paymentAmount) <= 0 || (!!group && !selectedLineId)}
-              className="h-9 rounded-full bg-[var(--pen-accent)] px-4 text-xs font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-60">
-              {savingPayment ? "Recording…" : "Record payment"}
+            <button
+              type="submit"
+              disabled={
+                savingPayment ||
+                !paymentAmount ||
+                Number(paymentAmount) <= 0 ||
+                (!!group && !selectedLineId)
+              }
+              className="ui-press h-9 cursor-pointer rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground disabled:opacity-55 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
+            >
+              {savingPayment ? "Recording…" : "Save payment"}
             </button>
           </div>
         </form>
       )}
 
-      {/* Standalone CTA when no drawer footer owns the action (deep-link page). */}
-      {!controlled && canTakePayment && !isFullyPaid && !showForm && (
-        <div className="px-6 pb-5 pt-4">
-          <button type="button" onClick={openForm}
-            className="h-10 w-full rounded-full bg-[var(--pen-accent)] text-[13px] font-semibold text-white transition-transform active:scale-[0.99]">
-            Record payment
-          </button>
-        </div>
-      )}
+      {/* Charges band */}
+      <section aria-label="Charges" className="border-b border-border/50 px-5 py-2 sm:px-6">
+        {group ? (
+          group.lines.map((l, index) => (
+            <ChargeRow
+              key={l.id}
+              name={`${
+                (Math.max(1, l.roomsCount ?? 1) > 1 ? `${Math.max(1, l.roomsCount ?? 1)} × ` : "") +
+                (l.roomTypeName ?? "Room")
+              }${l.roomNumber ? ` · Rm ${l.roomNumber.replace(/^\s*(?:room|rm)\.?\s*/i, "")}` : ""}`}
+              sub={
+                `${l.nights ?? booking.nights ?? ""} ${
+                  (l.nights ?? booking.nights ?? 1) === 1 ? "night" : "nights"
+                }`.trim() || null
+              }
+              amount={formatCurrency(l.totalAmount, currency)}
+              first={index === 0}
+            />
+          ))
+        ) : (
+          <>
+            <ChargeRow
+              first
+              name={booking.roomType?.name ?? "Room charge"}
+              sub={
+                booking.roomRate
+                  ? `${booking.nights ?? 1} ${
+                      (booking.nights ?? 1) === 1 ? "night" : "nights"
+                    } × ${formatCurrency(booking.roomRate, currency)}`
+                  : null
+              }
+              amount={formatCurrency(booking.subtotal, currency)}
+            />
+            {(booking.taxAmount ?? 0) > 0 && (
+              <ChargeRow
+                name="Tax"
+                amount={formatCurrency(booking.taxAmount ?? 0, currency)}
+                quiet
+              />
+            )}
+            <ChargeRow name="Total charges" amount={formatCurrency(booking.totalAmount, currency)} strong />
+          </>
+        )}
+        {group && (
+          <>
+            {group.taxAmount > 0 && (
+              <ChargeRow name="Tax" amount={formatCurrency(group.taxAmount, currency)} quiet />
+            )}
+            <ChargeRow name="Total charges" amount={formatCurrency(group.total, currency)} strong />
+          </>
+        )}
+      </section>
+
+      {/* Payment history band */}
+      <section aria-label="Payment history" className="px-5 py-2 sm:px-6">
+        {booking.payments.length > 0 ? (
+          booking.payments.map((payment, index) => (
+            <div key={payment.id}>
+              {index > 0 && <div className="h-px bg-border/45" aria-hidden="true" />}
+              <div className="flex items-center gap-3 py-3">
+                <span
+                  aria-hidden="true"
+                  className="grid size-8 shrink-0 place-items-center rounded-xl bg-secondary text-secondary-foreground"
+                >
+                  <PaymentMethodIcon method={payment.method} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-medium text-foreground">
+                    {getMethodLabel(payment.method)}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {formatDateTime(payment.paidAt ?? payment.createdAt)}
+                    {payment.notes ? ` · ${payment.notes}` : ""}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    "shrink-0 font-mono text-xs font-semibold tabular-nums",
+                    payment.status === "success"
+                      ? "text-emerald-600"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {formatCurrency(payment.amount, currency)}
+                </span>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="flex items-center gap-2.5 py-4 text-xs text-muted-foreground">
+            <Wallet className="size-4 text-muted-foreground/50" aria-hidden="true" />
+            <span>No payments recorded yet</span>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
 
-function ChargeRow({ name, sub, amount, strong = false, quiet = false, first = false }: {
+function ChargeRow({
+  name,
+  sub,
+  amount,
+  strong = false,
+  quiet = false,
+  first = false,
+}: {
   name: string;
   sub?: string | null;
   amount: string;
@@ -333,19 +453,38 @@ function ChargeRow({ name, sub, amount, strong = false, quiet = false, first = f
   quiet?: boolean;
   first?: boolean;
 }) {
-  return <div>
-    {!first && <div className="h-px bg-border/50" aria-hidden="true" />}
-    <div className="flex items-center justify-between gap-3 py-3">
-      <div className="min-w-0">
-        <p className={cn("truncate text-[13px]", strong ? "font-semibold text-foreground" : quiet ? "text-xs text-muted-foreground" : "font-semibold text-foreground")}>
-          {name}
-        </p>
-        {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
+  return (
+    <div>
+      {!first && <div className="h-px bg-border/45" aria-hidden="true" />}
+      <div className="flex items-center justify-between gap-3 py-2.5">
+        <div className="min-w-0">
+          <p
+            className={cn(
+              "truncate text-[13px]",
+              strong
+                ? "font-semibold text-foreground"
+                : quiet
+                  ? "text-xs text-muted-foreground"
+                  : "font-medium text-foreground"
+            )}
+          >
+            {name}
+          </p>
+          {sub && <p className="mt-0.5 font-mono text-[11px] tabular-nums text-muted-foreground">{sub}</p>}
+        </div>
+        <span
+          className={cn(
+            "shrink-0 font-mono tabular-nums",
+            strong
+              ? "text-[13px] font-semibold text-foreground"
+              : quiet
+                ? "text-xs text-muted-foreground"
+                : "text-[13px] font-medium text-foreground"
+          )}
+        >
+          {amount}
+        </span>
       </div>
-      <span className={cn("shrink-0 font-mono tabular-nums",
-        strong ? "text-[13px] font-semibold text-foreground" : quiet ? "text-xs font-medium text-foreground" : "text-[13px] font-semibold text-foreground")}>
-        {amount}
-      </span>
     </div>
-  </div>;
+  );
 }

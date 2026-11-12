@@ -1,220 +1,855 @@
 /* ============================================================================
-   HMS Calendar — Scheduler theme
-   Dense data surface, light chrome, status colors carry meaning.
+   RoomLine Calendar — Room Rack Surface
+   Quiet chrome, flat status bars, responsive room gutter, zero global leaks.
    ============================================================================ */
 
-/* Canonical booking-status palette — the single source of truth for bar,
-   legend and block colors. On :root (not .cal-wrap) so portaled popover
-   swatches resolve them too. Hue = lifecycle status; source/payment/group
-   are separate signals. */
 :root {
-  --cal-confirmed: #3b82f6;
-  --cal-confirmed-bd: #2563eb;
-  --cal-inhouse: #16a34a;
-  --cal-inhouse-bd: #15803d;
+  --cal-confirmed: #2563eb;
+  --cal-confirmed-bd: #1d4ed8;
+  --cal-inhouse: #15803d;
+  --cal-inhouse-bd: #166534;
   --cal-checkout: #64748b;
   --cal-checkout-bd: #475569;
   --cal-pending: #d97706;
   --cal-pending-bd: #b45309;
   --cal-cancelled: #94a3b8;
   --cal-cancelled-bd: #64748b;
-  --cal-noshow: #f43f5e;
-  --cal-noshow-bd: #e11d48;
+  --cal-noshow: #e11d48;
+  --cal-noshow-bd: #be123c;
   --cal-closure: #e11d48;
   --cal-closure-bd: #be123c;
-  --cal-unalloc: #06b6d4;
-  --cal-unalloc-bd: #0891b2;
+  --cal-unalloc: #0891b2;
+  --cal-unalloc-bd: #0e7490;
 }
 
 .cal-wrap {
   --cal-bg: var(--background);
   --cal-surface: var(--card);
   --cal-border: var(--border);
-  --cal-grid: color-mix(in oklch, var(--border) 55%, transparent);
+  --cal-grid: color-mix(in oklch, var(--border) 60%, transparent);
   --cal-text: var(--foreground);
   --cal-muted: var(--muted-foreground);
-  --cal-header: color-mix(in oklch, var(--muted) 35%, var(--card));
   --cal-accent: var(--primary);
-  --cal-radius: 6px;
-  --cal-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --cal-shadow-md: 0 4px 10px -2px rgba(0, 0, 0, 0.12);
   background: var(--cal-bg);
   color: var(--cal-text);
   font-variant-numeric: tabular-nums;
 }
 
-.cal-wrap ::-webkit-scrollbar { width: 8px; height: 8px; }
+.cal-wrap ::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
 .cal-wrap ::-webkit-scrollbar-thumb {
-  background: color-mix(in oklch, var(--foreground) 25%, transparent);
+  background: color-mix(in oklch, var(--foreground) 20%, transparent);
   border-radius: 4px;
 }
-.cal-wrap ::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in oklch, var(--foreground) 40%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .cal-wrap ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklch, var(--foreground) 34%, transparent);
+  }
 }
-
-/* ── Loading shimmer ─────────────────────────────────────────────────────── */
 
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(400%); }
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* ── Mobile ──────────────────────────────────────────────────────────────── */
-
-@media (max-width: 767px) {
-  .cal-wrap {
-    margin: 0;
-    border-radius: 0;
-    scroll-behavior: smooth;
+  0% {
+    transform: translateX(-100%);
   }
-
-  button:active {
-    transform: scale(0.97);
-    transition: transform 0.1s ease;
+  100% {
+    transform: translateX(400%);
   }
 }
 
-/* Custom RoomLine room-rack. One scroll surface keeps sticky axes aligned. */
-/* Stacking scale (lowest → highest). Today must win over the weekend wash
-   when they coincide, and neither tint may EVER sit above a booking/block
-   bar, so every layer gets an explicit rung:
+/* Stacking scale:
    cells(0) < weekend wash(2) < today(3) < booking/block bars(10) <
-   room gutter(20) < drag preview(25) < sticky header(30) < tray(35) < corner(40). */
-/* --rl-header-h must mirror HEADER_HEIGHT in _components/timeline/timeline-geometry.ts. */
-.rl-timeline-shell{height:100%;min-height:420px;position:relative;display:flex;flex-direction:column;background:var(--background);--rl-z-cells:0;--rl-z-weekend:2;--rl-z-today:3;--rl-z-bars:10;--rl-z-gutter:20;--rl-z-preview:25;--rl-z-header:30;--rl-z-tray:35;--rl-z-corner:40;--rl-header-h:62px}
-.rl-timeline-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
-.rl-timeline-canvas{position:relative;min-height:100%}
-.rl-timeline-header{position:sticky;top:0;z-index:var(--rl-z-header);display:flex;height:var(--rl-header-h);width:max-content;background:color-mix(in oklch,var(--background) 96%,var(--muted));border-bottom:1px solid color-mix(in oklch,var(--border) 80%,var(--foreground) 6%)}
-.rl-corner,.rl-date-header{height:var(--rl-header-h);background:color-mix(in oklch,var(--background) 96%,var(--muted))}
-.rl-corner{position:sticky;left:0;display:flex;flex:none;flex-direction:column;justify-content:center;padding:0 16px;font-size:12px;font-weight:700;z-index:var(--rl-z-corner);border-right:1px solid var(--border);box-shadow:8px 0 18px -16px color-mix(in oklch,var(--foreground) 35%,transparent)}
-.rl-corner small{font-size:10px;font-weight:500;color:var(--muted-foreground)}
-.rl-date-header{display:flex;flex:none}
-.rl-date{height:var(--rl-header-h);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border-right:1px solid color-mix(in oklch,var(--border) 72%,transparent);font-size:11px;color:var(--muted-foreground)}
-.rl-date strong{font-size:11.5px;font-weight:650;color:var(--foreground);letter-spacing:.01em}
-.rl-date span{font-size:10.5px;opacity:.85}
-/* Weekend: a quiet graphite wash. Hue-free (foreground-mixed) so it reads
-   clean on any brand palette and lifts correctly in dark mode, where the
-   foreground is white. Recessive by design — weekends frame, today shouts. */
-.rl-date[data-dow="6"],.rl-date[data-dow="0"]{background:color-mix(in oklch,var(--foreground) 5%,transparent)}
-.rl-date[data-dow="6"] strong,.rl-date[data-dow="0"] strong{color:color-mix(in oklch,var(--foreground) 78%,var(--muted-foreground))}
-/* Today: the single column allowed to demand attention. Accent top bar,
-   tinted header, and the date wears a filled accent pill — the today
-   signature people know from Apple Calendar. The [data-dow] in the selector
-   (every header cell carries one) keeps these rules ahead of the weekend
-   rules above regardless of source order: (0,3,x) always beats (0,2,x). */
-.rl-date[data-dow].today{background:color-mix(in oklch,var(--primary) 12%,transparent);box-shadow:inset 0 3px 0 var(--primary)}
-.rl-date[data-dow].today strong{color:var(--primary);font-weight:700}
-.rl-date.today span{background:var(--primary);color:var(--primary-foreground);opacity:1;font-weight:650;letter-spacing:.01em;line-height:1.5;padding:0 8px;border-radius:999px}
-.rl-weekend-column{position:absolute;top:var(--rl-header-h);bottom:0;z-index:var(--rl-z-weekend);background:color-mix(in oklch,var(--foreground) 3%,transparent);pointer-events:none}
-.rl-today-column{position:absolute;top:var(--rl-header-h);bottom:0;z-index:var(--rl-z-today);background:color-mix(in oklch,var(--primary) 7%,transparent);box-shadow:inset 1px 0 0 color-mix(in oklch,var(--primary) 30%,transparent),inset -1px 0 0 color-mix(in oklch,var(--primary) 30%,transparent);pointer-events:none}
-.rl-room-row{position:relative;left:0;width:100%;border-bottom:1px solid var(--border)}
-.rl-room-label{position:sticky;left:0;z-index:var(--rl-z-gutter);height:100%;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;padding:0 12px;background:var(--background);border-right:1px solid var(--border);box-shadow:8px 0 18px -18px color-mix(in oklch,var(--foreground) 30%,transparent)}
-.rl-room-label strong{font-size:13px;display:flex;align-items:center;gap:6px;min-width:0}.rl-room-label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--muted-foreground)}.rl-room-label .status{width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0}
-.rl-room-label .status.maintenance{background:#d97706}
-.rl-room-label .status.out_of_service{background:#e11d48}
-
-/* Non-bookable room flags (maintenance / out of service) — impossible to miss */
-.rl-room-flag{display:inline-flex;align-items:center;font-size:8.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;line-height:1;padding:2.5px 5px;border-radius:999px;white-space:nowrap;flex-shrink:0}
-.rl-room-flag--maintenance{color:#b45309;background:#d9770618;box-shadow:inset 0 0 0 1px #d9770638}
-.rl-room-flag--out_of_service{color:#be123c;background:#e11d4814;box-shadow:inset 0 0 0 1px #e11d4830}
-
-/* Hatch veil across the entire row of a non-sellable room. Sits under bars,
-   blocks double-click creation visually and communicates "dead inventory". */
-.rl-oos-veil{position:absolute;inset:0;z-index:calc(var(--rl-z-bars) - 2);pointer-events:none;background:repeating-linear-gradient(135deg,transparent 0 9px,color-mix(in oklch,var(--destructive) 7%,transparent) 9px 12px)}
-.rl-room-grid.is-non-bookable .rl-drag-preview{display:none}
-.rl-room-grid{position:absolute;top:0;height:100%;background-image:linear-gradient(to right,transparent calc(100% - 1px),color-mix(in oklch,var(--border) 72%,transparent) calc(100% - 1px));background-repeat:repeat-x;transition:background-color .12s ease}
-.rl-room-row:hover .rl-room-grid{background-color:color-mix(in oklch,var(--muted) 16%,transparent)}
-
-/* ── Booking bar anatomy ─────────────────────────────────────────────── */
-/* Root paints the gradient + border; an inner move surface carries the drag
-   listeners so the resize handles stay independent siblings. */
-.rl-booking-bar{--rl-bar:var(--cal-confirmed);--rl-bar-bd:var(--cal-confirmed-bd);position:relative;width:100%;height:100%;display:flex;align-items:stretch;border:1px solid var(--rl-bar-bd);border-radius:8px;color:white;font-size:11px;background:linear-gradient(180deg,color-mix(in srgb,var(--rl-bar) 84%,white) 0%,var(--rl-bar) 52%,color-mix(in srgb,var(--rl-bar) 90%,black) 100%);box-shadow:0 1px 2px rgb(0 0 0 / .14),0 0 0 1px rgb(0 0 0 / .04) inset;touch-action:none;overflow:hidden;transition:opacity .12s ease,box-shadow .15s ease,transform .15s ease}
-/* Status → bar color token. Shared with the drag-overlay clone so the floating
-   bar matches its origin. Confirmed is the default set on the base rule. */
-.rl-booking-bar[data-cal-status="inhouse"],.rl-drag-overlay-bar[data-cal-status="inhouse"]{--rl-bar:var(--cal-inhouse);--rl-bar-bd:var(--cal-inhouse-bd)}
-.rl-booking-bar[data-cal-status="checkout"],.rl-drag-overlay-bar[data-cal-status="checkout"]{--rl-bar:var(--cal-checkout);--rl-bar-bd:var(--cal-checkout-bd)}
-.rl-booking-bar[data-cal-status="pending"],.rl-drag-overlay-bar[data-cal-status="pending"]{--rl-bar:var(--cal-pending);--rl-bar-bd:var(--cal-pending-bd)}
-.rl-booking-bar[data-cal-status="cancelled"],.rl-drag-overlay-bar[data-cal-status="cancelled"]{--rl-bar:var(--cal-cancelled);--rl-bar-bd:var(--cal-cancelled-bd)}
-.rl-booking-bar[data-cal-status="noshow"],.rl-drag-overlay-bar[data-cal-status="noshow"]{--rl-bar:var(--cal-noshow);--rl-bar-bd:var(--cal-noshow-bd)}
-/* Notes indicator — quiet icon when a booking carries special requests / internal notes. */
-.rl-booking-note{flex:none;width:13px;height:13px;opacity:.85;filter:drop-shadow(0 1px 1px rgb(0 0 0 / .25))}
-.rl-booking-bar:hover{box-shadow:0 3px 10px rgb(0 0 0 / .18),0 0 0 1px rgb(255 255 255 / .18) inset;z-index:3}
-.rl-booking-bar:focus-within{outline:3px solid var(--ring);outline-offset:2px}
-.rl-booking-bar.is-conflict{outline:2px solid var(--destructive);border-color:var(--destructive);background-image:repeating-linear-gradient(135deg,transparent 0 7px,#ffffff38 7px 11px)!important}
-.rl-booking-bar.is-terminal{filter:saturate(.35);opacity:.78;cursor:default}
-/* Multi-room reservation marker: an accent stripe shared by every sibling bar
-   (hue set inline from a hash of group_id) so the front desk reads them as one
-   reservation. Additive — never overrides the status/source bar color. */
-.rl-booking-bar[data-group]::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--rl-group-accent,#E11D48);box-shadow:1px 0 2px rgb(0 0 0 / .28);z-index:2;pointer-events:none}
-.rl-booking-bar[data-group] .rl-booking-move{padding-left:13px}
-/* While a bar is dragged or resized the origin dims — the floating clone + cell
-   preview carry the feedback instead of a stale duplicate. */
-.rl-booking-bar.is-dragging{opacity:.28;filter:saturate(.5)}
-.rl-booking-move{flex:1;min-width:0;display:flex;align-items:center;gap:5px;padding:0 9px;cursor:grab;min-height:100%}
-.rl-booking-bar.is-terminal .rl-booking-move{cursor:default}
-.rl-booking-grip{width:10px;height:12px;flex:none;opacity:.55}
-.rl-booking-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;letter-spacing:.005em;text-shadow:0 1px 1px rgb(0 0 0 / .18)}
-.rl-booking-pay{flex:none;padding:1px 7px;border-radius:999px;font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;background:rgb(255 255 255 / .22);backdrop-filter:blur(2px)}
-.rl-booking-pay.is-due{background:rgb(0 0 0 / .28)}
-.rl-booking-rooms{flex:none;padding:1px 5px;border-radius:6px;font-size:9.5px;font-weight:800;letter-spacing:.01em;font-variant-numeric:tabular-nums;background:rgb(255 255 255 / .28)}
-.rl-resize-handle{position:absolute;top:0;bottom:0;width:11px;cursor:ew-resize;z-index:2;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .12s ease,background-color .12s ease}
-.rl-resize-handle::before{content:"";width:3px;height:14px;border-radius:999px;background:rgb(255 255 255 / .85);box-shadow:0 0 0 1px rgb(0 0 0 / .12)}
-.rl-resize-handle.left{left:0;border-radius:7px 0 0 7px}
-.rl-resize-handle.right{right:0;border-radius:0 7px 7px 0}
-.rl-booking-bar:hover .rl-resize-handle{opacity:.65}
-.rl-resize-handle:hover{opacity:1!important;background:rgb(255 255 255 / .16)}
-.rl-resize-handle:focus-visible{outline:2px solid var(--ring);outline-offset:-2px;opacity:1}
-/* Booking bars live in a slot rung above the today/weekend washes — the
-   slot (not the bar) owns the z-index so hover/drag styles stay local. */
-.rl-bar-slot{z-index:var(--rl-z-bars)}
-.rl-block-bar{position:absolute;top:10px;height:32px;z-index:var(--rl-z-bars);display:flex;align-items:center;gap:5px;border:1px dashed var(--cal-closure-bd);border-radius:7px;background:repeating-linear-gradient(135deg,color-mix(in oklch,var(--cal-closure) 10%,transparent) 0 6px,color-mix(in oklch,var(--cal-closure) 22%,transparent) 6px 12px),color-mix(in oklch,var(--background) 60%,transparent);padding:0 8px;color:color-mix(in oklch,var(--foreground) 80%,var(--cal-closure));font-size:10px;font-weight:700;text-transform:capitalize;overflow:hidden;white-space:nowrap;text-align:left;cursor:pointer;transition:box-shadow .15s ease,transform .1s ease,background-color .12s ease}
-.rl-block-bar:hover{box-shadow:0 3px 10px rgb(0 0 0 / .16),inset 0 0 0 999px color-mix(in oklch,var(--cal-closure) 7%,transparent);z-index:calc(var(--rl-z-bars) + 1)}
-.rl-block-bar:focus-visible{outline:2.5px solid var(--cal-closure-bd);outline-offset:2px}
-.rl-block-lock{width:11px;height:11px;flex-shrink:0;opacity:.75}
-
-/* Live drop-target ghost rendered inside the grid while dragging. */
-.rl-drag-preview{position:absolute;top:0;z-index:var(--rl-z-preview);display:flex;align-items:flex-start;justify-content:center;padding-top:3px;pointer-events:none}
-.rl-drag-preview::before{content:"";position:absolute;top:8px;bottom:8px;left:0;right:0;border:2px dashed currentColor;border-radius:7px;background:color-mix(in srgb,currentColor 12%,transparent)}
-.rl-drag-preview{color:#16A34A}
-.rl-drag-preview.is-invalid{color:var(--destructive)}
-.rl-drag-preview.is-type-change{color:#D97706}
-.rl-drag-hint{position:relative;z-index:1;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:2px 9px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.01em;background:color-mix(in srgb,currentColor 16%,var(--background));color:color-mix(in srgb,currentColor 78%,var(--foreground));box-shadow:0 4px 14px #0002}
-
-/* Floating clone following the pointer — mirrors the bar's gradient at its
-   true pixel width so long stays keep their shape. */
-.rl-drag-overlay-bar{--rl-bar:var(--cal-confirmed);--rl-bar-bd:var(--cal-confirmed-bd);display:flex;align-items:center;gap:5px;padding:0 10px;height:36px;border:1px solid var(--rl-bar-bd);border-radius:8px;color:white;font-size:11px;background:linear-gradient(180deg,color-mix(in srgb,var(--rl-bar) 84%,white) 0%,var(--rl-bar) 52%,color-mix(in srgb,var(--rl-bar) 90%,black) 100%);box-shadow:0 18px 44px rgb(0 0 0 / .32),0 2px 6px rgb(0 0 0 / .18);transform:scale(1.02);will-change:transform;pointer-events:none;overflow:hidden}
-.rl-drag-overlay-bar .rl-booking-name{text-shadow:0 1px 1px rgb(0 0 0 / .18)}
-
-/* Recently created bookings pulse twice, then settle. */
-.rl-bar-new{animation:rl-new-pulse 1.4s ease-out 2}
-@keyframes rl-new-pulse{0%{filter:brightness(1.35)}100%{filter:brightness(1)}}
-
-/* ── Unassigned tray (single docked strip) ───────────────────────────── */
-.rl-unassigned{flex:none;z-index:var(--rl-z-tray);display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--border);background:color-mix(in oklch,var(--background) 94%,var(--muted))}
-.rl-unassigned>strong{flex:none;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground)}
-.rl-unassigned>div{display:flex;gap:7px;overflow-x:auto;scrollbar-width:thin;padding:2px}
-.rl-unassigned-hint{margin-left:auto;flex:none;font-size:10px;color:var(--muted-foreground)}
-.rl-unassigned.has-drag{outline:2px dashed color-mix(in oklch,var(--primary) 55%,transparent);outline-offset:-4px}
-.rl-unassigned.is-target{background:color-mix(in oklch,var(--primary) 10%,var(--background));outline:2px dashed var(--primary);outline-offset:-4px}
-.rl-tray-booking{display:inline-flex;align-items:center;gap:6px;min-width:172px;height:36px;padding:0 4px 0 9px;border:1px solid var(--border);border-left:3px solid var(--cal-unalloc);border-radius:8px;background:var(--card);font-size:11px;box-shadow:0 1px 2px rgb(0 0 0 / .06);touch-action:none;transition:box-shadow .12s ease,opacity .12s ease}
-.rl-tray-booking:hover{box-shadow:0 3px 8px rgb(0 0 0 / .12)}
-.rl-tray-booking.is-dragging{opacity:.35}
-.rl-tray-main{display:flex;flex:1;min-width:0;align-items:center;gap:6px;height:100%;text-align:left;color:inherit;background:none;border:0;padding:0;cursor:grab;font:inherit;font-weight:600}
-.rl-tray-main span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rl-tray-main:focus-visible{outline:2px solid var(--ring);outline-offset:1px;border-radius:5px}
-.rl-tray-nights{flex:none;padding:1px 6px;border-radius:999px;background:var(--muted);font-size:10px;font-weight:600;color:var(--muted-foreground)}
-
-@media(max-width:767px){
-  .rl-timeline-shell{min-height:520px}
-  .rl-corner{font-size:11px}
-  .rl-room-label{padding:0 10px}
-  .rl-unassigned{flex-wrap:nowrap;padding:6px 8px}
-  .rl-unassigned-hint{display:none}
-  .rl-tray-booking{min-width:150px;height:38px}
-  .rl-date{font-size:12px}
+   room gutter(20) < drag preview(25) < sticky header(30) < tray(35) < corner(40).
+   --rl-header-h mirrors HEADER_HEIGHT in timeline-geometry.ts. */
+.rl-timeline-shell {
+  height: 100%;
+  min-height: 360px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  --rl-z-cells: 0;
+  --rl-z-weekend: 2;
+  --rl-z-today: 3;
+  --rl-z-bars: 10;
+  --rl-z-gutter: 20;
+  --rl-z-preview: 25;
+  --rl-z-header: 30;
+  --rl-z-tray: 35;
+  --rl-z-corner: 40;
+  --rl-header-h: 62px;
 }
-@media(prefers-reduced-motion:reduce){.rl-timeline-shell *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+.rl-timeline-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.rl-timeline-canvas {
+  position: relative;
+  min-height: 100%;
+}
+
+.rl-timeline-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--rl-z-header);
+  display: flex;
+  height: var(--rl-header-h);
+  width: max-content;
+  background: color-mix(in oklch, var(--card) 94%, var(--muted));
+  border-bottom: 1px solid var(--border);
+}
+
+.rl-corner,
+.rl-date-header {
+  height: var(--rl-header-h);
+  background: color-mix(in oklch, var(--card) 94%, var(--muted));
+}
+
+.rl-corner {
+  position: sticky;
+  left: 0;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--foreground);
+  z-index: var(--rl-z-corner);
+  border-right: 1px solid var(--border);
+  box-shadow: 6px 0 14px -14px rgb(0 0 0 / 0.18);
+}
+
+.rl-corner small {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+
+.rl-date-header {
+  display: flex;
+  flex: none;
+}
+
+.rl-date {
+  height: var(--rl-header-h);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-right: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+.rl-date strong {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+.rl-date span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.rl-date[data-dow="6"],
+.rl-date[data-dow="0"] {
+  background: color-mix(in oklch, var(--foreground) 3.5%, transparent);
+}
+
+.rl-date[data-dow].today {
+  background: color-mix(in oklch, var(--primary) 9%, transparent);
+  box-shadow: inset 0 2px 0 var(--primary);
+}
+
+.rl-date[data-dow].today strong {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.rl-date.today span {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  padding: 0 8px;
+  border-radius: 999px;
+}
+
+.rl-weekend-column {
+  position: absolute;
+  top: var(--rl-header-h);
+  bottom: 0;
+  z-index: var(--rl-z-weekend);
+  background: color-mix(in oklch, var(--foreground) 2.2%, transparent);
+  pointer-events: none;
+}
+
+.rl-today-column {
+  position: absolute;
+  top: var(--rl-header-h);
+  bottom: 0;
+  z-index: var(--rl-z-today);
+  background: color-mix(in oklch, var(--primary) 5.5%, transparent);
+  box-shadow:
+    inset 1px 0 0 color-mix(in oklch, var(--primary) 22%, transparent),
+    inset -1px 0 0 color-mix(in oklch, var(--primary) 22%, transparent);
+  pointer-events: none;
+}
+
+.rl-room-row {
+  position: relative;
+  left: 0;
+  width: 100%;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+}
+
+.rl-room-label {
+  position: sticky;
+  left: 0;
+  z-index: var(--rl-z-gutter);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 14px;
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  box-shadow: 6px 0 14px -14px rgb(0 0 0 / 0.16);
+}
+
+.rl-room-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.rl-room-label strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.rl-room-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  line-height: 1.2;
+}
+
+.rl-room-label .status {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  flex-shrink: 0;
+}
+
+.rl-room-label .status.occupied {
+  background: var(--primary);
+}
+.rl-room-label .status.maintenance {
+  background: #d97706;
+}
+.rl-room-label .status.out_of_service {
+  background: #e11d48;
+}
+
+.rl-room-flag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.rl-room-flag--maintenance {
+  color: #b45309;
+  background: #d9770618;
+}
+.rl-room-flag--out_of_service {
+  color: #be123c;
+  background: #e11d4814;
+}
+
+.rl-oos-veil {
+  position: absolute;
+  inset: 0;
+  z-index: calc(var(--rl-z-bars) - 2);
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    135deg,
+    transparent 0 9px,
+    color-mix(in oklch, var(--destructive) 5.5%, transparent) 9px 12px
+  );
+}
+
+.rl-room-grid.is-non-bookable .rl-drag-preview {
+  display: none;
+}
+
+.rl-room-grid {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background-image: linear-gradient(
+    to right,
+    transparent calc(100% - 1px),
+    color-mix(in oklch, var(--border) 68%, transparent) calc(100% - 1px)
+  );
+  background-repeat: repeat-x;
+  transition: background-color 120ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rl-room-row:hover .rl-room-grid {
+    background-color: color-mix(in oklch, var(--muted) 22%, transparent);
+  }
+}
+
+/* ── Booking bar anatomy — clean flat surface, crisp legibility ─────── */
+.rl-booking-bar {
+  --rl-bar: var(--cal-confirmed);
+  --rl-bar-bd: var(--cal-confirmed-bd);
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--rl-bar-bd);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 12px;
+  background-color: var(--rl-bar);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.1),
+    inset 0 1px 0 rgb(255 255 255 / 0.16);
+  touch-action: none;
+  overflow: hidden;
+  transition:
+    opacity 120ms ease,
+    box-shadow 150ms ease,
+    transform 120ms var(--ease-out-ui, ease-out);
+}
+
+.rl-booking-bar[data-cal-status="inhouse"],
+.rl-drag-overlay-bar[data-cal-status="inhouse"] {
+  --rl-bar: var(--cal-inhouse);
+  --rl-bar-bd: var(--cal-inhouse-bd);
+}
+.rl-booking-bar[data-cal-status="checkout"],
+.rl-drag-overlay-bar[data-cal-status="checkout"] {
+  --rl-bar: var(--cal-checkout);
+  --rl-bar-bd: var(--cal-checkout-bd);
+}
+.rl-booking-bar[data-cal-status="pending"],
+.rl-drag-overlay-bar[data-cal-status="pending"] {
+  --rl-bar: var(--cal-pending);
+  --rl-bar-bd: var(--cal-pending-bd);
+}
+.rl-booking-bar[data-cal-status="cancelled"],
+.rl-drag-overlay-bar[data-cal-status="cancelled"] {
+  --rl-bar: var(--cal-cancelled);
+  --rl-bar-bd: var(--cal-cancelled-bd);
+}
+.rl-booking-bar[data-cal-status="noshow"],
+.rl-drag-overlay-bar[data-cal-status="noshow"] {
+  --rl-bar: var(--cal-noshow);
+  --rl-bar-bd: var(--cal-noshow-bd);
+}
+
+.rl-booking-note {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  opacity: 0.88;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rl-booking-bar:hover {
+    box-shadow:
+      0 3px 10px rgb(0 0 0 / 0.16),
+      inset 0 1px 0 rgb(255 255 255 / 0.24);
+    z-index: 3;
+  }
+  .rl-booking-bar:hover .rl-resize-handle {
+    opacity: 0.7;
+  }
+  .rl-resize-handle:hover {
+    opacity: 1 !important;
+    background: rgb(255 255 255 / 0.16);
+  }
+}
+
+.rl-booking-bar:focus-within {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.rl-booking-bar.is-conflict {
+  outline: 2px solid var(--destructive);
+  border-color: var(--destructive);
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 7px,
+    rgb(255 255 255 / 0.22) 7px 11px
+  ) !important;
+}
+
+.rl-booking-bar.is-terminal {
+  filter: saturate(0.35);
+  opacity: 0.76;
+  cursor: default;
+}
+
+.rl-booking-bar[data-group]::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 5px;
+  bottom: 5px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--rl-group-accent, #ffffff);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.rl-booking-bar[data-group] .rl-booking-move {
+  padding-left: 12px;
+}
+
+.rl-booking-bar.is-dragging {
+  opacity: 0.28;
+  filter: saturate(0.5);
+}
+
+.rl-booking-move {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  cursor: grab;
+  min-height: 100%;
+}
+
+.rl-booking-bar.is-terminal .rl-booking-move {
+  cursor: default;
+}
+
+.rl-booking-grip {
+  width: 10px;
+  height: 12px;
+  flex: none;
+  opacity: 0.55;
+}
+
+.rl-booking-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.rl-booking-pay {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgb(255 255 255 / 0.2);
+}
+
+.rl-booking-pay.is-due {
+  background: rgb(0 0 0 / 0.26);
+}
+
+.rl-booking-rooms {
+  flex: none;
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: rgb(255 255 255 / 0.24);
+}
+
+.rl-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 11px;
+  cursor: ew-resize;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    background-color 120ms ease;
+}
+
+.rl-resize-handle::before {
+  content: "";
+  width: 2.5px;
+  height: 13px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.85);
+}
+
+.rl-resize-handle.left {
+  left: 0;
+  border-radius: 7px 0 0 7px;
+}
+
+.rl-resize-handle.right {
+  right: 0;
+  border-radius: 0 7px 7px 0;
+}
+
+.rl-resize-handle:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+  opacity: 1;
+}
+
+.rl-bar-slot {
+  z-index: var(--rl-z-bars);
+}
+
+.rl-block-bar {
+  position: absolute;
+  top: 9px;
+  height: 34px;
+  z-index: var(--rl-z-bars);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px dashed color-mix(in oklch, var(--cal-closure-bd) 65%, transparent);
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      color-mix(in oklch, var(--cal-closure) 7%, transparent) 0 6px,
+      color-mix(in oklch, var(--cal-closure) 15%, transparent) 6px 12px
+    ),
+    color-mix(in oklch, var(--card) 85%, transparent);
+  padding: 0 9px;
+  color: color-mix(in oklch, var(--foreground) 78%, var(--cal-closure));
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: capitalize;
+  overflow: hidden;
+  white-space: nowrap;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    box-shadow 150ms ease,
+    background-color 120ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rl-block-bar:hover {
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
+    z-index: calc(var(--rl-z-bars) + 1);
+  }
+}
+
+.rl-block-bar:focus-visible {
+  outline: 2px solid var(--cal-closure-bd);
+  outline-offset: 2px;
+}
+
+.rl-block-lock {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  opacity: 0.72;
+}
+
+/* Live drop-target ghost */
+.rl-drag-preview {
+  position: absolute;
+  top: 0;
+  z-index: var(--rl-z-preview);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 3px;
+  pointer-events: none;
+  color: #16a34a;
+}
+
+.rl-drag-preview::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  border: 1.5px dashed currentColor;
+  border-radius: 8px;
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+
+.rl-drag-preview.is-invalid {
+  color: var(--destructive);
+}
+
+.rl-drag-preview.is-type-change {
+  color: #d97706;
+}
+
+.rl-drag-hint {
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--card);
+  border: 1px solid color-mix(in srgb, currentColor 35%, var(--border));
+  color: color-mix(in srgb, currentColor 82%, var(--foreground));
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.08);
+}
+
+.rl-drag-overlay-bar {
+  --rl-bar: var(--cal-confirmed);
+  --rl-bar-bd: var(--cal-confirmed-bd);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  height: 36px;
+  border: 1px solid var(--rl-bar-bd);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 12px;
+  background-color: var(--rl-bar);
+  box-shadow:
+    0 16px 36px rgb(0 0 0 / 0.24),
+    0 2px 6px rgb(0 0 0 / 0.14);
+  transform: scale(1.015);
+  will-change: transform;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.rl-bar-new {
+  animation: rl-new-pulse 1.2s ease-out 2;
+}
+@keyframes rl-new-pulse {
+  0% {
+    filter: brightness(1.25);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+/* ── Unassigned tray (docked bottom strip, 1px hairline, zero text bloat) ── */
+.rl-unassigned {
+  flex: none;
+  z-index: var(--rl-z-tray);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: color-mix(in oklch, var(--card) 94%, var(--muted));
+}
+
+.rl-unassigned > strong {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--foreground);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rl-unassigned-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--cal-unalloc) 14%, transparent);
+  color: var(--cal-unalloc);
+}
+
+.rl-unassigned > div {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding: 2px;
+}
+
+.rl-unassigned.has-drag {
+  outline: 1.5px dashed color-mix(in oklch, var(--primary) 50%, transparent);
+  outline-offset: -4px;
+}
+
+.rl-unassigned.is-target {
+  background: color-mix(in oklch, var(--primary) 8%, var(--background));
+  outline: 1.5px dashed var(--primary);
+  outline-offset: -4px;
+}
+
+.rl-tray-booking {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 168px;
+  height: 38px;
+  padding: 0 5px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  font-size: 12px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  touch-action: none;
+  transition:
+    box-shadow 120ms ease,
+    border-color 120ms ease,
+    opacity 120ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rl-tray-booking:hover {
+    border-color: color-mix(in oklch, var(--foreground) 22%, var(--border));
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.08);
+  }
+}
+
+.rl-tray-booking.is-dragging {
+  opacity: 0.35;
+}
+
+.rl-tray-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cal-unalloc);
+  flex-shrink: 0;
+}
+
+.rl-tray-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  height: 100%;
+  text-align: left;
+  color: var(--foreground);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: grab;
+  font: inherit;
+  font-weight: 600;
+}
+
+.rl-tray-main span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rl-tray-main:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+  border-radius: 6px;
+}
+
+.rl-tray-nights {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 639px) {
+  .rl-corner {
+    padding: 0 10px;
+    font-size: 11.5px;
+  }
+  .rl-room-label {
+    padding: 0 10px;
+  }
+  .rl-room-label strong {
+    font-size: 12.5px;
+  }
+  .rl-unassigned {
+    padding: 6px 10px max(6px, env(safe-area-inset-bottom));
+  }
+  .rl-tray-booking {
+    min-width: 156px;
+    height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rl-timeline-shell,
+  .rl-timeline-scroll {
+    scroll-behavior: auto !important;
+  }
+  .rl-bar-new {
+    animation: none !important;
+  }
+  .rl-booking-bar {
+    transition:
+      opacity 120ms ease,
+      box-shadow 150ms ease !important;
+  }
+  .rl-drag-overlay-bar {
+    transform: none !important;
+    will-change: auto;
+  }
+}

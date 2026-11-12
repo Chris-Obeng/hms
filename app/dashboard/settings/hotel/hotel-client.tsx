@@ -61,14 +61,32 @@ interface HotelSettingsClientProps {
   staffName?: string;
 }
 
-const inputClass = "h-10 w-full rounded-[10px] border border-border/70 bg-card px-3 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-border focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60";
+const inputClass = "h-11 w-full rounded-xl border border-border/70 bg-card px-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60 sm:h-10 sm:text-[13px] [@media(hover:hover)_and_(pointer:fine)]:hover:border-border";
 const labelClass = "text-xs font-medium text-muted-foreground";
 
-function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
-  return <div className={cn("flex flex-col gap-1.5", className)}>
-    <label className={labelClass}>{label}</label>
-    {children}
-  </div>;
+function Field({
+  label,
+  htmlFor,
+  children,
+  className,
+}: {
+  label: string;
+  htmlFor?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      {htmlFor ? (
+        <label htmlFor={htmlFor} className={labelClass}>
+          {label}
+        </label>
+      ) : (
+        <span className={labelClass}>{label}</span>
+      )}
+      {children}
+    </div>
+  );
 }
 
 /** Hotel profile panel per the design: one card, paired fields, branding tiles, footer save. */
@@ -140,25 +158,25 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
               href={bookingUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="ui-press inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-medium text-muted-foreground sm:min-h-0 sm:px-0 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
             >
               <ExternalLink className="size-3.5" aria-hidden="true" />
               Open
             </a>
           </div>
-          <div className="flex h-10 items-center gap-2 rounded-[10px] border border-border/70 bg-secondary/50 px-3">
+          <div className="flex h-11 items-center gap-2 rounded-[10px] border border-border/70 bg-secondary/50 px-3 sm:h-10">
             <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-foreground select-all">
               {bookingUrl.replace(/^https?:\/\//, "")}
             </span>
             <button
               type="button"
               onClick={copyBookingLink}
-              className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="ui-press inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-1 text-xs font-medium text-muted-foreground sm:min-h-0 sm:px-0 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
             >
               {copiedUrl ? (
                 <>
-                  <Check className="size-3.5 text-[var(--success)]" aria-hidden="true" />
-                  <span className="text-[var(--success)]">Copied</span>
+                  <Check className="size-3.5 text-emerald-700" aria-hidden="true" />
+                  <span className="text-emerald-700">Copied</span>
                 </>
               ) : (
                 <>
@@ -177,45 +195,45 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
           <p className="text-xs text-muted-foreground">Guests see these details on your booking page and emails.</p>
         </header>
 
-        <Field label="Hotel name">
-          <input className={inputClass} placeholder="Your hotel name" value={values.name} required
+        <Field label="Hotel name" htmlFor="hotel-name">
+          <input id="hotel-name" className={inputClass} placeholder="Your hotel name" value={values.name} required
             disabled={!canEdit} onChange={(e) => set("name", e.target.value)} />
         </Field>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="City">
-            <input className={inputClass} placeholder="e.g. Accra" value={values.city} disabled={!canEdit} onChange={(e) => set("city", e.target.value)} />
+          <Field label="City" htmlFor="hotel-city">
+            <input id="hotel-city" className={inputClass} placeholder="e.g. Accra" value={values.city} disabled={!canEdit} onChange={(e) => set("city", e.target.value)} />
           </Field>
-          <Field label="Country">
-            <input className={inputClass} placeholder="e.g. Ghana" value={values.country} disabled={!canEdit} onChange={(e) => set("country", e.target.value)} />
+          <Field label="Country" htmlFor="hotel-country">
+            <input id="hotel-country" className={inputClass} placeholder="e.g. Ghana" value={values.country} disabled={!canEdit} onChange={(e) => set("country", e.target.value)} />
           </Field>
         </div>
 
-        <Field label="Address">
-          <input className={inputClass} placeholder="Street address" value={values.address} disabled={!canEdit} onChange={(e) => set("address", e.target.value)} />
+        <Field label="Address" htmlFor="hotel-address">
+          <input id="hotel-address" className={inputClass} placeholder="Street address" value={values.address} disabled={!canEdit} onChange={(e) => set("address", e.target.value)} />
         </Field>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Phone">
-            <input type="tel" className={inputClass} placeholder="+233 XX XXX XXXX" value={values.phone} disabled={!canEdit} onChange={(e) => set("phone", e.target.value)} />
+          <Field label="Phone" htmlFor="hotel-phone">
+            <input id="hotel-phone" type="tel" className={inputClass} placeholder="+233 XX XXX XXXX" value={values.phone} disabled={!canEdit} onChange={(e) => set("phone", e.target.value)} />
           </Field>
-          <Field label="Email">
-            <input type="email" className={inputClass} placeholder="hotel@example.com" value={values.email} disabled={!canEdit} onChange={(e) => set("email", e.target.value)} />
+          <Field label="Email" htmlFor="hotel-email">
+            <input id="hotel-email" type="email" className={inputClass} placeholder="hotel@example.com" value={values.email} disabled={!canEdit} onChange={(e) => set("email", e.target.value)} />
           </Field>
         </div>
 
-        <Field label="Hotel description">
-          <textarea rows={3} maxLength={2000} className={cn(inputClass, "h-auto resize-none py-2.5 leading-relaxed")}
+        <Field label="Hotel description" htmlFor="hotel-description">
+          <textarea id="hotel-description" rows={3} maxLength={2000} className={cn(inputClass, "h-auto resize-none py-2.5 leading-relaxed")}
             placeholder="Describe your hotel, its location, amenities, and atmosphere…" value={values.description}
             disabled={!canEdit} onChange={(e) => set("description", e.target.value)} />
         </Field>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Check-in time">
-            <input type="time" className={inputClass} value={values.checkInTime} disabled={!canEdit} onChange={(e) => set("checkInTime", e.target.value)} />
+          <Field label="Check-in time" htmlFor="hotel-checkin-time">
+            <input id="hotel-checkin-time" type="time" className={inputClass} value={values.checkInTime} disabled={!canEdit} onChange={(e) => set("checkInTime", e.target.value)} />
           </Field>
-          <Field label="Check-out time">
-            <input type="time" className={inputClass} value={values.checkOutTime} disabled={!canEdit} onChange={(e) => set("checkOutTime", e.target.value)} />
+          <Field label="Check-out time" htmlFor="hotel-checkout-time">
+            <input id="hotel-checkout-time" type="time" className={inputClass} value={values.checkOutTime} disabled={!canEdit} onChange={(e) => set("checkOutTime", e.target.value)} />
           </Field>
         </div>
 
@@ -225,20 +243,21 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
               value={values.timezone || "Africa/Accra"}
               onValueChange={(next) => set("timezone", next)}
               options={timezoneOptions}
+              triggerClassName="min-h-11 sm:min-h-10"
               label={null}
               ariaLabel="Timezone"
               isDisabled={!canEdit}
             />
           </Field>
           <Field label="Currency">
-            <div className="flex h-10 items-center rounded-[10px] border border-border/70 bg-secondary/50 px-3 text-[13px] text-foreground">
+            <div className="flex h-11 items-center rounded-[10px] border border-border/70 bg-secondary/50 px-3 text-[13px] text-foreground sm:h-10">
               GHS <span className="ml-1.5 text-muted-foreground">· Ghana Cedi</span>
             </div>
           </Field>
         </div>
 
-        <Field label="Cancellation policy">
-          <textarea rows={2} maxLength={500} className={cn(inputClass, "h-auto resize-none py-2.5 leading-relaxed")}
+        <Field label="Cancellation policy" htmlFor="hotel-cancellation-policy">
+          <textarea id="hotel-cancellation-policy" rows={2} maxLength={500} className={cn(inputClass, "h-auto resize-none py-2.5 leading-relaxed")}
             placeholder="e.g. Free cancellation up to 24 hours before check-in." value={values.cancellationPolicy}
             disabled={!canEdit} onChange={(e) => set("cancellationPolicy", e.target.value)} />
         </Field>
@@ -289,8 +308,24 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
             currentUrl={currentLogoUrl}
             storagePath={`hotels/${hotelId}/branding`}
             aspect="h-[84px]"
-            onUpload={async (url) => { await saveHotelImageUrl("logo", url); setCurrentLogoUrl(url); }}
-            onRemove={async () => { await saveHotelImageUrl("logo", ""); setCurrentLogoUrl(null); }}
+            onUpload={async (url) => {
+              const res = await saveHotelImageUrl("logo", url);
+              if (!res.success) {
+                toast.danger(res.error || "Failed to save logo");
+                return;
+              }
+              setCurrentLogoUrl(url);
+              router.refresh();
+            }}
+            onRemove={async () => {
+              const res = await saveHotelImageUrl("logo", "");
+              if (!res.success) {
+                toast.danger(res.error || "Failed to remove logo");
+                return;
+              }
+              setCurrentLogoUrl(null);
+              router.refresh();
+            }}
           />
           <ImageUpload
             label="Cover image"
@@ -298,8 +333,24 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
             currentUrl={currentCoverUrl}
             storagePath={`hotels/${hotelId}/branding`}
             aspect="h-[84px]"
-            onUpload={async (url) => { await saveHotelImageUrl("cover", url); setCurrentCoverUrl(url); }}
-            onRemove={async () => { await saveHotelImageUrl("cover", ""); setCurrentCoverUrl(null); }}
+            onUpload={async (url) => {
+              const res = await saveHotelImageUrl("cover", url);
+              if (!res.success) {
+                toast.danger(res.error || "Failed to save cover image");
+                return;
+              }
+              setCurrentCoverUrl(url);
+              router.refresh();
+            }}
+            onRemove={async () => {
+              const res = await saveHotelImageUrl("cover", "");
+              if (!res.success) {
+                toast.danger(res.error || "Failed to remove cover image");
+                return;
+              }
+              setCurrentCoverUrl(null);
+              router.refresh();
+            }}
           />
         </div>
 
@@ -310,7 +361,7 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
               : "View only — a super admin manages this profile."}
           </p>
           {canEdit && <HeroButton type="submit" variant="primary" isPending={saving} isDisabled={!values.name || (!hasChanges && !saving)}
-            className="h-9 rounded-full px-5 text-sm font-medium">
+            className="ui-press h-11 rounded-full px-5 text-sm font-medium sm:h-9">
             Save changes
           </HeroButton>}
         </footer>

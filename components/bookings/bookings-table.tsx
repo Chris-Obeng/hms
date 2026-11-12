@@ -13,11 +13,11 @@ import {
   type ColumnFiltersState,
   type SortingState,
 } from "@tanstack/react-table";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Plus } from "lucide-react";
 import { Button, Table } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
-import { formatCurrency, formatDate, formatRoomLabel } from "@/lib/format";
+import { formatCurrency, formatDate, formatRoomLabel, getInitials } from "@/lib/format";
 import {
   SOURCE_BADGES,
   getPaymentLabel,
@@ -40,10 +40,6 @@ import { createClient } from "@/lib/supabase/client";
 import { onRealtimeStatus } from "@/lib/observability/realtime";
 import { createCoalescer } from "@/lib/realtime/coalesce";
 
-// ── Types ──────────────────────────────────────────────────────────
-
-// Row shape lives with the collapse rule (lib/bookings/reservation-rows.ts) so
-// the list and its derivation can never drift. Re-exported for existing imports.
 export type { BookingRow };
 
 interface BookingsTableProps {
@@ -52,8 +48,6 @@ interface BookingsTableProps {
   currency: string;
   hotelId?: string;
 }
-
-// ── Status presentation ────────────────────────────────────────────
 
 function StatusChip({ kind, value }: { kind: "status" | "payment"; value: string }) {
   const cls =
@@ -78,7 +72,7 @@ function StatusChip({ kind, value }: { kind: "status" | "payment"; value: string
   return (
     <span
       className={cn(
-        "inline-flex items-center whitespace-nowrap rounded-md border px-2 py-0.5 text-caption font-medium",
+        "inline-flex items-center whitespace-nowrap rounded-md border px-2 py-0.5 text-[11px] font-medium",
         cls
       )}
     >
@@ -86,8 +80,6 @@ function StatusChip({ kind, value }: { kind: "status" | "payment"; value: string
     </span>
   );
 }
-
-// ── Reservation Card (grid / mobile) ───────────────────────────────
 
 function ReservationCard({
   row,
@@ -109,102 +101,98 @@ function ReservationCard({
       role="button"
       tabIndex={0}
       onClick={() => onViewDetails(row.id)}
-      onKeyDown={(e) => e.key === "Enter" && onViewDetails(row.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onViewDetails(row.id);
+        }
+      }}
       onPointerEnter={() => onHoverPrefetch?.(row.id)}
       onFocus={() => onHoverPrefetch?.(row.id)}
-      className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm transition-all duration-150 hover:border-border hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="ui-press flex cursor-pointer flex-col gap-3 rounded-[20px] border border-border/60 bg-card p-4 shadow-[0_1px_3px_rgb(0_0_0/0.04)] outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:border-border"
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-body font-semibold text-foreground">{row.guestName}</p>
-          <p className="font-mono text-caption tracking-wide text-muted-foreground">
-            {row.reference}
-          </p>
+      <div className="flex items-start justify-between gap-2.5">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span
+            aria-hidden="true"
+            className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-[11px] font-semibold text-secondary-foreground"
+          >
+            {getInitials(row.guestName)}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-foreground">{row.guestName}</p>
+            <p className="font-mono text-[11px] text-muted-foreground">
+              {row.reference} · {source.label}
+            </p>
+          </div>
         </div>
         <StatusChip kind="status" value={row.status} />
       </div>
 
-      <div className="flex items-center gap-1.5 rounded-xl bg-muted/40 px-3 py-2 text-caption text-muted-foreground">
-        <CalendarIcon className="size-3 shrink-0" />
-        <span>{formatDate(row.checkIn)}</span>
-        <span className="text-muted-foreground/40">→</span>
-        <span>{formatDate(row.checkOut)}</span>
-        <span className="ml-auto font-medium tabular-nums text-foreground">
-          {nights} night{nights !== 1 ? "s" : ""}
+      <div className="flex items-center gap-1.5 rounded-xl bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+        <CalendarIcon className="size-3.5 shrink-0" aria-hidden="true" />
+        <span className="tabular-nums text-foreground">{formatDate(row.checkIn, "MMM d")}</span>
+        <span className="text-muted-foreground/50">→</span>
+        <span className="tabular-nums text-foreground">
+          {formatDate(row.checkOut, "MMM d, yyyy")}
+        </span>
+        <span className="ml-auto font-mono text-[11px] font-medium tabular-nums text-muted-foreground">
+          {nights}n
         </span>
       </div>
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex flex-col">
-          <span className="text-body font-semibold tabular-nums text-foreground">
+          <span className="text-sm font-semibold tabular-nums text-foreground">
             {formatCurrency(row.totalAmount, currency, { minimumFractionDigits: 0 })}
           </span>
-          {outstanding > 0 && (
-            <span className="text-[10px] font-medium text-rose-500">
-              {formatCurrency(outstanding, currency, { minimumFractionDigits: 0 })} outstanding
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-[10px] font-medium",
-              source.bg,
-              source.color
-            )}
-          >
-            {source.label}
-          </span>
-          {row.roomsCount > 1 ? (
-            <span className="rounded-full bg-muted/70 px-2 py-0.5 text-[10px] font-semibold text-foreground/80">
-              {row.roomsCount} rooms
+          {outstanding > 0 ? (
+            <span className="text-[11px] font-medium tabular-nums text-destructive">
+              {formatCurrency(outstanding, currency, { minimumFractionDigits: 0 })} due
             </span>
           ) : (
-            row.roomNumber && (
-              <span className="text-caption font-medium tabular-nums text-foreground">
-                {formatRoomLabel(row.roomNumber)}
-              </span>
-            )
+            <span className="text-[11px] text-emerald-600">{getPaymentLabel(row.paymentStatus)}</span>
           )}
         </div>
+
+        <span className="truncate text-xs font-medium text-muted-foreground">
+          {row.roomsCount > 1
+            ? `${row.roomsCount} rooms`
+            : formatRoomLabel(row.roomNumber) ?? row.roomType ?? "Unassigned"}
+        </span>
       </div>
     </div>
   );
 }
 
-// Accessor columns kept for search/filtering but never shown in the table.
 const HIDDEN_COLUMNS = new Set(["createdAt", "source"]);
-
-// ── Main Component ─────────────────────────────────────────────────
 
 export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTableProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
-  // Tiered prefetch: SSR warm → idle → viewport → hover (caps in prefetch-helpers)
   const [viewMode, setViewMode] = React.useState<"table" | "grid">("table");
-  // Rows arrive pre-sorted in front-desk working order (upcoming arrivals
-  // first, then recent history); column sorting re-orders on demand.
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const searchParams = useSearchParams();
-  // Seed the search box from ?search= (set by global search "See all")
-  const [globalFilter, setGlobalFilter] = React.useState(() => searchParams.get("search") ?? "");
+  const [globalFilter, setGlobalFilter] = React.useState(
+    () => searchParams.get("search") ?? ""
+  );
 
-  // Realtime subscription — refresh on any booking change for this hotel
   const refreshRef = React.useRef(router.refresh.bind(router));
-  React.useEffect(() => { refreshRef.current = router.refresh.bind(router); });
+  React.useEffect(() => {
+    refreshRef.current = router.refresh.bind(router);
+  });
 
   React.useEffect(() => {
     if (!hotelId) return;
     const supabase = createClient();
-    // Bulk operations emit one event per booking row; refresh once per burst.
     const refresh = createCoalescer();
     const channel = supabase
       .channel(`hotel:${hotelId}:bookings-list`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
-        () => refresh.schedule(() => refreshRef.current()),
+        () => refresh.schedule(() => refreshRef.current())
       )
       .subscribe(onRealtimeStatus({ label: "bookings-list", hotelId, table: "bookings" }));
     return () => {
@@ -215,15 +203,15 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
 
   const [detailBookingId, setDetailBookingId] = React.useState<string | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
-  const [detailInitialTab, setDetailInitialTab] = React.useState<"overview" | "payments">("overview");
+  const [detailInitialTab, setDetailInitialTab] = React.useState<"overview" | "payments">(
+    "overview"
+  );
 
-  // Selected filters
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
   const [paymentFilter, setPaymentFilter] = React.useState<string>("all");
   const [sourceFilter, setSourceFilter] = React.useState<string>("all");
   const [roomTypeFilter, setRoomTypeFilter] = React.useState<string>("all");
 
-  // Apply column filters from selections
   React.useEffect(() => {
     const filters: ColumnFiltersState = [];
     if (statusFilter !== "all") filters.push({ id: "status", value: statusFilter });
@@ -233,7 +221,6 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
     setColumnFilters(filters);
   }, [statusFilter, paymentFilter, sourceFilter, roomTypeFilter]);
 
-  // Adapter between the panel/chips (single {key,value}) and the 4 filter setters.
   const selectedFilters: ReservationFilterState = {
     status: statusFilter,
     payment: paymentFilter,
@@ -259,6 +246,10 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
     setDetailOpen(true);
   }, []);
 
+  const openNewBooking = React.useCallback(() => {
+    window.dispatchEvent(new CustomEvent("roomline:new-booking"));
+  }, []);
+
   const hoverPrefetch = React.useCallback(
     (id: string) => {
       if (isFresh(queryClient, bookingDetailCache.key(id))) return;
@@ -267,7 +258,6 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
     [queryClient]
   );
 
-  // ── Columns ────────────────────────────────────────────────────
   const columns = React.useMemo<ColumnDef<BookingRow>[]>(
     () => [
       {
@@ -275,7 +265,6 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
         header: "Created",
       },
       {
-        // Hidden — backs the Source filter with an exact match.
         accessorKey: "source",
         header: "Source",
         filterFn: (row, id, value) => row.getValue(id) === value,
@@ -284,15 +273,23 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
         accessorKey: "guestName",
         header: "Guest",
         cell: ({ row }) => (
-          <div className="flex min-w-0 flex-col">
-            <span className="max-w-[170px] truncate text-body font-medium text-foreground">
-              {row.original.guestName}
+          <div className="flex min-w-0 items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-[11px] font-semibold text-secondary-foreground"
+            >
+              {getInitials(row.original.guestName)}
             </span>
-            <span className="font-mono text-caption tracking-wide text-muted-foreground">
-              {row.original.reference}
-              {" · "}
-              {(SOURCE_BADGES[row.original.source] || SOURCE_BADGES.direct).label}
-            </span>
+            <div className="flex min-w-0 flex-col">
+              <span className="max-w-[190px] truncate text-sm font-semibold text-foreground">
+                {row.original.guestName}
+              </span>
+              <span className="font-mono text-[11px] text-muted-foreground">
+                {row.original.reference}
+                {" · "}
+                {(SOURCE_BADGES[row.original.source] || SOURCE_BADGES.direct).label}
+              </span>
+            </div>
           </div>
         ),
       },
@@ -302,18 +299,19 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
         filterFn: (row, id, value) => row.getValue(id) === value,
         cell: ({ row }) => (
           <div className="flex min-w-0 flex-col">
-            <span className="whitespace-nowrap text-body text-foreground">
-              {formatDate(row.original.checkIn)} → {formatDate(row.original.checkOut)}
+            <span className="whitespace-nowrap text-[13px] font-medium tabular-nums text-foreground">
+              {formatDate(row.original.checkIn, "MMM d")} →{" "}
+              {formatDate(row.original.checkOut, "MMM d, yyyy")}
             </span>
-            <span className="whitespace-nowrap text-caption text-muted-foreground">
-              {row.original.nights ?? "—"} night{(row.original.nights ?? 0) !== 1 ? "s" : ""}
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
+              {row.original.nights ?? "—"}n
               {row.original.roomsCount > 1
                 ? ` · ${row.original.roomsCount} rooms`
                 : row.original.roomNumber
                   ? ` · ${formatRoomLabel(row.original.roomNumber)}`
                   : row.original.roomType
                     ? ` · ${row.original.roomType}`
-                    : ""}
+                    : " · Unassigned"}
             </span>
           </div>
         ),
@@ -335,11 +333,11 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
         header: "Total",
         cell: ({ row }) => (
           <div className="flex flex-col whitespace-nowrap">
-            <span className="text-body font-medium tabular-nums text-foreground">
+            <span className="text-[13px] font-semibold tabular-nums text-foreground">
               {formatCurrency(row.original.totalAmount, currency)}
             </span>
             {(row.original.outstandingBalance ?? 0) > 0 && (
-              <span className="text-[10px] font-medium text-rose-500">
+              <span className="text-[11px] font-medium tabular-nums text-destructive">
                 {formatCurrency(row.original.outstandingBalance ?? 0, currency, {
                   minimumFractionDigits: 0,
                 })}{" "}
@@ -389,7 +387,10 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
   const filteredCount = table.getFilteredRowModel().rows.length;
   const totalCount = data.length;
   const rows = table.getRowModel().rows;
-  const visibleIdsKey = React.useMemo(() => rows.slice(0, CAPS.clientIdle).map((r) => r.original.id).join(","), [rows]);
+  const visibleIdsKey = React.useMemo(
+    () => rows.slice(0, CAPS.clientIdle).map((r) => r.original.id).join(","),
+    [rows]
+  );
   React.useEffect(() => {
     if (!visibleIdsKey) return;
     const ids = visibleIdsKey.split(",").filter(Boolean);
@@ -400,6 +401,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
       }
     });
   }, [visibleIdsKey, queryClient]);
+
   const observedRef = React.useRef<Set<string>>(new Set());
   const rowObserverRef = React.useRef<IntersectionObserver | null>(null);
   const getRowObserver = React.useCallback(() => {
@@ -422,6 +424,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
     );
     return rowObserverRef.current;
   }, [queryClient]);
+
   const attachRowRef = React.useCallback(
     (el: HTMLDivElement | null) => {
       if (!el) return;
@@ -432,6 +435,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
     [getRowObserver]
   );
   React.useEffect(() => () => rowObserverRef.current?.disconnect(), []);
+
   const isFiltered =
     globalFilter.trim().length > 0 ||
     statusFilter !== "all" ||
@@ -440,47 +444,76 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
     roomTypeFilter !== "all";
 
   const emptyState = (
-    <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-      <CalendarIcon className="mb-3 size-10 text-muted-foreground/30" />
-      <p className="text-body font-medium text-muted-foreground">
-        {isFiltered ? "No reservations match your filters" : "No reservations yet"}
+    <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
+      <span
+        aria-hidden="true"
+        className="mb-3 grid size-11 place-items-center rounded-2xl border border-border/60 bg-muted/40 text-muted-foreground"
+      >
+        <CalendarIcon className="size-5" />
+      </span>
+      <p className="text-sm font-semibold text-foreground">
+        {isFiltered ? "No matching reservations" : "No reservations yet"}
       </p>
-      <p className="mt-1 max-w-[280px] text-caption text-muted-foreground/60">
-        {isFiltered
-          ? "Try adjusting your search or filters."
-          : "Reservations will appear here once guests start reserving rooms."}
-      </p>
-      {isFiltered && (
+      {isFiltered ? (
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="mt-4 rounded-lg text-sm"
+          className="ui-press mt-3 rounded-xl text-xs font-semibold"
           onPress={() => {
             clearAllFilters();
             setGlobalFilter("");
           }}
         >
-          Clear all filters
+          Clear filters
+        </Button>
+      ) : (
+        <Button
+          variant="primary"
+          size="sm"
+          className="ui-press mt-3 rounded-xl text-xs font-semibold"
+          onPress={openNewBooking}
+        >
+          <Plus className="size-3.5" aria-hidden="true" />
+          New booking
         </Button>
       )}
     </div>
   );
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto w-full max-w-7xl space-y-4 pt-1 md:space-y-5">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-page-title text-foreground">Reservations</h1>
-      </div>
+      <header className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-[24px]">
+            Reservations
+          </h1>
+          <p className="mt-0.5 font-mono text-xs tabular-nums text-muted-foreground">
+            {isFiltered
+              ? `${filteredCount} of ${totalCount} shown`
+              : `${totalCount} ${totalCount === 1 ? "reservation" : "reservations"}`}
+          </p>
+        </div>
+
+        <Button
+          variant="primary"
+          size="sm"
+          onPress={openNewBooking}
+          className="ui-press inline-flex h-11 shrink-0 gap-1.5 rounded-xl px-3.5 text-xs font-semibold shadow-2xs sm:h-9"
+        >
+          <Plus className="size-3.5" aria-hidden="true" />
+          New booking
+        </Button>
+      </header>
 
       {/* Toolbar + active-filter chips */}
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         <div className="flex flex-wrap items-center gap-2">
           <TableSearchField
             ariaLabel="Search reservations"
             value={globalFilter}
             onChange={setGlobalFilter}
-            placeholder="Search name, email, reference…"
+            placeholder="Search guest, email, reference…"
           />
           <ReservationFilters
             filters={selectedFilters}
@@ -498,8 +531,8 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
         />
       </div>
 
-      {/* Mobile cards — always */}
-      <div className="space-y-4 md:hidden">
+      {/* Mobile cards */}
+      <div className="space-y-3 md:hidden">
         {rows.length > 0 ? (
           <>
             {rows.map((row) => (
@@ -519,7 +552,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
             />
           </>
         ) : (
-          emptyState
+          <div className="rounded-[20px] border border-border/60 bg-card">{emptyState}</div>
         )}
       </div>
 
@@ -530,7 +563,12 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {rows.map((row) => (
                 <div key={row.id} ref={attachRowRef} data-booking-id={row.original.id}>
-                  <ReservationCard row={row.original} currency={currency} onViewDetails={handleViewDetails} onHoverPrefetch={hoverPrefetch} />
+                  <ReservationCard
+                    row={row.original}
+                    currency={currency}
+                    onViewDetails={handleViewDetails}
+                    onHoverPrefetch={hoverPrefetch}
+                  />
                 </div>
               ))}
             </div>
@@ -541,71 +579,79 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
             />
           </div>
         ) : (
-          <div className="hidden md:block">{emptyState}</div>
+          <div className="hidden rounded-[20px] border border-border/60 bg-card md:block">
+            {emptyState}
+          </div>
         ))}
 
-      {/* Table view — desktop only */}
+      {/* Desktop table view */}
       {viewMode === "table" && (
-        <Table variant="secondary" className="hidden md:block">
-          <Table.ScrollContainer>
-            <Table.Content aria-label="Reservations" className="min-w-[820px]">
-              <Table.Header>
-                {table.getHeaderGroups()[0]?.headers.map((header) => (
-                  <Table.Column
-                    key={header.id}
-                    allowsSorting={
-                      ["guestName", "roomType", "status", "paymentStatus", "totalAmount"].includes(
-                        header.id
-                      )
-                    }
-                    id={header.id}
-                    isRowHeader={header.id === "guestName"}
-                    className={HIDDEN_COLUMNS.has(header.id) ? "hidden" : undefined}
-                  >
-                    {({ sortDirection }) =>
-                      HIDDEN_COLUMNS.has(header.id) ? null : (
-                        <Table.SortableColumnHeader sortDirection={sortDirection}>
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                        </Table.SortableColumnHeader>
-                      )
-                    }
-                  </Table.Column>
-                ))}
-              </Table.Header>
-              <Table.Body renderEmptyState={() => emptyState}>
-                {rows.map((row) => (
-                  <Table.Row
-                    key={row.id}
-                    id={row.id}
-                    className="cursor-pointer"
-                    data-booking-id={row.original.id}
-                    ref={(el: HTMLElement | null) => {
-                      if (el) attachRowRef(el as unknown as HTMLDivElement);
-                    }}
-                    onAction={() => handleViewDetails(row.original.id)}
-                    onHoverStart={() => hoverPrefetch(row.original.id)}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <Table.Cell key={cell.id} className={HIDDEN_COLUMNS.has(cell.column.id) ? "hidden" : undefined}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </Table.Cell>
-                    ))}
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </Table.Content>
-          </Table.ScrollContainer>
-          <Table.Footer>
-            <HeroTablePagination
-              table={table}
-              totalRows={totalCount}
-              filteredRows={filteredCount}
-            />
-          </Table.Footer>
-        </Table>
+        <div className="hidden overflow-hidden rounded-[20px] border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)] md:block">
+          <Table variant="secondary">
+            <Table.ScrollContainer>
+              <Table.Content aria-label="Reservations" className="min-w-[760px]">
+                <Table.Header>
+                  {table.getHeaderGroups()[0]?.headers.map((header) => (
+                    <Table.Column
+                      key={header.id}
+                      allowsSorting={[
+                        "guestName",
+                        "roomType",
+                        "status",
+                        "paymentStatus",
+                        "totalAmount",
+                      ].includes(header.id)}
+                      id={header.id}
+                      isRowHeader={header.id === "guestName"}
+                      className={HIDDEN_COLUMNS.has(header.id) ? "hidden" : undefined}
+                    >
+                      {({ sortDirection }) =>
+                        HIDDEN_COLUMNS.has(header.id) ? null : (
+                          <Table.SortableColumnHeader sortDirection={sortDirection}>
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          </Table.SortableColumnHeader>
+                        )
+                      }
+                    </Table.Column>
+                  ))}
+                </Table.Header>
+                <Table.Body renderEmptyState={() => emptyState}>
+                  {rows.map((row) => (
+                    <Table.Row
+                      key={row.id}
+                      id={row.id}
+                      className="cursor-pointer"
+                      data-booking-id={row.original.id}
+                      ref={(el: HTMLElement | null) => {
+                        if (el) attachRowRef(el as unknown as HTMLDivElement);
+                      }}
+                      onAction={() => handleViewDetails(row.original.id)}
+                      onHoverStart={() => hoverPrefetch(row.original.id)}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <Table.Cell
+                          key={cell.id}
+                          className={HIDDEN_COLUMNS.has(cell.column.id) ? "hidden" : undefined}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </Table.Cell>
+                      ))}
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
+            <Table.Footer>
+              <HeroTablePagination
+                table={table}
+                totalRows={totalCount}
+                filteredRows={filteredCount}
+              />
+            </Table.Footer>
+          </Table>
+        </div>
       )}
 
-      {/* Reservation Detail Drawer */}
       <BookingDetailDrawer
         bookingId={detailBookingId}
         open={detailOpen}

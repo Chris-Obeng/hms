@@ -366,10 +366,8 @@
  * contrast while keeping the subtle look (75% foreground). */
 .table__column {
   font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: color-mix(in oklch, var(--foreground) 75%, transparent);
+  font-weight: 500;
+  color: var(--muted-foreground);
 }
 
 /* HeroUI calendars read --muted (weekday strip) and --accent (today + selection).
@@ -505,7 +503,9 @@
   font-weight: 500;
   color: var(--muted-foreground);
 }
-.payments-tabs .tabs__tab:hover { color: var(--foreground); }
+@media (hover: hover) and (pointer: fine) {
+  .payments-tabs .tabs__tab:hover { color: var(--foreground); }
+}
 .payments-tabs .tabs__tab[data-selected="true"] {
   color: var(--foreground);
   font-weight: 600;
@@ -540,7 +540,9 @@
   font-weight: 500;
   color: var(--muted-foreground);
 }
-.guest-tabs .guest-tabs-tab:hover { color: var(--foreground); }
+@media (hover: hover) and (pointer: fine) {
+  .guest-tabs .guest-tabs-tab:hover { color: var(--foreground); }
+}
 .guest-tabs .guest-tabs-tab[data-selected="true"] {
   color: var(--foreground);
   font-weight: 600;
@@ -567,9 +569,11 @@
   background-color: oklch(0.546 0.245 262.881); /* blue-600 */
   border-color: oklch(0.546 0.245 262.881);
 }
-.switch__control[data-selected="true"][data-hovered="true"],
-.switch__control[data-selected="true"]:hover {
-  background-color: oklch(0.488 0.243 264.376); /* blue-700 */
+@media (hover: hover) and (pointer: fine) {
+  .switch__control[data-selected="true"][data-hovered="true"],
+  .switch__control[data-selected="true"]:hover {
+    background-color: oklch(0.488 0.243 264.376); /* blue-700 */
+  }
 }
 
 /* ── Tap-target helper ─────────────────────────────────────────────────
@@ -647,6 +651,13 @@ html.pwa-standalone [data-slot="app-header"] {
   [role="button"],
   a {
     touch-action: manipulation;
+  }
+
+  /* Prevent iOS Safari viewport auto-zoom on sub-16px text controls */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    font-size: 16px;
   }
 }
 

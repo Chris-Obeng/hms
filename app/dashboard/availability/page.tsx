@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { addDays, format, isValid, parseISO } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
+import { businessToday } from "@/lib/business-date";
 import { AvailabilityMatrixClient, type AvailabilityMatrixData } from "./availability-matrix-client";
 import "./availability.css";
 export const metadata = {
@@ -19,9 +20,8 @@ const UNSALEABLE_ROOM_STATUSES = new Set(["maintenance", "out_of_service"]);
 
 export default async function AvailabilityPage({ searchParams }: PageProps) {
   const params = (await searchParams) ?? {};
-  const startDate = parseStartDate(params.start);
   const days = parseDayCount(params.days);
-  const data = await getAvailabilityMatrixData(startDate, days);
+  const data = await getAvailabilityMatrixData(params.start, days);
 
   if (!data) {
     return (
@@ -40,10 +40,10 @@ export default async function AvailabilityPage({ searchParams }: PageProps) {
   return <AvailabilityMatrixClient data={data} hotelId={data.hotelId} />;
 }
 
-function parseStartDate(value?: string) {
-  if (!value) return new Date();
+function parseStartDate(value: string | undefined, propertyTodayStr: string) {
+  if (!value) return parseISO(propertyTodayStr);
   const parsed = parseISO(value);
-  return isValid(parsed) ? parsed : new Date();
+  return isValid(parsed) ? parsed : parseISO(propertyTodayStr);
 }
 
 function parseDayCount(value?: string) {
@@ -53,7 +53,7 @@ function parseDayCount(value?: string) {
 }
 
 async function getAvailabilityMatrixData(
-  startDate: Date,
+  rawStart: string | undefined,
   days: number
 ): Promise<AvailabilityMatrixData | null> {
   const { orgId } = await auth();
@@ -62,12 +62,14 @@ async function getAvailabilityMatrixData(
   const supabase = await createClient();
   const { data: hotel } = await supabase
     .from("hotels")
-    .select("id, name, currency")
+    .select("id, name, currency, timezone")
     .eq("clerk_org_id", orgId)
     .single();
 
   if (!hotel) return null;
 
+  const propertyToday = businessToday(hotel.timezone || "UTC");
+  const startDate = parseStartDate(rawStart, propertyToday);
   const start = format(startDate, "yyyy-MM-dd");
   const end = format(addDays(startDate, days), "yyyy-MM-dd");
   const dateKeys = Array.from({ length: days }, (_, index) =>
@@ -315,6 +317,7 @@ async function getAvailabilityMatrixData(
     hotelId: hotel.id,
     hotelName: hotel.name,
     currency: hotel.currency || "GHS",
+    propertyToday,
     startDate: start,
     days,
     dates: dateKeys,

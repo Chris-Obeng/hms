@@ -1,3 +1,4 @@
+import { addDays, format } from "date-fns";
 import { create } from "zustand";
 
 export interface SelectedCell {
@@ -34,14 +35,15 @@ interface PricingUIState {
   // Date viewport range (starts as 30 days)
   startDateStr: string;
   endDateStr: string;
+  rangeInitialized: boolean;
   setDateRange: (start: string, end: string) => void;
 }
 
 export const usePricingStore = create<PricingUIState>((set) => {
   // Start with a focused 30-day operating window. Longer ranges remain available.
-  const today = new Date();
-  const start = today.toISOString().split("T")[0];
-  const end = new Date(today.setDate(today.getDate() + 29)).toISOString().split("T")[0];
+  const now = new Date();
+  const start = format(now, "yyyy-MM-dd");
+  const end = format(addDays(now, 29), "yyyy-MM-dd");
 
   return {
     activeTab: "calendar",
@@ -69,6 +71,8 @@ export const usePricingStore = create<PricingUIState>((set) => {
 
     startDateStr: start,
     endDateStr: end,
-    setDateRange: (startDateStr, endDateStr) => set({ startDateStr, endDateStr }),
+    rangeInitialized: false,
+    setDateRange: (startDateStr, endDateStr) =>
+      set({ startDateStr, endDateStr, rangeInitialized: true }),
   };
 });

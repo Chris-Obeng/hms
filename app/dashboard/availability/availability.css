@@ -1,45 +1,42 @@
 /* ============================================================================
-   Availability matrix — dense inventory grid.
-   Token-driven (works in light + dark). Sticky first column + date header.
+   Availability & Rates Matrix — Quiet neutral ramp, cohesive token surfaces,
+   responsive sticky label column, zero garish pastel fills.
    ============================================================================ */
 
 .availability-page {
   --av-bg: var(--background);
   --av-surface: var(--card);
-  --av-header-bg: color-mix(in oklch, var(--muted) 30%, var(--card));
+  --av-header-bg: color-mix(in oklch, var(--muted) 38%, var(--card));
+  --av-group-bg: color-mix(in oklch, var(--secondary) 65%, var(--card));
   --av-border: var(--border);
-  --av-grid: color-mix(in oklch, var(--border) 60%, transparent);
+  --av-grid: color-mix(in oklch, var(--border) 62%, transparent);
   --av-today-bg: color-mix(in oklch, var(--primary) 6%, transparent);
   --av-today-line: var(--primary);
-  --av-open: #16a34a;
-  --av-tight: #d97706;
-  --av-sold: #dc2626;
-  --av-blocked: #64748b;
+  --av-label-col: 204px;
+  --av-day-col: 78px;
+}
+
+@media (max-width: 639px) {
+  .availability-page {
+    --av-label-col: 140px;
+    --av-day-col: 70px;
+  }
 }
 
 .availability-grid-shell {
   overflow-x: auto;
   overflow-y: visible;
-  border: 1px solid var(--av-border);
-  border-radius: 10px;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid color-mix(in oklch, var(--av-border) 80%, transparent);
+  border-radius: 20px;
   background: var(--av-surface);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
 }
-
-.inventory-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
-.inventory-filter-search { display: grid; gap: 6px; width: 100%; }
-
-@media (min-width: 640px) {
-  .inventory-filters { gap: 18px; }
-  .inventory-filter-search { width: min(360px, 100%); }
-}
-
-.availability-summary{display:flex;align-items:stretch;overflow-x:auto;border-block:1px solid var(--av-border);background:color-mix(in oklch,var(--muted) 18%,transparent)}
-.availability-summary-item{min-width:150px;flex:1;padding:12px 18px;border-right:1px solid var(--av-border)}
-.availability-summary-item:last-child{border-right:0}.availability-summary-item p{font-size:10px;font-weight:650;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em}.availability-summary-item strong{display:block;margin-top:2px;font-size:20px;line-height:1.1;font-variant-numeric:tabular-nums}
 
 .availability-grid-row {
   display: grid;
+  grid-template-columns: var(--av-label-col) repeat(var(--av-days, 14), minmax(var(--av-day-col), 1fr));
   min-width: max-content;
   border-bottom: 1px solid var(--av-grid);
 }
@@ -52,29 +49,33 @@
   position: sticky;
   left: 0;
   z-index: 20;
-  display: grid;
-  min-height: 72px;
-  align-content: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 52px;
   gap: 2px;
   border-right: 1px solid var(--av-border);
   background: var(--av-surface);
-  padding: 10px 14px;
+  padding: 8px 14px;
+  box-shadow: 6px 0 14px -14px rgb(0 0 0 / 0.14);
 }
 
 .availability-sticky-cell strong {
   overflow: hidden;
   color: var(--foreground);
   font-size: 13px;
-  font-weight: 650;
-  line-height: 1.2;
+  font-weight: 600;
+  line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.availability-sticky-cell span,
 .availability-sticky-cell small {
   color: var(--muted-foreground);
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 400;
+  line-height: 1.2;
 }
 
 .availability-date-header {
@@ -86,264 +87,230 @@
 
 .availability-corner {
   z-index: 40;
-  min-height: 64px;
+  min-height: 60px;
   background: var(--av-header-bg);
   color: var(--muted-foreground);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .availability-date-cell {
-  display: grid;
-  min-height: 64px;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
   border-right: 1px solid var(--av-grid);
   background: var(--av-header-bg);
   padding: 6px 4px;
   text-align: center;
-  gap: 0;
+  gap: 1px;
+}
+
+.availability-date-cell:last-child,
+.availability-total-cell:last-child,
+.availability-rate-cell:last-child {
+  border-right: 0;
 }
 
 .availability-date-cell span {
   color: var(--muted-foreground);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-  line-height: 1;
-  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.1;
 }
 
 .availability-date-cell strong {
   color: var(--foreground);
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
   font-variant-numeric: tabular-nums;
 }
 
 .availability-date-cell small {
   color: var(--muted-foreground);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.1;
 }
 
-.availability-date-cell.is-today,
+.availability-date-cell.is-weekend,
+.availability-total-cell.is-weekend,
+.availability-rate-cell.is-weekend {
+  background: color-mix(in oklch, var(--foreground) 2.6%, var(--card));
+}
+
+.availability-date-cell.is-today {
+  background: color-mix(in oklch, var(--primary) 9%, var(--card));
+  box-shadow: inset 0 2px 0 var(--av-today-line);
+}
+
+.availability-date-cell.is-today span,
+.availability-date-cell.is-today strong {
+  color: var(--primary);
+}
+
 .availability-total-cell.is-today,
-.availability-inventory-cell.is-today,
-.availability-room-cell.is-today {
+.availability-rate-cell.is-today {
   background: var(--av-today-bg);
-  box-shadow: inset 2px 0 0 var(--av-today-line);
 }
 
 .availability-total-cell {
-  display: grid;
-  min-height: 56px;
-  align-content: center;
-  justify-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
   border-right: 1px solid var(--av-grid);
-  background: var(--av-header-bg);
-  padding: 8px 6px;
-  gap: 2px;
+  background: var(--av-surface);
+  padding: 6px;
+  gap: 1px;
 }
 
 .availability-total-cell strong {
   color: var(--foreground);
-  font-size: 17px;
-  font-weight: 700;
-  line-height: 1;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.15;
   font-variant-numeric: tabular-nums;
 }
 
 .availability-total-cell span {
   color: var(--muted-foreground);
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.availability-grid-total .availability-sticky-cell {
-  min-height: 56px;
-  background: var(--av-header-bg);
-}
-
-.availability-inventory-cell {
-  display: grid;
-  min-height: 72px;
-  align-content: center;
-  gap: 5px;
-  border-right: 1px solid var(--av-grid);
-  background: var(--av-surface);
-  padding: 9px 10px;
-}
-
-.availability-inventory-cell strong {
-  color: var(--foreground);
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1;
+  font-size: 11px;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
 
-.availability-inventory-cell .av-share {
-  color: var(--muted-foreground);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1;
+.availability-grid-total {
+  border-bottom: 1px solid var(--av-border);
 }
 
-.availability-meter {
-  overflow: hidden;
-  height: 4px;
-  border-radius: 999px;
-  background: color-mix(in oklch, var(--av-open) 10%, transparent);
-}
-
-.availability-meter span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--av-open);
-}
-
-.availability-inventory-cell.is-tight .availability-meter {
-  background: color-mix(in oklch, var(--av-tight) 12%, transparent);
-}
-
-.availability-inventory-cell.is-tight .availability-meter span {
-  background: var(--av-tight);
-}
-
-.availability-inventory-cell.is-sold-out .availability-meter {
-  background: color-mix(in oklch, var(--av-sold) 12%, transparent);
-}
-
-.availability-inventory-cell.is-sold-out .availability-meter span {
-  background: var(--av-sold);
-}
-
-.availability-cell-meta,
-.availability-exception-line {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-}
-
-.availability-cell-meta span {
-  color: var(--muted-foreground);
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.availability-exception-line span {
-  max-width: 84px;
-  overflow: hidden;
-  border-radius: 4px;
-  background: color-mix(in oklch, var(--muted) 60%, var(--card));
-  padding: 2px 5px;
-  color: var(--foreground);
-  font-size: 10px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.availability-room-cell {
-  display: grid;
+.availability-grid-total .availability-sticky-cell,
+.availability-grid-total .availability-total-cell {
   min-height: 52px;
-  align-content: center;
-  gap: 3px;
+  background: color-mix(in oklch, var(--muted) 22%, var(--card));
+}
+
+.availability-room-type-heading {
+  border-top: 1px solid var(--av-border);
+}
+
+.availability-room-type-heading .availability-sticky-cell,
+.availability-room-type-heading .availability-total-cell {
+  background: var(--av-group-bg);
+  min-height: 46px;
+}
+
+.availability-rate-cell {
+  position: relative;
+  min-height: 50px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
   border-right: 1px solid var(--av-grid);
   background: var(--av-surface);
-  padding: 6px 8px;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  outline: none;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
 }
 
-.availability-room-cell span {
-  overflow: hidden;
-  border-radius: 5px;
-  padding: 4px 6px;
-  color: var(--muted-foreground);
-  font-size: 10px;
+@media (hover: hover) and (pointer: fine) {
+  .availability-rate-cell:hover {
+    background: color-mix(in oklch, var(--primary) 6%, var(--card));
+  }
+}
+
+.availability-rate-cell:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--ring);
+  z-index: 5;
+}
+
+.availability-rate-cell.is-seasonal {
+  color: #15803d;
+  background: color-mix(in oklch, #16a34a 5%, var(--card));
+}
+
+.availability-rate-cell.is-daily {
+  color: var(--primary);
   font-weight: 600;
-  line-height: 1.15;
-  text-align: center;
-  text-overflow: ellipsis;
-  text-transform: capitalize;
-  white-space: nowrap;
+  background: color-mix(in oklch, var(--primary) 5%, var(--card));
 }
 
-/* Room rack state colors — token-safe for dark mode */
-.availability-room-cell.is-open span {
-  background: color-mix(in oklch, var(--av-open) 12%, transparent);
-  color: var(--av-open);
+.rate-dot {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--primary);
 }
 
-.availability-room-cell.is-reserved span {
-  background: color-mix(in oklch, #2563eb 14%, transparent);
-  color: #3b82f6;
+.availability-rate-cell.has-restrictions {
+  padding-bottom: 14px;
 }
 
-.availability-room-cell.is-in_house span {
-  background: color-mix(in oklch, var(--av-open) 18%, transparent);
-  color: var(--av-open);
-}
-
-.availability-room-cell.is-blocked span,
-.availability-room-cell.is-unsaleable span {
-  background: repeating-linear-gradient(
-    135deg,
-    color-mix(in oklch, var(--av-blocked) 8%, transparent) 0 6px,
-    color-mix(in oklch, var(--av-blocked) 18%, transparent) 6px 12px
-  );
-  color: var(--muted-foreground);
-}
-
-.availability-room-flags {
+.rate-restrictions {
+  position: absolute;
+  bottom: 3px;
+  left: 0;
+  right: 0;
   display: flex;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
+  pointer-events: none;
 }
 
-.availability-room-flags b {
+.rate-restriction {
   border-radius: 4px;
-  background: var(--foreground);
-  padding: 1px 4px;
-  color: var(--background);
-  font-size: 9px;
-  font-weight: 650;
-  line-height: 1.25;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  background: #fef3c7;
+  color: #92400e;
 }
 
-.availability-room-type-heading { background: #e8eef5; border-top: 1px solid #d4dde8; }
-.availability-room-type-heading .availability-sticky-cell { background: #e8eef5; }
-.availability-rate-cell { position: relative; min-height: 54px; display: flex; align-items: center; justify-content: center; border-right: 1px solid #dce3eb; background: #fff; font-variant-numeric: tabular-nums; transition: background-color 160ms ease, box-shadow 160ms ease; }
-.availability-rate-cell:hover { background: #f7faff; }
-.availability-rate-cell.is-weekend, .availability-date-cell.is-weekend { background: #fff0e8; }
-.availability-rate-cell.is-seasonal { color: #28745a; background: #eef9f4; }
-.availability-rate-cell.is-daily { color: #155fbd; font-weight: 650; }
-.availability-rate-cell.is-today { box-shadow: inset 2px 0 #1683e8, inset -2px 0 #1683e8; }
-.rate-dot { position: absolute; right: 7px; top: 7px; width: 6px; height: 6px; border-radius: 99px; background: #1683e8; }
-/* Rate-plan restrictions on the date. The badges sit under the price rather than
-   beside it: the number is what staff scan for, and a cell only reserves the
-   strip's height when it has something to put there. */
-.availability-rate-cell.has-restrictions { padding-bottom: 15px; }
-.rate-restrictions { position: absolute; bottom: 3px; left: 0; right: 0; display: flex; justify-content: center; gap: 3px; pointer-events: none; }
-.rate-restriction { border-radius: 4px; padding: 0 3px; font-size: 9px; font-weight: 700; line-height: 13px; letter-spacing: 0.02em; background: #fdf0dd; color: #8a5a12; }
-.rate-restriction.is-cta, .rate-restriction.is-ctd { background: #e7effc; color: #17457f; }
-.rate-restriction.is-stop { background: #fde3e3; color: #9d1b1b; }
-.rate-restriction.is-more { background: #eef1f5; color: #6c7681; }
-/* Stop sell closes the date outright, so the rate below it is academic. */
-.availability-rate-cell.is-stop-sell { background: #fff6f6; }
-.availability-rate-cell.is-stop-sell strong { text-decoration: line-through; text-decoration-color: rgba(157, 27, 27, 0.55); }
-.availability-rate-cell.is-stop-sell:hover { background: #fdeeee; }
-.availability-rate-meta { min-height: 28px; display: flex; align-items: center; justify-content: center; gap: 8px; border-right: 1px solid #dce3eb; color: #7a8490; font-size: 10px; background: #fafbfd; }
-@media (max-width: 767px) {
-  .availability-page { padding: 12px; }
-  .availability-grid-shell { margin-inline: -12px; border-radius: 0; }
-  .availability-sticky-cell { min-width: 152px; padding-inline: 10px; }
-  .availability-date-cell, .availability-total-cell, .availability-rate-cell { min-width: 72px; }
+.rate-restriction.is-cta,
+.rate-restriction.is-ctd {
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+  color: var(--primary);
+}
+
+.rate-restriction.is-stop {
+  background: color-mix(in oklch, var(--destructive) 12%, transparent);
+  color: var(--destructive);
+}
+
+.rate-restriction.is-more {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.availability-rate-cell.is-stop-sell {
+  background: color-mix(in oklch, var(--destructive) 5%, var(--card));
+}
+
+.availability-rate-cell.is-stop-sell strong {
+  text-decoration: line-through;
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 639px) {
+  .availability-sticky-cell {
+    padding: 8px 10px;
+  }
+  .availability-sticky-cell strong {
+    font-size: 12px;
+  }
 }

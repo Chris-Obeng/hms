@@ -26,6 +26,7 @@ interface NewBookingModalProps {
   prefillRoomId?: string;
   prefillCheckIn?: Date;
   prefillCheckOut?: Date;
+  prefillGuest?: GuestSearchResult | null;
   onReservationCreated?: (result: { bookingId: string; reference: string; payNow: boolean }) => void;
 }
 
@@ -52,6 +53,7 @@ export function NewBookingModal({
   prefillRoomId,
   prefillCheckIn,
   prefillCheckOut,
+  prefillGuest,
   onReservationCreated,
 }: NewBookingModalProps) {
   const [step, setStep] = React.useState<WizardStep>(1);
@@ -65,6 +67,19 @@ export function NewBookingModal({
   const [guestEmail, setGuestEmail] = React.useState("");
   const [guestPhone, setGuestPhone] = React.useState("");
   const [nationality, setNationality] = React.useState("Ghana");
+  const [appliedGuestPrefillKey, setAppliedGuestPrefillKey] = React.useState<string | null>(null);
+
+  const guestPrefillKey = open && prefillGuest ? `${prefillGuest.id}` : null;
+  if (guestPrefillKey !== appliedGuestPrefillKey) {
+    setAppliedGuestPrefillKey(guestPrefillKey);
+    if (prefillGuest && open) {
+      setGuestId(prefillGuest.id);
+      setGuestName(prefillGuest.fullName);
+      setGuestEmail(prefillGuest.email ?? "");
+      setGuestPhone(prefillGuest.phone ?? "");
+      if (prefillGuest.nationality) setNationality(prefillGuest.nationality);
+    }
+  }
 
   const [source, setSource] = React.useState<string | null>("walk_in");
   const [paymentPreference, setPaymentPreference] = React.useState<"pay_now" | "pay_at_checkin">("pay_at_checkin");
@@ -260,6 +275,7 @@ export function NewBookingModal({
     setGuestEmail("");
     setGuestPhone("");
     setNationality("Ghana");
+    setAppliedGuestPrefillKey(null);
     setSource("walk_in");
     setPaymentPreference("pay_at_checkin");
     setEstimatedArrival("");

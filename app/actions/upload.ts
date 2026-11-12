@@ -43,13 +43,14 @@ export async function saveHotelImageUrl(
   url: string
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    await requireMinRole("manager", "update hotel branding");
+    await requireMinRole("super_admin", "update hotel branding");
     const hotelId = await getHotelId();
     if (url) assertStorageUrl(url);
+    const nextUrl = url.trim() ? url : null;
     const supabase = await createClient();
     const { error } = await supabase
       .from("hotels")
-      .update(type === "logo" ? { logo_url: url } : { cover_image_url: url })
+      .update(type === "logo" ? { logo_url: nextUrl } : { cover_image_url: nextUrl })
       .eq("id", hotelId);
     if (error) throw error;
     revalidatePath("/dashboard/settings/hotel");
@@ -93,7 +94,11 @@ export async function deleteStorageFile(
   path: string
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    await requireMinRole("manager", "delete hotel files");
+    const isBrandingAsset = path.includes("/branding/");
+    await requireMinRole(
+      isBrandingAsset ? "super_admin" : "manager",
+      isBrandingAsset ? "delete hotel branding" : "delete hotel files"
+    );
     const hotelId = await getHotelId();
 
     const prefix = `hotels/${hotelId}/`;
