@@ -72,7 +72,7 @@ function StatusChip({ kind, value }: { kind: "status" | "payment"; value: string
   return (
     <span
       className={cn(
-        "inline-flex items-center whitespace-nowrap rounded-md border px-2 py-0.5 text-[11px] font-medium",
+        "inline-flex items-center whitespace-nowrap rounded-md border px-2 py-1 text-[11px] font-medium",
         cls
       )}
     >
@@ -111,8 +111,8 @@ function ReservationCard({
       onFocus={() => onHoverPrefetch?.(row.id)}
       className="ui-press flex cursor-pointer flex-col gap-3 rounded-[20px] border border-border/60 bg-card p-4 shadow-[0_1px_3px_rgb(0_0_0/0.04)] outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:border-border"
     >
-      <div className="flex items-start justify-between gap-2.5">
-        <div className="flex min-w-0 items-center gap-2.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <span
             aria-hidden="true"
             className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-[11px] font-semibold text-secondary-foreground"
@@ -129,8 +129,8 @@ function ReservationCard({
         <StatusChip kind="status" value={row.status} />
       </div>
 
-      <div className="flex items-center gap-1.5 rounded-xl bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-        <CalendarIcon className="size-3.5 shrink-0" aria-hidden="true" />
+      <div className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+        <CalendarIcon className="size-4 shrink-0" aria-hidden="true" />
         <span className="tabular-nums text-foreground">{formatDate(row.checkIn, "MMM d")}</span>
         <span className="text-muted-foreground/50">→</span>
         <span className="tabular-nums text-foreground">
@@ -281,7 +281,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
               {getInitials(row.original.guestName)}
             </span>
             <div className="flex min-w-0 flex-col">
-              <span className="max-w-[190px] truncate text-sm font-semibold text-foreground">
+              <span className="max-w-[192px] truncate text-sm font-semibold text-foreground">
                 {row.original.guestName}
               </span>
               <span className="font-mono text-[11px] text-muted-foreground">
@@ -473,7 +473,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
           className="ui-press mt-3 rounded-xl text-xs font-semibold"
           onPress={openNewBooking}
         >
-          <Plus className="size-3.5" aria-hidden="true" />
+          <Plus className="size-4" aria-hidden="true" />
           New booking
         </Button>
       )}
@@ -488,7 +488,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
           <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-[24px]">
             Reservations
           </h1>
-          <p className="mt-0.5 font-mono text-xs tabular-nums text-muted-foreground">
+          <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
             {isFiltered
               ? `${filteredCount} of ${totalCount} shown`
               : `${totalCount} ${totalCount === 1 ? "reservation" : "reservations"}`}
@@ -499,15 +499,15 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
           variant="primary"
           size="sm"
           onPress={openNewBooking}
-          className="ui-press inline-flex h-11 shrink-0 gap-1.5 rounded-xl px-3.5 text-xs font-semibold shadow-2xs sm:h-9"
+          className="ui-press inline-flex h-11 shrink-0 gap-2 rounded-xl px-4 text-xs font-semibold shadow-2xs sm:h-9"
         >
-          <Plus className="size-3.5" aria-hidden="true" />
+          <Plus className="size-4" aria-hidden="true" />
           New booking
         </Button>
       </header>
 
       {/* Toolbar + active-filter chips */}
-      <div className="space-y-2.5">
+      <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <TableSearchField
             ariaLabel="Search reservations"

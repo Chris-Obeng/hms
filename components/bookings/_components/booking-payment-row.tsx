@@ -35,7 +35,7 @@ export function PaymentRow({ payment, currency }: { payment: PaymentRecord; curr
   const needsAttention = payment.status && payment.status !== "success";
 
   return (
-    <div className="flex items-center gap-3 py-2.5">
+    <div className="flex items-center gap-3 py-3">
       <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted/60">
         <PaymentMethodIcon method={payment.method} />
       </div>
@@ -51,11 +51,11 @@ export function PaymentRow({ payment, currency }: { payment: PaymentRecord; curr
         </div>
 
         {payment.roomLabel && (
-          <p className="mt-0.5 truncate text-[11px] text-muted-foreground/80">{payment.roomLabel}</p>
+          <p className="mt-1 truncate text-[11px] text-muted-foreground/80">{payment.roomLabel}</p>
         )}
 
-        <div className="mt-0.5 flex items-center justify-between gap-2">
-          <p className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <p className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
             <span className="truncate">{formatDateTime(payment.createdAt)}</span>
             {payment.recordedByName && (
               <>

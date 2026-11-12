@@ -114,8 +114,8 @@ export function PwaInstallPrompt({
           <Modal.Body>
             {showIosSteps ? (
               <p className="text-base leading-relaxed text-muted-foreground">
-                Tap <Share aria-hidden className="inline size-4 -mt-0.5" /> Share in Safari&apos;s
-                toolbar, then <Plus aria-hidden className="inline size-4 -mt-0.5" /> Add to Home
+                Tap <Share aria-hidden className="inline size-4 -mt-1" /> Share in Safari&apos;s
+                toolbar, then <Plus aria-hidden className="inline size-4 -mt-1" /> Add to Home
                 Screen.
               </p>
             ) : (

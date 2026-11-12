@@ -297,14 +297,14 @@ export function GuestDetailSheet({
             md:border-l md:border-border/70 md:shadow-[-32px_0_90px_rgb(0_0_0/0.16)]
           "
         >
-          {isMobile && <Drawer.Handle className="mt-2.5 shrink-0" />}
+          {isMobile && <Drawer.Handle className="mt-3 shrink-0" />}
 
           <Drawer.CloseTrigger
-            className="ui-press absolute right-3.5 top-3.5 z-30 grid size-11 place-items-center rounded-xl bg-muted/70 text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-10 md:top-5"
+            className="ui-press absolute right-4 top-4 z-30 grid size-11 place-items-center rounded-xl bg-muted/70 text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-10 md:top-5"
           />
 
           {/* ═══ Header ═══ */}
-          <Drawer.Header className="shrink-0 flex-col items-start gap-2 border-b border-border/60 bg-card px-6 pb-3.5 pt-[max(1.25rem,env(safe-area-inset-top))] md:pt-6">
+          <Drawer.Header className="shrink-0 flex-col items-start gap-2 border-b border-border/60 bg-card px-6 pb-4 pt-[max(1.25rem,env(safe-area-inset-top))] md:pt-6">
             <div className="flex w-full items-center gap-3 pr-10">
               <div className="grid size-11 shrink-0 place-items-center rounded-full bg-[#0485F714]">
                 <span className="text-sm font-semibold text-[var(--pen-accent)]">
@@ -316,7 +316,7 @@ export function GuestDetailSheet({
               </Drawer.Heading>
             </div>
             {guest.tags.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 pr-8">
+              <div className="flex flex-wrap items-center gap-2 pr-8">
                 {guest.tags.map((tag) => (
                   <span key={tag}
                     className={cn("inline-flex h-5 items-center rounded-md px-2 text-[11px] font-semibold", tagClasses(tag))}>
@@ -324,7 +324,7 @@ export function GuestDetailSheet({
                   </span>
                 ))}
                 <button type="button" aria-label="Edit tags" onClick={() => setEditingTags((p) => !p)}
-                  className="ui-press inline-flex min-h-9 cursor-pointer items-center rounded-md px-1.5 text-[11px] font-medium text-muted-foreground underline-offset-2 sm:min-h-6 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:underline">
+                  className="ui-press inline-flex min-h-9 cursor-pointer items-center rounded-md px-2 text-[11px] font-medium text-muted-foreground underline-offset-2 sm:min-h-6 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:underline">
                   {editingTags ? "done" : "edit"}
                 </button>
               </div>
@@ -340,9 +340,9 @@ export function GuestDetailSheet({
           {/* Tag editor band */}
           {editingTags && (
             <div className="shrink-0 border-b border-border/60 bg-card px-6 py-3">
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {guest.tags.map((tag) => (
-                  <span key={tag} className="inline-flex items-center gap-1 rounded-md bg-secondary pl-2 pr-0.5 py-0.5 text-[11px] font-medium capitalize text-muted-foreground">
+                  <span key={tag} className="inline-flex items-center gap-1 rounded-md bg-secondary pl-2 pr-1 py-1 text-[11px] font-medium capitalize text-muted-foreground">
                     {tag}
                     <button type="button" onClick={() => handleRemoveTag(tag)} aria-label={`Remove tag ${tag}`} disabled={savingTags}
                       className="ui-press grid size-7 cursor-pointer place-items-center rounded disabled:opacity-40 sm:size-5 [@media(hover:hover)_and_(pointer:fine)]:hover:opacity-60">
@@ -353,22 +353,22 @@ export function GuestDetailSheet({
                 {guest.tags.length === 0 && <span className="text-xs text-muted-foreground">No tags assigned.</span>}
               </div>
               {SUGGESTED_TAGS.filter((t) => !guest.tags.includes(t)).length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                <div className="mt-2 flex flex-wrap gap-2">
                   {SUGGESTED_TAGS.filter((t) => !guest.tags.includes(t)).map((tag) => (
                     <button key={tag} type="button" onClick={() => handleAddTag(tag)} disabled={savingTags}
-                      className="ui-press inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-lg border border-dashed border-border/70 px-2.5 py-1 text-[11px] capitalize text-muted-foreground disabled:opacity-40 sm:min-h-7 sm:px-2 sm:py-0.5 [@media(hover:hover)_and_(pointer:fine)]:hover:border-foreground/30 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground">
+                      className="ui-press inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-lg border border-dashed border-border/70 px-3 py-1 text-[11px] capitalize text-muted-foreground disabled:opacity-40 sm:min-h-7 sm:px-2 sm:py-1 [@media(hover:hover)_and_(pointer:fine)]:hover:border-foreground/30 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground">
                       <Plus aria-hidden className="size-3" />
                       {tag}
                     </button>
                   ))}
                 </div>
               )}
-              <form onSubmit={(e) => { e.preventDefault(); handleAddTag(newTagInput); }} className="mt-2 flex items-center gap-1.5">
+              <form onSubmit={(e) => { e.preventDefault(); handleAddTag(newTagInput); }} className="mt-2 flex items-center gap-2">
                 <input value={newTagInput} onChange={(e) => setNewTagInput(e.target.value)} placeholder="Add custom tag…"
                   aria-label="Add custom tag" disabled={savingTags}
                   className="h-11 min-w-0 flex-1 rounded-xl border border-border/70 bg-card px-3 text-base text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:h-9 sm:text-[13px]" />
                 <button type="submit" disabled={!newTagInput.trim() || savingTags}
-                  className="ui-press h-11 shrink-0 cursor-pointer rounded-full bg-secondary px-4 text-xs font-semibold text-foreground disabled:opacity-40 sm:h-9 sm:px-3.5">
+                  className="ui-press h-11 shrink-0 cursor-pointer rounded-full bg-secondary px-4 text-xs font-semibold text-foreground disabled:opacity-40 sm:h-9 sm:px-4">
                   Add
                 </button>
               </form>
@@ -384,7 +384,7 @@ export function GuestDetailSheet({
           >
             <div className="shrink-0 border-b border-border/60 bg-card px-6">
               <Tabs.ListContainer>
-                <Tabs.List aria-label="Guest sections" className="flex gap-[22px]">
+                <Tabs.List aria-label="Guest sections" className="flex gap-[24px]">
                   <Tabs.Tab id="overview" className="guest-tabs-tab">
                     Overview<Tabs.Indicator />
                   </Tabs.Tab>
@@ -400,16 +400,16 @@ export function GuestDetailSheet({
               {/* ── Overview ── */}
               <Tabs.Panel id="overview" className="flex min-h-full flex-col">
                 {/* Stats band */}
-                <section aria-label="Guest stats" className="flex items-center gap-[18px] border-b border-border/60 px-6 py-[18px]">
+                <section aria-label="Guest stats" className="flex items-center gap-[16px] border-b border-border/60 px-6 py-[16px]">
                   <StatCell value={stayCount.toLocaleString("en")} label="stays" />
-                  <span className="h-[30px] w-px bg-border/60" aria-hidden="true" />
+                  <span className="h-[32px] w-px bg-border/60" aria-hidden="true" />
                   <StatCell value={roomNights === null ? "—" : roomNights.toLocaleString("en")} label="room nights" />
-                  <span className="h-[30px] w-px bg-border/60" aria-hidden="true" />
+                  <span className="h-[32px] w-px bg-border/60" aria-hidden="true" />
                   <StatCell value={formatCurrency(totalSpend, currency)} label="lifetime spend" />
                 </section>
 
                 {/* Contact band */}
-                <section aria-label="Guest contact" className="border-b border-border/60 px-6 py-1.5">
+                <section aria-label="Guest contact" className="border-b border-border/60 px-6 py-2">
                   {editingContact ? (
                     <div className="flex flex-col gap-3 py-2">
                       <ContactField label="Email" value={contactDraft.email} type="email" autoFocus
@@ -431,25 +431,25 @@ export function GuestDetailSheet({
                     </div>
                   ) : (
                     <>
-                      <ContactRow icon={<Phone aria-hidden className="size-3.5" />}>
+                      <ContactRow icon={<Phone aria-hidden className="size-4" />}>
                         {guest.phone ? (
                           <a href={`tel:${guest.phone}`} className="text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:underline">{guest.phone}</a>
                         ) : <span className="text-muted-foreground/70">No phone on file</span>}
                       </ContactRow>
-                      <ContactRow icon={<Mail aria-hidden className="size-3.5" />}>
+                      <ContactRow icon={<Mail aria-hidden className="size-4" />}>
                         {guest.email ? (
                           <a href={`mailto:${guest.email}`} className="text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:underline">{guest.email}</a>
                         ) : <span className="text-muted-foreground/70">No email on file</span>}
                       </ContactRow>
-                      <ContactRow icon={<Globe aria-hidden className="size-3.5" />}>
+                      <ContactRow icon={<Globe aria-hidden className="size-4" />}>
                         {guest.nationality || <span className="text-muted-foreground/70">No nationality set</span>}
                       </ContactRow>
                       {guest.nationalId && (
-                        <ContactRow icon={<CreditCard aria-hidden className="size-3.5" />}>
+                        <ContactRow icon={<CreditCard aria-hidden className="size-4" />}>
                           ID · {guest.nationalId}
                         </ContactRow>
                       )}
-                      <ContactRow icon={<CalendarDays aria-hidden className="size-3.5" />}>
+                      <ContactRow icon={<CalendarDays aria-hidden className="size-4" />}>
                         Guest since {formatDate(guest.createdAt, "MMM yyyy")}
                       </ContactRow>
                       <button type="button"
@@ -457,7 +457,7 @@ export function GuestDetailSheet({
                           setContactDraft({ email: guest.email || "", phone: guest.phone || "", nationality: guest.nationality || "" });
                           setEditingContact(true);
                         }}
-                        className="ui-press flex min-h-11 cursor-pointer items-center gap-2.5 py-2 text-[13px] font-medium text-[var(--pen-accent)] sm:min-h-0">
+                        className="ui-press flex min-h-11 cursor-pointer items-center gap-3 py-2 text-[13px] font-medium text-[var(--pen-accent)] sm:min-h-0">
                         Edit contact
                       </button>
                     </>
@@ -465,18 +465,18 @@ export function GuestDetailSheet({
                 </section>
 
                 {/* Notes band fills the rest */}
-                <section aria-label="Guest notes" className="flex flex-1 flex-col gap-2.5 px-6 pb-5 pt-4">
-                  <div className="flex items-center gap-2.5">
-                    <h3 className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
+                <section aria-label="Guest notes" className="flex flex-1 flex-col gap-3 px-6 pb-5 pt-4">
+                  <div className="flex items-center gap-3">
+                    <h3 className="flex items-center gap-2 text-[13px] font-semibold text-foreground">
                       Notes
-                      {guest.notes && <span aria-hidden className="size-1.5 rounded-full bg-[var(--warning)]" />}
+                      {guest.notes && <span aria-hidden className="size-2 rounded-full bg-[var(--warning)]" />}
                     </h3>
                     <span className="min-w-0 flex-1" aria-hidden="true" />
                     <button type="button" aria-label={editingNotes ? "Close notes editor" : "Edit notes"}
                       onClick={() => { setNotesDraft(guest.notes || ""); setEditingNotes((p) => !p); }}
                       className={cn("ui-press grid size-11 cursor-pointer place-items-center rounded-lg sm:size-7 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",
                         editingNotes ? "text-foreground" : "text-muted-foreground/60")}>
-                      <StickyNote className="size-4 sm:size-3.5" aria-hidden="true" />
+                      <StickyNote className="size-4 sm:size-4" aria-hidden="true" />
                     </button>
                   </div>
                   {editingNotes ? (
@@ -485,7 +485,7 @@ export function GuestDetailSheet({
                         aria-label="Guest notes"
                         onChange={(event) => setNotesDraft(event.target.value)}
                         placeholder="Preferences, requests, or internal notes…"
-                        className="w-full resize-none rounded-xl border border-border/60 bg-card px-3 py-2.5 text-base leading-relaxed text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:text-xs" />
+                        className="w-full resize-none rounded-xl border border-border/60 bg-card px-3 py-3 text-base leading-relaxed text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:text-xs" />
                       <div className="flex justify-end gap-2">
                         <button type="button" onClick={() => { setEditingNotes(false); setNotesDraft(guest.notes || ""); }}
                           className="ui-press h-11 cursor-pointer rounded-full px-4 text-xs font-medium text-muted-foreground sm:h-8 sm:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground">
@@ -513,7 +513,7 @@ export function GuestDetailSheet({
           </Tabs>
 
           {/* Footer CTA */}
-          <div className="shrink-0 border-t border-border/60 bg-card px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3.5">
+          <div className="shrink-0 border-t border-border/60 bg-card px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
             <button type="button"
               onClick={() => {
                 handleClose(false);
@@ -549,7 +549,7 @@ function StatCell({ value, label }: { value: string; label: string }) {
 }
 
 function ContactRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
-  return <div className="flex items-center gap-2.5 py-2 text-[13px] text-foreground">
+  return <div className="flex items-center gap-3 py-2 text-[13px] text-foreground">
     <span className="text-muted-foreground/60">{icon}</span>
     <span className="min-w-0 flex-1 truncate">{children}</span>
   </div>;
@@ -641,8 +641,8 @@ function BookingHistory({
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="py-3">
             <div className="flex items-center justify-between">
-              <Skeleton className="h-3.5 w-24 rounded" />
-              <Skeleton className="h-3.5 w-16 rounded" />
+              <Skeleton className="h-4 w-24 rounded" />
+              <Skeleton className="h-4 w-16 rounded" />
             </div>
             <Skeleton className="mt-2 h-3 w-40 rounded" />
           </div>
@@ -656,7 +656,7 @@ function BookingHistory({
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <CalendarX2 aria-hidden className="mb-2 size-6 text-muted-foreground/30" />
         <p className="text-[13px] font-medium text-foreground">No booking history</p>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">This guest has no bookings yet.</p>
+        <p className="mt-1 text-[11px] text-muted-foreground">This guest has no bookings yet.</p>
       </div>
     );
   }
@@ -673,7 +673,7 @@ function BookingHistory({
                 {r.reference}
               </span>
               {r.roomsTotal > 1 && (
-                <span className="inline-flex shrink-0 items-center rounded-full bg-secondary px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                <span className="inline-flex shrink-0 items-center rounded-full bg-secondary px-2 py-1 text-[11px] font-semibold text-muted-foreground">
                   {r.roomsTotal} rooms
                 </span>
               )}
@@ -717,8 +717,8 @@ const HISTORY_DOTS: Record<string, string> = {
 
 function StatusChip({ status }: { status: string }) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-      <span className={cn("size-1.5 rounded-full", HISTORY_DOTS[status] ?? "bg-muted-foreground")} />
+    <span className="inline-flex shrink-0 items-center gap-2 text-[11px] font-medium text-muted-foreground">
+      <span className={cn("size-2 rounded-full", HISTORY_DOTS[status] ?? "bg-muted-foreground")} />
       {getStatusLabel(status)}
     </span>
   );

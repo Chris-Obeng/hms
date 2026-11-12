@@ -229,7 +229,7 @@ export function BookingDetailDrawer({
             md:border-l md:border-border/70 md:shadow-[-32px_0_90px_rgb(0_0_0/0.16)]
           `}
         >
-          {isMobile && <Drawer.Handle className="mt-2.5 shrink-0" />}
+          {isMobile && <Drawer.Handle className="mt-3 shrink-0" />}
 
           {isPending ? (
             <DrawerSkeleton />
@@ -244,7 +244,7 @@ export function BookingDetailDrawer({
           ) : (
             <>
               {/* Header band */}
-              <Drawer.Header className="shrink-0 flex-col items-start gap-2.5 border-b border-border/60 bg-card px-6 pb-4 pt-[max(1.25rem,env(safe-area-inset-top))] md:pt-[max(1.25rem,4.5rem)]">
+              <Drawer.Header className="shrink-0 flex-col items-start gap-3 border-b border-border/60 bg-card px-6 pb-4 pt-[max(1.25rem,env(safe-area-inset-top))] md:pt-[max(1.25rem,4.5rem)]">
                 <div className="flex w-full min-w-0 items-center gap-2">
                   <BookingStatusPill status={reservationStatus} className="shrink-0" />
                   <ReferenceChip reference={booking.reference} className="min-w-0" />
@@ -278,17 +278,17 @@ export function BookingDetailDrawer({
                         }}
                       >
                         <Dropdown.Item id="open-page" textValue="Open full folio" className="text-foreground">
-                          <ArrowUpRight className="size-3.5 text-muted-foreground" />
+                          <ArrowUpRight className="size-4 text-muted-foreground" />
                           <span>Open full folio</span>
                         </Dropdown.Item>
                         {canReinstate ? (
                           <Dropdown.Item id="reinstate" textValue="Reinstate reservation" className="text-foreground">
-                            <RotateCcw className="size-3.5 text-muted-foreground" />
+                            <RotateCcw className="size-4 text-muted-foreground" />
                             <span>Reinstate reservation</span>
                           </Dropdown.Item>
                         ) : (
                           <Dropdown.Item id="cancel" textValue="Cancel reservation" isDisabled={!canCancel} className="text-[var(--danger)] data-[hovered=true]:bg-[var(--danger)]/10">
-                            <Ban className="size-3.5 text-[var(--danger)]" />
+                            <Ban className="size-4 text-[var(--danger)]" />
                             <span>Cancel reservation</span>
                           </Dropdown.Item>
                         )}
@@ -315,7 +315,7 @@ export function BookingDetailDrawer({
                 onSelectionChange={(key) => setTab(key as DrawerTab)}
                 className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
               >
-                <div className="shrink-0 border-b border-border/60 bg-card px-6 py-2.5">
+                <div className="shrink-0 border-b border-border/60 bg-card px-6 py-3">
                   <Tabs.ListContainer>
                     <Tabs.List aria-label="Reservation sections" className="grid w-full grid-cols-2">
                       <SegmentedTab id="overview">Overview</SegmentedTab>
@@ -399,7 +399,7 @@ export function BookingDetailDrawer({
                 </ScrollArea>
 
                 {/* Footer CTA: lifecycle on Overview, Record payment on Payment */}
-                <div className="shrink-0 border-t border-border/60 bg-card px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3.5 max-md:pt-3">
+                <div className="shrink-0 border-t border-border/60 bg-card px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 max-md:pt-3">
                   {tab === "payments" ? (
                     canRecordPayment || paymentFormOpen ? (
                       <button type="button"
@@ -488,14 +488,14 @@ function AlertDialogish({ open, mode, busy, onClose, onConfirm }: {
         className="mx-auto mt-[35vh] w-[min(22rem,90vw)] rounded-2xl border border-border/60 bg-card p-5 shadow-2xl"
         onClick={(event) => event.stopPropagation()}>
         <h2 className="text-sm font-semibold text-foreground">{cancel ? "Cancel this reservation?" : "Reinstate this reservation?"}</h2>
-        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
           {cancel
             ? "The rooms are released and the guest is notified by email. Other rooms in the reservation are not affected."
             : "The reservation returns to confirmed and its rooms are held again."}
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" autoFocus onClick={onClose}
-            className="h-9 rounded-full px-3.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+            className="h-9 rounded-full px-4 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
             Keep reservation
           </button>
           <button type="button" disabled={busy} onClick={onConfirm}
@@ -516,7 +516,7 @@ function DrawerSkeleton() {
         <Skeleton className="h-6 w-24 rounded-full" />
         <Skeleton className="h-6 w-20 rounded-lg" />
       </div>
-      <Skeleton className="mt-2.5 h-7 w-44 rounded-lg" />
+      <Skeleton className="mt-3 h-7 w-44 rounded-lg" />
       <Skeleton className="mt-4 h-10 w-full rounded-full" />
       <div className="mt-4 border-b border-border/60 pb-5">
         <Skeleton className="h-6 w-40 rounded" />

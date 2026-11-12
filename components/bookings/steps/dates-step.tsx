@@ -22,7 +22,7 @@ export function DatesStep({ value, onChange, nights, error }: DatesStepProps) {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-      <div className="flex items-start gap-2.5">
+      <div className="flex items-start gap-3">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
           <CalendarDays className="size-4 text-primary" />
         </div>
@@ -48,7 +48,7 @@ export function DatesStep({ value, onChange, nights, error }: DatesStepProps) {
             {formatDate(new Date(value.start.year, value.start.month - 1, value.start.day))} →{" "}
             {formatDate(new Date(value.end.year, value.end.month - 1, value.end.day))}
           </span>
-          <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+          <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
             {nightsLabel(nights)}
           </span>
         </div>

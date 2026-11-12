@@ -24,14 +24,14 @@ export function BookingStatusPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ring-1 ring-inset",
+        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold capitalize ring-1 ring-inset",
         STATUS_PILL_CLASSES[key] ?? STATUS_PILL_FALLBACK,
         className
       )}
     >
       <span
         aria-hidden
-        className={cn("size-1.5 rounded-full", STATUS_COLORS[key] ?? STATUS_DOT_FALLBACK)}
+        className={cn("size-2 rounded-full", STATUS_COLORS[key] ?? STATUS_DOT_FALLBACK)}
       />
       {getStatusLabel(key)}
     </span>
@@ -65,7 +65,7 @@ export function ReferenceChip({
       title="Copy reference"
       aria-label={`Copy reference ${reference}`}
       className={cn(
-        "group inline-flex h-7 min-w-0 cursor-pointer items-center gap-1.5 rounded-lg px-2 text-muted-foreground transition-colors",
+        "group inline-flex h-7 min-w-0 cursor-pointer items-center gap-2 rounded-lg px-2 text-muted-foreground transition-colors",
         "hover:bg-muted hover:text-foreground active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className
       )}
