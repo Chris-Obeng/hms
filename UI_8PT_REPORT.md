@@ -4,6 +4,16 @@ Branch: `ui/8pt-grid`. Scope: visual-only (spacing, sizes, radii, line-heights).
 
 **Verification status, read first:** the build, typecheck, lint and tests pass. **No visual verification of any page except `/offline` was possible.** With placeholder env values (no Clerk, Supabase, Sentry or Paystack credentials) every route except `/offline` returns HTTP 500, and dashboard and platform pages also need authentication. All visual results below are therefore UNVERIFIED (see section 7). The numbers in this report come from static analysis of source, not from computed styles in a browser.
 
+## Marks, dots, accent bars and touch areas (all changes)
+
+Calendar and availability CSS (`calendar.css`, `availability.css`):
+- Status dots 7 -> 8px (4 places: calendar lines ~39, ~262, ~771 and availability equivalent); availability corner dot 5 -> 4px with offset 6 -> 8px.
+- Chip icon/marker widths 10 -> 12px and 11 -> 12px; 11 -> 12px square marks.
+- Accent bar `.rl-*` 3px -> 4px wide, left 3 -> 4px, top/bottom 5 -> 4px; second accent bar 2.5 -> 4px wide, 13 -> 12px tall.
+- `.rl-block-bar` top 9 -> 8px, height 34 -> 36px.
+Tailwind marks: legend swatches, status markers and tooltip arrow `size-2.5` (10px) -> `size-3` (12px); `size-[34px]` button -> `size-8`.
+Touch areas: no hit-area change. The notification bell `max-md:after:-inset-0.5` overhang was reverted to main (2px) after review.
+
 ## 1. SUMMARY
 
 ### What changed
@@ -22,7 +32,7 @@ Branch: `ui/8pt-grid`. Scope: visual-only (spacing, sizes, radii, line-heights).
 | oddSteps (half steps and 5/7/9/11 Tailwind steps) | 1577 | 634 | -943 |
 | arbitrary (total) | 1026 | 991 | -35 |
 | arbText (`text-[..px]`) | 584 | 584 | 0 (kept) |
-| arbRounded (`rounded-[..]`) | 146 | 146 | 0 (values moved onto 4px multiples, count unchanged; rest are kept exceptions) |
+| arbRounded (`rounded-[..]`) | 146 | 146 | 0 (count unchanged; values restored to main, none moved) |
 | arbLeading (`leading-[..]`) | 7 | 5 | -2 |
 | inlineStylePx | 86 | 83 | -3 |
 | cssPxValues (all px values in css) | 400 | 400 | 0 (values changed, count same) |
@@ -46,7 +56,7 @@ Defined in `app/globals.css` `@theme inline` (comment block at top) and Tailwind
 - **Spacing:** Tailwind `--spacing` = 4px. Preferred steps 1, 2, 3, 4, 6, 8, 12, 16 = 4, 8, 12, 16, 24, 32, 48, 64px. Steps 5, 7, 9, 11 (20, 28, 36, 44px) are 4px multiples and tolerated for icons and sizes. Half steps are no longer used in migrated files.
 - **Page padding (documented target):** 16 mobile / 24 tablet / 32 desktop; section spacing 32/48/64. Documented only, not retrofitted (Needs decision).
 - **Control heights:** 32 (h-8), 40 (h-10), 48 (h-12); mobile touch targets >= 44px (min-h-11). Existing h-7/h-9 (28/36px) remain (Needs decision). Onboarding desktop control 42 -> 40px.
-- **Radius (unchanged, including CSS files):** no radius value was changed; all CSS `border-radius` and `--ob-radius` (10px) values were restored to their original values after review. Tokens: `--radius` 0.625rem = 10px gives sm 6, md 8, lg 10, xl 14, 2xl 18, 3xl 22, 4xl 26px. Target scale 4/8/12/16/full not applied (Needs decision).
+- **Radius (unchanged, CSS and TSX):** no radius value was changed. CSS `border-radius`, `--ob-radius` (10px) and all TSX `rounded-[Npx]` values (including 9/10/14/18px) were restored to their original values after review (verified: the `git diff main` of `rounded-[..]` tokens is empty). Tokens: `--radius` 0.625rem = 10px gives sm 6, md 8, lg 10, xl 14, 2xl 18, 3xl 22, 4xl 26px. Target scale 4/8/12/16/full not applied (Needs decision).
 - **Type sizes (unchanged):** 11 (caption), 12 (label), 14 (body), 15 (section), 22 (page title), 28 (KPI), 36px.
 - **Line-heights (changed):**
 
@@ -112,7 +122,7 @@ All pages: visual verification UNVERIFIED unless noted. Per-page status for all 
 | h-7 / h-9 (28 / 36px) | button-styles, view-mode-toggle, segmented-tab, entity-filters | Mapping to 32/40 changes many screens |
 | Hairlines and borders <= 2px, ring widths | everywhere | Borders, shadows, focus rings exempt |
 | Brand logo glyph bars (`w-[6px]`, `gap-[3px]`, `rounded-[1px]`), landing `.rl-mark` (2.5px gap, 4.5px bars, 19/15px heights), onboarding `.ob-brand-mark` (26px, 7px radius), header Plus icon `sm:size-3.5` | auth, landing, onboarding, header | Logo artwork |
-| `rounded-[20px]`, `[24px]`, `[28px]`, pill radius 99px | various | On a 4px multiple or pill; not changed |
+| `rounded-[Npx]` (all TSX values), pill radius 99px | various | Not changed; radii are an owner decision |
 | Radius tokens 6/10/14/18/22/26px | `--radius` derived | Shared by every component (Needs decision) |
 | Safe-area `env()` paddings, breakpoints `min-[..]`/`max-[..]`, tracking | various | Not spacing |
 | `max-w` / `w` measures that are 4px multiples | various | On grid |
