@@ -4,6 +4,22 @@
 @import "./landing.css";
 
 @theme inline {
+  /* ── 8-point grid: token scales (documented) ───────────────────
+   *  Spacing: Tailwind v4 default --spacing is 0.25rem (4px). Use
+   *    steps 1,2,3,4,6,8,12,16 (4,8,12,16,24,32,48,64px) for
+   *    padding, margin, gap, sizes. Avoid half steps (.5) and
+   *    5,7,9,11 in new code. Page padding 16 mobile / 24 tablet /
+   *    32 desktop; section spacing 32/48/64.
+   *  Control heights: 32 (h-8), 40 (h-10), 48 (h-12); touch
+   *    targets on mobile >= 44px (min-h-11).
+   *  Radius: derives from --radius (0.625rem = 10px):
+   *    sm 6, md 8, lg 10, xl 14, 2xl 18, 3xl 22, 4xl 26 px.
+   *    These are off-scale (target 4/8/12/16/full) but shared by
+   *    every component; NOT changed (see UI_8PT_INVENTORY.md,
+   *    Needs decision).
+   *  Type: sizes 11/12/14/15/22/28/36px; line-heights snap to
+   *    multiples of 4 (16/20/24/28; KPI 28/36 at 1.0).
+   * ────────────────────────────────────────────────────────────── */
   @keyframes accordion-down {
     from {
       height: 0;
@@ -85,17 +101,17 @@
   /* Page-level heading (h1 per page) */
   --text-page-title-size: 1.375rem;   /* 22px */
   --text-page-title-weight: 700;
-  --text-page-title-lh: 1.2;
+  --text-page-title-lh: 1.75rem;   /* 28px (was 1.2 = 26.4px) */
 
   /* Card titles / section headers */
   --text-section-size: 0.9375rem;     /* 15px */
   --text-section-weight: 600;
-  --text-section-lh: 1.3;
+  --text-section-lh: 1.25rem;      /* 20px (was 1.3 = 19.5px) */
 
   /* Table cells, descriptions, form fields (= base body) */
   --text-body-size: 0.875rem;         /* 14px */
   --text-body-weight: 400;
-  --text-body-lh: 1.6;
+  --text-body-lh: 1.5rem;          /* 24px (was 1.6 = 22.4px) */
 
   /* Field labels, group labels, badge text */
   --text-label-size: 0.75rem;         /* 12px */
@@ -140,12 +156,12 @@
   --onboarding-input-height: 2.75rem;
   --onboarding-button-height: 2.75rem;
   --onboarding-section-gap: 1.5rem;
-  --text-label-lh: 1.4;
+  --text-label-lh: 1rem;           /* 16px (was 1.4 = 16.8px) */
 
   /* Timestamps, secondary metadata — FLOOR */
   --text-caption-size: 0.6875rem;     /* 11px – minimum allowed */
   --text-caption-weight: 400;
-  --text-caption-lh: 1.4;
+  --text-caption-lh: 1rem;         /* 16px (was 1.4 = 15.4px) */
 
   /* KPI numerals — card-level (28px) */
   --text-kpi-size: 1.75rem;           /* 28px */
