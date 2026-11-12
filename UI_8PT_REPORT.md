@@ -1,6 +1,6 @@
 # UI 8-point grid report
 
-Branch: `ui/8pt-grid`. Scope: visual-only (spacing, sizes, radii, line-heights). No logic, copy, routes, server actions, auth, DB or payment code was changed. Inventory: `UI_8PT_INVENTORY.md`. Audit data: `ui-audit/baseline.json`, `ui-audit/after.json` (`node scripts/ui-8pt-audit.mjs --json <file>`).
+Branch: `ui/8pt-grid`. Scope: visual-only (spacing, sizes, radii, line-heights). No logic, copy, routes, server actions, auth, DB or payment code was changed. Inventory: `UI_8PT_INVENTORY.md`. Audit data: `ui-audit/baseline.json`. Regenerate the after data with `node scripts/ui-8pt-audit.mjs --json <file>` (not tracked).
 
 **Verification status, read first:** the build, typecheck, lint and tests pass. **No visual verification of any page except `/offline` was possible.** With placeholder env values (no Clerk, Supabase, Sentry or Paystack credentials) every route except `/offline` returns HTTP 500, and dashboard and platform pages also need authentication. All visual results below are therefore UNVERIFIED (see section 7). The numbers in this report come from static analysis of source, not from computed styles in a browser.
 
@@ -46,7 +46,7 @@ Defined in `app/globals.css` `@theme inline` (comment block at top) and Tailwind
 - **Spacing:** Tailwind `--spacing` = 4px. Preferred steps 1, 2, 3, 4, 6, 8, 12, 16 = 4, 8, 12, 16, 24, 32, 48, 64px. Steps 5, 7, 9, 11 (20, 28, 36, 44px) are 4px multiples and tolerated for icons and sizes. Half steps are no longer used in migrated files.
 - **Page padding (documented target):** 16 mobile / 24 tablet / 32 desktop; section spacing 32/48/64. Documented only, not retrofitted (Needs decision).
 - **Control heights:** 32 (h-8), 40 (h-10), 48 (h-12); mobile touch targets >= 44px (min-h-11). Existing h-7/h-9 (28/36px) remain (Needs decision). Onboarding desktop control 42 -> 40px.
-- **Radius (unchanged):** `--radius` 0.625rem = 10px gives sm 6, md 8, lg 10, xl 14, 2xl 18, 3xl 22, 4xl 26px. Target scale 4/8/12/16/full not applied (Needs decision).
+- **Radius (unchanged, including CSS files):** no radius value was changed; all CSS `border-radius` and `--ob-radius` (10px) values were restored to their original values after review. Tokens: `--radius` 0.625rem = 10px gives sm 6, md 8, lg 10, xl 14, 2xl 18, 3xl 22, 4xl 26px. Target scale 4/8/12/16/full not applied (Needs decision).
 - **Type sizes (unchanged):** 11 (caption), 12 (label), 14 (body), 15 (section), 22 (page title), 28 (KPI), 36px.
 - **Line-heights (changed):**
 
@@ -86,15 +86,15 @@ All pages: visual verification UNVERIFIED unless noted. Per-page status for all 
 | Page / area | Changes | Remaining exceptions | Why |
 |---|---|---|---|
 | `/offline` | none needed | none | Only page rendered in a browser; before screenshots at 390 and 1440 in `ui-audit/before/`. Not re-captured after changes. |
-| `/` landing (`app/landing.css`, `components/landing/*`) | CSS px/rem snapped to 4px multiples, half steps removed | fractional line-heights 0.98/1.04/1.25/1.4/1.45/1.55, `text-[Npx]` | Ratio line-heights on display type; snapping alters heading rhythm |
+| `/` landing (`app/landing.css`) | CSS px/rem snapped to 4px multiples, half steps removed | fractional line-heights 0.98/1.04/1.25/1.4/1.45/1.55, `text-[Npx]` | Ratio line-heights on display type; snapping alters heading rhythm |
 | `/sign-in`, `/sign-up` | spacing and arbitrary sizes snapped | `leading-[1.05]` on display titles, logo glyph bars `w-[6px]`, `gap-[3px]`, `rounded-[1px]` | Brand mark and display type |
-| `/onboarding` (`onboarding.css`, `_components/*`) | CSS px snapped; desktop control height 42 -> 40px; skeleton uses `var(--ob-control-h)` | coarse-pointer 44px, `text-[Npx]` | Touch target guidance |
+| `/onboarding` (`onboarding.css`, `page.tsx` skeleton) | CSS px snapped; desktop control height 42 -> 40px; skeleton uses `var(--ob-control-h)` | coarse-pointer 44px, `text-[Npx]` | Touch target guidance |
 | `/deactivated`, `/suspended` | spacing snapped | `text-[Npx]` | Type hierarchy |
 | `/[slug]` booking wizard (`booking.css`, `_components/booking-wizard.tsx`) | half steps, arbitrary px, CSS px snapped | 320 audit hits remain, mostly `text-[Npx]`, steps 5/7/9/11, `rounded-[20/24/28px]` | Type hierarchy; 4px multiples |
 | `/[slug]/confirmation` | spacing snapped | 103 hits remain, same causes | same |
 | `/dashboard` (home) | half steps, arbitrary px snapped | page padding not unified | Needs decision |
 | `/dashboard/bookings`, `bookings/[id]`, `bookings-table`, `booking-deep-link-client` | snapped | `text-[Npx]`, odd 4px steps | same |
-| `/dashboard/calendar` (`calendar.css`) | CSS px snapped | hairlines, cell dimensions that are 4px multiples | Grid layout kept |
+| `/dashboard/calendar` (`calendar.css`) | CSS px snapped | hairlines, cell dimensions that are 4px multiples; chip/pill horizontal padding 6 -> 8px and 5 -> 4px, 3px accent bars -> 4px (`.rl-block-bar` top 9 -> 8px, height 34 -> 36px). Dot/chip radii kept. Not visually verified | Grid layout kept |
 | `/dashboard/availability` (`availability.css`) | CSS px snapped | hairlines | same |
 | `/dashboard/customers`, `guest-detail-sheet` | snapped | `text-[Npx]` | same |
 | `/dashboard/rooms`, `rooms/pricing` | snapped | `pricing-client.tsx` 118 hits, mostly font sizes | same |
@@ -111,7 +111,7 @@ All pages: visual verification UNVERIFIED unless noted. Per-page status for all 
 | Steps 5, 7, 9, 11 (20, 28, 36, 44px) | icons, sizes, shared components | They are multiples of 4px (4pt-compliant); 44px is a touch target |
 | h-7 / h-9 (28 / 36px) | button-styles, view-mode-toggle, segmented-tab, entity-filters | Mapping to 32/40 changes many screens |
 | Hairlines and borders <= 2px, ring widths | everywhere | Borders, shadows, focus rings exempt |
-| Brand logo glyph bars (`w-[6px]`, `gap-[3px]`, `rounded-[1px]`) | auth, landing | Logo artwork |
+| Brand logo glyph bars (`w-[6px]`, `gap-[3px]`, `rounded-[1px]`), landing `.rl-mark` (2.5px gap, 4.5px bars, 19/15px heights), onboarding `.ob-brand-mark` (26px, 7px radius), header Plus icon `sm:size-3.5` | auth, landing, onboarding, header | Logo artwork |
 | `rounded-[20px]`, `[24px]`, `[28px]`, pill radius 99px | various | On a 4px multiple or pill; not changed |
 | Radius tokens 6/10/14/18/22/26px | `--radius` derived | Shared by every component (Needs decision) |
 | Safe-area `env()` paddings, breakpoints `min-[..]`/`max-[..]`, tracking | various | Not spacing |
