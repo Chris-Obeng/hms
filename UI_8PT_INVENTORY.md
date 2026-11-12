@@ -19,18 +19,18 @@ Generated for branch `ui/8pt-grid`. Baseline smell counts come from `ui-audit/ba
 
 | Page | Path | Shared components used | Baseline score | Status |
 |---|---|---|---|---|
-| /sign-in/[[...sign-in]] (page) | `app/(admin)/(auth)/sign-in/[[...sign-in]]/page.tsx` | - | 28 | TODO |
-| /sign-up/[[...sign-up]] (page) | `app/(admin)/(auth)/sign-up/[[...sign-up]]/page.tsx` | - | 27 | TODO |
-| /deactivated (page) | `app/(admin)/deactivated/page.tsx` | - | 5 | TODO |
-| / (error) | `app/(admin)/error.tsx` | errors/route-error | 0 | TODO |
-| /onboarding (layout) | `app/(admin)/onboarding/layout.tsx` | - | 0 | TODO |
-| /onboarding (page) | `app/(admin)/onboarding/page.tsx` | ./_components/step-indicator, ./_components/onboarding-input, ./_components/onboarding-select, ./_components/room-stepper | 16 | TODO |
-| /suspended (page) | `app/(admin)/suspended/page.tsx` | - | 4 | TODO |
-| /[slug]/confirmation (error) | `app/[slug]/confirmation/error.tsx` | errors/use-boundary-report | 13 | TODO |
-| /[slug]/confirmation (page) | `app/[slug]/confirmation/page.tsx` | booking/copy-button, booking/payment-verifier, booking/complete-payment-panel, booking/booking-progress | 128 | TODO |
-| /[slug] (error) | `app/[slug]/error.tsx` | errors/use-boundary-report | 9 | TODO |
-| /[slug] (layout) | `app/[slug]/layout.tsx` | - | 0 | TODO |
-| /[slug] (page) | `app/[slug]/page.tsx` | ./_components/booking-wizard | 0 | TODO |
+| /sign-in/[[...sign-in]] (page) | `app/(admin)/(auth)/sign-in/[[...sign-in]]/page.tsx` | - | 28 | DONE |
+| /sign-up/[[...sign-up]] (page) | `app/(admin)/(auth)/sign-up/[[...sign-up]]/page.tsx` | - | 27 | DONE |
+| /deactivated (page) | `app/(admin)/deactivated/page.tsx` | - | 5 | DONE |
+| / (error) | `app/(admin)/error.tsx` | errors/route-error | 0 | DONE |
+| /onboarding (layout) | `app/(admin)/onboarding/layout.tsx` | - | 0 | DONE |
+| /onboarding (page) | `app/(admin)/onboarding/page.tsx` | ./_components/step-indicator, ./_components/onboarding-input, ./_components/onboarding-select, ./_components/room-stepper | 16 | DONE |
+| /suspended (page) | `app/(admin)/suspended/page.tsx` | - | 4 | DONE |
+| /[slug]/confirmation (error) | `app/[slug]/confirmation/error.tsx` | errors/use-boundary-report | 13 | DONE |
+| /[slug]/confirmation (page) | `app/[slug]/confirmation/page.tsx` | booking/copy-button, booking/payment-verifier, booking/complete-payment-panel, booking/booking-progress | 128 | DONE |
+| /[slug] (error) | `app/[slug]/error.tsx` | errors/use-boundary-report | 9 | DONE |
+| /[slug] (layout) | `app/[slug]/layout.tsx` | - | 0 | DONE |
+| /[slug] (page) | `app/[slug]/page.tsx` | ./_components/booking-wizard | 0 | DONE |
 | /dashboard/availability (page) | `app/dashboard/availability/page.tsx` | - | 0 | TODO |
 | /dashboard/bookings/[id] (page) | `app/dashboard/bookings/[id]/page.tsx` | - | 0 | TODO |
 | /dashboard/bookings (error) | `app/dashboard/bookings/error.tsx` | errors/route-error | 0 | TODO |
@@ -67,11 +67,11 @@ Generated for branch `ui/8pt-grid`. Baseline smell counts come from `ui-audit/ba
 | /dashboard/settings/payments (page) | `app/dashboard/settings/payments/page.tsx` | - | 0 | TODO |
 | /dashboard/staff (page) | `app/dashboard/staff/page.tsx` | - | 1 | TODO |
 | /dashboard/staff/pending (page) | `app/dashboard/staff/pending/page.tsx` | ui/button | 7 | TODO |
-| / (error) | `app/error.tsx` | errors/route-error | 0 | TODO |
+| / (error) | `app/error.tsx` | errors/route-error | 0 | DONE |
 | / (global-error) | `app/global-error.tsx` | errors/use-boundary-report | 12 | TODO |
-| /join/[[...rest]] (page) | `app/join/[[...rest]]/page.tsx` | - | 4 | TODO |
+| /join/[[...rest]] (page) | `app/join/[[...rest]]/page.tsx` | - | 4 | DONE |
 | / (layout) | `app/layout.tsx` | toast-provider, ui/tooltip, providers | 0 | TODO |
-| / (page) | `app/page.tsx` | landing/site-header, landing/site-footer, landing/hero, landing/showcase, landing/deep-dive, landing/how, landing/demo-cta | 0 | TODO |
+| / (page) | `app/page.tsx` | landing/site-header, landing/site-footer, landing/hero, landing/showcase, landing/deep-dive, landing/how, landing/demo-cta | 0 | DONE |
 | /platform/dashboard (page) | `app/platform/(protected)/dashboard/page.tsx` | - | 0 | TODO |
 | /platform (error) | `app/platform/(protected)/error.tsx` | errors/route-error | 0 | TODO |
 | /platform/hotels/[hotelId] (page) | `app/platform/(protected)/hotels/[hotelId]/page.tsx` | - | 14 | TODO |
@@ -79,18 +79,18 @@ Generated for branch `ui/8pt-grid`. Baseline smell counts come from `ui-audit/ba
 | /platform (loading) | `app/platform/(protected)/loading.tsx` | - | 7 | TODO |
 | /platform (page) | `app/platform/(protected)/page.tsx` | ./_components/types, ./_components/oversight-table | 8 | TODO |
 | /platform/settings (page) | `app/platform/(protected)/settings/page.tsx` | - | 2 | TODO |
-| /platform/auth/error (page) | `app/platform/auth/error/page.tsx` | ui/card | 0 | TODO |
-| /platform (error) | `app/platform/error.tsx` | errors/route-error | 0 | TODO |
-| /platform/forgot-password (page) | `app/platform/forgot-password/page.tsx` | ./_components/forgot-password-form | 0 | TODO |
-| /platform/sign-in (page) | `app/platform/sign-in/page.tsx` | ./_components/login-form | 0 | TODO |
-| /platform/update-password (page) | `app/platform/update-password/page.tsx` | ./_components/update-password-form | 0 | TODO |
+| /platform/auth/error (page) | `app/platform/auth/error/page.tsx` | ui/card | 0 | DONE |
+| /platform (error) | `app/platform/error.tsx` | errors/route-error | 0 | DONE |
+| /platform/forgot-password (page) | `app/platform/forgot-password/page.tsx` | ./_components/forgot-password-form | 0 | DONE |
+| /platform/sign-in (page) | `app/platform/sign-in/page.tsx` | ./_components/login-form | 0 | DONE |
+| /platform/update-password (page) | `app/platform/update-password/page.tsx` | ./_components/update-password-form | 0 | DONE |
 
 ## Overlays and form components (31)
 
 | Component | Path | Baseline score | Status |
 |---|---|---|---|
-| onboarding-select | `app/(admin)/onboarding/_components/onboarding-select.tsx` | 0 | TODO |
-| booking-wizard | `app/[slug]/_components/booking-wizard.tsx` | 400 | TODO |
+| onboarding-select | `app/(admin)/onboarding/_components/onboarding-select.tsx` | 0 | DONE |
+| booking-wizard | `app/[slug]/_components/booking-wizard.tsx` | 400 | DONE |
 | block-detail-drawer | `app/dashboard/calendar/_components/block-detail-drawer.tsx` | 26 | TODO |
 | block-room-sheet | `app/dashboard/calendar/_components/block-room-sheet.tsx` | 19 | TODO |
 | room-type-form | `app/dashboard/rooms/_components/room-type-form.tsx` | 27 | TODO |
@@ -103,11 +103,11 @@ Generated for branch `ui/8pt-grid`. Baseline smell counts come from `ui-audit/ba
 | _lifecycle-actions | `app/platform/(protected)/hotels/[hotelId]/_lifecycle-actions.tsx` | 3 | TODO |
 | _mfa-card | `app/platform/(protected)/settings/_mfa-card.tsx` | 14 | TODO |
 | settings-client | `app/platform/(protected)/settings/settings-client.tsx` | 13 | TODO |
-| forgot-password-form | `app/platform/forgot-password/_components/forgot-password-form.tsx` | 2 | TODO |
-| login-form | `app/platform/sign-in/_components/login-form.tsx` | 7 | TODO |
-| update-password-form | `app/platform/update-password/_components/update-password-form.tsx` | 3 | TODO |
-| booking-date-range-picker | `components/booking/booking-date-range-picker.tsx` | 43 | TODO |
-| guest-picker-popover | `components/booking/guest-picker-popover.tsx` | 31 | TODO |
+| forgot-password-form | `app/platform/forgot-password/_components/forgot-password-form.tsx` | 2 | DONE |
+| login-form | `app/platform/sign-in/_components/login-form.tsx` | 7 | DONE |
+| update-password-form | `app/platform/update-password/_components/update-password-form.tsx` | 3 | DONE |
+| booking-date-range-picker | `components/booking/booking-date-range-picker.tsx` | 43 | DONE |
+| guest-picker-popover | `components/booking/guest-picker-popover.tsx` | 31 | DONE |
 | booking-detail-drawer | `components/bookings/booking-detail-drawer.tsx` | 32 | TODO |
 | new-booking-modal | `components/bookings/new-booking-modal.tsx` | 0 | TODO |
 | guest-detail-sheet | `components/customers/guest-detail-sheet.tsx` | 104 | TODO |
@@ -125,9 +125,9 @@ Generated for branch `ui/8pt-grid`. Baseline smell counts come from `ui-audit/ba
 
 | Component | Path | Baseline score | Status |
 |---|---|---|---|
-| onboarding-input | `app/(admin)/onboarding/_components/onboarding-input.tsx` | 0 | TODO |
-| room-stepper | `app/(admin)/onboarding/_components/room-stepper.tsx` | 0 | TODO |
-| step-indicator | `app/(admin)/onboarding/_components/step-indicator.tsx` | 0 | TODO |
+| onboarding-input | `app/(admin)/onboarding/_components/onboarding-input.tsx` | 0 | DONE |
+| room-stepper | `app/(admin)/onboarding/_components/room-stepper.tsx` | 0 | DONE |
+| step-indicator | `app/(admin)/onboarding/_components/step-indicator.tsx` | 0 | DONE |
 | activity-list | `app/dashboard/_components/activity-list.tsx` | 111 | TODO |
 | activity-tabs | `app/dashboard/_components/activity-tabs.tsx` | 15 | TODO |
 | dashboard-search | `app/dashboard/_components/dashboard-search.tsx` | 22 | TODO |
@@ -166,15 +166,15 @@ Generated for branch `ui/8pt-grid`. Baseline smell counts come from `ui-audit/ba
 | payments-client | `app/dashboard/settings/payments/payments-client.tsx` | 34 | TODO |
 | pending-client | `app/dashboard/staff/pending/pending-client.tsx` | 19 | TODO |
 | staff-client | `app/dashboard/staff/staff-client.tsx` | 40 | TODO |
-| join-signup | `app/join/[[...rest]]/join-signup.tsx` | 27 | TODO |
-| processing-invite | `app/join/[[...rest]]/processing-invite.tsx` | 3 | TODO |
+| join-signup | `app/join/[[...rest]]/join-signup.tsx` | 27 | DONE |
+| processing-invite | `app/join/[[...rest]]/processing-invite.tsx` | 3 | DONE |
 | opengraph-image | `app/opengraph-image.tsx` | 18 | TODO |
-| booking-progress | `components/booking/booking-progress.tsx` | 26 | TODO |
-| complete-payment-panel | `components/booking/complete-payment-panel.tsx` | 2 | TODO |
-| copy-button | `components/booking/copy-button.tsx` | 6 | TODO |
-| numeric-stepper | `components/booking/numeric-stepper.tsx` | 11 | TODO |
-| payment-verifier | `components/booking/payment-verifier.tsx` | 0 | TODO |
-| room-gallery | `components/booking/room-gallery.tsx` | 100 | TODO |
+| booking-progress | `components/booking/booking-progress.tsx` | 26 | DONE |
+| complete-payment-panel | `components/booking/complete-payment-panel.tsx` | 2 | DONE |
+| copy-button | `components/booking/copy-button.tsx` | 6 | DONE |
+| numeric-stepper | `components/booking/numeric-stepper.tsx` | 11 | DONE |
+| payment-verifier | `components/booking/payment-verifier.tsx` | 0 | DONE |
+| room-gallery | `components/booking/room-gallery.tsx` | 100 | DONE |
 | booking-action-bar | `components/bookings/_components/booking-action-bar.tsx` | 10 | TODO |
 | booking-detail-card | `components/bookings/_components/booking-detail-card.tsx` | 3 | TODO |
 | booking-folio-print | `components/bookings/_components/booking-folio-print.tsx` | 3 | TODO |
@@ -193,16 +193,16 @@ Generated for branch `ui/8pt-grid`. Baseline smell counts come from `ui-audit/ba
 | summary-step | `components/bookings/steps/summary-step.tsx` | 36 | TODO |
 | customers-table | `components/customers/customers-table.tsx` | 13 | TODO |
 | route-error | `components/errors/route-error.tsx` | 0 | TODO |
-| action-link | `components/landing/action-link.tsx` | 0 | TODO |
-| deep-dive | `components/landing/deep-dive.tsx` | 0 | TODO |
-| demo-cta | `components/landing/demo-cta.tsx` | 0 | TODO |
-| hero | `components/landing/hero.tsx` | 0 | TODO |
-| how | `components/landing/how.tsx` | 0 | TODO |
-| logo | `components/landing/logo.tsx` | 0 | TODO |
-| reveal | `components/landing/reveal.tsx` | 0 | TODO |
-| showcase | `components/landing/showcase.tsx` | 0 | TODO |
-| site-footer | `components/landing/site-footer.tsx` | 0 | TODO |
-| site-header | `components/landing/site-header.tsx` | 0 | TODO |
+| action-link | `components/landing/action-link.tsx` | 0 | DONE |
+| deep-dive | `components/landing/deep-dive.tsx` | 0 | DONE |
+| demo-cta | `components/landing/demo-cta.tsx` | 0 | DONE |
+| hero | `components/landing/hero.tsx` | 0 | DONE |
+| how | `components/landing/how.tsx` | 0 | DONE |
+| logo | `components/landing/logo.tsx` | 0 | DONE |
+| reveal | `components/landing/reveal.tsx` | 0 | DONE |
+| showcase | `components/landing/showcase.tsx` | 0 | DONE |
+| site-footer | `components/landing/site-footer.tsx` | 0 | DONE |
+| site-header | `components/landing/site-header.tsx` | 0 | DONE |
 | app-header | `components/layout/app-header.tsx` | 12 | TODO |
 | app-sidebar-overlay | `components/layout/app-sidebar-overlay.tsx` | 27 | TODO |
 | notification-center | `components/notifications/notification-center.tsx` | 67 | TODO |
@@ -259,12 +259,12 @@ Generated for branch `ui/8pt-grid`. Baseline smell counts come from `ui-audit/ba
 
 | File | Baseline score | Status |
 |---|---|---|
-| `app/(admin)/onboarding/onboarding.css` | 178 | TODO |
-| `app/[slug]/booking.css` | 77 | TODO |
+| `app/(admin)/onboarding/onboarding.css` | 178 | DONE |
+| `app/[slug]/booking.css` | 77 | DONE |
 | `app/dashboard/availability/availability.css` | 59 | TODO |
 | `app/dashboard/calendar/calendar.css` | 180 | TODO |
 | `app/globals.css` | 14 | TODO |
-| `app/landing.css` | 83 | TODO |
+| `app/landing.css` | 83 | DONE |
 
 ## Notes and Needs decision (running)
 
@@ -278,3 +278,8 @@ Needs decision (not applied):
 - Arbitrary font sizes (text-[13px], [11px], [10px], [9px], [12.5px]) kept: changing alters type hierarchy.
 - Body line-height 22.4 -> 24px affects all .text-body copy by 1.6px per line (applied; revert --text-body-lh in globals.css if unwanted).
 - Page padding/container shells (16/24/32) not retrofitted in layout files; no shared page padding wrapper exists, left to per-page features FEAT-003/004.
+
+FEAT-003 (public, booking, auth, onboarding, landing) result: DONE. Half steps snapped to nearest 4px (2->4, 6->8, 10->12, 14->16); arbitrary rounded/size/h/px/py snapped to 4px multiples (max 4px shift); CSS px/rem spacing, size and radius values in landing.css, booking.css and onboarding.css snapped to nearest 4px multiple (max 2px). Onboarding control height 42 -> 40px desktop (44px coarse pointer unchanged), skeleton now uses var(--ob-control-h) so it matches content. Audit before/after for group files: odd+arbitrary mostly remaining are font sizes.
+Documented exceptions kept: text-[Npx] font sizes (type hierarchy), unitless line-height ratios in CSS and leading-[1.05] on auth display headings, brand logo glyph bars (w-[6px], gap-[3px], rounded-[1px]), hairlines (<=2px), odd 4px steps 5/7/9/11, max-w/w 4px-multiple measures, safe-area env() paddings.
+Visual verification UNVERIFIED: public pages return 500 with placeholder env (Clerk/Sentry), so no screenshots or overflow checks at 360-1440 were possible. Build, typecheck pass.
+Needs decision: auth page title leading-[1.05] and landing.css fractional line-heights (0.98/1.04/1.25/1.4/1.45/1.55) are ratio based; snapping to px multiples would change text rhythm on large headings.
