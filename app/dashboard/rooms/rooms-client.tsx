@@ -633,9 +633,9 @@ export function RoomsClient({
                 variant="primary"
                 size="sm"
                 onPress={() => openAddRoom()}
-                className="ui-press h-11 gap-1.5 rounded-xl px-3.5 text-xs font-semibold shadow-2xs sm:h-9"
+                className="ui-press h-11 gap-2 rounded-xl px-4 text-xs font-semibold shadow-2xs sm:h-9"
               >
-                <Plus className="size-3.5" aria-hidden="true" />
+                <Plus className="size-4" aria-hidden="true" />
                 Add room
               </Button>
             )}
@@ -644,11 +644,11 @@ export function RoomsClient({
                 variant="outline"
                 size="sm"
                 aria-label="Room type actions"
-                className="ui-press h-11 min-w-11 gap-1.5 rounded-xl px-3 text-xs font-semibold sm:h-9 sm:min-w-0"
+                className="ui-press h-11 min-w-11 gap-2 rounded-xl px-3 text-xs font-semibold sm:h-9 sm:min-w-0"
               >
                 <span className="hidden sm:inline">Room types</span>
                 <EllipsisVertical className="size-4 sm:hidden" />
-                <ChevronDown className="hidden size-3.5 text-muted-foreground sm:inline" />
+                <ChevronDown className="hidden size-4 text-muted-foreground sm:inline" />
               </Button>
               <Dropdown.Popover placement="bottom end">
                 <Dropdown.Menu
@@ -691,7 +691,7 @@ export function RoomsClient({
             className="w-full sm:max-w-sm"
           >
             <SearchField.Group className="h-11 rounded-xl border-border/70 bg-card sm:h-9">
-              <SearchField.SearchIcon className="size-3.5 text-muted-foreground/70" />
+              <SearchField.SearchIcon className="size-4 text-muted-foreground/70" />
               <SearchField.Input
                 placeholder="Search room number or type…"
                 className="text-base sm:text-[13px]"
@@ -721,7 +721,7 @@ export function RoomsClient({
                   onPress={() => setIsAddTypeOpen(true)}
                   className="ui-press rounded-xl text-xs font-semibold"
                 >
-                  <Plus className="size-3.5" aria-hidden="true" />
+                  <Plus className="size-4" aria-hidden="true" />
                   New room type
                 </Button>
               ) : undefined
@@ -831,7 +831,7 @@ export function RoomsClient({
                   placeholder="Select room type"
                   ariaLabel="Room type"
                 />
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-2">
                   <label htmlFor="new-room-number" className="text-xs font-medium text-muted-foreground">
                     Room number
                   </label>
@@ -853,7 +853,7 @@ export function RoomsClient({
                     </p>
                   )}
                 </div>
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-2">
                   <label htmlFor="new-room-floor" className="text-xs font-medium text-muted-foreground">
                     Floor <span className="font-normal text-muted-foreground/70">(optional)</span>
                   </label>
@@ -865,7 +865,7 @@ export function RoomsClient({
                     className={modalInputCn}
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-2">
                   <label htmlFor="new-room-notes" className="text-xs font-medium text-muted-foreground">
                     Notes <span className="font-normal text-muted-foreground/70">(optional)</span>
                   </label>
@@ -923,7 +923,7 @@ export function RoomsClient({
                   placeholder="Select room type"
                   ariaLabel="Room type"
                 />
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-2">
                   <label htmlFor="edit-room-number" className="text-xs font-medium text-muted-foreground">
                     Room number
                   </label>
@@ -939,7 +939,7 @@ export function RoomsClient({
                     className={modalInputCn}
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-2">
                   <label htmlFor="edit-room-floor" className="text-xs font-medium text-muted-foreground">
                     Floor <span className="font-normal text-muted-foreground/70">(optional)</span>
                   </label>
@@ -951,7 +951,7 @@ export function RoomsClient({
                     className={modalInputCn}
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-2">
                   <label htmlFor="edit-room-notes" className="text-xs font-medium text-muted-foreground">
                     Notes <span className="font-normal text-muted-foreground/70">(optional)</span>
                   </label>
@@ -1215,7 +1215,7 @@ function RoomRow({
     <li
       ref={registerRef}
       className={cn(
-        "flex items-center gap-3 border-b border-border/50 px-4 py-2.5 last:border-b-0 transition-colors duration-150 sm:px-5 sm:py-3",
+        "flex items-center gap-3 border-b border-border/50 px-4 py-3 last:border-b-0 transition-colors duration-150 sm:px-5 sm:py-3",
         "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/20",
         isHighlighted && "bg-[#0485F70A]"
       )}
@@ -1251,7 +1251,7 @@ function RoomRow({
             variant="ghost"
             size="sm"
             aria-label={`Change status of room ${room.roomNumber}`}
-            className="ui-press h-11 shrink-0 gap-1.5 rounded-lg px-2.5 sm:h-9"
+            className="ui-press h-11 shrink-0 gap-2 rounded-lg px-3 sm:h-9"
           >
             <span className={cn("size-2 shrink-0 rounded-full", config.dot)} aria-hidden="true" />
             <span className="text-xs font-medium text-foreground">{config.label}</span>
@@ -1276,7 +1276,7 @@ function RoomRow({
           </Dropdown.Popover>
         </Dropdown>
       ) : (
-        <span className="inline-flex h-9 shrink-0 items-center gap-1.5 px-2.5 text-xs font-medium text-foreground">
+        <span className="inline-flex h-9 shrink-0 items-center gap-2 px-3 text-xs font-medium text-foreground">
           <span className={cn("size-2 shrink-0 rounded-full", config.dot)} aria-hidden="true" />
           {config.label}
         </span>
@@ -1379,12 +1379,12 @@ function TypeSection({
   return (
     <>
       <div className="border-b border-border/60 bg-secondary/70 px-4 py-3 sm:px-5">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           <span className="truncate text-[14px] font-semibold text-foreground sm:text-[15px]">
             {type.name}
           </span>
           {type.isActive === false && (
-            <span className="shrink-0 rounded-md border border-border/70 bg-background px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+            <span className="shrink-0 rounded-md border border-border/70 bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground">
               Inactive
             </span>
           )}
@@ -1403,7 +1403,7 @@ function TypeSection({
             />
           )}
         </div>
-        <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+        <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
           <span className="truncate">{facts}</span>
           <span className="min-w-0 flex-1" aria-hidden="true" />
           <span className="shrink-0 font-mono text-[11px] tabular-nums">
@@ -1443,9 +1443,9 @@ function TypeSection({
         <button
           type="button"
           onClick={onAddRoom}
-          className="ui-press flex min-h-11 w-full cursor-pointer items-center gap-1.5 border-t border-border/50 px-4 py-2.5 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-10 sm:px-5 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/20 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+          className="ui-press flex min-h-11 w-full cursor-pointer items-center gap-2 border-t border-border/50 px-4 py-3 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-10 sm:px-5 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/20 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
         >
-          <Plus className="size-3.5" aria-hidden="true" />
+          <Plus className="size-4" aria-hidden="true" />
           Add room
         </button>
       )}

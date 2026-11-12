@@ -39,7 +39,7 @@ export function OccupancyCard({
           >
             Rooms sold
           </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             <time dateTime={metric.date}>{dateLabel}</time> · night
           </p>
         </div>
@@ -47,7 +47,7 @@ export function OccupancyCard({
         {isDateSwitching ? (
           <span
             role="status"
-            className="shrink-0 rounded-lg bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
+            className="shrink-0 rounded-lg bg-muted px-3 py-1 text-[11px] font-medium text-muted-foreground"
           >
             Loading selected date…
           </span>
@@ -65,7 +65,7 @@ export function OccupancyCard({
         <div
           role={metric.state === "inconsistent" ? "alert" : "note"}
           className={cn(
-            "space-y-1.5 rounded-2xl border px-3.5 py-2.5 text-xs leading-relaxed",
+            "space-y-2 rounded-2xl border px-4 py-3 text-xs leading-relaxed",
             metric.state === "inconsistent"
               ? "border-amber-500/30 bg-amber-500/[0.07] text-foreground"
               : "border-border/60 bg-muted/35 text-muted-foreground"
@@ -105,7 +105,7 @@ export function OccupancyCard({
               </p>
             )}
 
-            <dl className="space-y-2.5 text-[13px]">
+            <dl className="space-y-3 text-[13px]">
               <Row count={metric.soldRooms} label="Sold" marker="bg-primary" />
               <Row
                 count={metric.heldRooms}
@@ -170,9 +170,9 @@ function Row({
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <dt className="flex min-w-0 items-center gap-2.5 text-muted-foreground">
+      <dt className="flex min-w-0 items-center gap-3 text-muted-foreground">
         {marker && (
-          <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-full", marker)} />
+          <span aria-hidden="true" className={cn("size-3 shrink-0 rounded-full", marker)} />
         )}
         {label}
       </dt>

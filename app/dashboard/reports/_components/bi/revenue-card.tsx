@@ -54,7 +54,7 @@ export function RevenueCard({ title, caption, currency, current, prior, classNam
 
   return <PenCard className={className}>
     <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-      <div className="space-y-0.5">
+      <div className="space-y-1">
         <h2 className="text-[15px] font-semibold text-foreground">{title}</h2>
         <p className="text-xs text-muted-foreground">{caption}</p>
       </div>
@@ -101,17 +101,17 @@ export function RevenueCard({ title, caption, currency, current, prior, classNam
 
 function Legend() {
   return <div className="flex items-center gap-4" aria-hidden="true">
-    <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-      <span className="h-[3px] w-3.5 rounded-full bg-[var(--pen-accent)]" /> Current period
+    <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
+      <span className="h-[4px] w-4 rounded-full bg-[var(--pen-accent)]" /> Current period
     </span>
-    <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-      <span className="h-[3px] w-3.5 rounded-full bg-[#94a3b8]" /> Prior period
+    <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
+      <span className="h-[4px] w-4 rounded-full bg-[#94a3b8]" /> Prior period
     </span>
   </div>;
 }
 
 function Granularity({ weekly, onChange, disabled }: { weekly: boolean; onChange: (weekly: boolean) => void; disabled: boolean }) {
-  return <div className="flex gap-0.5 rounded-lg bg-secondary p-[3px]" role="group" aria-label="Chart granularity">
+  return <div className="flex gap-1 rounded-lg bg-secondary p-[4px]" role="group" aria-label="Chart granularity">
     {([false, true] as const).map((isWeekly) => <button key={String(isWeekly)} type="button"
       aria-pressed={weekly === isWeekly} disabled={disabled && isWeekly}
       onClick={() => onChange(isWeekly)}

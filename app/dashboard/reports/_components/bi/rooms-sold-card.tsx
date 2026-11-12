@@ -22,13 +22,13 @@ export function RoomsSoldCard({ metric, tonight, className }: {
     {ready ? <>
       <div className="flex items-center gap-5">
         <RoomsRing sold={sold} held={held} sellable={metric.sellableRooms!} percent={metric.soldPercent} />
-        <ul className="min-w-0 flex-1 space-y-2.5 text-xs">
+        <ul className="min-w-0 flex-1 space-y-3 text-xs">
           <CountRow color="bg-[var(--pen-accent)]" label="Sold" count={sold} />
           <CountRow color="bg-[var(--warning)]" label="Pending holds" count={held} />
           <CountRow color="border-[1.5px] border-[var(--muted-foreground)] bg-card" label="Available to sell" count={metric.availableRooms ?? 0} />
         </ul>
       </div>
-      <div className="border-t border-border/50 pt-2.5">
+      <div className="border-t border-border/50 pt-3">
         <p className="text-[11px] text-muted-foreground">
           {metric.sellableRooms} sellable of {metric.totalRooms} active rooms{metric.outOfService ? ` · ${metric.outOfService} out of service` : ""}{metric.blocked ? ` · ${metric.blocked} blocked` : ""}
         </p>
@@ -41,7 +41,7 @@ export function RoomsSoldCard({ metric, tonight, className }: {
 
 function CountRow({ color, label, count }: { color: string; label: string; count: number }) {
   return <li className="flex items-center gap-2">
-    <span className={`size-2.5 shrink-0 rounded-full ${color}`} aria-hidden="true" />
+    <span className={`size-3 shrink-0 rounded-full ${color}`} aria-hidden="true" />
     <span className="min-w-0 flex-1 truncate text-muted-foreground">{label}</span>
     <span className="shrink-0 font-mono text-[13px] font-medium tabular-nums text-foreground">{count.toLocaleString("en")}</span>
   </li>;

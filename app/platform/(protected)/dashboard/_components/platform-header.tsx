@@ -63,7 +63,7 @@ export function PlatformHeader({ admin }: { admin: PlatformAdmin | null }) {
       )}
     >
       {/* Left: Sidebar trigger + page title */}
-      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
         <SidebarTrigger
           className="size-8 shrink-0 rounded-lg hover:bg-muted/60"
           aria-label="Toggle sidebar"
@@ -86,7 +86,7 @@ export function PlatformHeader({ admin }: { admin: PlatformAdmin | null }) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 gap-2 rounded-lg pl-1.5 pr-2 hover:bg-muted/60"
+                className="h-8 gap-2 rounded-lg pl-2 pr-2 hover:bg-muted/60"
               />
             }
           >
@@ -102,7 +102,7 @@ export function PlatformHeader({ admin }: { admin: PlatformAdmin | null }) {
 
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col gap-0.5">
+              <div className="flex flex-col gap-1">
                 <span className="text-sm font-medium text-foreground">
                   {admin?.full_name ?? "Admin"}
                 </span>
@@ -110,7 +110,7 @@ export function PlatformHeader({ admin }: { admin: PlatformAdmin | null }) {
                   {admin?.email}
                 </span>
                 {admin?.role && (
-                  <span className="text-[11px] text-muted-foreground capitalize mt-0.5">
+                  <span className="text-[11px] text-muted-foreground capitalize mt-1">
                     {admin.role.replace(/_/g, " ")}
                   </span>
                 )}
@@ -121,7 +121,7 @@ export function PlatformHeader({ admin }: { admin: PlatformAdmin | null }) {
               onClick={handleSignOut}
               className="text-destructive focus:text-destructive gap-2"
             >
-              <LogOut className="size-3.5" />
+              <LogOut className="size-4" />
               Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>

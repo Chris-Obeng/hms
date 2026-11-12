@@ -297,17 +297,17 @@ export default function NotificationSettingsPage() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Volume2 className="size-3.5" />
+            <Volume2 className="size-4" />
             Notification Sound
           </CardTitle>
-          <CardDescription className="text-xs mt-0.5">
+          <CardDescription className="text-xs mt-1">
             Play a chime when new updates arrive. Sound preference is saved to this device only.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <Speaker className="size-3.5 text-muted-foreground" />
+            <div className="flex items-center gap-3">
+              <Speaker className="size-4 text-muted-foreground" />
               <span className="text-sm text-foreground">Enable sound</span>
             </div>
             <Switch
@@ -332,17 +332,17 @@ export default function NotificationSettingsPage() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Monitor className="size-3.5" />
+            <Monitor className="size-4" />
             Device Alerts
           </CardTitle>
-          <CardDescription className="text-xs mt-0.5">
+          <CardDescription className="text-xs mt-1">
             Get booking and payment pop-up alerts on this computer or phone, even when RoomLine is closed.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <Smartphone className="size-3.5 text-muted-foreground" />
+            <div className="flex items-center gap-3">
+              <Smartphone className="size-4 text-muted-foreground" />
               <span className="text-sm text-foreground">Alerts on this device</span>
             </div>
             <Switch
@@ -354,9 +354,9 @@ export default function NotificationSettingsPage() {
             />
           </div>
 
-          <div className="rounded-xl bg-muted/30 border border-border/40 p-3 text-xs space-y-1.5">
-            <div className="flex items-center gap-1.5 text-muted-foreground font-medium">
-              <Info className="size-3.5" />
+          <div className="rounded-xl bg-muted/30 border border-border/40 p-3 text-xs space-y-2">
+            <div className="flex items-center gap-2 text-muted-foreground font-medium">
+              <Info className="size-4" />
               <span>Alert Status</span>
             </div>
             <p className="text-muted-foreground/80 pl-5">
@@ -406,10 +406,10 @@ export default function NotificationSettingsPage() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <BellRing className="size-3.5" />
+            <BellRing className="size-4" />
             Notification Types
           </CardTitle>
-          <CardDescription className="text-xs mt-0.5">
+          <CardDescription className="text-xs mt-1">
             Toggle which events trigger notifications. These preferences sync across all your devices.
           </CardDescription>
         </CardHeader>
@@ -419,12 +419,12 @@ export default function NotificationSettingsPage() {
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <Bell className="size-3.5 text-muted-foreground/60 shrink-0" />
+                    <Bell className="size-4 text-muted-foreground/60 shrink-0" />
                     <span className="text-sm font-medium text-foreground">
                       {event.label}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground/70 mt-0.5 pl-6">
+                  <p className="text-xs text-muted-foreground/70 mt-1 pl-6">
                     {event.description}
                   </p>
                 </div>
@@ -447,10 +447,10 @@ export default function NotificationSettingsPage() {
         <Card id="message-templates" className="scroll-mt-6">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <MessageSquareText className="size-3.5" />
+              <MessageSquareText className="size-4" />
               Message Templates
             </CardTitle>
-            <CardDescription className="text-xs mt-0.5">
+            <CardDescription className="text-xs mt-1">
               Customize transactional emails sent to guests. Click a card to edit and use variables for booking details.
             </CardDescription>
           </CardHeader>

@@ -60,7 +60,7 @@ function EventEditor({
       >
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">{EVENT_LABELS[eventType]}</p>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">{EVENT_DESCRIPTIONS[eventType]}</p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">{EVENT_DESCRIPTIONS[eventType]}</p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           <span className={cn("flex items-center gap-1 text-xs", template.email_enabled ? "text-foreground" : "text-muted-foreground/40")}>
@@ -90,7 +90,7 @@ function EventEditor({
 
           {template.email_enabled && (
             <>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label htmlFor={subjectId} className="text-xs font-medium text-muted-foreground">Subject</label>
                 <Input
                   id={subjectId}
@@ -103,7 +103,7 @@ function EventEditor({
                   className="h-11 text-base sm:h-9 sm:text-sm"
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label htmlFor={bodyId} className="text-xs font-medium text-muted-foreground">Body</label>
                 <Textarea
                   id={bodyId}
@@ -117,13 +117,13 @@ function EventEditor({
               </div>
               <div>
                 <p className="mb-2 text-xs text-muted-foreground">Insert variable</p>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {TEMPLATE_VARIABLES.map((variable) => (
                     <button
                       key={variable}
                       type="button"
                       onClick={() => insertVariable(variable)}
-                      className="ui-press min-h-9 cursor-pointer rounded-md border border-border bg-background px-2.5 py-1 font-mono text-[11px] text-muted-foreground sm:min-h-7 sm:px-2 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+                      className="ui-press min-h-9 cursor-pointer rounded-md border border-border bg-background px-3 py-1 font-mono text-[11px] text-muted-foreground sm:min-h-7 sm:px-2 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
                     >
                       {variable}
                     </button>

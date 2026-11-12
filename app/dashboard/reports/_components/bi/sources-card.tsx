@@ -39,7 +39,7 @@ export function SourcesCard({ sources, currency, className }: {
             <PenTableCell column={COLUMNS[2]} className="text-sm tabular-nums">{row.roomNights.toLocaleString("en")}</PenTableCell>
             <PenTableCell column={COLUMNS[3]} className="text-sm tabular-nums">{moneyAmount(row.revenue, currency, { maximumFractionDigits: 0 })}</PenTableCell>
             <PenTableCell column={COLUMNS[4]}>
-              <span className="flex w-full items-center gap-2.5">
+              <span className="flex w-full items-center gap-3">
                 <span className="h-1 w-[56px] overflow-hidden rounded-full bg-border" aria-hidden="true">
                   <span className="block h-full rounded-full bg-[var(--pen-accent)]" style={{ width: `${Math.min(100, row.pct)}%` }} />
                 </span>
@@ -71,7 +71,7 @@ export function SourcesCard({ sources, currency, className }: {
 function ShareStrip({ sources }: { sources: SourceSlice[] }) {
   const OPACITIES = [1, 0.55, 0.35, 0.2];
   const total = sources.reduce((sum, row) => sum + row.count, 0) || 1;
-  return <div className="flex h-1 gap-0.5 overflow-hidden rounded-full" aria-hidden="true">
+  return <div className="flex h-1 gap-1 overflow-hidden rounded-full" aria-hidden="true">
     {sources.map((row, index) => <span key={row.source}
       className="h-full bg-[var(--pen-accent)]"
       style={{ width: `${(row.count / total) * 100}%`, opacity: OPACITIES[Math.min(index, OPACITIES.length - 1)] }} />)}

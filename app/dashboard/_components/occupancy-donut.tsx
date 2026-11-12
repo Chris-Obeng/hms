@@ -52,7 +52,7 @@ export function OccupancyDonut({
         <p className="text-[15px] font-semibold tracking-tight text-foreground">
           {isError ? "Check inventory" : "Unavailable"}
         </p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
+        <p className="mt-1 text-xs text-muted-foreground">
           {metric.state === "empty"
             ? "No sellable rooms for this night"
             : "A reliable percentage cannot be shown"}
@@ -119,7 +119,7 @@ export function OccupancyDonut({
         <span className="text-[1.625rem] font-semibold leading-none tracking-[-0.025em] tabular-nums text-foreground lg:text-[2.125rem]">
           {display}%
         </span>
-        <span className="mt-1 text-[11px] text-muted-foreground lg:mt-1.5 lg:text-xs">
+        <span className="mt-1 text-[11px] text-muted-foreground lg:mt-2 lg:text-xs">
           rooms sold
         </span>
       </div>

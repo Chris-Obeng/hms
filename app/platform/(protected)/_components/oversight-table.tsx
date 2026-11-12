@@ -44,7 +44,7 @@ function OccupancyCell({ row }: { row: HotelRow }) {
     <Tooltip>
       <Tooltip.Trigger>
         <span tabIndex={0} className="inline-flex items-center gap-2 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <span className="hidden xl:block h-1.5 w-14 rounded-full bg-muted overflow-hidden" aria-hidden>
+          <span className="hidden xl:block h-2 w-14 rounded-full bg-muted overflow-hidden" aria-hidden>
             <span
               className="block h-full rounded-full bg-foreground/70"
               style={{ width: `${Math.min(100, pct)}%` }}
@@ -128,8 +128,8 @@ export function OversightTable({
           Could not load hotels
         </p>
         <p className="text-caption text-muted-foreground max-w-sm">{error}</p>
-        <Button variant="outline" size="sm" onPress={() => router.refresh()} className="mt-1 gap-1.5 min-h-11">
-          <RotateCw className="size-3.5" />
+        <Button variant="outline" size="sm" onPress={() => router.refresh()} className="mt-1 gap-2 min-h-11">
+          <RotateCw className="size-4" />
           Retry
         </Button>
       </div>
@@ -156,12 +156,12 @@ export function OversightTable({
                 aria-label="Clear search"
                 className="absolute right-2 top-1/2 -translate-y-1/2 size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <X className="size-3.5" />
+                <X className="size-4" />
               </button>
             )}
           </div>
 
-          <div role="group" aria-label="Filter by status" className="flex flex-wrap gap-1.5">
+          <div role="group" aria-label="Filter by status" className="flex flex-wrap gap-2">
             <FilterChip label="All" isActive={!status} onPress={() => setStatus(null)} />
             {HOTEL_STATUSES.map((s) => (
               <FilterChip
@@ -247,7 +247,7 @@ export function OversightTable({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-semibold text-sm text-foreground truncate">{row.name}</p>
-                    <p className="text-caption text-muted-foreground truncate mt-0.5">
+                    <p className="text-caption text-muted-foreground truncate mt-1">
                       {[row.city, row.country].filter(Boolean).join(", ") || row.slug}
                     </p>
                   </div>
@@ -256,19 +256,19 @@ export function OversightTable({
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div>
                     <p className="text-muted-foreground">GMV 30d</p>
-                    <p className="font-medium tabular-nums mt-0.5">
+                    <p className="font-medium tabular-nums mt-1">
                       <MoneyCell totals={row.gmv} />
                     </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Outstanding</p>
-                    <p className={"font-medium tabular-nums mt-0.5" + (row.outstanding.some((t) => t.amount > 0) ? " text-warning" : "")}>
+                    <p className={"font-medium tabular-nums mt-1" + (row.outstanding.some((t) => t.amount > 0) ? " text-warning" : "")}>
                       <MoneyCell totals={row.outstanding} />
                     </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Occ. today</p>
-                    <p className="font-medium tabular-nums mt-0.5">
+                    <p className="font-medium tabular-nums mt-1">
                       {row.totalRooms ? `${Math.round(((row.occupiedToday ?? 0) / row.totalRooms) * 100)}%` : "—"}
                     </p>
                   </div>
@@ -364,7 +364,7 @@ function RowLink({ row }: { row: HotelRow }) {
       <span className="font-medium text-foreground group-hover:text-accent transition-colors">
         {row.name}
       </span>
-      <span className="block text-[11px] text-muted-foreground mt-0.5">
+      <span className="block text-[11px] text-muted-foreground mt-1">
         {[row.city, row.country].filter(Boolean).join(", ") || "—"}
       </span>
     </Link>
@@ -383,7 +383,7 @@ function ExternalLinkCell({ row }: { row: HotelRow }) {
             aria-label={`Open ${row.name} booking page in new tab`}
             className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <ExternalLink className="size-3.5" />
+            <ExternalLink className="size-4" />
           </a>
         </Tooltip.Trigger>
         <Tooltip.Content>Open booking page</Tooltip.Content>

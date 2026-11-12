@@ -47,7 +47,7 @@ export function HotelDetailTabs({
         <section className="space-y-3">
           <div>
             <h2 className="text-section text-foreground">Online payments</h2>
-            <p className="text-caption text-muted-foreground mt-0.5">
+            <p className="text-caption text-muted-foreground mt-1">
               {"Online reservations and whether their funds have settled to the hotel's bank."}
             </p>
           </div>

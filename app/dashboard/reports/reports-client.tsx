@@ -116,7 +116,7 @@ function BiSession({ orgId, hotelId, timeZone, today, initialStartDate, initialE
       </div>
     </header>
     {/* Mobile range + export controls */}
-    <div className="mt-3 flex flex-wrap items-center gap-2.5 sm:hidden">
+    <div className="mt-3 flex flex-wrap items-center gap-3 sm:hidden">
       <RangeControl range={range} today={today} onChange={changeRange} />
       <ExportButton range={range} overview={overviewData} occupancy={occupancyData} guests={guestsData} revenue={revenueData}
         roomsSold={roomsSold.data?.metric} disabled={overview.isPending} />

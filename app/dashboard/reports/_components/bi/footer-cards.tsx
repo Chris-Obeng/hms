@@ -16,13 +16,13 @@ export function BiFooter({ outstanding, outstandingCount, currency, lastCloseAt,
   className?: string;
 }) {
   return <div className={className}>
-    <PenCard className="lg:flex lg:flex-row lg:items-center lg:gap-3.5">
+    <PenCard className="lg:flex lg:flex-row lg:items-center lg:gap-4">
       <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#F5A5241F] text-[var(--warning)]" aria-hidden="true">
         <TriangleAlert size={17} />
       </span>
       <div className="min-w-0 flex-1 pt-1 lg:pt-0">
         <p className="text-xs text-muted-foreground">Unpaid balances across all non-cancelled bookings</p>
-        <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5">
+        <p className="mt-1 flex flex-wrap items-baseline gap-x-2">
           <span className="text-xl font-semibold tracking-[-0.3px] text-foreground tabular-nums">
             {outstanding === null ? "Unavailable" : `${currency} ${moneyAmount(outstanding, currency)}`}
           </span>
@@ -30,11 +30,11 @@ export function BiFooter({ outstanding, outstandingCount, currency, lastCloseAt,
         </p>
       </div>
       <Link href="/dashboard/payments/outstanding"
-        className="mt-1 inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted lg:mt-0">
+        className="mt-1 inline-flex h-9 shrink-0 items-center gap-2 rounded-full px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted lg:mt-0">
         View receivables <ArrowRight size={16} aria-hidden="true" />
       </Link>
     </PenCard>
-    <PenCard className="mt-4 flex flex-row items-center gap-2.5 lg:mt-0">
+    <PenCard className="mt-4 flex flex-row items-center gap-3 lg:mt-0">
       <span className={`size-2 shrink-0 rounded-full ${lastCloseAt ? "bg-[var(--success)]" : "bg-[var(--warning)]"}`} aria-hidden="true" />
       <div className="min-w-0">
         <p className="text-xs font-medium text-foreground">

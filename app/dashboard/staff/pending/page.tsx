@@ -55,7 +55,7 @@ export default async function PendingStaffPage() {
           <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-[24px]">
             Pending requests
           </h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             {pendingList.length} staff member{pendingList.length !== 1 ? "s" : ""} awaiting approval
           </p>
         </div>

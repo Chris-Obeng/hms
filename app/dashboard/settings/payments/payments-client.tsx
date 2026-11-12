@@ -185,7 +185,7 @@ export function PaymentsSettingsClient({ initialData }: Props) {
           </p>
         </div>
       )}
-      <PenCard className="gap-3.5">
+      <PenCard className="gap-4">
         <PenCardHead title="Payment policy" caption="When guests are asked to pay." />
         <div className="flex flex-col gap-3 sm:flex-row" role="radiogroup" aria-label="Payment policy">
           {POLICY_OPTIONS.map((opt) => {
@@ -193,18 +193,18 @@ export function PaymentsSettingsClient({ initialData }: Props) {
             return <button key={opt.value} type="button" role="radio" aria-checked={selected}
               disabled={savingPolicy} onClick={() => setPolicy(opt.value)}
               className={cn(
-                "flex min-w-0 flex-1 items-start gap-2.5 rounded-xl p-3.5 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+                "flex min-w-0 flex-1 items-start gap-3 rounded-xl p-4 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring",
                 selected ? "bg-[#0485F70A] ring-[1.5px] ring-inset ring-[var(--pen-accent)]" : "bg-card ring-1 ring-inset ring-border hover:ring-border",
               )}>
               <span aria-hidden className={cn(
-                "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border-[1.5px] bg-card",
+                "mt-1 flex size-4 shrink-0 items-center justify-center rounded-full border-[1.5px] bg-card",
                 selected ? "border-[var(--pen-accent)]" : "border-border",
               )}>
                 {selected && <span className="size-2 rounded-full bg-[var(--pen-accent)]" />}
               </span>
               <span className="min-w-0">
                 <span className="block text-[13px] font-semibold text-foreground">{opt.label}</span>
-                <span className="mt-0.5 block text-[11px] text-muted-foreground">{opt.desc}</span>
+                <span className="mt-1 block text-[11px] text-muted-foreground">{opt.desc}</span>
               </span>
             </button>;
           })}
@@ -212,7 +212,7 @@ export function PaymentsSettingsClient({ initialData }: Props) {
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3">
           <p className="text-[11px] text-muted-foreground">
             Policy applies to new bookings immediately.
-            {savingPolicy && <Loader2 className="ml-2 inline size-3.5 animate-spin text-muted-foreground" aria-label="Saving" />}
+            {savingPolicy && <Loader2 className="ml-2 inline size-4 animate-spin text-muted-foreground" aria-label="Saving" />}
           </p>
           <HeroButton variant="primary" isPending={savingPolicy} isDisabled={!policyDirty} onPress={savePolicy}
             className="h-9 rounded-full px-4 text-sm font-medium">
@@ -221,13 +221,13 @@ export function PaymentsSettingsClient({ initialData }: Props) {
         </footer>
       </PenCard>
 
-      <PenCard className="gap-3.5">
+      <PenCard className="gap-4">
         <PenCardHead title="Settlement account" caption="Where your payouts are sent." />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="flex w-full flex-col gap-1.5 sm:w-60">
+          <div className="flex w-full flex-col gap-2 sm:w-60">
             <label className="text-xs font-medium text-muted-foreground">Bank / mobile money</label>
             {banksError ? (
-              <div className="flex items-center justify-between gap-2 rounded-[10px] border border-border px-3 py-2">
+              <div className="flex items-center justify-between gap-2 rounded-[12px] border border-border px-3 py-2">
                 <span className="text-[11px] text-muted-foreground">Could not load banks.</span>
                 <HeroButton variant="outline" size="sm" className="h-7 shrink-0 rounded-full px-3 text-xs" onPress={loadBanks} isDisabled={banksLoading}>
                   <RefreshCw className={cn("size-3", banksLoading && "animate-spin")} /> Retry
@@ -244,13 +244,13 @@ export function PaymentsSettingsClient({ initialData }: Props) {
               />
             )}
           </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
             <label className="text-xs font-medium text-muted-foreground">Account number</label>
             <input value={accountNumber}
               disabled={verifying || saving}
               onChange={(e) => changeAccountNumber(e.target.value.replace(/\D/g, ""))}
               placeholder={isMobileMoney ? "0244000000" : "Account number"}
-              className="h-10 w-full rounded-[10px] border border-border/70 bg-card px-3 font-mono text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-border focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60"
+              className="h-10 w-full rounded-[12px] border border-border/70 bg-card px-3 font-mono text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-border focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60"
               inputMode="numeric" autoComplete="off" maxLength={maxAccountLength}
               aria-describedby="account-number-hint" />
           </div>
@@ -263,7 +263,7 @@ export function PaymentsSettingsClient({ initialData }: Props) {
         <p id="account-number-hint" className="text-[11px] text-muted-foreground">
           {isMobileMoney ? "Enter the 10-digit wallet number." : "Enter the full account number. We verify the name before saving."}
         </p>
-        {connectedNote && <p className="flex items-center gap-2 rounded-[10px] bg-[#17C9640F] px-3 py-2.5 text-xs font-medium text-[var(--success)]">
+        {connectedNote && <p className="flex items-center gap-2 rounded-[12px] bg-[#17C9640F] px-3 py-3 text-xs font-medium text-[var(--success)]">
           <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" /> {connectedNote}
         </p>}
         <footer className="border-t border-border/50 pt-3">

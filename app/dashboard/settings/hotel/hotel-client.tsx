@@ -76,7 +76,7 @@ function Field({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
+    <div className={cn("flex flex-col gap-2", className)}>
       {htmlFor ? (
         <label htmlFor={htmlFor} className={labelClass}>
           {label}
@@ -148,9 +148,9 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {bookingUrl && (
-        <PenCard className="gap-2.5 sm:p-5">
+        <PenCard className="gap-3 sm:p-5">
           <div className="flex items-start justify-between gap-3">
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <h2 className="text-[15px] font-semibold text-foreground">Direct booking page</h2>
               <p className="text-xs text-muted-foreground">Share this link so guests can book {values.name || "your property"} directly.</p>
             </div>
@@ -160,27 +160,27 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
               rel="noopener noreferrer"
               className="ui-press inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-medium text-muted-foreground sm:min-h-0 sm:px-0 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
             >
-              <ExternalLink className="size-3.5" aria-hidden="true" />
+              <ExternalLink className="size-4" aria-hidden="true" />
               Open
             </a>
           </div>
-          <div className="flex h-11 items-center gap-2 rounded-[10px] border border-border/70 bg-secondary/50 px-3 sm:h-10">
+          <div className="flex h-11 items-center gap-2 rounded-[12px] border border-border/70 bg-secondary/50 px-3 sm:h-10">
             <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-foreground select-all">
               {bookingUrl.replace(/^https?:\/\//, "")}
             </span>
             <button
               type="button"
               onClick={copyBookingLink}
-              className="ui-press inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-1 text-xs font-medium text-muted-foreground sm:min-h-0 sm:px-0 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+              className="ui-press inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-lg px-1 text-xs font-medium text-muted-foreground sm:min-h-0 sm:px-0 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
             >
               {copiedUrl ? (
                 <>
-                  <Check className="size-3.5 text-emerald-700" aria-hidden="true" />
+                  <Check className="size-4 text-emerald-700" aria-hidden="true" />
                   <span className="text-emerald-700">Copied</span>
                 </>
               ) : (
                 <>
-                  <Copy className="size-3.5" aria-hidden="true" />
+                  <Copy className="size-4" aria-hidden="true" />
                   <span>Copy</span>
                 </>
               )}
@@ -190,7 +190,7 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
       )}
 
       <PenCard className="gap-4 sm:p-5">
-        <header className="space-y-0.5">
+        <header className="space-y-1">
           <h2 className="text-[15px] font-semibold text-foreground">Hotel profile</h2>
           <p className="text-xs text-muted-foreground">Guests see these details on your booking page and emails.</p>
         </header>
@@ -223,7 +223,7 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
         </div>
 
         <Field label="Hotel description" htmlFor="hotel-description">
-          <textarea id="hotel-description" rows={3} maxLength={2000} className={cn(inputClass, "h-auto resize-none py-2.5 leading-relaxed")}
+          <textarea id="hotel-description" rows={3} maxLength={2000} className={cn(inputClass, "h-auto resize-none py-3 leading-relaxed")}
             placeholder="Describe your hotel, its location, amenities, and atmosphere…" value={values.description}
             disabled={!canEdit} onChange={(e) => set("description", e.target.value)} />
         </Field>
@@ -250,21 +250,21 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
             />
           </Field>
           <Field label="Currency">
-            <div className="flex h-11 items-center rounded-[10px] border border-border/70 bg-secondary/50 px-3 text-[13px] text-foreground sm:h-10">
-              GHS <span className="ml-1.5 text-muted-foreground">· Ghana Cedi</span>
+            <div className="flex h-11 items-center rounded-[12px] border border-border/70 bg-secondary/50 px-3 text-[13px] text-foreground sm:h-10">
+              GHS <span className="ml-2 text-muted-foreground">· Ghana Cedi</span>
             </div>
           </Field>
         </div>
 
         <Field label="Cancellation policy" htmlFor="hotel-cancellation-policy">
-          <textarea id="hotel-cancellation-policy" rows={2} maxLength={500} className={cn(inputClass, "h-auto resize-none py-2.5 leading-relaxed")}
+          <textarea id="hotel-cancellation-policy" rows={2} maxLength={500} className={cn(inputClass, "h-auto resize-none py-3 leading-relaxed")}
             placeholder="e.g. Free cancellation up to 24 hours before check-in." value={values.cancellationPolicy}
             disabled={!canEdit} onChange={(e) => set("cancellationPolicy", e.target.value)} />
         </Field>
 
-        <div className="space-y-3 rounded-2xl border border-border/60 bg-secondary/30 p-3.5">
+        <div className="space-y-3 rounded-2xl border border-border/60 bg-secondary/30 p-4">
           <div className="flex items-center justify-between gap-3">
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <p className="text-[13px] font-medium text-foreground">Tax / VAT</p>
               <p className="text-xs text-muted-foreground">Applied as a line item on new bookings and guest invoices.</p>
             </div>
@@ -278,7 +278,7 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
           {values.taxEnabled && (
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <div className="w-36">
-                <label htmlFor="hotel-tax-rate" className={cn(labelClass, "mb-1.5 block")}>Tax rate (%)</label>
+                <label htmlFor="hotel-tax-rate" className={cn(labelClass, "mb-2 block")}>Tax rate (%)</label>
                 <div className="relative">
                   <input
                     id="hotel-tax-rate"
@@ -354,7 +354,7 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
           />
         </div>
 
-        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3.5">
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-4">
           <p className="text-[11px] text-muted-foreground">
             {canEdit
               ? saving ? "Saving changes…" : hasChanges ? "You have unsaved changes." : staffName ? `Changes apply immediately · ${staffName}` : "Changes apply across the property immediately."

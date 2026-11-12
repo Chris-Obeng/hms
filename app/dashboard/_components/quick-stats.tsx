@@ -50,9 +50,9 @@ function QuickStatRow({
   color: string;
 }) {
   return (
-    <div className="flex items-center justify-between group transition-colors hover:bg-muted/20 -mx-1 px-1 py-0.5 rounded-md">
-      <div className="flex items-center gap-2.5">
-        <div className="p-1.5 rounded-lg bg-muted/20 group-hover:bg-muted/30 transition-colors">
+    <div className="flex items-center justify-between group transition-colors hover:bg-muted/20 -mx-1 px-1 py-1 rounded-md">
+      <div className="flex items-center gap-3">
+        <div className="p-2 rounded-lg bg-muted/20 group-hover:bg-muted/30 transition-colors">
           <Icon className={cn("size-4", color)} />
         </div>
         <span className="text-label text-muted-foreground">{label}</span>
@@ -76,8 +76,8 @@ function SummaryRow({
   color: string;
 }) {
   return (
-    <div className="flex items-center justify-between py-1.5 group hover:bg-muted/10 -mx-1 px-1 rounded-md transition-colors">
-      <div className="flex items-center gap-2.5">
+    <div className="flex items-center justify-between py-2 group hover:bg-muted/10 -mx-1 px-1 rounded-md transition-colors">
+      <div className="flex items-center gap-3">
         <Icon className={cn("size-4", color)} />
         <span className="text-label text-muted-foreground">{label}</span>
       </div>

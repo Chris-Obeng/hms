@@ -250,7 +250,7 @@ function BookingBar({
         >
           {booking.paymentStatus === "paid" ? "Paid" : "Due"}
         </span>
-        {conflict && <AlertTriangle className="size-3.5 shrink-0 text-white" aria-hidden />}
+        {conflict && <AlertTriangle className="size-4 shrink-0 text-white" aria-hidden />}
       </div>
     </div>
   );
@@ -302,7 +302,7 @@ function TrayBooking({
           onPress={onAutoAssign}
           className="ui-press size-10 min-h-10 min-w-10 rounded-lg text-muted-foreground sm:size-8 sm:min-h-8 sm:min-w-8 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
         >
-          <Wand2 className="size-3.5" />
+          <Wand2 className="size-4" />
         </Button>
         <Tooltip.Content placement="top">Auto-assign room</Tooltip.Content>
       </Tooltip>

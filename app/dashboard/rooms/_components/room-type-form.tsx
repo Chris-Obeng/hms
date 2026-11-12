@@ -212,7 +212,7 @@ export function RoomTypeForm({
           <div className="min-w-0 flex-1">
             <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
             {subtitle && (
-              <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
+              <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
             )}
           </div>
         </div>
@@ -235,7 +235,7 @@ export function RoomTypeForm({
         <FormSection title="Basic information" framed={framed}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="rt-name" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              <label htmlFor="rt-name" className="mb-2 block text-xs font-medium text-muted-foreground">
                 Name *
               </label>
               <Input
@@ -251,7 +251,7 @@ export function RoomTypeForm({
               {errors.name && <p className="mt-1 text-xs text-destructive">{errors.name}</p>}
             </div>
             <div>
-              <label htmlFor="rt-slug" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              <label htmlFor="rt-slug" className="mb-2 block text-xs font-medium text-muted-foreground">
                 Slug
               </label>
               <Input
@@ -268,7 +268,7 @@ export function RoomTypeForm({
           </div>
 
           <div>
-            <label htmlFor="rt-short-description" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+            <label htmlFor="rt-short-description" className="mb-2 block text-xs font-medium text-muted-foreground">
               Short description
             </label>
             <Input
@@ -281,7 +281,7 @@ export function RoomTypeForm({
           </div>
 
           <div>
-            <label htmlFor="rt-description" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+            <label htmlFor="rt-description" className="mb-2 block text-xs font-medium text-muted-foreground">
               Full description
             </label>
             <textarea
@@ -298,7 +298,7 @@ export function RoomTypeForm({
         {/* Configuration */}
         <FormSection title="Configuration" framed={framed}>
           <div>
-            <label htmlFor="rt-bed-config" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+            <label htmlFor="rt-bed-config" className="mb-2 block text-xs font-medium text-muted-foreground">
               Bed configuration
             </label>
             <Input
@@ -311,13 +311,13 @@ export function RoomTypeForm({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              <label className="mb-2 block text-xs font-medium text-muted-foreground">
                 Max adults
               </label>
               <HeroSelectField value={String(values.maxAdults)} onValueChange={(v) => set("maxAdults", Number(v))} options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: n }))} ariaLabel="Max adults" />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              <label className="mb-2 block text-xs font-medium text-muted-foreground">
                 Max children
               </label>
               <HeroSelectField value={String(values.maxChildren)} onValueChange={(v) => set("maxChildren", Number(v))} options={[0, 1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: n }))} ariaLabel="Max children" />
@@ -329,7 +329,7 @@ export function RoomTypeForm({
         <FormSection title="Pricing" framed={framed}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="rt-base-price" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              <label htmlFor="rt-base-price" className="mb-2 block text-xs font-medium text-muted-foreground">
                 Base price / night *
               </label>
               <div className="relative">
@@ -353,7 +353,7 @@ export function RoomTypeForm({
               )}
             </div>
             <div>
-              <label htmlFor="rt-weekend-price" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              <label htmlFor="rt-weekend-price" className="mb-2 block text-xs font-medium text-muted-foreground">
                 Weekend price (optional)
               </label>
               <div className="relative">
@@ -391,7 +391,7 @@ export function RoomTypeForm({
                   onClick={() => toggleAmenity(amenityLabel)}
                   aria-pressed={isSelected}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all",
+                    "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
                     isSelected
                       ? "border-foreground/30 bg-foreground/5 text-foreground"
                       : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground"
@@ -433,7 +433,7 @@ export function RoomTypeForm({
               onPress={addCustomAmenity}
               isDisabled={!customAmenityInput.trim()}
             >
-              <Plus className="size-3.5" />
+              <Plus className="size-4" />
               Add
             </Button>
           </div>
@@ -523,7 +523,7 @@ function PhotosCard({
           <div className="flex items-center gap-2">
             <span>Photos</span>
             {images.length === 0 && (
-              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-1.5 py-0.5 text-caption font-medium text-amber-700">
+              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-caption font-medium text-amber-700">
                 No photos yet
               </span>
             )}

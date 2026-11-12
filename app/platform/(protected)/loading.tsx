@@ -11,7 +11,7 @@ export default function PlatformLoading() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="card-default p-4 space-y-2.5">
+          <div key={i} className="card-default p-4 space-y-3">
             <Skeleton className="h-3 w-20 rounded-md" />
             <Skeleton className="h-8 w-28 rounded-md" />
             <Skeleton className="h-3 w-24 rounded-md" />
@@ -38,8 +38,8 @@ export default function PlatformLoading() {
         </div>
         <div className="divide-y divide-border/40">
           {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex items-center gap-6 px-4 py-3.5">
-              <div className="space-y-1.5 min-w-0 flex-1">
+            <div key={i} className="flex items-center gap-6 px-4 py-4">
+              <div className="space-y-2 min-w-0 flex-1">
                 <Skeleton className="h-4 w-40 max-w-full rounded-md" />
                 <Skeleton className="h-3 w-24 rounded-md" />
               </div>

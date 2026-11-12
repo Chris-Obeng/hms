@@ -41,7 +41,7 @@ export default async function PlatformSettingsPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           Platform settings
         </h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
+        <p className="mt-2 text-sm text-muted-foreground">
           Manage RoomLine&apos;s online booking commission and super-admin
           two-factor security.
         </p>
@@ -57,7 +57,7 @@ export default async function PlatformSettingsPage() {
           <h2 className="text-lg font-semibold tracking-tight text-foreground">
             Platform fees
           </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             Changes apply to the next transaction — money already collected is
             unaffected.
           </p>
