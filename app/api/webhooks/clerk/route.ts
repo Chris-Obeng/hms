@@ -3,6 +3,8 @@ import { headers } from 'next/headers'
 import { WebhookEvent, clerkClient } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
+import { notifyHotelStaff } from '@/lib/notifications/notify-hotel-staff'
+import { buildStaffJoinedNotification } from '@/lib/notifications/staff-notifications'
 
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET
@@ -143,7 +145,15 @@ export async function POST(req: Request) {
     const avatar_url = data.public_user_data.image_url ?? null
     const email = data.public_user_data.identifier ?? null
 
-    const { error } = await supabaseAdmin
+    // Preserve existing notification_prefs if Svix redelivers organizationMembership.created.
+    const { data: existingStaff } = await supabaseAdmin
+      .from('staff_profiles')
+      .select('id, notification_prefs')
+      .eq('clerk_user_id', clerk_user_id)
+      .eq('clerk_org_id', clerk_org_id)
+      .maybeSingle()
+
+    const { data: upsertedStaff, error } = await supabaseAdmin
       .from('staff_profiles')
       .upsert(
         {
@@ -156,15 +166,42 @@ export async function POST(req: Request) {
           is_active: true,
           granted_at: new Date().toISOString(),
           granted_by: null,
-          notification_prefs: {},
+          ...(existingStaff?.notification_prefs ? {} : { notification_prefs: {} }),
         },
         {
           onConflict: 'clerk_user_id,clerk_org_id',
         }
       )
+      .select('id')
+      .single()
 
     if (error) {
       console.error('[webhook] staff_profiles upsert failed:', error)
+    } else if (upsertedStaff?.id) {
+      const { data: hotel } = await supabaseAdmin
+        .from('hotels')
+        .select('id')
+        .eq('clerk_org_id', clerk_org_id)
+        .maybeSingle()
+
+      if (hotel?.id) {
+        const joinedCopy = buildStaffJoinedNotification({
+          fullName: full_name,
+          email,
+          role,
+        })
+        await notifyHotelStaff({
+          hotelId: hotel.id,
+          clerkOrgId: clerk_org_id,
+          type: 'staff_access_request',
+          prefKey: 'staff_access_request',
+          title: joinedCopy.title,
+          message: joinedCopy.message,
+          dedupeKey: `staff-joined:${upsertedStaff.id}`,
+          excludeStaffId: upsertedStaff.id,
+          onlyRoles: ['super_admin', 'manager'],
+        })
+      }
     }
   }
 

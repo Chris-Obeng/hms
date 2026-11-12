@@ -262,13 +262,18 @@ self.addEventListener("push", (event) => {
     } catch {
       data = { body: event.data.text() };
     }
-    await self.registration.showNotification(data.title || "RoomLine", {
-      body: data.body || data.message || "New hotel notification",
+    const notifId = data.notificationId || null;
+    const tag = data.tag || (notifId ? `roomline-notif-${notifId}` : "roomline-notification");
+    await self.registration.showNotification(data.title || "RoomLine update", {
+      body: data.body || data.message || "Tap to view details in RoomLine.",
       icon: data.icon || "/icons/icon-192x192.png",
       badge: "/icons/icon-192x192.png",
-      tag: data.tag || data.notificationId || "roomline-notification",
+      tag,
       renotify: true,
-      data: { url: data.url || "/dashboard", notificationId: data.notificationId },
+      data: {
+        url: data.url || "/dashboard",
+        notificationId: notifId,
+      },
     });
   })());
 });
@@ -318,10 +323,50 @@ self.addEventListener("pushsubscriptionchange", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = event.notification.data?.url || "/dashboard";
-  event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-    const client = clients.find((item) => "focus" in item);
-    if (client) return client.focus().then(() => client.navigate(target));
-    return self.clients.openWindow(target);
-  }));
+  const rawTarget = event.notification.data?.url || "/dashboard";
+  let parsedTarget;
+  try {
+    parsedTarget = new URL(rawTarget, self.location.origin);
+  } catch {
+    parsedTarget = new URL("/dashboard", self.location.origin);
+  }
+  const targetUrl =
+    parsedTarget.origin === self.location.origin
+      ? parsedTarget.href
+      : new URL("/dashboard", self.location.origin).href;
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then(async (clients) => {
+        const sameOriginClients = clients.filter((item) => {
+          try {
+            return "focus" in item && new URL(item.url).origin === self.location.origin;
+          } catch {
+            return false;
+          }
+        });
+        const dashboardClient = sameOriginClients.find((item) => {
+          try {
+            return new URL(item.url).pathname.startsWith("/dashboard");
+          } catch {
+            return false;
+          }
+        });
+        const targetClient = dashboardClient || sameOriginClients[0];
+
+        if (targetClient) {
+          await targetClient.focus();
+          if ("navigate" in targetClient && targetClient.url !== targetUrl) {
+            try {
+              await targetClient.navigate(targetUrl);
+            } catch {
+              return self.clients.openWindow(targetUrl);
+            }
+          }
+          return;
+        }
+        return self.clients.openWindow(targetUrl);
+      })
+  );
 });

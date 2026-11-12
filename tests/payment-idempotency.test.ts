@@ -5,7 +5,10 @@ vi.mock("@/lib/notifications/send-booking-confirmation", () => ({
   sendBookingConfirmation: vi.fn(async () => ({ success: true, channel: "email" })),
 }));
 
-import { recordOnlinePayment } from "@/lib/bookings/confirm-online-payment";
+import {
+  notifyStaffNewBooking,
+  recordOnlinePayment,
+} from "@/lib/bookings/confirm-online-payment";
 import { sendBookingConfirmation } from "@/lib/notifications/send-booking-confirmation";
 
 // ── Fake supabaseAdmin ─────────────────────────────────────────────
@@ -13,9 +16,11 @@ import { sendBookingConfirmation } from "@/lib/notifications/send-booking-confir
 interface DbConfig {
   booking?: Record<string, unknown> | null;
   fullBooking?: Record<string, unknown>;
+  groupLines?: Record<string, unknown>[];
   hotel?: Record<string, unknown>;
   staff?: { id: string; notification_prefs: unknown }[];
   existingAlert?: { id: string } | null;
+  settleError?: string | null;
 }
 
 let dbConfig: DbConfig = {};
@@ -47,10 +52,14 @@ function makeDb() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function from(table: string): any {
     const api: Record<string, unknown> = {};
+    let filteredGroupId = false;
     const chain = () => api;
 
     api.select = chain;
-    api.eq = chain;
+    api.eq = (col: string) => {
+      if (col === "group_id") filteredGroupId = true;
+      return api;
+    };
     api.order = chain;
     api.limit = chain;
 
@@ -75,15 +84,19 @@ function makeDb() {
       return { error: null };
     };
 
-    // Bare await (e.g. staff_profiles recipient lookup) resolves a list
+    // Bare await (e.g. staff_profiles recipient lookup or group_id sibling lines) resolves a list
     api.then = (
       resolve: (v: { data: unknown; error: null }) => unknown,
       reject?: (e: unknown) => unknown
-    ) =>
-      Promise.resolve({ data: table === "staff_profiles" ? (dbConfig.staff ?? []) : [], error: null }).then(
-        resolve,
-        reject
-      );
+    ) => {
+      const rows =
+        table === "staff_profiles"
+          ? (dbConfig.staff ?? [])
+          : table === "bookings" && filteredGroupId
+            ? (dbConfig.groupLines ?? [])
+            : [];
+      return Promise.resolve({ data: rows, error: null }).then(resolve, reject);
+    };
 
     return api;
   }
@@ -97,6 +110,10 @@ function makeDb() {
       }
 
       state.rpcCalls.push(args);
+      if (dbConfig.settleError) {
+        return Promise.resolve({ data: null, error: { message: dbConfig.settleError } });
+      }
+
       const alreadyRecorded = state.settledReferences.has(args.p_paystack_reference);
       if (!alreadyRecorded) {
         state.settledReferences.add(args.p_paystack_reference);
@@ -111,15 +128,21 @@ function makeDb() {
       const paid = state.amountPaidMinor >= totalMinor;
 
       return Promise.resolve({
-        data: [{
-          result: alreadyRecorded ? "already_recorded" : "recorded",
-          booking_id: args.p_booking_id,
-          amount_paid_minor: state.amountPaidMinor,
-          payment_status: paid ? "paid" : "partial",
-          booking_status: activeBooking ? (paid ? "confirmed" : "pending") : dbConfig.booking?.status,
-          partial_payment: !paid,
-          already_recorded: alreadyRecorded,
-        }],
+        data: [
+          {
+            result: alreadyRecorded ? "already_recorded" : "recorded",
+            booking_id: args.p_booking_id,
+            amount_paid_minor: state.amountPaidMinor,
+            payment_status: paid ? "paid" : "partial",
+            booking_status: activeBooking
+              ? paid
+                ? "confirmed"
+                : "pending"
+              : dbConfig.booking?.status,
+            partial_payment: !paid,
+            already_recorded: alreadyRecorded,
+          },
+        ],
         error: null,
       });
     },
@@ -144,10 +167,26 @@ function reset(
 ) {
   dbConfig = {
     booking,
-    fullBooking: { id: "b-1", reference: "HTL-101", check_in: "2026-09-01", check_out: "2026-09-02", nights: 1, total_amount: 500, guests: [{ full_name: "Kofi M", email: "k@example.com", phone: "+233" }], room_types: [{ name: "Deluxe" }] },
-    hotel: { name: "Test Hotel", currency: "GHS", clerk_org_id: "org-1", check_in_time: "14:00", check_out_time: "12:00" },
+    fullBooking: {
+      id: "b-1",
+      reference: "HTL-101",
+      check_in: "2026-09-01",
+      check_out: "2026-09-02",
+      nights: 1,
+      total_amount: 500,
+      guests: [{ full_name: "Kofi M", email: "k@example.com", phone: "+233" }],
+      room_types: [{ name: "Deluxe" }],
+    },
+    hotel: {
+      name: "Test Hotel",
+      currency: "GHS",
+      clerk_org_id: "org-1",
+      check_in_time: "14:00",
+      check_out_time: "12:00",
+    },
     staff: [{ id: "s-1", notification_prefs: { new_booking: true } }],
     existingAlert: null,
+    settleError: null,
     ...overrides,
   };
 }
@@ -257,7 +296,14 @@ describe("recordOnlinePayment — idempotency & money integrity", () => {
     expect(state.notificationInserts.some((n) => n.type === "payment_failed")).toBe(true);
   });
 
-  it("carries a machine-stable dedupe key on the review alert", async () => {
+  it("carries a machine-stable dedupe key per active staff member on the review alert", async () => {
+    reset({
+      staff: [
+        { id: "s-desk", notification_prefs: {} },
+        { id: "s-mgr", notification_prefs: {} },
+      ],
+    });
+
     await recordOnlinePayment({
       bookingId: "b-1",
       paystackReference: "HTL-101-usd",
@@ -265,11 +311,29 @@ describe("recordOnlinePayment — idempotency & money integrity", () => {
       currency: "USD",
     });
 
-    // The unique index is on (booking_id, dedupe_key), so the key — not the
-    // title — is what makes the webhook and the verify fallback alert once.
+    const alerts = state.notificationInserts.filter((n) => n.type === "payment_failed");
+    expect(alerts).toHaveLength(2);
+    expect(alerts.map((a) => a.recipient_staff_id)).toEqual(["s-desk", "s-mgr"]);
+    for (const alert of alerts) {
+      expect(alert.dedupe_key).toBe("payment-review:currency-mismatch");
+      expect(alert.booking_id).toBe("b-1");
+    }
+  });
+
+  it("uses settlement_check copy instead of claiming equal amounts differ on subaccount mismatch", async () => {
+    reset({ settleError: "subaccount mismatch on settlement" });
+
+    const result = await recordOnlinePayment({
+      bookingId: "b-1",
+      paystackReference: "HTL-101-sub",
+      amountPaid: 500,
+      currency: "GHS",
+    });
+
+    expect(result.outcome).toBe("failed");
     const alert = state.notificationInserts.find((n) => n.type === "payment_failed");
-    expect(alert?.dedupe_key).toBe("payment-review:currency-mismatch");
-    expect(alert?.booking_id).toBe("b-1");
+    expect(alert?.title).toBe("Payment needs a quick check");
+    expect(String(alert?.message)).not.toContain("differs from the booking total");
   });
 
   it("non-positive amount is rejected outright", async () => {
@@ -323,5 +387,39 @@ describe("recordOnlinePayment — idempotency & money integrity", () => {
       amountPaid: 100,
     });
     expect(result.outcome).toBe("failed");
+  });
+
+  it("sums all sibling room lines for online multi-room pay_at_checkin notifications", async () => {
+    reset(
+      {
+        groupLines: [
+          { total_amount: 1000, rooms_count: 1 },
+          { total_amount: 1000, rooms_count: 1 },
+          { total_amount: 1000, rooms_count: 1 },
+        ],
+      },
+      {
+        id: "g-1",
+        group_id: "g-1",
+        hotel_id: "h-1",
+        reference: "GRP-300",
+        check_in: "2026-11-13",
+        check_out: "2026-11-18",
+        nights: 5,
+        total_amount: 1000, // single anchor line only
+        currency: "GHS",
+        payment_preference: "pay_at_checkin",
+        guests: [{ full_name: "Ama Boateng" }],
+        room_types: [{ name: "Deluxe Room" }],
+      }
+    );
+
+    await notifyStaffNewBooking("h-1", "g-1", "3 rooms");
+
+    expect(state.notificationInserts).toHaveLength(1);
+    expect(state.notificationInserts[0].title).toBe("New group booking — Ama Boateng");
+    expect(state.notificationInserts[0].message).toBe(
+      "3 rooms · Nov 13 – Nov 18 (5 nights) · Pay at check-in (GHS 3,000.00)"
+    );
   });
 });

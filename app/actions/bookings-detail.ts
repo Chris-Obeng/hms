@@ -7,6 +7,8 @@ import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
 import { requireAuth, requireMinRole } from "@/lib/auth";
 import { can } from "@/lib/roles";
+import { notifyHotelStaff } from "@/lib/notifications/notify-hotel-staff";
+import { buildPaymentReceivedNotification } from "@/lib/notifications/staff-notifications";
 
 // ── Get Hotel ID Helper ──────────────────────────────────────────
 
@@ -392,7 +394,7 @@ export async function recordPayment(
     // Verify booking exists and belongs to this hotel
     const { data: booking } = await supabase
       .from("bookings")
-      .select("id, total_amount, amount_paid, status")
+      .select("id, total_amount, amount_paid, status, guests(full_name), room_types(name)")
       .eq("id", data.bookingId)
       .eq("hotel_id", hotelId)
       .single();
@@ -444,6 +446,33 @@ export async function recordPayment(
       entityType: "booking",
       entityId: data.bookingId,
       afterState: { amount: data.amount, method: data.method, payment_id: payment.id },
+    });
+
+    const guestRel = booking.guests as { full_name?: string | null } | { full_name?: string | null }[] | null;
+    const roomRel = booking.room_types as { name?: string | null } | { name?: string | null }[] | null;
+    const guestName = (Array.isArray(guestRel) ? guestRel[0] : guestRel)?.full_name ?? null;
+    const roomName = (Array.isArray(roomRel) ? roomRel[0] : roomRel)?.name ?? null;
+    const nextPaid = Number(booking.amount_paid ?? 0) + data.amount;
+    const remainingBalance = Math.max(0, Number(booking.total_amount ?? 0) - nextPaid);
+    const payCopy = buildPaymentReceivedNotification({
+      amount: data.amount,
+      currency: hotel.currency || "GHS",
+      guestName,
+      roomLabel: roomName,
+      remainingBalance,
+      method: data.method,
+      actorName: staffName,
+    });
+
+    void notifyHotelStaff({
+      hotelId,
+      clerkOrgId: orgId,
+      type: "payment_received",
+      prefKey: "payment_received",
+      title: payCopy.title,
+      message: payCopy.message,
+      bookingId: data.bookingId,
+      excludeStaffId: staffProfile.id,
     });
 
     revalidatePath("/dashboard");

@@ -28,6 +28,17 @@ import { fromMinor, toMinor } from "@/lib/money";
 import { fetchGroupRoomLines } from "@/lib/bookings/group-room-lines";
 import { sendBookingConfirmation } from "@/lib/notifications/send-booking-confirmation";
 import { kickDeliveryWorker } from "@/lib/notifications/kick-delivery";
+import { notifyHotelStaff } from "@/lib/notifications/notify-hotel-staff";
+import {
+  buildNewBookingNotification,
+  buildPaymentReceivedNotification,
+  buildPaymentReviewNotification,
+} from "@/lib/notifications/staff-notifications";
+
+function unwrapOne<T>(rel: T | T[] | null | undefined): T | null {
+  if (!rel) return null;
+  return Array.isArray(rel) ? (rel[0] ?? null) : rel;
+}
 import {
   captureError,
   captureIssue,
@@ -99,7 +110,7 @@ const PERMANENT_SETTLEMENT_FAILURES = [
  * accepted as number or string and narrowed with `Number(...)` at the boundary.
  */
 interface SettlementRow {
-  result: "recorded" | "already_recorded";
+  result: "recorded" | "already_recorded" | "recorded_sold_out";
   booking_id: string;
   amount_paid_minor: number | string;
   payment_status: string;
@@ -132,15 +143,58 @@ async function alertOncePerBooking(
   title: string,
   message: string
 ): Promise<void> {
-  const { error } = await supabaseAdmin.from("notifications").insert({
-    hotel_id: hotelId,
-    type,
-    title,
-    message,
-    booking_id: bookingId,
-    dedupe_key: dedupeKey,
-    is_read: false,
-  });
+  // Fan out per active staff member so one front-desk clerk clearing their feed
+  // never hides an unresolved payment discrepancy from hotel managers. Uniqueness
+  // is enforced by `notifications_staff_booking_dedupe_key_uniq` on
+  // `(booking_id, recipient_staff_id, dedupe_key)` (with hotel-wide fallback on
+  // `notifications_booking_dedupe_key_uniq` when no active staff rows exist).
+  let staffIds: string[] = [];
+  try {
+    const { data: hotelRow } = await supabaseAdmin
+      .from("hotels")
+      .select("clerk_org_id")
+      .eq("id", hotelId)
+      .single();
+
+    const clerkOrgId = (hotelRow as { clerk_org_id?: string | null } | null)?.clerk_org_id;
+    if (clerkOrgId) {
+      const { data: recipients } = await supabaseAdmin
+        .from("staff_profiles")
+        .select("id")
+        .eq("clerk_org_id", clerkOrgId)
+        .eq("is_active", true);
+
+      staffIds = (recipients ?? [])
+        .map((r) => (r as { id?: string }).id)
+        .filter((id): id is string => Boolean(id));
+    }
+  } catch {
+    staffIds = [];
+  }
+
+  const payload =
+    staffIds.length > 0
+      ? staffIds.map((staffId) => ({
+          hotel_id: hotelId,
+          recipient_staff_id: staffId,
+          type,
+          title,
+          message,
+          booking_id: bookingId,
+          dedupe_key: dedupeKey,
+          is_read: false,
+        }))
+      : {
+          hotel_id: hotelId,
+          type,
+          title,
+          message,
+          booking_id: bookingId,
+          dedupe_key: dedupeKey,
+          is_read: false,
+        };
+
+  const { error } = await supabaseAdmin.from("notifications").insert(payload);
 
   if (error) {
     // 23505 = the unique index did its job. Anything else means the hotel was not
@@ -248,7 +302,9 @@ export async function recordOnlinePayment(
   // ── 1. Load the booking ──────────────────────────────────────
   const { data: booking, error: bookingError } = await supabaseAdmin
     .from("bookings")
-    .select("id, hotel_id, reference, total_amount, currency, status, payment_status, cancellation_reason")
+    .select(
+      "id, hotel_id, reference, total_amount, currency, status, payment_status, cancellation_reason, check_in, check_out, nights, guests(full_name), room_types(name)"
+    )
     .eq("id", bookingId)
     .maybeSingle();
 
@@ -282,6 +338,12 @@ export async function recordOnlinePayment(
 
   const expectedAmount = Number(booking.total_amount);
   const bookingCurrency = booking.currency ?? "GHS";
+  const bookingGuestName =
+    unwrapOne(booking.guests as { full_name?: string | null } | { full_name?: string | null }[] | null)
+      ?.full_name ?? null;
+  const bookingRoomName =
+    unwrapOne(booking.room_types as { name?: string | null } | { name?: string | null }[] | null)
+      ?.name ?? null;
 
   // Currency guard — a mismatch means manual review, never auto-confirm.
   if (input.currency && input.currency !== bookingCurrency) {
@@ -304,13 +366,20 @@ export async function recordOnlinePayment(
       },
       fingerprint: ["payments", "currency-mismatch"],
     });
+    const reviewCopy = buildPaymentReviewNotification({
+      reason: "currency_mismatch",
+      receivedCurrency: input.currency,
+      expectedCurrency: bookingCurrency,
+      amountPaid,
+      guestName: bookingGuestName,
+    });
     await alertOncePerBooking(
       booking.hotel_id,
       bookingId,
       "payment_failed",
       "payment-review:currency-mismatch",
-      "⚠️ Payment Currency Mismatch",
-      `Payment ${paystackReference} used currency ${input.currency} but booking expects ${bookingCurrency}. Manual review required.`
+      reviewCopy.title,
+      reviewCopy.message
     );
     return { outcome: "failed", error: "Currency mismatch", retryable: false };
   }
@@ -359,13 +428,30 @@ export async function recordOnlinePayment(
         },
         fingerprint: ["payments", "settlement-rejected"],
       });
+      const isAmountDiff =
+        settleError.message.includes("amount mismatch") &&
+        Math.abs(amountPaid - expectedAmount) > 0.009;
+      const rejectCopy = isAmountDiff
+        ? buildPaymentReviewNotification({
+            reason: "amount_mismatch",
+            currency: bookingCurrency,
+            amountPaid,
+            expectedAmount,
+            guestName: bookingGuestName,
+          })
+        : buildPaymentReviewNotification({
+            reason: "settlement_check",
+            currency: bookingCurrency,
+            amountPaid,
+            guestName: bookingGuestName,
+          });
       await alertOncePerBooking(
         booking.hotel_id,
         bookingId,
         "payment_failed",
         "payment-review:settlement-rejected",
-        "⚠️ Payment Needs Manual Review",
-        `Payment ${paystackReference} could not be settled automatically: ${settleError.message}. Money may be captured — review manually.`
+        rejectCopy.title,
+        rejectCopy.message
       );
     } else {
       // Transient (attempt not initialized yet, lock timeout, connection drop):
@@ -445,6 +531,7 @@ export async function recordOnlinePayment(
       tags: {
         "booking.status": row.booking_status,
         "booking.payment_status": row.payment_status,
+        "settlement.result": row.result,
       },
       contexts: {
         payment: { amountPaid, expectedAmount, currency: bookingCurrency },
@@ -456,13 +543,20 @@ export async function recordOnlinePayment(
       },
       fingerprint: ["payments", "non-active-booking", row.booking_status ?? "unknown"],
     });
+    const inactiveCopy = buildPaymentReviewNotification({
+      reason: "non_active_booking",
+      currency: bookingCurrency,
+      amountPaid,
+      bookingStatus: row.booking_status,
+      guestName: bookingGuestName,
+    });
     await alertOncePerBooking(
       booking.hotel_id,
       bookingId,
       "payment_failed",
       "payment-review:non-active-booking",
-      "⚠️ Payment on Non-Active Booking",
-      `Payment ${paystackReference} succeeded but booking status is "${row.booking_status}". Money recorded — review manually.`
+      inactiveCopy.title,
+      inactiveCopy.message
     );
     return {
       outcome: "recorded",
@@ -474,37 +568,27 @@ export async function recordOnlinePayment(
     };
   }
 
-  // ── 3. Staff payment notification ────────────────────────────
+  // ── 3. Staff notification ────────────────────────────────────
   const balance = Math.max(0, expectedAmount - totalPaid);
-  const { error: notifyError } = await supabaseAdmin.from("notifications").insert({
-    hotel_id: booking.hotel_id,
-    type: "payment_received",
-    title: partial ? "Partial Payment Received" : "Payment Received",
-    message: `Online payment of ${bookingCurrency} ${amountPaid.toFixed(2)} ${
-      fullyPaid ? "confirmed" : `(balance: ${balance.toFixed(2)})`
-    }`,
-    booking_id: bookingId,
-    is_read: false,
-  });
-  kickDeliveryWorker();
-  if (notifyError) {
-    console.error("[payments/record] Failed to write staff notification", {
-      bookingId,
-      paystackReference,
-      error: notifyError.message,
-    });
-    // Money is safe; the front desk simply never hears about it.
-    captureSupabaseError(notifyError, "notifications.insert", {
-      scope: "notifications",
-      level: "warning",
-      hotelId: booking.hotel_id,
-      bookingId,
-      reference: paystackReference,
-      tags: { "notification.type": "payment_received" },
-    });
-  }
 
   if (!(fullyPaid && row.booking_status === "confirmed")) {
+    const payCopy = buildPaymentReceivedNotification({
+      amount: amountPaid,
+      currency: bookingCurrency,
+      guestName: bookingGuestName,
+      roomLabel: bookingRoomName,
+      remainingBalance: balance,
+      method: "online",
+      partial,
+    });
+    await notifyHotelStaff({
+      hotelId: booking.hotel_id,
+      type: "payment_received",
+      prefKey: "payment_received",
+      title: payCopy.title,
+      message: payCopy.message,
+      bookingId,
+    });
     return {
       outcome: "recorded",
       bookingId,
@@ -515,8 +599,12 @@ export async function recordOnlinePayment(
   }
 
   // Fully paid → this is the moment the booking becomes real for the hotel.
-  // Fan out the same "new online booking" alert used by pay-at-check-in.
-  await notifyStaffNewBooking(booking.hotel_id, bookingId);
+  // Sends a single rich booking + payment alert to front-desk staff (and a
+  // payment-only alert to any staff who muted `new_booking` but kept `payment_received`).
+  await notifyStaffNewBooking(booking.hotel_id, bookingId, undefined, {
+    amountPaid,
+    currency: bookingCurrency,
+  });
 
   // ── 4. Guest confirmation email/push ─────────────────────────
   try {
@@ -692,7 +780,7 @@ export async function recordOnlineGroupPayment(
   // group — so there is nothing to gain from loading it.
   const { data: anchor, error: anchorError } = await supabaseAdmin
     .from("bookings")
-    .select("id, hotel_id, reference, currency")
+    .select("id, hotel_id, reference, currency, guests(full_name)")
     .eq("id", groupId)
     .maybeSingle();
 
@@ -722,6 +810,9 @@ export async function recordOnlineGroupPayment(
 
   const hotelId = anchor.hotel_id;
   const groupCurrency = anchor.currency ?? "GHS";
+  const groupGuestName =
+    unwrapOne(anchor.guests as { full_name?: string | null } | { full_name?: string | null }[] | null)
+      ?.full_name ?? null;
 
   // Currency guard — mirror the single path; a mismatch is manual review.
   if (input.currency && input.currency !== groupCurrency) {
@@ -737,13 +828,20 @@ export async function recordOnlineGroupPayment(
       },
       fingerprint: ["payments", "group-currency-mismatch"],
     });
+    const groupCurrCopy = buildPaymentReviewNotification({
+      reason: "currency_mismatch",
+      receivedCurrency: input.currency,
+      expectedCurrency: groupCurrency,
+      amountPaid,
+      guestName: groupGuestName,
+    });
     await alertOncePerBooking(
       hotelId,
       groupId,
       "payment_failed",
       "payment-review:group-currency-mismatch",
-      "⚠️ Payment Currency Mismatch",
-      `Group payment ${paystackReference} used currency ${input.currency} but reservation expects ${groupCurrency}. Manual review required.`
+      groupCurrCopy.title,
+      groupCurrCopy.message
     );
     return { outcome: "failed", error: "Currency mismatch", retryable: false };
   }
@@ -784,13 +882,19 @@ export async function recordOnlineGroupPayment(
         },
         fingerprint: ["payments", "group-settlement-rejected"],
       });
+      const groupRejectCopy = buildPaymentReviewNotification({
+        reason: "group_partial_confirm",
+        currency: groupCurrency,
+        amountPaid,
+        guestName: groupGuestName,
+      });
       await alertOncePerBooking(
         hotelId,
         groupId,
         "payment_failed",
         "payment-review:group-settlement-rejected",
-        "⚠️ Payment Needs Manual Review",
-        `Group payment ${paystackReference} could not be settled automatically: ${settleError.message}. Money may be captured — review manually.`
+        groupRejectCopy.title,
+        groupRejectCopy.message
       );
     } else {
       captureSupabaseError(settleError, "rpc.settle_online_group_payment_atomic", {
@@ -865,26 +969,6 @@ export async function recordOnlineGroupPayment(
       ? `${roomsTotal} ${roomsTotal === 1 ? "room" : "rooms"}`
       : `${row.line_count} rooms`;
 
-  const { error: notifyError } = await supabaseAdmin.from("notifications").insert({
-    hotel_id: hotelId,
-    type: "payment_received",
-    title: "Payment Received",
-    message: `Online payment of ${groupCurrency} ${totalPaid.toFixed(2)} for ${roomsLabel} ${allConfirmed ? "confirmed" : "recorded"}`,
-    booking_id: groupId,
-    is_read: false,
-  });
-  kickDeliveryWorker();
-  if (notifyError) {
-    captureSupabaseError(notifyError, "notifications.insert.group", {
-      scope: "notifications",
-      level: "warning",
-      hotelId,
-      bookingId: groupId,
-      reference: paystackReference,
-      tags: { "notification.type": "payment_received" },
-    });
-  }
-
   // A line that was no longer active keeps its state by RPC design, so the group
   // did not fully confirm. Money is recorded; a human decides what it means.
   if (!allConfirmed) {
@@ -897,13 +981,19 @@ export async function recordOnlineGroupPayment(
       contexts: { settlement: { line_count: row.line_count, all_confirmed: false } },
       fingerprint: ["payments", "group-not-all-confirmed"],
     });
+    const groupReviewCopy = buildPaymentReviewNotification({
+      reason: "group_partial_confirm",
+      currency: groupCurrency,
+      amountPaid: totalPaid,
+      guestName: groupGuestName,
+    });
     await alertOncePerBooking(
       hotelId,
       groupId,
       "payment_failed",
       "payment-review:group-not-all-confirmed",
-      "⚠️ Group Payment Needs Review",
-      `Group payment ${paystackReference} recorded but not every room confirmed. Money recorded — review manually.`
+      groupReviewCopy.title,
+      groupReviewCopy.message
     );
     return {
       outcome: "recorded",
@@ -916,8 +1006,12 @@ export async function recordOnlineGroupPayment(
   }
 
   // Fully confirmed → the reservation is real. One staff fan-out (rooms summary
-  // instead of a single room type) and one guest confirmation for the group.
-  await notifyStaffNewBooking(hotelId, groupId, roomsLabel);
+  // + paid amount) and one guest confirmation for the group.
+  await notifyStaffNewBooking(hotelId, groupId, roomsLabel, {
+    amountPaid: totalPaid,
+    currency: groupCurrency,
+    roomsCount: roomsTotal > 0 ? roomsTotal : Number(row.line_count ?? 1),
+  });
 
   // ── 4. Guest confirmation (one email, group summary) ─────────
   try {
@@ -1021,19 +1115,20 @@ export async function recordOnlineGroupPayment(
 export async function notifyStaffNewBooking(
   hotelId: string,
   bookingId: string,
-  roomsSummary?: string
+  roomsSummary?: string,
+  settledPayment?: { amountPaid: number; currency: string; roomsCount?: number }
 ): Promise<void> {
   const [bookingResult, hotelResult] = await Promise.all([
     supabaseAdmin
       .from("bookings")
       .select(
-        "reference, check_in, check_out, guests(full_name), room_types(name)"
+        "id, group_id, reference, check_in, check_out, nights, total_amount, currency, payment_preference, guests(full_name), room_types(name)"
       )
       .eq("id", bookingId)
       .maybeSingle(),
     supabaseAdmin
       .from("hotels")
-      .select("clerk_org_id")
+      .select("clerk_org_id, currency")
       .eq("id", hotelId)
       .single(),
   ]);
@@ -1093,21 +1188,122 @@ export async function notifyStaffNewBooking(
     return;
   }
 
-  const guest = booking.guests as { full_name?: string | null } | null;
-  const roomType = booking.room_types as { name?: string | null } | null;
+  const guest = unwrapOne(
+    booking.guests as { full_name?: string | null } | { full_name?: string | null }[] | null
+  );
+  const roomType = unwrapOne(
+    booking.room_types as { name?: string | null } | { name?: string | null }[] | null
+  );
+  const currency =
+    settledPayment?.currency ??
+    (booking.currency as string | undefined) ??
+    (hotelResult.data?.currency as string | undefined) ??
+    "GHS";
+  const roomLabel = roomsSummary ?? roomType?.name ?? "Room";
+  const parsedRoomsFromSummary = roomsSummary ? Number.parseInt(roomsSummary, 10) : NaN;
+  const bookingGroupId = (booking as { group_id?: string | null }).group_id ?? null;
 
-  const notifications = recipientsResult.data
-    .filter((staff) => (staff.notification_prefs as Record<string, boolean> | null)?.new_booking !== false)
-    .map((staff) => ({
-      hotel_id: hotelId,
-      recipient_staff_id: staff.id,
-      created_by_staff_id: null,
-      type: "new_booking",
-      title: "New online booking",
-      message: `${booking.reference} · ${guest?.full_name ?? "Guest"} · ${roomsSummary ?? roomType?.name ?? "Room"} · ${booking.check_in} → ${booking.check_out}`,
-      booking_id: bookingId,
-      is_read: false,
-    }));
+  // For multi-room reservations without `settledPayment` (e.g. online pay_at_checkin
+  // group bookings), sum total_amount and rooms_count across all sibling lines in
+  // the group instead of reading only the single anchor line's total.
+  let resolvedTotalAmount: number | null =
+    booking.total_amount !== null && booking.total_amount !== undefined
+      ? Number(booking.total_amount)
+      : null;
+  let resolvedRoomsCount =
+    settledPayment?.roomsCount ??
+    (Number.isFinite(parsedRoomsFromSummary) && parsedRoomsFromSummary > 1
+      ? parsedRoomsFromSummary
+      : 1);
+
+  if (!settledPayment && (bookingGroupId || resolvedRoomsCount > 1)) {
+    const targetGroupId = bookingGroupId ?? bookingId;
+    const { data: groupLines } = await supabaseAdmin
+      .from("bookings")
+      .select("total_amount, rooms_count")
+      .eq("group_id", targetGroupId)
+      .eq("hotel_id", hotelId);
+
+    if (groupLines && groupLines.length > 0) {
+      resolvedTotalAmount = groupLines.reduce(
+        (sum, line) =>
+          sum + Number((line as { total_amount?: number | string | null }).total_amount ?? 0),
+        0
+      );
+      resolvedRoomsCount = groupLines.reduce(
+        (sum, line) =>
+          sum + Math.max(1, Number((line as { rooms_count?: number | null }).rooms_count ?? 1)),
+        0
+      );
+    }
+  }
+
+  const bookingCopy = buildNewBookingNotification({
+    guestName: guest?.full_name ?? "Guest",
+    roomLabel,
+    roomsCount: resolvedRoomsCount,
+    checkIn: booking.check_in as string | null,
+    checkOut: booking.check_out as string | null,
+    nights: (booking.nights as number | null) ?? null,
+    currency,
+    amountPaid: settledPayment?.amountPaid ?? null,
+    totalAmount: resolvedTotalAmount,
+    paymentPreference: (booking.payment_preference as string | null) ?? null,
+    isOnline: true,
+  });
+
+  const paymentOnlyCopy = settledPayment
+    ? buildPaymentReceivedNotification({
+        amount: settledPayment.amountPaid,
+        currency,
+        guestName: guest?.full_name ?? "Guest",
+        roomLabel,
+        remainingBalance: 0,
+        method: "online",
+        partial: false,
+      })
+    : null;
+
+  const notifications: Array<{
+    hotel_id: string;
+    recipient_staff_id: string;
+    created_by_staff_id: null;
+    type: string;
+    title: string;
+    message: string;
+    booking_id: string;
+    is_read: boolean;
+  }> = [];
+
+  for (const staff of recipientsResult.data) {
+    const prefs = (staff.notification_prefs as Record<string, boolean> | null) ?? {};
+    const wantsNewBooking = prefs.new_booking !== false;
+    const wantsPayment = prefs.payment_received !== false;
+
+    if (wantsNewBooking) {
+      notifications.push({
+        hotel_id: hotelId,
+        recipient_staff_id: staff.id,
+        created_by_staff_id: null,
+        type: "new_booking",
+        title: bookingCopy.title,
+        message: bookingCopy.message,
+        booking_id: bookingId,
+        is_read: false,
+      });
+    } else if (paymentOnlyCopy && wantsPayment) {
+      notifications.push({
+        hotel_id: hotelId,
+        recipient_staff_id: staff.id,
+        created_by_staff_id: null,
+        type: "payment_received",
+        title: paymentOnlyCopy.title,
+        message: paymentOnlyCopy.message,
+        booking_id: bookingId,
+        is_read: false,
+      });
+    }
+  }
 
   if (!notifications.length) return;
 

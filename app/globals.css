@@ -279,6 +279,10 @@
   --radius: 0.625rem;
   /* The pen design file's accent blue — charts and icon chips on staff pages. */
   --pen-accent: #0485F7;
+  /* Shared physical motion curves (Emil Kowalski / Apple fluid UI) */
+  --ease-out-ui: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-ui: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   /* Sidebar: soft cool-tinted panel with navy active states */
   --sidebar: oklch(0.978 0.006 253);
   --sidebar-foreground: oklch(0.24 0.025 261);
@@ -643,5 +647,65 @@ html.pwa-standalone [data-slot="app-header"] {
   [role="button"],
   a {
     touch-action: manipulation;
+  }
+}
+
+/* ── Fluid UI press & pointer discipline ───────────────────────────────
+ *  Instant pointer-down response, capability-gated hover, and reduced-motion
+ *  parity across front-desk surfaces.
+ * ────────────────────────────────────────────────────────────────────── */
+
+.ui-press {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    transform 120ms var(--ease-out-ui),
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    opacity 150ms ease;
+}
+
+.ui-press:active:not(:disabled):not([aria-disabled="true"]) {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-press,
+  .ui-press:active {
+    transform: none !important;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease,
+      color 150ms ease,
+      opacity 150ms ease;
+  }
+}
+
+/* ── HeroUI Notification Badge entrance ────────────────────────────────
+ *  Crisp scale(0.9) -> scale(1) + opacity entrance via @starting-style.
+ *  Avoids scale(0) and layout-projection jumps while honoring reduced motion.
+ * ────────────────────────────────────────────────────────────────────── */
+
+.notification-badge {
+  --badge-border: var(--background);
+  border-width: 1.5px;
+  opacity: 1;
+  scale: 1;
+  transition:
+    opacity 160ms var(--ease-out-ui),
+    scale 160ms var(--ease-out-ui);
+
+  @starting-style {
+    opacity: 0;
+    scale: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notification-badge {
+    transition: opacity 120ms ease;
+    scale: 1 !important;
   }
 }

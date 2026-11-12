@@ -15,7 +15,12 @@ import {
   type RoomTypeStayRestrictions,
 } from "@/lib/bookings/stay-restrictions";
 import { captureError } from "@/lib/observability/sentry";
-import { kickDeliveryWorker } from "@/lib/notifications/kick-delivery";
+import { fromMinor } from "@/lib/money";
+import { notifyHotelStaff } from "@/lib/notifications/notify-hotel-staff";
+import {
+  buildBookingCancelledNotification,
+  buildNewBookingNotification,
+} from "@/lib/notifications/staff-notifications";
 import { canTransitionBooking } from "@/lib/booking-status";
 
 // ── Schemas ──────────────────────────────────────────────────────
@@ -239,7 +244,7 @@ export async function createBooking(
     // Capacity is a hard limit, not a policy — no manager override.
     const { data: capacity } = await supabase
       .from("room_types")
-      .select("max_adults, max_children")
+      .select("name, max_adults, max_children")
       .eq("id", data.roomTypeId)
       .eq("hotel_id", hotelId)
       .single();
@@ -387,36 +392,28 @@ export async function createBooking(
     }
 
     // Fan out internal alert per staff preference. Creator excluded by design.
-    const { data: recipients } = await supabase
-      .from("staff_profiles")
-      .select("id, notification_prefs")
-      .eq("clerk_org_id", ctx.orgId)
-      .eq("is_active", true)
-      .neq("id", ctx.staffId);
-    const rows = (recipients ?? [])
-      .filter((staff) => (staff.notification_prefs as Record<string, boolean> | null)?.new_booking !== false)
-      .map((staff) => ({
-        hotel_id: hotelId,
-        type: "new_booking",
-        title: "New booking created",
-        message: `${booking.reference} added by ${ctx.staffName ?? "staff"}`,
-        booking_id: booking.booking_id,
-        created_by_staff_id: ctx.staffId,
-        recipient_staff_id: staff.id,
-      }));
-    if (rows.length) {
-      const { error: notifyError } = await supabase.from("notifications").insert(rows as never);
-      if (notifyError) {
-        // Booking already persisted; losing alerts must not fail the request,
-        // but it must never fail silently either.
-        console.error("[createBooking] staff notification insert failed", {
-          bookingId: booking.booking_id,
-          error: notifyError.message,
-        });
-      } else {
-        kickDeliveryWorker();
-      }
-    }
+    const singleAlertCopy = buildNewBookingNotification({
+      guestName: data.guestName,
+      roomLabel: capacity.name,
+      roomsCount: 1,
+      checkIn: data.checkIn,
+      checkOut: data.checkOut,
+      nights: booking.night_count,
+      currency: ctx.hotel.currency || "GHS",
+      totalAmount: booking.total_amount,
+      paymentPreference: data.paymentPreference,
+      actorName: ctx.staffName,
+    });
+    await notifyHotelStaff({
+      hotelId,
+      clerkOrgId: ctx.orgId,
+      type: "new_booking",
+      prefKey: "new_booking",
+      title: singleAlertCopy.title,
+      message: singleAlertCopy.message,
+      bookingId: booking.booking_id,
+      excludeStaffId: ctx.staffId,
+    });
 
     return { success: true, bookingId: booking.booking_id, reference: booking.reference };
   } catch (err) {
@@ -729,40 +726,29 @@ export async function createBookingGroup(
     // excluded. The atomized group has per-row booking_ids, but the UX is one
     // reservation (one reference), so the fan-out references the anchor id the
     // UI opens — same as the guest funnel's group path.
-    const { data: recipients } = await supabase
-      .from("staff_profiles")
-      .select("id, notification_prefs")
-      .eq("clerk_org_id", ctx.orgId)
-      .eq("is_active", true)
-      .neq("id", ctx.staffId);
-    const notifRows = (recipients ?? [])
-      .filter((s) => (s.notification_prefs as Record<string, boolean> | null)?.new_booking !== false)
-      .map((s) => ({
-        hotel_id: hotelId,
-        type: "new_booking",
-        title:
-          group.line_count > 1
-            ? `New group booking · ${group.line_count} stays`
-            : "New booking created",
-        message:
-          group.line_count > 1
-            ? `${group.group_reference} · ${group.line_count} stays by ${ctx.staffName ?? "staff"}`
-            : `${group.group_reference} added by ${ctx.staffName ?? "staff"}`,
-        booking_id: group.group_id,
-        created_by_staff_id: ctx.staffId,
-        recipient_staff_id: s.id,
-      }));
-    if (notifRows.length) {
-      const { error: notifyError } = await supabase.from("notifications").insert(notifRows as never);
-      if (notifyError) {
-        console.error("[createBookingGroup] staff notification insert failed", {
-          bookingId: group.group_id,
-          error: notifyError.message,
-        });
-      } else {
-        kickDeliveryWorker();
-      }
-    }
+    const groupCurrency = ctx.hotel.currency || "GHS";
+    const groupAlertCopy = buildNewBookingNotification({
+      guestName: data.guestName,
+      roomLabel: `${needsTotal} ${needsTotal === 1 ? "room" : "rooms"}`,
+      roomsCount: needsTotal,
+      checkIn: data.checkIn,
+      checkOut: data.checkOut,
+      nights: group.lines[0]?.night_count ?? null,
+      currency: groupCurrency,
+      totalAmount: fromMinor(group.group_total_minor, groupCurrency),
+      paymentPreference: data.paymentPreference,
+      actorName: ctx.staffName,
+    });
+    await notifyHotelStaff({
+      hotelId,
+      clerkOrgId: ctx.orgId,
+      type: "new_booking",
+      prefKey: "new_booking",
+      title: groupAlertCopy.title,
+      message: groupAlertCopy.message,
+      bookingId: group.group_id,
+      excludeStaffId: ctx.staffId,
+    });
 
     return {
       success: true,
@@ -864,6 +850,26 @@ export async function updateBookingStatus(
         email?: string | null;
         phone?: string | null;
       } | null;
+      const roomName = (before.room_types as { name?: string } | null)?.name ?? "Room";
+      const cancelCopy = buildBookingCancelledNotification({
+        guestName: guest?.full_name ?? "Guest",
+        roomLabel: roomName,
+        checkIn: before.check_in,
+        checkOut: before.check_out,
+        nights: before.nights,
+        actorName: ctx.staffName,
+      });
+
+      void notifyHotelStaff({
+        hotelId: ctx.hotelId,
+        clerkOrgId: ctx.orgId,
+        type: "booking_cancelled",
+        prefKey: "booking_cancelled",
+        title: cancelCopy.title,
+        message: cancelCopy.message,
+        bookingId,
+        excludeStaffId: ctx.staffId,
+      });
 
       import("@/lib/notifications/send-booking-confirmation")
         .then(({ sendBookingCancellation }) =>
