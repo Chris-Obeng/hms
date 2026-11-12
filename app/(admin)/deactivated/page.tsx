@@ -93,7 +93,7 @@ export default async function DeactivatedPage() {
           {description}
         </p>
 
-        <div className="flex w-full flex-col gap-2.5">
+        <div className="flex w-full flex-col gap-3">
           <SignOutButton>
             <button className="h-10 w-full cursor-pointer rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
               Sign Out
