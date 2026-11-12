@@ -209,8 +209,8 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  min-height: 2.875rem;
-  padding: 0.75rem 1.375rem;
+  min-height: 3rem;
+  padding: 0.75rem 1.5rem;
   border-radius: var(--rl-radius);
   border: 0;
   font-family: var(--rl-font);
@@ -241,7 +241,7 @@
 
 .rl-landing .rl-btn--sm {
   min-height: 2.75rem;
-  padding: 0.625rem 1.05rem;
+  padding: 0.75rem 1rem;
   font-size: var(--rl-step-small);
 }
 
@@ -313,12 +313,12 @@
 .rl-landing .rl-mark {
   display: inline-flex;
   align-items: flex-end;
-  gap: 2.5px;
+  gap: 4px;
 }
 
 .rl-landing .rl-mark-bar {
   display: block;
-  width: 4.5px;
+  width: 4px;
   background-color: var(--rl-ink);
 }
 
@@ -327,12 +327,12 @@
 }
 
 .rl-landing .rl-mark-bar--2 {
-  height: 19px;
+  height: 20px;
   background-color: var(--rl-brass);
 }
 
 .rl-landing .rl-mark-bar--3 {
-  height: 15px;
+  height: 16px;
 }
 
 .rl-landing .rl-wordmark-text {
@@ -373,7 +373,7 @@
   display: inline-flex;
   align-items: center;
   min-height: 2.75rem;
-  padding-inline: 0.35rem;
+  padding-inline: 0.25rem;
   font-size: var(--rl-step-small);
   font-weight: 500;
   color: var(--rl-ink);
@@ -393,11 +393,11 @@
   }
 
   .rl-landing .rl-nav-actions {
-    gap: 0.35rem;
+    gap: 0.25rem;
   }
 
   .rl-landing .rl-nav-actions .rl-btn--sm {
-    padding-inline: 0.65rem;
+    padding-inline: 0.75rem;
   }
 
   .rl-landing .rl-nav-actions .rl-btn-arrow {
@@ -546,11 +546,11 @@
 }
 
 .rl-landing .rl-feature-block {
-  padding: clamp(1.35rem, 2.5vw, 2rem);
+  padding: clamp(1.25rem, 2.5vw, 2rem);
   background-color: var(--rl-surface);
   border-radius: var(--rl-radius);
   display: grid;
-  gap: 0.45rem;
+  gap: 0.5rem;
 }
 
 @media (min-width: 640px) {
@@ -738,7 +738,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0 1.35rem;
+  gap: 0 1.25rem;
 }
 
 .rl-landing .rl-footer-links a,
