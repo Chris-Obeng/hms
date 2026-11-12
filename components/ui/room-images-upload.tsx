@@ -101,7 +101,7 @@ export function RoomImagesUpload({
               </div>
               {/* Drag handle */}
               <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
-                <GripVertical className="size-3.5 text-white drop-shadow" />
+                <GripVertical className="size-4 text-white drop-shadow" />
               </div>
               {/* Remove */}
               <button
@@ -112,7 +112,7 @@ export function RoomImagesUpload({
                 <X className="size-3" />
               </button>
               {idx === 0 && (
-                <div className="absolute bottom-1 left-1 bg-foreground/80 text-background text-[9px] px-1.5 py-0.5 rounded-full font-medium">
+                <div className="absolute bottom-1 left-1 bg-foreground/80 text-background text-[9px] px-2 py-1 rounded-full font-medium">
                   Cover
                 </div>
               )}
@@ -135,7 +135,7 @@ export function RoomImagesUpload({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="w-full h-20 rounded-xl border-2 border-dashed border-border/60 hover:border-border transition-colors flex flex-col items-center justify-center gap-1.5 text-muted-foreground hover:text-foreground"
+          className="w-full h-20 rounded-xl border-2 border-dashed border-border/60 hover:border-border transition-colors flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground"
         >
           {uploading ? (
             <Loader2 className="size-4 animate-spin" />

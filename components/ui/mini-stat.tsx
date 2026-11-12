@@ -22,7 +22,7 @@ export function MiniStat({
       <p className="truncate text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
       <p
         className={cn(
-          "mt-0.5 truncate text-[13px] tabular-nums",
+          "mt-1 truncate text-[13px] tabular-nums",
           strong ? "font-semibold text-foreground" : "font-medium",
           className ?? "text-foreground/80"
         )}

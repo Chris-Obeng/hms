@@ -40,13 +40,13 @@ export function NotesEditor({
         autoFocus
         aria-label={label}
         aria-describedby={countId}
-        className="w-full resize-none rounded-xl border border-border/60 bg-background px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40"
+        className="w-full resize-none rounded-xl border border-border/60 bg-background px-3 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40"
       />
       <div className="flex items-center justify-between">
         <span id={countId} aria-live="polite" className="text-[11px] tabular-nums text-muted-foreground">
           {value.length}/{maxLength}
         </span>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <Button size="sm" variant="tertiary" onPress={onCancel} className="h-8 rounded-lg text-xs">
             Cancel
           </Button>

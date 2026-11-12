@@ -25,11 +25,11 @@ export function PenTable({ caption, columns, footer, className, children }: {
     <div className="min-w-[520px] overflow-x-auto">
       <div className="grid border-b border-border/70" style={{ gridTemplateColumns: template }} role="row">
         {columns.map((column) => <span key={column.label} role="columnheader"
-          className={cn("flex items-center px-4 py-2.5 min-w-0 text-xs font-medium text-muted-foreground",
+          className={cn("flex items-center px-4 py-3 min-w-0 text-xs font-medium text-muted-foreground",
             column.align === "right" && "justify-end text-right")}>{column.label}</span>)}
       </div>
       <div>{children}</div>
-      {footer && <div className="px-4 py-2.5">{footer}</div>}
+      {footer && <div className="px-4 py-3">{footer}</div>}
     </div>
   </div>;
 }

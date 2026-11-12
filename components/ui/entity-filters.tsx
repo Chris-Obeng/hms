@@ -103,10 +103,10 @@ export function EntityFilters({
 
   const label = (
     <>
-      <SlidersHorizontal className="size-3.5" />
+      <SlidersHorizontal className="size-4" />
       {title}
       {activeCount > 0 && (
-        <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold tabular-nums text-primary-foreground">
+        <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-2 text-[11px] font-semibold tabular-nums text-primary-foreground">
           {activeCount}
         </span>
       )}
@@ -226,7 +226,7 @@ export function EntityFilterChips({
             type="button"
             aria-label={`Remove ${(f.chipPrefix ?? f.label).toLowerCase()} filter`}
             onClick={() => onChange(f.key, "all")}
-            className="ui-press -mr-0.5 ml-1 inline-flex size-7 cursor-pointer items-center justify-center rounded-full text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+            className="ui-press -mr-1 ml-1 inline-flex size-7 cursor-pointer items-center justify-center rounded-full text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
           >
             <X className="size-3" />
           </button>

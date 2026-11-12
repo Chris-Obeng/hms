@@ -30,7 +30,7 @@ export function Stat({ label, value, hint, tone = "default" }: {
 }) {
   return <div className="min-w-0 px-4 py-4 sm:[&:not(:first-child)]:border-l sm:[&:not(:first-child)]:border-border/60">
     <dt className="text-label text-muted-foreground">{label}</dt>
-    <dd className={cn("mt-1.5 break-words text-lg font-semibold leading-tight tracking-tight tabular-nums sm:text-xl",
+    <dd className={cn("mt-2 break-words text-lg font-semibold leading-tight tracking-tight tabular-nums sm:text-xl",
       tone === "unavailable" && "text-base font-normal text-muted-foreground")}>{value}</dd>
     {hint && <dd className="mt-1 text-caption text-muted-foreground">{hint}</dd>}
   </div>;

@@ -38,7 +38,7 @@ export function PenKpi({ label, value, icon: Icon, chipTone = "accent", hint, de
   const change = delta === undefined ? null : deltaText(delta, unit);
   return <div className={cn(
     "flex shrink-0 snap-start flex-col bg-card shadow-[0_2px_4px_rgb(0_0_0/0.04)]",
-    mobile ? "w-40 gap-[5px] rounded-2xl p-3" : "min-w-0 flex-1 gap-1.5 rounded-3xl p-4",
+    mobile ? "w-40 gap-[5px] rounded-2xl p-3" : "min-w-0 flex-1 gap-2 rounded-3xl p-4",
     className,
   )}>
     <div className="flex w-full items-center justify-between gap-2">
@@ -64,7 +64,7 @@ export function PenKpi({ label, value, icon: Icon, chipTone = "accent", hint, de
 export function KpiSkeleton({ mobile = false }: { mobile?: boolean }) {
   return <div className={cn("flex flex-col gap-2 bg-card p-4 shadow-[0_2px_4px_rgb(0_0_0/0.04)]",
     mobile ? "h-[104px] w-40 shrink-0 snap-start rounded-2xl" : "h-[128px] flex-1 rounded-3xl")} aria-hidden="true">
-    <div className="h-3.5 w-24 animate-pulse rounded bg-muted" />
+    <div className="h-4 w-24 animate-pulse rounded bg-muted" />
     <div className="h-7 w-32 animate-pulse rounded bg-muted" />
     <div className="mt-auto h-3 w-20 animate-pulse rounded bg-muted" />
   </div>;

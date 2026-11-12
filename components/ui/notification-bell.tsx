@@ -142,7 +142,7 @@ export function NotificationBell({
         data-open={isOpen ? "true" : undefined}
         className={cn(
           "relative size-10 shrink-0 rounded-lg text-muted-foreground transition-[transform,background-color,color] duration-150 ease-[var(--ease-out-ui)] md:size-8",
-          "max-md:after:absolute max-md:after:-inset-0.5 max-md:after:content-['']",
+          "max-md:after:absolute max-md:after:-inset-1 max-md:after:content-['']",
           "active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100",
           "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",
           isOpen && "bg-muted/70 text-foreground",
@@ -167,7 +167,7 @@ export function NotificationBell({
           className={cn(
             "notification-badge pointer-events-none select-none font-semibold tabular-nums shadow-xs",
             variant === "dot"
-              ? "size-2.5 min-h-2.5 min-w-2.5 rounded-full p-0"
+              ? "size-3 min-h-3 min-w-3 rounded-full p-0"
               : "min-h-[18px] min-w-[18px] rounded-full px-1 text-[11px] leading-none tracking-tight"
           )}
         >

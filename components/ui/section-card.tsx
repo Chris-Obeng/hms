@@ -17,7 +17,7 @@ export function SectionCard({ title, caption, action, children, className, bodyC
     <header className="flex items-start justify-between gap-3 px-4 pb-3 pt-4">
       <div className="min-w-0">
         <h2 id={id} className="text-section">{title}</h2>
-        {caption && <p className="mt-0.5 text-caption text-muted-foreground">{caption}</p>}
+        {caption && <p className="mt-1 text-caption text-muted-foreground">{caption}</p>}
       </div>
       {action}
     </header>

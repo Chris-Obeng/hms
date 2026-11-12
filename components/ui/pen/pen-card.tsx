@@ -11,11 +11,11 @@ export function PenCard({ className, children }: { className?: string; children:
 
 export function PenCardHead({ title, caption, actions }: { title: string; caption?: string; actions?: ReactNode }) {
   return <header className="flex items-start justify-between gap-4">
-    <div className="min-w-0 space-y-0.5">
+    <div className="min-w-0 space-y-1">
       <h2 className="text-[15px] font-semibold text-foreground">{title}</h2>
       {caption && <p className="text-xs text-muted-foreground">{caption}</p>}
     </div>
-    {actions && <div className="flex shrink-0 items-center gap-3.5">{actions}</div>}
+    {actions && <div className="flex shrink-0 items-center gap-4">{actions}</div>}
   </header>;
 }
 

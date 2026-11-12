@@ -16,7 +16,7 @@ export function ContactLink({
   return (
     <a
       href={href}
-      className="group -mx-2 flex min-w-0 items-center gap-2.5 rounded-lg px-2 py-1.5 text-[13px] text-foreground transition-colors hover:bg-muted/60"
+      className="group -mx-2 flex min-w-0 items-center gap-3 rounded-lg px-2 py-2 text-[13px] text-foreground transition-colors hover:bg-muted/60"
     >
       <span className="shrink-0 text-muted-foreground/70 transition-colors group-hover:text-foreground">
         {icon}
@@ -28,7 +28,7 @@ export function ContactLink({
 
 export function ContactStatic({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <span className="-mx-2 flex min-w-0 items-center gap-2.5 px-2 py-1.5 text-[13px] text-foreground">
+    <span className="-mx-2 flex min-w-0 items-center gap-3 px-2 py-2 text-[13px] text-foreground">
       <span className="shrink-0 text-muted-foreground/70">{icon}</span>
       <span className="truncate">{children}</span>
     </span>
@@ -37,7 +37,7 @@ export function ContactStatic({ icon, children }: { icon: React.ReactNode; child
 
 export function ContactEmpty({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <span className="-mx-2 flex items-center gap-2.5 px-2 py-1.5 text-[13px] text-muted-foreground">
+    <span className="-mx-2 flex items-center gap-3 px-2 py-2 text-[13px] text-muted-foreground">
       <span className="shrink-0 opacity-70">{icon}</span>
       {label}
     </span>
