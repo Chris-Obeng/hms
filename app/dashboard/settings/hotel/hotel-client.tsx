@@ -164,7 +164,7 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
               Open
             </a>
           </div>
-          <div className="flex h-11 items-center gap-2 rounded-[12px] border border-border/70 bg-secondary/50 px-3 sm:h-10">
+          <div className="flex h-11 items-center gap-2 rounded-[10px] border border-border/70 bg-secondary/50 px-3 sm:h-10">
             <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-foreground select-all">
               {bookingUrl.replace(/^https?:\/\//, "")}
             </span>
@@ -250,7 +250,7 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
             />
           </Field>
           <Field label="Currency">
-            <div className="flex h-11 items-center rounded-[12px] border border-border/70 bg-secondary/50 px-3 text-[13px] text-foreground sm:h-10">
+            <div className="flex h-11 items-center rounded-[10px] border border-border/70 bg-secondary/50 px-3 text-[13px] text-foreground sm:h-10">
               GHS <span className="ml-2 text-muted-foreground">· Ghana Cedi</span>
             </div>
           </Field>

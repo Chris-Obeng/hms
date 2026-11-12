@@ -155,10 +155,10 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
         <p className="mt-1 max-md:text-xs text-sm text-muted-foreground">Review {formatDate(summary.auditDate, "EEEE, MMM d, yyyy")} and record it.</p>
       </div>
       <div className="flex items-center gap-2">
-        <Button variant="outline" isIconOnly className="size-9 rounded-[12px]" aria-label="Previous day" isDisabled={busy || summary.auditDate <= MIN_AUDIT_DATE}
+        <Button variant="outline" isIconOnly className="size-9 rounded-[10px]" aria-label="Previous day" isDisabled={busy || summary.auditDate <= MIN_AUDIT_DATE}
           onPress={() => navigate(shiftDay(summary.auditDate, -1))}><ChevronLeft className="size-4" /></Button>
         <PaymentDateField label="Business date" value={summary.auditDate} min={MIN_AUDIT_DATE} max={summary.propertyToday} onSelect={navigate} />
-        <Button variant="outline" isIconOnly className="size-9 rounded-[12px]" aria-label="Next day" isDisabled={busy || summary.auditDate >= summary.propertyToday}
+        <Button variant="outline" isIconOnly className="size-9 rounded-[10px]" aria-label="Next day" isDisabled={busy || summary.auditDate >= summary.propertyToday}
           onPress={() => navigate(shiftDay(summary.auditDate, 1))}><ChevronRight className="size-4" /></Button>
       </div>
     </header>

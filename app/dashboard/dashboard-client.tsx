@@ -750,7 +750,7 @@ export function DashboardClient({
               <AlertDialog.Header className="flex flex-col items-center gap-4 pb-0 text-center">
                 <span
                   className={cn(
-                    "grid size-14 place-items-center rounded-[16px] border shadow-xs",
+                    "grid size-14 place-items-center rounded-[18px] border shadow-xs",
                     earlyCheckinBooking
                       ? "border-primary/15 bg-primary/10 text-primary"
                       : "border-amber-700/15 bg-amber-700/10 text-amber-700"

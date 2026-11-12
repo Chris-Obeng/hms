@@ -1269,7 +1269,7 @@ export function BookingWizard({
                                 key={c.name}
                                 id={c.name}
                                 textValue={`${c.name} ${c.dialCode}`}
-                                className="text-[13px] px-3 py-2 rounded-[12px] cursor-pointer hover:bg-[#F5F5F5] flex items-center gap-2 text-[#18181B]"
+                                className="text-[13px] px-3 py-2 rounded-[10px] cursor-pointer hover:bg-[#F5F5F5] flex items-center gap-2 text-[#18181B]"
                               >
                                 <span
                                   className="text-base leading-none"

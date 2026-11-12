@@ -227,7 +227,7 @@ export function PaymentsSettingsClient({ initialData }: Props) {
           <div className="flex w-full flex-col gap-2 sm:w-60">
             <label className="text-xs font-medium text-muted-foreground">Bank / mobile money</label>
             {banksError ? (
-              <div className="flex items-center justify-between gap-2 rounded-[12px] border border-border px-3 py-2">
+              <div className="flex items-center justify-between gap-2 rounded-[10px] border border-border px-3 py-2">
                 <span className="text-[11px] text-muted-foreground">Could not load banks.</span>
                 <HeroButton variant="outline" size="sm" className="h-7 shrink-0 rounded-full px-3 text-xs" onPress={loadBanks} isDisabled={banksLoading}>
                   <RefreshCw className={cn("size-3", banksLoading && "animate-spin")} /> Retry
@@ -250,7 +250,7 @@ export function PaymentsSettingsClient({ initialData }: Props) {
               disabled={verifying || saving}
               onChange={(e) => changeAccountNumber(e.target.value.replace(/\D/g, ""))}
               placeholder={isMobileMoney ? "0244000000" : "Account number"}
-              className="h-10 w-full rounded-[12px] border border-border/70 bg-card px-3 font-mono text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-border focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60"
+              className="h-10 w-full rounded-[10px] border border-border/70 bg-card px-3 font-mono text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-border focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60"
               inputMode="numeric" autoComplete="off" maxLength={maxAccountLength}
               aria-describedby="account-number-hint" />
           </div>
@@ -263,7 +263,7 @@ export function PaymentsSettingsClient({ initialData }: Props) {
         <p id="account-number-hint" className="text-[11px] text-muted-foreground">
           {isMobileMoney ? "Enter the 10-digit wallet number." : "Enter the full account number. We verify the name before saving."}
         </p>
-        {connectedNote && <p className="flex items-center gap-2 rounded-[12px] bg-[#17C9640F] px-3 py-3 text-xs font-medium text-[var(--success)]">
+        {connectedNote && <p className="flex items-center gap-2 rounded-[10px] bg-[#17C9640F] px-3 py-3 text-xs font-medium text-[var(--success)]">
           <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" /> {connectedNote}
         </p>}
         <footer className="border-t border-border/50 pt-3">

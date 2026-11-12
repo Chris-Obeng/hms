@@ -55,7 +55,7 @@ function NavStepper({
           aria-label="Previous period"
           onPress={() => onNavigate(-1)}
           className={cn(
-            "ui-press rounded-[8px] text-muted-foreground shadow-none [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",
+            "ui-press rounded-[9px] text-muted-foreground shadow-none [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",
             compact ? "size-10 min-w-10" : "size-8 min-w-8"
           )}
         >
@@ -76,7 +76,7 @@ function NavStepper({
           aria-label="Jump to today"
           onPress={onToday}
           className={cn(
-            "ui-press rounded-[8px] px-3 text-xs font-semibold text-foreground shadow-none [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted",
+            "ui-press rounded-[9px] px-3 text-xs font-semibold text-foreground shadow-none [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted",
             compact ? "hidden h-10 min-[390px]:inline-flex" : "h-8"
           )}
         >
@@ -95,7 +95,7 @@ function NavStepper({
           aria-label="Next period"
           onPress={() => onNavigate(1)}
           className={cn(
-            "ui-press rounded-[8px] text-muted-foreground shadow-none [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",
+            "ui-press rounded-[9px] text-muted-foreground shadow-none [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",
             compact ? "size-10 min-w-10" : "size-8 min-w-8"
           )}
         >
@@ -229,7 +229,7 @@ function ViewPresetPills({
             aria-pressed={active}
             onClick={() => onViewPresetChange(preset.label)}
             className={cn(
-              "ui-press h-8 cursor-pointer rounded-[8px] px-2 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring lg:px-3",
+              "ui-press h-8 cursor-pointer rounded-[9px] px-2 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring lg:px-3",
               active
                 ? "bg-card font-semibold text-foreground shadow-2xs ring-1 ring-border/60"
                 : "text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"

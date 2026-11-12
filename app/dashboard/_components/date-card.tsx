@@ -164,7 +164,7 @@ export function DateCard({ selectedDate, onDateChange, todayDateStr }: DateContr
               type="button"
               aria-label="Previous day"
               onClick={goToPrevDay}
-              className="ui-press grid size-10 cursor-pointer place-items-center rounded-[8px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+              className="ui-press grid size-10 cursor-pointer place-items-center rounded-[9px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
             >
               <ChevronLeft className="size-4" />
             </button>
@@ -173,7 +173,7 @@ export function DateCard({ selectedDate, onDateChange, todayDateStr }: DateContr
               type="button"
               aria-label="Next day"
               onClick={goToNextDay}
-              className="ui-press grid size-10 cursor-pointer place-items-center rounded-[8px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+              className="ui-press grid size-10 cursor-pointer place-items-center rounded-[9px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
             >
               <ChevronRight className="size-4" />
             </button>

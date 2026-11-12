@@ -197,7 +197,7 @@ export function RoomGallery({
   const photoStage = (aspectClass: string) => (
     <div className="flex flex-col gap-3 min-h-0 h-full">
       <div
-        className={`relative w-full overflow-hidden rounded-[16px] bg-[#EBEBEC] select-none ${aspectClass}`}
+        className={`relative w-full overflow-hidden rounded-[18px] bg-[#EBEBEC] select-none ${aspectClass}`}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -275,7 +275,7 @@ export function RoomGallery({
                 onClick={() => setCurrent(i)}
                 aria-label={`View photo ${i + 1}`}
                 aria-current={selected ? "true" : undefined}
-                className={`relative h-12 w-16 shrink-0 overflow-hidden rounded-[12px] bg-[#EBEBEC] transition-all cursor-pointer touch-manipulation ${
+                className={`relative h-12 w-16 shrink-0 overflow-hidden rounded-[10px] bg-[#EBEBEC] transition-all cursor-pointer touch-manipulation ${
                   selected
                     ? "ring-2 ring-[#0485F7] ring-offset-2 ring-offset-white md:ring-offset-[#F5F5F5] opacity-100"
                     : "opacity-60 hover:opacity-95"
@@ -300,7 +300,7 @@ export function RoomGallery({
     <div className="space-y-5">
       {/* Specs pills */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="flex items-start gap-3 rounded-[16px] bg-[#F5F5F5] px-4 py-3">
+        <div className="flex items-start gap-3 rounded-[14px] bg-[#F5F5F5] px-4 py-3">
           <BedDouble
             className="size-4 shrink-0 text-[#0485F7] mt-1"
             strokeWidth={2}
@@ -312,7 +312,7 @@ export function RoomGallery({
             </p>
           </div>
         </div>
-        <div className="flex items-start gap-3 rounded-[16px] bg-[#F5F5F5] px-4 py-3">
+        <div className="flex items-start gap-3 rounded-[14px] bg-[#F5F5F5] px-4 py-3">
           <Users
             className="size-4 shrink-0 text-[#0485F7] mt-1"
             strokeWidth={2}
@@ -356,7 +356,7 @@ export function RoomGallery({
               return (
                 <div
                   key={a.label}
-                  className="flex items-center gap-2 rounded-[12px] bg-[#F5F5F5] px-3 py-2 text-[12px] font-medium text-[#18181B]"
+                  className="flex items-center gap-2 rounded-[10px] bg-[#F5F5F5] px-3 py-2 text-[12px] font-medium text-[#18181B]"
                 >
                   <Icon
                     className="size-4 shrink-0 text-[#0485F7]"

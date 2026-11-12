@@ -156,7 +156,7 @@ export function BookingDateRangePicker({
   );
 
   const summaryBar = (
-    <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-[16px] bg-[#F5F5F5] px-4 py-3">
+    <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-[14px] bg-[#F5F5F5] px-4 py-3">
       <div className="min-w-0">
         <p className="text-[10px] font-medium text-[#71717A]">Check-in</p>
         <p className="text-xs font-semibold text-[#18181B] truncate">

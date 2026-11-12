@@ -127,7 +127,7 @@ function CancelConfirmContent({
     <>
       <div
         className={cn(
-          "mx-auto grid size-14 place-items-center rounded-[16px] border shadow-xs",
+          "mx-auto grid size-14 place-items-center rounded-[18px] border shadow-xs",
           isNoShow
             ? "border-amber-700/15 bg-amber-700/10 text-amber-700"
             : "border-destructive/15 bg-destructive/10 text-destructive"

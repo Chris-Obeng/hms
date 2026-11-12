@@ -283,7 +283,7 @@ export function AvailabilityMatrixClient({
               type="button"
               aria-label={`Previous ${data.days} days`}
               onClick={() => navigate(subDays(start, data.days))}
-              className="ui-press grid size-11 cursor-pointer place-items-center rounded-[8px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+              className="ui-press grid size-11 cursor-pointer place-items-center rounded-[9px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
             >
               <ChevronLeft className="size-4" />
             </button>
@@ -291,7 +291,7 @@ export function AvailabilityMatrixClient({
             <button
               type="button"
               onClick={() => navigate(parseISO(todayKey))}
-              className="ui-press h-11 cursor-pointer rounded-[8px] px-3 text-xs font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 sm:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted"
+              className="ui-press h-11 cursor-pointer rounded-[9px] px-3 text-xs font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 sm:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted"
             >
               Today
             </button>
@@ -300,7 +300,7 @@ export function AvailabilityMatrixClient({
               type="button"
               aria-label={`Next ${data.days} days`}
               onClick={() => navigate(addDays(start, data.days))}
-              className="ui-press grid size-11 cursor-pointer place-items-center rounded-[8px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+              className="ui-press grid size-11 cursor-pointer place-items-center rounded-[9px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
             >
               <ChevronRight className="size-4" />
             </button>
@@ -366,7 +366,7 @@ export function AvailabilityMatrixClient({
                   aria-pressed={active}
                   onClick={() => navigate(start, d)}
                   className={cn(
-                    "ui-press h-11 min-w-11 cursor-pointer rounded-[8px] px-3 text-xs font-medium tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 sm:min-w-0 sm:px-3",
+                    "ui-press h-11 min-w-11 cursor-pointer rounded-[9px] px-3 text-xs font-medium tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 sm:min-w-0 sm:px-3",
                     active
                       ? "bg-card font-semibold text-foreground shadow-2xs ring-1 ring-border/60"
                       : "text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
