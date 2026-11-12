@@ -2,6 +2,11 @@ import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+// Keep this in sync with the CLI version pinned in
+// .github/workflows/supabase-ci.yml — typegen output differs between CLI
+// majors, and CI verifies the committed types against the pinned version.
+const SUPABASE_CLI_VERSION = "2.109.1";
+
 const isLocal = process.argv.includes("--local");
 const supabaseArgs = isLocal
   ? ["gen", "types", "typescript", "--local", "--schema", "public"]
@@ -31,17 +36,21 @@ function runSupabase(args) {
     if (!direct.error && direct.status !== 9009) {
       return direct;
     }
-    return spawnSync("cmd.exe", ["/d", "/s", "/c", `npx --yes supabase ${quoted}`], {
-      encoding: "utf8",
-      env,
-    });
+    return spawnSync(
+      "cmd.exe",
+      ["/d", "/s", "/c", `npx --yes supabase@${SUPABASE_CLI_VERSION} ${quoted}`],
+      { encoding: "utf8", env }
+    );
   }
 
   const direct = spawnSync("supabase", args, { encoding: "utf8", env });
   if (direct.error?.code !== "ENOENT") {
     return direct;
   }
-  return spawnSync("npx", ["--yes", "supabase", ...args], { encoding: "utf8", env });
+  return spawnSync("npx", ["--yes", `supabase@${SUPABASE_CLI_VERSION}`, ...args], {
+    encoding: "utf8",
+    env,
+  });
 }
 
 const res = runSupabase(supabaseArgs);

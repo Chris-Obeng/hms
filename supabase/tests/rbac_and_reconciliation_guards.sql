@@ -207,6 +207,11 @@ END $$;
 
 RESET ROLE;
 
+-- The remaining probes exercise server-side RPCs as the server itself; drop the
+-- manager JWT the role-ladder section left behind, or the bookings client-write
+-- guard would treat create_booking_atomic's INSERT as a browser write.
+SELECT set_config('request.jwt.claims', '', true);
+
 -- ── 4. Physical room vs availability_blocks conflict symmetry (incl. direct UPDATE)
 DO $$
 DECLARE

@@ -149,9 +149,13 @@ $$;
 RESET ROLE;
 
 -- Both due arrivals and overdue departures block; no implicit exception policy.
+-- The client-write guard counts any bearer JWT as a browser client, so the
+-- fixture row is written the way the server writes it: with no request JWT.
+SELECT set_config('request.jwt.claims', '', true);
 INSERT INTO public.bookings (id, hotel_id, reference, check_in, check_out, room_rate, subtotal, total_amount, status)
 VALUES ('e4e40000-0000-4000-8000-000000000010', 'e4e40000-0000-4000-8000-000000000001', 'CLOSE-UNRESOLVED',
   (now() AT TIME ZONE 'UTC')::date - 5, (now() AT TIME ZONE 'UTC')::date - 4, 100, 100, 100, 'confirmed');
+SELECT set_config('request.jwt.claims', '{"sub":"close_manager","org_id":"org_close_a"}', true);
 DO $$
 DECLARE s text;
 BEGIN
@@ -210,6 +214,9 @@ $$;
 RESET ROLE;
 
 -- Missing nights and mixed-currency payments are blockers, not silent zeroes.
+-- Written without a request JWT so the server-side fixture insert passes the
+-- client-write guard, exactly as the booking workflow itself would.
+SELECT set_config('request.jwt.claims', '', true);
 INSERT INTO public.bookings (id, hotel_id, reference, check_in, check_out, room_rate, subtotal, total_amount, status, currency)
 VALUES ('e4e40000-0000-4000-8000-000000000020', 'e4e40000-0000-4000-8000-000000000002', 'CLOSE-B-MISSING',
   (now() AT TIME ZONE 'UTC')::date - 2, (now() AT TIME ZONE 'UTC')::date - 1, 100, 100, 100, 'checked_out', 'GHS');
@@ -248,6 +255,9 @@ $$;
 RESET ROLE;
 
 -- Timezone validation and local-day default, without relying on the test host TZ.
+-- Hotel config edits run without a request JWT (server-side writes); the guard
+-- would otherwise demand a super_admin JWT that this probe does not model.
+SELECT set_config('request.jwt.claims', '', true);
 UPDATE public.hotels SET timezone = 'America/Los_Angeles' WHERE id = 'e4e40000-0000-4000-8000-000000000002';
 SELECT set_config('request.jwt.claims', '{"sub":"close_manager_b","o":{"id":"org_close_b"}}', true);
 SET LOCAL ROLE authenticated;
@@ -258,8 +268,10 @@ RESET ROLE;
 -- this rollback-only test to model a legacy/pre-existing invalid row and prove
 -- the close RPC still fails closed when it encounters one.
 ALTER TABLE public.hotels DISABLE TRIGGER reports_inventory_hotel_capture;
+SELECT set_config('request.jwt.claims', '', true);
 UPDATE public.hotels SET timezone = 'Invalid/Zone' WHERE id = 'e4e40000-0000-4000-8000-000000000002';
 ALTER TABLE public.hotels ENABLE TRIGGER reports_inventory_hotel_capture;
+SELECT set_config('request.jwt.claims', '{"sub":"close_manager_b","o":{"id":"org_close_b"}}', true);
 SET LOCAL ROLE authenticated;
 DO $$
 BEGIN

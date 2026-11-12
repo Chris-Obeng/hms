@@ -168,11 +168,11 @@ END
 $$;
 
 -- -----------------------------------------------------------------------------
--- 3. RLS. Front desk creates reservations, so INSERT is open to the whole org;
---    rewriting or deleting a night is rewriting an invoice line, so those take a
---    manager. A denied UPDATE or DELETE is a zero-row no-op, not an error --
---    that is what a RESTRICTIVE policy does -- while a cross-tenant INSERT trips
---    the WITH CHECK and raises 42501.
+-- 3. RLS. A booking night is an invoice line, so every direct write from a
+--    browser session -- INSERT, UPDATE, or DELETE -- takes a manager; nights are
+--    created for the front desk through the server workflow. A denied UPDATE or
+--    DELETE is a zero-row no-op, not an error -- that is what a RESTRICTIVE
+--    policy does -- while a denied INSERT trips the WITH CHECK and raises 42501.
 -- -----------------------------------------------------------------------------
 SELECT set_config('request.jwt.claims', '{"sub":"nprobe_front_desk"}', true);
 SET LOCAL ROLE authenticated;
@@ -188,10 +188,15 @@ BEGIN
     problems := problems || format('front desk sees %s of its own 3 nights', seen);
   END IF;
 
-  INSERT INTO public.booking_nights
-    (hotel_id, booking_id, stay_date, rooms_count, rate_minor, currency, source)
-  VALUES ('d0d0d0d0-0000-4000-8000-00000000000a', 'd1d1d1d1-0000-4000-8000-000000000004',
-          current_date + 1, 1, 100, 'GHS', 'manual');
+  BEGIN
+    INSERT INTO public.booking_nights
+      (hotel_id, booking_id, stay_date, rooms_count, rate_minor, currency, source)
+    VALUES ('d0d0d0d0-0000-4000-8000-00000000000a', 'd1d1d1d1-0000-4000-8000-000000000004',
+            current_date + 1, 1, 100, 'GHS', 'manual');
+    problems := problems || 'front desk inserted a night; INSERT is manager-only';
+  EXCEPTION
+    WHEN insufficient_privilege THEN NULL;
+  END;
 
   UPDATE public.booking_nights SET rate_minor = 1
    WHERE booking_id = 'd1d1d1d1-0000-4000-8000-000000000001';
@@ -210,7 +215,7 @@ BEGIN
   IF array_length(problems, 1) > 0 THEN
     RAISE EXCEPTION 'FAIL front desk: %', array_to_string(problems, '; ');
   END IF;
-  RAISE NOTICE 'PASS front desk can read and add nights but cannot rewrite or delete one';
+  RAISE NOTICE 'PASS front desk can read nights but cannot add, rewrite, or delete one';
 END
 $$;
 
@@ -224,6 +229,11 @@ DECLARE
   problems text[] := '{}';
   touched  bigint;
 BEGIN
+  INSERT INTO public.booking_nights
+    (hotel_id, booking_id, stay_date, rooms_count, rate_minor, currency, source)
+  VALUES ('d0d0d0d0-0000-4000-8000-00000000000a', 'd1d1d1d1-0000-4000-8000-000000000004',
+          current_date + 1, 1, 100, 'GHS', 'manual');
+
   UPDATE public.booking_nights SET rate_minor = 46000
    WHERE booking_id = 'd1d1d1d1-0000-4000-8000-000000000001'
      AND stay_date = current_date + 1;
@@ -236,13 +246,13 @@ BEGIN
    WHERE booking_id = 'd1d1d1d1-0000-4000-8000-000000000004';
   GET DIAGNOSTICS touched = ROW_COUNT;
   IF touched <> 1 THEN
-    problems := problems || format('manager deleted %s night(s), expected the 1 the front desk added', touched);
+    problems := problems || format('manager deleted %s night(s), expected the 1 the manager added', touched);
   END IF;
 
   IF array_length(problems, 1) > 0 THEN
     RAISE EXCEPTION 'FAIL manager: %', array_to_string(problems, '; ');
   END IF;
-  RAISE NOTICE 'PASS manager clears both restrictive gates: a night can be rewritten and removed';
+  RAISE NOTICE 'PASS manager clears all three restrictive gates: a night can be added, rewritten, and removed';
 END
 $$;
 
