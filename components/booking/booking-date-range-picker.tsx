@@ -111,28 +111,28 @@ export function BookingDateRangePicker({
       className={cn(
         "group flex w-full cursor-pointer text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#0485F7] touch-manipulation",
         // Mobile (`v24Sj`): 50px soft grey cell, stacked When + range
-        "h-[50px] flex-col justify-center gap-0.5 rounded-[12px] bg-[#F5F5F5] hover:bg-[#EBEBEC]/75 px-3",
+        "h-12 flex-col justify-center gap-1 rounded-[12px] bg-[#F5F5F5] hover:bg-[#EBEBEC]/75 px-3",
         // Desktop (`dZjQo`): 52px soft grey cell, left calendar icon + stacked label/range
-        "md:h-[52px] md:w-auto md:flex-row md:items-center md:justify-start md:gap-2.5 md:px-[18px]",
+        "md:h-[52px] md:w-auto md:flex-row md:items-center md:justify-start md:gap-3 md:px-4",
         className
       )}
       aria-label="Select check-in and check-out dates"
     >
       <CalendarIcon
-        className="hidden md:block size-[17px] shrink-0 text-[#0485F7]"
+        className="hidden md:block size-4 shrink-0 text-[#0485F7]"
         strokeWidth={2}
       />
 
       {/* Mobile top row */}
-      <span className="flex md:hidden items-center gap-1.5">
-        <CalendarIcon className="size-[11px] shrink-0 text-[#0485F7]" strokeWidth={2} />
+      <span className="flex md:hidden items-center gap-2">
+        <CalendarIcon className="size-3 shrink-0 text-[#0485F7]" strokeWidth={2} />
         <span className="text-[10px] font-medium tracking-[0.2px] text-[#71717A]">
           When
         </span>
       </span>
 
       {/* Desktop stacked + Mobile bottom row */}
-      <span className="flex flex-col min-w-0 w-full md:w-auto gap-0.5">
+      <span className="flex flex-col min-w-0 w-full md:w-auto gap-1">
         <span className="hidden md:block text-[10px] font-medium tracking-[0.3px] text-[#71717A]">
           When
         </span>
@@ -145,7 +145,7 @@ export function BookingDateRangePicker({
           </span>
           <ChevronDown
             className={cn(
-              "size-3 md:size-3.5 shrink-0 text-[#71717A] transition-transform duration-150",
+              "size-3 md:size-4 shrink-0 text-[#71717A] transition-transform duration-150",
               open && "rotate-180"
             )}
             strokeWidth={2}
@@ -156,7 +156,7 @@ export function BookingDateRangePicker({
   );
 
   const summaryBar = (
-    <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-[14px] bg-[#F5F5F5] px-3.5 py-2.5">
+    <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-[16px] bg-[#F5F5F5] px-4 py-3">
       <div className="min-w-0">
         <p className="text-[10px] font-medium text-[#71717A]">Check-in</p>
         <p className="text-xs font-semibold text-[#18181B] truncate">
@@ -169,7 +169,7 @@ export function BookingDateRangePicker({
           {formattedCheckOut}
         </p>
       </div>
-      <span className="inline-flex items-center rounded-full bg-[#0485F7]/15 px-2.5 py-1 text-[11px] font-semibold text-[#0485F7] tabular-nums">
+      <span className="inline-flex items-center rounded-full bg-[#0485F7]/15 px-3 py-1 text-[11px] font-semibold text-[#0485F7] tabular-nums">
         {nights} {nights === 1 ? "night" : "nights"}
       </span>
     </div>

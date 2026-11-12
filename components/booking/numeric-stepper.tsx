@@ -50,13 +50,13 @@ export function NumericStepper({
   const buttonSizeClass =
     size === "sm" ? "size-7" : size === "lg" ? "size-9" : "size-8";
   const iconSizeClass =
-    size === "sm" ? "size-3" : size === "lg" ? "size-4" : "size-3.5";
+    size === "sm" ? "size-3" : size === "lg" ? "size-4" : "size-4";
 
   return (
     <div
       className={cn(
         "flex items-center justify-between gap-4",
-        size === "lg" ? "py-3.5" : "py-2",
+        size === "lg" ? "py-4" : "py-2",
         className
       )}
     >
@@ -71,7 +71,7 @@ export function NumericStepper({
             {label}
           </span>
           {description && (
-            <span className="text-xs text-[var(--bk-muted)] select-none mt-0.5 leading-snug">
+            <span className="text-xs text-[var(--bk-muted)] select-none mt-1 leading-snug">
               {description}
             </span>
           )}
@@ -79,7 +79,7 @@ export function NumericStepper({
       )}
 
       <div
-        className="inline-flex items-center gap-1.5 p-1 rounded-full bg-[var(--bk-surface-soft)] border border-[var(--bk-line)] shrink-0"
+        className="inline-flex items-center gap-2 p-1 rounded-full bg-[var(--bk-surface-soft)] border border-[var(--bk-line)] shrink-0"
         role="spinbutton"
         aria-label={label || "Numeric stepper"}
         aria-valuenow={value}

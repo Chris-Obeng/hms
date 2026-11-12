@@ -220,25 +220,25 @@ export default async function ConfirmationPage({
       >
         <div className="w-full max-w-[720px] space-y-4 md:space-y-5">
           {/* ── Hero status header (`rHbwg` / `CXvyB`) ── */}
-          <div className="flex flex-col items-center text-center gap-2.5 md:gap-3">
+          <div className="flex flex-col items-center text-center gap-3 md:gap-3">
             {state === "confirmed" ? (
               <div className="flex size-12 md:size-14 items-center justify-center rounded-full bg-[#17C964]/15 text-[#17C964]">
                 <Check
-                  className="size-[22px] md:size-[26px]"
+                  className="size-6 md:size-6"
                   strokeWidth={2.5}
                 />
               </div>
             ) : state === "awaiting_payment" ? (
               <div className="flex size-12 md:size-14 items-center justify-center rounded-full bg-[#F5A524]/15 text-[#F5A524]">
                 <Clock
-                  className="size-[22px] md:size-[26px]"
+                  className="size-6 md:size-6"
                   strokeWidth={2}
                 />
               </div>
             ) : (
               <div className="flex size-12 md:size-14 items-center justify-center rounded-full bg-[#FF383C]/12 text-[#FF383C]">
                 <XCircle
-                  className="size-[22px] md:size-[26px]"
+                  className="size-6 md:size-6"
                   strokeWidth={2}
                 />
               </div>
@@ -289,7 +289,7 @@ export default async function ConfirmationPage({
                   ? "The held rooms have been released back into inventory. Start a fresh search to check current availability."
                   : "If you believe you were charged in error, please reach out to the property with your booking reference."}
               </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <Link
                   href={`/${slug}`}
                   className="booking-btn-primary h-10 px-6 text-[14px] inline-flex items-center justify-center w-full sm:w-auto touch-manipulation"
@@ -301,7 +301,7 @@ export default async function ConfirmationPage({
                     href={`tel:${hotel.phone}`}
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[14px] font-medium text-[#18181B] hover:bg-[#EBEBEC]/60 transition-colors"
                   >
-                    <Phone className="size-3.5" />
+                    <Phone className="size-4" />
                     <span>Questions? {hotel.phone}</span>
                   </a>
                 )}
@@ -311,11 +311,11 @@ export default async function ConfirmationPage({
 
           {/* ── Booking Reference Tinted Banner (`DO9ze` / `tmpSX`) ── */}
           {state !== "expired" && state !== "cancelled" && (
-            <div className="rounded-[16px] md:rounded-[24px] bg-[#0485F7]/15 px-4 py-[18px] md:px-6 md:py-[22px] flex flex-col items-center text-center gap-1.5">
+            <div className="rounded-[16px] md:rounded-[24px] bg-[#0485F7]/15 px-4 py-4 md:px-6 md:py-6 flex flex-col items-center text-center gap-2">
               <p className="text-[11px] md:text-[12px] font-medium tracking-[0.2px] text-[#18181B]">
                 Booking reference
               </p>
-              <div className="flex items-center justify-center gap-2.5 md:gap-3 max-w-full">
+              <div className="flex items-center justify-center gap-3 md:gap-3 max-w-full">
                 <span className="booking-mono text-[24px] md:text-[30px] font-semibold tracking-[-0.5px] text-[#0485F7] break-all">
                   {booking.reference}
                 </span>
@@ -334,10 +334,10 @@ export default async function ConfirmationPage({
 
           {/* ── Stay & Payment Details Card (`EaZ1D` / `MyNzy`) ── */}
           {state !== "expired" && state !== "cancelled" && (
-            <div className="rounded-[16px] md:rounded-[24px] bg-white border border-[#E4E4E7] p-4 md:px-6 md:py-5 space-y-3 md:space-y-3.5">
+            <div className="rounded-[16px] md:rounded-[24px] bg-white border border-[#E4E4E7] p-4 md:px-6 md:py-5 space-y-3 md:space-y-4">
               {/* Check-in / Check-out */}
               <div className="flex items-center justify-between gap-4">
-                <div className="space-y-0.5">
+                <div className="space-y-1">
                   <p className="text-[11px] font-medium text-[#71717A]">
                     Check-in
                   </p>
@@ -345,7 +345,7 @@ export default async function ConfirmationPage({
                     {checkInDisplay}
                   </p>
                 </div>
-                <div className="space-y-0.5 text-right">
+                <div className="space-y-1 text-right">
                   <p className="text-[11px] font-medium text-[#71717A]">
                     Check-out
                   </p>
@@ -360,8 +360,8 @@ export default async function ConfirmationPage({
               {/* Booked rooms with thumbnails */}
               <div className="space-y-3">
                 {roomRows.map((row) => (
-                  <div key={row.id} className="flex items-center gap-2.5 md:gap-3">
-                    <div className="relative h-9 w-12 md:h-[42px] md:w-14 shrink-0 overflow-hidden rounded-[12px] bg-[#EBEBEC]">
+                  <div key={row.id} className="flex items-center gap-3 md:gap-3">
+                    <div className="relative h-9 w-12 md:h-10 md:w-14 shrink-0 overflow-hidden rounded-[12px] bg-[#EBEBEC]">
                       {row.imageUrl ? (
                         <Image
                           src={row.imageUrl}
@@ -376,7 +376,7 @@ export default async function ConfirmationPage({
                         </span>
                       )}
                     </div>
-                    <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="min-w-0 flex-1 space-y-1">
                       <p className="text-[13px] md:text-[14px] font-semibold text-[#18181B] truncate">
                         {row.name}
                       </p>
@@ -392,11 +392,11 @@ export default async function ConfirmationPage({
 
               {/* Payment chip + Total */}
               <div className="flex items-end justify-between gap-4">
-                <div className="space-y-1.5 md:space-y-2">
+                <div className="space-y-2 md:space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     {fullyPaid ? (
                       <>
-                        <span className="inline-flex items-center rounded-full bg-[#17C964]/15 px-2 py-0.5 text-[12px] font-medium text-[#17C964]">
+                        <span className="inline-flex items-center rounded-full bg-[#17C964]/15 px-2 py-1 text-[12px] font-medium text-[#17C964]">
                           Paid
                         </span>
                         <span className="text-[11px] md:text-[12px] text-[#71717A]">
@@ -405,7 +405,7 @@ export default async function ConfirmationPage({
                       </>
                     ) : booking.payment_preference === "pay_now" ? (
                       <>
-                        <span className="inline-flex items-center rounded-full bg-[#F5A524]/15 px-2 py-0.5 text-[12px] font-medium text-[#F5A524]">
+                        <span className="inline-flex items-center rounded-full bg-[#F5A524]/15 px-2 py-1 text-[12px] font-medium text-[#F5A524]">
                           Pending
                         </span>
                         <span className="text-[11px] md:text-[12px] text-[#71717A]">
@@ -414,7 +414,7 @@ export default async function ConfirmationPage({
                       </>
                     ) : (
                       <>
-                        <span className="inline-flex items-center rounded-full bg-[#0485F7]/15 px-2 py-0.5 text-[12px] font-medium text-[#0485F7]">
+                        <span className="inline-flex items-center rounded-full bg-[#0485F7]/15 px-2 py-1 text-[12px] font-medium text-[#0485F7]">
                           Pay on arrival
                         </span>
                         <span className="text-[11px] md:text-[12px] text-[#71717A]">
@@ -437,7 +437,7 @@ export default async function ConfirmationPage({
 
           {/* ── Bottom Action Buttons (`EDLkf` Desktop / `KApnJ` Mobile) ── */}
           {state === "confirmed" && (
-            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-center gap-2.5 md:gap-3">
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-center gap-3 md:gap-3">
               <a
                 href={calendarUrl}
                 download={`booking-${reference}.ics`}
@@ -453,7 +453,7 @@ export default async function ConfirmationPage({
                   className="inline-flex h-9 items-center justify-center gap-2 rounded-full hover:bg-[#EBEBEC]/55 px-4 text-[14px] font-medium text-[#18181B] transition-colors touch-manipulation"
                 >
                   <Phone
-                    className="size-[15px] text-[#18181B]"
+                    className="size-4 text-[#18181B]"
                     strokeWidth={2}
                   />
                   <span>Questions? {hotel.phone}</span>

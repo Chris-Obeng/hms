@@ -775,9 +775,9 @@ export function BookingWizard({
           {section === 1 && (
             <div className="pb-28 md:pb-24">
               {/* Search bar section */}
-              <div className="mx-auto max-w-[1440px] booking-safe-x py-3.5 md:py-5 flex justify-center">
+              <div className="mx-auto max-w-[1440px] booking-safe-x py-4 md:py-5 flex justify-center">
                 {/* Desktop floating white pill (`Z5y4nf`) */}
-                <div className="hidden md:inline-flex h-16 items-center gap-1.5 rounded-[24px] bg-white p-1.5 shadow-[0_6px_16px_rgb(0_0_0/0.12)]">
+                <div className="hidden md:inline-flex h-16 items-center gap-2 rounded-[24px] bg-white p-2 shadow-[0_6px_16px_rgb(0_0_0/0.12)]">
                   <BookingDateRangePicker
                     checkIn={checkIn}
                     checkOut={checkOut}
@@ -808,16 +808,16 @@ export function BookingWizard({
                     className="flex size-[52px] shrink-0 cursor-pointer items-center justify-center rounded-[12px] bg-[#0485F7] text-[#FCFCFC] hover:bg-[#0374DB] active:scale-[0.98] transition-all"
                   >
                     {priceLoading ? (
-                      <Loader2 className="size-[19px] animate-spin" />
+                      <Loader2 className="size-5 animate-spin" />
                     ) : (
-                      <Search className="size-[19px]" strokeWidth={2.2} />
+                      <Search className="size-5" strokeWidth={2.2} />
                     )}
                   </button>
                 </div>
 
                 {/* Mobile search card (`v9CRG`) */}
-                <div className="flex md:hidden w-full flex-col gap-2.5 rounded-[16px] bg-white p-2.5 shadow-[0_2px_6px_rgb(0_0_0/0.08)]">
-                  <div className="grid grid-cols-2 gap-2.5">
+                <div className="flex md:hidden w-full flex-col gap-3 rounded-[16px] bg-white p-3 shadow-[0_2px_6px_rgb(0_0_0/0.08)]">
+                  <div className="grid grid-cols-2 gap-3">
                     <BookingDateRangePicker
                       checkIn={checkIn}
                       checkOut={checkOut}
@@ -850,7 +850,7 @@ export function BookingWizard({
                     {priceLoading ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : (
-                      <Search className="size-[15px]" strokeWidth={2.25} />
+                      <Search className="size-4" strokeWidth={2.25} />
                     )}
                     <span>Check availability</span>
                   </button>
@@ -948,7 +948,7 @@ export function BookingWizard({
                           {selectedNames} · {nights}{" "}
                           {nights === 1 ? "night" : "nights"}
                         </p>
-                        <p className="md:hidden booking-mono text-[12px] font-semibold text-[#18181B] mt-0.5">
+                        <p className="md:hidden booking-mono text-[12px] font-semibold text-[#18181B] mt-1">
                           {fmt(total)} total
                         </p>
                       </>
@@ -994,14 +994,14 @@ export function BookingWizard({
            * ══════════════════════════════════════════════════════════════ */}
           {section === 2 && (
             <div className="mx-auto max-w-[1440px] booking-safe-x py-4 md:py-7 pb-28 lg:pb-12">
-              <div className="flex flex-col lg:flex-row lg:items-start gap-3.5 lg:gap-6">
+              <div className="flex flex-col lg:flex-row lg:items-start gap-4 lg:gap-6">
                 {/* Mobile top Booking + Price Summary Card (`hBo0z` in `yexEC`) */}
-                <div className="lg:hidden rounded-[16px] bg-white border border-[#E4E4E7] p-3.5 space-y-2.5">
+                <div className="lg:hidden rounded-[16px] bg-white border border-[#E4E4E7] p-4 space-y-3">
                   <p className="text-[15px] font-semibold text-[#18181B]">
                     Booking summary
                   </p>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-0.5">
+                    <div className="space-y-1">
                       <p className="text-[12px] font-semibold text-[#18181B]">
                         Check-in
                       </p>
@@ -1009,7 +1009,7 @@ export function BookingWizard({
                         {fmtFullDate(checkIn)}
                       </p>
                     </div>
-                    <div className="space-y-0.5">
+                    <div className="space-y-1">
                       <p className="text-[12px] font-semibold text-[#18181B]">
                         Check-out
                       </p>
@@ -1018,7 +1018,7 @@ export function BookingWizard({
                       </p>
                     </div>
                   </div>
-                  <div className="space-y-0.5">
+                  <div className="space-y-1">
                     <p className="text-[12px] font-semibold text-[#18181B]">
                       Your booking
                     </p>
@@ -1041,7 +1041,7 @@ export function BookingWizard({
 
                   <div className="h-px bg-[#E4E4E7]" />
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <p className="text-[15px] font-semibold text-[#18181B]">
                       Price summary
                     </p>
@@ -1070,7 +1070,7 @@ export function BookingWizard({
                         </span>
                       </div>
                     )}
-                    <div className="flex items-center justify-between gap-3 pt-0.5">
+                    <div className="flex items-center justify-between gap-3 pt-1">
                       <span className="text-[13px] font-semibold text-[#18181B]">
                         Total
                       </span>
@@ -1082,7 +1082,7 @@ export function BookingWizard({
                 </div>
 
                 {/* Left / Main Form Column */}
-                <div className="flex-1 min-w-0 space-y-3.5 md:space-y-5">
+                <div className="flex-1 min-w-0 space-y-4 md:space-y-5">
                   <div className="hidden lg:block space-y-1">
                     <h1 className="text-[26px] font-semibold tracking-[-0.3px] text-[#18181B] leading-tight">
                       Personal details
@@ -1093,13 +1093,13 @@ export function BookingWizard({
                   </div>
 
                   {/* Personal details form card (`Rh0GS` / `T5co9` / `s6bjj`) */}
-                  <div className="rounded-[16px] md:rounded-[24px] bg-white border border-[#E4E4E7] p-3.5 md:p-5 space-y-3.5 md:space-y-4">
+                  <div className="rounded-[16px] md:rounded-[24px] bg-white border border-[#E4E4E7] p-4 md:p-5 space-y-4 md:space-y-4">
                     <p className="lg:hidden text-[15px] font-semibold text-[#18181B]">
                       Personal details
                     </p>
 
                     {/* Full name */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <label
                         htmlFor="bk-full-name"
                         className="block text-[12px] font-medium text-[#18181B]"
@@ -1114,7 +1114,7 @@ export function BookingWizard({
                         }`}
                       >
                         <User
-                          className="size-3.5 shrink-0 text-[#71717A]"
+                          className="size-4 shrink-0 text-[#71717A]"
                           strokeWidth={2}
                         />
                         <input
@@ -1132,7 +1132,7 @@ export function BookingWizard({
                         />
                       </div>
                       {touched.name && !nameOk ? (
-                        <p className="flex items-center gap-1.5 text-[11px] text-[#FF383C]">
+                        <p className="flex items-center gap-2 text-[11px] text-[#FF383C]">
                           <CircleAlert className="size-3 shrink-0" />
                           <span>Enter your full name</span>
                         </p>
@@ -1144,7 +1144,7 @@ export function BookingWizard({
                     </div>
 
                     {/* Email */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <label
                         htmlFor="bk-email"
                         className="block text-[12px] font-medium text-[#18181B]"
@@ -1159,7 +1159,7 @@ export function BookingWizard({
                         }`}
                       >
                         <Mail
-                          className="size-3.5 shrink-0 text-[#71717A]"
+                          className="size-4 shrink-0 text-[#71717A]"
                           strokeWidth={2}
                         />
                         <input
@@ -1177,7 +1177,7 @@ export function BookingWizard({
                         />
                       </div>
                       {touched.email && !emailOk && (
-                        <p className="flex items-center gap-1.5 text-[11px] text-[#FF383C]">
+                        <p className="flex items-center gap-2 text-[11px] text-[#FF383C]">
                           <CircleAlert className="size-3 shrink-0" />
                           <span>Enter a valid email address</span>
                         </p>
@@ -1185,7 +1185,7 @@ export function BookingWizard({
                     </div>
 
                     {/* Phone (`GeH5J` split prefix + number) */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <label
                         htmlFor="bk-phone"
                         className="block text-[12px] font-medium text-[#18181B]"
@@ -1199,7 +1199,7 @@ export function BookingWizard({
                             : "border-[#DEDEE0]"
                         }`}
                       >
-                        <span className="inline-flex shrink-0 items-center bg-[#F5F5F5] border-r border-[#DEDEE0] px-2.5 text-[12px] font-medium text-[#71717A] select-none">
+                        <span className="inline-flex shrink-0 items-center bg-[#F5F5F5] border-r border-[#DEDEE0] px-3 text-[12px] font-medium text-[#71717A] select-none">
                           {selectedCountryCode} {selectedDialCode}
                         </span>
                         <input
@@ -1218,7 +1218,7 @@ export function BookingWizard({
                         />
                       </div>
                       {touched.phone && !phoneOk && (
-                        <p className="flex items-center gap-1.5 text-[11px] text-[#FF383C]">
+                        <p className="flex items-center gap-2 text-[11px] text-[#FF383C]">
                           <CircleAlert className="size-3 shrink-0" />
                           <span>Enter a valid phone number</span>
                         </p>
@@ -1226,7 +1226,7 @@ export function BookingWizard({
                     </div>
 
                     {/* Nationality (`XOZ86`) */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <span className="block text-[12px] font-medium text-[#18181B]">
                         Nationality
                       </span>
@@ -1245,14 +1245,14 @@ export function BookingWizard({
                               if (isPlaceholder || !selectedCountryObj) {
                                 return (
                                   <span className="flex items-center gap-2 text-[#71717A]">
-                                    <Flag className="size-3.5 shrink-0 text-[#71717A]" />
+                                    <Flag className="size-4 shrink-0 text-[#71717A]" />
                                     <span>{defaultChildren}</span>
                                   </span>
                                 );
                               }
                               return (
                                 <span className="flex items-center gap-2 truncate text-[#18181B]">
-                                  <Flag className="size-3.5 shrink-0 text-[#71717A]" />
+                                  <Flag className="size-4 shrink-0 text-[#71717A]" />
                                   <span className="truncate">
                                     {selectedCountryObj.name}
                                   </span>
@@ -1269,7 +1269,7 @@ export function BookingWizard({
                                 key={c.name}
                                 id={c.name}
                                 textValue={`${c.name} ${c.dialCode}`}
-                                className="text-[13px] px-3 py-2 rounded-[10px] cursor-pointer hover:bg-[#F5F5F5] flex items-center gap-2 text-[#18181B]"
+                                className="text-[13px] px-3 py-2 rounded-[12px] cursor-pointer hover:bg-[#F5F5F5] flex items-center gap-2 text-[#18181B]"
                               >
                                 <span
                                   className="text-base leading-none"
@@ -1299,24 +1299,24 @@ export function BookingWizard({
                         type="button"
                         onClick={() => setShowExtras((v) => !v)}
                         aria-expanded={showExtras}
-                        className="flex w-full items-center justify-between rounded-[12px] bg-[#F5F5F5] hover:bg-[#EBEBEC]/75 px-3 py-2.5 text-[13px] font-medium text-[#18181B] transition-colors cursor-pointer touch-manipulation"
+                        className="flex w-full items-center justify-between rounded-[12px] bg-[#F5F5F5] hover:bg-[#EBEBEC]/75 px-3 py-3 text-[13px] font-medium text-[#18181B] transition-colors cursor-pointer touch-manipulation"
                       >
                         <span>Special requests</span>
                         {showExtras ? (
-                          <ChevronUp className="size-3.5 text-[#71717A]" />
+                          <ChevronUp className="size-4 text-[#71717A]" />
                         ) : (
-                          <ChevronDown className="size-3.5 text-[#71717A]" />
+                          <ChevronDown className="size-4 text-[#71717A]" />
                         )}
                       </button>
 
                       {showExtras && (
-                        <div className="mt-2.5">
+                        <div className="mt-3">
                           <textarea
                             rows={3}
                             placeholder="Early check-in, quiet room, high floor..."
                             value={specialRequests}
                             onChange={(e) => setSpecialRequests(e.target.value)}
-                            className="w-full resize-none rounded-[12px] border border-[#DEDEE0] bg-white px-3 py-2.5 text-[13px] text-[#18181B] placeholder:text-[#A1A1AA] outline-none focus:border-[#0485F7] focus:ring-2 focus:ring-[#0485F7]/15"
+                            className="w-full resize-none rounded-[12px] border border-[#DEDEE0] bg-white px-3 py-3 text-[13px] text-[#18181B] placeholder:text-[#A1A1AA] outline-none focus:border-[#0485F7] focus:ring-2 focus:ring-[#0485F7]/15"
                           />
                         </div>
                       )}
@@ -1325,7 +1325,7 @@ export function BookingWizard({
 
                   {/* Payment selection card (`DhW2Y` / `ultj7`) */}
                   {hotel.paymentPolicy === "choice" && hotel.hasPaystack && (
-                    <div className="rounded-[16px] md:rounded-[24px] bg-white border border-[#E4E4E7] p-3.5 md:p-5 space-y-2.5 md:space-y-3">
+                    <div className="rounded-[16px] md:rounded-[24px] bg-white border border-[#E4E4E7] p-4 md:p-5 space-y-3 md:space-y-3">
                       <h2 className="text-[15px] font-semibold text-[#18181B]">
                         Payment
                       </h2>
@@ -1351,7 +1351,7 @@ export function BookingWizard({
                             type="button"
                             onClick={() => setPaymentPref(opt.id)}
                             aria-pressed={active}
-                            className={`flex w-full items-center gap-3 rounded-[12px] bg-white p-3 md:p-3.5 text-left transition-colors cursor-pointer touch-manipulation ${
+                            className={`flex w-full items-center gap-3 rounded-[12px] bg-white p-3 md:p-4 text-left transition-colors cursor-pointer touch-manipulation ${
                               active
                                 ? "border-[1.5px] border-[#0485F7]"
                                 : "border border-[#E4E4E7] hover:border-[#DEDEE0]"
@@ -1359,16 +1359,16 @@ export function BookingWizard({
                           >
                             {active ? (
                               <CircleCheckBig
-                                className="size-[17px] md:size-[18px] shrink-0 text-[#0485F7]"
+                                className="size-4 md:size-5 shrink-0 text-[#0485F7]"
                                 strokeWidth={2}
                               />
                             ) : (
                               <Circle
-                                className="size-[17px] md:size-[18px] shrink-0 text-[#A1A1AA]"
+                                className="size-4 md:size-5 shrink-0 text-[#A1A1AA]"
                                 strokeWidth={1.75}
                               />
                             )}
-                            <span className="flex flex-col gap-0.5 min-w-0">
+                            <span className="flex flex-col gap-1 min-w-0">
                               <span className="text-[13px] md:text-[14px] font-semibold text-[#18181B]">
                                 {opt.title}
                               </span>
@@ -1383,7 +1383,7 @@ export function BookingWizard({
                   )}
 
                   {/* Booking details card (`FPIqF` Desktop / `z0O03` Mobile) */}
-                  <div className="rounded-[16px] md:rounded-[24px] bg-white border border-[#E4E4E7] p-3.5 md:p-5 space-y-3">
+                  <div className="rounded-[16px] md:rounded-[24px] bg-white border border-[#E4E4E7] p-4 md:p-5 space-y-3">
                     <h2 className="text-[15px] font-semibold text-[#18181B]">
                       Booking details
                     </h2>
@@ -1403,7 +1403,7 @@ export function BookingWizard({
                         return (
                           <React.Fragment key={p.line.id}>
                             {idx > 0 && <div className="h-px bg-[#E4E4E7]" />}
-                            <div className="space-y-2.5">
+                            <div className="space-y-3">
                               <div className="flex items-center gap-3">
                                 <div className="relative h-12 w-16 shrink-0 overflow-hidden rounded-[12px] bg-[#EBEBEC]">
                                   {img ? (
@@ -1433,7 +1433,7 @@ export function BookingWizard({
                                 </div>
                               </div>
 
-                              <div className="space-y-1.5">
+                              <div className="space-y-2">
                                 {p.nightlyBreakdown.map((night) => (
                                   <div
                                     key={night.date}
@@ -1481,7 +1481,7 @@ export function BookingWizard({
                           </span>
                         </div>
                       )}
-                      <div className="flex items-center justify-between gap-3 pt-0.5">
+                      <div className="flex items-center justify-between gap-3 pt-1">
                         <span className="text-[13px] font-semibold text-[#18181B]">
                           Total
                         </span>
@@ -1493,11 +1493,11 @@ export function BookingWizard({
                   </div>
 
                   {/* Payment terms & Cancellation policy (`ug5Ji` / `R81iF`) */}
-                  <div className="rounded-[16px] md:rounded-[24px] bg-white border border-[#E4E4E7] p-3.5 md:p-5 space-y-2">
+                  <div className="rounded-[16px] md:rounded-[24px] bg-white border border-[#E4E4E7] p-4 md:p-5 space-y-2">
                     <p className="text-[12px] md:text-[13px] font-semibold text-[#18181B]">
                       Payment terms
                     </p>
-                    <p className="text-[11px] md:text-[12px] leading-[1.45] text-[#71717A]">
+                    <p className="text-[11px] md:text-[12px] leading-4 text-[#71717A]">
                       {hotel.paymentPolicy === "pay_later_only" ||
                       !hotel.hasPaystack
                         ? "Reserve online now and settle your balance directly at the hotel during check-in."
@@ -1510,7 +1510,7 @@ export function BookingWizard({
                         <p className="pt-1 text-[12px] md:text-[13px] font-semibold text-[#18181B]">
                           Cancellation policy
                         </p>
-                        <p className="text-[11px] md:text-[12px] leading-[1.45] text-[#71717A]">
+                        <p className="text-[11px] md:text-[12px] leading-4 text-[#71717A]">
                           {hotel.cancellationPolicy}
                         </p>
                       </>
@@ -1526,7 +1526,7 @@ export function BookingWizard({
                     </h2>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-0.5">
+                      <div className="space-y-1">
                         <p className="text-[13px] font-semibold text-[#18181B]">
                           Check-in
                         </p>
@@ -1534,7 +1534,7 @@ export function BookingWizard({
                           {fmtFullDate(checkIn)}
                         </p>
                       </div>
-                      <div className="space-y-0.5">
+                      <div className="space-y-1">
                         <p className="text-[13px] font-semibold text-[#18181B]">
                           Check-out
                         </p>
@@ -1544,7 +1544,7 @@ export function BookingWizard({
                       </div>
                     </div>
 
-                    <div className="space-y-0.5">
+                    <div className="space-y-1">
                       <p className="text-[13px] font-semibold text-[#18181B]">
                         Your booking
                       </p>
@@ -1560,7 +1560,7 @@ export function BookingWizard({
                       </p>
                     </div>
 
-                    <div className="space-y-0.5">
+                    <div className="space-y-1">
                       <p className="text-[13px] font-semibold text-[#18181B]">
                         Property
                       </p>
@@ -1584,7 +1584,7 @@ export function BookingWizard({
 
                     <div className="h-px bg-[#E4E4E7]" />
 
-                    <div className="space-y-2.5">
+                    <div className="space-y-3">
                       <h3 className="text-[17px] font-semibold text-[#18181B]">
                         Price summary
                       </h3>
@@ -1613,7 +1613,7 @@ export function BookingWizard({
                           </span>
                         </div>
                       )}
-                      <div className="flex items-center justify-between gap-3 pt-0.5">
+                      <div className="flex items-center justify-between gap-3 pt-1">
                         <span className="text-[15px] font-semibold text-[#18181B]">
                           Total
                         </span>
@@ -1639,8 +1639,8 @@ export function BookingWizard({
                       )}
                     </button>
 
-                    <p className="flex items-center justify-center gap-1.5 text-[11px] text-[#71717A] pt-0.5">
-                      <Lock className="size-[11px] text-[#A1A1AA]" />
+                    <p className="flex items-center justify-center gap-2 text-[11px] text-[#71717A] pt-1">
+                      <Lock className="size-3 text-[#A1A1AA]" />
                       <span>Payments are secure and encrypted.</span>
                     </p>
                   </div>
@@ -1784,7 +1784,7 @@ function StayRoomCard({
       <div className="flex flex-col md:flex-row md:min-h-[196px]">
         {/* Room photo (`LAgSX` 400x196 Desktop / `U6BSeF` fullx190 Mobile) */}
         <div
-          className="relative h-[190px] w-full md:h-auto md:w-[320px] lg:w-[400px] shrink-0 bg-[#EBEBEC] overflow-hidden cursor-pointer group"
+          className="relative h-48 w-full md:h-auto md:w-[320px] lg:w-[400px] shrink-0 bg-[#EBEBEC] overflow-hidden cursor-pointer group"
           onClick={onPhotos}
           role="button"
           tabIndex={0}
@@ -1822,7 +1822,7 @@ function StayRoomCard({
           )}
 
           {hasPhotos && !blocked && (
-            <span className="absolute bottom-2.5 right-2.5 inline-flex items-center gap-1 rounded-full bg-white/92 backdrop-blur-md px-2.5 py-0.5 text-[11px] font-semibold text-[#18181B] shadow-[0_1px_4px_rgb(0_0_0/0.12)]">
+            <span className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-full bg-white/92 backdrop-blur-md px-3 py-1 text-[11px] font-semibold text-[#18181B] shadow-[0_1px_4px_rgb(0_0_0/0.12)]">
               <Images className="size-3 text-[#0485F7]" />
               {room.images.length}
             </span>
@@ -1830,22 +1830,22 @@ function StayRoomCard({
         </div>
 
         {/* Room details & controls */}
-        <div className="flex flex-1 flex-col justify-between gap-2 p-3.5 md:px-6 md:py-5 min-w-0">
-          <div className="space-y-1.5">
+        <div className="flex flex-1 flex-col justify-between gap-2 p-4 md:px-6 md:py-5 min-w-0">
+          <div className="space-y-2">
             {/* Metadata row: Bed + Sleeps */}
             <div
-              className={`flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[11px] md:text-[12px] ${
+              className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] md:text-[12px] ${
                 blocked && !inCart ? "text-[#A1A1AA]" : "text-[#71717A]"
               }`}
             >
               {room.bedConfiguration && (
-                <span className="inline-flex items-center gap-1.5">
-                  <BedDouble className="size-3.5 shrink-0" strokeWidth={1.75} />
+                <span className="inline-flex items-center gap-2">
+                  <BedDouble className="size-4 shrink-0" strokeWidth={1.75} />
                   <span>{room.bedConfiguration}</span>
                 </span>
               )}
-              <span className="inline-flex items-center gap-1.5">
-                <Users className="size-3.5 shrink-0" strokeWidth={1.75} />
+              <span className="inline-flex items-center gap-2">
+                <Users className="size-4 shrink-0" strokeWidth={1.75} />
                 <span>{sleepsLabel}</span>
               </span>
             </div>
@@ -1862,7 +1862,7 @@ function StayRoomCard({
                 {room.name}
               </button>
               {scarce && (
-                <span className="inline-flex items-center rounded-full bg-[#F5A524]/15 px-2 py-0.5 text-[10px] md:text-[11px] font-medium text-[#F5A524]">
+                <span className="inline-flex items-center rounded-full bg-[#F5A524]/15 px-2 py-1 text-[10px] md:text-[11px] font-medium text-[#F5A524]">
                   Only {availableCount} left
                 </span>
               )}
@@ -1894,10 +1894,10 @@ function StayRoomCard({
               </span>
             </div>
           ) : (
-            <div className="pt-1.5 space-y-2.5 md:space-y-0">
+            <div className="pt-2 space-y-3 md:space-y-0">
               <div className="flex items-end justify-between gap-3">
                 {/* Price */}
-                <div className="space-y-0.5 min-w-0">
+                <div className="space-y-1 min-w-0">
                   <p
                     className={`booking-mono text-[20px] md:text-[22px] font-semibold tracking-[-0.3px] text-[#18181B] leading-tight ${
                       priceLoading ? "opacity-45" : ""
@@ -1932,7 +1932,7 @@ function StayRoomCard({
                       ))}
                     </select>
                     <ChevronDown
-                      className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[#71717A]"
+                      className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#71717A]"
                       strokeWidth={2}
                     />
                   </div>
@@ -1942,9 +1942,9 @@ function StayRoomCard({
                       <button
                         type="button"
                         onClick={() => setCustomizeGuests((v) => !v)}
-                        className="h-10 rounded-full border border-[#0485F7] bg-[#0485F7]/10 px-4 text-[13px] font-semibold text-[#0485F7] hover:bg-[#0485F7]/18 inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                        className="h-10 rounded-full border border-[#0485F7] bg-[#0485F7]/10 px-4 text-[13px] font-semibold text-[#0485F7] hover:bg-[#0485F7]/18 inline-flex items-center gap-2 cursor-pointer transition-colors"
                       >
-                        <Check className="size-3.5 stroke-[2.5]" />
+                        <Check className="size-4 stroke-[2.5]" />
                         <span>Selected</span>
                       </button>
                       <button
@@ -1976,7 +1976,7 @@ function StayRoomCard({
                     <button
                       type="button"
                       onClick={() => setCustomizeGuests((v) => !v)}
-                      className="flex-1 h-10 rounded-full border border-[#0485F7] bg-[#0485F7]/10 text-[14px] font-semibold text-[#0485F7] inline-flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation"
+                      className="flex-1 h-10 rounded-full border border-[#0485F7] bg-[#0485F7]/10 text-[14px] font-semibold text-[#0485F7] inline-flex items-center justify-center gap-2 cursor-pointer touch-manipulation"
                     >
                       <Check className="size-4 stroke-[2.5]" />
                       <span>Selected · Guests</span>
@@ -2021,7 +2021,7 @@ function StayRoomCard({
               Done
             </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {line.rooms.map((cartRoom, index) => (
               <div
                 key={cartRoom.key}
