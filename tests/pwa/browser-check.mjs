@@ -84,7 +84,7 @@ try {
   const cachesAtInstall = await page.evaluate(() => caches.keys());
   assert.ok(cachesAtInstall.includes("other-app-v1"));
   assert.ok(!cachesAtInstall.includes("rl-navigation-v4"));
-  assert.ok(cachesAtInstall.includes("rl-navigation-v6"));
+  assert.ok(cachesAtInstall.includes("rl-navigation-v7"));
   record("worker install and namespaced cache cleanup");
   await context.setOffline(true);
   const path = "/dashboard/bookings?date=2026-10-21#arrivals";

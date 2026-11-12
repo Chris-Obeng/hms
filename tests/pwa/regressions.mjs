@@ -23,7 +23,7 @@ function timers() {
   return {
     setTimeout: (fn) => { pending.set(++id, fn); return id; },
     clearTimeout: (key) => pending.delete(key),
-    expire: () => { for (const fn of [...pending.values()]) fn(); },
+    expire: () => Promise.all([...pending.values()].map((fn) => fn())),
     pending,
   };
 }
@@ -116,6 +116,58 @@ function page(fetch, path = "/dashboard/bookings?date=2026-10-21#arrivals") {
   };
 }
 
+function interactivePage(fetch, path = "/dashboard/bookings?date=2026-10-21#arrivals") {
+  const clock = timers();
+  const attrs = new Map();
+  const rootAttrs = new Map([["data-connection", "offline"]]);
+  const statusAttrs = new Map();
+  const handlers = new Map();
+  const windowHandlers = new Map();
+  const docHandlers = new Map();
+  const navigations = [];
+  const badgeLabel = { textContent: "Offline" };
+  const retry = {
+    href: "/dashboard",
+    setAttribute: (key, value) => attrs.set(key, value),
+    removeAttribute: (key) => attrs.delete(key),
+    addEventListener: (name, handler) => handlers.set(name, handler),
+  };
+  const status = {
+    textContent: "",
+    setAttribute: (key, value) => statusAttrs.set(key, value),
+    removeAttribute: (key) => statusAttrs.delete(key),
+  };
+  const document = {
+    visibilityState: "visible",
+    activeElement: null,
+    documentElement: {
+      setAttribute: (key, value) => rootAttrs.set(key, value),
+    },
+    getElementById: (id) => id === "offline-retry" ? retry : status,
+    querySelector: (sel) => sel === "[data-signal-label]" ? badgeLabel : null,
+    addEventListener: (name, handler) => docHandlers.set(name, handler),
+  };
+  const location = { href: new URL(path, origin).href, assign: (url) => navigations.push(url) };
+  const navigator = { onLine: false };
+  const context = createContext({
+    URL, AbortController, fetch,
+    document,
+    window: {
+      location, navigator, fetch, AbortController,
+      setTimeout: clock.setTimeout,
+      clearTimeout: clock.clearTimeout,
+      addEventListener: (name, handler) => windowHandlers.set(name, handler),
+    },
+  });
+  runInContext(documentScript, context);
+  return {
+    retry, status, attrs, rootAttrs, statusAttrs, badgeLabel, navigations, clock, document, navigator,
+    click: (overrides = {}) => handlers.get("click")({ button: 0, preventDefault() {}, ...overrides }),
+    emitWindow: (name, event = {}) => windowHandlers.get(name)?.(event),
+    emitDoc: (name, event = {}) => docHandlers.get(name)?.(event),
+  };
+}
+
 export function registerPwaTests(test) {
   test("install stores verified standalone HTML before activation", async () => {
     const app = worker(async (request) => {
@@ -126,7 +178,7 @@ export function registerPwaTests(test) {
     });
     await app.install().settle();
     assert.equal(app.skipped(), true);
-    assert.equal(await (await app.cache("rl-navigation-v6").match("/offline")).text(), offlineDocument);
+    assert.equal(await (await app.cache("rl-navigation-v7").match("/offline")).text(), offlineDocument);
   });
 
   for (const [label, response] of [
@@ -149,22 +201,22 @@ export function registerPwaTests(test) {
 
   test("activation removes only obsolete RoomLine cache namespaces", async () => {
     const app = worker();
-    for (const name of ["rl-navigation-v5", "rl-static-v5", "rl-navigation-v6", "other-app-v4", "rl-custom-v1"]) app.cache(name);
+    for (const name of ["rl-navigation-v5", "rl-static-v5", "rl-navigation-v6", "rl-navigation-v7", "other-app-v4", "rl-custom-v1"]) app.cache(name);
     await app.activate().settle();
-    assert.deepEqual([...app.stores.keys()], ["rl-navigation-v6", "other-app-v4", "rl-custom-v1"]);
+    assert.deepEqual([...app.stores.keys()], ["rl-navigation-v7", "other-app-v4", "rl-custom-v1"]);
     assert.equal(app.claimed(), true);
   });
 
   test("failed navigation uses only the dedicated public offline cache", async () => {
     const app = worker(async () => { throw new Error("offline"); });
     await app.cache("other-app").put("/dashboard", new Response("private stale HTML"));
-    await app.cache("rl-navigation-v6").put("/offline", offlineResponse());
+    await app.cache("rl-navigation-v7").put("/offline", offlineResponse());
     assert.equal(await (await app.fetch().response).text(), offlineDocument);
   });
 
   test("slow navigation times out to cached fallback", async () => {
     const app = worker(() => new Promise(() => {}));
-    await app.cache("rl-navigation-v6").put("/offline", offlineResponse());
+    await app.cache("rl-navigation-v7").put("/offline", offlineResponse());
     const event = app.fetch();
     app.clock.expire();
     assert.equal(await (await event.response).text(), offlineDocument);
@@ -189,7 +241,7 @@ export function registerPwaTests(test) {
 
   test("missing/invalid fallback returns a network error, not another app's HTML", async () => {
     const app = worker(async () => { throw new Error("offline"); });
-    await app.cache("rl-navigation-v6").put("/offline", new Response("unverified"));
+    await app.cache("rl-navigation-v7").put("/offline", new Response("unverified"));
     assert.equal((await app.fetch().response).type, "error");
   });
 
@@ -217,7 +269,7 @@ export function registerPwaTests(test) {
     const event = app.fetch("/_next/static/chunk.js", {}, false);
     assert.equal(await (await event.response).text(), "asset bytes");
     await event.settle();
-    assert.equal(await (await app.cache("rl-static-v6").match("/_next/static/chunk.js")).text(), "asset bytes");
+    assert.equal(await (await app.cache("rl-static-v7").match("/_next/static/chunk.js")).text(), "asset bytes");
   });
 
   test("storage quota failures do not lose successful network responses", async () => {
@@ -230,26 +282,26 @@ export function registerPwaTests(test) {
   test("background revalidation updates static cache after cached response is returned", async () => {
     let finish;
     const app = worker(() => new Promise((resolve) => { finish = resolve; }));
-    await app.cache("rl-static-v6").put("/_next/static/chunk.js", new Response("old"));
+    await app.cache("rl-static-v7").put("/_next/static/chunk.js", new Response("old"));
     const event = app.fetch("/_next/static/chunk.js", {}, false);
     assert.equal(await (await event.response).text(), "old");
     finish(new Response("new"));
     await event.settle();
-    assert.equal(await (await app.cache("rl-static-v6").match("/_next/static/chunk.js")).text(), "new");
+    assert.equal(await (await app.cache("rl-static-v7").match("/_next/static/chunk.js")).text(), "new");
   });
 
   test("parallel static cache writes respect entry limit", async () => {
     const app = worker(async () => new Response("asset"));
     const events = Array.from({ length: 70 }, (_, index) => app.fetch(`/_next/static/${index}.js`, {}, false));
     await Promise.all(events.map((event) => event.settle()));
-    assert.equal((await app.cache("rl-static-v6").keys()).length, 64);
+    assert.equal((await app.cache("rl-static-v7").keys()).length, 64);
   });
 
   test("availability expires at 120s and rejects unknown or invalid freshness", async () => {
     for (const timestamp of [undefined, "invalid", String(Date.now() - 120001), String(Date.now() + 60000)]) {
       const app = worker(async () => { throw new Error("offline"); });
       const headers = timestamp === undefined ? {} : { "x-roomline-cached-at": timestamp };
-      await app.cache("rl-availability-v6").put("/api/booking/demo/availability", new Response("stale", { headers }));
+      await app.cache("rl-availability-v7").put("/api/booking/demo/availability", new Response("stale", { headers }));
       const event = app.fetch("/api/booking/demo/availability", { credentials: "omit" }, false);
       assert.equal((await event.response).type, "error");
       await event.settle();
@@ -258,7 +310,7 @@ export function registerPwaTests(test) {
 
   test("recent public availability is available on network failure", async () => {
     const app = worker(async () => { throw new Error("offline"); });
-    await app.cache("rl-availability-v6").put("/api/booking/demo/availability", new Response("fresh", {
+    await app.cache("rl-availability-v7").put("/api/booking/demo/availability", new Response("fresh", {
       headers: { "x-roomline-cached-at": String(Date.now()) },
     }));
     const event = app.fetch("/api/booking/demo/availability", { credentials: "omit" }, false);
@@ -271,7 +323,7 @@ export function registerPwaTests(test) {
       const app = worker(async () => new Response("not public", { headers }));
       const event = app.fetch("/_next/static/chunk.js", {}, false);
       await event.settle();
-      assert.equal(await app.cache("rl-static-v6").match("/_next/static/chunk.js"), undefined);
+      assert.equal(await app.cache("rl-static-v7").match("/_next/static/chunk.js"), undefined);
     }
   });
 
@@ -341,6 +393,57 @@ export function registerPwaTests(test) {
     const app = page(async () => { calls += 1; return new Response(null); });
     await app.click({ ctrlKey: true });
     assert.equal(calls, 0);
+  });
+
+  test("visibilitychange triggers auto-recovery when returning to tab online", async () => {
+    let calls = 0;
+    const app = interactivePage(async () => { calls += 1; return new Response(null); });
+    app.navigator.onLine = true;
+    app.document.visibilityState = "visible";
+    app.emitDoc("visibilitychange");
+    assert.equal(app.clock.pending.size, 1);
+    await app.clock.expire();
+    assert.equal(calls, 1);
+    assert.deepEqual(app.navigations, [app.retry.href]);
+  });
+
+  test("online event debounces auto-recovery and cancels cleanly if connection drops again", async () => {
+    let calls = 0;
+    const app = interactivePage(async () => { calls += 1; return new Response(null); });
+    app.emitWindow("online");
+    assert.equal(app.rootAttrs.get("data-connection"), "detected");
+    assert.equal(app.badgeLabel.textContent, "Signal detected");
+    assert.equal(calls, 0);
+
+    app.emitWindow("offline");
+    assert.equal(app.rootAttrs.get("data-connection"), "offline");
+    assert.equal(app.badgeLabel.textContent, "Offline");
+    assert.equal(app.clock.pending.size, 0);
+
+    app.emitWindow("online");
+    assert.equal(app.clock.pending.size, 1);
+    await app.clock.expire();
+    assert.equal(calls, 1);
+    assert.deepEqual(app.navigations, [app.retry.href]);
+    assert.equal(app.rootAttrs.get("data-connection"), "online");
+    assert.equal(app.statusAttrs.get("data-tone"), "success");
+  });
+
+  test("keyboard R shortcut triggers check without hijacking browser reload modifiers", async () => {
+    let calls = 0;
+    const app = interactivePage(async () => { calls += 1; return new Response(null); });
+
+    app.emitWindow("keydown", { key: "r", ctrlKey: true, preventDefault() {} });
+    app.emitWindow("keydown", { key: "r", metaKey: true, preventDefault() {} });
+    app.document.activeElement = { tagName: "INPUT" };
+    app.emitWindow("keydown", { key: "r", preventDefault() {} });
+    assert.equal(calls, 0);
+
+    app.document.activeElement = null;
+    let prevented = false;
+    await app.emitWindow("keydown", { key: "r", preventDefault() { prevented = true; } });
+    assert.equal(prevented, true);
+    assert.equal(calls, 1);
   });
 }
 

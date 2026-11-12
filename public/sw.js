@@ -3,7 +3,7 @@
  * static caching. Served from the root scope by definition.
  */
 
-const VERSION = "v6";
+const VERSION = "v7";
 const CACHE_STATIC = `rl-static-${VERSION}`;
 const CACHE_IMAGES = `rl-images-${VERSION}`;
 const CACHE_AVAILABILITY = `rl-availability-${VERSION}`;
