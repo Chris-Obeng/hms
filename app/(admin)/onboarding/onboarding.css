@@ -34,7 +34,7 @@
   --ob-font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --ob-font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 
-  --ob-radius: 0.75rem; /* 12px unified radius across inputs, selects & buttons */
+  --ob-radius: 0.625rem; /* 10px unified radius across inputs, selects & buttons */
   --ob-control-h: 2.5rem; /* 40px desktop, 44px coarse pointer below */
 
   --ob-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -185,16 +185,16 @@
 .ob-brand:focus-visible {
   outline: 2px solid var(--ob-ink);
   outline-offset: 3px;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .ob-brand-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 0.5rem;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 0.4375rem;
   background-color: var(--ob-primary);
   color: var(--ob-primary-fg);
   flex-shrink: 0;
@@ -610,7 +610,7 @@ button.ob-progress-seg:focus-visible {
   justify-content: center;
   width: 2rem;
   height: 2rem;
-  border-radius: 0.5rem;
+  border-radius: 0.4375rem;
   border: 1px solid var(--ob-border);
   background-color: var(--ob-subtle);
   color: var(--ob-ink-secondary);
@@ -852,7 +852,7 @@ button.ob-progress-seg:focus-visible {
   gap: 0.25rem;
   height: 2.25rem;
   padding: 0 0.75rem;
-  border-radius: 0.5rem;
+  border-radius: 0.4375rem;
   border: 1px solid var(--ob-border);
   background-color: var(--ob-surface);
   color: var(--ob-ink);

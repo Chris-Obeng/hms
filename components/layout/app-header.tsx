@@ -109,7 +109,7 @@ export function AppHeader({
             aria-label="New booking"
             className="ui-press inline-flex size-11 min-w-11 gap-2 rounded-lg text-xs sm:h-8 sm:w-auto sm:min-w-8"
           >
-            <Plus className="size-4" />
+            <Plus className="size-4 sm:size-3.5" />
           </Button>
 
           <NotificationCenter
