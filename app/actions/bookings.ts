@@ -790,7 +790,7 @@ export async function updateBookingStatus(
     const { data: before } = await supabase
       .from("bookings")
       .select(
-        "id, reference, status, check_in, check_out, nights, total_amount, room_types(name), guests(full_name, email, phone)"
+        "id, reference, status, payment_status, amount_paid, currency, check_in, check_out, nights, total_amount, room_types(name), guests(full_name, email, phone)"
       )
       .eq("id", bookingId)
       .eq("hotel_id", ctx.hotelId)
@@ -804,6 +804,16 @@ export async function updateBookingStatus(
         success: false,
         error: `Cannot transition booking from '${before.status}' to '${status}'`,
       };
+    }
+
+    const amountPaidBefore = Number(before.amount_paid ?? 0);
+    if (status === "cancelled" && amountPaidBefore > 0) {
+      if (!canPerformAction(ctx.role, "manager")) {
+        return {
+          success: false,
+          error: "Cancelling a paid booking requires manager approval.",
+        };
+      }
     }
 
     const { error } = await supabase
@@ -870,6 +880,24 @@ export async function updateBookingStatus(
         bookingId,
         excludeStaffId: ctx.staffId,
       });
+
+      if (amountPaidBefore > 0) {
+        const bookingCurrency = before.currency ?? ctx.hotel.currency ?? "GHS";
+        void import("@/lib/bookings/confirm-online-payment")
+          .then(({ alertOncePerBooking }) =>
+            alertOncePerBooking(
+              ctx.hotelId,
+              bookingId,
+              "payment_failed",
+              `cancel-paid-review:${bookingId}`,
+              `Refund review needed (${before.reference})`,
+              `Booking ${before.reference} was cancelled with ${bookingCurrency} ${amountPaidBefore.toFixed(2)} already collected. Review the hotel's cancellation policy and process any applicable refund.`
+            )
+          )
+          .catch((e: unknown) =>
+            console.error("[updateBookingStatus:paid-cancel-review]", e)
+          );
+      }
 
       import("@/lib/notifications/send-booking-confirmation")
         .then(({ sendBookingCancellation }) =>

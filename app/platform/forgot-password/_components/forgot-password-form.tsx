@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
+import { createPlatformBrowserClient } from "@/lib/supabase/platform-browser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,7 @@ export function ForgotPasswordForm() {
     setLoading(true);
     setError(null);
 
-    const supabase = createClient();
+    const supabase = createPlatformBrowserClient();
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/platform/auth/confirm?type=recovery&next=/platform/update-password`,

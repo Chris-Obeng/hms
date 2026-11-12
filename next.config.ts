@@ -116,6 +116,6 @@ export default async function config(phase: string): Promise<NextConfig> {
     return nextConfig;
   }
 
-  const { withSentryConfig } = await import("@sentry/nextjs");
+  const { withSentryConfig } = await import("@sentry/nextjs/config");
   return withSentryConfig(nextConfig, sentryBuildOptions);
 }

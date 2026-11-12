@@ -1,49 +1,34 @@
-import { auth } from "@clerk/nextjs/server";
+import { requireAuth } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { can } from "@/lib/roles";
 import { Users, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PendingStaffClient } from "./pending-client";
-export default async function PendingStaffPage() {
-  const { orgId, userId } = await auth();
 
-  if (!orgId || !userId) {
+export default async function PendingStaffPage() {
+  let ctx;
+  try {
+    ctx = await requireAuth();
+  } catch {
     return <NoAccessState />;
   }
 
+  const isSuperAdmin = can(ctx.role, "staff:manage");
   const supabase = await createClient();
 
-  const { data: hotel } = await supabase
-    .from("hotels")
-    .select("id, name")
-    .eq("clerk_org_id", orgId)
-    .single();
-
-  if (!hotel) {
-    return <NoAccessState />;
-  }
-
-  // Check if user is super admin
-  const { data: currentUser } = await supabase
-    .from("staff_profiles")
-    .select("role")
-    .eq("clerk_user_id", userId)
-    .eq("clerk_org_id", orgId)
-    .single();
-
-  const isSuperAdmin = can(currentUser?.role, "staff:manage");
-
-    // Fetch pending staff
-  const { data: pending } = await supabase
-    .from("staff_profiles")
-    .select(
-      "id, clerk_user_id, email, full_name, avatar_url, role, created_at"
-    )
-    .eq("clerk_org_id", orgId)
-    .eq("role", "pending")
-    .eq("is_active", false)
-    .order("created_at", { ascending: true });
+  // Only load pending staff PII when caller is an active super_admin (`HIGH-08`).
+  const { data: pending } = isSuperAdmin
+    ? await supabase
+        .from("staff_profiles")
+        .select(
+          "id, clerk_user_id, email, full_name, avatar_url, role, created_at"
+        )
+        .eq("clerk_org_id", ctx.orgId)
+        .eq("role", "pending")
+        .eq("is_active", false)
+        .order("created_at", { ascending: true })
+    : { data: [] };
 
   const pendingList = (pending || []).map((s) => ({
     id: s.id,

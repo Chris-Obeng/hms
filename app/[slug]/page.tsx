@@ -10,6 +10,7 @@ import {
   captureError,
   captureSupabaseError,
 } from "@/lib/observability/sentry";
+import { isUsableSubaccount } from "@/lib/paystack";
 import { validateStayRange } from "@/lib/validation/params";
 import { getPublicHotel } from "./_lib/get-public-hotel";
 import {
@@ -201,7 +202,7 @@ export default async function HotelBookingPage({ params, searchParams }: Props) 
 
   const settings = (hotel.settings as Record<string, unknown>) ?? {};
   const paymentPolicy = (settings.payment_policy as string) ?? "choice";
-  const hasPaystack = !!hotel.paystack_subaccount_code;
+  const hasPaystack = isUsableSubaccount(hotel);
   const effectivePolicy = !hasPaystack ? "pay_later_only" : paymentPolicy;
 
   return (

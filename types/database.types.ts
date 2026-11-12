@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.15"
+  }
   public: {
     Tables: {
       ari_sync_outbox: {
@@ -829,6 +834,7 @@ export type Database = {
           paystack_account_number: string | null
           paystack_bank_code: string | null
           paystack_business_name: string | null
+          paystack_domain: string | null
           paystack_settlement_schedule: string | null
           paystack_subaccount_code: string | null
           phone: string | null
@@ -858,6 +864,7 @@ export type Database = {
           paystack_account_number?: string | null
           paystack_bank_code?: string | null
           paystack_business_name?: string | null
+          paystack_domain?: string | null
           paystack_settlement_schedule?: string | null
           paystack_subaccount_code?: string | null
           phone?: string | null
@@ -887,6 +894,7 @@ export type Database = {
           paystack_account_number?: string | null
           paystack_bank_code?: string | null
           paystack_business_name?: string | null
+          paystack_domain?: string | null
           paystack_settlement_schedule?: string | null
           paystack_subaccount_code?: string | null
           phone?: string | null
@@ -1105,6 +1113,7 @@ export type Database = {
           hotel_id: string
           id: string
           initialized_at: string | null
+          last_reconciled_at: string | null
           metadata: Json
           paystack_id: string | null
           paystack_reference: string
@@ -1122,6 +1131,7 @@ export type Database = {
           hotel_id: string
           id?: string
           initialized_at?: string | null
+          last_reconciled_at?: string | null
           metadata?: Json
           paystack_id?: string | null
           paystack_reference: string
@@ -1139,6 +1149,7 @@ export type Database = {
           hotel_id?: string
           id?: string
           initialized_at?: string | null
+          last_reconciled_at?: string | null
           metadata?: Json
           paystack_id?: string | null
           paystack_reference?: string
@@ -2132,6 +2143,20 @@ export type Database = {
           payment_status: string
         }[]
       }
+      record_paystack_refund_atomic: {
+        Args: {
+          p_currency: string
+          p_refund_amount_minor: number
+          p_refund_id: string
+          p_transaction_reference: string
+        }
+        Returns: {
+          booking_id: string
+          hotel_id: string
+          payment_status: string
+          result: string
+        }[]
+      }
       reorder_room_types: {
         Args: { p_hotel_id: string; p_ordered_ids: string[] }
         Returns: undefined
@@ -2302,12 +2327,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2331,11 +2356,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2356,11 +2381,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2381,11 +2406,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2398,11 +2423,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

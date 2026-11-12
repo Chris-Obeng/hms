@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
+import { createPlatformBrowserClient } from "@/lib/supabase/platform-browser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,14 +22,14 @@ export function UpdatePasswordForm() {
       setError("Passwords do not match");
       return;
     }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+    if (password.length < 12) {
+      setError("Password must be at least 12 characters");
       return;
     }
     setLoading(true);
     setError(null);
 
-    const supabase = createClient();
+    const supabase = createPlatformBrowserClient();
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;

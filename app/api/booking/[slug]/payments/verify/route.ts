@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { verifyTransaction, extractSubaccountCode } from "@/lib/paystack";
+import {
+  verifyTransaction,
+  extractSubaccountCode,
+  getPaystackMode,
+} from "@/lib/paystack";
 import { recordOnlinePayment, recordOnlineGroupPayment } from "@/lib/bookings/confirm-online-payment";
 import { fromMinor } from "@/lib/money";
 import { rateLimit } from "@/lib/rate-limit";
@@ -11,6 +16,15 @@ import {
   flushSentry,
 } from "@/lib/observability/sentry";
 import { hotelSlugParam, paystackReferenceParam } from "@/lib/validation/params";
+
+function isTrustedReconcileWorker(req: NextRequest): boolean {
+  const provided = req.headers.get("x-reconcile-worker-secret");
+  const expected = process.env.PUSH_WORKER_SECRET?.trim();
+  if (!provided || !expected) return false;
+  const a = Buffer.from(provided, "utf8");
+  const b = Buffer.from(expected, "utf8");
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 /**
  * GET /api/booking/[slug]/payments/verify?reference=<paystackRef>
@@ -31,13 +45,16 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  // Each call hits Paystack's paid/quota-limited API — throttle hard.
-  const rl = await rateLimit(req, { name: "payment-verify", limit: 10, windowSeconds: 60 });
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Too many requests. Please try again later." },
-      { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
-    );
+  // Each call hits Paystack's paid/quota-limited API — throttle guest polling,
+  // while exempting authenticated pg_cron reconciliation sweeps (`HIGH-03`).
+  if (!isTrustedReconcileWorker(req)) {
+    const rl = await rateLimit(req, { name: "payment-verify", limit: 10, windowSeconds: 60 });
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
+      );
+    }
   }
 
   const { slug } = await params;
@@ -98,6 +115,26 @@ export async function GET(
 
     // Verify payment with Paystack — amount comes from Paystack, not from client
     const txn = await verifyTransaction(reference);
+    const activeMode = getPaystackMode();
+    if (typeof txn.domain === "string" && txn.domain !== activeMode) {
+      captureIssue("Paystack verify domain mismatch", {
+        scope: "booking-funnel",
+        step: "payment_verify",
+        level: "error",
+        hotelId: hotel.id,
+        reference,
+        tags: {
+          "hotel.slug": slug,
+          "paystack.domain": txn.domain,
+          "paystack.expected_domain": activeMode,
+        },
+        fingerprint: ["paystack", "domain-mismatch"],
+      });
+      return NextResponse.json(
+        { verified: false, error: "Payment mode mismatch" },
+        { status: 400 }
+      );
+    }
 
     if (txn.status !== "success") {
       return NextResponse.json({ verified: false, status: txn.status });

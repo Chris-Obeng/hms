@@ -135,7 +135,7 @@ interface SettlementRow {
  * Never throws: this runs on paths where the money is already captured, and
  * failing to notify must not turn into failing to record.
  */
-async function alertOncePerBooking(
+export async function alertOncePerBooking(
   hotelId: string,
   bookingId: string,
   type: string,
@@ -160,11 +160,12 @@ async function alertOncePerBooking(
     if (clerkOrgId) {
       const { data: recipients } = await supabaseAdmin
         .from("staff_profiles")
-        .select("id")
+        .select("id, role")
         .eq("clerk_org_id", clerkOrgId)
         .eq("is_active", true);
 
       staffIds = (recipients ?? [])
+        .filter((r) => (r as { role?: string | null }).role !== "pending")
         .map((r) => (r as { id?: string }).id)
         .filter((id): id is string => Boolean(id));
     }

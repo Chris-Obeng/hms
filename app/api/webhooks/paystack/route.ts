@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { recordOnlinePayment, recordOnlineGroupPayment } from "@/lib/bookings/confirm-online-payment";
-import { extractSubaccountCode } from "@/lib/paystack";
-import { fromMinor } from "@/lib/money";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { writeAuditLog } from "@/lib/audit";
+import {
+  alertOncePerBooking,
+  recordOnlinePayment,
+  recordOnlineGroupPayment,
+} from "@/lib/bookings/confirm-online-payment";
+import { extractSubaccountCode, getPaystackMode } from "@/lib/paystack";
+import { formatMoney, fromMinor } from "@/lib/money";
 import { createHmac, timingSafeEqual } from "crypto";
 import { rateLimit } from "@/lib/rate-limit";
 import {
   captureError,
   captureIssue,
+  captureSupabaseError,
   flushSentry,
 } from "@/lib/observability/sentry";
 
@@ -102,8 +109,9 @@ async function handleWebhook(req: NextRequest) {
 
   const expected = createHmac("sha512", secret).update(rawBody).digest("hex");
 
-  // timingSafeEqual requires same-length buffers
-  const sigBuf = Buffer.from(sig, "hex");
+  // timingSafeEqual requires same-length buffers; pre-check strict 128-char hex
+  const validHexSig = /^[0-9a-f]{128}$/i.test(sig);
+  const sigBuf = validHexSig ? Buffer.from(sig, "hex") : Buffer.alloc(0);
   const expBuf = Buffer.from(expected, "hex");
 
   if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
@@ -149,12 +157,62 @@ async function handleWebhook(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // Only process charge.success
-  if (event.event !== "charge.success") {
+  const eventType = typeof event.event === "string" ? event.event : "";
+  const eventData =
+    event.data && typeof event.data === "object"
+      ? (event.data as Record<string, unknown>)
+      : {};
+
+  // Mode isolation (`BLK-04`): reject payloads whose domain contradicts active runtime mode.
+  const nestedTxn =
+    eventData.transaction && typeof eventData.transaction === "object"
+      ? (eventData.transaction as Record<string, unknown>)
+      : null;
+  const payloadDomain =
+    typeof eventData.domain === "string"
+      ? eventData.domain
+      : typeof nestedTxn?.domain === "string"
+        ? nestedTxn.domain
+        : null;
+  const activeMode = getPaystackMode();
+  if (payloadDomain && payloadDomain !== activeMode) {
+    captureIssue("Paystack webhook domain mismatch", {
+      scope: "paystack-webhook",
+      step: "payment_webhook",
+      level: "error",
+      tags: {
+        "paystack.event": eventType || "unknown",
+        "paystack.domain": payloadDomain,
+        "paystack.expected_domain": activeMode,
+      },
+      fingerprint: ["paystack", "domain-mismatch"],
+    });
+    return NextResponse.json({ error: "Payment mode mismatch" }, { status: 400 });
+  }
+
+  if (
+    eventType === "charge.dispute.create" ||
+    eventType === "charge.dispute.remind" ||
+    eventType === "charge.dispute.resolve"
+  ) {
+    return await handleDisputeEvent(eventType, eventData, nestedTxn);
+  }
+
+  if (
+    eventType === "refund.pending" ||
+    eventType === "refund.processing" ||
+    eventType === "refund.needs-attention" ||
+    eventType === "refund.processed" ||
+    eventType === "refund.failed"
+  ) {
+    return await handleRefundEvent(eventType, eventData, nestedTxn);
+  }
+
+  if (eventType !== "charge.success") {
     return NextResponse.json({ received: true });
   }
 
-  const txn = event.data as Record<string, unknown>;
+  const txn = eventData;
   const paystackRef = typeof txn.reference === "string" ? txn.reference : null;
 
   if (!paystackRef) {
@@ -316,4 +374,239 @@ async function handleWebhook(req: NextRequest) {
         partial: result.partial,
       });
   }
+}
+
+function escapeLikePrefix(raw: string): string {
+  return raw.replace(/[\\%_]/g, "\\$&");
+}
+
+async function resolveBookingFromTransactionReference(reference: string): Promise<{
+  hotelId: string;
+  bookingId: string;
+  bookingRef: string | null;
+} | null> {
+  // Single-room payments store `paystack_reference = reference`; group payments
+  // store `<reference>::<line_booking_id>` (anchor first).
+  const { data: exact } = await supabaseAdmin
+    .from("payments")
+    .select("hotel_id, booking_id, bookings(reference, group_id)")
+    .eq("paystack_reference", reference)
+    .limit(1)
+    .maybeSingle();
+
+  const row =
+    exact ??
+    (
+      await supabaseAdmin
+        .from("payments")
+        .select("hotel_id, booking_id, bookings(reference, group_id)")
+        .like("paystack_reference", `${escapeLikePrefix(reference)}::%`)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle()
+    ).data;
+
+  if (!row) return null;
+  const bookingJoin = Array.isArray(row.bookings) ? row.bookings[0] : row.bookings;
+  const bookingMeta = bookingJoin as { reference?: string | null; group_id?: string | null } | null;
+  return {
+    hotelId: row.hotel_id,
+    bookingId: bookingMeta?.group_id ?? row.booking_id,
+    bookingRef: bookingMeta?.reference ?? null,
+  };
+}
+
+async function handleDisputeEvent(
+  eventType: string,
+  data: Record<string, unknown>,
+  nestedTxn: Record<string, unknown> | null
+): Promise<NextResponse> {
+  const txRef =
+    typeof nestedTxn?.reference === "string"
+      ? nestedTxn.reference
+      : typeof data.transaction_reference === "string"
+        ? data.transaction_reference
+        : null;
+  const disputeId =
+    data.id != null ? String(data.id) : txRef ?? "unknown";
+  const resolution = typeof data.resolution === "string" ? data.resolution : null;
+
+  const linked = txRef ? await resolveBookingFromTransactionReference(txRef) : null;
+
+  captureIssue(`Paystack dispute event: ${eventType}`, {
+    scope: "paystack-webhook",
+    step: "payment_webhook",
+    level: eventType === "charge.dispute.resolve" ? "warning" : "fatal",
+    hotelId: linked?.hotelId,
+    bookingId: linked?.bookingId,
+    reference: txRef ?? undefined,
+    tags: {
+      "paystack.event": eventType,
+      ...(resolution ? { "paystack.dispute_resolution": resolution } : {}),
+    },
+    contexts: {
+      dispute: {
+        dispute_id: disputeId,
+        status: typeof data.status === "string" ? data.status : null,
+        resolution,
+      },
+    },
+    fingerprint: ["paystack-webhook", "dispute", eventType],
+  });
+
+  if (linked) {
+    const refLabel = linked.bookingRef ? ` (${linked.bookingRef})` : "";
+    const title =
+      eventType === "charge.dispute.resolve"
+        ? `Chargeback resolved${refLabel}`
+        : `Urgent: Chargeback opened${refLabel}`;
+    const message =
+      eventType === "charge.dispute.resolve"
+        ? `Paystack updated dispute #${disputeId}${resolution ? ` (${resolution})` : ""} for reference ${txRef}. Review Payouts and your Paystack Dashboard.`
+        : `A guest payment dispute (#${disputeId}) was filed on Paystack for ${txRef}. Unanswered chargebacks auto-accept after 16 hours — upload booking evidence in your Paystack Dashboard immediately.`;
+
+    await alertOncePerBooking(
+      linked.hotelId,
+      linked.bookingId,
+      "payment_failed",
+      `dispute:${eventType}:${disputeId}`,
+      title,
+      message
+    );
+  }
+
+  return NextResponse.json({ received: true });
+}
+
+async function handleRefundEvent(
+  eventType: string,
+  data: Record<string, unknown>,
+  nestedTxn: Record<string, unknown> | null
+): Promise<NextResponse> {
+  const txRef =
+    typeof data.transaction_reference === "string"
+      ? data.transaction_reference
+      : typeof nestedTxn?.reference === "string"
+        ? nestedTxn.reference
+        : null;
+  const refundId =
+    data.id != null
+      ? String(data.id)
+      : `${txRef ?? "unknown"}:${typeof data.amount === "number" ? data.amount : "0"}`;
+  const currency =
+    typeof data.currency === "string" ? data.currency.toUpperCase() : "GHS";
+  const amountMinor =
+    typeof data.amount === "number" && Number.isSafeInteger(data.amount) && data.amount > 0
+      ? data.amount
+      : null;
+
+  if (!txRef) {
+    captureIssue(`Paystack ${eventType} missing transaction_reference`, {
+      scope: "paystack-webhook",
+      step: "payment_webhook",
+      level: "warning",
+      tags: { "paystack.event": eventType },
+      fingerprint: ["paystack-webhook", "refund-missing-ref"],
+    });
+    return NextResponse.json({ received: true });
+  }
+
+  if (eventType === "refund.needs-attention" || eventType === "refund.failed") {
+    const linked = await resolveBookingFromTransactionReference(txRef);
+    captureIssue(`Paystack refund requires action: ${eventType}`, {
+      scope: "paystack-webhook",
+      step: "payment_webhook",
+      level: "error",
+      hotelId: linked?.hotelId,
+      bookingId: linked?.bookingId,
+      reference: txRef,
+      tags: { "paystack.event": eventType },
+      contexts: { refund: { refund_id: refundId, amount_minor: amountMinor, currency } },
+      fingerprint: ["paystack-webhook", "refund-attention", eventType],
+    });
+
+    if (linked) {
+      const amountLabel = amountMinor ? formatMoney(amountMinor, currency) : currency;
+      await alertOncePerBooking(
+        linked.hotelId,
+        linked.bookingId,
+        "payment_failed",
+        `refund:${eventType}:${refundId}`,
+        `Refund requires attention${linked.bookingRef ? ` (${linked.bookingRef})` : ""}`,
+        `Paystack reported ${eventType} for ${amountLabel} on reference ${txRef}. Complete manual follow-up in your Paystack Dashboard.`
+      );
+    }
+    return NextResponse.json({ received: true });
+  }
+
+  if (eventType === "refund.processed") {
+    if (!amountMinor) {
+      captureIssue("Paystack refund.processed missing positive integer amount", {
+        scope: "paystack-webhook",
+        step: "payment_webhook",
+        level: "error",
+        reference: txRef,
+        fingerprint: ["paystack-webhook", "refund-invalid-amount"],
+      });
+      return NextResponse.json({ received: true });
+    }
+
+    const { data: rpcRows, error: rpcError } = await supabaseAdmin.rpc(
+      "record_paystack_refund_atomic",
+      {
+        p_transaction_reference: txRef,
+        p_refund_id: refundId,
+        p_refund_amount_minor: amountMinor,
+        p_currency: currency,
+      }
+    );
+
+    if (rpcError) {
+      captureSupabaseError(rpcError, "rpc.record_paystack_refund_atomic", {
+        scope: "paystack-webhook",
+        step: "payment_webhook",
+        level: "error",
+        reference: txRef,
+      });
+      // Transient DB error — return 500 so Paystack retries delivery.
+      return NextResponse.json({ error: "Refund reconciliation failed" }, { status: 500 });
+    }
+
+    const row = (Array.isArray(rpcRows) ? rpcRows[0] : rpcRows) as {
+      result?: string;
+      hotel_id?: string | null;
+      booking_id?: string | null;
+      payment_status?: string | null;
+    } | null;
+
+    if (row?.result === "recorded" && row.hotel_id && row.booking_id) {
+      await writeAuditLog(supabaseAdmin, {
+        hotelId: row.hotel_id,
+        action: "payment.refunded",
+        entityType: "booking",
+        entityId: row.booking_id,
+        afterState: {
+          paystack_reference: txRef,
+          refund_id: refundId,
+          amount_refunded: fromMinor(amountMinor, currency),
+          currency,
+          payment_status: row.payment_status,
+        },
+      });
+
+      await alertOncePerBooking(
+        row.hotel_id,
+        row.booking_id,
+        "payment_failed",
+        `refund:processed:${refundId}`,
+        "Paystack refund processed",
+        `Refund of ${formatMoney(amountMinor, currency)} for reference ${txRef} has been processed and booking payment status is now '${row.payment_status ?? "refunded"}'.`
+      );
+    }
+
+    return NextResponse.json({ received: true, refundResult: row?.result ?? "ignored" });
+  }
+
+  // refund.pending / refund.processing — informational, acknowledge cleanly.
+  return NextResponse.json({ received: true });
 }

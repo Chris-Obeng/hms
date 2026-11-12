@@ -2,7 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { SignOutButton } from "@clerk/nextjs";
 import { ShieldAlert } from "lucide-react";
 
@@ -14,10 +14,8 @@ export default async function SuspendedPage() {
     redirect("/sign-in");
   }
 
-  const supabase = await createClient();
-
-  // Query hotel status
-  const { data: hotel } = await supabase
+  // Query hotel status scoped strictly to verified Clerk orgId
+  const { data: hotel } = await supabaseAdmin
     .from("hotels")
     .select("id, name, status")
     .eq("clerk_org_id", orgId)

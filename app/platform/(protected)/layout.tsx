@@ -60,6 +60,14 @@ export default async function PlatformLayout({
     redirect("/platform/auth/sign-out?reason=unauthorized");
   }
 
+  // Enforce TOTP MFA step-up (`HIGH-10`): if this admin has a verified MFA
+  // factor (`nextLevel === 'aal2'`) and has only completed password sign-in
+  // (`currentLevel !== 'aal2'`), send them to the MFA challenge step.
+  const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (aalData?.nextLevel === "aal2" && aalData.currentLevel !== "aal2") {
+    redirect("/platform/sign-in?mfa=1");
+  }
+
   return (
     <SidebarProvider defaultOpen={true}>
       {/* ── Sidebar ───────────────────────────────────────── */}

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildCancellationEmail, buildConfirmationEmail } from "@/lib/notifications/email-templates";
+import {
+  buildCancellationEmail,
+  buildConfirmationEmail,
+  escapeHtml,
+} from "@/lib/notifications/email-templates";
+import {
+  parseResendFromAddress,
+  redactEmailForLog,
+} from "@/lib/notifications/resend";
 import type { BookingNotifyData } from "@/lib/notifications/types";
 
 const booking: BookingNotifyData = {
@@ -105,5 +113,67 @@ describe("buildCancellationEmail", () => {
   it("links the hotel phone when provided", () => {
     const html = buildCancellationEmail("Sunset Inn", "Ama", "BK-1", "+233200000000");
     expect(html).toContain('href="tel:+233200000000"');
+  });
+});
+
+describe("HTML entity escaping & Resend sender hygiene (HIGH-02 / HIGH-06)", () => {
+  it("escapes &, <, >, quotes and apostrophes in escapeHtml", () => {
+    expect(escapeHtml(`<script>alert("x" & 'y')</script>`)).toBe(
+      "&lt;script&gt;alert(&quot;x&quot; &amp; &#39;y&#39;)&lt;/script&gt;"
+    );
+  });
+
+  it("escapes untrusted HTML/phishing links in confirmation & cancellation emails", () => {
+    const malicious = buildConfirmationEmail(
+      `Grand <img src=x onerror=alert(1)> "Hotel"`,
+      {
+        ...booking,
+        guestName: `<a href="https://evil.example">PayNow</a> Mensah`,
+        roomName: `<script>steal()</script>`,
+        hotelAddress: `12 <b onclick="x()">Rd</b>`,
+        hotelPhone: `+233" onclick="evil()`,
+        rooms: [
+          {
+            name: `Suite <iframe src="https://evil.example">`,
+            occupancy: `2 <script>x</script>`,
+          },
+        ],
+      },
+      "GHS"
+    );
+
+    expect(malicious).not.toContain("<script>");
+    expect(malicious).not.toContain('<a href="https://evil.example">');
+    expect(malicious).not.toContain("<iframe");
+    expect(malicious).toContain("&lt;a");
+    expect(malicious).toContain("&lt;iframe");
+    expect(malicious).toContain('href="tel:+233"');
+
+    const cancelHtml = buildCancellationEmail(
+      `<script>bad()</script>`,
+      `<a href="https://phish.example">Click</a>`,
+      `BK-"<1>`,
+      `+233" onmouseover="alert(1)`
+    );
+    expect(cancelHtml).not.toContain("<script>");
+    expect(cancelHtml).not.toContain('<a href="https://phish.example">');
+    expect(cancelHtml).not.toContain('onmouseover="');
+    expect(cancelHtml).toContain('href="tel:+2331"');
+  });
+
+  it("parses both bare and display-wrapped RESEND_FROM_ADDRESS safely", () => {
+    expect(parseResendFromAddress("bookings@roomline.app")).toBe(
+      "bookings@roomline.app"
+    );
+    expect(
+      parseResendFromAddress('RoomLine <bookings@roomline.app>\r\nBcc: evil@x.com')
+    ).toBe("bookings@roomline.app");
+    expect(() => parseResendFromAddress("")).toThrow(/not set/);
+    expect(() => parseResendFromAddress("not-an-email")).toThrow(/not a valid email/);
+  });
+
+  it("redacts guest PII email addresses for server stdout logs", () => {
+    expect(redactEmailForLog("kwame.mensah@example.com")).toBe("kw***@example.com");
+    expect(redactEmailForLog("invalid")).toBe("[redacted-email]");
   });
 });

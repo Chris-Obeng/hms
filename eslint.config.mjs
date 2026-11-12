@@ -15,10 +15,8 @@ Module._load = function loadTypeScript(request, parent, isMain) {
   return originalModuleLoad.call(this, request, parent, isMain);
 };
 
-const [{ default: nextVitals }, { default: nextTs }] = await Promise.all([
-  import("eslint-config-next/core-web-vitals"),
-  import("eslint-config-next/typescript"),
-]);
+const nextVitals = require("eslint-config-next/core-web-vitals");
+const nextTs = require("eslint-config-next/typescript");
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -39,11 +37,24 @@ const eslintConfig = defineConfig([
     "graphify-out/**",
     ".agents/**",
     ".claude/**",
+    ".codex/**",
+    ".commandcode/**",
+    ".fallow/**",
     ".freebuff/**",
+    ".kiro/**",
+    ".omnirush/**",
+    ".opencode/**",
     ".playwright/**",
+    ".superpowers/**",
     ".tmp/**",
     ".tmp-*/**",
+    ".zcode/**",
+    "agent/**",
     "coverage/**",
+    "nul",
+    "public/sw.js",
+    "supabase/**",
+    "ui-audit/**",
     ".vercel/**",
   ]),
 ]);

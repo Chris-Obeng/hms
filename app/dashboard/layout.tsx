@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import { SidebarProvider, Sidebar } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/app-sidebar-overlay'
 import { AppHeader } from '@/components/layout/app-header'
@@ -23,9 +24,12 @@ export default async function DashboardLayout({
 
   const supabase = await createClient()
 
-  // Fetch hotel + staff in parallel — both needed for access decisions
+  // Fetch hotel + staff in parallel — hotel status is read via supabaseAdmin
+  // scoped strictly to the verified Clerk orgId so deactivated/pending staff
+  // (excluded from get_user_hotel_ids() per HIGH-08) route cleanly to
+  // /deactivated rather than misfiring to /onboarding.
   const [hotelResult, staffResult] = await Promise.all([
-    supabase
+    supabaseAdmin
       .from('hotels')
       .select('id, name, logo_url, slug, custom_domain, currency, status')
       .eq('clerk_org_id', orgId)
@@ -56,8 +60,8 @@ export default async function DashboardLayout({
     redirect('/deactivated?reason=pending')
   }
 
-  // ── Staff active gate ──────────────────────────────────────────
-  if (!staff || !staff.is_active) {
+  // ── Staff active + non-pending gate (`HIGH-08`) ────────────────
+  if (!staff || !staff.is_active || !staff.role || staff.role === 'pending') {
     redirect('/deactivated?reason=staff')
   }
 
@@ -122,7 +126,7 @@ export default async function DashboardLayout({
             hotel.slug
               ? hotel.custom_domain
                 ? `https://${hotel.custom_domain}`
-                : `http://${process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'localhost:3000'}/${hotel.slug}`
+                : `${(process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'localhost:3000').startsWith('localhost') || (process.env.NEXT_PUBLIC_BASE_DOMAIN ?? '').startsWith('127.0.0.1') ? 'http' : 'https'}://${process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'localhost:3000'}/${hotel.slug}`
               : undefined
           }
         />

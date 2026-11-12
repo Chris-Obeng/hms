@@ -29,6 +29,8 @@ interface Props {
     businessName: string | null;
     settlementSchedule: string;
     paymentPolicy: string;
+    modeMismatch?: boolean;
+    activeMode?: "live" | "test";
   };
 }
 
@@ -166,6 +168,23 @@ export function PaymentsSettingsClient({ initialData }: Props) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      {initialData.modeMismatch && (
+        <div
+          role="alert"
+          className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-800 dark:text-amber-200"
+        >
+          <p className="font-semibold">
+            Reconnect your {initialData.activeMode === "live" ? "live" : "test"} payout account
+          </p>
+          <p className="mt-1 opacity-90">
+            Your previously saved Paystack subaccount belongs to{" "}
+            {initialData.activeMode === "live" ? "test" : "live"} mode. Online guest
+            payments are paused (Pay at Check-In remains active) until you verify and
+            save your {initialData.activeMode === "live" ? "live" : "test"} settlement
+            account below.
+          </p>
+        </div>
+      )}
       <PenCard className="gap-3.5">
         <PenCardHead title="Payment policy" caption="When guests are asked to pay." />
         <div className="flex flex-col gap-3 sm:flex-row" role="radiogroup" aria-label="Payment policy">

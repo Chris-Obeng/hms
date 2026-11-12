@@ -1,6 +1,7 @@
 import { requireMinRole } from "@/lib/auth";
 import { can } from "@/lib/roles";
-import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getPaystackMode, isUsableSubaccount } from "@/lib/paystack";
 import { businessToday } from "@/lib/business-date";
 import { getPaymentActivity, type PaymentActivityStatus } from "./actions";
 import { PaymentsClient } from "./payments-client";
@@ -16,10 +17,9 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
     return <section className="mx-auto max-w-2xl space-y-2 py-12"><h1 className="text-page-title">Payments</h1><p className="text-body">{error instanceof Error ? error.message : "Payments could not be loaded."}</p></section>;
   }
 
-  const supabase = await createClient();
-  const { data: hotel, error } = await supabase
+  const { data: hotel, error } = await supabaseAdmin
     .from("hotels")
-    .select("timezone, paystack_subaccount_code, paystack_bank_code, paystack_account_number, paystack_business_name, paystack_settlement_schedule, settings")
+    .select("timezone, paystack_subaccount_code, paystack_domain, paystack_bank_code, paystack_account_number, paystack_business_name, paystack_settlement_schedule, settings")
     .eq("id", ctx.hotelId)
     .eq("clerk_org_id", ctx.orgId)
     .single();
@@ -50,12 +50,18 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
     canConfigure={can(ctx.role, "payments:configure")}
     initialFilters={{ status: initialStatus, method: initialMethod, search: initialSearch }}
     initialSetup={{
-      subaccountCode: hotel.paystack_subaccount_code,
+      subaccountCode: isUsableSubaccount(hotel) ? hotel.paystack_subaccount_code : null,
       bankCode: hotel.paystack_bank_code,
-       accountNumber: can(ctx.role, "payments:configure") ? hotel.paystack_account_number : null,
-       businessName: can(ctx.role, "payments:configure") ? hotel.paystack_business_name ?? ctx.hotel.name : null,
+      accountNumber: can(ctx.role, "payments:configure") ? hotel.paystack_account_number : null,
+      businessName: can(ctx.role, "payments:configure") ? hotel.paystack_business_name ?? ctx.hotel.name : null,
       settlementSchedule: hotel.paystack_settlement_schedule ?? "auto",
       paymentPolicy: (settings.payment_policy as string) ?? "choice",
+      modeMismatch: Boolean(
+        hotel.paystack_subaccount_code &&
+          hotel.paystack_domain &&
+          hotel.paystack_domain !== getPaystackMode()
+      ),
+      activeMode: getPaystackMode(),
     }}
   />;
 }

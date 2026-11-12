@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { initializeTransaction } from "@/lib/paystack";
+import { initializeTransaction, isUsableSubaccount } from "@/lib/paystack";
 import { fromMinor } from "@/lib/money";
 import { computePlatformFeeMinor, getPlatformFeeConfig } from "@/lib/platform/fees";
 import {
@@ -267,7 +267,7 @@ export async function POST(
 
     let hotelQuery = await supabaseAdmin
       .from("hotels")
-      .select("id, clerk_org_id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, cancellation_policy, phone, address")
+      .select("id, clerk_org_id, name, currency, paystack_subaccount_code, paystack_domain, settings, check_in_time, check_out_time, cancellation_policy, phone, address")
       .eq("slug", slug)
       .eq("status", "active")
       .maybeSingle();
@@ -275,7 +275,7 @@ export async function POST(
     if (!hotelQuery.data) {
       hotelQuery = await supabaseAdmin
         .from("hotels")
-        .select("id, clerk_org_id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, cancellation_policy, phone, address")
+        .select("id, clerk_org_id, name, currency, paystack_subaccount_code, paystack_domain, settings, check_in_time, check_out_time, cancellation_policy, phone, address")
         .eq("custom_domain", slug)
         .eq("status", "active")
         .maybeSingle();
@@ -284,10 +284,11 @@ export async function POST(
     const hotel = hotelQuery.data;
     if (!hotel) return NextResponse.json({ error: "Hotel not found" }, { status: 404 });
 
+    const hasPaystack = isUsableSubaccount(hotel);
     const policy = ((hotel.settings as Record<string, unknown>)?.payment_policy as string) ?? "choice";
     if (
       policy === "pay_now_only" &&
-      hotel.paystack_subaccount_code &&
+      hasPaystack &&
       data.payment_preference === "pay_at_checkin"
     ) {
       return NextResponse.json({ error: "This hotel requires payment to confirm your booking." }, { status: 400 });
@@ -295,7 +296,7 @@ export async function POST(
     if (policy === "pay_later_only" && data.payment_preference === "pay_now") {
       return NextResponse.json({ error: "This hotel collects payment at check-in." }, { status: 400 });
     }
-    if (data.payment_preference === "pay_now" && !hotel.paystack_subaccount_code) {
+    if (data.payment_preference === "pay_now" && !hasPaystack) {
       return NextResponse.json({ error: "Online payment is not available for this hotel." }, { status: 400 });
     }
 
@@ -495,7 +496,9 @@ export async function POST(
         reference: payRef,
         callback_url: callbackUrl,
         subaccount: hotel.paystack_subaccount_code!,
-        ...(platformFeeMinor > 0 ? { transaction_charge: platformFeeMinor } : {}),
+        ...(platformFeeMinor > 0
+          ? { transaction_charge: platformFeeMinor, bearer: "account" as const }
+          : {}),
         metadata: { booking_id: booking.booking_id, hotel_id: hotel.id, booking_reference: booking.reference },
       });
 
@@ -635,7 +638,7 @@ async function createGroupBooking(
 
   let hotelQuery = await supabaseAdmin
     .from("hotels")
-    .select("id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, phone, address")
+    .select("id, name, currency, paystack_subaccount_code, paystack_domain, settings, check_in_time, check_out_time, phone, address")
     .eq("slug", slug)
     .eq("status", "active")
     .maybeSingle();
@@ -643,7 +646,7 @@ async function createGroupBooking(
   if (!hotelQuery.data) {
     hotelQuery = await supabaseAdmin
       .from("hotels")
-      .select("id, name, currency, paystack_subaccount_code, settings, check_in_time, check_out_time, phone, address")
+      .select("id, name, currency, paystack_subaccount_code, paystack_domain, settings, check_in_time, check_out_time, phone, address")
       .eq("custom_domain", slug)
       .eq("status", "active")
       .maybeSingle();
@@ -652,10 +655,11 @@ async function createGroupBooking(
   const hotel = hotelQuery.data;
   if (!hotel) return NextResponse.json({ error: "Hotel not found" }, { status: 404 });
 
+  const hasPaystack = isUsableSubaccount(hotel);
   const policy = ((hotel.settings as Record<string, unknown>)?.payment_policy as string) ?? "choice";
   if (
     policy === "pay_now_only" &&
-    hotel.paystack_subaccount_code &&
+    hasPaystack &&
     data.payment_preference === "pay_at_checkin"
   ) {
     return NextResponse.json({ error: "This hotel requires payment to confirm your booking." }, { status: 400 });
@@ -663,7 +667,7 @@ async function createGroupBooking(
   if (policy === "pay_later_only" && data.payment_preference === "pay_now") {
     return NextResponse.json({ error: "This hotel collects payment at check-in." }, { status: 400 });
   }
-  if (data.payment_preference === "pay_now" && !hotel.paystack_subaccount_code) {
+  if (data.payment_preference === "pay_now" && !hasPaystack) {
     return NextResponse.json({ error: "Online payment is not available for this hotel." }, { status: 400 });
   }
 
@@ -856,7 +860,9 @@ async function createGroupBooking(
       reference: payRef,
       callback_url: callbackUrl,
       subaccount: hotel.paystack_subaccount_code!,
-      ...(platformFeeMinor > 0 ? { transaction_charge: platformFeeMinor } : {}),
+      ...(platformFeeMinor > 0
+        ? { transaction_charge: platformFeeMinor, bearer: "account" as const }
+        : {}),
       metadata: {
         group_id: group.group_id,
         hotel_id: hotel.id,

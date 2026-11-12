@@ -586,13 +586,16 @@ export function BookingWizard({
     [resolvedPrices]
   );
 
-  const phonePlaceholder = React.useMemo(() => {
-    if (selectedDialCode === "+233") return "24 123 4567";
-    if (selectedDialCode === "+234") return "801 234 5678";
-    if (selectedDialCode === "+1") return "555 123 4567";
-    if (selectedDialCode === "+44") return "7700 900123";
-    return "Phone number";
-  }, [selectedDialCode]);
+  const phonePlaceholder =
+    selectedDialCode === "+233"
+      ? "24 123 4567"
+      : selectedDialCode === "+234"
+        ? "801 234 5678"
+        : selectedDialCode === "+1"
+          ? "555 123 4567"
+          : selectedDialCode === "+44"
+            ? "7700 900123"
+            : "Phone number";
 
   const sortedRooms = React.useMemo(() => {
     const unbookable = (id: string) => {

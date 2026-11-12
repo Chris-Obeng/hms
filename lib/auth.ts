@@ -106,6 +106,10 @@ export async function requireAuth(): Promise<AuthContext> {
     throw new AuthError("Your account is not active. Contact your manager.", "INACTIVE");
   }
 
+  if (!staff.role || staff.role === "pending") {
+    throw new AuthError("Your account is pending approval.", "FORBIDDEN");
+  }
+
   // Attach the actor to every Sentry event raised later in this request. Only the
   // opaque staff id, the role and the tenant ids — never the staff member's name.
   identifyStaff({
@@ -148,13 +152,12 @@ export interface HotelScope {
 /**
  * Resolves the hotel of the current org together with a Supabase client.
  *
- * Lighter than requireAuth(): it does not require an active staff profile, so
- * it suits reports/uploads and other org-scoped reads. Throws a plain Error —
- * callers wrap it in their own try/catch.
+ * Enforces an active, non-pending `staff_profiles` membership (`HIGH-08`) so
+ * deactivated or pending org members cannot read or mutate tenant data.
  */
 export async function getHotelScope(): Promise<HotelScope> {
   const { orgId, userId } = await auth();
-  if (!orgId) throw new Error("Not authenticated");
+  if (!orgId || !userId) throw new Error("Not authenticated");
 
   const supabase = await createClient();
 
@@ -164,15 +167,21 @@ export async function getHotelScope(): Promise<HotelScope> {
       .select("id, name, currency")
       .eq("clerk_org_id", orgId)
       .single(),
-    userId
-      ? supabase
-          .from("staff_profiles")
-          .select("id, full_name")
-          .eq("clerk_user_id", userId)
-          .eq("clerk_org_id", orgId)
-          .single()
-      : Promise.resolve({ data: null }),
+    supabase
+      .from("staff_profiles")
+      .select("id, full_name, role, is_active")
+      .eq("clerk_user_id", userId)
+      .eq("clerk_org_id", orgId)
+      .single(),
   ]);
+
+  const staff = staffResult.data;
+  if (!staff || !staff.is_active) {
+    throw new AuthError("Your account is not active. Contact your manager.", "INACTIVE");
+  }
+  if (!staff.role || staff.role === "pending") {
+    throw new AuthError("Your account is pending approval.", "FORBIDDEN");
+  }
 
   const hotel = hotelResult.data;
   if (hotelResult.error) throw new Error(`DB error fetching hotel: ${hotelResult.error.message}`);
@@ -181,11 +190,11 @@ export async function getHotelScope(): Promise<HotelScope> {
   return {
     supabase,
     orgId,
-    userId: userId ?? null,
+    userId,
     hotelId: hotel.id,
     hotel: { id: hotel.id, name: hotel.name, currency: hotel.currency ?? "GHS" },
-    staffId: staffResult.data?.id ?? null,
-    staffName: staffResult.data?.full_name ?? "System",
+    staffId: staff.id,
+    staffName: staff.full_name ?? "System",
   };
 }
 

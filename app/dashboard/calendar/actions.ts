@@ -2,6 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireMinRole } from "@/lib/auth";
 import { can } from "@/lib/roles";
 import { z } from "zod";
 import { parseISO, addDays, differenceInCalendarDays, format } from "date-fns";
@@ -41,20 +42,19 @@ function reportCalendarFailure(
 // ── Helpers ──────────────────────────────────────────────────────────
 
 async function getHotelScopedClient() {
-  const { orgId, userId } = await auth();
-  if (!orgId) throw new Error("Not authenticated");
-
+  const ctx = await requireMinRole("read_only", "view calendar");
   const supabase = await createClient();
 
   const { data: hotel } = await supabase
     .from("hotels")
     .select("id, name, currency, logo_url, timezone")
-    .eq("clerk_org_id", orgId)
+    .eq("id", ctx.hotelId)
+    .eq("clerk_org_id", ctx.orgId)
     .single();
 
   if (!hotel) throw new Error("Hotel not found");
 
-  return { supabase, hotelId: hotel.id, hotel, userId };
+  return { supabase, hotelId: hotel.id, hotel, userId: ctx.userId };
 }
 
 // ── Staff Role Resolution ────────────────────────────────────────────

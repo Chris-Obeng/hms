@@ -1,11 +1,13 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireMinRole } from "@/lib/auth";
+import { writeAuditLog } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import {
   getPaystackBanks,
   getPaystackBankType,
+  getPaystackMode,
   resolveAccount,
   createSubaccount,
   updateSubaccount,
@@ -23,18 +25,27 @@ function validateAccountNumber(accountNumber: string, bankType: string | null): 
     : "Enter a valid account number (6–20 digits).";
 }
 
+function maskAccountNumber(accountNumber: string | null | undefined): string | null {
+  if (!accountNumber) return null;
+  const trimmed = accountNumber.trim();
+  if (trimmed.length <= 4) return "••••";
+  return `••••${trimmed.slice(-4)}`;
+}
+
 async function getPaymentConfigContext() {
   const ctx = await requireMinRole("manager", "manage payment settings");
   if (ctx.hotel.status !== "active") throw new Error("Active hotel access is required.");
-  const supabase = await createClient();
-  const { data: hotel, error } = await supabase
+  // Read & write payout configuration via supabaseAdmin AFTER strict server-side
+  // role + org checks so direct client PostgREST access to paystack_* columns
+  // remains locked down (`BLK-03`).
+  const { data: hotel, error } = await supabaseAdmin
     .from("hotels")
-    .select("id, name, email, paystack_subaccount_code, paystack_bank_code, paystack_account_number, paystack_business_name, paystack_settlement_schedule, settings, currency")
+    .select("id, name, email, paystack_subaccount_code, paystack_domain, paystack_bank_code, paystack_account_number, paystack_business_name, paystack_settlement_schedule, settings, currency")
     .eq("id", ctx.hotelId)
     .eq("clerk_org_id", ctx.orgId)
     .single();
   if (error || !hotel) throw new Error("Hotel not found");
-  return { supabase, hotel };
+  return { ctx, hotel };
 }
 
 // ── Banks list (cached in Next.js fetch cache) ────────────────────
@@ -76,7 +87,7 @@ export async function savePaystackBankAccount(input: {
   settlementSchedule?: string;
 }) {
   try {
-    const { supabase, hotel } = await getPaymentConfigContext();
+    const { ctx, hotel } = await getPaymentConfigContext();
 
     const bankType = await getPaystackBankType(input.bankCode);
     const validationError = validateAccountNumber(input.accountNumber, bankType);
@@ -90,38 +101,81 @@ export async function savePaystackBankAccount(input: {
       throw new Error("The registered account name changed. Verify the account again before saving.");
     }
 
-    let subaccountCode = hotel.paystack_subaccount_code;
+    const activeMode = getPaystackMode();
+    const hasModeMismatch = Boolean(
+      hotel.paystack_subaccount_code &&
+        hotel.paystack_domain &&
+        hotel.paystack_domain !== activeMode
+    );
 
-    if (subaccountCode) {
-      // Update existing
-      await updateSubaccount(subaccountCode, {
+    let subaccountCode = hotel.paystack_subaccount_code;
+    let resolvedDomain: "test" | "live" = activeMode;
+
+    if (subaccountCode && !hasModeMismatch) {
+      // Update existing subaccount in the same Paystack environment
+      const updated = await updateSubaccount(subaccountCode, {
         business_name: accountName,
         bank_code: input.bankCode,
         account_number: input.accountNumber,
       });
+      if (updated.domain === "live" || updated.domain === "test") {
+        resolvedDomain = updated.domain;
+      }
     } else {
-      // Create new
+      // Create a fresh subaccount when onboarding for the first time OR when
+      // transitioning from test mode (`sk_test_`) to live mode (`sk_live_`) —
+      // test `ACCT_` codes do not exist in Paystack Live and would 404 on PUT.
       const result = await createSubaccount({
         business_name: accountName,
         settlement_bank: input.bankCode,
         account_number: input.accountNumber,
         percentage_charge: 0,
-        primary_contact_email: hotel.email ?? "",
+        ...(hotel.email ? { primary_contact_email: hotel.email } : {}),
       });
       subaccountCode = result.subaccount_code;
+      if (result.domain === "live" || result.domain === "test") {
+        resolvedDomain = result.domain;
+      }
     }
 
-    const { error: persistenceError } = await supabase
+    const nextSchedule = input.settlementSchedule ?? "auto";
+    const { error: persistenceError } = await supabaseAdmin
       .from("hotels")
       .update({
         paystack_subaccount_code: subaccountCode,
+        paystack_domain: resolvedDomain,
         paystack_bank_code: input.bankCode,
         paystack_account_number: input.accountNumber,
         paystack_business_name: accountName,
-        paystack_settlement_schedule: input.settlementSchedule ?? "auto",
+        paystack_settlement_schedule: nextSchedule,
       })
-      .eq("id", hotel.id);
+      .eq("id", hotel.id)
+      .eq("clerk_org_id", ctx.orgId);
     if (persistenceError) throw new Error(`Payout account could not be saved locally: ${persistenceError.message}`);
+
+    await writeAuditLog(supabaseAdmin, {
+      hotelId: hotel.id,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
+      action: "hotel.paystack_configured",
+      entityType: "hotel",
+      entityId: hotel.id,
+      beforeState: {
+        subaccount_code: hotel.paystack_subaccount_code,
+        domain: hotel.paystack_domain ?? null,
+        bank_code: hotel.paystack_bank_code,
+        account_masked: maskAccountNumber(hotel.paystack_account_number),
+        business_name: hotel.paystack_business_name,
+      },
+      afterState: {
+        subaccount_code: subaccountCode,
+        domain: resolvedDomain,
+        bank_code: input.bankCode,
+        account_masked: maskAccountNumber(input.accountNumber),
+        business_name: accountName,
+        settlement_schedule: nextSchedule,
+      },
+    });
 
     revalidatePath("/dashboard/payments");
     revalidatePath("/dashboard/settings/payments");
@@ -142,13 +196,27 @@ export async function updatePaymentPolicy(policy: PaymentPolicy) {
     if (!PAYMENT_POLICIES.includes(policy)) {
       throw new Error("Invalid payment policy.");
     }
-    const { supabase, hotel } = await getPaymentConfigContext();
+    const { ctx, hotel } = await getPaymentConfigContext();
     const currentSettings = (hotel.settings as Record<string, unknown>) ?? {};
-    const { error: persistenceError } = await supabase
+    const previousPolicy = (currentSettings.payment_policy as string | undefined) ?? "choice";
+    const { error: persistenceError } = await supabaseAdmin
       .from("hotels")
       .update({ settings: { ...currentSettings, payment_policy: policy } })
-      .eq("id", hotel.id);
+      .eq("id", hotel.id)
+      .eq("clerk_org_id", ctx.orgId);
     if (persistenceError) throw new Error(`Payment policy could not be saved: ${persistenceError.message}`);
+
+    await writeAuditLog(supabaseAdmin, {
+      hotelId: hotel.id,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
+      action: "hotel.paystack_configured",
+      entityType: "hotel",
+      entityId: hotel.id,
+      beforeState: { payment_policy: previousPolicy },
+      afterState: { payment_policy: policy },
+    });
+
     revalidatePath("/dashboard/payments");
     revalidatePath("/dashboard/settings/payments");
     return { success: true as const };
@@ -161,16 +229,24 @@ export async function getPaymentsSettings() {
   try {
     const { hotel } = await getPaymentConfigContext();
     const settings = (hotel.settings as Record<string, unknown>) ?? {};
+    const activeMode = getPaystackMode();
+    const modeMismatch = Boolean(
+      hotel.paystack_subaccount_code &&
+        hotel.paystack_domain &&
+        hotel.paystack_domain !== activeMode
+    );
     return {
       success: true as const,
       data: {
-        subaccountCode: hotel.paystack_subaccount_code,
+        subaccountCode: modeMismatch ? null : hotel.paystack_subaccount_code,
         bankCode: hotel.paystack_bank_code,
         accountNumber: hotel.paystack_account_number,
         businessName: hotel.paystack_business_name,
         settlementSchedule: hotel.paystack_settlement_schedule ?? "auto",
         paymentPolicy: (settings.payment_policy as PaymentPolicy) ?? "choice",
         currency: hotel.currency ?? "GHS",
+        modeMismatch,
+        activeMode,
       },
     };
   } catch (err) {

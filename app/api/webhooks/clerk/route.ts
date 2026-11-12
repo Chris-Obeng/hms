@@ -5,6 +5,10 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { notifyHotelStaff } from '@/lib/notifications/notify-hotel-staff'
 import { buildStaffJoinedNotification } from '@/lib/notifications/staff-notifications'
+import {
+  resolveClerkCreatedMembership,
+  resolveClerkUpdatedRole,
+} from '@/lib/clerk-role-sync'
 
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET
@@ -115,26 +119,29 @@ export async function POST(req: Request) {
     const clerk_user_id = data.public_user_data.user_id
     const clerk_org_id = data.organization.id
     const rawRole = data.role
-    
-    // Default role mapping
-    let role = rawRole === 'org:admin' ? 'super_admin' : 'front_desk'
 
     // Look up correct role if user joined via invite token.
     // unsafeMetadata is writable by the user, so the token alone grants nothing:
     // the invitation must exist, be unexpired, and belong to the org being joined.
+    let invitedRole: string | null = null
     try {
       const clerk = await clerkClient()
       const user = await clerk.users.getUser(clerk_user_id)
       const token = user.unsafeMetadata?.inviteToken as string | undefined
       if (token) {
         const { data: invite } = await supabaseAdmin
+          .from('staff_profiles')
+          .select('id')
+          .limit(0)
+        void invite
+        const { data: validInvite } = await supabaseAdmin
           .from('staff_invitations')
           .select('role, expires_at, clerk_org_id')
           .eq('token', token)
           .eq('clerk_org_id', clerk_org_id)
           .single()
-        if (invite && new Date(invite.expires_at) > new Date()) {
-          role = invite.role as string
+        if (validInvite && new Date(validInvite.expires_at) > new Date()) {
+          invitedRole = validInvite.role as string
         }
       }
     } catch (err) {
@@ -145,13 +152,20 @@ export async function POST(req: Request) {
     const avatar_url = data.public_user_data.image_url ?? null
     const email = data.public_user_data.identifier ?? null
 
-    // Preserve existing notification_prefs if Svix redelivers organizationMembership.created.
+    // Preserve existing role, is_active, and notification_prefs if Svix redelivers
+    // organizationMembership.created (`HIGH-07`).
     const { data: existingStaff } = await supabaseAdmin
       .from('staff_profiles')
-      .select('id, notification_prefs')
+      .select('id, role, is_active, granted_at, granted_by, notification_prefs')
       .eq('clerk_user_id', clerk_user_id)
       .eq('clerk_org_id', clerk_org_id)
       .maybeSingle()
+
+    const { role, isActive } = resolveClerkCreatedMembership({
+      rawClerkRole: rawRole,
+      invitedRole,
+      existing: existingStaff,
+    })
 
     const { data: upsertedStaff, error } = await supabaseAdmin
       .from('staff_profiles')
@@ -163,9 +177,9 @@ export async function POST(req: Request) {
           full_name,
           avatar_url,
           role,
-          is_active: true,
-          granted_at: new Date().toISOString(),
-          granted_by: null,
+          is_active: isActive,
+          granted_at: existingStaff ? existingStaff.granted_at : new Date().toISOString(),
+          granted_by: existingStaff ? existingStaff.granted_by : null,
           ...(existingStaff?.notification_prefs ? {} : { notification_prefs: {} }),
         },
         {
@@ -177,7 +191,7 @@ export async function POST(req: Request) {
 
     if (error) {
       console.error('[webhook] staff_profiles upsert failed:', error)
-    } else if (upsertedStaff?.id) {
+    } else if (upsertedStaff?.id && !existingStaff) {
       const { data: hotel } = await supabaseAdmin
         .from('hotels')
         .select('id')
@@ -210,15 +224,30 @@ export async function POST(req: Request) {
     const clerk_user_id = data.public_user_data.user_id
     const clerk_org_id = data.organization.id
     const rawRole = data.role
-    const role = rawRole === 'org:admin' ? 'super_admin' : 'front_desk'
 
-    const { error } = await supabaseAdmin
+    const { data: existingStaff } = await supabaseAdmin
       .from('staff_profiles')
-      .update({ role, updated_at: new Date().toISOString() })
-      .match({ clerk_user_id, clerk_org_id })
+      .select('id, role')
+      .eq('clerk_user_id', clerk_user_id)
+      .eq('clerk_org_id', clerk_org_id)
+      .maybeSingle()
 
-    if (error) {
-      console.error('[webhook] staff_profiles role update failed:', error)
+    if (existingStaff) {
+      const nextRole = resolveClerkUpdatedRole({
+        rawClerkRole: rawRole,
+        existingRole: existingStaff.role,
+      })
+
+      if (nextRole !== existingStaff.role) {
+        const { error } = await supabaseAdmin
+          .from('staff_profiles')
+          .update({ role: nextRole, updated_at: new Date().toISOString() })
+          .match({ clerk_user_id, clerk_org_id })
+
+        if (error) {
+          console.error('[webhook] staff_profiles role update failed:', error)
+        }
+      }
     }
   }
 

@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { hotelSlugParam } from "@/lib/validation/params";
 
 const PUBLIC_HOTEL_COLUMNS =
-  "id,name,slug,status,description,address,city,phone,logo_url,currency,timezone,check_in_time,check_out_time,cancellation_policy,settings,paystack_subaccount_code";
+  "id,name,slug,status,description,address,city,phone,logo_url,currency,timezone,check_in_time,check_out_time,cancellation_policy,settings,paystack_subaccount_code,paystack_domain";
 
 /**
  * Request-memoized hotel lookup shared across `generateMetadata`, `SlugLayout`,

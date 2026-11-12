@@ -1,8 +1,7 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { can } from "@/lib/roles";
+import { requireMinRole } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import {
   DEFAULT_TEMPLATES,
@@ -15,29 +14,23 @@ import {
 // ── Auth helper ───────────────────────────────────────────────────
 
 async function getSuperAdmin() {
-  const { orgId, userId } = await auth();
-  if (!orgId || !userId) throw new Error("Not authenticated");
-
+  const ctx = await requireMinRole("super_admin", "manage notification templates");
   const supabase = await createClient();
 
   const { data: hotel } = await supabase
     .from("hotels")
     .select("id, settings")
-    .eq("clerk_org_id", orgId)
+    .eq("id", ctx.hotelId)
+    .eq("clerk_org_id", ctx.orgId)
     .single();
 
   if (!hotel) throw new Error("Hotel not found");
 
-  const { data: staff } = await supabase
-    .from("staff_profiles")
-    .select("role")
-    .eq("clerk_user_id", userId)
-    .eq("clerk_org_id", orgId)
-    .single();
-
-  if (!can(staff?.role, "notification_templates:manage")) throw new Error("Super Admin only");
-
-  return { supabase, hotelId: hotel.id, settings: (hotel.settings ?? {}) as Record<string, unknown> };
+  return {
+    supabase,
+    hotelId: hotel.id,
+    settings: (hotel.settings ?? {}) as Record<string, unknown>,
+  };
 }
 
 // ── Get templates ─────────────────────────────────────────────────

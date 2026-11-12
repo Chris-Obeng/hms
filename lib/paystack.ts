@@ -15,6 +15,34 @@ import { captureError, captureIssue } from "@/lib/observability/sentry";
 
 const BASE = "https://api.paystack.co";
 
+export type PaystackDomain = "live" | "test";
+
+/**
+ * Active Paystack environment derived from the configured secret key prefix.
+ * Paystack strictly isolates `test` (`sk_test_...`) and `live` (`sk_live_...`)
+ * subaccounts, transactions, settlements, and webhooks.
+ */
+export function getPaystackMode(): PaystackDomain {
+  return process.env.PAYSTACK_SECRET_KEY?.trim().startsWith("sk_live_")
+    ? "live"
+    : "test";
+}
+
+/**
+ * True only when the hotel has a connected subaccount code whose recorded
+ * Paystack domain matches the active runtime mode (or is null prior to
+ * backfill). Prevents test `ACCT_` codes from breaking live checkouts with 400/404.
+ */
+export function isUsableSubaccount(hotel: {
+  paystack_subaccount_code?: string | null;
+  paystack_domain?: string | null;
+}): boolean {
+  return (
+    Boolean(hotel.paystack_subaccount_code) &&
+    (hotel.paystack_domain == null || hotel.paystack_domain === getPaystackMode())
+  );
+}
+
 /**
  * Groupable label for a request path: query string dropped and id-looking
  * segments collapsed, so `/transaction/verify/RL-8H2K91` groups with every other
@@ -141,6 +169,7 @@ export async function createSubaccount(input: SubaccountCreateInput) {
     settlement_bank: string;
     account_number: string;
     business_name: string;
+    domain?: PaystackDomain | string;
   }>("/subaccount", {
     method: "POST",
     body: JSON.stringify({ percentage_charge: 0, ...input }),
@@ -152,7 +181,10 @@ export async function updateSubaccount(
   code: string,
   input: SubaccountUpdateInput
 ) {
-  const res = await paystackFetch<{ subaccount_code: string }>(
+  const res = await paystackFetch<{
+    subaccount_code: string;
+    domain?: PaystackDomain | string;
+  }>(
     `/subaccount/${encodeURIComponent(code)}`,
     { method: "PUT", body: JSON.stringify(input) }
   );
@@ -169,15 +201,23 @@ export interface TransactionInitInput {
   subaccount: string;
   /**
    * Flat amount (in `currency`'s smallest unit) routed to the main account,
-   * overriding the subaccount's percentage split for this charge. This is how
-   * RoomLine's per-transaction platform fee is realised — omit it (undefined)
-   * for a zero fee so the subaccount's own split applies unchanged.
+   * overriding the subaccount's percentage split for this charge.
+   *
+   * - When `platformFeeMinor > 0`: pass `transaction_charge: platformFeeMinor`
+   *   together with `bearer: "account"`. RoomLine absorbs Paystack's 1.95%
+   *   Ghana processing fee out of `transaction_charge` (so `transaction_charge`
+   *   must strictly exceed `ceil(amount * 0.0195)` or Paystack rejects the
+   *   split with HTTP 400), and the hotel subaccount receives
+   *   `amount - transaction_charge` net.
+   * - When `platformFeeMinor === 0`: omit both `transaction_charge` and
+   *   `bearer` so Paystack's standard 0%-main-account rule applies cleanly
+   *   (the hotel subaccount bears Paystack's 1.95% processing fee).
    */
   transaction_charge?: number;
   /**
-   * Who bears Paystack's own processing fee: 'account' (default, main account)
-   * or 'subaccount'. Left undefined here — RoomLine bears it, matching today's
-   * behaviour.
+   * Who bears Paystack's processing fee: `'account'` (RoomLine main account,
+   * passed explicitly whenever `transaction_charge > 0`) or `'subaccount'`.
+   * Omitted when `transaction_charge` is omitted (`platformFeeMinor === 0`).
    */
   bearer?: "account" | "subaccount";
   metadata?: Record<string, unknown>;
@@ -216,6 +256,7 @@ export interface VerifiedPaystackTransaction {
   reference: string;
   currency: string;
   id?: number | string;
+  domain?: PaystackDomain | string;
   /**
    * Present when the charge was split to a subaccount. Paystack names the
    * field `subaccount_code` in both the verify response and webhook payloads;
@@ -283,6 +324,7 @@ export interface PaystackSubaccount {
   settlement_schedule: string;
   active?: boolean;
   currency?: string;
+  domain?: PaystackDomain | string;
 }
 
 /**
@@ -377,7 +419,7 @@ export async function listSettlements(params: ListSettlementsParams): Promise<Pa
     });
     const rows = res.data ?? [];
     all.push(...rows);
-    if (rows.length < perPage) break;
+    if (rows.length < perPage) return all;
     page += 1;
   }
   throw new Error("Paystack settlement pagination exceeded the safety limit; results are incomplete.");
@@ -415,7 +457,7 @@ export async function listSettlementTransactions(
     );
     const rows = res.data ?? [];
     all.push(...rows);
-    if (rows.length < perPage) break;
+    if (rows.length < perPage) return all;
     page += 1;
   }
   throw new Error("Paystack settlement-transaction pagination exceeded the safety limit; results are incomplete.");

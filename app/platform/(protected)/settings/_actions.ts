@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { toMinor } from "@/lib/money";
-import { type PlatformFeeType } from "@/lib/platform/fees";
+import {
+  MAX_PLATFORM_FEE_PERCENT,
+  MIN_PLATFORM_FEE_PERCENT,
+  type PlatformFeeType,
+} from "@/lib/platform/fees";
 import { assertPlatformAdmin } from "../_guard";
 
 /**
@@ -48,9 +52,31 @@ export async function updatePlatformFeeSettings(
       return { success: false, error: "The platform fee is charged in Ghana cedis only." };
     }
 
-    if (!Number.isFinite(input.feePercent) || input.feePercent < 0 || input.feePercent > 100) {
-      return { success: false, error: "Percentage must be between 0 and 100" };
+    if (
+      !Number.isFinite(input.feePercent) ||
+      input.feePercent < 0 ||
+      input.feePercent > MAX_PLATFORM_FEE_PERCENT
+    ) {
+      return {
+        success: false,
+        error: `Percentage fee must be 0% or between ${MIN_PLATFORM_FEE_PERCENT.toFixed(1)}% and ${MAX_PLATFORM_FEE_PERCENT.toFixed(1)}%.`,
+      };
     }
+
+    // Round the percentage to the column's scale (numeric(5,2)) before checking
+    // the 2.0% floor so stored and validated values agree to the basis point.
+    const feePercent = Math.round(input.feePercent * 100) / 100;
+    if (
+      input.feeType === "percentage" &&
+      feePercent > 0 &&
+      feePercent < MIN_PLATFORM_FEE_PERCENT
+    ) {
+      return {
+        success: false,
+        error: `Percentage fee must be 0% or at least ${MIN_PLATFORM_FEE_PERCENT.toFixed(1)}% (RoomLine absorbs Paystack's 1.95% processing fee from this cut).`,
+      };
+    }
+
     if (
       !Number.isFinite(input.feeFlatMajor) ||
       input.feeFlatMajor < 0 ||
@@ -62,9 +88,6 @@ export async function updatePlatformFeeSettings(
       };
     }
 
-    // Round the percentage to the column's scale (numeric(5,2)) so the stored and
-    // audited values never disagree by a hidden digit (the RPC rounds again).
-    const feePercent = Math.round(input.feePercent * 100) / 100;
     const feeFlatMinor = toMinor(input.feeFlatMajor, currency);
 
     // One atomic RPC: capture before-state under lock, update the row, and write

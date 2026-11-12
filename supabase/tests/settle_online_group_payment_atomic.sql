@@ -98,8 +98,9 @@ BEGIN
   -- One payments row per line, derived reference each.
   SELECT count(*) INTO v_count FROM public.payments
    WHERE paystack_reference IN (v_raw_ref || '::' || v_bidA::text, v_raw_ref || '::' || v_bidB::text)
-     AND status = 'success';
-  ASSERT v_count = 2, 'expected two derived-reference payment rows, got ' || v_count;
+     AND status = 'success'
+     AND method = 'paystack_link';
+  ASSERT v_count = 2, 'expected two derived-reference paystack_link payment rows, got ' || v_count;
 
   -- Real paystack_id on the anchor line only; sibling NULL.
   SELECT paystack_id INTO v_anchor_pid FROM public.payments WHERE booking_id = v_bidA;

@@ -383,9 +383,10 @@ export async function getHotelPayouts(
     }
     await assertPlatformAdmin();
 
+    const { isUsableSubaccount } = await import("@/lib/paystack");
     const { data: hotel } = await supabaseAdmin
       .from("hotels")
-      .select("id, timezone, currency, paystack_subaccount_code, paystack_settlement_schedule, paystack_bank_code, paystack_account_number")
+      .select("id, timezone, currency, paystack_subaccount_code, paystack_domain, paystack_settlement_schedule, paystack_bank_code, paystack_account_number")
       .eq("id", hotelId)
       .single();
     if (!hotel) return { success: false, error: "Hotel not found" };
@@ -393,7 +394,7 @@ export async function getHotelPayouts(
     const data = await buildHotelPayoutOverview({
       hotelId: hotel.id,
       timeZone: hotel.timezone ?? "UTC",
-      subaccountCode: hotel.paystack_subaccount_code,
+      subaccountCode: isUsableSubaccount(hotel) ? hotel.paystack_subaccount_code : null,
       settlementSchedule: hotel.paystack_settlement_schedule,
       payoutBankCode: hotel.paystack_bank_code,
       payoutAccountNumber: hotel.paystack_account_number,

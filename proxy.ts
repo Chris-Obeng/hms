@@ -29,6 +29,9 @@ const isPlatformRoute = createRouteMatcher(["/platform(.*)"]);
 
 const isPlatformPublic = createRouteMatcher([
   "/platform/sign-in(.*)",
+  "/platform/forgot-password(.*)",
+  "/platform/auth/confirm(.*)",
+  "/platform/auth/error(.*)",
   "/platform/auth/sign-out(.*)",
 ]);
 
@@ -67,9 +70,13 @@ async function updatePlatformSession(request: NextRequest): Promise<NextResponse
   }
 
   const isSignIn = request.nextUrl.pathname.startsWith("/platform/sign-in");
-  if (user && isSignIn) {
+  const isMfaStep =
+    request.nextUrl.searchParams.get("mfa") === "1" &&
+    (user as { aal?: string } | undefined)?.aal !== "aal2";
+  if (user && isSignIn && !isMfaStep) {
     const url = request.nextUrl.clone();
     url.pathname = "/platform";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 

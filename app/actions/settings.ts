@@ -1,40 +1,10 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { can } from "@/lib/roles";
+import { requireMinRole } from "@/lib/auth";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { type HotelCurrency } from "@/lib/money";
-
-// ── Helpers ──────────────────────────────────────────────────────────
-
-async function getHotelScopedClient() {
-  const { orgId, userId } = await auth();
-  if (!orgId || !userId) throw new Error("Not authenticated");
-
-  const supabase = await createClient();
-
-  const { data: hotel } = await supabase
-    .from("hotels")
-    .select("id, name, currency")
-    .eq("clerk_org_id", orgId)
-    .single();
-
-  if (!hotel) throw new Error("Hotel not found");
-
-  // Check if user is super admin
-  const { data: currentUser } = await supabase
-    .from("staff_profiles")
-    .select("role")
-    .eq("clerk_user_id", userId)
-    .eq("clerk_org_id", orgId)
-    .single();
-
-  const isSuperAdmin = can(currentUser?.role, "settings:manage");
-
-  return { supabase, hotelId: hotel.id, hotel, userId, isSuperAdmin };
-}
 
 // ── Hotel Profile ────────────────────────────────────────────────────
 
@@ -62,16 +32,13 @@ export async function getHotelProfile(): Promise<
   | { success: false; error: string }
 > {
   try {
-    const { supabase, hotelId, isSuperAdmin } = await getHotelScopedClient();
-
-    if (!isSuperAdmin) {
-      return { success: false, error: "Only super admins can access settings" };
-    }
+    const ctx = await requireMinRole("super_admin", "access hotel settings");
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from("hotels")
       .select("name, address, city, country, phone, email, description, check_in_time, check_out_time, timezone, currency, cancellation_policy, logo_url, cover_image_url, settings")
-      .eq("id", hotelId)
+      .eq("id", ctx.hotelId)
       .single();
 
     if (error || !data) return { success: false, error: error?.message || "Hotel not found" };
@@ -81,7 +48,7 @@ export async function getHotelProfile(): Promise<
     return {
       success: true,
       data: {
-        id: hotelId,
+        id: ctx.hotelId,
         name: data.name,
         address: data.address || "",
         city: data.city || "",
@@ -112,11 +79,8 @@ export async function updateHotelProfile(
   input: HotelProfileInput
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { supabase, hotelId, isSuperAdmin } = await getHotelScopedClient();
-
-    if (!isSuperAdmin) {
-      return { success: false, error: "Only super admins can update settings" };
-    }
+    const ctx = await requireMinRole("super_admin", "update hotel settings");
+    const supabase = await createClient();
 
     const parsed = hotelSettingsSchema.safeParse(input);
     if (!parsed.success) {
@@ -129,7 +93,7 @@ export async function updateHotelProfile(
     const { data: existing } = await supabase
       .from("hotels")
       .select("settings")
-      .eq("id", hotelId)
+      .eq("id", ctx.hotelId)
       .single();
 
     const existingSettings = (existing?.settings as Record<string, unknown>) ?? {};
@@ -147,7 +111,7 @@ export async function updateHotelProfile(
         check_in_time: data.checkInTime || null,
         check_out_time: data.checkOutTime || null,
         timezone: data.timezone || null,
-        currency: data.currency, // Required, validated by schema
+        currency: data.currency,
         cancellation_policy: data.cancellationPolicy || null,
         settings: {
           ...existingSettings,
@@ -155,7 +119,7 @@ export async function updateHotelProfile(
           tax_percentage: data.taxPercentage,
         },
       })
-      .eq("id", hotelId);
+      .eq("id", ctx.hotelId);
 
     if (error) return { success: false, error: error.message };
 
@@ -176,16 +140,14 @@ export async function getNotificationPrefs(): Promise<
   | { success: false; error: string }
 > {
   try {
-    const { orgId, userId } = await auth();
-    if (!orgId || !userId) return { success: false, error: "Not authenticated" };
-
+    const ctx = await requireMinRole("read_only", "view notification preferences");
     const supabase = await createClient();
 
     const { data, error } = await supabase
       .from("staff_profiles")
       .select("notification_prefs")
-      .eq("clerk_user_id", userId)
-      .eq("clerk_org_id", orgId)
+      .eq("clerk_user_id", ctx.userId)
+      .eq("clerk_org_id", ctx.orgId)
       .single();
 
     if (error) return { success: false, error: error.message };
@@ -206,16 +168,14 @@ export async function updateNotificationPrefs(
   prefs: Record<string, boolean>
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { orgId, userId } = await auth();
-    if (!orgId || !userId) return { success: false, error: "Not authenticated" };
-
+    const ctx = await requireMinRole("read_only", "update notification preferences");
     const supabase = await createClient();
 
     const { error } = await supabase
       .from("staff_profiles")
       .update({ notification_prefs: prefs })
-      .eq("clerk_user_id", userId)
-      .eq("clerk_org_id", orgId);
+      .eq("clerk_user_id", ctx.userId)
+      .eq("clerk_org_id", ctx.orgId);
 
     if (error) return { success: false, error: error.message };
 

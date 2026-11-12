@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { SignOutButton } from "@clerk/nextjs";
 import { Clock, UserRound } from "lucide-react";
 
@@ -14,16 +15,18 @@ export default async function DeactivatedPage() {
 
   const supabase = await createClient();
 
-  // Fetch status of hotel + staff in parallel
+  // Fetch status of hotel + staff in parallel (hotel status via supabaseAdmin
+  // scoped strictly to orgId because deactivated/pending staff are excluded
+  // from get_user_hotel_ids()).
   const [hotelResult, staffResult] = await Promise.all([
-    supabase
+    supabaseAdmin
       .from("hotels")
       .select("id, name, status")
       .eq("clerk_org_id", orgId)
       .single(),
     supabase
       .from("staff_profiles")
-      .select("id, is_active")
+      .select("id, is_active, role")
       .eq("clerk_user_id", userId)
       .eq("clerk_org_id", orgId)
       .single(),
@@ -32,8 +35,15 @@ export default async function DeactivatedPage() {
   const hotel = hotelResult.data;
   const staff = staffResult.data;
 
-  // Self-heal: if both hotel is active and staff is active, let them back to dashboard
-  if (hotel && hotel.status === "active" && staff && staff.is_active) {
+  // Self-heal: if hotel is active AND staff is active + non-pending, let them back to dashboard
+  if (
+    hotel &&
+    hotel.status === "active" &&
+    staff &&
+    staff.is_active &&
+    staff.role &&
+    staff.role !== "pending"
+  ) {
     redirect("/dashboard");
   }
 
@@ -44,7 +54,7 @@ export default async function DeactivatedPage() {
 
   // Determine dynamic message based on reason and database state
   const isHotelPending = hotel && hotel.status === "pending";
-  const isStaffInactive = !staff || !staff.is_active;
+  const isStaffInactive = !staff || !staff.is_active || staff.role === "pending";
 
   let title = "Access Restricted";
   let eyebrow = "Deactivated";

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { initializeTransaction } from "@/lib/paystack";
+import { initializeTransaction, isUsableSubaccount } from "@/lib/paystack";
 import { sumMinor, toMinor } from "@/lib/money";
 import { computePlatformFeeMinor, getPlatformFeeConfig } from "@/lib/platform/fees";
 import { rateLimit } from "@/lib/rate-limit";
@@ -61,7 +61,7 @@ async function handleRetryPayment(
 
   let hotelQuery = await supabaseAdmin
     .from("hotels")
-    .select("id, name, currency, paystack_subaccount_code")
+    .select("id, name, currency, paystack_subaccount_code, paystack_domain")
     .eq("slug", slug)
     .eq("status", "active")
     .maybeSingle();
@@ -69,14 +69,14 @@ async function handleRetryPayment(
   if (!hotelQuery.data) {
     hotelQuery = await supabaseAdmin
       .from("hotels")
-      .select("id, name, currency, paystack_subaccount_code")
+      .select("id, name, currency, paystack_subaccount_code, paystack_domain")
       .eq("custom_domain", slug)
       .eq("status", "active")
       .maybeSingle();
   }
 
   const hotel = hotelQuery.data;
-  if (!hotel || !hotel.paystack_subaccount_code) {
+  if (!hotel || !hotel.paystack_subaccount_code || !isUsableSubaccount(hotel)) {
     return NextResponse.json({ error: "Online payment is not available." }, { status: 400 });
   }
 
@@ -196,7 +196,9 @@ async function handleRetryPayment(
       reference: payRef,
       callback_url: callbackUrl,
       subaccount: hotel.paystack_subaccount_code,
-      ...(platformFeeMinor > 0 ? { transaction_charge: platformFeeMinor } : {}),
+      ...(platformFeeMinor > 0
+        ? { transaction_charge: platformFeeMinor, bearer: "account" as const }
+        : {}),
       metadata: {
         booking_id: booking.id,
         hotel_id: hotel.id,
@@ -368,7 +370,9 @@ async function handleGroupRetryPayment(
       reference: payRef,
       callback_url: callbackUrl,
       subaccount: hotel.paystack_subaccount_code!,
-      ...(platformFeeMinor > 0 ? { transaction_charge: platformFeeMinor } : {}),
+      ...(platformFeeMinor > 0
+        ? { transaction_charge: platformFeeMinor, bearer: "account" as const }
+        : {}),
       metadata: {
         group_id: groupId,
         hotel_id: hotel.id,

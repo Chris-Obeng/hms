@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import webpush from "npm:web-push@3.6.7";
 
@@ -178,9 +179,42 @@ function buildPushCopy(notif: NotificationRow | undefined): {
   };
 }
 
+function isAllowedPushEndpoint(rawEndpoint: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawEndpoint);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password) return false;
+  if (parsed.port && parsed.port !== "443") return false;
+  const host = parsed.hostname.toLowerCase();
+  return (
+    host === "fcm.googleapis.com" ||
+    host.endsWith(".push.services.mozilla.com") ||
+    host.endsWith(".notify.windows.com") ||
+    host.endsWith(".push.apple.com") ||
+    host.endsWith(".googleapis.com")
+  );
+}
+
+function verifyBearerToken(
+  authHeader: string | null,
+  expectedSecret: string | undefined
+): boolean {
+  if (!authHeader || !expectedSecret) return false;
+  const secret = expectedSecret.trim();
+  if (!secret) return false;
+  const encoder = new TextEncoder();
+  const actual = encoder.encode(authHeader);
+  const expected = encoder.encode(`Bearer ${secret}`);
+  if (actual.byteLength !== expected.byteLength) return false;
+  return timingSafeEqual(actual, expected);
+}
+
 Deno.serve(async (request) => {
   const expected = Deno.env.get("PUSH_WORKER_SECRET");
-  if (!expected || request.headers.get("authorization") !== `Bearer ${expected}`) {
+  if (!verifyBearerToken(request.headers.get("authorization"), expected)) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -306,6 +340,15 @@ Deno.serve(async (request) => {
 
     for (const sub of subscriptions) {
       if (alreadyDone.has(sub.id)) continue;
+      if (!isAllowedPushEndpoint(sub.endpoint)) {
+        // Defense-in-depth SSRF guard: retire any non-allowlisted push endpoint.
+        await supabase
+          .from("push_subscriptions")
+          .update({ disabled_at: nowIso })
+          .eq("id", sub.id);
+        alreadyDone.add(sub.id);
+        continue;
+      }
       attemptedAny = true;
       try {
         await webpush.sendNotification(

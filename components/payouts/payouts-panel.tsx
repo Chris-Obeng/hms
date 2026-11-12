@@ -73,12 +73,16 @@ export function PayoutsPanel({
   // Default range = the last 30 days (inclusive of today), matching the
   // server's fallback window so a server-rendered first page isn't refetched.
   const todayCd = React.useMemo(() => today(timeZone), [timeZone]);
-  const [ownRange, setOwnRange] = React.useState<{ start: CalendarDate; end: CalendarDate }>(
+  const [ownRange] = React.useState<{ start: CalendarDate; end: CalendarDate }>(
     () => ({ start: todayCd.subtract({ days: 29 }), end: todayCd })
   );
-  const effective = range
-    ? { start: isoToCD(range.start), end: isoToCD(range.end) }
-    : ownRange;
+  const effective = React.useMemo(
+    () =>
+      range
+        ? { start: isoToCD(range.start), end: isoToCD(range.end) }
+        : ownRange,
+    [range, ownRange]
+  );
 
   const [state, setState] = React.useState<ViewState>(
     initialData ? { kind: "ready", data: initialData } : { kind: "loading" }

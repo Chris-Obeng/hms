@@ -3,7 +3,11 @@ import {
   createSubaccount,
   endpointLabel,
   getPaystackBanks,
+  getPaystackMode,
   initializeTransaction,
+  isUsableSubaccount,
+  listSettlements,
+  listSettlementTransactions,
   paystackFetch,
   resolveAccount,
   updateSubaccount,
@@ -215,5 +219,116 @@ describe("endpointLabel", () => {
 
   it("drops the query string, which can carry an account number", () => {
     expect(endpointLabel("/bank/resolve?account_number=0123456789&bank_code=058")).toBe("/bank/resolve");
+  });
+});
+
+describe("split fee-bearer & mode isolation (BLK-02 / BLK-04)", () => {
+  it("passes transaction_charge and bearer='account' when a platform fee is present", async () => {
+    fetchMock.mockResolvedValue(
+      okResponse({ authorization_url: "https://pay", access_code: "ac", reference: "ref-split" })
+    );
+
+    await initializeTransaction({
+      email: "guest@example.com",
+      amount: 100_000,
+      currency: "GHS",
+      reference: "ref-split",
+      callback_url: "https://cb",
+      subaccount: "ACCT_hotel",
+      transaction_charge: 4_000,
+      bearer: "account",
+    });
+
+    const sent = JSON.parse(lastCall().init?.body as string);
+    expect(sent).toMatchObject({
+      amount: 100_000,
+      subaccount: "ACCT_hotel",
+      transaction_charge: 4_000,
+      bearer: "account",
+    });
+  });
+
+  it("omits both transaction_charge and bearer when platform fee is zero", async () => {
+    fetchMock.mockResolvedValue(
+      okResponse({ authorization_url: "https://pay", access_code: "ac", reference: "ref-zero" })
+    );
+
+    await initializeTransaction({
+      email: "guest@example.com",
+      amount: 100_000,
+      currency: "GHS",
+      reference: "ref-zero",
+      callback_url: "https://cb",
+      subaccount: "ACCT_hotel",
+    });
+
+    const sent = JSON.parse(lastCall().init?.body as string);
+    expect(sent).not.toHaveProperty("transaction_charge");
+    expect(sent).not.toHaveProperty("bearer");
+  });
+
+  it("isolates test vs live subaccounts according to PAYSTACK_SECRET_KEY", () => {
+    vi.stubEnv("PAYSTACK_SECRET_KEY", "sk_test_abc");
+    expect(getPaystackMode()).toBe("test");
+    expect(
+      isUsableSubaccount({ paystack_subaccount_code: "ACCT_1", paystack_domain: "test" })
+    ).toBe(true);
+    expect(
+      isUsableSubaccount({ paystack_subaccount_code: "ACCT_1", paystack_domain: "live" })
+    ).toBe(false);
+
+    vi.stubEnv("PAYSTACK_SECRET_KEY", "sk_live_xyz");
+    expect(getPaystackMode()).toBe("live");
+    expect(
+      isUsableSubaccount({ paystack_subaccount_code: "ACCT_1", paystack_domain: "test" })
+    ).toBe(false);
+    expect(
+      isUsableSubaccount({ paystack_subaccount_code: "ACCT_1", paystack_domain: "live" })
+    ).toBe(true);
+    expect(
+      isUsableSubaccount({ paystack_subaccount_code: null, paystack_domain: "live" })
+    ).toBe(false);
+  });
+});
+
+describe("settlements pagination (BLK-06)", () => {
+  it("returns [] on an empty first page without throwing", async () => {
+    fetchMock.mockResolvedValueOnce(okResponse([]));
+    await expect(listSettlements({ subaccountId: 42 })).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns rows on a single short page", async () => {
+    const sample = [{ id: 1, status: "success", total_amount: 96000, effective_amount: 96000 }];
+    fetchMock.mockResolvedValueOnce(okResponse(sample));
+    await expect(listSettlements({ subaccountId: 42, perPage: 50 })).resolves.toEqual(sample);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("paginates across perPage boundary and terminates on the short trailing page", async () => {
+    fetchMock
+      .mockResolvedValueOnce(okResponse([{ id: 1 }, { id: 2 }]))
+      .mockResolvedValueOnce(okResponse([{ id: 3 }]));
+
+    const result = await listSettlements({ subaccountId: 42, perPage: 2 });
+    expect(result.map((r) => r.id)).toEqual([1, 2, 3]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws safety limit error when MAX_PAGES is exceeded", async () => {
+    fetchMock.mockResolvedValue(okResponse([{ id: 1 }]));
+    await expect(listSettlements({ subaccountId: 42, perPage: 1 })).rejects.toThrow(
+      "Paystack settlement pagination exceeded the safety limit"
+    );
+  });
+
+  it("paginates listSettlementTransactions and stops cleanly on short page", async () => {
+    fetchMock
+      .mockResolvedValueOnce(okResponse([{ id: 101 }, { id: 102 }]))
+      .mockResolvedValueOnce(okResponse([]));
+
+    const txns = await listSettlementTransactions(99, { perPage: 2 });
+    expect(txns.map((t) => t.id)).toEqual([101, 102]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

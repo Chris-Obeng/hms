@@ -5,15 +5,18 @@ import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
-import { requireAuth, requireMinRole } from "@/lib/auth";
+import { requireMinRole } from "@/lib/auth";
 import { can } from "@/lib/roles";
 import { notifyHotelStaff } from "@/lib/notifications/notify-hotel-staff";
 import { buildPaymentReceivedNotification } from "@/lib/notifications/staff-notifications";
 
 // ── Get Hotel ID Helper ──────────────────────────────────────────
 
-async function getHotelScopedClient() {
-  const ctx = await requireAuth();
+async function getHotelScopedClient(
+  minRole: "read_only" | "front_desk" | "manager" | "super_admin" = "read_only",
+  action = "view booking details"
+) {
+  const ctx = await requireMinRole(minRole, action);
   const supabase = await createClient();
   return {
     supabase,
@@ -388,7 +391,8 @@ export async function recordPayment(
       return { success: false, error: parsed.error.issues[0]?.message || "Invalid input" };
     }
 
-    const { supabase, hotelId, hotel, orgId, userId, staffId, staffName } = await getHotelScopedClient();
+    const { supabase, hotelId, hotel, orgId, userId, staffId, staffName } =
+      await getHotelScopedClient("front_desk", "record payment");
     const data = parsed.data;
 
     // Verify booking exists and belongs to this hotel
@@ -501,7 +505,10 @@ export async function updateBookingNotes(
       return { success: false, error: parsed.error.issues[0]?.message || "Invalid input" };
     }
 
-    const { supabase, hotelId } = await getHotelScopedClient();
+    const { supabase, hotelId } = await getHotelScopedClient(
+      "front_desk",
+      "update booking internal notes"
+    );
 
     const { error } = await supabase
       .from("bookings")

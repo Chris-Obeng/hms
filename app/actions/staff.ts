@@ -1,40 +1,11 @@
 "use server";
 
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireMinRole } from "@/lib/auth";
 import { can, canAdministerStaff, canAssignRole } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
-
-// ── Helpers ──────────────────────────────────────────────────────────
-
-async function getHotelScopedClient() {
-  const { orgId, userId } = await auth();
-  if (!orgId || !userId) throw new Error("Not authenticated");
-
-  const supabase = await createClient();
-
-  const { data: hotel } = await supabase
-    .from("hotels")
-    .select("id, name")
-    .eq("clerk_org_id", orgId)
-    .single();
-
-  if (!hotel) throw new Error("Hotel not found");
-
-  const { data: currentUser } = await supabase
-    .from("staff_profiles")
-    .select("id, role, full_name")
-    .eq("clerk_user_id", userId)
-    .eq("clerk_org_id", orgId)
-    .single();
-
-  const isSuperAdmin = can(currentUser?.role, "staff:manage");
-  const currentStaffId = currentUser?.id ?? null;
-  const currentStaffName = currentUser?.full_name ?? null;
-
-  return { supabase, hotelId: hotel.id, hotel, orgId, userId, isSuperAdmin, role: currentUser?.role ?? null, currentStaffId, currentStaffName };
-}
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -55,12 +26,13 @@ export async function getPendingStaff(): Promise<
   | { success: false; error: string }
 > {
   try {
-    const { supabase, orgId } = await getHotelScopedClient();
+    const ctx = await requireMinRole("super_admin", "view pending staff requests");
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from("staff_profiles")
       .select("id, clerk_user_id, email, full_name, avatar_url, role, created_at")
-      .eq("clerk_org_id", orgId)
+      .eq("clerk_org_id", ctx.orgId)
       .eq("role", "pending")
       .eq("is_active", false)
       .order("created_at", { ascending: true });
@@ -80,7 +52,10 @@ export async function getPendingStaff(): Promise<
       })),
     };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Failed to fetch pending staff" };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to fetch pending staff",
+    };
   }
 }
 
@@ -91,42 +66,52 @@ export async function approveStaff(
   role: "front_desk" | "manager" | "read_only"
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { supabase, orgId, currentStaffId, currentStaffName, hotelId, isSuperAdmin } =
-      await getHotelScopedClient();
-
-    if (!isSuperAdmin) return { success: false, error: "Only super admins can approve staff" };
+    const ctx = await requireMinRole("super_admin", "approve staff requests");
+    const supabase = await createClient();
 
     // Fetch target staff before update for audit + notification
     const { data: target } = await supabase
       .from("staff_profiles")
       .select("clerk_user_id, full_name, email")
       .eq("id", staffId)
-      .eq("clerk_org_id", orgId)
+      .eq("clerk_org_id", ctx.orgId)
       .single();
 
     const { error } = await supabase
       .from("staff_profiles")
-      .update({ role, is_active: true, granted_at: new Date().toISOString(), granted_by: currentStaffId })
+      .update({
+        role,
+        is_active: true,
+        granted_at: new Date().toISOString(),
+        granted_by: ctx.staffId,
+      })
       .eq("id", staffId)
-      .eq("clerk_org_id", orgId);
+      .eq("clerk_org_id", ctx.orgId);
 
     if (error) return { success: false, error: error.message };
 
-    // Audit log
     await writeAuditLog(supabase, {
-      hotelId,
-      staffId: currentStaffId ?? undefined,
-      staffName: currentStaffName,
+      hotelId: ctx.hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
       action: "staff.approved",
       entityType: "staff_profile",
       entityId: staffId,
-      afterState: { role, is_active: true, staff_name: target?.full_name, staff_email: target?.email },
+      afterState: {
+        role,
+        is_active: true,
+        staff_name: target?.full_name,
+        staff_email: target?.email,
+      },
     });
 
     revalidatePath("/dashboard/staff");
     return { success: true };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Failed to approve staff" };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to approve staff",
+    };
   }
 }
 
@@ -136,30 +121,28 @@ export async function rejectStaff(
   staffId: string
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { supabase, orgId, isSuperAdmin, hotelId, currentStaffId, currentStaffName } =
-      await getHotelScopedClient();
-
-    if (!isSuperAdmin) return { success: false, error: "Only super admins can reject staff" };
+    const ctx = await requireMinRole("super_admin", "reject staff requests");
+    const supabase = await createClient();
 
     const { data: target } = await supabase
       .from("staff_profiles")
       .select("full_name, email")
       .eq("id", staffId)
-      .eq("clerk_org_id", orgId)
+      .eq("clerk_org_id", ctx.orgId)
       .single();
 
     const { error } = await supabase
       .from("staff_profiles")
       .delete()
       .eq("id", staffId)
-      .eq("clerk_org_id", orgId);
+      .eq("clerk_org_id", ctx.orgId);
 
     if (error) return { success: false, error: error.message };
 
     await writeAuditLog(supabase, {
-      hotelId,
-      staffId: currentStaffId ?? undefined,
-      staffName: currentStaffName,
+      hotelId: ctx.hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
       action: "staff.rejected",
       entityType: "staff_profile",
       entityId: staffId,
@@ -169,7 +152,10 @@ export async function rejectStaff(
     revalidatePath("/dashboard/staff");
     return { success: true };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Failed to reject staff" };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to reject staff",
+    };
   }
 }
 
@@ -180,12 +166,12 @@ export async function toggleStaffActive(
   isActive: boolean
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { supabase, orgId, role, currentStaffId, currentStaffName, hotelId } =
-      await getHotelScopedClient();
+    const ctx = await requireMinRole("manager", "change staff status");
+    const supabase = await createClient();
 
-    if (!can(role, "staff:setActive"))
+    if (!can(ctx.role, "staff:setActive"))
       return { success: false, error: "You do not have permission to change staff status" };
-    if (currentStaffId === staffId)
+    if (ctx.staffId === staffId)
       return { success: false, error: "You cannot change your own status" };
 
     // Target role gates the manager check AND the last-admin check — load it up front.
@@ -193,10 +179,10 @@ export async function toggleStaffActive(
       .from("staff_profiles")
       .select("role, clerk_user_id, full_name")
       .eq("id", staffId)
-      .eq("clerk_org_id", orgId)
+      .eq("clerk_org_id", ctx.orgId)
       .single();
     if (!target) return { success: false, error: "Staff member not found" };
-    if (!canAdministerStaff(role, target.role))
+    if (!canAdministerStaff(ctx.role, target.role))
       return { success: false, error: "You cannot manage this staff member" };
 
     // Prevent deactivating the last active super admin, then revoke sessions.
@@ -205,7 +191,7 @@ export async function toggleStaffActive(
         const { count } = await supabase
           .from("staff_profiles")
           .select("*", { count: "exact", head: true })
-          .eq("clerk_org_id", orgId)
+          .eq("clerk_org_id", ctx.orgId)
           .eq("role", "super_admin")
           .eq("is_active", true);
 
@@ -218,7 +204,10 @@ export async function toggleStaffActive(
       if (target.clerk_user_id) {
         try {
           const clerk = await clerkClient();
-          const sessions = await clerk.sessions.getSessionList({ userId: target.clerk_user_id, status: "active" });
+          const sessions = await clerk.sessions.getSessionList({
+            userId: target.clerk_user_id,
+            status: "active",
+          });
           await Promise.all(
             sessions.data.map((s) => clerk.sessions.revokeSession(s.id))
           );
@@ -233,14 +222,14 @@ export async function toggleStaffActive(
       .from("staff_profiles")
       .update({ is_active: isActive })
       .eq("id", staffId)
-      .eq("clerk_org_id", orgId);
+      .eq("clerk_org_id", ctx.orgId);
 
     if (error) return { success: false, error: error.message };
 
     await writeAuditLog(supabase, {
-      hotelId,
-      staffId: currentStaffId ?? undefined,
-      staffName: currentStaffName,
+      hotelId: ctx.hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
       action: isActive ? "staff.reactivated" : "staff.deactivated",
       entityType: "staff_profile",
       entityId: staffId,
@@ -250,7 +239,10 @@ export async function toggleStaffActive(
     revalidatePath("/dashboard/staff");
     return { success: true };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Failed to update staff" };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to update staff",
+    };
   }
 }
 
@@ -261,24 +253,24 @@ export async function changeStaffRole(
   newRole: "super_admin" | "manager" | "front_desk" | "read_only"
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const { supabase, orgId, role, currentStaffId, currentStaffName, hotelId } =
-      await getHotelScopedClient();
+    const ctx = await requireMinRole("manager", "change staff role");
+    const supabase = await createClient();
 
-    if (!can(role, "staff:setRole"))
+    if (!can(ctx.role, "staff:setRole"))
       return { success: false, error: "You do not have permission to change roles" };
-    if (currentStaffId === staffId)
+    if (ctx.staffId === staffId)
       return { success: false, error: "You cannot change your own role" };
 
     const { data: target } = await supabase
       .from("staff_profiles")
       .select("role")
       .eq("id", staffId)
-      .eq("clerk_org_id", orgId)
+      .eq("clerk_org_id", ctx.orgId)
       .single();
     if (!target) return { success: false, error: "Staff member not found" };
-    if (!canAdministerStaff(role, target.role))
+    if (!canAdministerStaff(ctx.role, target.role))
       return { success: false, error: "You cannot manage this staff member" };
-    if (!canAssignRole(role, newRole))
+    if (!canAssignRole(ctx.role, newRole))
       return { success: false, error: "You cannot assign that role" };
 
     // Prevent demoting the last active super admin
@@ -286,7 +278,7 @@ export async function changeStaffRole(
       const { count } = await supabase
         .from("staff_profiles")
         .select("*", { count: "exact", head: true })
-        .eq("clerk_org_id", orgId)
+        .eq("clerk_org_id", ctx.orgId)
         .eq("role", "super_admin")
         .eq("is_active", true);
 
@@ -299,14 +291,14 @@ export async function changeStaffRole(
       .from("staff_profiles")
       .update({ role: newRole })
       .eq("id", staffId)
-      .eq("clerk_org_id", orgId);
+      .eq("clerk_org_id", ctx.orgId);
 
     if (error) return { success: false, error: error.message };
 
     await writeAuditLog(supabase, {
-      hotelId,
-      staffId: currentStaffId ?? undefined,
-      staffName: currentStaffName,
+      hotelId: ctx.hotelId,
+      staffId: ctx.staffId,
+      staffName: ctx.staffName,
       action: "staff.role_changed",
       entityType: "staff_profile",
       entityId: staffId,
@@ -317,7 +309,10 @@ export async function changeStaffRole(
     revalidatePath("/dashboard/staff");
     return { success: true };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Failed to change role" };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to change role",
+    };
   }
 }
 
@@ -325,13 +320,12 @@ export async function changeStaffRole(
 
 export async function getPendingStaffCount(): Promise<number> {
   try {
-    const { orgId } = await auth();
-    if (!orgId) return 0;
+    const ctx = await requireMinRole("super_admin", "count pending staff");
     const supabase = await createClient();
     const { count } = await supabase
       .from("staff_profiles")
       .select("*", { count: "exact", head: true })
-      .eq("clerk_org_id", orgId)
+      .eq("clerk_org_id", ctx.orgId)
       .eq("role", "pending")
       .eq("is_active", false);
     return count || 0;

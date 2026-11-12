@@ -31,14 +31,46 @@ function getResend(): Resend {
   return _resend;
 }
 
-function getFromAddress(): string {
-  const addr = process.env.RESEND_FROM_ADDRESS;
-  if (!addr) {
+const EMAIL_ADDRESS_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+
+/**
+ * Extracts and validates a bare RFC-safe email address from `RESEND_FROM_ADDRESS`.
+ * Tolerates both `"bookings@domain.com"` and `"RoomLine <bookings@domain.com>"`
+ * so operators never end up with broken double-bracket `From:` headers (`HIGH-02`).
+ */
+export function parseResendFromAddress(raw: string | undefined): string {
+  if (!raw || !raw.trim()) {
     throw new Error(
       "[resend] RESEND_FROM_ADDRESS is not set. Add it to your environment variables."
     );
   }
-  return addr;
+  const withoutCrlf = raw.replace(/[\r\n]/g, "").trim();
+  const angleMatch = withoutCrlf.match(/<([^<>]+)>/);
+  const candidate = (angleMatch ? angleMatch[1] : withoutCrlf)
+    .replace(/["<>]/g, "")
+    .trim();
+
+  if (!EMAIL_ADDRESS_RE.test(candidate)) {
+    throw new Error(
+      "[resend] RESEND_FROM_ADDRESS is not a valid email address."
+    );
+  }
+  return candidate;
+}
+
+/** Redacts an email address for server stdout/error logs (`ab***@domain.com`). */
+export function redactEmailForLog(email: string): string {
+  const trimmed = String(email ?? "").trim();
+  const atIndex = trimmed.indexOf("@");
+  if (atIndex <= 0) return "[redacted-email]";
+  const local = trimmed.slice(0, atIndex);
+  const domain = trimmed.slice(atIndex + 1);
+  const prefix = local.slice(0, Math.min(2, local.length));
+  return `${prefix}***@${domain}`;
+}
+
+function getFromAddress(): string {
+  return parseResendFromAddress(process.env.RESEND_FROM_ADDRESS);
 }
 
 export interface ResendEmailParams {
@@ -72,15 +104,19 @@ export async function sendEmailViaResend(
   const resend = getResend();
   const fromAddress = getFromAddress();
 
-  // Construct "Hotel Name <address@domain.com>" from header
-  // Sanitise hotel name: strip double-quotes to prevent header injection
-  const sanitisedName = params.hotelName.replace(/"/g, "'");
+  // Construct "Hotel Name <address@domain.com>" from header.
+  // Sanitise hotel name + subject: strip CR/LF, quotes, and angle brackets to prevent header injection.
+  const sanitisedName =
+    params.hotelName.replace(/[\r\n"<>]/g, " ").replace(/\s+/g, " ").trim() ||
+    "RoomLine";
+  const sanitisedSubject = params.subject.replace(/[\r\n]/g, " ").trim();
   const from = `"${sanitisedName}" <${fromAddress}>`;
+  const redactedRecipient = redactEmailForLog(params.to);
 
   console.info("[resend] Sending email", {
     from,
-    to: params.to,
-    subject: params.subject,
+    to: redactedRecipient,
+    subject: sanitisedSubject,
     idempotencyKey: params.idempotencyKey,
   });
 
@@ -92,7 +128,7 @@ export async function sendEmailViaResend(
     {
       from,
       to: [params.to],
-      subject: params.subject,
+      subject: sanitisedSubject,
       html: params.html,
     },
     sendOptions
@@ -100,23 +136,23 @@ export async function sendEmailViaResend(
 
   if (error) {
     console.error("[resend] Send failed", {
-      to: params.to,
-      subject: params.subject,
+      to: redactedRecipient,
+      subject: sanitisedSubject,
       error,
     });
     throw new Error(
-      `[resend] Failed to send to ${params.to}: ${error.message}`
+      `[resend] Failed to send to ${redactedRecipient}: ${error.message}`
     );
   }
 
   if (!data?.id) {
     throw new Error(
-      `[resend] Unexpected response: no message ID returned for ${params.to}`
+      `[resend] Unexpected response: no message ID returned for ${redactedRecipient}`
     );
   }
 
   console.info("[resend] Email sent successfully", {
-    to: params.to,
+    to: redactedRecipient,
     messageId: data.id,
   });
 

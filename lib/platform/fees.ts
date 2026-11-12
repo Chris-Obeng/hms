@@ -11,8 +11,6 @@
  * this is what keeps the pre-fee behaviour byte-for-byte.
  */
 
-import { supabaseAdmin } from "@/lib/supabase/admin";
-
 export type PlatformFeeType = "percentage" | "flat";
 
 export interface PlatformFeeConfig {
@@ -24,6 +22,23 @@ export interface PlatformFeeConfig {
   /** ISO 4217 code the flat fee is denominated in. */
   feeFlatCurrency: string;
 }
+
+/** Paystack Ghana local processing fee in basis points (1.95% = 195 bps). */
+export const PAYSTACK_GHANA_FEE_BPS = 195;
+
+/**
+ * Minimum non-zero percentage platform fee (2.0%).
+ * RoomLine bears Paystack's 1.95% processing fee out of `transaction_charge`
+ * (`bearer: "account"`), and Paystack rejects `POST /transaction/initialize`
+ * with HTTP 400 whenever `transaction_charge` is smaller than its 1.95% fee.
+ */
+export const MIN_PLATFORM_FEE_PERCENT = 2;
+
+/** Maximum percentage platform fee so the hotel subaccount always receives a positive share. */
+export const MAX_PLATFORM_FEE_PERCENT = 95;
+
+/** Minimum net subaccount share in minor units (GHS 1.00 = 100 pesewas). */
+export const MIN_SUBACCOUNT_SHARE_MINOR = 100;
 
 /** No cut. transaction_charge is omitted at initialize, so nothing changes. */
 export const ZERO_FEE: PlatformFeeConfig = {
@@ -39,6 +54,7 @@ export const ZERO_FEE: PlatformFeeConfig = {
  * and a zero fee is the safe default (charge the guest, take no cut).
  */
 export async function getPlatformFeeConfig(): Promise<PlatformFeeConfig> {
+  const { supabaseAdmin } = await import("@/lib/supabase/admin");
   const { data, error } = await supabaseAdmin
     .from("platform_settings")
     .select("fee_type, fee_percent, fee_flat_minor, fee_flat_currency")
@@ -62,7 +78,13 @@ export async function getPlatformFeeConfig(): Promise<PlatformFeeConfig> {
  * - Flat: the configured amount, but only when it is denominated in the charge
  *   currency (a GHS flat fee against a USD charge is meaningless, so a mismatch
  *   yields no fee rather than a wrong one).
- * Capped at totalMinor (never charge more than the payment) and floored at 0.
+ * - Under `bearer: "account"`, Paystack rejects splits where `transaction_charge`
+ *   is less than Paystack's 1.95% fee. Any computed non-zero fee below
+ *   `ceil(totalMinor * 195 / 10_000) + 1` safely degrades to `0` (omitting both
+ *   `transaction_charge` and `bearer` on that transaction) so guest checkout
+ *   always succeeds.
+ * - Capped at `totalMinor - 100` so the hotel subaccount always receives at
+ *   least GHS 1.00 (`100` pesewas).
  */
 export function computePlatformFeeMinor(
   config: PlatformFeeConfig,
@@ -81,5 +103,12 @@ export function computePlatformFeeMinor(
   }
 
   if (!Number.isFinite(fee) || fee <= 0) return 0;
-  return Math.min(fee, totalMinor);
+
+  const minViableFeeMinor = Math.ceil((totalMinor * PAYSTACK_GHANA_FEE_BPS) / 10_000) + 1;
+  const maxViableFeeMinor = totalMinor - MIN_SUBACCOUNT_SHARE_MINOR;
+
+  if (maxViableFeeMinor < minViableFeeMinor) return 0;
+  if (fee < minViableFeeMinor) return 0;
+
+  return Math.min(fee, maxViableFeeMinor);
 }

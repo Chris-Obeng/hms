@@ -57,8 +57,8 @@ BEGIN
   ASSERT v_row.amount_paid_minor = 10000, 'expected 10000 minor paid';
 
   SELECT count(*) INTO v_count FROM public.payments
-  WHERE booking_id = v_booking AND paystack_reference = v_ref1 || '-t1' AND status = 'success';
-  ASSERT v_count = 1, 'expected exactly one payment row';
+  WHERE booking_id = v_booking AND paystack_reference = v_ref1 || '-t1' AND status = 'success' AND method = 'paystack_link';
+  ASSERT v_count = 1, 'expected exactly one paystack_link payment row';
 
   SELECT status INTO v_err FROM public.payment_attempts WHERE paystack_reference = v_ref1 || '-t1';
   ASSERT v_err = 'succeeded', 'expected attempt succeeded';

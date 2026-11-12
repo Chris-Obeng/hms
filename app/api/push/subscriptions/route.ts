@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuth } from "@/lib/auth";
+import { AuthError, requireMinRole } from "@/lib/auth";
+import { isAllowedWebPushEndpoint } from "@/lib/push-endpoint";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 const schema = z.object({
-  endpoint: z.string().url(),
+  endpoint: z.string().url().refine(isAllowedWebPushEndpoint, {
+    message: "Unsupported push service endpoint",
+  }),
   expirationTime: z.number().nullable().optional(),
   keys: z.object({
     p256dh: z.string().min(1),
@@ -33,16 +36,30 @@ export async function GET(request: Request) {
     );
   }
 
+  if (!isAllowedWebPushEndpoint(endpoint)) {
+    return NextResponse.json(
+      {
+        applicationServerKey: key,
+        staffId: null,
+        activeForCurrentStaff: false,
+      },
+      { headers: { "cache-control": "private, no-store" } }
+    );
+  }
+
   try {
-    const ctx = await requireAuth();
+    const ctx = await requireMinRole("read_only", "view push notification status");
     const { data: row } = await supabaseAdmin
       .from("push_subscriptions")
-      .select("staff_id, disabled_at")
+      .select("hotel_id, staff_id, disabled_at")
       .eq("endpoint", endpoint)
       .maybeSingle();
 
     const activeForCurrentStaff = Boolean(
-      row && row.staff_id === ctx.staffId && !row.disabled_at
+      row &&
+        row.hotel_id === ctx.hotelId &&
+        row.staff_id === ctx.staffId &&
+        !row.disabled_at
     );
 
     return NextResponse.json(
@@ -67,14 +84,25 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const ctx = await requireAuth();
+    const ctx = await requireMinRole("read_only", "manage push notifications");
     const payload = schema.parse(await request.json());
     const now = new Date().toISOString();
 
-    // Writes go through the admin client: the endpoint UNIQUE constraint is
-    // per-device, so on a shared browser a second staff account must be able
-    // to take over the row that RLS would silently block them from updating.
-    // Auth is already verified via requireAuth above.
+    // Prevent cross-tenant takeover (`HIGH-05`): if this endpoint is already
+    // registered to a different hotel, refuse with 403 rather than reassigning.
+    const { data: existing } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("hotel_id")
+      .eq("endpoint", payload.endpoint)
+      .maybeSingle();
+
+    if (existing && existing.hotel_id !== ctx.hotelId) {
+      return NextResponse.json(
+        { success: false, error: "Subscription belongs to another property" },
+        { status: 403 }
+      );
+    }
+
     const { error } = await supabaseAdmin.from("push_subscriptions").upsert(
       {
         hotel_id: ctx.hotelId,
@@ -94,9 +122,18 @@ export async function POST(request: Request) {
     if (error) throw error;
     return NextResponse.json({ success: true, staffId: ctx.staffId });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: error.code === "UNAUTHENTICATED" ? 401 : 403 }
+      );
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { success: false, error: "Invalid subscription payload" },
+        {
+          success: false,
+          error: error.issues[0]?.message ?? "Invalid subscription payload",
+        },
         { status: 400 }
       );
     }
@@ -112,20 +149,32 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const ctx = await requireAuth();
+    const ctx = await requireMinRole("read_only", "manage push notifications");
     const { endpoint } = z
-      .object({ endpoint: z.string().url() })
+      .object({
+        endpoint: z.string().url().refine(isAllowedWebPushEndpoint, {
+          message: "Unsupported push service endpoint",
+        }),
+      })
       .parse(await request.json());
-    // Scope to the authenticated staff member so one account cannot disable
-    // another's registration on a shared device.
+
+    // Scope to the authenticated staff member AND hotel so one account cannot
+    // disable another's registration.
     const { error } = await supabaseAdmin
       .from("push_subscriptions")
       .update({ disabled_at: new Date().toISOString() })
       .eq("endpoint", endpoint)
-      .eq("staff_id", ctx.staffId);
+      .eq("staff_id", ctx.staffId)
+      .eq("hotel_id", ctx.hotelId);
     if (error) throw error;
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: error.code === "UNAUTHENTICATED" ? 401 : 403 }
+      );
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: "Invalid unsubscribe payload" },

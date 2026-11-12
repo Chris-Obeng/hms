@@ -16,7 +16,11 @@ import {
 import { Info } from "lucide-react";
 import { SUPPORTED_CURRENCIES, getCurrencySymbol } from "@/lib/money";
 import { updatePlatformFeeSettings, type PlatformFeeInput } from "./_actions";
-import type { PlatformFeeType } from "@/lib/platform/fees";
+import {
+  MAX_PLATFORM_FEE_PERCENT,
+  MIN_PLATFORM_FEE_PERCENT,
+  type PlatformFeeType,
+} from "@/lib/platform/fees";
 
 interface FormValues {
   feeType: PlatformFeeType;
@@ -70,11 +74,24 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
 
     // Mirror the server guardrails for instant feedback; the server is
     // authoritative and re-validates + re-asserts admin.
+    const roundedPct = round2(values.feePercent);
     if (
       values.feeType === "percentage" &&
-      (values.feePercent < 0 || values.feePercent > 100)
+      (roundedPct < 0 || roundedPct > MAX_PLATFORM_FEE_PERCENT)
     ) {
-      toast.danger("Percentage must be between 0 and 100.");
+      toast.danger(
+        `Percentage fee must be 0% or between ${MIN_PLATFORM_FEE_PERCENT.toFixed(1)}% and ${MAX_PLATFORM_FEE_PERCENT.toFixed(1)}%.`
+      );
+      return;
+    }
+    if (
+      values.feeType === "percentage" &&
+      roundedPct > 0 &&
+      roundedPct < MIN_PLATFORM_FEE_PERCENT
+    ) {
+      toast.danger(
+        `Percentage fee must be 0% or at least ${MIN_PLATFORM_FEE_PERCENT.toFixed(1)}% because RoomLine absorbs Paystack's 1.95% processing fee.`
+      );
       return;
     }
     if (
@@ -153,7 +170,7 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
               value={num(values.feePercent)}
               onChange={(n) => set("feePercent", num(n))}
               minValue={0}
-              maxValue={100}
+              maxValue={MAX_PLATFORM_FEE_PERCENT}
               step={0.25}
               formatOptions={{ minimumFractionDigits: 0, maximumFractionDigits: 2 }}
             >
@@ -163,7 +180,9 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
                 <NumberField.Input />
                 <NumberField.IncrementButton />
               </NumberField.Group>
-              <Description>Percent of the booking total — e.g. 2.5 means 2.5%.</Description>
+              <Description>
+                Enter 0% for no platform fee, or {MIN_PLATFORM_FEE_PERCENT.toFixed(1)}%–{MAX_PLATFORM_FEE_PERCENT.toFixed(1)}% (RoomLine absorbs Paystack&apos;s 1.95% processing fee out of this commission).
+              </Description>
             </NumberField>
           ) : (
             <div className="space-y-5">
@@ -216,13 +235,18 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
           <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
           <div className="space-y-1.5 text-sm text-muted-foreground">
             <p className="font-medium text-foreground">How the fee is applied</p>
-            <p>
-              The guest is charged the full booking total. At Paystack settlement,
-              RoomLine&apos;s cut routes to the platform account and the remainder
-              settles to the hotel&apos;s subaccount — hotels are never invoiced
-              separately.
-            </p>
-            <p>A zero fee takes no cut and leaves the hotel&apos;s split untouched.</p>
+              <p>
+                The guest is charged the full booking total. When a platform fee is
+                active, RoomLine bears Paystack&apos;s 1.95% Ghana processing fee out
+                of RoomLine&apos;s commission (<code>bearer: &quot;account&quot;</code>) and the
+                hotel&apos;s subaccount receives the full remaining balance net.
+              </p>
+              <p>
+                A 0% fee takes no cut and leaves Paystack&apos;s standard subaccount
+                fee-bearing rule untouched. If a flat fee is smaller than Paystack&apos;s
+                1.95% charge on a large booking, the platform fee is automatically
+                waived on that booking so guest checkout never fails.
+              </p>
           </div>
         </div>
       </section>

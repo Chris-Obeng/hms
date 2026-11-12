@@ -1,7 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireMinRole } from "@/lib/auth";
+import { can } from "@/lib/roles";
+import { isUsableSubaccount } from "@/lib/paystack";
 import { buildHotelPayoutOverview, type HotelPayoutOverview } from "@/lib/payouts";
 
 /**
@@ -21,22 +24,23 @@ export async function getMyHotelPayouts(
 
     const supabase = await createClient();
 
-    const { data: hotel, error: hotelError } = await supabase
+    const { data: hotel, error: hotelError } = await supabaseAdmin
       .from("hotels")
-      .select("id, timezone, currency, paystack_subaccount_code, paystack_settlement_schedule, paystack_bank_code, paystack_account_number")
+      .select("id, timezone, currency, paystack_subaccount_code, paystack_domain, paystack_settlement_schedule, paystack_bank_code, paystack_account_number")
       .eq("id", ctx.hotelId)
       .eq("clerk_org_id", ctx.orgId)
       .single();
     if (hotelError || !hotel) return { success: false, error: "Hotel not found" };
     if (!hotel.timezone) return { success: false, error: "Payment payouts require a configured property timezone." };
 
+    const usableSubaccount = isUsableSubaccount(hotel) ? hotel.paystack_subaccount_code : null;
     const data = await buildHotelPayoutOverview({
       hotelId: hotel.id,
       timeZone: hotel.timezone,
-      subaccountCode: hotel.paystack_subaccount_code,
+      subaccountCode: usableSubaccount,
       settlementSchedule: hotel.paystack_settlement_schedule,
       payoutBankCode: hotel.paystack_bank_code,
-      payoutAccountNumber: hotel.paystack_account_number,
+      payoutAccountNumber: can(ctx.role, "payments:configure") ? hotel.paystack_account_number : null,
       currency: hotel.currency ?? "GHS",
       supabase,
       window: range ?? { days: 30 },
