@@ -356,17 +356,17 @@ BEGIN
   IF n <> 0 THEN RAISE EXCEPTION 'FAIL 12 empty id array returned % rows', n; END IF;
   RAISE NOTICE 'ok 12 unknown hotel, unknown room type and empty array return no rows';
 
-  -- 13: function hardening
+  -- 13: function hardening (service_role only; public & dashboard route via supabaseAdmin)
   SELECT count(*) INTO n FROM pg_proc p
   WHERE p.proname = 'resolve_nightly_rates'
     AND p.prosecdef
     AND p.provolatile = 's'
     AND 'search_path=pg_catalog, public' = ANY (p.proconfig)
-    AND has_function_privilege('anon', p.oid, 'EXECUTE')
-    AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
+    AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
+    AND NOT has_function_privilege('authenticated', p.oid, 'EXECUTE')
     AND has_function_privilege('service_role', p.oid, 'EXECUTE');
   IF n <> 1 THEN RAISE EXCEPTION 'FAIL 13 hardening/grants not as expected (n=%)', n; END IF;
-  RAISE NOTICE 'ok 13 SECURITY DEFINER, STABLE, pinned search_path, granted to 3 roles';
+  RAISE NOTICE 'ok 13 SECURITY DEFINER, STABLE, pinned search_path, restricted to service_role';
 END
 $do$;
 

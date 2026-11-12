@@ -676,9 +676,18 @@ export async function assignBookingToRoom(
       .eq("hotel_id", hotelId);
 
     if (error) {
-      // If the EXCLUDE constraint caught a race condition
+      // If the EXCLUDE constraint or physical room guard caught a race condition
       if (error.message?.includes("bookings_no_room_overlap")) {
         return { success: false, error: "Room is no longer available — another booking was just placed" };
+      }
+      if (
+        error.message?.includes("bookings_no_availability_block_overlap") ||
+        error.message?.includes("bookings_physical_room_bookable")
+      ) {
+        return { success: false, error: "Room is blocked or out of service for those dates" };
+      }
+      if (error.message?.includes("bookings_physical_room_type_match")) {
+        return { success: false, error: "Room type mismatch — this booking requires a different room type" };
       }
       // M7: raw PostgREST text (constraint names, schema internals) must not
       // reach staff — report the detail, return generic copy.

@@ -27,7 +27,7 @@ const PER_GROUP = 5;
 const FETCH = PER_GROUP + 1;
 
 const BOOKING_SELECT =
-  "id, reference, check_in, check_out, status, guests:guest_id(full_name), rooms:room_id(room_number), room_types:room_type_id(name)";
+  "id, reference, check_in, check_out, status, guests(full_name), rooms(room_number), room_types(name)";
 
 function firstRel<T>(rel: T | T[] | null | undefined): T | null {
   if (rel == null) return null;
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         .limit(FETCH),
       supabase
         .from("rooms")
-        .select("id, room_number, status, room_types:room_type_id(name)")
+        .select("id, room_number, status, room_types(name)")
         .eq("hotel_id", hotelId)
         .ilike("room_number", like)
         .limit(FETCH),

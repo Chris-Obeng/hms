@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.15"
-  }
   public: {
     Tables: {
       ari_sync_outbox: {
@@ -186,11 +181,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "availability_blocks_room_id_fkey"
-            columns: ["room_id"]
+            foreignKeyName: "availability_blocks_room_hotel_fk"
+            columns: ["room_id", "hotel_id"]
             isOneToOne: false
             referencedRelation: "rooms"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "hotel_id"]
           },
         ]
       }
@@ -416,11 +411,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "bookings_guest_id_fkey"
-            columns: ["guest_id"]
+            foreignKeyName: "bookings_group_hotel_fk"
+            columns: ["group_id", "hotel_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id", "hotel_id"]
+          },
+          {
+            foreignKeyName: "bookings_guest_hotel_fk"
+            columns: ["guest_id", "hotel_id"]
             isOneToOne: false
             referencedRelation: "guests"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "hotel_id"]
           },
           {
             foreignKeyName: "bookings_hotel_id_fkey"
@@ -437,18 +439,18 @@ export type Database = {
             referencedColumns: ["id", "hotel_id"]
           },
           {
-            foreignKeyName: "bookings_room_id_fkey"
-            columns: ["room_id"]
+            foreignKeyName: "bookings_room_hotel_fk"
+            columns: ["room_id", "hotel_id"]
             isOneToOne: false
             referencedRelation: "rooms"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "hotel_id"]
           },
           {
-            foreignKeyName: "bookings_room_type_id_fkey"
-            columns: ["room_type_id"]
+            foreignKeyName: "bookings_room_type_hotel_fk"
+            columns: ["room_type_id", "hotel_id"]
             isOneToOne: false
             referencedRelation: "room_types"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "hotel_id"]
           },
         ]
       }
@@ -739,11 +741,11 @@ export type Database = {
             referencedColumns: ["id", "hotel_id"]
           },
           {
-            foreignKeyName: "daily_rate_overrides_room_type_id_fkey"
-            columns: ["room_type_id"]
+            foreignKeyName: "daily_rate_overrides_room_type_fk"
+            columns: ["room_type_id", "hotel_id"]
             isOneToOne: false
             referencedRelation: "room_types"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "hotel_id"]
           },
         ]
       }
@@ -809,8 +811,6 @@ export type Database = {
       hotels: {
         Row: {
           address: string | null
-          arkesel_api_key: string | null
-          arkesel_sender_name: string | null
           cancellation_policy: string | null
           check_in_time: string | null
           check_out_time: string | null
@@ -840,8 +840,6 @@ export type Database = {
         }
         Insert: {
           address?: string | null
-          arkesel_api_key?: string | null
-          arkesel_sender_name?: string | null
           cancellation_policy?: string | null
           check_in_time?: string | null
           check_out_time?: string | null
@@ -871,8 +869,6 @@ export type Database = {
         }
         Update: {
           address?: string | null
-          arkesel_api_key?: string | null
-          arkesel_sender_name?: string | null
           cancellation_policy?: string | null
           check_in_time?: string | null
           check_out_time?: string | null
@@ -1004,11 +1000,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "notification_logs_booking_id_fkey"
-            columns: ["booking_id"]
+            foreignKeyName: "notification_logs_booking_hotel_fk"
+            columns: ["booking_id", "hotel_id"]
             isOneToOne: false
             referencedRelation: "bookings"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "hotel_id"]
           },
           {
             foreignKeyName: "notification_logs_hotel_id_fkey"
@@ -1070,11 +1066,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "notifications_booking_id_fkey"
-            columns: ["booking_id"]
+            foreignKeyName: "notifications_booking_hotel_fk"
+            columns: ["booking_id", "hotel_id"]
             isOneToOne: false
             referencedRelation: "bookings"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "hotel_id"]
           },
           {
             foreignKeyName: "notifications_created_by_staff_id_fkey"
@@ -1254,7 +1250,7 @@ export type Database = {
         Row: {
           action: string
           admin_email: string
-          admin_id: string
+          admin_id: string | null
           after_state: Json | null
           before_state: Json | null
           created_at: string
@@ -1266,7 +1262,7 @@ export type Database = {
         Insert: {
           action: string
           admin_email: string
-          admin_id: string
+          admin_id?: string | null
           after_state?: Json | null
           before_state?: Json | null
           created_at?: string
@@ -1278,7 +1274,7 @@ export type Database = {
         Update: {
           action?: string
           admin_email?: string
-          admin_id?: string
+          admin_id?: string | null
           after_state?: Json | null
           before_state?: Json | null
           created_at?: string
@@ -1727,11 +1723,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "rooms_room_type_id_fkey"
-            columns: ["room_type_id"]
+            foreignKeyName: "rooms_room_type_hotel_fk"
+            columns: ["room_type_id", "hotel_id"]
             isOneToOne: false
             referencedRelation: "room_types"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "hotel_id"]
           },
         ]
       }
@@ -2068,6 +2064,7 @@ export type Database = {
       create_booking_atomic: { Args: { p_payload: Json }; Returns: Json }
       create_booking_group_atomic: { Args: { p_payload: Json }; Returns: Json }
       currency_exponent: { Args: { p_currency: string }; Returns: number }
+      dispatch_daily_stay_reminders: { Args: never; Returns: number }
       effective_rate_plan_id: {
         Args: {
           p_hotel_id: string
@@ -2249,8 +2246,6 @@ export type Database = {
           result: string
         }[]
       }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
       staff_role_level: { Args: { p_role: string }; Returns: number }
       stay_restriction_violations: {
         Args: {
@@ -2264,6 +2259,7 @@ export type Database = {
         Args: { p_amount: number; p_currency: string }
         Returns: number
       }
+      trigger_push_delivery_worker: { Args: never; Returns: undefined }
       update_platform_fee_atomic: {
         Args: {
           p_admin_email: string
@@ -2281,6 +2277,10 @@ export type Database = {
       }
       user_role_at_least: {
         Args: { p_hotel_id: string; p_min_role: string }
+        Returns: boolean
+      }
+      user_role_at_least_org: {
+        Args: { p_clerk_org_id: string; p_min_role: string }
         Returns: boolean
       }
       user_role_level: { Args: { p_hotel_id: string }; Returns: number }
@@ -2302,12 +2302,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2331,11 +2331,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2356,11 +2356,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2381,11 +2381,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2398,11 +2398,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2416,3 +2416,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

@@ -1,0 +1,69 @@
+name: Supabase Database & Application CI
+
+on:
+  pull_request:
+    paths:
+      - "supabase/**"
+      - "types/database.types.ts"
+      - "app/**"
+      - "lib/**"
+      - "scripts/**"
+      - "package.json"
+      - ".github/workflows/supabase-ci.yml"
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: supabase-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database-and-tests:
+    name: Replay Migrations, Lint PL/pgSQL, Run SQL & App Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Start local Supabase database stack
+        run: supabase start -x studio,imgproxy,mailpit,postgrest,realtime,storage-api,edge-runtime,logflare,vector,supavisor
+
+      - name: Replay full migration history & seed from zero
+        run: supabase db reset
+
+      - name: Lint PL/pgSQL functions (zero warnings/errors)
+        run: supabase db lint --local --level warning --fail-on warning
+
+      - name: Run all SQL regression suites
+        run: pnpm db:test:all
+
+      - name: Verify generated Supabase TypeScript types are in sync
+        run: |
+          pnpm db:types:local
+          git diff --exit-code types/database.types.ts
+
+      - name: Verify TypeScript types & unit tests
+        run: |
+          pnpm typecheck
+          pnpm test
+          pnpm test:tooling

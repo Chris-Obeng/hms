@@ -4,6 +4,8 @@
 
 \set ON_ERROR_STOP on
 
+BEGIN;
+
 DO $$
 DECLARE
   v_hotel uuid := gen_random_uuid();
@@ -115,5 +117,79 @@ BEGIN
     ASSERT position('payment attempt' in v_err) > 0, 'expected attempt error, got: ' || v_err;
   END;
 
+  -- Booking 4: late Paystack settlement on a payment_timeout-cancelled booking
+  -- after the last room of that room_type sold out MUST still persist the
+  -- payment row (`recorded_sold_out`) while keeping the booking cancelled.
+  DECLARE
+    v_rt       uuid := gen_random_uuid();
+    v_rm       uuid := gen_random_uuid();
+    v_sold_b   uuid := gen_random_uuid();
+    v_late_b   uuid := gen_random_uuid();
+    v_ref_sold text := 'RL-SMOKE-' || v_suffix || '-SOLD';
+    v_ref_late text := 'RL-SMOKE-' || v_suffix || '-LATE';
+    v_creason  text;
+  BEGIN
+    INSERT INTO public.room_types (id, hotel_id, name, slug, base_price, weekend_price)
+    VALUES (v_rt, v_hotel, 'Single Cap', 'single-cap', 100, 100);
+
+    INSERT INTO public.rooms (id, hotel_id, room_type_id, room_number, status)
+    VALUES (v_rm, v_hotel, v_rt, 'SC-1', 'available');
+
+    -- Expired hold (`status = cancelled`, `cancellation_reason = payment_timeout`)
+    INSERT INTO public.bookings (
+      id, hotel_id, room_type_id, reference, check_in, check_out,
+      room_rate, subtotal, total_amount, status, cancelled_at, cancellation_reason,
+      payment_status, payment_preference, currency
+    ) VALUES (
+      v_late_b, v_hotel, v_rt, v_ref_late, date '2026-12-10', date '2026-12-12',
+      100, 200, 200, 'cancelled', now() - interval '5 minutes', 'payment_timeout',
+      'unpaid', 'pay_now', 'GHS'
+    );
+
+    INSERT INTO public.payment_attempts (
+      hotel_id, booking_id, paystack_reference, amount_minor, currency,
+      expected_subaccount_code, metadata, status, initialized_at
+    ) VALUES (
+      v_hotel, v_late_b, v_ref_late || '-t1', 20000, 'GHS', v_subacct,
+      jsonb_build_object('booking_id', v_late_b::text, 'hotel_id', v_hotel::text,
+                         'booking_reference', v_ref_late),
+      'initialized', now() - interval '40 minutes'
+    );
+
+    -- Another guest buys the ONLY room of `v_rt` for those dates:
+    INSERT INTO public.bookings (
+      id, hotel_id, room_type_id, reference, check_in, check_out,
+      room_rate, subtotal, total_amount, status, payment_status, payment_preference, currency
+    ) VALUES (
+      v_sold_b, v_hotel, v_rt, v_ref_sold, date '2026-12-10', date '2026-12-12',
+      100, 200, 200, 'confirmed', 'paid', 'pay_now', 'GHS'
+    );
+
+    SELECT * INTO v_row FROM public.settle_online_payment_atomic(
+      v_late_b, v_hotel, v_ref_late || '-t1', v_pid || '-late', 20000, 'GHS', v_subacct,
+      jsonb_build_object('booking_id', v_late_b::text, 'hotel_id', v_hotel::text,
+                         'booking_reference', v_ref_late));
+
+    ASSERT v_row.result = 'recorded_sold_out', 'expected recorded_sold_out, got: ' || v_row.result;
+    ASSERT v_row.booking_status = 'cancelled', 'expected sold-out booking to stay cancelled, got: ' || v_row.booking_status;
+    ASSERT v_row.payment_status = 'paid', 'expected payment_status paid on late charge';
+
+    SELECT count(*) INTO v_count FROM public.payments
+     WHERE booking_id = v_late_b AND paystack_reference = v_ref_late || '-t1' AND status = 'success';
+    ASSERT v_count = 1, 'late settlement must persist the payment row even when sold out';
+
+    SELECT cancellation_reason INTO v_creason FROM public.bookings WHERE id = v_late_b;
+    ASSERT v_creason = 'payment_timeout_sold_out', 'expected payment_timeout_sold_out, got: ' || coalesce(v_creason, '<null>');
+
+    -- Replay on the sold-out late payment must return already_recorded cleanly:
+    SELECT * INTO v_row FROM public.settle_online_payment_atomic(
+      v_late_b, v_hotel, v_ref_late || '-t1', v_pid || '-late', 20000, 'GHS', v_subacct,
+      jsonb_build_object('booking_id', v_late_b::text, 'hotel_id', v_hotel::text,
+                         'booking_reference', v_ref_late));
+    ASSERT v_row.result = 'already_recorded' AND v_row.already_recorded, 'expected already_recorded on sold-out replay';
+  END;
+
   RAISE NOTICE 'settle_online_payment_atomic smoke test PASSED';
 END $$;
+
+ROLLBACK;

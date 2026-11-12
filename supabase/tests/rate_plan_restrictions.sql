@@ -45,7 +45,7 @@ BEGIN
       'e0e0e0e0-0000-4000-8000-00000000000a',
       ARRAY['e1e1e1e1-0000-4000-8000-000000000001'::uuid],
       current_date + 90, current_date + 94,
-      'e2e2e2e2-0000-4000-8000-000000000002', 0) r;
+      'e2e2e2e2-0000-4000-8000-000000000002', 0::smallint) r;
 
   IF v_count <> 4 OR v_dates <> 4 OR v_plans <> 0 THEN
     RAISE EXCEPTION 'FAIL 1: resolver returned % rows, % dates, % wrong plans',

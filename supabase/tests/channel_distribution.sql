@@ -420,7 +420,7 @@ BEGIN
   END IF;
 
   DELETE FROM public.ari_sync_outbox WHERE hotel_id = v_hotel;
-  UPDATE public.bookings SET status = 'cancelled'
+  UPDATE public.bookings SET status = 'cancelled', cancelled_at = now()
    WHERE id = 'f4f4f4f4-0000-4000-8000-000000000001';
 
   SELECT count(*) INTO v_jobs FROM public.ari_sync_outbox WHERE hotel_id = v_hotel;
