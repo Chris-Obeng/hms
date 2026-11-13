@@ -456,6 +456,17 @@
   color: var(--muted-foreground) !important;
 }
 
+/* HeroUI paints Alert descriptions and modal / alert-dialog body text with
+ * --muted, a surface colour in this theme, so that text was near-invisible. Same layer as HeroUI and later
+ * in source order, so this wins while utilities on an element still can. */
+@layer components {
+  .alert__description,
+  .modal__body,
+  .alert-dialog__body {
+    color: var(--muted-foreground);
+  }
+}
+
 /* HeroUI renders column headers with its own --muted token, which maps to a
  * surface colour in this theme — headers were nearly invisible. Restore
  * contrast while keeping the subtle look (75% foreground). */
@@ -633,6 +644,9 @@
   --accent: var(--primary);
   --accent-foreground: var(--primary-foreground);
   --accent-hover: color-mix(in oklch, var(--primary) 90%, black);
+  /* Off track: HeroUI uses --default (= --secondary here), which nearly
+   * matches a white card. Give it enough ink to read as a control. */
+  --switch-control-bg: color-mix(in oklch, var(--foreground) 16%, var(--card));
 }
 .switch[data-selected="true"] .switch__control {
   background-color: var(--primary);
