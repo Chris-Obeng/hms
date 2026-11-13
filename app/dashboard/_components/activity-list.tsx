@@ -8,14 +8,21 @@ import {
   CalendarX,
   CheckCircle2,
   ChevronDown,
-  ChevronRight,
   MessageSquareText,
   MoonStar,
   RotateCw,
-  Search,
-  X,
 } from "lucide-react";
-import { AlertDialog, Button, Dropdown, Label, Skeleton } from "@heroui/react";
+import {
+  AlertDialog,
+  Avatar,
+  Button,
+  ButtonGroup,
+  Chip,
+  Dropdown,
+  Label,
+  SearchField,
+  Skeleton,
+} from "@heroui/react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
@@ -71,142 +78,24 @@ type PendingConfirm =
   | { kind: "noshow"; booking: ActivityBooking }
   | null;
 
-const TAB_COPY: Record<
-  ActivityTab,
-  { title: string; emptyTitle: string; emptyHint: string }
-> = {
-  arrivals: {
-    title: "Arrivals",
-    emptyTitle: "No arrivals scheduled",
-    emptyHint: "Guests checking in on this date will appear here ready for room assignment.",
-  },
-  departures: {
-    title: "Departures",
-    emptyTitle: "No departures scheduled",
-    emptyHint: "Guests checking out on this date will appear here for folio settlement.",
-  },
-  in_house: {
-    title: "In-house guests",
-    emptyTitle: "No checked-in guests",
-    emptyHint: "Checked-in stays spanning this business date will appear here.",
-  },
-  bookings: {
-    title: "New bookings",
-    emptyTitle: "No bookings created on this date",
-    emptyHint: "Direct online and front-desk reservations recorded on this day show up here.",
-  },
-  cancellations: {
-    title: "Cancellations",
-    emptyTitle: "No cancellations recorded",
-    emptyHint: "Reservations cancelled on this business date will be listed here.",
-  },
-  overbookings: {
-    title: "Room conflicts",
-    emptyTitle: "Zero room conflicts",
-    emptyHint: "Every assigned stay on this date has a dedicated, non-overlapping room.",
-  },
+const EMPTY_COPY: Record<ActivityTab, { title: string; hint: string }> = {
+  arrivals: { title: "No arrivals", hint: "Guests checking in on this date appear here." },
+  departures: { title: "No departures", hint: "Guests checking out on this date appear here." },
+  in_house: { title: "No guests in house", hint: "Checked-in stays for this date appear here." },
+  bookings: { title: "No new bookings", hint: "Reservations made on this date appear here." },
+  cancellations: { title: "No cancellations", hint: "Reservations cancelled on this date appear here." },
+  overbookings: { title: "No room conflicts", hint: "Every stay on this date has its own room." },
 };
 
-function CancelConfirmContent({
-  pendingConfirm,
-  onConfirm,
-}: {
-  pendingConfirm: PendingConfirm;
-  onConfirm: () => void;
-}) {
-  if (!pendingConfirm) return null;
-  const isNoShow = pendingConfirm.kind === "noshow";
-  const { booking } = pendingConfirm;
-  const stayRange = `${formatDate(booking.checkIn, "MMM d")} – ${formatDate(
-    booking.checkOut,
-    "MMM d, yyyy"
-  )}`;
-  const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
-
-  return (
-    <>
-      <div
-        className={cn(
-          "mx-auto grid size-14 place-items-center rounded-2xl border shadow-xs",
-          isNoShow
-            ? "border-amber-700/15 bg-amber-700/10 text-amber-700"
-            : "border-destructive/15 bg-destructive/10 text-destructive"
-        )}
-      >
-        {isNoShow ? (
-          <MoonStar className="size-[24px]" aria-hidden />
-        ) : (
-          <CalendarX className="size-[24px]" aria-hidden />
-        )}
-      </div>
-
-      <div className="mt-4 text-center">
-        <AlertDialog.Heading className="text-balance text-lg font-semibold leading-tight tracking-tight text-foreground">
-          {isNoShow ? "Mark as No-Show" : "Cancel Reservation"}
-        </AlertDialog.Heading>
-        <p className="mt-2 text-balance text-sm leading-relaxed text-muted-foreground">
-          {isNoShow
-            ? "The room returns to inventory and this stay counts toward tonight's no-shows."
-            : "The room is released and can be rebooked immediately."}
-        </p>
-      </div>
-
-      <dl className="mt-6 space-y-3 text-left">
-        <div className="flex items-baseline justify-between gap-4">
-          <dt className="shrink-0 text-xs font-medium text-muted-foreground">Guest</dt>
-          <dd className="truncate text-sm font-semibold text-foreground">{booking.guestName}</dd>
-        </div>
-        <div className="flex items-baseline justify-between gap-4">
-          <dt className="shrink-0 text-xs font-medium text-muted-foreground">Reference</dt>
-          <dd className="font-mono text-xs font-medium tracking-tight text-foreground">
-            {booking.reference}
-          </dd>
-        </div>
-        <div className="flex items-baseline justify-between gap-4">
-          <dt className="shrink-0 text-xs font-medium text-muted-foreground">Stay</dt>
-          <dd className="text-right text-sm font-medium tabular-nums text-foreground">
-            {stayRange} · {nights} {nights === 1 ? "night" : "nights"}
-          </dd>
-        </div>
-      </dl>
-
-      <div className="mt-6 flex flex-col gap-3">
-        <Button
-          variant={isNoShow ? undefined : "danger"}
-          onPress={onConfirm}
-          className={cn(
-            "ui-press h-12 w-full rounded-full text-md font-semibold text-white shadow-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-            isNoShow && "bg-amber-700 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-amber-800"
-          )}
-        >
-          {isNoShow ? "Mark No-Show" : "Cancel Reservation"}
-        </Button>
-        <Button
-          slot="close"
-          variant="tertiary"
-          className="ui-press h-12 w-full rounded-full border border-border/70 bg-background text-md font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
-        >
-          Keep Reservation
-        </Button>
-      </div>
-    </>
-  );
-}
-
-type RowHandlers = {
-  onCheckIn?: (id: string) => void;
-  onCheckOut?: (id: string) => void;
-  onCancel?: (b: ActivityBooking) => void;
-  onNoShow?: (b: ActivityBooking) => void;
-  onViewDetails?: (b: ActivityBooking) => void;
-  onTakePayment?: (b: ActivityBooking) => void;
-};
+/** Desktop column template, shared by the header band and every row. */
+const ROW_GRID =
+  "grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 gap-y-1 [grid-template-areas:'avatar_guest_pay'_'avatar_stay_action'] " +
+  "md:grid-cols-[auto_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_5rem_9rem] md:items-center md:gap-x-4 md:[grid-template-areas:'avatar_guest_room_stay_pay_action']";
 
 /**
- * Single-DOM responsive activity queue:
- * - Phones (<640px): stacked touch card with 44px action buttons
- * - Tablets & compact laptops (640px–1279px): 2-zone horizontal row (zero horizontal scroll)
- * - Wide desktops (≥1280px): precision 4-column grid aligned with column headers
+ * Front-desk queue for the selected view. Each row answers the four questions a
+ * desk agent asks at a glance (who, which room, which nights, paid or not) and
+ * offers the one next step; everything else lives in the booking drawer.
  */
 export function ActivityList({
   bookings,
@@ -225,9 +114,7 @@ export function ActivityList({
 }: ActivityListProps & { onHoverPrefetch?: (id: string) => void }) {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [mobileSearchOpen, setMobileSearchOpen] = React.useState(false);
   const [pendingConfirm, setPendingConfirm] = React.useState<PendingConfirm>(null);
-  const mobileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleHoverPrefetch = React.useCallback(
     (id: string) => {
@@ -327,19 +214,22 @@ export function ActivityList({
 
   if (loading) {
     return (
-      <div className="space-y-3 p-4 sm:p-6">
+      <div className="space-y-4 p-4 sm:p-6">
         <Skeleton className="h-10 w-full rounded-xl" />
-        <Skeleton className="h-16 w-full rounded-2xl" />
-        <Skeleton className="h-16 w-full rounded-2xl" />
-        <Skeleton className="h-16 w-full rounded-2xl" />
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <Skeleton className="size-8 shrink-0 rounded-2xl" />
+            <Skeleton className="h-4 flex-1 rounded-md" />
+            <Skeleton className="h-8 w-24 rounded-xl" />
+          </div>
+        ))}
       </div>
     );
   }
 
-  const copy = activeTab ? TAB_COPY[activeTab] : null;
-  const heading = copy ? copy.title : "Activity";
-  const subtitle = buildSubtitle(bookings.length, pendingCount, activeTab);
-  const rowProps: RowHandlers = {
+  const summary = buildSummary(bookings.length, pendingCount, activeTab);
+  const empty = activeTab ? EMPTY_COPY[activeTab] : null;
+  const rowHandlers: RowHandlers = {
     onCheckIn,
     onCheckOut,
     onCancel: requestCancel,
@@ -350,208 +240,73 @@ export function ActivityList({
 
   return (
     <div>
-      {/* Header & filter toolbar */}
-      <div className="border-b border-border/50 px-4 py-3 sm:px-6 sm:py-4 xl:px-6">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 className="truncate text-md font-semibold text-foreground">
-                {heading}
-              </h2>
-              {subtitle && (
-                <span className="hidden text-xs tabular-nums text-muted-foreground sm:inline">
-                  · {subtitle}
-                </span>
-              )}
-            </div>
-            {subtitle && (
-              <p className="mt-1 text-xs tabular-nums text-muted-foreground sm:hidden">
-                {subtitle}
-              </p>
-            )}
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
-            {/* Persistent inline filter on sm+ (static width, no layout reflow) */}
-            <div className="relative hidden sm:block">
-              <Search
-                aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-              />
-              <input
-                type="search"
-                placeholder="Filter guest, room, ref…"
-                aria-label="Filter activity"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape" && searchQuery) {
-                    e.preventDefault();
-                    setSearchQuery("");
-                  }
-                }}
-                className="h-10 w-48 rounded-xl border border-border/60 bg-background/70 pl-8 pr-8 text-sm text-foreground outline-none transition-[border-color,background-color] duration-150 placeholder:text-muted-foreground/70 focus:border-ring focus:bg-background focus-visible:ring-2 focus-visible:ring-ring/30 lg:w-60"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  aria-label="Clear filter"
-                  onClick={() => setSearchQuery("")}
-                  className="ui-press absolute right-2 top-1/2 grid size-6 -translate-y-1/2 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
-                >
-                  <X className="size-4" />
-                </button>
-              )}
-            </div>
-
-            {/* Phone filter toggle (44px target) */}
-            <button
-              type="button"
-              aria-label={mobileSearchOpen ? "Close filter" : "Filter activity"}
-              aria-expanded={mobileSearchOpen}
-              onClick={() => {
-                const next = !mobileSearchOpen;
-                setMobileSearchOpen(next);
-                if (next) {
-                  requestAnimationFrame(() => mobileInputRef.current?.focus());
-                } else {
-                  setSearchQuery("");
-                }
-              }}
-              className={cn(
-                "ui-press grid size-11 cursor-pointer place-items-center rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring sm:hidden",
-                mobileSearchOpen || searchQuery
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground active:bg-muted/70"
-              )}
-            >
-              <Search className="size-4" />
-            </button>
-
-            {onRefresh && (
-              <Button
-                variant="ghost"
-                isIconOnly
-                onPress={onRefresh}
-                aria-label="Refresh activity"
-                className="ui-press size-11 min-w-11 rounded-xl text-muted-foreground sm:size-10 sm:min-w-10 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
-              >
-                <RotateCw className="size-4 sm:size-4" />
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Mobile inline filter bar — 16px text-base prevents iOS Safari zoom */}
-        {(mobileSearchOpen || searchQuery) && (
-          <div className="relative mt-3 sm:hidden">
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            />
-            <input
-              ref={mobileInputRef}
-              type="search"
-              enterKeyHint="search"
-              placeholder="Filter guest, room, or reference…"
-              aria-label="Filter activity"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  e.preventDefault();
-                  if (searchQuery) setSearchQuery("");
-                  else setMobileSearchOpen(false);
-                }
-              }}
-              className="h-11 w-full rounded-xl border border-border/70 bg-background pl-10 pr-10 text-base text-foreground outline-none transition-[border-color] duration-150 placeholder:text-muted-foreground/70 focus:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                aria-label="Clear filter"
-                onClick={() => {
-                  setSearchQuery("");
-                  mobileInputRef.current?.focus();
-                }}
-                className="ui-press absolute right-1 top-1/2 grid size-10 -translate-y-1/2 cursor-pointer place-items-center rounded-lg text-muted-foreground"
-              >
-                <X className="size-4" />
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Empty state */}
-      {filteredBookings.length === 0 ? (
-        <div className="flex flex-col items-center justify-center px-6 py-14 text-center sm:py-16">
-          <span
-            aria-hidden="true"
-            className={cn(
-              "mb-3 grid size-11 place-items-center rounded-2xl border",
-              activeTab === "overbookings" && !searchQuery
-                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600"
-                : "border-border/60 bg-muted/40 text-muted-foreground"
-            )}
+      {/* Toolbar: one line of context, the filter, refresh */}
+      <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <p className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
+          {summary}
+        </p>
+        <div className="flex items-center gap-2">
+          <SearchField
+            aria-label="Filter activity"
+            value={searchQuery}
+            onChange={setSearchQuery}
+            className="min-w-0 flex-1 sm:w-64 sm:flex-initial"
           >
-            {activeTab === "overbookings" && !searchQuery ? (
-              <CheckCircle2 className="size-5" />
-            ) : (
-              <BedDouble className="size-5" />
-            )}
-          </span>
-          <p className="text-sm font-semibold text-foreground">
-            {searchQuery
-              ? `No matches for “${searchQuery.trim()}”`
-              : copy?.emptyTitle ?? "No records for this view"}
-          </p>
-          <p className="mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
-            {searchQuery
-              ? "Check the guest name, room number, or booking reference, or clear your filter."
-              : copy?.emptyHint ?? "Reservations matching this view will appear here."}
-          </p>
-          {searchQuery ? (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              className="ui-press mt-4 inline-flex min-h-10 cursor-pointer items-center rounded-xl border border-border bg-background px-4 text-xs font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
+            <SearchField.Group className="rounded-xl">
+              <SearchField.SearchIcon />
+              <SearchField.Input placeholder="Filter by guest, room or ref" />
+              <SearchField.ClearButton />
+            </SearchField.Group>
+          </SearchField>
+          {onRefresh && (
+            <Button
+              isIconOnly
+              variant="ghost"
+              aria-label="Refresh activity"
+              onPress={onRefresh}
+              className="shrink-0 rounded-xl text-muted-foreground max-md:size-11"
             >
-              Clear filter
-            </button>
-          ) : (
-            onNewBooking &&
-            (activeTab === "arrivals" || activeTab === "bookings") && (
-              <button
-                type="button"
-                onClick={onNewBooking}
-                className="ui-press mt-4 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
-              >
-                <CalendarPlus className="size-4" aria-hidden="true" />
-                New booking
-              </button>
-            )
+              <RotateCw className="size-4" />
+            </Button>
           )}
         </div>
+      </div>
+
+      {filteredBookings.length === 0 ? (
+        <EmptyState
+          query={searchQuery.trim()}
+          title={empty?.title ?? "Nothing here"}
+          hint={empty?.hint ?? "Reservations matching this view appear here."}
+          tone={activeTab === "overbookings" && !searchQuery ? "success" : "neutral"}
+          onClear={() => setSearchQuery("")}
+          onNewBooking={
+            onNewBooking && (activeTab === "arrivals" || activeTab === "bookings")
+              ? onNewBooking
+              : undefined
+          }
+        />
       ) : (
-        <div>
-          {/* Wide desktop column header band (xl+) — sentence case per PenTable */}
+        <div className="border-t border-border/50">
           <div
             aria-hidden="true"
-            className="hidden border-b border-border/50 bg-muted/20 px-6 py-3 text-xs font-medium text-muted-foreground xl:grid xl:grid-cols-[minmax(210px,1.35fr)_minmax(150px,1fr)_minmax(150px,0.95fr)_minmax(215px,auto)] xl:items-center xl:gap-4"
+            className={cn(
+              ROW_GRID,
+              "hidden border-b border-border/50 bg-secondary/40 px-6 py-2 text-2xs font-medium text-muted-foreground md:grid"
+            )}
           >
-            <span>Guest</span>
-            <span>Accommodation</span>
-            <span>Stay</span>
-            <span className="text-right">Status &amp; actions</span>
+            <span className="size-8 [grid-area:avatar]" />
+            <span className="[grid-area:guest]">Guest</span>
+            <span className="[grid-area:room]">Room</span>
+            <span className="[grid-area:stay]">Stay</span>
+            <span className="[grid-area:pay]">Payment</span>
+            <span className="[grid-area:action]" />
           </div>
-
-          <ul role="list" className="divide-y divide-border/45">
+          <ul role="list" className="divide-y divide-border/50">
             {filteredBookings.map((b) => (
-              <BookingActivityRow
+              <BookingRow
                 key={b.id}
                 booking={b}
-                {...rowProps}
+                {...rowHandlers}
                 onHoverPrefetch={handleHoverPrefetch}
                 attachRef={attachActivityRef}
               />
@@ -560,18 +315,14 @@ export function ActivityList({
         </div>
       )}
 
-      {/* Cancel / No-Show destructive confirmation */}
+      {/* Cancel / no-show confirmation */}
       <AlertDialog.Backdrop
-        variant="blur"
         isOpen={pendingConfirm !== null}
         onOpenChange={(isOpen) => !isOpen && setPendingConfirm(null)}
       >
         <AlertDialog.Container placement="center" size="sm">
-          <AlertDialog.Dialog className="rounded-3xl border border-border/60 bg-card px-6 py-8 shadow-2xl outline-none sm:max-w-[400px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none">
-            <CancelConfirmContent
-              pendingConfirm={pendingConfirm}
-              onConfirm={confirmPending}
-            />
+          <AlertDialog.Dialog className="rounded-3xl sm:max-w-[400px]">
+            <ConfirmContent pendingConfirm={pendingConfirm} onConfirm={confirmPending} />
           </AlertDialog.Dialog>
         </AlertDialog.Container>
       </AlertDialog.Backdrop>
@@ -579,7 +330,16 @@ export function ActivityList({
   );
 }
 
-function BookingActivityRow({
+type RowHandlers = {
+  onCheckIn?: (id: string) => void;
+  onCheckOut?: (id: string) => void;
+  onCancel?: (b: ActivityBooking) => void;
+  onNoShow?: (b: ActivityBooking) => void;
+  onViewDetails?: (b: ActivityBooking) => void;
+  onTakePayment?: (b: ActivityBooking) => void;
+};
+
+function BookingRow({
   booking,
   onCheckIn,
   onCheckOut,
@@ -596,8 +356,16 @@ function BookingActivityRow({
 } & RowHandlers) {
   const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
   const totalGuests = (booking.adults || 1) + (booking.children || 0);
-  const assignedRoom = formatRoomLabel(booking.roomNumber);
-  const isUnpaid = booking.paymentStatus !== "paid" && booking.status !== "cancelled";
+  const room = formatRoomLabel(booking.roomNumber);
+  const isCancelled = booking.status === "cancelled" || booking.status === "no_show";
+  const owesMoney = booking.paymentStatus !== "paid" && !isCancelled;
+  const paymentLabel = booking.paymentStatus === "partial" ? "Collect balance" : "Take payment";
+  const stay = `${formatStayRange(booking.checkIn, booking.checkOut)} · ${nights} ${nights === 1 ? "night" : "nights"}`;
+
+  const paymentItem =
+    owesMoney && onTakePayment
+      ? [{ key: "payment", label: paymentLabel, onSelect: () => onTakePayment(booking) }]
+      : [];
 
   return (
     <li
@@ -606,284 +374,336 @@ function BookingActivityRow({
       onClick={() => onViewDetails?.(booking)}
       onMouseEnter={() => onHoverPrefetch?.(booking.id)}
       onFocusCapture={() => onHoverPrefetch?.(booking.id)}
-      className={cn(
-        "group cursor-pointer px-4 py-4 transition-colors duration-150 active:bg-muted/35 sm:px-6 sm:py-4 xl:px-6",
-        "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/25",
-        "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4",
-        "xl:grid xl:grid-cols-[minmax(210px,1.35fr)_minmax(150px,1fr)_minmax(150px,0.95fr)_minmax(215px,auto)] xl:items-center xl:gap-4"
-      )}
+      className={cn(ROW_GRID, "cursor-pointer px-4 py-3 transition-colors duration-150 active:bg-secondary/80 sm:px-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary/50")}
     >
-      {/* Zone 1 (sm–lg combined info wrapper; xl unwraps into grid columns via xl:contents) */}
-      <div className="min-w-0 flex-1 space-y-3 sm:space-y-2 xl:contents">
-        {/* Col 1: Guest + reference */}
-        <div className="flex items-start justify-between gap-3 sm:items-center">
-          <div className="flex min-w-0 items-center gap-3">
-            <GuestAvatar name={booking.guestName} hasConflict={booking.hasConflict} />
-            <div className="min-w-0 flex-1">
-              <div className="flex min-w-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onViewDetails?.(booking);
-                  }}
-                  className="min-w-0 truncate text-left text-md font-semibold text-foreground outline-none focus-visible:underline sm:text-sm"
-                >
-                  {booking.guestName}
-                </button>
-                {booking.hasNotes && (
-                  <MessageSquareText
-                    className="size-4 shrink-0 text-amber-500"
-                    aria-label="Booking has notes or special requests"
-                  />
-                )}
-                {booking.hasConflict && (
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-destructive/12 px-2 py-1 text-2xs font-semibold text-destructive">
-                    <AlertTriangle className="size-3" aria-hidden="true" />
-                    Conflict
-                  </span>
-                )}
-              </div>
+      <Avatar
+        size="sm"
+        color={booking.hasConflict ? "danger" : "default"}
+        className="[grid-area:avatar] max-md:mt-1"
+        aria-hidden="true"
+      >
+        <Avatar.Fallback className="font-semibold">{getInitials(booking.guestName)}</Avatar.Fallback>
+      </Avatar>
 
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs tabular-nums text-muted-foreground">
-                <span className="font-mono">{booking.reference}</span>
-                {booking.paymentStatus === "paid" && booking.status !== "cancelled" && (
-                  <span className="font-medium text-emerald-600">· Paid</span>
-                )}
-                {booking.paymentStatus === "partial" && booking.status !== "cancelled" && (
-                  <span className="font-medium text-amber-700">· Partial</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile-only top-right status pill so phone cards show status before actions */}
-          <StatusChip status={booking.status} className="shrink-0 sm:hidden" />
-        </div>
-
-        {/* Metadata strip on mobile/tablet; splits into Col 2 (Accommodation) & Col 3 (Stay) on xl */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-0 text-xs text-muted-foreground sm:pl-12 xl:contents">
-          {/* Col 2: Accommodation */}
-          <div className="flex min-w-0 items-center gap-2 xl:pl-0">
-            {assignedRoom ? (
-              <span className="inline-flex items-center gap-1 font-medium text-foreground">
-                <span className="truncate">{assignedRoom}</span>
-                {booking.roomType && (
-                  <span className="hidden truncate text-xs font-normal text-muted-foreground xl:inline">
-                    · {booking.roomType}
-                  </span>
-                )}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-2">
-                <span className="rounded-md bg-amber-500/12 px-2 py-1 text-2xs font-semibold text-amber-800">
-                  Unassigned
-                </span>
-                {booking.roomType && (
-                  <span className="truncate font-medium text-foreground">{booking.roomType}</span>
-                )}
-              </span>
-            )}
-
-            {booking.roomsCount > 1 && (
-              <span className="rounded-full bg-muted px-2 py-1 text-2xs font-semibold tabular-nums text-muted-foreground">
-                ×{booking.roomsCount}
-              </span>
-            )}
-
-            <ChevronRight
-              aria-hidden="true"
-              className="hidden size-4 shrink-0 text-muted-foreground/35 transition-transform duration-150 xl:inline [@media(hover:hover)_and_(pointer:fine)]:group-hover:translate-x-0.5 [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-muted-foreground/70"
-            />
-          </div>
-
-          <span aria-hidden="true" className="text-border xl:hidden">
-            ·
-          </span>
-
-          {/* Col 3: Stay dates & guest count */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs tabular-nums xl:flex-col xl:items-start xl:gap-1">
-            <span className="font-medium text-foreground">
-              {formatDate(booking.checkIn, "dd MMM")} – {formatDate(booking.checkOut, "dd MMM")}
-            </span>
-            <span className="text-2xs text-muted-foreground">
-              {nights}n · {totalGuests} {totalGuests === 1 ? "guest" : "guests"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Col 4: Status & primary actions (44px height on mobile, crisp 36px on sm+) */}
-      <div className="flex items-center justify-end gap-2 pt-1 sm:shrink-0 sm:pt-0">
-        {isUnpaid && (
+      {/* Guest */}
+      <div className="min-w-0 [grid-area:guest]">
+        {/* Wraps so the notes icon and Conflict chip drop below a long name on
+            phones instead of squeezing it to one letter. */}
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              onTakePayment?.(booking);
+              onViewDetails?.(booking);
             }}
-            className="ui-press inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-xl border border-amber-500/40 bg-amber-500/[0.06] px-4 text-xs font-semibold whitespace-nowrap text-amber-800 outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 sm:min-h-10 sm:flex-initial sm:rounded-lg sm:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-amber-500/12"
+            className="min-w-0 max-w-full truncate rounded-sm text-left text-sm font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {booking.paymentStatus === "partial" ? "Collect balance" : "Take payment"}
+            {booking.guestName}
           </button>
-        )}
+          {booking.hasNotes && (
+            <MessageSquareText
+              className="size-4 shrink-0 text-amber-500"
+              aria-label="Has notes or special requests"
+            />
+          )}
+          {booking.hasConflict && (
+            <Chip size="sm" color="danger" variant="soft" className="shrink-0">
+              <AlertTriangle className="size-3" aria-hidden="true" />
+              <Chip.Label>Conflict</Chip.Label>
+            </Chip>
+          )}
+        </div>
+        {/* Phones fold the room into the guest line; desktop gives it a column. */}
+        <p className="mt-1 truncate text-xs text-muted-foreground md:hidden">
+          {room ?? <span className="font-medium text-amber-700">Unassigned</span>}
+          {booking.roomType && <> · {booking.roomType}</>}
+          {booking.roomsCount > 1 && <> · ×{booking.roomsCount}</>}
+        </p>
+        <p className="mt-1 hidden truncate text-xs text-muted-foreground md:block">
+          {totalGuests} {totalGuests === 1 ? "guest" : "guests"}
+        </p>
+      </div>
 
+      {/* Room (desktop) */}
+      <div className="hidden min-w-0 [grid-area:room] md:block">
+        <p className="truncate text-sm font-medium text-foreground">
+          {room ?? (
+            <Chip size="sm" color="warning" variant="soft">
+              Unassigned
+            </Chip>
+          )}
+          {booking.roomsCount > 1 && (
+            <span className="ml-1 text-xs font-normal text-muted-foreground">×{booking.roomsCount}</span>
+          )}
+        </p>
+        {booking.roomType && (
+          <p className="mt-1 truncate text-xs text-muted-foreground">{booking.roomType}</p>
+        )}
+      </div>
+
+      {/* Stay */}
+      <div className="min-w-0 self-center [grid-area:stay]">
+        <p className="truncate text-xs tabular-nums text-muted-foreground md:hidden">{stay}</p>
+        <div className="hidden md:block">
+          <p className="truncate text-sm tabular-nums text-foreground">
+            {formatStayRange(booking.checkIn, booking.checkOut)}
+          </p>
+          <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+            {nights} {nights === 1 ? "night" : "nights"}
+          </p>
+        </div>
+      </div>
+
+      {/* Payment */}
+      <div className="flex items-start justify-end [grid-area:pay] md:items-center md:justify-start">
+        {!isCancelled && <PaymentChip status={booking.paymentStatus} />}
+      </div>
+
+      {/* Next step */}
+      <div
+        className="flex items-center justify-end [grid-area:action]"
+        onClick={(e) => e.stopPropagation()}
+      >
         {booking.status === "confirmed" && onCheckIn ? (
           <SplitAction
-            tone="primary"
-            mainLabel="Check-in"
-            onMain={(e) => {
-              e.stopPropagation();
-              onCheckIn(booking.id);
-            }}
+            label="Check in"
+            menuLabel="Check-in options"
+            variant="primary"
+            onMain={() => onCheckIn(booking.id)}
             items={[
-              { key: "cancel", label: "Cancel booking", onSelect: () => onCancel?.(booking) },
-              { key: "noshow", label: "Mark no-show", onSelect: () => onNoShow?.(booking) },
+              ...paymentItem,
+              { key: "cancel", label: "Cancel booking", onSelect: () => onCancel?.(booking), danger: true },
+              { key: "noshow", label: "Mark no-show", onSelect: () => onNoShow?.(booking), danger: true },
             ]}
           />
         ) : booking.status === "checked_in" && onCheckOut ? (
           <SplitAction
-            tone="neutral"
-            mainLabel="Check-out"
-            onMain={(e) => {
-              e.stopPropagation();
-              onCheckOut(booking.id);
-            }}
+            label="Check out"
+            menuLabel="Check-out options"
+            variant="secondary"
+            onMain={() => onCheckOut(booking.id)}
+            items={paymentItem}
           />
         ) : (
-          <StatusChip status={booking.status} className="hidden sm:inline-flex" />
+          <StatusChip status={booking.status} />
         )}
       </div>
     </li>
   );
 }
 
-function buildSubtitle(
-  total: number,
-  pendingCount: number | undefined,
-  activeTab: ActivityTab | undefined
-): string {
-  if (total === 0) return "0 reservations";
-  const noun = total === 1 ? "reservation" : "reservations";
-  if (activeTab === "arrivals" && typeof pendingCount === "number") {
-    return pendingCount > 0
-      ? `${total} scheduled · ${pendingCount} awaiting check-in`
-      : `${total} scheduled · all checked in`;
-  }
-  if (activeTab === "departures" && typeof pendingCount === "number") {
-    return pendingCount > 0
-      ? `${total} scheduled · ${pendingCount} due out`
-      : `${total} scheduled · all checked out`;
-  }
-  return `${total} ${noun}`;
-}
-
-function GuestAvatar({ name, hasConflict }: { name: string; hasConflict?: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "grid size-9 shrink-0 place-items-center rounded-full text-2xs font-semibold",
-        hasConflict
-          ? "bg-destructive/12 text-destructive ring-1 ring-inset ring-destructive/25"
-          : "bg-secondary text-secondary-foreground"
-      )}
-    >
-      {getInitials(name)}
-    </span>
-  );
-}
-
 function SplitAction({
-  mainLabel,
-  tone,
+  label,
+  menuLabel,
+  variant,
   onMain,
   items,
 }: {
-  mainLabel: string;
-  tone: "primary" | "neutral";
-  onMain: (e: React.MouseEvent) => void;
-  items?: Array<{ key: string; label: string; onSelect: () => void }>;
+  label: string;
+  menuLabel: string;
+  variant: "primary" | "secondary";
+  onMain: () => void;
+  items: Array<{ key: string; label: string; onSelect: () => void; danger?: boolean }>;
 }) {
-  const tones = {
-    primary:
-      "border-primary bg-primary text-primary-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]",
-    neutral:
-      "border-foreground bg-foreground text-background [@media(hover:hover)_and_(pointer:fine)]:hover:bg-foreground/90",
-  };
-
+  if (items.length === 0) {
+    return (
+      <Button size="sm" variant={variant} onPress={onMain} className="rounded-xl px-4 font-semibold max-md:h-11">
+        {label}
+      </Button>
+    );
+  }
   return (
-    <div
-      onClick={(e) => e.stopPropagation()}
-      className={cn(
-        "inline-flex min-h-11 flex-1 overflow-hidden rounded-xl border text-xs font-semibold shadow-2xs divide-x divide-white/20 sm:min-h-10 sm:flex-initial sm:rounded-lg",
-        tones[tone]
-      )}
-    >
-      <button
-        type="button"
-        onClick={onMain}
-        className="ui-press flex-1 cursor-pointer px-4 py-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/80 sm:flex-initial sm:px-3 sm:py-2"
-      >
-        {mainLabel}
-      </button>
-      {items && items.length > 0 && (
-        <Dropdown>
-          <Dropdown.Trigger
-            aria-label={`${mainLabel} options`}
-            className="ui-press grid w-11 shrink-0 cursor-pointer place-items-center outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/80 sm:w-8"
+    <ButtonGroup size="sm" variant={variant} className="rounded-xl">
+      <Button onPress={onMain} className="px-4 font-semibold max-md:h-11">
+        {label}
+      </Button>
+      <Dropdown>
+        <Button isIconOnly size="sm" variant={variant} aria-label={menuLabel} className="max-md:size-11">
+          <ButtonGroup.Separator />
+          <ChevronDown className="size-4" />
+        </Button>
+        <Dropdown.Popover placement="bottom end">
+          <Dropdown.Menu
+            aria-label={menuLabel}
+            onAction={(key) => items.find((i) => i.key === String(key))?.onSelect()}
+            className="min-w-44"
           >
-            <ChevronDown className="size-4 sm:size-4" />
-          </Dropdown.Trigger>
-          <Dropdown.Popover placement="bottom end">
-            <Dropdown.Menu
-              onAction={(key) => {
-                const item = items.find((i) => i.key === String(key));
-                if (item) item.onSelect();
-              }}
-              className="w-44 text-xs"
-            >
-              {items.map((item) => (
-                <Dropdown.Item id={item.key} key={item.key} textValue={item.label}>
-                  <Label>{item.label}</Label>
-                </Dropdown.Item>
-              ))}
-            </Dropdown.Menu>
-          </Dropdown.Popover>
-        </Dropdown>
+            {items.map((item) => (
+              <Dropdown.Item
+                id={item.key}
+                key={item.key}
+                textValue={item.label}
+                variant={item.danger ? "danger" : "default"}
+              >
+                <Label>{item.label}</Label>
+              </Dropdown.Item>
+            ))}
+          </Dropdown.Menu>
+        </Dropdown.Popover>
+      </Dropdown>
+    </ButtonGroup>
+  );
+}
+
+function PaymentChip({ status }: { status: string }) {
+  const color = status === "paid" ? "success" : status === "partial" ? "warning" : "default";
+  return (
+    <Chip size="sm" variant="soft" color={color} className="font-medium">
+      {getPaymentLabel(status)}
+    </Chip>
+  );
+}
+
+export function StatusChip({ status, className }: { status: string; className?: string }) {
+  const color =
+    status === "checked_in"
+      ? "success"
+      : status === "pending"
+        ? "warning"
+        : status === "cancelled" || status === "no_show"
+          ? "danger"
+          : status === "confirmed"
+            ? "accent"
+            : "default";
+  return (
+    <Chip size="sm" variant="soft" color={color} className={cn("font-medium", className)}>
+      {getStatusLabel(status ?? "")}
+    </Chip>
+  );
+}
+
+function EmptyState({
+  query,
+  title,
+  hint,
+  tone,
+  onClear,
+  onNewBooking,
+}: {
+  query: string;
+  title: string;
+  hint: string;
+  tone: "success" | "neutral";
+  onClear: () => void;
+  onNewBooking?: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center border-t border-border/50 px-6 py-16 text-center">
+      <span
+        aria-hidden="true"
+        className={cn(
+          "mb-4 grid size-12 place-items-center rounded-2xl",
+          tone === "success" && !query
+            ? "bg-emerald-500/10 text-emerald-600"
+            : "bg-secondary text-muted-foreground"
+        )}
+      >
+        {tone === "success" && !query ? (
+          <CheckCircle2 className="size-5" />
+        ) : (
+          <BedDouble className="size-5" />
+        )}
+      </span>
+      <p className="text-sm font-semibold text-foreground">
+        {query ? `No matches for “${query}”` : title}
+      </p>
+      <p className="mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">
+        {query ? "Try a guest name, room number or booking reference." : hint}
+      </p>
+      {query ? (
+        <Button size="sm" variant="secondary" onPress={onClear} className="mt-4 rounded-xl">
+          Clear filter
+        </Button>
+      ) : (
+        onNewBooking && (
+          <Button size="sm" variant="primary" onPress={onNewBooking} className="mt-4 rounded-xl">
+            <CalendarPlus className="size-4" aria-hidden="true" />
+            New booking
+          </Button>
+        )
       )}
     </div>
   );
 }
 
-export function StatusChip({ status, className }: { status: string; className?: string }) {
+function ConfirmContent({
+  pendingConfirm,
+  onConfirm,
+}: {
+  pendingConfirm: PendingConfirm;
+  onConfirm: () => void;
+}) {
+  if (!pendingConfirm) return null;
+  const isNoShow = pendingConfirm.kind === "noshow";
+  const { booking } = pendingConfirm;
+  const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
+
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-3 py-1 text-2xs font-semibold capitalize ring-1 ring-inset",
-        chipTone(status),
-        className
-      )}
-    >
-      {getStatusLabel(status ?? "")}
-    </span>
+    <>
+      <AlertDialog.Header className="items-center text-center">
+        <span
+          aria-hidden="true"
+          className={cn(
+            "grid size-12 place-items-center rounded-2xl",
+            isNoShow ? "bg-amber-500/12 text-amber-700" : "bg-destructive/10 text-destructive"
+          )}
+        >
+          {isNoShow ? <MoonStar className="size-5" /> : <CalendarX className="size-5" />}
+        </span>
+        <AlertDialog.Heading className="text-lg font-semibold text-foreground">
+          {isNoShow ? "Mark as No-Show" : "Cancel Reservation"}
+        </AlertDialog.Heading>
+      </AlertDialog.Header>
+      <AlertDialog.Body className="text-center">
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          <span className="font-semibold text-foreground">{booking.guestName}</span> ·{" "}
+          {formatStayRange(booking.checkIn, booking.checkOut)} · {nights}{" "}
+          {nights === 1 ? "night" : "nights"}
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          {isNoShow
+            ? "The room returns to inventory and the stay counts as a no-show."
+            : "The room is released and can be rebooked right away."}
+        </p>
+      </AlertDialog.Body>
+      <AlertDialog.Footer className="flex-col-reverse gap-2 sm:flex-row">
+        <Button slot="close" variant="tertiary" fullWidth className="rounded-xl">
+          Keep Reservation
+        </Button>
+        <Button
+          variant={isNoShow ? "secondary" : "danger"}
+          fullWidth
+          onPress={onConfirm}
+          className={cn("rounded-xl font-semibold", isNoShow && "text-amber-800")}
+        >
+          {isNoShow ? "Mark No-Show" : "Cancel Reservation"}
+        </Button>
+      </AlertDialog.Footer>
+    </>
   );
 }
 
-function chipTone(status: string): string {
-  switch (status) {
-    case "checked_in":
-      return "bg-emerald-500/10 text-emerald-700 ring-emerald-500/25";
-    case "confirmed":
-      return "bg-blue-500/10 text-blue-700 ring-blue-500/20";
-    case "pending":
-      return "bg-amber-500/10 text-amber-700 ring-amber-500/25";
-    case "cancelled":
-    case "no_show":
-      return "bg-red-500/10 text-red-600 ring-red-500/25";
-    default:
-      return "bg-muted text-muted-foreground ring-border";
+function formatStayRange(checkIn: string, checkOut: string): string {
+  const sameMonth = checkIn.slice(0, 7) === checkOut.slice(0, 7);
+  return sameMonth
+    ? `${formatDate(checkIn, "d")}–${formatDate(checkOut, "d MMM")}`
+    : `${formatDate(checkIn, "d MMM")} – ${formatDate(checkOut, "d MMM")}`;
+}
+
+function buildSummary(
+  total: number,
+  pendingCount: number | undefined,
+  activeTab: ActivityTab | undefined
+): string {
+  if (total === 0) return "Nothing scheduled";
+  const noun = total === 1 ? "reservation" : "reservations";
+  if (activeTab === "arrivals" && typeof pendingCount === "number") {
+    return pendingCount > 0 ? `${pendingCount} of ${total} still to check in` : `All ${total} checked in`;
   }
+  if (activeTab === "departures" && typeof pendingCount === "number") {
+    return pendingCount > 0 ? `${pendingCount} of ${total} still to check out` : `All ${total} checked out`;
+  }
+  return `${total} ${noun}`;
 }
 
 export { getPaymentLabel };

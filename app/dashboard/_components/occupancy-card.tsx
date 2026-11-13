@@ -1,6 +1,7 @@
 "use client";
 
 import { useId } from "react";
+import { Card } from "@heroui/react";
 import { formatSoldPercent, type RoomsSoldMetric } from "@/lib/metrics/dashboard-occupancy";
 import { cn } from "@/lib/utils";
 import { OccupancyDonut } from "./occupancy-donut";
@@ -21,54 +22,57 @@ export function OccupancyCard({
   }).format(new Date(`${metric.date}T00:00:00Z`));
 
   const isDeficit = metric.availableRooms !== null && metric.availableRooms < 0;
-  const hasExcluded =
-    (metric.outOfService !== null && metric.outOfService > 0) ||
-    (metric.blocked !== null && metric.blocked > 0);
+  // Past nights: inventory history is not stored, so say so once, quietly,
+  // instead of stacking a warning note on top of an "Unavailable" panel.
+  const isHistorical = metric.basis === "historical-unavailable";
+  const excluded = [
+    metric.outOfService ? `${metric.outOfService} out of service` : null,
+    metric.blocked ? `${metric.blocked} blocked` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <section
+    <Card
+      role="region"
       aria-labelledby={titleId}
       aria-busy={isDateSwitching}
-      className="flex h-full flex-col justify-between gap-4 rounded-3xl border border-border/60 bg-card p-6 shadow-[0_1px_3px_rgb(0_0_0/0.04)]"
+      className="gap-4 rounded-3xl border border-border/60 p-4 shadow-[0_1px_2px_rgb(15_23_42/0.04)] sm:p-6"
     >
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2
-            id={titleId}
-            className="text-md font-semibold leading-snug text-foreground"
-          >
+          <h2 id={titleId} className="text-sm font-semibold text-foreground">
             Rooms sold
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            <time dateTime={metric.date}>{dateLabel}</time> · night
+            <time dateTime={metric.date}>{dateLabel}</time>
           </p>
         </div>
-
-        {isDateSwitching ? (
+        {isDateSwitching && (
           <span
             role="status"
-            className="shrink-0 rounded-lg bg-muted px-3 py-1 text-2xs font-medium text-muted-foreground"
+            className="shrink-0 rounded-full bg-secondary px-2 py-1 text-2xs font-medium text-muted-foreground"
           >
             Loading selected date…
           </span>
-        ) : (
-          metric.sellableRooms !== null &&
-          metric.soldRooms !== null && (
-            <span className="shrink-0 font-mono text-xs font-medium tabular-nums text-muted-foreground">
-              {metric.soldRooms}/{metric.sellableRooms}
-            </span>
-          )
         )}
       </header>
 
-      {metric.issues.length > 0 && (
+      {isHistorical && (
+        <p role="note" className="text-sm leading-relaxed text-muted-foreground">
+          Historical room inventory isn&apos;t recorded, so rooms sold can&apos;t be shown for past
+          nights.
+        </p>
+      )}
+
+      {!isHistorical && metric.issues.length > 0 && (
         <div
           role={metric.state === "inconsistent" ? "alert" : "note"}
           className={cn(
-            "space-y-2 rounded-2xl border px-4 py-3 text-xs leading-relaxed",
+            "space-y-1 rounded-2xl px-4 py-3 text-xs leading-relaxed",
             metric.state === "inconsistent"
-              ? "border-amber-500/30 bg-amber-500/[0.07] text-foreground"
-              : "border-border/60 bg-muted/35 text-muted-foreground"
+              ? "bg-amber-500/[0.08] text-foreground"
+              : "bg-secondary/70 text-muted-foreground"
           )}
         >
           {metric.issues.map((issue) => (
@@ -77,12 +81,10 @@ export function OccupancyCard({
         </div>
       )}
 
-      {/* Responsive body: side-by-side on phones/tablets, stacked on desktop rail */}
-      <div
+      {!isHistorical && <div
         className={cn(
-          "flex flex-col gap-4",
-          metric.state === "ready" &&
-            "min-[380px]:flex-row min-[380px]:items-center min-[380px]:gap-6 lg:flex-col lg:items-stretch lg:gap-4"
+          "flex gap-4",
+          metric.state === "ready" ? "items-center sm:gap-6 xl:gap-4" : "flex-col"
         )}
       >
         <OccupancyDonut
@@ -93,19 +95,19 @@ export function OccupancyCard({
 
         {metric.totalRooms !== null && (
           <div className="min-w-0 flex-1 space-y-3">
-            {metric.sellableRooms !== null && metric.soldRooms !== null && (
-              <p className="text-xs text-muted-foreground lg:text-center">
-                <span className="font-semibold tabular-nums text-foreground">
-                  {metric.soldRooms} sold
-                </span>{" "}
-                of <span className="tabular-nums">{metric.sellableRooms}</span> sellable rooms
-                {metric.state === "inconsistent" &&
-                  metric.soldPercent !== null &&
-                  ` (${formatSoldPercent(metric.soldPercent)}%)`}
-              </p>
-            )}
+            {metric.state === "inconsistent" &&
+              metric.sellableRooms !== null &&
+              metric.soldRooms !== null && (
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {metric.soldRooms} sold
+                  </span>{" "}
+                  of <span className="tabular-nums">{metric.sellableRooms}</span> sellable rooms
+                  {metric.soldPercent !== null && ` (${formatSoldPercent(metric.soldPercent)}%)`}
+                </p>
+              )}
 
-            <dl className="space-y-3 text-sm">
+            <dl className="space-y-2 text-sm">
               <Row count={metric.soldRooms} label="Sold" marker="bg-primary" />
               <Row
                 count={metric.heldRooms}
@@ -115,45 +117,26 @@ export function OccupancyCard({
               <Row
                 count={metric.availableRooms}
                 label={isDeficit ? "Availability deficit" : "Available to sell"}
-                marker={
-                  isDeficit
-                    ? "bg-destructive"
-                    : "border-[1.5px] border-muted-foreground/60 bg-card"
-                }
+                marker={isDeficit ? "bg-destructive" : "bg-secondary ring-1 ring-inset ring-border"}
                 valueTone={isDeficit ? "text-destructive" : undefined}
               />
             </dl>
           </div>
         )}
-      </div>
+      </div>}
 
       {metric.totalRooms !== null && (
-        <div className="border-t border-border/50 pt-3">
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span>
-              <span className="font-semibold tabular-nums text-foreground">
-                {metric.sellableRooms ?? 0}
-              </span>{" "}
-              sellable of{" "}
-              <span className="font-medium tabular-nums text-foreground">
-                {metric.totalRooms}
-              </span>{" "}
-              active
-            </span>
-            {hasExcluded && (
-              <span className="tabular-nums text-2xs text-muted-foreground">
-                {[
-                  metric.outOfService ? `${metric.outOfService} out of service` : null,
-                  metric.blocked ? `${metric.blocked} blocked` : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-            )}
-          </div>
-        </div>
+        <footer className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border/50 pt-3 text-xs text-muted-foreground">
+          <p>
+            <span className="font-medium tabular-nums text-foreground">
+              {metric.sellableRooms ?? 0}
+            </span>{" "}
+            of <span className="tabular-nums">{metric.totalRooms}</span> rooms sellable
+          </p>
+          {excluded && <p className="tabular-nums">{excluded}</p>}
+        </footer>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -170,18 +153,13 @@ function Row({
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <dt className="flex min-w-0 items-center gap-3 text-muted-foreground">
+      <dt className="flex min-w-0 items-center gap-2 whitespace-nowrap text-muted-foreground">
         {marker && (
           <span aria-hidden="true" className={cn("size-3 shrink-0 rounded-full", marker)} />
         )}
         {label}
       </dt>
-      <dd
-        className={cn(
-          "shrink-0 font-mono text-sm font-semibold tabular-nums text-foreground",
-          valueTone
-        )}
-      >
+      <dd className={cn("shrink-0 font-semibold tabular-nums text-foreground", valueTone)}>
         {count ?? "—"}
       </dd>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ScrollShadow } from "@heroui/react";
+import { Tabs } from "@heroui/react";
 import { cn } from "@/lib/utils";
 
 export type ActivityTab =
@@ -16,167 +16,91 @@ export interface ActivityTabData {
   key: ActivityTab;
   label: string;
   count: number;
-  remaining?: number;
 }
 
 interface ActivityTabsProps {
   tabs: ActivityTabData[];
   activeTab: ActivityTab;
   onTabChange: (tab: ActivityTab) => void;
+  /** Rendered inside the selected tab's panel. */
+  children: React.ReactNode;
 }
 
 /**
- * Segmented operational filter bar. Scrolls horizontally on narrow viewports
- * with faded edges and explicit pan-x/pan-y touch handling so horizontal swipes
- * never fight vertical page scroll.
+ * Front-desk views as HeroUI underline tabs. The list scrolls horizontally on
+ * narrow screens (HeroUI's ListContainer handles the overflow affordance) and
+ * React Aria owns roving focus, arrow keys and tab/panel wiring.
  */
-export function ActivityTabs({ tabs, activeTab, onTabChange }: ActivityTabsProps) {
-  const tabRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    const currentIndex = tabs.findIndex((t) => t.key === activeTab);
-    if (currentIndex === -1) return;
-
-    let nextIndex: number | null = null;
-    if (e.key === "ArrowRight") {
-      nextIndex = (currentIndex + 1) % tabs.length;
-    } else if (e.key === "ArrowLeft") {
-      nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-    } else if (e.key === "Home") {
-      nextIndex = 0;
-    } else if (e.key === "End") {
-      nextIndex = tabs.length - 1;
-    }
-
-    if (nextIndex !== null) {
-      e.preventDefault();
-      const target = tabs[nextIndex];
-      onTabChange(target.key);
-      tabRefs.current[nextIndex]?.focus();
-    }
-  };
-
+export function ActivityTabs({ tabs, activeTab, onTabChange, children }: ActivityTabsProps) {
   return (
-    <div className="border-b border-border/50 bg-muted/25">
-      <ScrollShadow
-        orientation="horizontal"
-        hideScrollBar
-        className="touch-pan-x px-3 py-2 sm:px-3"
-      >
-        <div
-          role="tablist"
-          aria-label="Front-desk activity views"
-          onKeyDown={handleKeyDown}
-          className="flex items-center gap-1"
-        >
-          {tabs.map((tab, index) => {
-            const isActive = activeTab === tab.key;
-            const isZero = tab.count === 0;
+    <Tabs
+      variant="secondary"
+      selectedKey={activeTab}
+      onSelectionChange={(key) => onTabChange(String(key) as ActivityTab)}
+      className="gap-0"
+    >
+      {/* Styling lives in utilities (not global CSS) so it always wins over HeroUI's
+          component layer. This theme maps HeroUI's --accent and --muted to pale
+          surfaces, so labels and the indicator read brand / muted-foreground tokens. */}
+      <Tabs.ListContainer className="border-border/70">
+        <Tabs.List aria-label="Front-desk activity views" className="gap-6 px-4 sm:px-6">
+          {tabs.map((tab) => {
             const isAlert = tab.key === "overbookings" && tab.count > 0;
-            const showDue =
-              typeof tab.remaining === "number" &&
-              tab.remaining > 0 &&
-              tab.remaining !== tab.count;
-
             return (
-              <button
+              <Tabs.Tab
                 key={tab.key}
-                id={`activity-tab-${tab.key}`}
-                ref={(el) => {
-                  tabRefs.current[index] = el;
-                }}
-                type="button"
-                role="tab"
-                tabIndex={isActive ? 0 : -1}
-                aria-selected={isActive}
-                aria-controls={`activity-panel-${tab.key}`}
-                onClick={() => onTabChange(tab.key)}
-                className={cn(
-                  "ui-press inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap outline-none sm:min-h-10 sm:px-3",
-                  "focus-visible:ring-2 focus-visible:ring-ring",
-                  isActive
-                    ? "bg-card text-foreground shadow-[0_1px_3px_rgb(0_0_0/0.06)] ring-1 ring-border/70"
-                    : isAlert
-                      ? "bg-destructive/[0.06] text-destructive [@media(hover:hover)_and_(pointer:fine)]:hover:bg-destructive/10"
-                      : "text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-background/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
-                )}
+                id={tab.key}
+                className="group h-12 w-auto flex-none gap-2 px-0 text-sm font-medium text-muted-foreground data-[selected=true]:font-semibold data-[selected=true]:text-foreground"
               >
-                <span className={cn(!isActive && isZero && "opacity-55")}>{tab.label}</span>
-
+                {tab.label}
                 <span
                   className={cn(
-                    "inline-flex min-w-[1.25rem] items-center justify-center rounded-md px-2 py-1 font-mono text-2xs font-medium leading-none tabular-nums",
+                    "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-2 text-2xs font-semibold tabular-nums transition-colors duration-150",
                     isAlert
-                      ? "bg-destructive/15 text-destructive"
-                      : isActive
-                        ? "bg-primary/12 text-primary font-semibold"
-                        : isZero
-                          ? "text-muted-foreground/45"
-                          : "text-muted-foreground"
+                      ? "bg-destructive/10 text-destructive"
+                      : "bg-secondary text-muted-foreground group-data-[selected=true]:bg-primary/10 group-data-[selected=true]:text-primary"
                   )}
                 >
                   {tab.count}
                 </span>
-
-                {showDue && (
-                  <span
-                    aria-label={`${tab.remaining} pending`}
-                    className="inline-flex items-center rounded-md bg-amber-500/15 px-2 py-1 font-mono text-2xs font-semibold leading-none tabular-nums text-amber-700"
-                  >
-                    {tab.remaining} due
-                  </span>
-                )}
-              </button>
+                <Tabs.Indicator className="rounded-t-sm bg-primary" />
+              </Tabs.Tab>
             );
           })}
-        </div>
-      </ScrollShadow>
-    </div>
+        </Tabs.List>
+      </Tabs.ListContainer>
+
+      {tabs.map((tab) => (
+        <Tabs.Panel key={tab.key} id={tab.key} className="mt-0 p-0">
+          {tab.key === activeTab ? children : null}
+        </Tabs.Panel>
+      ))}
+    </Tabs>
   );
 }
 
-export function buildActivityTabs(data: {
-  arrivals: number;
-  uncheckedInArrivals: number;
-  departures: number;
-  pendingDepartures: number;
-  inHouse: number;
-  newBookings: number;
-  cancellations: number;
-  overbookings: number;
-}): ActivityTabData[] {
-  return [
-    {
-      key: "arrivals",
-      label: "Arrivals",
-      count: data.arrivals,
-      remaining: data.uncheckedInArrivals,
-    },
-    {
-      key: "departures",
-      label: "Departures",
-      count: data.departures,
-      remaining: data.pendingDepartures,
-    },
-    {
-      key: "in_house",
-      label: "In-house",
-      count: data.inHouse,
-    },
-    {
-      key: "bookings",
-      label: "Bookings",
-      count: data.newBookings,
-    },
-    {
-      key: "cancellations",
-      label: "Cancellations",
-      count: data.cancellations,
-    },
-    {
-      key: "overbookings",
-      label: "Overbookings",
-      count: data.overbookings,
-    },
+export function buildActivityTabs(
+  data: {
+    arrivals: number;
+    departures: number;
+    inHouse: number;
+    newBookings: number;
+    cancellations: number;
+    overbookings: number;
+  },
+  activeTab?: ActivityTab
+): ActivityTabData[] {
+  const tabs: ActivityTabData[] = [
+    { key: "arrivals", label: "Arrivals", count: data.arrivals },
+    { key: "departures", label: "Departures", count: data.departures },
+    { key: "in_house", label: "In-house", count: data.inHouse },
+    { key: "bookings", label: "New bookings", count: data.newBookings },
+    { key: "cancellations", label: "Cancellations", count: data.cancellations },
   ];
+  // Conflicts are exceptional: the tab only appears when there is something to resolve
+  // (or while the operator is still looking at it).
+  if (data.overbookings > 0 || activeTab === "overbookings") {
+    tabs.push({ key: "overbookings", label: "Conflicts", count: data.overbookings });
+  }
+  return tabs;
 }

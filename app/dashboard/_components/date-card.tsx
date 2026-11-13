@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { addDays, differenceInCalendarDays, format, startOfDay, subDays } from "date-fns";
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
-import { Button, Calendar, Popover } from "@heroui/react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button, ButtonGroup, Calendar, Popover } from "@heroui/react";
 import { CalendarDate } from "@internationalized/date";
 import { cn } from "@/lib/utils";
 
@@ -28,356 +28,141 @@ function relativeLabel(selected: Date, today: Date): string | null {
   return null;
 }
 
-interface DateControlProps {
+interface DateNavigatorProps {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
   /** Property-timezone business today (YYYY-MM-DD). */
   todayDateStr?: string;
+  /** Inclusive bounds (YYYY-MM-DD); stepping and the calendar stop here. */
+  minDateStr?: string;
+  maxDateStr?: string;
+  /** Disables every control (e.g. while a navigation is in flight). */
+  isDisabled?: boolean;
+  className?: string;
 }
 
 /**
- * Desktop & tablet date card: stretched calendar trigger + inline Today reset +
- * ±1-day tactile stepper. No nested interactive buttons.
+ * One business-date control for every viewport: step a day back or forward,
+ * or open the calendar from the centre segment. A "Today" shortcut appears
+ * only once the operator has moved away from the property's current day.
  */
-export function DateCard({ selectedDate, onDateChange, todayDateStr }: DateControlProps) {
-  const [calendarOpen, setCalendarOpen] = React.useState(false);
-  const todayDate = React.useMemo(() => parseLocalDate(todayDateStr), [todayDateStr]);
-  const isTodayDate =
-    startOfDay(selectedDate).getTime() === startOfDay(todayDate).getTime();
-  const calendarValue = toCalendarDate(selectedDate);
-  const relative = relativeLabel(selectedDate, todayDate);
-
-  const goToToday = React.useCallback(() => {
-    onDateChange(todayDate);
-    setCalendarOpen(false);
-  }, [onDateChange, todayDate]);
-
-  const goToPrevDay = React.useCallback(
-    () => onDateChange(subDays(selectedDate, 1)),
-    [selectedDate, onDateChange]
-  );
-  const goToNextDay = React.useCallback(
-    () => onDateChange(addDays(selectedDate, 1)),
-    [selectedDate, onDateChange]
-  );
-
-  return (
-    <div className="group relative flex h-full flex-col justify-between rounded-3xl border border-border/60 bg-card p-6 shadow-[0_1px_3px_rgb(0_0_0/0.04)] transition-[border-color,box-shadow] duration-150 [@media(hover:hover)_and_(pointer:fine)]:hover:border-border">
-      <Popover isOpen={calendarOpen} onOpenChange={setCalendarOpen}>
-        <Button
-          variant="ghost"
-          aria-label={`Change date, currently ${format(selectedDate, "EEEE, MMMM d, yyyy")}`}
-          className="absolute inset-0 h-full w-full min-w-0 cursor-pointer rounded-3xl bg-transparent p-0 shadow-none outline-none hover:bg-transparent focus-visible:ring-2 focus-visible:ring-ring"
-        />
-        <Popover.Content
-          placement="bottom start"
-          className="w-auto rounded-2xl border border-border/60 bg-popover p-0 shadow-xl"
-        >
-          <Popover.Dialog aria-label="Select business date" className="p-3 outline-none">
-            {!isTodayDate && (
-              <div className="mb-2 flex justify-end border-b border-border/50 pb-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onPress={goToToday}
-                  className="h-8 rounded-lg px-3 text-xs font-semibold text-primary"
-                >
-                  Jump to today
-                </Button>
-              </div>
-            )}
-            <Calendar
-              aria-label="Select business date"
-              value={calendarValue}
-              onChange={(date) => {
-                if (date) {
-                  onDateChange(fromCalendarDate(date as CalendarDate));
-                  setCalendarOpen(false);
-                }
-              }}
-            >
-              <Calendar.Header>
-                <Calendar.NavButton slot="previous" />
-                <Calendar.Heading />
-                <Calendar.NavButton slot="next" />
-              </Calendar.Header>
-              <Calendar.Grid>
-                <Calendar.GridHeader>
-                  {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
-                </Calendar.GridHeader>
-                <Calendar.GridBody>
-                  {(date) => <Calendar.Cell date={date} />}
-                </Calendar.GridBody>
-              </Calendar.Grid>
-            </Calendar>
-          </Popover.Dialog>
-        </Popover.Content>
-      </Popover>
-
-      {/* Non-interactive display layer so clicks pass through to Popover.Trigger */}
-      <div className="pointer-events-none relative z-10 flex flex-1 flex-col justify-between gap-4">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-muted-foreground">
-            {format(selectedDate, "EEEE")}
-          </span>
-
-          {isTodayDate ? (
-            <span className="inline-flex items-center gap-2 rounded-md bg-primary/10 px-2 py-1 text-2xs font-medium text-primary">
-              <span aria-hidden="true" className="size-2 rounded-full bg-primary" />
-              Today
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={goToToday}
-              className="ui-press pointer-events-auto inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-md border border-border/70 bg-secondary/70 px-2 py-1 text-2xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary"
-            >
-              <RotateCcw className="size-3 text-muted-foreground" aria-hidden="true" />
-              {relative ?? "Today"}
-            </button>
-          )}
-        </div>
-
-        <div className="flex items-baseline gap-3">
-          <span className="text-[2.625rem] font-semibold leading-none tracking-[-0.03em] tabular-nums text-foreground">
-            {format(selectedDate, "d")}
-          </span>
-          <span className="flex flex-col leading-tight">
-            <span className="text-md font-semibold text-foreground">
-              {format(selectedDate, "MMMM")}
-            </span>
-            <span className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
-              {format(selectedDate, "yyyy")}
-            </span>
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between gap-2 border-t border-border/40 pt-3">
-          <span className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground transition-colors duration-150 [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-primary">
-            <CalendarDays className="size-4" aria-hidden="true" />
-            Select date
-          </span>
-
-          {/* Day stepper: pointer-events re-enabled above trigger */}
-          <div className="pointer-events-auto inline-flex items-center rounded-xl border border-border/60 bg-background/80 p-1">
-            <button
-              type="button"
-              aria-label="Previous day"
-              onClick={goToPrevDay}
-              className="ui-press grid size-10 cursor-pointer place-items-center rounded-lg text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-            <div className="h-4 w-px bg-border/60" aria-hidden="true" />
-            <button
-              type="button"
-              aria-label="Next day"
-              onClick={goToNextDay}
-              className="ui-press grid size-10 cursor-pointer place-items-center rounded-lg text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
-            >
-              <ChevronRight className="size-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Phone week strip (<768px): 44px week chevrons, tappable month-picker popover
- * on the range label, 1-tap Today return pill, and 48px+ thumb-friendly day cells.
- */
-export function MobileWeekCalendar({
+export function DateNavigator({
   selectedDate,
   onDateChange,
   todayDateStr,
-}: DateControlProps) {
+  minDateStr,
+  maxDateStr,
+  isDisabled = false,
+  className,
+}: DateNavigatorProps) {
   const [calendarOpen, setCalendarOpen] = React.useState(false);
   const todayDate = React.useMemo(() => parseLocalDate(todayDateStr), [todayDateStr]);
-  const isTodaySelected =
-    startOfDay(selectedDate).getTime() === startOfDay(todayDate).getTime();
-  const calendarValue = toCalendarDate(selectedDate);
-
-  const weekDays = React.useMemo(() => {
-    const dayOfWeek = selectedDate.getDay();
-    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const monday = new Date(selectedDate);
-    monday.setDate(monday.getDate() + diff);
-
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      return d;
-    });
-  }, [selectedDate]);
-
-  const goToPrevWeek = React.useCallback(() => {
-    onDateChange(subDays(selectedDate, 7));
-  }, [selectedDate, onDateChange]);
-
-  const goToNextWeek = React.useCallback(() => {
-    onDateChange(addDays(selectedDate, 7));
-  }, [selectedDate, onDateChange]);
+  const isToday = startOfDay(selectedDate).getTime() === startOfDay(todayDate).getTime();
+  const relative = relativeLabel(selectedDate, todayDate);
+  const selectedStr = format(selectedDate, "yyyy-MM-dd");
+  const atMin = Boolean(minDateStr && selectedStr <= minDateStr);
+  const atMax = Boolean(maxDateStr && selectedStr >= maxDateStr);
+  const toCd = (value: string) => toCalendarDate(parseLocalDate(value));
 
   const goToToday = React.useCallback(() => {
     onDateChange(todayDate);
     setCalendarOpen(false);
   }, [onDateChange, todayDate]);
 
-  const sameMonth = weekDays[0].getMonth() === weekDays[6].getMonth();
-  const rangeLabel = sameMonth
-    ? `${format(weekDays[0], "MMM d")} – ${format(weekDays[6], "d, yyyy")}`
-    : `${format(weekDays[0], "MMM d")} – ${format(weekDays[6], "MMM d, yyyy")}`;
-
   return (
-    <section
-      aria-label="Date navigation"
-      className="rounded-3xl border border-border/60 bg-card p-2 shadow-[0_1px_3px_rgb(0_0_0/0.04)] md:hidden"
-    >
-      <div className="flex items-center justify-between gap-1 px-1 pb-1">
-        <button
-          type="button"
-          onClick={goToPrevWeek}
-          aria-label="Previous week"
-          className="ui-press grid size-11 shrink-0 cursor-pointer place-items-center rounded-xl text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring active:bg-muted/70"
+    <div className={cn("flex min-w-0 items-center gap-2", className)}>
+      <ButtonGroup variant="secondary" className="min-w-0 flex-1 sm:flex-initial">
+        <Button
+          isIconOnly
+          aria-label="Previous day"
+          isDisabled={isDisabled || atMin}
+          onPress={() => onDateChange(subDays(selectedDate, 1))}
+          className="text-muted-foreground max-md:size-11"
         >
           <ChevronLeft className="size-4" />
-        </button>
+        </Button>
 
-        <div className="flex min-w-0 items-center justify-center gap-2">
-          <Popover isOpen={calendarOpen} onOpenChange={setCalendarOpen}>
-            <Button
-              variant="ghost"
-              aria-label="Open calendar"
-              className="ui-press inline-flex min-h-11 min-w-0 cursor-pointer items-center gap-2 rounded-xl bg-transparent px-3 text-sm font-semibold text-foreground shadow-none outline-none focus-visible:ring-2 focus-visible:ring-ring active:bg-muted/60"
-            >
-              <CalendarDays className="size-4 shrink-0 text-primary" aria-hidden="true" />
-              <span className="truncate tabular-nums">{rangeLabel}</span>
-              <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            </Button>
-            <Popover.Content
-              placement="bottom"
-              className="w-auto rounded-2xl border border-border/60 bg-popover p-0 shadow-xl"
-            >
-              <Popover.Dialog aria-label="Select business date" className="p-3 outline-none">
-                {!isTodaySelected && (
-                  <div className="mb-2 flex justify-end border-b border-border/50 pb-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onPress={goToToday}
-                      className="h-10 rounded-lg px-3 text-xs font-semibold text-primary"
-                    >
-                      Jump to today
-                    </Button>
-                  </div>
-                )}
-                <Calendar
-                  aria-label="Select business date"
-                  value={calendarValue}
-                  onChange={(date) => {
-                    if (date) {
-                      onDateChange(fromCalendarDate(date as CalendarDate));
-                      setCalendarOpen(false);
-                    }
-                  }}
+        <Popover isOpen={calendarOpen} onOpenChange={setCalendarOpen}>
+          <Button
+            variant="secondary"
+            isDisabled={isDisabled}
+            aria-label={`Change date, currently ${format(selectedDate, "EEEE, MMMM d, yyyy")}`}
+            className="min-w-0 flex-1 gap-2 px-3 font-semibold tabular-nums max-md:h-11 sm:min-w-48"
+          >
+            <ButtonGroup.Separator />
+            <CalendarDays className="size-4 shrink-0 text-primary" aria-hidden="true" />
+            <span className="truncate">
+              {relative ? (
+                <>
+                  {relative}
+                  <span className="font-normal text-muted-foreground">
+                    {" "}
+                    · {format(selectedDate, "EEE, MMM d")}
+                  </span>
+                </>
+              ) : (
+                format(selectedDate, "EEE, MMM d, yyyy")
+              )}
+            </span>
+          </Button>
+          <Popover.Content placement="bottom" className="w-auto rounded-2xl p-0">
+            <Popover.Dialog aria-label="Select business date" className="p-3 outline-none">
+              <Calendar
+                aria-label="Select business date"
+                value={toCalendarDate(selectedDate)}
+                minValue={minDateStr ? toCd(minDateStr) : undefined}
+                maxValue={maxDateStr ? toCd(maxDateStr) : undefined}
+                onChange={(date) => {
+                  if (date) {
+                    onDateChange(fromCalendarDate(date as CalendarDate));
+                    setCalendarOpen(false);
+                  }
+                }}
+              >
+                <Calendar.Header>
+                  <Calendar.NavButton slot="previous" />
+                  <Calendar.Heading />
+                  <Calendar.NavButton slot="next" />
+                </Calendar.Header>
+                <Calendar.Grid>
+                  <Calendar.GridHeader>
+                    {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
+                  </Calendar.GridHeader>
+                  <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
+                </Calendar.Grid>
+              </Calendar>
+              {!isToday && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  fullWidth
+                  onPress={goToToday}
+                  className="mt-2 font-semibold text-primary"
                 >
-                  <Calendar.Header>
-                    <Calendar.NavButton slot="previous" />
-                    <Calendar.Heading />
-                    <Calendar.NavButton slot="next" />
-                  </Calendar.Header>
-                  <Calendar.Grid>
-                    <Calendar.GridHeader>
-                      {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
-                    </Calendar.GridHeader>
-                    <Calendar.GridBody>
-                      {(date) => <Calendar.Cell date={date} />}
-                    </Calendar.GridBody>
-                  </Calendar.Grid>
-                </Calendar>
-              </Popover.Dialog>
-            </Popover.Content>
-          </Popover>
+                  Jump to today
+                </Button>
+              )}
+            </Popover.Dialog>
+          </Popover.Content>
+        </Popover>
 
-          {!isTodaySelected && (
-            <button
-              type="button"
-              onClick={goToToday}
-              className="ui-press inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-xl bg-primary/10 px-3 text-xs font-semibold text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Today
-            </button>
-          )}
-        </div>
-
-        <button
-          type="button"
-          onClick={goToNextWeek}
-          aria-label="Next week"
-          className="ui-press grid size-11 shrink-0 cursor-pointer place-items-center rounded-xl text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring active:bg-muted/70"
+        <Button
+          isIconOnly
+          aria-label="Next day"
+          isDisabled={isDisabled || atMax}
+          onPress={() => onDateChange(addDays(selectedDate, 1))}
+          className="text-muted-foreground max-md:size-11"
         >
+          <ButtonGroup.Separator />
           <ChevronRight className="size-4" />
-        </button>
-      </div>
+        </Button>
+      </ButtonGroup>
 
-      <div className="grid grid-cols-7 gap-1 px-1 pb-1">
-        {weekDays.map((day) => {
-          const dayStart = startOfDay(day).getTime();
-          const isSel = dayStart === startOfDay(selectedDate).getTime();
-          const isTod = dayStart === startOfDay(todayDate).getTime();
-
-          return (
-            <button
-              key={day.toISOString()}
-              type="button"
-              onClick={() => onDateChange(day)}
-              aria-pressed={isSel}
-              aria-label={format(day, "EEEE, MMMM d, yyyy")}
-              className={cn(
-                "ui-press relative flex min-h-[52px] cursor-pointer flex-col items-center justify-center gap-1 rounded-xl py-2 outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                isSel
-                  ? "bg-primary text-primary-foreground shadow-2xs"
-                  : isTod
-                    ? "bg-primary/[0.07] text-primary ring-1 ring-inset ring-primary/25"
-                    : "text-muted-foreground active:bg-muted/70"
-              )}
-            >
-              <span
-                className={cn(
-                  "text-2xs font-medium",
-                  isSel
-                    ? "text-primary-foreground/80"
-                    : isTod
-                      ? "text-primary"
-                      : "text-muted-foreground"
-                )}
-              >
-                {format(day, "EEE")}
-              </span>
-              <span
-                className={cn(
-                  "text-md font-semibold leading-none tabular-nums",
-                  isSel
-                    ? "text-primary-foreground"
-                    : isTod
-                      ? "text-primary"
-                      : "text-foreground"
-                )}
-              >
-                {format(day, "d")}
-              </span>
-              {isTod && !isSel && (
-                <span
-                  aria-hidden="true"
-                  className="absolute bottom-1 size-1 rounded-full bg-primary"
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </section>
+      {!isToday && (
+        <Button variant="ghost" onPress={goToToday} isDisabled={isDisabled} className="shrink-0 font-semibold text-primary max-md:h-11">
+          Today
+        </Button>
+      )}
+    </div>
   );
 }

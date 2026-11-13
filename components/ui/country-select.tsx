@@ -51,7 +51,7 @@ export function CountrySelect({
       value={value || null}
       onChange={(key) => onChange(String(key ?? ""))}
     >
-      <Autocomplete.Trigger className="min-h-11 rounded-xl border border-border/60 bg-background px-3 text-sm shadow-none transition-colors hover:border-border data-[focus-visible=true]:border-ring">
+      <Autocomplete.Trigger className="min-h-11 sm:min-h-10">
         <Autocomplete.Value>
           {({ defaultChildren, isPlaceholder }) =>
             !isPlaceholder && selected ? (

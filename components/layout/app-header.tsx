@@ -2,10 +2,10 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { Plus, Menu } from "lucide-react";
-import { Avatar, Button } from "@heroui/react";
+import { Avatar, Button, Separator } from "@heroui/react";
 import { NotificationCenter } from "@/components/notifications/notification-center";
 import { DashboardSearch } from "@/app/dashboard/_components/dashboard-search";
 import type { GuestSearchResult } from "@/app/actions/customers";
@@ -27,6 +27,9 @@ export interface AppHeaderProps {
   bookingUrl?: string;
 }
 
+const ICON_BUTTON =
+  "size-11 min-w-11 shrink-0 rounded-lg text-muted-foreground md:size-8 md:min-w-8 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground";
+
 export function AppHeader({
   hotelId,
   staffId,
@@ -35,7 +38,6 @@ export function AppHeader({
   currency = "GHS",
   bookingUrl: _bookingUrl,
 }: AppHeaderProps) {
-  const router = useRouter();
   const { user, isLoaded } = useUser();
   const { openUserProfile } = useClerk();
   const { toggleSidebar } = useSidebar();
@@ -61,57 +63,58 @@ export function AppHeader({
     return () => window.removeEventListener("roomline:new-booking", open);
   }, []);
 
+  const initials = user ? (user.firstName?.[0] ?? "U") + (user.lastName?.[0] ?? "") : "";
+
   return (
     <>
       <header
         data-slot="app-header"
         className={cn(
-          "fixed left-0 right-0 top-0 z-30 flex items-center justify-between gap-2",
-          "h-14 border-b border-border/60 bg-background/85 backdrop-blur-xl supports-backdrop-filter:bg-background/70",
-          "px-3 md:px-4 lg:px-6"
+          "fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-2 px-2 sm:gap-4 sm:px-4 lg:px-6",
+          "border-b border-border/50 bg-background/80 backdrop-blur-xl supports-backdrop-filter:bg-background/70"
         )}
       >
-        {/* Left */}
-        <div className="flex min-w-0 items-center gap-2">
+        {/* Left: menu + brand */}
+        <div className="flex min-w-0 items-center gap-1 sm:gap-2">
           <Button
             variant="ghost"
             size="sm"
             isIconOnly
             onPress={toggleSidebar}
             aria-label="Toggle sidebar"
-            className="size-11 min-w-11 shrink-0 rounded-lg text-muted-foreground transition-[transform,background-color,color] duration-150 ease-[var(--ease-out-ui)] active:scale-[0.97] sm:size-8 sm:min-w-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+            className={ICON_BUTTON}
           >
             <Menu className="size-5" />
           </Button>
 
-          <button
-            type="button"
-            onClick={() => router.push("/dashboard/settings/hotel")}
-            title="Hotel settings"
-            className="group flex min-h-11 min-w-0 cursor-pointer items-center gap-2 rounded-lg px-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-0 sm:p-1"
+          <Link
+            href="/dashboard"
+            aria-label="RoomLine front desk"
+            className="ui-press flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-1 md:min-h-10 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             <RoomLineMark size={24} />
-            <span className="truncate text-lg font-bold tracking-tight text-foreground transition-colors [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-foreground/80">
+            <span className="truncate text-md font-bold tracking-tight text-foreground">
               RoomLine
             </span>
-          </button>
+          </Link>
         </div>
 
-        {/* Center: inline global search (desktop field + mobile icon) */}
-        <div className="flex flex-1 items-center justify-end md:mx-auto md:max-w-lg md:justify-center">
+        {/* Centre: global search (field on md+, icon on phones) */}
+        <div className="flex flex-1 items-center justify-end md:justify-center">
           <DashboardSearch onNewBooking={openNewBooking} />
         </div>
 
-        {/* Right: actions */}
-        <div className="flex shrink-0 items-center gap-2">
+        {/* Right: primary action, notifications, account */}
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           <Button
             variant="primary"
             size="sm"
             onPress={openNewBooking}
             aria-label="New booking"
-            className="ui-press inline-flex size-11 min-w-11 gap-2 rounded-lg text-xs sm:h-8 sm:w-auto sm:min-w-8"
+            className="min-w-10 gap-2 rounded-lg px-0 text-sm font-semibold max-sm:size-11 sm:px-3"
           >
-            <Plus className="size-4 sm:size-3.5" />
+            <Plus className="size-4" aria-hidden="true" />
+            <span className="hidden sm:inline">New booking</span>
           </Button>
 
           <NotificationCenter
@@ -120,26 +123,23 @@ export function AppHeader({
             initialUnreadCount={notificationCount}
           />
 
-          {/* User avatar — opens Clerk's UserProfile modal */}
           {isLoaded && user && (
-            <div className="hidden md:block">
-              <button
-                type="button"
+            <>
+              <Separator orientation="vertical" className="mx-1 hidden h-4 self-center md:block" />
+              <Button
+                variant="ghost"
+                size="sm"
+                isIconOnly
                 aria-label="Open user profile"
-                onClick={() => openUserProfile()}
-                className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent shadow-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
+                onPress={() => openUserProfile()}
+                className={cn(ICON_BUTTON, "hidden md:inline-flex")}
               >
-                <Avatar size="sm" className="size-6 rounded-md">
-                  <Avatar.Image
-                    src={user.imageUrl}
-                    alt={user.fullName || "User"}
-                  />
-                  <Avatar.Fallback className="rounded-md bg-foreground/10 text-2xs font-medium">
-                    {(user.firstName?.[0] ?? "U") + (user.lastName?.[0] ?? "")}
-                  </Avatar.Fallback>
+                <Avatar size="sm" className="size-6 rounded-full">
+                  {user.imageUrl && <Avatar.Image src={user.imageUrl} alt="" />}
+                  <Avatar.Fallback className="text-2xs font-semibold">{initials}</Avatar.Fallback>
                 </Avatar>
-              </button>
-            </div>
+              </Button>
+            </>
           )}
         </div>
       </header>

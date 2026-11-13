@@ -51,7 +51,6 @@ yarn-error.log*
 .opencode
 .codex
 .fallow
-.heroui-docs
 .kiro
 
 # vercel
@@ -72,11 +71,8 @@ dev-output.log
 supabase/.temp/
 .tmp/
 
-# heroui-agents-md
-
-# local tool caches (graphify knowledge graph, heroui docs)
+# local tool caches (graphify knowledge graph)
 graphify-out/
-.heroui-docs/
 .freebuff/
 .commandcode/
 

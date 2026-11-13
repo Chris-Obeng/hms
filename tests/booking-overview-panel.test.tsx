@@ -93,6 +93,11 @@ function booking(lines: GroupLineItem[]): FullBookingDetail {
   };
 }
 
+/** Room lifecycle controls only; the "More details" disclosure trigger is not one. */
+function lifecycleButtons() {
+  return screen.queryAllByRole("button").filter((b) => b.textContent !== "More details");
+}
+
 function setup(lines: GroupLineItem[], onBulkAction = vi.fn()) {
   render(<BookingOverviewPanel booking={booking(lines)} actionLoading={null} onBulkAction={onBulkAction} />);
   return { onBulkAction };
@@ -107,13 +112,13 @@ describe("BookingOverviewPanel — per-room lifecycle buttons", () => {
     expect(screen.getByText("Middle-Room")).toBeDefined();
     expect(screen.getByText("Premium Room")).toBeDefined();
 
-    const buttons = screen.getAllByRole("button").map((b) => b.textContent);
+    const buttons = lifecycleButtons().map((b) => b.textContent);
     expect(buttons).toEqual(["Check out"]);
   });
 
   it("renders no controls at all without a bulk handler", () => {
     render(<BookingOverviewPanel booking={booking([line({}), sibling({})])} />);
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    expect(lifecycleButtons()).toHaveLength(0);
   });
 });
 
@@ -157,6 +162,6 @@ describe("BookingOverviewPanel — one button per eligible room", () => {
 
   it("hides the buttons when no room can move", () => {
     setup([line({ status: "checked_out" }), sibling({ status: "cancelled" })]);
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    expect(lifecycleButtons()).toHaveLength(0);
   });
 });

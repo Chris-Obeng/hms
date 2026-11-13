@@ -4,6 +4,7 @@ import * as React from "react";
 import { useQueries } from "@tanstack/react-query";
 import { toast, Modal, Button } from "@heroui/react";
 import { CalendarDate } from "@internationalized/date";
+import { X } from "lucide-react";
 
 import { BookingStepper, type WizardStep } from "@/components/bookings/booking-stepper";
 import { DatesStep } from "@/components/bookings/steps/dates-step";
@@ -16,6 +17,8 @@ import { type GuestSearchResult } from "@/app/actions/customers";
 import { getResolvedRatesForBooking } from "@/app/actions/pricing";
 import { createBooking, createBookingGroup, type NewBookingInput } from "@/app/actions/bookings";
 import { fromMinor, sumMinor, toMinor } from "@/lib/money";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 interface NewBookingModalProps {
   open: boolean;
@@ -34,7 +37,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_ROOM_TYPES = 4;
 
 /** Wizard step order — index + 1 is the step number, used for the a11y announce. */
-const STEP_TITLES = ["Dates", "Availability", "Summary"] as const;
+const STEP_TITLES = ["Dates", "Rooms", "Guest"] as const;
 
 function cdToStr(cd: CalendarDate): string {
   return `${cd.year}-${String(cd.month).padStart(2, "0")}-${String(cd.day).padStart(2, "0")}`;
@@ -419,90 +422,137 @@ export function NewBookingModal({
     if (canReach(next)) setStep(next);
   }
 
-  const primaryLabel = effectiveStep === 3 ? (loading ? "Creating…" : cartLines.length > 1 || totalRooms > 1 ? `Create reservation · ${totalRooms} rooms` : "Create reservation") : "Continue";
+  const primaryLabel = effectiveStep === 3 ? "Create booking" : "Continue";
   const primaryDisabled = effectiveStep === 1 ? !canReachStep2 : effectiveStep === 2 ? !canReachStep3 : !canSubmit;
+
+  // Footer context: what has been chosen so far, so the steps need no summaries of their own.
+  const stayLabel =
+    checkIn && checkOut && nights > 0
+      ? `${formatStayRange(checkIn, checkOut)} · ${nights} ${nights === 1 ? "night" : "nights"}`
+      : null;
+  const footerContext =
+    effectiveStep === 1
+      ? stayLabel
+        ? { label: "Stay", value: stayLabel }
+        : null
+      : totalRooms > 0
+        ? {
+            label: effectiveStep === 3 ? "Total" : `${totalRooms} ${totalRooms === 1 ? "room" : "rooms"} · ${nights} ${nights === 1 ? "night" : "nights"}`,
+            value: formatCurrency(grand.totalAmount, currency),
+          }
+        : stayLabel
+          ? { label: "Stay", value: stayLabel }
+          : null;
 
   return (
     <Modal.Backdrop isOpen={open} onOpenChange={handleClose} variant="opaque" isDismissable={!loading}>
-      <Modal.Container
-        placement="top"
-        size="lg"
-        scroll="inside"
-        className="items-start p-0 sm:items-center sm:p-4"
-      >
-        <Modal.Dialog className="reservation-modal flex h-[var(--reservation-vvh,100dvh)] max-h-[var(--reservation-vvh,100dvh)] w-full flex-col overflow-hidden rounded-none sm:h-auto sm:max-h-[96dvh] sm:w-full sm:max-w-4xl sm:rounded-2xl">
-          <Modal.CloseTrigger className="absolute right-4 top-4 inline-flex size-8 items-center justify-center rounded-full border border-border/60 bg-muted/80 text-foreground/80 shadow-xs transition-all hover:scale-105 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95" />
-          <Modal.Header className="flex shrink-0 flex-col gap-2 border-b border-border/60 px-4 py-2 pr-12 sm:px-6 sm:pr-14">
-            <div className="min-w-0">
-              <Modal.Heading className="text-base font-semibold text-foreground">New reservation</Modal.Heading>
-              {totalRooms > 0 && <p className="text-xs text-muted-foreground">{totalRooms} room{totalRooms !== 1 ? "s" : ""} · {cartLines.length} type{cartLines.length !== 1 ? "s" : ""}</p>}
+      <Modal.Container placement="center" size="lg" scroll="inside" className="p-0 sm:p-4">
+        <Modal.Dialog
+          className="reservation-modal flex h-[var(--reservation-vvh,100dvh)] max-h-[var(--reservation-vvh,100dvh)] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none p-0 sm:h-[min(44rem,calc(100dvh-2rem))] sm:max-h-none sm:max-w-4xl sm:rounded-3xl"
+        >
+          <Modal.Header className="flex shrink-0 flex-col items-stretch gap-4 border-b border-border/60 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 sm:pt-6">
+            <div className="flex items-center justify-between gap-3">
+              <Modal.Heading className="text-lg font-semibold tracking-tight text-foreground">
+                New booking
+              </Modal.Heading>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                aria-label="Close"
+                isDisabled={loading}
+                onPress={() => handleClose(false)}
+                className="-mr-2 rounded-full text-muted-foreground"
+              >
+                <X className="size-4" />
+              </Button>
             </div>
             <BookingStepper current={effectiveStep} canReach={canReach} onStepChange={handleStepChange} />
           </Modal.Header>
 
-          <Modal.Body className="native-scroll flex-1 overflow-y-auto px-4 py-3 sm:px-6 sm:py-4">
+          <Modal.Body className="native-scroll m-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
             <div aria-live="polite" role="status" className="sr-only">
               {`Step ${effectiveStep} of ${STEP_TITLES.length}: ${STEP_TITLES[effectiveStep - 1]}`}
             </div>
-            <div ref={stepRef} tabIndex={-1} className="outline-none">
-            {effectiveStep === 1 && (
-              <DatesStep value={effectiveRange} onChange={handleRangeChange} nights={nights} error={errors.checkIn} />
-            )}
+            <div
+              key={effectiveStep}
+              ref={stepRef}
+              tabIndex={-1}
+              className="h-full outline-none animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-[var(--ease-out-ui)] motion-reduce:animate-none"
+            >
+              {effectiveStep === 1 && (
+                <DatesStep value={effectiveRange} onChange={handleRangeChange} nights={nights} error={errors.checkIn} />
+              )}
 
-            {effectiveStep === 2 && (
-              <AvailabilityStep
-                checkIn={checkIn}
-                checkOut={checkOut}
-                currency={currency}
-                nights={nights}
-                cartLines={cartLines}
-                onAddLine={handleAddLine}
-                onRemoveLine={handleRemoveLine}
-                onUpdateLine={handleUpdateLine}
-                onSyncCart={handleSyncCart}
-                prefillRoomTypeId={prefillRoomTypeId}
-              />
-            )}
+              {effectiveStep === 2 && (
+                <AvailabilityStep
+                  checkIn={checkIn}
+                  checkOut={checkOut}
+                  currency={currency}
+                  nights={nights}
+                  cartLines={cartLines}
+                  onAddLine={handleAddLine}
+                  onRemoveLine={handleRemoveLine}
+                  onUpdateLine={handleUpdateLine}
+                  onSyncCart={handleSyncCart}
+                  prefillRoomTypeId={prefillRoomTypeId}
+                />
+              )}
 
-            {effectiveStep === 3 && checkIn && checkOut && cartLines.length > 0 && (
-              <SummaryStep
-                cartLines={cartLines}
-                linePricings={linePricings}
-                grand={grand}
-                checkIn={checkIn}
-                checkOut={checkOut}
-                nights={nights}
-                currency={currency}
-                guestId={guestId}
-                guestName={guestName}
-                guestEmail={guestEmail}
-                guestPhone={guestPhone}
-                nationality={nationality}
-                onGuestNameChange={setGuestName}
-                onGuestEmailChange={setGuestEmail}
-                onGuestPhoneChange={setGuestPhone}
-                onNationalityChange={handleNationalityChange}
-                onSelectGuest={handleSelectGuest}
-                onClearGuest={handleClearGuest}
-                source={source}
-                onSourceChange={setSource}
-                paymentPreference={paymentPreference}
-                onPaymentPreferenceChange={setPaymentPreference}
-                estimatedArrival={estimatedArrival}
-                onEstimatedArrivalChange={setEstimatedArrival}
-                specialRequests={specialRequests}
-                onSpecialRequestsChange={setSpecialRequests}
-                internalNotes={internalNotes}
-                onInternalNotesChange={setInternalNotes}
-                countryDialCode={countryDialCode}
-                errors={errors}
-              />
-            )}
+              {effectiveStep === 3 && checkIn && checkOut && cartLines.length > 0 && (
+                <SummaryStep
+                  cartLines={cartLines}
+                  linePricings={linePricings}
+                  grand={grand}
+                  checkIn={checkIn}
+                  checkOut={checkOut}
+                  nights={nights}
+                  currency={currency}
+                  guestId={guestId}
+                  guestName={guestName}
+                  guestEmail={guestEmail}
+                  guestPhone={guestPhone}
+                  nationality={nationality}
+                  onGuestNameChange={setGuestName}
+                  onGuestEmailChange={setGuestEmail}
+                  onGuestPhoneChange={setGuestPhone}
+                  onNationalityChange={handleNationalityChange}
+                  onSelectGuest={handleSelectGuest}
+                  onClearGuest={handleClearGuest}
+                  source={source}
+                  onSourceChange={setSource}
+                  paymentPreference={paymentPreference}
+                  onPaymentPreferenceChange={setPaymentPreference}
+                  estimatedArrival={estimatedArrival}
+                  onEstimatedArrivalChange={setEstimatedArrival}
+                  specialRequests={specialRequests}
+                  onSpecialRequestsChange={setSpecialRequests}
+                  internalNotes={internalNotes}
+                  onInternalNotesChange={setInternalNotes}
+                  countryDialCode={countryDialCode}
+                  errors={errors}
+                />
+              )}
             </div>
           </Modal.Body>
 
-          <Modal.Footer className="flex shrink-0 items-center justify-between gap-2 border-t border-border/60 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-6">
-            <div>
+          <Modal.Footer className="m-0 flex shrink-0 items-center justify-between gap-3 border-t border-border/60 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
+            <div className="min-w-0" aria-live="polite">
+              {footerContext && (
+                <>
+                  <p className="truncate text-xs text-muted-foreground">{footerContext.label}</p>
+                  <p
+                    className={cn(
+                      "truncate text-sm font-semibold tabular-nums text-foreground transition-opacity duration-150",
+                      effectiveStep > 1 && grand.loading && "opacity-50"
+                    )}
+                  >
+                    {footerContext.value}
+                  </p>
+                </>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
               {effectiveStep > 1 && (
                 <Button
                   variant="tertiary"
@@ -511,25 +561,17 @@ export function NewBookingModal({
                     setStep((effectiveStep - 1) as WizardStep);
                   }}
                   isDisabled={loading}
+                  className="rounded-xl"
                 >
                   Back
                 </Button>
               )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                className="hidden sm:inline-flex"
-                onPress={() => handleClose(false)}
-                isDisabled={loading}
-              >
-                Cancel
-              </Button>
               <Button
                 variant="primary"
                 onPress={handlePrimary}
                 isDisabled={primaryDisabled}
                 isPending={loading}
+                className="min-w-28 rounded-xl font-semibold"
               >
                 {primaryLabel}
               </Button>
@@ -539,4 +581,11 @@ export function NewBookingModal({
       </Modal.Container>
     </Modal.Backdrop>
   );
+}
+
+function formatStayRange(checkIn: string, checkOut: string): string {
+  const sameMonth = checkIn.slice(0, 7) === checkOut.slice(0, 7);
+  return sameMonth
+    ? `${formatDate(checkIn, "d")}–${formatDate(checkOut, "d MMM")}`
+    : `${formatDate(checkIn, "d MMM")} – ${formatDate(checkOut, "d MMM")}`;
 }

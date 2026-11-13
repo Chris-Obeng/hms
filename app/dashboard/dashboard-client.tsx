@@ -2,13 +2,13 @@
 
 import * as React from "react";
 import { addDays, format } from "date-fns";
-import { AlertDialog, Button, Skeleton, toast } from "@heroui/react";
+import { Alert, AlertDialog, Button, Card, Skeleton, toast } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
-import { CalendarClock, Plus } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 import PullToRefresh from "react-simple-pull-to-refresh";
 
-import { DateCard, MobileWeekCalendar } from "./_components/date-card";
+import { DateNavigator } from "./_components/date-card";
 import { OccupancyCard } from "./_components/occupancy-card";
 import { ActivityTabs, buildActivityTabs, type ActivityTab } from "./_components/activity-tabs";
 import { ActivityList, type ActivityBooking } from "./_components/activity-list";
@@ -515,7 +515,7 @@ export function DashboardClient({
   });
 
   const stats = data ? data.stats : defaultEmptyStats;
-  const tabs = buildActivityTabs(stats);
+  const tabs = buildActivityTabs(stats, activeTab);
   const activePendingCount =
     activeTab === "arrivals"
       ? stats.uncheckedInArrivals
@@ -577,9 +577,9 @@ export function DashboardClient({
   if (error && !data) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
-        <h2 className="text-lg font-semibold text-foreground">Failed to load dashboard</h2>
+        <h2 className="text-lg font-semibold text-foreground">Couldn&apos;t load the front desk</h2>
         <p className="mt-1 max-w-sm text-sm text-muted-foreground">{error}</p>
-        <Button variant="outline" size="sm" className="mt-4" onPress={() => refetch()}>
+        <Button variant="secondary" className="mt-4 rounded-xl" onPress={() => refetch()}>
           Try again
         </Button>
       </div>
@@ -587,6 +587,9 @@ export function DashboardClient({
   }
 
   if (!data) return null;
+
+  const earlyBooking = earlyCheckinBooking ?? earlyCheckoutBooking;
+  const isEarlyCheckin = earlyCheckinBooking !== null;
 
   return (
     <PullToRefresh
@@ -610,90 +613,44 @@ export function DashboardClient({
       <div
         aria-busy={isDateSwitching}
         className={cn(
-          "mx-auto w-full max-w-[1440px] space-y-4 pt-1 transition-opacity duration-150 md:space-y-6",
-          isDateSwitching && "opacity-65"
+          "mx-auto w-full max-w-7xl space-y-6 pt-6 transition-opacity duration-150 md:pt-8",
+          isDateSwitching && "opacity-60"
         )}
       >
-        {/* Compact page header — wayfinding + explicit New booking CTA */}
-        <header className="flex items-center justify-between gap-3">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <h1 className="truncate text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-2xl">
+            <p className="truncate text-xs font-medium text-muted-foreground">{hotelName}</p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-[-0.02em] text-foreground">
               Front desk
             </h1>
-            <p className="mt-1 truncate text-xs text-muted-foreground sm:text-sm">
-              {hotelName}
-              {dateParamStr !== propertyTodayStr && (
-                <span> · Viewing {formatDate(dateParamStr, "EEE, MMM d, yyyy")}</span>
-              )}
-            </p>
           </div>
-
-          <Button
-            variant="primary"
-            size="sm"
-            onPress={openNewBookingModal}
-            className="ui-press inline-flex h-11 shrink-0 gap-2 rounded-xl px-4 text-xs font-semibold shadow-2xs sm:h-10"
-          >
-            <Plus className="size-4" aria-hidden="true" />
-            New booking
-          </Button>
+          <DateNavigator
+            selectedDate={selectedDate}
+            onDateChange={handleDateChange}
+            todayDateStr={propertyTodayStr}
+          />
         </header>
 
-        {/* Phone week strip (<768px) */}
-        <MobileWeekCalendar
-          selectedDate={selectedDate}
-          onDateChange={handleDateChange}
-          todayDateStr={propertyTodayStr}
-        />
-
         {error && (
-          <div
-            role="alert"
-            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-card px-4 py-3 text-xs sm:text-sm"
-          >
-            <p className="text-foreground">
-              Dashboard refresh failed. Displayed figures may be out of date.
-            </p>
-            <Button variant="outline" size="sm" className="min-h-10" onPress={() => refetch()}>
+          <Alert status="warning" className="rounded-2xl">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>Refresh failed</Alert.Title>
+              <Alert.Description>Figures may be out of date.</Alert.Description>
+            </Alert.Content>
+            <Button size="sm" variant="secondary" className="rounded-xl" onPress={() => refetch()}>
               Try again
             </Button>
-          </div>
+          </Alert>
         )}
 
-        {/*
-         * Responsive workspace grid (one DOM tree, zero duplication):
-         * - Mobile (<768px): Activity first (order-1), compact Rooms Sold below (order-2)
-         * - Tablet (768px–1023px): [DateCard | Rooms Sold] side-by-side top row (md:order-1),
-         *   full-width Activity below (md:order-2)
-         * - Desktop (≥1024px): Left rail [DateCard + Rooms Sold] 312px (md:order-1),
-         *   Activity main workspace on right (md:order-2)
-         */}
-        <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-[312px_minmax(0,1fr)] lg:gap-6">
-          <div className="order-2 flex flex-col gap-4 md:order-1 md:grid md:grid-cols-[260px_minmax(0,1fr)] md:items-stretch md:gap-6 lg:flex lg:flex-col lg:gap-6">
-            <div className="hidden md:block">
-              <DateCard
-                selectedDate={selectedDate}
-                onDateChange={handleDateChange}
-                todayDateStr={propertyTodayStr}
-              />
-            </div>
-
-            <div className="min-w-0">
-              <OccupancyCard metric={data.occupancy} isDateSwitching={isDateSwitching} />
-            </div>
-          </div>
-
-          <section
+        <div className="grid grid-cols-1 items-start gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+          <Card
+            role="region"
             aria-label="Front-desk activity"
-            className="order-1 min-w-0 overflow-hidden rounded-3xl border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)] md:order-2"
+            className="min-w-0 gap-0 overflow-hidden rounded-3xl border border-border/60 p-0 shadow-[0_1px_2px_rgb(15_23_42/0.04)]"
           >
-            <ActivityTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
-
-            <div
-              id={`activity-panel-${activeTab}`}
-              role="tabpanel"
-              aria-labelledby={`activity-tab-${activeTab}`}
-            >
+            <ActivityTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
               <ActivityList
                 bookings={filteredBookings}
                 activeTab={activeTab}
@@ -720,11 +677,14 @@ export function DashboardClient({
                 onViewDetails={handleViewDetails}
                 onTakePayment={handleTakePayment}
               />
-            </div>
-          </section>
+            </ActivityTabs>
+          </Card>
+
+          <aside className="min-w-0 xl:sticky xl:top-20">
+            <OccupancyCard metric={data.occupancy} isDateSwitching={isDateSwitching} />
+          </aside>
         </div>
 
-        {/* Booking Detail Drawer */}
         <BookingDetailDrawer
           bookingId={selectedBookingId}
           open={detailOpen}
@@ -737,69 +697,64 @@ export function DashboardClient({
           onBookingChanged={handleBookingChanged}
         />
 
-        {/* Early Check-In / Early Check-Out Confirmation */}
+        {/* Early check-in / early check-out confirmation */}
         <AlertDialog.Backdrop
-          variant="blur"
-          isOpen={earlyCheckoutBooking !== null || earlyCheckinBooking !== null}
+          isOpen={earlyBooking !== null}
           onOpenChange={(isOpen) => {
             if (!isOpen) closeEarlyConfirmation();
           }}
         >
           <AlertDialog.Container placement="center" size="sm">
-            <AlertDialog.Dialog className="rounded-3xl border border-border/60 bg-card px-6 pb-6 pt-8 shadow-2xl outline-none sm:max-w-[400px] sm:px-8 sm:pb-8 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none">
-              <AlertDialog.Header className="flex flex-col items-center gap-4 pb-0 text-center">
+            <AlertDialog.Dialog className="rounded-3xl sm:max-w-[400px]">
+              <AlertDialog.Header className="items-center text-center">
                 <span
+                  aria-hidden="true"
                   className={cn(
-                    "grid size-14 place-items-center rounded-2xl border shadow-xs",
-                    earlyCheckinBooking
-                      ? "border-primary/15 bg-primary/10 text-primary"
-                      : "border-amber-700/15 bg-amber-700/10 text-amber-700"
+                    "grid size-12 place-items-center rounded-2xl",
+                    isEarlyCheckin ? "bg-primary/10 text-primary" : "bg-amber-500/12 text-amber-700"
                   )}
-                  aria-hidden
                 >
-                  <CalendarClock className="size-[24px]" />
+                  <CalendarClock className="size-5" />
                 </span>
-                <AlertDialog.Heading className="text-balance text-center text-lg font-semibold leading-tight tracking-tight text-foreground">
-                  {earlyCheckinBooking ? "Check in early?" : "Check out early?"}
+                <AlertDialog.Heading className="text-lg font-semibold text-foreground">
+                  {isEarlyCheckin ? "Check in early?" : "Check out early?"}
                 </AlertDialog.Heading>
               </AlertDialog.Header>
-              <AlertDialog.Body className="px-1 pb-0 pt-3 text-center">
-                <p className="text-balance text-sm leading-relaxed text-muted-foreground">
-                  {earlyCheckinBooking?.guestName || earlyCheckoutBooking?.guestName} is scheduled
-                  for{" "}
+              <AlertDialog.Body className="text-center">
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {earlyBooking?.guestName} is due {isEarlyCheckin ? "to arrive" : "to leave"} on{" "}
                   <span className="font-semibold tabular-nums text-foreground">
-                    {earlyCheckinBooking
-                      ? formatDate(earlyCheckinBooking.checkIn, "dd MMM yyyy")
-                      : earlyCheckoutBooking
-                        ? formatDate(earlyCheckoutBooking.checkOut, "dd MMM yyyy")
-                        : ""}
+                    {earlyBooking
+                      ? formatDate(
+                          isEarlyCheckin ? earlyBooking.checkIn : earlyBooking.checkOut,
+                          "EEE, d MMM"
+                        )
+                      : ""}
                   </span>
                   .{" "}
-                  {earlyCheckinBooking
-                    ? "This assigns the room before the scheduled arrival."
-                    : "This releases the room before the scheduled departure."}
+                  {isEarlyCheckin
+                    ? "The room is assigned before the scheduled arrival."
+                    : "The room is released before the scheduled departure."}
                 </p>
               </AlertDialog.Body>
-              <AlertDialog.Footer className="flex w-full flex-col gap-3 pt-6">
-                <Button
-                  autoFocus={!!earlyCheckinBooking}
-                  onPress={earlyCheckinBooking ? confirmEarlyCheckin : confirmEarlyCheckout}
-                  className={cn(
-                    "ui-press h-12 w-full rounded-full text-md font-semibold text-white shadow-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                    earlyCheckinBooking
-                      ? "bg-primary [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
-                      : "bg-amber-700 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-amber-800"
-                  )}
-                >
-                  {earlyCheckinBooking ? "Check In Early" : "Check Out Early"}
-                </Button>
+              <AlertDialog.Footer className="flex-col-reverse gap-2 sm:flex-row">
                 <Button
                   slot="close"
                   variant="tertiary"
+                  fullWidth
                   onPress={closeEarlyConfirmation}
-                  className="ui-press h-12 w-full rounded-full border border-border/70 bg-background text-md font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
+                  className="rounded-xl"
                 >
                   Cancel
+                </Button>
+                <Button
+                  autoFocus={isEarlyCheckin}
+                  fullWidth
+                  variant="primary"
+                  onPress={isEarlyCheckin ? confirmEarlyCheckin : confirmEarlyCheckout}
+                  className="rounded-xl font-semibold"
+                >
+                  {isEarlyCheckin ? "Check in early" : "Check out early"}
                 </Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>
@@ -812,46 +767,42 @@ export function DashboardClient({
 
 export function DashboardSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-[1440px] space-y-4 pt-1 md:space-y-6">
-      <div className="flex items-center justify-between gap-3">
+    <div className="mx-auto w-full max-w-7xl space-y-6 pt-6 md:pt-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2">
-          <Skeleton className="h-8 w-36 rounded-lg" />
-          <Skeleton className="h-4 w-48 rounded-md" />
+          <Skeleton className="h-4 w-32 rounded-md" />
+          <Skeleton className="h-8 w-40 rounded-lg" />
         </div>
-        <Skeleton className="h-11 w-32 shrink-0 rounded-xl sm:h-10" />
+        <Skeleton className="h-10 w-full rounded-xl sm:w-72" />
       </div>
 
-      {/* Mobile week strip skeleton */}
-      <Skeleton className="h-[108px] w-full rounded-3xl md:hidden" />
-
-      <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-[312px_minmax(0,1fr)] lg:gap-6">
-        <div className="order-2 flex flex-col gap-4 md:order-1 md:grid md:grid-cols-[260px_minmax(0,1fr)] md:gap-6 lg:flex lg:flex-col lg:gap-6">
-          <Skeleton className="hidden h-[176px] w-full rounded-3xl md:block" />
-          <div className="space-y-4 rounded-3xl border border-border/60 bg-card p-6">
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24 rounded-md" />
-              <Skeleton className="h-4 w-36 rounded-md" />
-            </div>
-            <Skeleton className="mx-auto aspect-square w-[124px] rounded-full lg:w-[172px]" />
-            <div className="space-y-3">
-              <Skeleton className="h-4 w-full rounded-md" />
-              <Skeleton className="h-4 w-full rounded-md" />
-              <Skeleton className="h-4 w-full rounded-md" />
-            </div>
+      <div className="grid grid-cols-1 items-start gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="overflow-hidden rounded-3xl border border-border/60 bg-card">
+          <div className="flex gap-6 border-b border-border/50 px-6 py-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-4 w-20 shrink-0 rounded-md" />
+            ))}
+          </div>
+          <div className="space-y-4 p-6">
+            <Skeleton className="h-10 w-full rounded-xl sm:ml-auto sm:w-64" />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="size-8 shrink-0 rounded-2xl" />
+                <Skeleton className="h-4 flex-1 rounded-md" />
+                <Skeleton className="h-8 w-24 rounded-xl" />
+              </div>
+            ))}
           </div>
         </div>
-
-        <div className="order-1 overflow-hidden rounded-3xl border border-border/60 bg-card md:order-2">
-          <div className="flex gap-2 border-b border-border/50 bg-muted/20 p-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-24 shrink-0 rounded-xl" />
-            ))}
-          </div>
-          <div className="space-y-3 p-6">
-            <Skeleton className="h-10 w-full rounded-xl" />
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full rounded-2xl" />
-            ))}
+        <div className="space-y-4 rounded-3xl border border-border/60 bg-card p-6">
+          <Skeleton className="h-4 w-24 rounded-md" />
+          <div className="flex items-center gap-6">
+            <Skeleton className="size-24 shrink-0 rounded-full" />
+            <div className="flex-1 space-y-3">
+              <Skeleton className="h-4 w-full rounded-md" />
+              <Skeleton className="h-4 w-full rounded-md" />
+              <Skeleton className="h-4 w-full rounded-md" />
+            </div>
           </div>
         </div>
       </div>

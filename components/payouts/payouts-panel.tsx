@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Button, Pagination, Skeleton } from "@heroui/react";
+import { Button, Card, Pagination, Skeleton } from "@heroui/react";
 import { Banknote, RotateCw, TriangleAlert, Wallet, XCircle } from "lucide-react";
 import { CalendarDate, today } from "@internationalized/date";
 import { formatMoney } from "@/lib/money";
@@ -52,15 +52,6 @@ type ViewState =
   | { kind: "loading" }
   | { kind: "error"; message: string }
   | { kind: "ready"; data: HotelPayoutOverview };
-
-const PAYOUT_COLUMNS = [
-  { label: "Reservation", width: "1fr" },
-  { label: "Paid", width: "120px" },
-  { label: "Rooms", width: "72px", align: "right" as const },
-  { label: "Amount", width: "140px", align: "right" as const },
-  { label: "Settles", width: "120px" },
-  { label: "Status", width: "128px" },
-];
 
 export function PayoutsPanel({
   load,
@@ -149,16 +140,13 @@ export function PayoutsPanel({
       {reservations.length === 0 ? (
         <NoBookingsState rangeText={windowLabel} />
       ) : (
-        <section className="flex flex-col gap-3 rounded-3xl bg-card p-4 shadow-[0_2px_4px_rgb(0_0_0/0.04)]" aria-label="Payout reservations">
-          <header className="flex items-start justify-between gap-4">
-            <div className="min-w-0 space-y-1">
-              <h2 className="text-md font-semibold text-foreground">Payout reservations</h2>
-              <p className="text-xs text-muted-foreground">Charges in the window and where each settles.</p>
-            </div>
-            <p className="shrink-0 font-mono text-xs text-muted-foreground">{reservations.length.toLocaleString("en")} reservations</p>
+        <Card className="gap-0 overflow-hidden rounded-3xl border border-border/60 p-0 shadow-[0_1px_2px_rgb(15_23_42/0.04)]" aria-label="Payout reservations">
+          <header className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6">
+            <h2 className="text-sm font-semibold text-foreground">Reservations</h2>
+            <p className="shrink-0 text-xs tabular-nums text-muted-foreground">{reservations.length.toLocaleString("en")}</p>
           </header>
           <ReservationList key={rangeKey} reservations={reservations} timeZone={timeZone} />
-        </section>
+        </Card>
       )}
     </div>
   );
@@ -179,7 +167,7 @@ function PayoutsSkeleton() {
 
 function StateShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-3xl bg-card px-6 py-16 text-center shadow-[0_2px_4px_rgb(0_0_0/0.04)]">
+    <div className="flex flex-col items-center justify-center rounded-3xl border border-border/60 bg-card px-6 py-16 text-center shadow-[0_1px_2px_rgb(15_23_42/0.04)]">
       {children}
     </div>
   );
@@ -250,40 +238,35 @@ function ReservationList({ reservations, timeZone }: { reservations: PayoutReser
 
   return (
     <>
-      {/* Desktop table */}
-      <div className="hidden rounded-3xl bg-secondary p-1 pt-0 md:block">
-        <table className="w-full min-w-[720px] border-collapse text-sm">
-          <caption className="sr-only">Payout reservations</caption>
-          <thead><tr>
-            {PAYOUT_COLUMNS.map((column, index) => <th key={column.label + index} scope="col"
-              className={`border-b border-border/70 px-4 py-3 text-left text-xs font-medium text-muted-foreground ${column.align === "right" ? "text-right" : ""}`}>
-              {column.label}
-            </th>)}
-          </tr></thead>
-          <tbody>
-            {pageRows.map((r) => <tr key={r.key} className="border-b border-border/50 bg-card last:border-b-0">
-              <td className="px-4 py-3 align-top">
-                <div className="flex min-w-0 flex-col gap-1">
-                  <span className="truncate font-medium text-foreground">{r.guestName ?? "Guest"}</span>
-                  <span className="font-mono text-2xs text-muted-foreground">{r.reference}</span>
-                </div>
-              </td>
-              <td className="whitespace-nowrap px-4 py-3 align-top">{r.paidAt ? formatDateInTimeZone(r.paidAt, timeZone, { month: "short", day: "numeric" }) : "—"}</td>
-              <td className="px-4 py-3 text-right align-top font-mono tabular-nums text-muted-foreground">{r.roomsCount}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-right align-top font-mono font-semibold tabular-nums text-foreground">{formatMoney(r.amountMinor, r.currency)}</td>
-              <td className="whitespace-nowrap px-4 py-3 align-top">{r.settledAt ? formatDateInTimeZone(r.settledAt, timeZone, { month: "short", day: "numeric" }) : "—"}</td>
-              <td className="px-4 py-3 align-top"><PayoutStatusBadge status={r.status} /></td>
-            </tr>)}
-          </tbody>
-        </table>
+      <div aria-hidden="true" className="hidden grid-cols-[minmax(0,1.4fr)_6rem_4rem_8rem_6rem_8rem] items-center gap-4 border-y border-border/50 bg-secondary/40 px-6 py-2 text-2xs font-medium text-muted-foreground md:grid">
+        <span>Reservation</span><span>Paid</span><span className="text-right">Rooms</span><span className="text-right">Amount</span><span>Settles</span><span>Status</span>
       </div>
-
-      {/* Mobile cards */}
-      <div className="grid grid-cols-1 gap-3 md:hidden">
+      <ul className="divide-y divide-border/50 border-t border-border/50 md:border-t-0">
         {pageRows.map((r) => (
-          <ReservationCardMobile key={r.key} r={r} timeZone={timeZone} />
+          <li key={r.key} className="px-4 py-3 sm:px-6 md:grid md:grid-cols-[minmax(0,1.4fr)_6rem_4rem_8rem_6rem_8rem] md:items-center md:gap-4">
+            <div className="flex items-start justify-between gap-3 md:block md:min-w-0">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">{r.guestName ?? "Guest"}</p>
+                <p className="mt-1 truncate font-mono text-xs text-muted-foreground">{r.reference}</p>
+              </div>
+              <div className="shrink-0 text-right md:hidden">
+                <p className="text-sm font-semibold tabular-nums text-foreground">{formatMoney(r.amountMinor, r.currency)}</p>
+                <div className="mt-1"><PayoutStatusBadge status={r.status} /></div>
+              </div>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground md:hidden">
+              Paid {r.paidAt ? formatDateInTimeZone(r.paidAt, timeZone, { month: "short", day: "numeric" }) : "—"}
+              {r.settledAt ? ` · Settles ${formatDateInTimeZone(r.settledAt, timeZone, { month: "short", day: "numeric" })}` : ""}
+              {r.roomsCount > 1 ? ` · ${r.roomsCount} rooms` : ""}
+            </p>
+            <p className="hidden text-sm tabular-nums text-foreground md:block">{r.paidAt ? formatDateInTimeZone(r.paidAt, timeZone, { month: "short", day: "numeric" }) : "—"}</p>
+            <p className="hidden text-right text-sm tabular-nums text-muted-foreground md:block">{r.roomsCount}</p>
+            <p className="hidden text-right text-sm font-semibold tabular-nums text-foreground md:block">{formatMoney(r.amountMinor, r.currency)}</p>
+            <p className="hidden text-sm tabular-nums text-foreground md:block">{r.settledAt ? formatDateInTimeZone(r.settledAt, timeZone, { month: "short", day: "numeric" }) : "—"}</p>
+            <div className="hidden md:block"><PayoutStatusBadge status={r.status} /></div>
+          </li>
         ))}
-      </div>
+      </ul>
 
       {showPagination ? (
         <ReservationPagination
@@ -315,7 +298,7 @@ function ReservationPagination({
   onPage: (p: number) => void;
 }) {
   return (
-    <Pagination className="justify-between gap-4">
+    <Pagination className="justify-between gap-4 border-t border-border/50 px-4 py-3 sm:px-6">
       <Pagination.Summary className="order-2 text-caption tabular-nums text-muted-foreground sm:order-1">
         {startIdx + 1}–{Math.min(startIdx + pageSize, total)} of {total.toLocaleString()}
       </Pagination.Summary>
@@ -348,39 +331,5 @@ function ReservationPagination({
         </Pagination.Item>
       </Pagination.Content>
     </Pagination>
-  );
-}
-
-function ReservationCardMobile({ r, timeZone }: { r: PayoutReservation; timeZone: string }) {
-  return (
-    <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-[0_2px_4px_rgb(0_0_0/0.04)]">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-body font-semibold text-foreground">
-            {r.guestName ?? "Guest"}
-          </p>
-          <p className="font-mono text-caption tracking-wide text-muted-foreground">
-            {r.reference}
-          </p>
-        </div>
-        <PayoutStatusBadge status={r.status} />
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex flex-col">
-          <span className="text-body font-semibold tabular-nums text-foreground">
-            {formatMoney(r.amountMinor, r.currency)}
-          </span>
-          <span className="text-caption text-muted-foreground">
-            Paid {formatDateInTimeZone(r.paidAt, timeZone)}
-            {r.roomsCount > 1 ? ` · ${r.roomsCount} rooms` : ""}
-          </span>
-        </div>
-        {r.settledAt ? (
-          <span className="text-2xs text-muted-foreground/60">
-            Settles {formatDateInTimeZone(r.settledAt, timeZone)}
-          </span>
-        ) : null}
-      </div>
-    </div>
   );
 }

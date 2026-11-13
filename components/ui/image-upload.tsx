@@ -67,12 +67,12 @@ export function ImageUpload({
   }
 
   return (
-    <div className={cn("space-y-2", className)}>
-      {label && <p className="text-xs font-medium text-muted-foreground">{label}</p>}
+    <div className={cn("space-y-1", className)}>
+      {label && <p className="text-sm font-medium text-foreground">{label}</p>}
 
       <div
         className={cn(
-          "relative rounded-xl border-2 border-dashed border-border/60 overflow-hidden transition-colors bg-muted/20",
+          "relative overflow-hidden rounded-2xl border border-dashed border-border bg-secondary/50 transition-colors",
           disabled ? "cursor-default opacity-70" : "hover:border-border cursor-pointer",
           aspect
         )}
@@ -110,7 +110,7 @@ export function ImageUpload({
             ) : (
               <>
                 <Upload className="size-5 text-muted-foreground/50" />
-                <p className="text-xs text-muted-foreground/70">{disabled ? "No image" : "Click to upload"}</p>
+                <p className="text-xs text-muted-foreground/70">{disabled ? "No image" : "Upload"}</p>
               </>
             )}
           </div>

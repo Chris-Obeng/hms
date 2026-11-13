@@ -1,18 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Tabs, Button, Chip } from "@heroui/react";
-import {
-  Banknote,
-  ChevronLeft,
-  ChevronRight,
-  CircleAlert,
-  Eye,
-  Globe,
-  ReceiptText,
-  Search,
-  Wallet,
-} from "lucide-react";
+import { Alert, Button, Card, Chip, ListBox, SearchField, Select, Skeleton, Tabs } from "@heroui/react";
+import { ChevronLeft, ChevronRight, ReceiptText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { onRealtimeStatus } from "@/lib/observability/realtime";
@@ -20,13 +10,11 @@ import { createCoalescer } from "@/lib/realtime/coalesce";
 import { formatCurrency, formatDateInTimeZone } from "@/lib/format";
 import { getMethodLabel, PAYMENT_METHOD_LABELS } from "@/lib/booking-status";
 import { cn } from "@/lib/utils";
-import { HeroSelectField } from "@/components/ui/hero-select";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
 import { PaymentsSettingsClient } from "@/app/dashboard/settings/payments/payments-client";
 import { PayoutsPanel } from "@/components/payouts/payouts-panel";
 import { PenKpi } from "@/components/ui/pen/pen-kpi";
 import { RangeControl } from "@/components/ui/pen/range-control";
-import { reportPeriodLabel } from "@/lib/report-dates";
 import { getMyHotelPayouts } from "@/app/actions/payouts";
 import { getPaymentActivity, type PaymentActivityResult, type PaymentActivityStatus } from "./actions";
 
@@ -119,196 +107,223 @@ export function PaymentsClient({
     router.replace(next === "activity" ? activityUrl({ tab: next }) : `/dashboard/payments?tab=${next}`, { scroll: false });
   }
 
+  // Pending debounced search. Every explicit filter change cancels it: those
+  // handlers already send the current text, and a stale timer would replay the
+  // filters captured when the text last changed.
+  const searchTimer = React.useRef<number | undefined>(undefined);
+  const cancelPendingSearch = () => window.clearTimeout(searchTimer.current);
+
   function applyRange(nextStart: string, nextEnd: string) {
+    cancelPendingSearch();
     setStartDate(nextStart); setEndDate(nextEnd); setPage(1);
     router.replace(activityUrl({ tab: "activity", startDate: nextStart, endDate: nextEnd, page: 1 }), { scroll: false });
     void loadActivity({ startDate: nextStart, endDate: nextEnd, page: 1 });
   }
 
   function applyFilters() {
+    cancelPendingSearch();
     setPage(1);
     router.replace(activityUrl({ tab: "activity", page: 1 }), { scroll: false });
     void loadActivity({ page: 1 });
   }
 
-  return <div className="payments-page mx-auto w-full max-w-7xl space-y-6" data-payments>
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0">
-        <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-2xl">Payments</h1>
-      </div>
-      {/* The chip sits alone top-right; choosing dates applies them. */}
-      <div className="max-sm:hidden">
-        <RangeControl range={{ startDate, endDate }} today={today} onChange={applyRange} />
-      </div>
+  // Search applies itself after a short pause; Enter applies at once. Only a
+  // changed value arms the timer, so mount (and Strict Mode's re-run) doesn't.
+  const lastSearch = React.useRef(search);
+  React.useEffect(() => {
+    if (search === lastSearch.current) return;
+    lastSearch.current = search;
+    searchTimer.current = window.setTimeout(() => applyFilters(), 400);
+    return cancelPendingSearch;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the typed text should re-arm the timer
+  }, [search]);
+
+  return <div className="mx-auto w-full max-w-7xl space-y-6 pt-6 md:pt-8" data-payments>
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">Payments</h1>
+      {tab !== "setup" && <RangeControl range={{ startDate, endDate }} today={today} onChange={applyRange} />}
     </header>
 
-    <Tabs variant="secondary" selectedKey={tab} onSelectionChange={(key) => selectTab(key as Tab)} className="payments-tabs w-full">
-      <Tabs.ListContainer><Tabs.List aria-label="Payment sections">
-        <Tabs.Tab id="activity">Payment activity<Tabs.Indicator /></Tabs.Tab>
-        <Tabs.Tab id="payouts">Online payouts<Tabs.Indicator /></Tabs.Tab>
-        {canConfigure && <Tabs.Tab id="setup">Setup<Tabs.Indicator /></Tabs.Tab>}
-      </Tabs.List></Tabs.ListContainer>
-      <Tabs.Panel id="activity" className="pt-6"><ActivityView
-        activity={activity} error={error} loading={loading} startDate={startDate} endDate={endDate} today={today} currency={currency} timeZone={timeZone}
+    <Tabs variant="secondary" selectedKey={tab} onSelectionChange={(key) => selectTab(key as Tab)} className="w-full gap-0">
+      <Tabs.ListContainer className="border-border/70">
+        <Tabs.List aria-label="Payment sections" className="gap-6">
+          {(["activity", "payouts", ...(canConfigure ? ["setup"] : [])] as Tab[]).map((id) => (
+            <Tabs.Tab key={id} id={id}
+              className="h-12 w-auto flex-none px-0 text-sm font-medium text-muted-foreground data-[selected=true]:font-semibold data-[selected=true]:text-foreground">
+              {id === "activity" ? "Activity" : id === "payouts" ? "Online payouts" : "Setup"}
+              <Tabs.Indicator className="rounded-t-sm bg-primary" />
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+      </Tabs.ListContainer>
+      <Tabs.Panel id="activity" className="mt-0 p-0 pt-6"><ActivityView
+        activity={activity} error={error} loading={loading} currency={currency} timeZone={timeZone}
         status={status} method={method} search={search} page={page}
-        onApplyRange={applyRange}
-        onStatus={(value) => { setStatus(value); setPage(1); router.replace(activityUrl({ tab: "activity", status: value, page: 1 }), { scroll: false }); void loadActivity({ status: value, page: 1 }); }}
-        onMethod={(value) => { setMethod(value); setPage(1); router.replace(activityUrl({ tab: "activity", method: value, page: 1 }), { scroll: false }); void loadActivity({ method: value, page: 1 }); }}
+        onStatus={(value) => { cancelPendingSearch(); setStatus(value); setPage(1); router.replace(activityUrl({ tab: "activity", status: value, page: 1 }), { scroll: false }); void loadActivity({ status: value, page: 1 }); }}
+        onMethod={(value) => { cancelPendingSearch(); setMethod(value); setPage(1); router.replace(activityUrl({ tab: "activity", method: value, page: 1 }), { scroll: false }); void loadActivity({ method: value, page: 1 }); }}
         onSearch={setSearch} onApply={applyFilters}
-        onPage={(next) => { setPage(next); router.replace(activityUrl({ tab: "activity", page: next }), { scroll: false }); void loadActivity({ page: next }); }}
+        onPage={(next) => { cancelPendingSearch(); setPage(next); router.replace(activityUrl({ tab: "activity", page: next }), { scroll: false }); void loadActivity({ page: next }); }}
         onOpenBooking={(id) => { setBookingId(id); setDrawerOpen(true); }}
       /></Tabs.Panel>
-      <Tabs.Panel id="payouts" className="pt-6"><PayoutsPanel load={getMyHotelPayouts} timeZone={timeZone} range={{ start: startDate, end: endDate }} /></Tabs.Panel>
-      {canConfigure && <Tabs.Panel id="setup" className="pt-6"><PaymentsSettingsClient initialData={initialSetup} /></Tabs.Panel>}
+      <Tabs.Panel id="payouts" className="mt-0 p-0 pt-6"><PayoutsPanel load={getMyHotelPayouts} timeZone={timeZone} range={{ start: startDate, end: endDate }} /></Tabs.Panel>
+      {canConfigure && <Tabs.Panel id="setup" className="mt-0 p-0 pt-6"><PaymentsSettingsClient initialData={initialSetup} /></Tabs.Panel>}
     </Tabs>
     <BookingDetailDrawer bookingId={bookingId} open={drawerOpen} onClose={() => { setDrawerOpen(false); setBookingId(null); }} currency={currency} />
   </div>;
 }
 
-function ActivityView({ activity, error, loading, startDate, endDate, today, currency, timeZone, status, method, search, page, onApplyRange, onStatus, onMethod, onSearch, onApply, onPage, onOpenBooking }: {
-  activity: PaymentActivityResult | null; error: string | null; loading: boolean; startDate: string; endDate: string; today: string; currency: string; timeZone: string;
+function ActivityView({ activity, error, loading, currency, timeZone, status, method, search, page, onStatus, onMethod, onSearch, onApply, onPage, onOpenBooking }: {
+  activity: PaymentActivityResult | null; error: string | null; loading: boolean; currency: string; timeZone: string;
   status: PaymentActivityStatus; method: string; search: string; page: number;
-  onApplyRange: (start: string, end: string) => void; onStatus: (value: PaymentActivityStatus) => void;
+  onStatus: (value: PaymentActivityStatus) => void;
   onMethod: (value: string) => void; onSearch: (value: string) => void; onApply: () => void; onPage: (page: number) => void;
   onOpenBooking: (id: string) => void;
 }) {
   const methods = [{ value: "all", label: "All methods" }, ...Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => ({ value, label }))];
-  const rangeLabel = reportPeriodLabel({ startDate, endDate });
   const totals = activity?.totals;
 
-  return <div className="space-y-4">
-    {/* Desktop: the range chip owns the dates and the strip states the totals. */}
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 max-sm:hidden">
-      <PenKpi label="Collected" value={moneyLabel(totals?.successfulAmount ?? 0, currency)} icon={Banknote} hint={rangeLabel} />
-      <PenKpi label="Online payments" value={moneyLabel(totals?.onlineAmount ?? 0, currency)} icon={Globe} hint={`${(totals?.onlineCount ?? 0).toLocaleString("en")} payments`} />
-      <PenKpi label="Collected by staff" value={moneyLabel(totals?.staffAmount ?? 0, currency)} icon={Wallet} hint={`${(totals?.staffCount ?? 0).toLocaleString("en")} payments`} />
-    </div>
-    {/* Mobile: full-width collected figure, then the channel split. */}
-    <div className="sm:hidden">
-      <PenKpi label="Collected" value={moneyLabel(totals?.successfulAmount ?? 0, currency)} icon={Banknote} hint={rangeLabel} mobile className="w-full min-w-0 shrink" />
-      <div className="mt-4 grid grid-cols-2 gap-4">
-        <PenKpi label="Online payments" value={moneyLabel(totals?.onlineAmount ?? 0, currency)} icon={Globe} hint={`${(totals?.onlineCount ?? 0).toLocaleString("en")} payments`} mobile className="w-full min-w-0 shrink" />
-        <PenKpi label="Collected by staff" value={moneyLabel(totals?.staffAmount ?? 0, currency)} icon={Wallet} hint={`${(totals?.staffCount ?? 0).toLocaleString("en")} payments`} mobile className="w-full min-w-0 shrink" />
-      </div>
+  return <div className="space-y-6">
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <PenKpi label="Collected" value={formatCurrency(totals?.successfulAmount ?? 0, currency)}
+        hint={paymentsLabel(totals?.successfulCount ?? 0)} className="col-span-2 sm:col-span-1" />
+      <PenKpi label="Online" value={formatCurrency(totals?.onlineAmount ?? 0, currency)} hint={paymentsLabel(totals?.onlineCount ?? 0)} />
+      <PenKpi label="By staff" value={formatCurrency(totals?.staffAmount ?? 0, currency)} hint={paymentsLabel(totals?.staffCount ?? 0)} />
     </div>
 
-    {error ? <div className="flex items-start gap-3 rounded-xl border border-danger/30 bg-danger/5 p-4 text-sm text-danger" role="alert"><CircleAlert className="mt-1 size-4 shrink-0" aria-hidden="true" /><span>{error}</span></div> : null}
+    {error && (
+      <Alert status="danger" className="rounded-2xl">
+        <Alert.Indicator />
+        <Alert.Content><Alert.Description>{error}</Alert.Description></Alert.Content>
+      </Alert>
+    )}
 
     <LedgerCard
       activity={activity} loading={loading} timeZone={timeZone}
-      startDate={startDate} endDate={endDate} today={today}
-      status={status} method={method} search={search} page={page}
-      methods={methods}
-      onApplyRange={onApplyRange} onStatus={onStatus} onMethod={onMethod}
-      onSearch={onSearch} onApply={onApply} onPage={onPage} onOpenBooking={onOpenBooking}
+      status={status} method={method} search={search} page={page} methods={methods}
+      onStatus={onStatus} onMethod={onMethod} onSearch={onSearch} onApply={onApply} onPage={onPage} onOpenBooking={onOpenBooking}
     />
   </div>;
 }
 
-function moneyLabel(amount: number, currency: string): string {
-  return `${currency} ${amount.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+/** Shared column template for the ledger header band and rows (md and up). */
+const LEDGER_GRID = "md:grid md:grid-cols-[8rem_minmax(0,1.4fr)_8rem_7rem_minmax(0,1fr)] md:items-center md:gap-4";
 
-const LEDGER_COLUMNS = [
-  { label: "Payment", width: "192px" },
-  { label: "Guest / booking", width: "1fr" },
-  { label: "Amount", width: "140px", align: "right" as const },
-  { label: "Status", width: "120px" },
-  { label: "Recorded by", width: "152px" },
-  { label: "", width: "56px" },
-];
-
-function LedgerCard({ activity, loading, timeZone, startDate, endDate, today, status, method, search, page, methods, onApplyRange, onStatus, onMethod, onSearch, onApply, onPage, onOpenBooking }: {
+function LedgerCard({ activity, loading, timeZone, status, method, search, page, methods, onStatus, onMethod, onSearch, onApply, onPage, onOpenBooking }: {
   activity: PaymentActivityResult | null; loading: boolean; timeZone: string;
-  startDate: string; endDate: string; today: string;
   status: PaymentActivityStatus; method: string; search: string; page: number;
   methods: { value: string; label: string }[];
-  onApplyRange: (start: string, end: string) => void; onStatus: (value: PaymentActivityStatus) => void;
+  onStatus: (value: PaymentActivityStatus) => void;
   onMethod: (value: string) => void; onSearch: (value: string) => void; onApply: () => void; onPage: (page: number) => void;
   onOpenBooking: (id: string) => void;
 }) {
-  return <section className="flex flex-col gap-3 rounded-3xl bg-card p-4 shadow-[0_2px_4px_rgb(0_0_0/0.04)]" aria-label="Payment ledger">
-    <header className="flex items-center justify-between gap-4">
-      <h2 className="text-md font-semibold text-foreground">Payment ledger</h2>
-      <p className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">{activity ? `${activity.totalCount.toLocaleString("en")} records` : "—"}</p>
-    </header>
-
-    {activity && <div className="sm:hidden">
-      <RangeControl range={{ startDate, endDate }} today={today} onChange={onApplyRange} />
-    </div>}
-
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-[minmax(0,1fr)_10rem_10rem_auto]">
-      <div className="relative sm:col-span-2 md:col-span-1">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/70" aria-hidden="true" />
-        <input type="search" value={search} onChange={(event) => onSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") onApply(); }} placeholder="Search guest, booking, or reference…" aria-label="Search payments" className="h-11 w-full rounded-xl border border-border/70 bg-card pl-9 pr-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/80 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:h-10 sm:text-sm [@media(hover:hover)_and_(pointer:fine)]:hover:border-border" />
-      </div>
-      <HeroSelectField value={status} triggerClassName="min-h-11 sm:min-h-10" onValueChange={(value) => onStatus(value as PaymentActivityStatus)} options={STATUS_OPTIONS.map((option) => ({ value: option.value, label: option.label }))} ariaLabel="Payment status" />
-      <HeroSelectField value={method} triggerClassName="min-h-11 sm:min-h-10" onValueChange={onMethod} options={methods} ariaLabel="Payment method" />
-      <Button variant="primary" onPress={onApply} isPending={loading} className="ui-press h-11 rounded-xl text-xs font-semibold sm:col-span-2 sm:h-10 md:col-span-1">Search</Button>
+  const rows = activity?.rows ?? [];
+  return <Card className="gap-0 overflow-hidden rounded-3xl border border-border/60 p-0 shadow-[0_1px_2px_rgb(15_23_42/0.04)]" aria-label="Payment ledger">
+    {/* Toolbar */}
+    <div className="grid grid-cols-2 gap-2 p-4 sm:flex sm:items-center sm:px-6">
+      <SearchField aria-label="Search payments" value={search} onChange={onSearch} onSubmit={onApply} className="col-span-2 min-w-0 sm:mr-auto sm:w-72">
+        <SearchField.Group className="rounded-xl max-sm:h-11">
+          <SearchField.SearchIcon />
+          <SearchField.Input placeholder="Search guest or reference" />
+          <SearchField.ClearButton />
+        </SearchField.Group>
+      </SearchField>
+      <FilterSelect label="Payment status" value={status} onChange={(v) => onStatus(v as PaymentActivityStatus)}
+        options={STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
+      <FilterSelect label="Payment method" value={method} onChange={onMethod} options={methods} />
     </div>
 
-    {/* Desktop table */}
-    <div className="rounded-3xl bg-secondary p-1 pt-0 max-md:hidden">
-      <table className="w-full border-collapse text-sm">
-        <caption className="sr-only">Payment ledger records</caption>
-        <thead><tr>
-          {LEDGER_COLUMNS.map((column, index) => <th key={column.label + index} scope="col"
-            className={cn("border-b border-border/70 px-4 py-3 text-left text-xs font-medium text-muted-foreground", column.align === "right" && "text-right")}>
-            {column.label}
-          </th>)}
-        </tr></thead>
-        <tbody>
-          {loading && !activity ? <tr><td colSpan={6} className="px-4 py-16 text-center text-muted-foreground">Loading payments…</td></tr>
-            : activity?.rows.length ? activity.rows.map((row) => <tr key={row.id} className="border-b border-border/50 bg-card last:border-b-0">
-              <td className="whitespace-nowrap px-4 py-3 align-top">
-                <p className="font-medium tabular-nums">{row.paidAt ? formatDateInTimeZone(row.paidAt, timeZone, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "—"}</p>
-                <p className="mt-1 text-2xs text-muted-foreground">{onlineRow(row) ? "Online" : getMethodLabel(row.method)}</p>
-              </td>
-              <td className="px-4 py-3 align-top">
-                <p className="font-medium">{row.guestName ?? "Guest"}</p>
-                <p className="mt-1 font-mono text-2xs text-muted-foreground">{row.bookingReference ?? "No booking reference"}</p>
-              </td>
-              <td className="px-4 py-3 text-right align-top font-mono font-semibold tabular-nums">{formatCurrency(row.amount, row.currency)}</td>
-              <td className="px-4 py-3 align-top"><Chip size="sm" variant="soft" color={statusTone(row.status)}>{statusLabel(row.status)}</Chip></td>
-              <td className="px-4 py-3 align-top text-xs text-muted-foreground">{onlineRow(row) ? "Online" : row.recordedBy ?? "—"}</td>
-              <td className="px-4 py-3 text-right align-top">{row.bookingId && <Button isIconOnly variant="ghost" size="sm" className="size-8 rounded-lg" aria-label={`View booking ${row.bookingReference ?? ""}`} onPress={() => onOpenBooking(row.bookingId!)}><Eye className="size-4" /></Button>}</td>
-            </tr>)
-            : <tr><td colSpan={6} className="px-4 py-16 text-center"><div className="mx-auto flex max-w-xs flex-col items-center"><span className="flex size-11 items-center justify-center rounded-2xl bg-muted text-muted-foreground"><ReceiptText className="size-5" aria-hidden="true" /></span><p className="mt-3 text-sm font-semibold">No payments match this view</p><p className="mt-1 text-sm text-muted-foreground">Try another date range, status, or search term.</p></div></td></tr>}
-        </tbody>
-      </table>
+    {/* Column header band */}
+    <div aria-hidden="true" className={cn(LEDGER_GRID, "hidden border-y border-border/50 bg-secondary/40 px-6 py-2 text-2xs font-medium text-muted-foreground")}>
+      <span>Time</span><span>Guest</span><span className="text-right">Amount</span><span>Status</span><span>Recorded by</span>
     </div>
 
-    {/* Mobile compact rows */}
-    {activity && <div className="md:hidden">
-      {activity.rows.length ? activity.rows.map((row, index) => <div key={row.id}>
-        {index > 0 && <div className="h-px bg-border/50" aria-hidden="true" />}
-        <div className="flex flex-col gap-2 py-3">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="text-sm font-medium text-foreground">{row.guestName ?? "Guest"}</span>
-            <span className="font-mono text-sm font-semibold tabular-nums text-foreground">{formatCurrency(row.amount, row.currency)}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-2xs text-muted-foreground">{onlineRow(row) ? "Online" : getMethodLabel(row.method)}</span>
-            <Chip size="sm" variant="soft" color={statusTone(row.status)}>{statusLabel(row.status)}</Chip>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-mono text-2xs text-muted-foreground">{row.bookingReference ?? "—"}</span>
-            {row.bookingId && <button type="button" className="ui-press inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-lg px-2 text-2xs font-medium text-[var(--pen-accent)] outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => onOpenBooking(row.bookingId!)}>
-              View booking <Eye className="size-3" aria-hidden="true" />
-            </button>}
-          </div>
+    <div className={cn("transition-opacity duration-150", loading && "opacity-60")} aria-busy={loading}>
+      {loading && !activity ? (
+        <div className="space-y-3 p-6">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-10 w-full rounded-xl" />)}</div>
+      ) : rows.length ? (
+        <ul className="divide-y divide-border/50 border-t border-border/50 md:border-t-0">
+          {rows.map((row) => {
+            const online = onlineRow(row);
+            const time = row.paidAt ? formatDateInTimeZone(row.paidAt, timeZone, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "—";
+            const open = row.bookingId ? () => onOpenBooking(row.bookingId!) : undefined;
+            const phoneSummary = <>
+              <span className="flex items-baseline justify-between gap-3">
+                <span className="truncate text-sm font-medium text-foreground">{row.guestName ?? "Guest"}</span>
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{formatCurrency(row.amount, row.currency)}</span>
+              </span>
+              <span className="flex items-center justify-between gap-3">
+                <span className="truncate text-xs text-muted-foreground">{time} · {online ? "Online" : getMethodLabel(row.method)}</span>
+                <Chip size="sm" variant="soft" color={statusTone(row.status)}>{statusLabel(row.status)}</Chip>
+              </span>
+            </>;
+            return <li key={row.id}
+              onClick={open}
+              className={cn(LEDGER_GRID, "flex flex-col gap-1 px-4 py-3 sm:px-6", open && "cursor-pointer transition-colors duration-150 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary/50")}>
+              {/* Phones: guest + amount on top, method + status below. A real button
+                  when the row opens a booking, so keyboard and screen-reader users can too. */}
+              {open ? (
+                <button type="button" onClick={(e) => { e.stopPropagation(); open(); }}
+                  className="flex w-full flex-col gap-1 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden">
+                  {phoneSummary}
+                </button>
+              ) : <span className="flex flex-col gap-1 md:hidden">{phoneSummary}</span>}
+
+              <div className="hidden min-w-0 md:block">
+                <p className="text-sm tabular-nums text-foreground">{time}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{online ? "Online" : getMethodLabel(row.method)}</p>
+              </div>
+              <div className="hidden min-w-0 md:block">
+                {open ? (
+                  <button type="button" onClick={(e) => { e.stopPropagation(); open(); }}
+                    className="max-w-full truncate rounded-sm text-left text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    {row.guestName ?? "Guest"}
+                  </button>
+                ) : <p className="truncate text-sm font-medium text-foreground">{row.guestName ?? "Guest"}</p>}
+                <p className="mt-1 truncate font-mono text-xs text-muted-foreground">{row.bookingReference ?? "—"}</p>
+              </div>
+              <p className="hidden text-right text-sm font-semibold tabular-nums text-foreground md:block">{formatCurrency(row.amount, row.currency)}</p>
+              <div className="hidden md:block"><Chip size="sm" variant="soft" color={statusTone(row.status)}>{statusLabel(row.status)}</Chip></div>
+              <p className="hidden truncate text-sm text-muted-foreground md:block">{online ? "Online" : row.recordedBy ?? "—"}</p>
+            </li>;
+          })}
+        </ul>
+      ) : (
+        <div className="flex flex-col items-center gap-3 border-t border-border/50 px-6 py-16 text-center md:border-t-0">
+          <span className="grid size-12 place-items-center rounded-2xl bg-secondary text-muted-foreground"><ReceiptText className="size-5" aria-hidden="true" /></span>
+          <p className="text-sm font-semibold text-foreground">No payments here</p>
+          <p className="text-xs text-muted-foreground">Try another date range or filter.</p>
         </div>
-      </div>) : <p className="py-10 text-center text-sm text-muted-foreground">No payments match this view.</p>}
-    </div>}
+      )}
+    </div>
 
-    {activity && <div className="flex flex-col gap-3 border-t border-border/50 px-1 pt-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-      <span>Page {page} · {activity.totalCount.toLocaleString("en")} records</span>
+    {activity && (page > 1 || activity.hasNextPage) && <div className="flex items-center justify-between gap-3 border-t border-border/50 px-4 py-3 sm:px-6">
+      <span className="text-xs tabular-nums text-muted-foreground">Page {page}</span>
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" className="ui-press min-h-11 rounded-xl sm:min-h-8" isDisabled={page <= 1 || loading} onPress={() => onPage(page - 1)}><ChevronLeft className="size-4" />Previous</Button>
-        <Button variant="outline" size="sm" className="ui-press min-h-11 rounded-xl sm:min-h-8" isDisabled={!activity.hasNextPage || loading} onPress={() => onPage(page + 1)}>Next<ChevronRight className="size-4" /></Button>
+        <Button isIconOnly variant="secondary" aria-label="Previous page" className="rounded-xl max-md:size-11" isDisabled={page <= 1 || loading} onPress={() => onPage(page - 1)}><ChevronLeft className="size-4" /></Button>
+        <Button isIconOnly variant="secondary" aria-label="Next page" className="rounded-xl max-md:size-11" isDisabled={!activity.hasNextPage || loading} onPress={() => onPage(page + 1)}><ChevronRight className="size-4" /></Button>
       </div>
     </div>}
-  </section>;
+  </Card>;
+}
+
+function FilterSelect({ label, value, onChange, options }: {
+  label: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[];
+}) {
+  return <Select aria-label={label} value={value} onChange={(v) => v && onChange(String(v))} className="min-w-0 sm:w-40">
+    <Select.Trigger className="min-h-11 rounded-xl sm:min-h-10">
+      <Select.Value />
+      <Select.Indicator />
+    </Select.Trigger>
+    <Select.Popover>
+      <ListBox>
+        {options.map((o) => <ListBox.Item key={o.value} id={o.value} textValue={o.label}>{o.label}<ListBox.ItemIndicator /></ListBox.Item>)}
+      </ListBox>
+    </Select.Popover>
+  </Select>;
+}
+
+function paymentsLabel(count: number): string {
+  return `${count.toLocaleString("en")} ${count === 1 ? "payment" : "payments"}`;
 }
 
 /** Online payments stay aggregated as "Online" (never split by rail type); staff-collected rows name the tender. */

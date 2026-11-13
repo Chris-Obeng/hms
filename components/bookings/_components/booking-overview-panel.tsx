@@ -1,15 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight, ArrowUpRight, Mail, Pencil, Phone } from "lucide-react";
+import { ArrowUpRight, Mail, Pencil, Phone } from "lucide-react";
 import Link from "next/link";
+import { Alert, Button, Chip, Disclosure, TextArea, toast } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatDate, formatDateTime, formatRoomLabel, getNights } from "@/lib/format";
 import { occupancyText } from "@/lib/bookings/cart";
 import { canTransitionBooking, getSourceLabel, getStatusLabel } from "@/lib/booking-status";
 import type { FullBookingDetail } from "./booking-detail-types";
-import { toast } from "@heroui/react";
+import { getBookingPaymentAvailability } from "./booking-payment-availability";
 
 interface BookingOverviewPanelProps {
   booking: FullBookingDetail;
@@ -25,139 +26,312 @@ interface BookingOverviewPanelProps {
 }
 
 const LINE_DOTS: Record<string, string> = {
-  confirmed: "bg-[var(--pen-accent)]",
-  checked_in: "bg-[var(--success)]",
+  confirmed: "bg-primary",
+  checked_in: "bg-emerald-500",
   checked_out: "bg-muted-foreground/40",
-  cancelled: "bg-[var(--danger)]",
-  no_show: "bg-[var(--danger)]",
-  pending: "bg-[var(--warning)]",
+  cancelled: "bg-destructive",
+  no_show: "bg-destructive",
+  pending: "bg-amber-500",
 };
 
 /**
- * Overview bands per the design: one surface, full-bleed hairline bands,
- * every fact said exactly once, no stroked cards inside.
+ * Overview: the stay, the room, the money and the guest's contact are visible
+ * at a glance. Booking metadata (source, timestamps, who booked it) sits behind
+ * a "More details" disclosure so the default view stays quiet.
  */
-export function BookingOverviewPanel({ booking, actionLoading, onBulkAction, onSaveNotes }: BookingOverviewPanelProps) {
+export function BookingOverviewPanel({
+  booking,
+  actionLoading,
+  onBulkAction,
+  onSaveNotes,
+}: BookingOverviewPanelProps) {
   const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
   const guestsLabel = occupancyText(booking.adults ?? 1, booking.children ?? 0);
   const group = booking.group;
   const currency = booking.currency ?? "GHS";
+  const { totalDue, amountPaid, outstandingBalance, isFullyPaid } =
+    getBookingPaymentAvailability(booking);
+  const isCancelled = booking.status === "cancelled" || booking.status === "no_show";
 
-  const roomValue = booking.room?.roomNumber
-    ? `${formatRoomLabel(booking.room.roomNumber)}${booking.room.floor ? ` · Floor ${booking.room.floor}` : ""}`
+  const roomLabel = formatRoomLabel(booking.room?.roomNumber);
+  const roomValue = roomLabel
+    ? `${roomLabel}${booking.room?.floor ? ` · Floor ${booking.room.floor}` : ""}`
     : null;
 
   return (
-    <div className="flex min-h-full flex-col">
-      {/* Stay band */}
-      <section aria-label="Stay" className="border-b border-border/60 px-6 py-6">
-        <div className="flex items-center gap-3">
-          <span className="text-lg font-semibold tracking-[-0.3px] text-foreground">{formatDate(booking.checkIn, "MMM d")}</span>
-          <ArrowRight className="size-4 text-muted-foreground/60" aria-hidden="true" />
-          <span className="text-lg font-semibold tracking-[-0.3px] text-foreground">{formatDate(booking.checkOut, "MMM d")}</span>
+    <div className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-[var(--ease-out-ui)] motion-reduce:animate-none flex min-h-full flex-col gap-6 px-6 py-6">
+      {booking.status === "cancelled" && booking.cancelledAt && (
+        <Alert status="danger" className="rounded-2xl">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Cancelled {formatDateTime(booking.cancelledAt)}</Alert.Title>
+            {booking.cancellationReason && (
+              <Alert.Description>{booking.cancellationReason}</Alert.Description>
+            )}
+          </Alert.Content>
+        </Alert>
+      )}
+
+      {/* Stay */}
+      <section aria-label="Stay" className="rounded-2xl bg-secondary/60 p-4">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+          <StayDate label="Check-in" date={booking.checkIn} at={booking.checkInAt} doneLabel="In" />
+          <Chip size="sm" variant="secondary" className="bg-card font-medium tabular-nums">
+            {nights} {nights === 1 ? "night" : "nights"}
+          </Chip>
+          <StayDate
+            label="Check-out"
+            date={booking.checkOut}
+            at={booking.checkOutAt}
+            doneLabel="Out"
+            align="end"
+          />
         </div>
-        <p className="mt-1 max-md:text-xs text-xs text-muted-foreground">
-          {nights} {nights === 1 ? "night" : "nights"}
-          {booking.checkInAt && <span> · Checked in {formatDateTime(booking.checkInAt)}</span>}
-          {booking.checkOutAt && <span> · Checked out {formatDateTime(booking.checkOutAt)}</span>}
-          {booking.status === "cancelled" && booking.cancelledAt && (
-            <span className="text-[var(--danger)]"> · Cancelled {formatDateTime(booking.cancelledAt)}{booking.cancellationReason ? ` — ${booking.cancellationReason}` : ""}</span>
-          )}
-        </p>
+
+        {!group && (
+          <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-border/60 pt-4">
+            <div className="min-w-0">
+              <dt className="text-xs text-muted-foreground">Room</dt>
+              <dd className="mt-1 truncate text-sm font-semibold text-foreground">
+                {roomValue ?? <span className="text-amber-700">Not assigned</span>}
+              </dd>
+              <dd className="truncate text-xs text-muted-foreground">
+                {booking.roomType?.name ?? "—"}
+                {(booking.roomsCount ?? 0) > 1 && ` · ×${booking.roomsCount}`}
+              </dd>
+            </div>
+            <div className="min-w-0 text-right">
+              <dt className="text-xs text-muted-foreground">Guests</dt>
+              <dd className="mt-1 truncate text-sm font-semibold text-foreground">{guestsLabel}</dd>
+            </div>
+          </dl>
+        )}
       </section>
 
-      {/* Rooms band */}
-      <section aria-label="Rooms" className="border-b border-border/60 px-6 py-2">
-        {group ? (
-          group.lines.map((l, index) => {
-            const canIn = canTransitionBooking(l.status ?? "", "checked_in");
-            const canOut = canTransitionBooking(l.status ?? "", "checked_out");
-            return <div key={l.id}>
-              {index > 0 && <div className="h-px bg-border/50" aria-hidden="true" />}
-              <div className="flex items-center gap-3 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-2 truncate text-sm font-semibold text-foreground">
-                    <span className={cn("size-[8px] shrink-0 rounded-full", LINE_DOTS[l.status ?? ""] ?? "bg-muted-foreground/40")} aria-hidden="true" />
-                    {l.roomTypeName ?? "Room"}
-                    {l.roomNumber ? <span className="font-normal text-muted-foreground"> · {formatRoomLabel(l.roomNumber)}</span> : <span className="font-normal text-[var(--warning)]"> · Unassigned</span>}
-                  </p>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {getStatusLabel(l.status ?? "")} · {occupancyText(l.adults ?? 1, l.children ?? 0)}
-                  </p>
-                </div>
-                <span className="shrink-0 text-right">
-                  <span className="block font-mono text-xs font-semibold tabular-nums text-foreground">{formatCurrency(l.totalAmount, currency)}</span>
+      {/* Rooms (multi-room reservations) */}
+      {group && (
+        <section aria-label="Rooms">
+          <h3 className="text-xs font-medium text-muted-foreground">Rooms</h3>
+          <ul className="mt-2 divide-y divide-border/60 rounded-2xl border border-border/60">
+            {group.lines.map((l) => {
+              const canIn = canTransitionBooking(l.status ?? "", "checked_in");
+              const canOut = canTransitionBooking(l.status ?? "", "checked_out");
+              return (
+                <li key={l.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "size-2 shrink-0 rounded-full",
+                          LINE_DOTS[l.status ?? ""] ?? "bg-muted-foreground/40"
+                        )}
+                      />
+                      <span className="min-w-0 truncate">
+                        {l.roomTypeName ?? "Room"}
+                        {l.roomNumber ? (
+                          <span className="font-normal text-muted-foreground">
+                            {" "}
+                            · {formatRoomLabel(l.roomNumber)}
+                          </span>
+                        ) : (
+                          <span className="font-normal text-amber-700"> · Unassigned</span>
+                        )}
+                      </span>
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {getStatusLabel(l.status ?? "")} · {occupancyText(l.adults ?? 1, l.children ?? 0)} ·{" "}
+                      <span className="tabular-nums">{formatCurrency(l.totalAmount, currency)}</span>
+                    </p>
+                  </div>
                   {canIn && onBulkAction && (
-                    <button type="button" disabled={actionLoading === "bulk:check_in"}
-                      onClick={() => onBulkAction([l.id], "checked_in", "check_in")}
-                      className="mt-2 h-[28px] rounded-lg bg-[var(--pen-accent)] px-3 text-2xs font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-60">
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      isDisabled={actionLoading === "bulk:check_in"}
+                      onPress={() => onBulkAction([l.id], "checked_in", "check_in")}
+                      className="shrink-0 rounded-lg font-semibold max-md:h-11"
+                    >
                       Check in
-                    </button>
+                    </Button>
                   )}
                   {canOut && onBulkAction && (
-                    <button type="button" disabled={actionLoading === "bulk:check_out"}
-                      onClick={() => onBulkAction([l.id], "checked_out", "check_out")}
-                      className="mt-2 block h-[28px] rounded-lg border border-border/70 bg-card px-3 text-2xs font-semibold text-foreground transition-transform active:scale-[0.98] disabled:opacity-60">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      isDisabled={actionLoading === "bulk:check_out"}
+                      onPress={() => onBulkAction([l.id], "checked_out", "check_out")}
+                      className="shrink-0 rounded-lg font-semibold max-md:h-11"
+                    >
                       Check out
-                    </button>
+                    </Button>
                   )}
-                </span>
-              </div>
-            </div>;
-          })
-        ) : (
-          <div className="py-2">
-            <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <span className={cn("size-[8px] shrink-0 rounded-full", LINE_DOTS[booking.status ?? ""] ?? "bg-muted-foreground/40")} aria-hidden="true" />
-              {booking.roomType?.name ?? "Room"}
-              {roomValue ? <span className="font-normal text-muted-foreground"> · {roomValue}</span> : <span className="font-normal text-[var(--warning)]"> · Not assigned</span>}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {/* Money */}
+      {!isCancelled && totalDue > 0 && (
+        <section aria-label="Balance" className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">
+              {isFullyPaid ? "Paid in full" : "Balance due"}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">{getStatusLabel(booking.status ?? "")} · {guestsLabel}</p>
+            <p className="mt-1 text-lg font-semibold tracking-tight tabular-nums text-foreground">
+              {formatCurrency(isFullyPaid ? totalDue : outstandingBalance, currency)}
+            </p>
           </div>
-        )}
-      </section>
+          <div className="text-right">
+            <Chip
+              size="sm"
+              variant="soft"
+              color={isFullyPaid ? "success" : amountPaid > 0 ? "warning" : "default"}
+            >
+              {isFullyPaid ? "Paid" : amountPaid > 0 ? "Partial" : "Unpaid"}
+            </Chip>
+            {!isFullyPaid && amountPaid > 0 && (
+              <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+                {formatCurrency(amountPaid, currency)} of {formatCurrency(totalDue, currency)} paid
+              </p>
+            )}
+          </div>
+        </section>
+      )}
 
-      {/* Details band */}
-      <section aria-label="Reservation details" className="border-b border-border/60 px-6 py-2">
-        <dl>
-          {!group && <Fact label="Room">{roomValue ?? <span className="text-[var(--warning)]">Not assigned</span>}</Fact>}
-          {!group && <Fact label="Room type">{booking.roomType?.name ?? "—"}</Fact>}
-          {!group && (booking.roomsCount ?? 0) > 1 && <Fact label="Rooms">×{booking.roomsCount}</Fact>}
-          {!group && <Fact label="Guests">{guestsLabel}</Fact>}
-          <Fact label="Source" className="capitalize">{getSourceLabel(booking.source)}</Fact>
-          <Fact label="Payment">{booking.paymentPreference === "pay_now" ? "Pay now" : "Pay at check-in"}</Fact>
-        </dl>
-      </section>
+      {/* Guest contact */}
+      {(booking.guest?.phone || booking.guest?.email || booking.guest?.id) && (
+        <section aria-label="Guest" className="space-y-1">
+          {booking.guest?.phone && (
+            <ContactLink href={`tel:${booking.guest.phone}`} icon={<Phone className="size-4" />}>
+              {booking.guest.phone}
+            </ContactLink>
+          )}
+          {booking.guest?.email && (
+            <ContactLink href={`mailto:${booking.guest.email}`} icon={<Mail className="size-4" />}>
+              {booking.guest.email}
+            </ContactLink>
+          )}
+          {booking.guest?.id && (
+            <Link
+              href={`/dashboard/customers?guestId=${booking.guest.id}`}
+              className="inline-flex min-h-11 items-center gap-1 rounded-lg text-sm font-medium text-primary md:min-h-10 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Guest profile
+              <ArrowUpRight className="size-4" aria-hidden="true" />
+            </Link>
+          )}
+        </section>
+      )}
 
-      {/* Guest band */}
-      <section aria-label="Guest contact" className="border-b border-border/60 px-6 py-2">
-        {booking.guest?.phone && (
-          <a href={`tel:${booking.guest.phone}`} className="flex items-center gap-3 py-2 text-sm text-foreground">
-            <Phone className="size-4 text-muted-foreground/60" aria-hidden="true" /> {booking.guest.phone}
-          </a>
-        )}
-        {booking.guest?.email && (
-          <a href={`mailto:${booking.guest.email}`} className="flex items-center gap-3 py-2 text-sm text-foreground">
-            <Mail className="size-4 text-muted-foreground/60" aria-hidden="true" /> {booking.guest.email}
-          </a>
-        )}
-        {booking.guest?.id && (
-          <Link href={`/dashboard/customers?guestId=${booking.guest.id}`}
-            className="flex items-center gap-3 py-2 text-sm font-medium text-[var(--pen-accent)]">
-            View full profile
-            <span className="min-w-0 flex-1" aria-hidden="true" />
-            <ArrowUpRight className="size-3 text-muted-foreground/60" aria-hidden="true" />
-          </Link>
-        )}
-      </section>
+      {/* Notes and requests */}
+      <NotesSection booking={booking} onSaveNotes={onSaveNotes} />
 
-      {/* Notes band fills the remaining height */}
-      <NotesBand booking={booking} onSaveNotes={onSaveNotes} />
+      {/* Secondary booking facts */}
+      <Disclosure className="border-t border-border/60 pt-2">
+        <Disclosure.Heading>
+          <Button
+            slot="trigger"
+            variant="ghost"
+            fullWidth
+            className="justify-between rounded-lg px-0 text-sm font-medium text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-transparent [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+          >
+            More details
+            <Disclosure.Indicator />
+          </Button>
+        </Disclosure.Heading>
+        <Disclosure.Content>
+          <Disclosure.Body className="px-0">
+            <dl className="divide-y divide-border/50">
+              <Fact label="Reference" className="font-mono">
+                {booking.reference}
+              </Fact>
+              <Fact label="Source">{getSourceLabel(booking.source)}</Fact>
+              <Fact label="Payment preference">
+                {booking.paymentPreference === "pay_now" ? "Pay now" : "Pay at check-in"}
+              </Fact>
+              {booking.estimatedArrival && (
+                <Fact label="Expected arrival">{booking.estimatedArrival}</Fact>
+              )}
+              {booking.createdAt && <Fact label="Booked">{formatDateTime(booking.createdAt)}</Fact>}
+              {booking.createdBy?.fullName && (
+                <Fact label="Booked by">{booking.createdBy.fullName}</Fact>
+              )}
+              {booking.checkInAt && (
+                <Fact label="Checked in">{formatDateTime(booking.checkInAt)}</Fact>
+              )}
+              {booking.checkOutAt && (
+                <Fact label="Checked out">{formatDateTime(booking.checkOutAt)}</Fact>
+              )}
+            </dl>
+          </Disclosure.Body>
+        </Disclosure.Content>
+      </Disclosure>
     </div>
   );
 }
 
-function Fact({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+function StayDate({
+  label,
+  date,
+  at,
+  doneLabel,
+  align = "start",
+}: {
+  label: string;
+  date: string;
+  at: string | null;
+  doneLabel: string;
+  align?: "start" | "end";
+}) {
+  return (
+    <div className={cn("min-w-0", align === "end" && "text-right")}>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate text-md font-semibold tracking-tight text-foreground">
+        {formatDate(date, "EEE, d MMM")}
+      </p>
+      {at && (
+        <p className="truncate text-2xs tabular-nums text-emerald-700">
+          {doneLabel} at {formatDate(at, "HH:mm")}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ContactLink({
+  href,
+  icon,
+  children,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      className="flex min-h-11 items-center gap-3 rounded-lg text-sm text-foreground md:min-h-10 outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:text-primary"
+    >
+      <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-xl bg-secondary text-muted-foreground">
+        {icon}
+      </span>
+      <span className="min-w-0 truncate">{children}</span>
+    </a>
+  );
+}
+
+function Fact({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <div className="flex items-center justify-between gap-4 py-3">
       <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
@@ -168,7 +342,13 @@ function Fact({ label, children, className }: { label: string; children: React.R
   );
 }
 
-function NotesBand({ booking, onSaveNotes }: { booking: FullBookingDetail; onSaveNotes?: (notes: string) => Promise<{ success: boolean; error?: string }> }) {
+function NotesSection({
+  booking,
+  onSaveNotes,
+}: {
+  booking: FullBookingDetail;
+  onSaveNotes?: (notes: string) => Promise<{ success: boolean; error?: string }>;
+}) {
   const [editing, setEditing] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   // Draft tracks the persisted note; a render-time reset follows a save or a
@@ -193,39 +373,74 @@ function NotesBand({ booking, onSaveNotes }: { booking: FullBookingDetail; onSav
   }
 
   const canEdit = typeof onSaveNotes === "function";
+  const hasContent = Boolean(booking.internalNotes || booking.specialRequests);
+  if (!hasContent && !canEdit) return null;
 
   return (
-    <section aria-label="Notes" className="flex flex-1 flex-col gap-3 px-6 pb-6 pt-4">
-      <div className="flex items-center gap-3">
-        <h3 className="text-sm font-semibold text-foreground">Notes</h3>
-        <span className="min-w-0 flex-1" aria-hidden="true" />
-        {canEdit && <button type="button" aria-label={editing ? "Close notes editor" : "Edit notes"}
-          onClick={() => setEditing((prev) => !prev)}
-          className="grid size-6 place-items-center rounded-md text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground">
-          <Pencil className="size-4" aria-hidden="true" />
-        </button>}
+    <section aria-label="Notes" className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-xs font-medium text-muted-foreground">Notes</h3>
+        {canEdit && !editing && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onPress={() => setEditing(true)}
+            className="h-11 gap-1 rounded-lg px-2 text-xs font-medium text-muted-foreground md:h-8"
+          >
+            <Pencil className="size-3" aria-hidden="true" />
+            {booking.internalNotes ? "Edit" : "Add note"}
+          </Button>
+        )}
       </div>
+
+      {booking.specialRequests && (
+        <p className="rounded-xl bg-amber-500/[0.08] px-3 py-2 text-sm leading-relaxed text-foreground">
+          <span className="font-medium text-amber-800">Guest request · </span>
+          {booking.specialRequests}
+        </p>
+      )}
+
       {editing ? (
-        <div className="flex flex-col gap-2">
-          <textarea rows={4} value={draft} maxLength={2000} autoFocus
+        <div className="space-y-2">
+          <TextArea
+            aria-label="Internal notes"
+            rows={4}
+            value={draft}
+            maxLength={2000}
+            autoFocus
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Housekeeping requests, arrival notes…"
-            className="w-full resize-none rounded-xl border border-border/60 bg-card px-3 py-3 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:text-xs" />
+            className="w-full resize-none rounded-xl text-base sm:text-sm"
+          />
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => { setEditing(false); setDraft(booking.internalNotes ?? ""); }}
-              className="h-8 rounded-full px-3 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+            <Button
+              size="sm"
+              variant="tertiary"
+              onPress={() => {
+                setEditing(false);
+                setDraft(booking.internalNotes ?? "");
+              }}
+              className="rounded-lg"
+            >
               Cancel
-            </button>
-            <button type="button" disabled={saving} onClick={() => void save()}
-              className="h-8 rounded-full bg-[var(--pen-accent)] px-4 text-xs font-semibold text-white disabled:opacity-60">
-              {saving ? "Saving…" : "Save"}
-            </button>
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              isPending={saving}
+              onPress={() => void save()}
+              className="rounded-lg font-semibold"
+            >
+              Save
+            </Button>
           </div>
         </div>
       ) : (
-        <p className="text-xs leading-relaxed text-foreground">
-          {booking.internalNotes || <span className="text-muted-foreground/70">No notes yet.</span>}
-        </p>
+        booking.internalNotes && (
+          <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
+            {booking.internalNotes}
+          </p>
+        )
       )}
     </section>
   );
