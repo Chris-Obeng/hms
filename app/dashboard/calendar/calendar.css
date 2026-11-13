@@ -3,15 +3,16 @@
    Tinted status bars, quiet chrome, responsive room gutter, zero global leaks.
    ============================================================================ */
 
-/* Status palette. One solid status, in house, so the guests in the building
-   are what the eye finds first. Everything else is a soft tint with a hairline
-   and ink of the same hue. Tentative and void stays (pending, cancelled) get
-   a dashed edge, so status never rests on hue alone. Explicit OKLCH values,
-   all inside sRGB; every ink passes WCAG AA on its fill (4.85:1 to 7.2:1). */
+/* Status palette. In house is the one solid strip, so the guests in the
+   building are what the eye finds first. The rest are clear mid tints with a
+   same-hue edge and deep ink. Pending and cancelled also get a dashed edge,
+   so status never rests on hue alone. Explicit OKLCH values inside sRGB:
+   ink on fill 6.5:1 to 8.1:1 (white on emerald 4.97:1), edges 3.1:1 to
+   3.4:1 against the page so every strip outline is visible. */
 :root {
-  --cal-confirmed-fill: oklch(0.952 0.02 255);
-  --cal-confirmed-line: oklch(0.86 0.055 258);
-  --cal-confirmed-ink: oklch(0.43 0.14 262);
+  --cal-confirmed-fill: oklch(0.895 0.048 255);
+  --cal-confirmed-line: oklch(0.66 0.13 258);
+  --cal-confirmed-ink: oklch(0.36 0.13 262);
 
   --cal-inhouse-fill: oklch(0.53 0.12 158);
   --cal-inhouse-line: oklch(0.47 0.11 158);
@@ -19,21 +20,21 @@
   /* Text on light marks (the "Due" chip) inside a solid bar. */
   --cal-inhouse-mark: oklch(0.43 0.1 158);
 
-  --cal-pending-fill: oklch(0.962 0.032 85);
-  --cal-pending-line: oklch(0.82 0.1 75);
-  --cal-pending-ink: oklch(0.47 0.11 60);
+  --cal-pending-fill: oklch(0.91 0.072 82);
+  --cal-pending-line: oklch(0.66 0.14 65);
+  --cal-pending-ink: oklch(0.4 0.1 55);
 
-  --cal-checkout-fill: oklch(0.955 0.006 255);
-  --cal-checkout-line: oklch(0.88 0.012 255);
-  --cal-checkout-ink: oklch(0.47 0.02 255);
+  --cal-checkout-fill: oklch(0.895 0.012 255);
+  --cal-checkout-line: oklch(0.64 0.02 255);
+  --cal-checkout-ink: oklch(0.38 0.025 255);
 
-  --cal-cancelled-fill: oklch(1 0 0);
-  --cal-cancelled-line: oklch(0.82 0.012 255);
-  --cal-cancelled-ink: oklch(0.55 0.015 255);
+  --cal-cancelled-fill: oklch(0.955 0.004 255);
+  --cal-cancelled-line: oklch(0.64 0.015 255);
+  --cal-cancelled-ink: oklch(0.45 0.015 255);
 
-  --cal-noshow-fill: oklch(0.958 0.02 15);
-  --cal-noshow-line: oklch(0.86 0.06 15);
-  --cal-noshow-ink: oklch(0.47 0.15 18);
+  --cal-noshow-fill: oklch(0.9 0.048 15);
+  --cal-noshow-line: oklch(0.66 0.14 15);
+  --cal-noshow-ink: oklch(0.4 0.14 18);
 
   --cal-closure: #64748b;
   --cal-closure-ink: #475569;
@@ -828,6 +829,54 @@
   outline: 2px solid var(--ring);
   outline-offset: 1px;
   border-radius: 4px;
+}
+
+/* ── Days-shown segmented control (HeroUI ToggleButtonGroup) ─────────
+   A quiet track; the chosen range sits on a raised white segment. */
+.rl-segmented {
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--foreground) 6%, var(--card));
+}
+
+.rl-segmented .toggle-button {
+  --toggle-button-bg: transparent;
+  --toggle-button-bg-hover: transparent;
+  --toggle-button-bg-pressed: transparent;
+  --toggle-button-fg: var(--muted-foreground);
+  --toggle-button-bg-selected: var(--card);
+  --toggle-button-bg-selected-hover: var(--card);
+  --toggle-button-bg-selected-pressed: var(--card);
+  --toggle-button-fg-selected: var(--foreground);
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.rl-segmented .toggle-button[data-selected="true"] {
+  font-weight: 600;
+  box-shadow:
+    0 1px 2px rgb(15 23 42 / 0.08),
+    0 0 0 1px rgb(15 23 42 / 0.04);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rl-segmented .toggle-button:not([data-selected="true"]):hover {
+    color: var(--foreground);
+  }
+}
+
+@media (max-width: 767px) {
+  .rl-segmented .toggle-button {
+    height: 36px;
+  }
 }
 
 /* ── Legend swatches (toolbar popover and filter drawer) ────────────── */

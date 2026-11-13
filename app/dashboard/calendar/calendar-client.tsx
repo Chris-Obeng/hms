@@ -212,6 +212,10 @@ function CalendarClientContent({
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
+    // Backstop for what Realtime cannot deliver: a filtered subscription never
+    // receives DELETE events (a colleague removing a block), and a dropped
+    // socket loses whatever changed meanwhile. Only while the tab is visible.
+    refetchInterval: 60 * 1000,
   });
 
   // Timestamp of the data on screen. During a range switch TanStack shows the
@@ -532,12 +536,14 @@ function CalendarClientContent({
       refreshTimer = window.setTimeout(invalidate, 75);
     };
 
-    const refreshRealtimeAuth = async () => {
+    // The shared client fetches a fresh Clerk token on connect and on every
+    // heartbeat. Awaiting it here only makes sure the join carries the token,
+    // so RLS sees this staff member from the first event.
+    const ensureRealtimeAuth = async () => {
       try {
-        const token = await window.Clerk?.session?.getToken({ template: "supabase" });
-        if (!cancelled && token) supabase.realtime.setAuth(token);
+        await supabase.realtime.setAuth();
       } catch (error) {
-        console.error("[calendar] realtime auth refresh failed:", error);
+        console.error("[calendar] realtime auth failed:", error);
       }
     };
 
@@ -548,18 +554,27 @@ function CalendarClientContent({
       table: "bookings,availability_blocks",
     });
 
+    // Changes made while the channel was down are not replayed, so the rack
+    // refetches whenever the channel comes back after an interruption.
+    let joined = false;
+    let interrupted = false;
+
     const handleStatus = (status: string, err?: Error) => {
       setRealtimeStatus(status === "SUBSCRIBED" ? "live" : "reconnecting");
       if (status === "SUBSCRIBED") {
+        if (interrupted) batchRefresh();
+        joined = true;
+        interrupted = false;
         resubscribeAttempts = 0;
         return;
       }
+      if (joined) interrupted = true;
       if (status !== "CHANNEL_ERROR" && status !== "TIMED_OUT") return;
       if (resubscribeAttempts === 0) reportStatus(status, err);
       if (cancelled || resubscribeAttempts >= 5) return;
       resubscribeAttempts += 1;
       retryTimer = window.setTimeout(async () => {
-        await refreshRealtimeAuth();
+        await ensureRealtimeAuth();
         if (!cancelled) openChannel();
       }, resubscribeAttempts * 2_000);
     };
@@ -593,16 +608,14 @@ function CalendarClientContent({
     };
     document.addEventListener("visibilitychange", onVisible);
 
-    void refreshRealtimeAuth().then(() => {
+    void ensureRealtimeAuth().then(() => {
       if (!cancelled) openChannel();
     });
-    const authInterval = window.setInterval(() => void refreshRealtimeAuth(), 45_000);
 
     return () => {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVisible);
       if (refreshTimer) window.clearTimeout(refreshTimer);
-      if (authInterval) window.clearInterval(authInterval);
       if (retryTimer) window.clearTimeout(retryTimer);
       if (channel) supabase.removeChannel(channel);
     };
@@ -914,7 +927,6 @@ function CalendarClientContent({
         realtimeStatus={realtimeStatus}
         activeFilterCount={activeDrawerFilterCount}
         searchQuery={searchQuery}
-        canEdit={canEdit}
         canBlock={canBlock}
         onNavigate={navigate}
         onToday={goToToday}
@@ -922,7 +934,6 @@ function CalendarClientContent({
         onViewPresetChange={changeViewPreset}
         onSearchQueryChange={setSearchQuery}
         onOpenFilters={() => setShowFilters(true)}
-        onNewBooking={() => openNewBooking(null)}
         onBlockRoom={openBlockSheet}
       />
 
