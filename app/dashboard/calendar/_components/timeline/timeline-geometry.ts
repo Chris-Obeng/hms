@@ -1,10 +1,15 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
 
+/** Narrowest day column. The timeline widens columns to fill the viewport
+ *  (see TimelineCalendar), so this is a floor, not a fixed width. */
 export const DAY_WIDTH = 92;
 export const ROW_HEIGHT = 52;
 export const GROUP_HEIGHT = 34;
 export const ROOM_COLUMN_WIDTH = 220;
 export const HEADER_HEIGHT = 62;
+
+/** Inset between a bar and its day-column edges, so adjacent stays read as two bars. */
+const BAR_INSET = 3;
 
 export interface BarGeometry {
   left: number;
@@ -17,8 +22,9 @@ export interface BarGeometry {
 export function clampBarGeometry(
   geometry: BarGeometry,
   days: number,
+  dayWidth: number = DAY_WIDTH,
 ): BarGeometry & { visible: boolean } {
-  const rangeRight = days * DAY_WIDTH;
+  const rangeRight = days * dayWidth;
   if (geometry.left >= rangeRight || geometry.left + geometry.width <= 0) {
     return { ...geometry, visible: false };
   }
@@ -35,10 +41,20 @@ export function columnToDate(column: number, startDate: string): string {
   return format(addDays(parseISO(startDate), column), "yyyy-MM-dd");
 }
 
-export function bookingGeometry(checkIn: string, checkOut: string, startDate: string) {
+export function bookingGeometry(
+  checkIn: string,
+  checkOut: string,
+  startDate: string,
+  dayWidth: number = DAY_WIDTH,
+) {
   const column = dateToColumn(checkIn, startDate);
   const nights = Math.max(1, differenceInCalendarDays(parseISO(checkOut), parseISO(checkIn)));
-  return { left: column * DAY_WIDTH + 3, width: nights * DAY_WIDTH - 6, column, nights };
+  return {
+    left: column * dayWidth + BAR_INSET,
+    width: nights * dayWidth - BAR_INSET * 2,
+    column,
+    nights,
+  };
 }
 
 export interface TimelineCell {
@@ -52,12 +68,20 @@ export function pointToCell(
   offsetY: number,
   days: number,
   rowCount: number,
+  dayWidth: number = DAY_WIDTH,
 ): TimelineCell | null {
   if (offsetX < 0 || offsetY < 0 || rowCount === 0 || days === 0) return null;
-  const column = Math.floor(offsetX / DAY_WIDTH);
+  const column = Math.floor(offsetX / dayWidth);
   const roomIndex = Math.floor(offsetY / ROW_HEIGHT);
   if (column >= days || roomIndex >= rowCount) return null;
   return { roomIndex, column };
+}
+
+/** Width of each day column: fill the space beside the room gutter, never
+ *  narrower than DAY_WIDTH (the minimum that fits a guest name and a marker). */
+export function fitDayWidth(viewportWidth: number, roomColumnWidth: number, days: number): number {
+  if (!Number.isFinite(viewportWidth) || days <= 0) return DAY_WIDTH;
+  return Math.max(DAY_WIDTH, Math.floor((viewportWidth - roomColumnWidth) / days));
 }
 
 export function rangeOverlaps(aStart: string, aEnd: string, bStart: string, bEnd: string) {

@@ -13,7 +13,7 @@ export function isManualLikeSource(source: string | null | undefined): boolean {
 /** Bar color is keyed by lifecycle status, never source — the front desk
  *  scans the rack by "arriving / in-house / departed", and coloring confirmed
  *  bookings by source used to make manual-green collide with in-house-green.
- *  The key maps to a CSS token set in calendar.css (light + dark). */
+ *  The key maps to a CSS token set in calendar.css. */
 export type BookingStatusKey =
   | "confirmed"
   | "inhouse"
@@ -69,7 +69,7 @@ export function groupAccent(groupId: string | null | undefined): string | null {
  *  in week-plus horizons, and sub-week views only added dropdown noise. */
 export const VIEW_PRESETS = [
   { label: "Week", days: 7 },
-  { label: "2 Wks", days: 14 },
+  { label: "2 weeks", days: 14 },
   { label: "Month", days: 30 },
 ] as const;
 
@@ -86,19 +86,18 @@ export type ViewPreset = (typeof VIEW_PRESETS)[number]["label"];
 
 export interface LegendItem {
   label: string;
-  color: string;
-  type: "booking" | "block";
+  /** Matches `.rl-legend-swatch[data-swatch]` in calendar.css. */
+  swatch: BookingStatusKey | "closure";
 }
 
 export const CALENDAR_LEGEND: LegendItem[] = [
-  { label: "Confirmed", color: "var(--cal-confirmed)", type: "booking" },
-  { label: "In house", color: "var(--cal-inhouse)", type: "booking" },
-  { label: "Pending", color: "var(--cal-pending)", type: "booking" },
-  { label: "Checked out", color: "var(--cal-checkout)", type: "booking" },
-  { label: "Cancelled", color: "var(--cal-cancelled)", type: "booking" },
-  { label: "No-show", color: "var(--cal-noshow)", type: "booking" },
-  { label: "Unallocated", color: "var(--cal-unalloc)", type: "booking" },
-  { label: "Room closure", color: "var(--cal-closure)", type: "block" },
+  { label: "Confirmed", swatch: "confirmed" },
+  { label: "In house", swatch: "inhouse" },
+  { label: "Pending", swatch: "pending" },
+  { label: "Checked out", swatch: "checkout" },
+  { label: "Cancelled", swatch: "cancelled" },
+  { label: "No-show", swatch: "noshow" },
+  { label: "Blocked dates", swatch: "closure" },
 ];
 
 export const BLOCK_REASONS = [

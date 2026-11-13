@@ -28,36 +28,25 @@ export default async function CalendarPage() {
     return <NoCalendarState />;
   }
 
-  const { data: roomTypesRaw } = await supabase
-    .from("room_types")
-    .select("id, name, slug, base_price, sort_order")
-    .eq("hotel_id", hotel.id)
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true });
-
-  const roomTypes = (roomTypesRaw || []).map((rt) => ({
-    id: rt.id,
-    name: rt.name,
-    base_price: rt.base_price,
-  }));
-
+  // The seed covers every view the client can open around today (longest view
+  // plus the past lead), so switching Week / 2 weeks / Month needs no request.
   const today = businessToday(hotel.timezone || "UTC");
   const seedStart = format(addDays(parseISO(today), -PAST_LEAD_MAX_DAYS), "yyyy-MM-dd");
-  let initialData: Awaited<ReturnType<typeof getCalendarData>> | null = null;
-  try {
-    initialData = await getCalendarData(seedStart, 30 + PAST_LEAD_MAX_DAYS);
-  } catch (error) {
-    console.error("[calendar] initial data load failed:", error);
-  }
+
+  // Independent reads run together: the rack, the staff role and the RLS token.
+  const [initialData, { canEdit, canBlock, canUnblock }, rlsToken] = await Promise.all([
+    getCalendarData(seedStart, 30 + PAST_LEAD_MAX_DAYS).catch((error: unknown) => {
+      console.error("[calendar] initial data load failed:", error);
+      return null;
+    }),
+    getCurrentStaffRole(),
+    getToken ? getToken({ template: "supabase" }).catch(() => null) : Promise.resolve(null),
+  ]);
 
   if (!initialData) {
     return <CalendarLoadErrorState />;
   }
 
-  const { canEdit, canBlock, canUnblock } = await getCurrentStaffRole();
-
-  const rlsToken = getToken ? await getToken({ template: "supabase" }).catch(() => null) : null;
   if (rlsToken && initialData.bookings.length > 0) {
     // Operational priority: confirmed/checked_in first, then by checkIn
     const sorted = [...initialData.bookings].sort((a, b) => {
@@ -71,7 +60,6 @@ export default async function CalendarPage() {
         <div className="-mx-4 -mb-4 md:-mx-6 md:-mb-6 lg:-mx-8 lg:-mb-8 overflow-hidden">
           <CalendarClient
             initialData={initialData}
-            roomTypes={roomTypes}
             hotelId={hotel.id}
             hotelName={hotel.name}
             currency={hotel.currency || "GHS"}
@@ -89,7 +77,6 @@ export default async function CalendarPage() {
     <div className="-mx-4 -mb-4 md:-mx-6 md:-mb-6 lg:-mx-8 lg:-mb-8 overflow-hidden">
       <CalendarClient
         initialData={initialData}
-        roomTypes={roomTypes}
         hotelId={hotel.id}
         hotelName={hotel.name}
         currency={hotel.currency || "GHS"}

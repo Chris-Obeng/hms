@@ -17,13 +17,15 @@ import {
 } from "@dnd-kit/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
-import { AlertTriangle, GripVertical, Lock, MessageSquareText, Wand2 } from "lucide-react";
-import { Button, Tooltip } from "@heroui/react";
+import { AlertTriangle, Lock, MessageSquareText, Wand2 } from "lucide-react";
+import { Button, Spinner, Tooltip } from "@heroui/react";
 import { cn } from "@/lib/utils";
 import { useIsCompactScreen } from "@/hooks/use-mobile";
+import { getStatusLabel } from "@/lib/booking-status";
 import type { CalendarAvailabilityBlock, CalendarBooking, CalendarRoom } from "../../actions";
 import { businessToday } from "@/lib/business-date";
 import {
+  BLOCK_REASON_LABELS,
   getBookingStatusKey,
   groupAccent,
   isManualLikeSource,
@@ -36,6 +38,7 @@ import {
   columnToDate,
   dateToColumn,
   DAY_WIDTH,
+  fitDayWidth,
   HEADER_HEIGHT,
   pointToCell,
   rangeOverlaps,
@@ -46,6 +49,9 @@ import { findTimelineConflicts, validateTimelineDrop } from "./timeline-conflict
 
 const COMPACT_ROOM_COLUMN_WIDTH = 136;
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+/** Prefix for blocks shown before the server has assigned them an id. */
+export const PENDING_BLOCK_PREFIX = "pending:";
 
 function subscribeReducedMotion(onChange: () => void) {
   const mql = window.matchMedia(REDUCED_MOTION_QUERY);
@@ -92,7 +98,11 @@ type Props = {
   startDate: Date;
   days: number;
   rooms: CalendarRoom[];
+  /** Bookings to draw (after search and filters). */
   bookings: CalendarBooking[];
+  /** Every loaded booking. Drop validation and conflict marks use this set, so
+   *  a search or filter never hides a clash. Defaults to `bookings`. */
+  allBookings?: CalendarBooking[];
   blocks: CalendarAvailabilityBlock[];
   canEdit: boolean;
   hotelTimezone: string;
@@ -152,6 +162,28 @@ function resolveDragDates(
   }
 }
 
+/** A balance is still owed. Cancelled and no-show stays owe nothing on the rack. */
+function hasBalanceDue(booking: CalendarBooking): boolean {
+  if (booking.status === "cancelled" || booking.status === "no_show") return false;
+  return booking.paymentStatus !== "paid" && booking.paymentStatus !== "refunded";
+}
+
+function groupByRoom(list: CalendarBooking[]): Map<string, CalendarBooking[]> {
+  const map = new Map<string, CalendarBooking[]>();
+  for (const b of list) {
+    if (!b.roomId) continue;
+    const entry = map.get(b.roomId);
+    if (entry) entry.push(b);
+    else map.set(b.roomId, [b]);
+  }
+  return map;
+}
+
+function blockLabel(reason: string | null): string {
+  if (!reason) return "Blocked";
+  return BLOCK_REASON_LABELS[reason] ?? reason.replaceAll("_", " ");
+}
+
 function BookingBar({
   booking,
   conflict,
@@ -166,27 +198,44 @@ function BookingBar({
   onOpen(): void;
 }) {
   const isVirtual = Boolean(booking.isVirtual);
-  const editable =
-    canEdit && !isBusy && !isVirtual && !TERMINAL_BOOKING_STATUS_SET.has(booking.status);
+  const isTerminal = TERMINAL_BOOKING_STATUS_SET.has(booking.status);
+  const draggable = canEdit && !isBusy && !isVirtual && !isTerminal;
   const drag = useDraggable({
     id: `booking:${booking.id}`,
-    disabled: !editable,
+    disabled: !draggable,
     data: { kind: "booking", bookingId: booking.id } satisfies DragData,
   });
   const left = useDraggable({
     id: `left:${booking.id}`,
-    disabled: !editable,
+    disabled: !draggable,
     data: { kind: "resize-left", bookingId: booking.id } satisfies DragData,
   });
   const right = useDraggable({
     id: `right:${booking.id}`,
-    disabled: !editable,
+    disabled: !draggable,
     data: { kind: "resize-right", bookingId: booking.id } satisfies DragData,
   });
   const statusKey = getBookingStatusKey(booking.status);
   const hasNotes = Boolean(booking.specialRequests?.trim() || booking.internalNotes?.trim());
   const accent = groupAccent(booking.groupId);
   const isDragging = drag.isDragging || left.isDragging || right.isDragging;
+  const balanceDue = hasBalanceDue(booking);
+  const roomsCount = booking.roomsCount ?? 0;
+
+  const label = [
+    booking.guestName ?? "Guest",
+    `room ${booking.roomNumber ?? "unassigned"}`,
+    `${format(parseISO(booking.checkIn), "MMM d")} to ${format(parseISO(booking.checkOut), "MMM d")}`,
+    getStatusLabel(booking.status),
+    balanceDue ? "balance due" : null,
+    accent ? "part of a multi-room reservation" : null,
+    roomsCount > 1 ? `${roomsCount} rooms` : null,
+    hasNotes ? "has notes" : null,
+    conflict ? "overlaps another stay" : null,
+    isBusy ? "saving" : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <div
@@ -194,13 +243,15 @@ function BookingBar({
         "rl-booking-bar",
         conflict && "is-conflict",
         isDragging && "is-dragging",
-        !editable && "is-terminal"
+        isTerminal && "is-terminal",
+        !draggable && "is-locked",
+        isBusy && "is-saving"
       )}
       data-cal-status={statusKey}
       data-group={accent ? "true" : undefined}
       style={accent ? ({ "--rl-group-accent": accent } as React.CSSProperties) : undefined}
     >
-      {editable && (
+      {draggable && (
         <>
           <div
             ref={left.setNodeRef}
@@ -208,7 +259,7 @@ function BookingBar({
             {...left.attributes}
             role="button"
             tabIndex={0}
-            aria-label="Resize check-in"
+            aria-label="Change check-in date"
             className="rl-resize-handle left"
             onClick={(e) => e.stopPropagation()}
           />
@@ -218,7 +269,7 @@ function BookingBar({
             {...right.attributes}
             role="button"
             tabIndex={0}
-            aria-label="Resize check-out"
+            aria-label="Change check-out date"
             className="rl-resize-handle right"
             onClick={(e) => e.stopPropagation()}
           />
@@ -230,27 +281,27 @@ function BookingBar({
         {...drag.attributes}
         role="button"
         tabIndex={0}
-        aria-label={`${booking.guestName ?? "Guest"}, room ${booking.roomNumber ?? "unassigned"}, ${booking.checkIn} to ${booking.checkOut}, ${booking.status.replaceAll("_", " ")}${accent ? ", part of a multi-room reservation" : ""}${(booking.roomsCount ?? 0) > 1 ? `, ${booking.roomsCount} rooms` : ""}${hasNotes ? ", has notes" : ""}${conflict ? ", conflict" : ""}`}
+        aria-label={label}
+        aria-busy={isBusy || undefined}
         onClick={onOpen}
         onKeyDown={(e) => {
           if (e.key === "Enter") onOpen();
         }}
         className="rl-booking-move"
       >
-        {editable && <GripVertical className="rl-booking-grip" aria-hidden />}
         <span className="rl-booking-name">{booking.guestName ?? "Guest"}</span>
         {hasNotes && <MessageSquareText className="rl-booking-note" aria-hidden />}
-        {(booking.roomsCount ?? 0) > 1 && (
+        {roomsCount > 1 && (
           <span className="rl-booking-rooms" aria-hidden>
-            ×{booking.roomsCount}
+            ×{roomsCount}
           </span>
         )}
-        <span
-          className={cn("rl-booking-pay", booking.paymentStatus === "paid" ? "is-paid" : "is-due")}
-        >
-          {booking.paymentStatus === "paid" ? "Paid" : "Due"}
-        </span>
-        {conflict && <AlertTriangle className="size-4 shrink-0 text-white" aria-hidden />}
+        {balanceDue && (
+          <span className="rl-booking-due" aria-hidden>
+            Due
+          </span>
+        )}
+        {conflict && <AlertTriangle className="rl-booking-conflict" aria-hidden />}
       </div>
     </div>
   );
@@ -258,26 +309,36 @@ function BookingBar({
 
 function TrayBooking({
   booking,
+  canEdit,
   isAssigning = false,
   onOpen,
   onAutoAssign,
 }: {
   booking: CalendarBooking;
+  canEdit: boolean;
   isAssigning?: boolean;
   onOpen(): void;
   onAutoAssign(): void;
 }) {
   const isVirtual = Boolean(booking.isVirtual);
+  const draggable = canEdit && !isVirtual && !isAssigning;
   const drag = useDraggable({
     id: `booking:${booking.id}`,
-    disabled: isVirtual || isAssigning,
+    disabled: !draggable,
     data: { kind: "booking", bookingId: booking.id } satisfies DragData,
   });
   const nights = nightsBetween(booking.checkIn, booking.checkOut);
+  const name = booking.guestName ?? booking.reference;
+  const arrival = format(parseISO(booking.checkIn), "MMM d");
   return (
     <div
-      className={cn("rl-tray-booking", drag.isDragging && "is-dragging")}
-      title={`${booking.guestName ?? booking.reference} · ${nights}n`}
+      className={cn(
+        "rl-tray-booking",
+        drag.isDragging && "is-dragging",
+        !draggable && "is-locked",
+        !canEdit && "is-readonly",
+        isAssigning && "is-saving"
+      )}
     >
       <button
         type="button"
@@ -286,26 +347,32 @@ function TrayBooking({
         {...drag.attributes}
         className="rl-tray-main"
         onClick={onOpen}
-        aria-label={`Open ${booking.guestName ?? booking.reference}, unassigned, ${nights} nights`}
+        aria-label={`Open ${name}, unassigned, arrives ${arrival}, ${nights} ${nights === 1 ? "night" : "nights"}`}
       >
-        <span className="rl-tray-dot" aria-hidden="true" />
-        <span className="truncate">{booking.guestName ?? booking.reference}</span>
+        <span className="rl-tray-name">{name}</span>
+        <span className="rl-tray-meta">
+          {arrival} · {nights}n
+        </span>
       </button>
-      <span className="rl-tray-nights tabular-nums">{nights}n</span>
-      <Tooltip delay={200}>
-        <Button
-          variant="ghost"
-          size="sm"
-          isIconOnly
-          isDisabled={isAssigning}
-          aria-label={`Auto-assign ${booking.guestName ?? booking.reference}`}
-          onPress={onAutoAssign}
-          className="ui-press size-10 min-h-10 min-w-10 rounded-lg text-muted-foreground sm:size-8 sm:min-h-8 sm:min-w-8 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
-        >
-          <Wand2 className="size-4" />
-        </Button>
-        <Tooltip.Content placement="top">Auto-assign room</Tooltip.Content>
-      </Tooltip>
+      {canEdit && (
+        <Tooltip delay={300}>
+          <Button
+            variant="ghost"
+            size="sm"
+            isIconOnly
+            isPending={isAssigning}
+            isDisabled={isVirtual}
+            aria-label={`Assign a room to ${name}`}
+            onPress={onAutoAssign}
+            className="ui-press size-10 min-h-10 min-w-10 rounded-lg text-muted-foreground sm:size-8 sm:min-h-8 sm:min-w-8 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+          >
+            {({ isPending }) =>
+              isPending ? <Spinner size="sm" color="current" /> : <Wand2 className="size-4" />
+            }
+          </Button>
+          <Tooltip.Content placement="top">Assign best room</Tooltip.Content>
+        </Tooltip>
+      )}
     </div>
   );
 }
@@ -313,6 +380,7 @@ function TrayBooking({
 interface RowProps {
   room: CalendarRoom;
   roomColumnWidth: number;
+  dayWidth: number;
   bookings: CalendarBooking[];
   blocks: CalendarAvailabilityBlock[];
   conflicts: Set<string>;
@@ -334,6 +402,7 @@ const EMPTY_BLOCKS: CalendarAvailabilityBlock[] = [];
 const RoomRow = React.memo(function RoomRow({
   room,
   roomColumnWidth,
+  dayWidth,
   bookings,
   blocks,
   conflicts,
@@ -350,73 +419,78 @@ const RoomRow = React.memo(function RoomRow({
   const notBookable = NON_BOOKABLE.has(room.status ?? "");
   return (
     <div className="rl-room-row" style={{ height: ROW_HEIGHT }}>
-      <div
-        className="rl-room-label"
-        style={{ width: roomColumnWidth }}
-        data-status={room.status}
-      >
-        <div className="rl-room-meta">
-          <strong>
-            <span className="truncate">{room.roomNumber}</span>
-            {notBookable && (
-              <span className={`rl-room-flag rl-room-flag--${room.status}`}>
-                {room.status === "maintenance" ? "Maint." : "Out"}
-              </span>
-            )}
-          </strong>
-          <span className="rl-room-type">{room.roomTypeName}</span>
-        </div>
-        <i className={`status ${room.status}`} aria-hidden="true" />
+      <div className="rl-room-label" style={{ width: roomColumnWidth }} data-status={room.status}>
+        <strong>
+          <span className="truncate">{room.roomNumber}</span>
+          {notBookable && (
+            <span className={`rl-room-flag rl-room-flag--${room.status}`}>
+              {room.status === "maintenance" ? "Maint." : "Out"}
+            </span>
+          )}
+        </strong>
+        <span className="rl-room-type">{room.roomTypeName}</span>
       </div>
       <div
         className={cn("rl-room-grid", notBookable && "is-non-bookable")}
         style={{
           left: roomColumnWidth,
-          width: days * DAY_WIDTH,
-          backgroundSize: `${DAY_WIDTH}px 100%`,
+          width: days * dayWidth,
+          backgroundSize: `${dayWidth}px 100%`,
         }}
         onDoubleClick={(e) => {
-          if (notBookable) return;
+          if (notBookable || !canEdit) return;
           const box = e.currentTarget.getBoundingClientRect();
-          onCreate(room, columnToDate(Math.floor((e.clientX - box.left) / DAY_WIDTH), start));
+          onCreate(room, columnToDate(Math.floor((e.clientX - box.left) / dayWidth), start));
         }}
       >
         {notBookable && (
           <div
             aria-hidden
             className="rl-oos-veil"
-            title={
-              room.status === "maintenance"
-                ? "Room under maintenance"
-                : "Room out of service"
-            }
+            title={room.status === "maintenance" ? "Room under maintenance" : "Room out of service"}
           />
         )}
         {blocks.map((block) => {
-          const g = bookingGeometry(block.startDate, block.endDate, start);
-          const clipped = clampBarGeometry(g, days);
+          const g = bookingGeometry(block.startDate, block.endDate, start, dayWidth);
+          const clipped = clampBarGeometry(g, days, dayWidth);
           if (!clipped.visible) return null;
+          const label = blockLabel(block.reason);
+          const lastNight = format(addDays(parseISO(block.endDate), -1), "MMM d");
+          const range = `${format(parseISO(block.startDate), "MMM d")} to ${lastNight}`;
+          if (block.id.startsWith(PENDING_BLOCK_PREFIX)) {
+            return (
+              <div
+                key={block.id}
+                role="img"
+                className="rl-block-bar is-pending"
+                style={{ left: clipped.left, width: clipped.width }}
+                aria-label={`Blocked, ${label}, ${range}. Saving.`}
+              >
+                <Lock aria-hidden className="rl-block-lock" />
+                <span className="truncate">{label}</span>
+              </div>
+            );
+          }
           return (
             <button
               key={block.id}
               type="button"
               className="rl-block-bar"
               style={{ left: clipped.left, width: clipped.width }}
-              title="View block details"
-              aria-label={`Blocked room, ${block.reason?.replaceAll("_", " ") || "unspecified reason"}, ${block.startDate} to ${block.endDate}. View details.`}
+              aria-label={`Blocked, ${label}, ${range}. View details.`}
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenBlock?.(block);
               }}
             >
               <Lock aria-hidden className="rl-block-lock" />
-              <span className="truncate">{block.reason?.replaceAll("_", " ") || "Blocked"}</span>
+              <span className="truncate">{label}</span>
             </button>
           );
         })}
         {bookings.map((b) => {
-          const g = bookingGeometry(b.checkIn, b.checkOut, start);
-          const clipped = clampBarGeometry(g, days);
+          const g = bookingGeometry(b.checkIn, b.checkOut, start, dayWidth);
+          const clipped = clampBarGeometry(g, days, dayWidth);
           if (!clipped.visible) return null;
           const barId = (b.groupId ?? b.id).replace(/:v\d+$/, "");
           return (
@@ -425,13 +499,7 @@ const RoomRow = React.memo(function RoomRow({
               ref={attachBarRef as unknown as React.Ref<HTMLDivElement>}
               data-booking-id={barId}
               className={cn("rl-bar-slot", highlightIds?.has(b.id) && "rl-bar-new")}
-              style={{
-                position: "absolute",
-                left: clipped.left,
-                width: clipped.width,
-                top: 8,
-                height: 36,
-              }}
+              style={{ left: clipped.left, width: clipped.width }}
             >
               <BookingBar
                 booking={b}
@@ -453,6 +521,7 @@ export function TimelineCalendar({
   days,
   rooms,
   bookings,
+  allBookings,
   blocks,
   canEdit,
   hotelTimezone,
@@ -475,6 +544,7 @@ export function TimelineCalendar({
     getServerReducedMotionSnapshot
   );
   const roomColWidth = isCompact ? COMPACT_ROOM_COLUMN_WIDTH : ROOM_COLUMN_WIDTH;
+  const occupancy = allBookings ?? bookings;
 
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const trayRef = React.useRef<HTMLDivElement>(null);
@@ -483,6 +553,28 @@ export function TimelineCalendar({
   const activeRef = React.useRef<DragState | null>(null);
   const quantKeyRef = React.useRef("");
   const suppressClickRef = React.useRef(false);
+
+  // Day columns stretch to fill the scroller, so a week never leaves an empty
+  // strip on the right. Measured before paint; DAY_WIDTH is the floor.
+  const [viewportWidth, setViewportWidth] = React.useState<number | null>(null);
+  React.useLayoutEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const measure = () => setViewportWidth(scroller.clientWidth);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(scroller);
+    return () => observer.disconnect();
+  }, []);
+  const dayWidth =
+    viewportWidth == null ? DAY_WIDTH : fitDayWidth(viewportWidth, roomColWidth, days);
+  // Keyboard drags step one day column; the sensor reads the current width.
+  const dayWidthRef = React.useRef(dayWidth);
+  React.useLayoutEffect(() => {
+    dayWidthRef.current = dayWidth;
+  }, [dayWidth]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
@@ -495,9 +587,9 @@ export function TimelineCalendar({
       coordinateGetter: (event, { currentCoordinates }) => {
         switch (event.code) {
           case "ArrowRight":
-            return { x: currentCoordinates.x + DAY_WIDTH, y: currentCoordinates.y };
+            return { x: currentCoordinates.x + dayWidthRef.current, y: currentCoordinates.y };
           case "ArrowLeft":
-            return { x: currentCoordinates.x - DAY_WIDTH, y: currentCoordinates.y };
+            return { x: currentCoordinates.x - dayWidthRef.current, y: currentCoordinates.y };
           case "ArrowDown":
             return { x: currentCoordinates.x, y: currentCoordinates.y + ROW_HEIGHT };
           case "ArrowUp":
@@ -510,49 +602,64 @@ export function TimelineCalendar({
   );
 
   const start = format(startDate, "yyyy-MM-dd");
+  const endExclusive = format(addDays(startDate, days), "yyyy-MM-dd");
   const todayKey = businessToday(hotelTimezone);
   const todayColumn = dateToColumn(todayKey, start);
   const todayColumnVisible = todayColumn >= 0 && todayColumn < days;
 
+  // Horizontal scroll intent. "today" (mount, Today button) puts today at the
+  // left edge; "start" (paging to another period) shows the period's first day.
+  // Applied only once the scroller is measured, and never on a plain resize.
+  const scrollIntentRef = React.useRef<"today" | "start" | null>("today");
+  const lastAnchorRef = React.useRef(todayAnchor);
+  const lastStartRef = React.useRef(start);
   React.useLayoutEffect(() => {
+    if (todayAnchor !== lastAnchorRef.current) {
+      lastAnchorRef.current = todayAnchor;
+      scrollIntentRef.current = "today";
+    } else if (start !== lastStartRef.current) {
+      scrollIntentRef.current = "start";
+    }
+    lastStartRef.current = start;
     const scroller = scrollRef.current;
-    if (scroller && todayColumnVisible) {
-      scroller.scrollLeft = todayColumn * DAY_WIDTH;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [todayAnchor]);
+    const intent = scrollIntentRef.current;
+    if (!scroller || viewportWidth == null || !intent) return;
+    scroller.scrollLeft = intent === "today" && todayColumnVisible ? todayColumn * dayWidth : 0;
+    scrollIntentRef.current = null;
+  }, [dayWidth, start, todayAnchor, todayColumn, todayColumnVisible, viewportWidth]);
 
-  const conflicts = React.useMemo(() => findTimelineConflicts(bookings), [bookings]);
+  const conflicts = React.useMemo(() => findTimelineConflicts(occupancy), [occupancy]);
 
-  const assignedByRoom = React.useMemo(() => {
-    const map = new Map<string, CalendarBooking[]>();
-    for (const b of bookings) {
-      if (!b.roomId) continue;
-      const list = map.get(b.roomId) ?? [];
-      list.push(b);
-      map.set(b.roomId, list);
-    }
-    return map;
-  }, [bookings]);
+  // Drawn bars (filtered) and occupancy (everything) are separate maps: a
+  // hidden stay still blocks a drop.
+  const assignedByRoom = React.useMemo(() => groupByRoom(bookings), [bookings]);
+  const occupancyByRoom = React.useMemo(() => groupByRoom(occupancy), [occupancy]);
 
   const blocksByRoom = React.useMemo(() => {
     const map = new Map<string, CalendarAvailabilityBlock[]>();
     for (const b of blocks) {
-      const list = map.get(b.roomId) ?? [];
-      list.push(b);
-      map.set(b.roomId, list);
+      const entry = map.get(b.roomId);
+      if (entry) entry.push(b);
+      else map.set(b.roomId, [b]);
     }
     return map;
   }, [blocks]);
 
+  // Only stays that touch the visible window: the loaded range can be wider
+  // than the view (the page seeds 37 days), and an arrival three weeks out
+  // does not belong in this week's tray.
   const unassigned = React.useMemo(
     () =>
       bookings.filter(
-        (b) => !b.roomId && !b.isVirtual && !TERMINAL_BOOKING_STATUS_SET.has(b.status)
+        (b) =>
+          !b.roomId &&
+          !b.isVirtual &&
+          !TERMINAL_BOOKING_STATUS_SET.has(b.status) &&
+          rangeOverlaps(b.checkIn, b.checkOut, start, endExclusive)
       ),
-    [bookings]
+    [bookings, endExclusive, start]
   );
-  const bookingById = React.useMemo(() => new Map(bookings.map((b) => [b.id, b])), [bookings]);
+  const bookingById = React.useMemo(() => new Map(occupancy.map((b) => [b.id, b])), [occupancy]);
 
   const virtualizer = useVirtualizer({
     count: rooms.length,
@@ -560,6 +667,7 @@ export function TimelineCalendar({
     estimateSize: () => ROW_HEIGHT,
     overscan: 10,
   });
+  const rowsHeight = virtualizer.getTotalSize();
   const dates = React.useMemo(
     () => Array.from({ length: days }, (_, i) => addDays(startDate, i)),
     [startDate, days]
@@ -582,14 +690,14 @@ export function TimelineCalendar({
 
   const findConflictInRoom = React.useCallback(
     (roomId: string, checkIn: string, checkOut: string, excludeId: string): string | null => {
-      for (const other of assignedByRoom.get(roomId) ?? []) {
+      for (const other of occupancyByRoom.get(roomId) ?? []) {
         if (other.id === excludeId || TERMINAL_BOOKING_STATUS_SET.has(other.status)) continue;
         if (rangeOverlaps(checkIn, checkOut, other.checkIn, other.checkOut))
           return other.guestName || other.reference;
       }
       return null;
     },
-    [assignedByRoom]
+    [occupancyByRoom]
   );
 
   const evaluateTarget = React.useCallback(
@@ -603,8 +711,8 @@ export function TimelineCalendar({
       let error: string | null = null;
       if (checkOut <= checkIn) error = "Check-out must be after check-in";
       else if (TERMINAL_BOOKING_STATUS_SET.has(booking.status))
-        error = `Cannot move ${booking.status.replaceAll("_", " ")} booking`;
-      else if (["maintenance", "out_of_service"].includes(room.status))
+        error = `Cannot move a ${getStatusLabel(booking.status).toLowerCase()} booking`;
+      else if (NON_BOOKABLE_ROOM_STATUSES.has(room.status))
         error = `Room is ${room.status.replaceAll("_", " ")}`;
       else if (
         checkIn < todayKey &&
@@ -614,13 +722,13 @@ export function TimelineCalendar({
         error = "Cannot schedule in the past";
       else {
         const clash = findConflictInRoom(room.id, checkIn, checkOut, booking.id);
-        if (clash) error = `Overlap with ${clash}`;
+        if (clash) error = `Overlaps ${clash}`;
         else if (
           blocksByRoom
             .get(room.id)
             ?.some((block) => rangeOverlaps(checkIn, checkOut, block.startDate, block.endDate))
         )
-          error = "Room blocked for selected dates";
+          error = "Room blocked for these dates";
       }
       return { ...state, error, typeChange: !error && roomTypeChanged };
     },
@@ -660,11 +768,12 @@ export function TimelineCalendar({
         px - rect.left + scroller.scrollLeft - roomColWidth,
         py - rect.top + scroller.scrollTop - HEADER_HEIGHT,
         days,
-        rooms.length
+        rooms.length,
+        dayWidth
       );
       return { target: cell, overTray: false };
     },
-    [days, roomColWidth, rooms.length]
+    [dayWidth, days, roomColWidth, rooms.length]
   );
 
   const handleDragStart = React.useCallback(
@@ -731,13 +840,16 @@ export function TimelineCalendar({
         finalTarget.column,
         start
       );
+      // Dropped where it started: nothing to save.
+      if (room.id === booking.roomId && checkIn === booking.checkIn && checkOut === booking.checkOut)
+        return;
       const typeChanged = !!booking.roomTypeId && room.roomTypeId !== booking.roomTypeId;
       const error = validateTimelineDrop({
         booking,
         room,
         checkIn,
         checkOut,
-        bookings,
+        bookings: occupancy,
         blocks,
         today: todayKey,
         allowRoomTypeChange: true,
@@ -762,8 +874,8 @@ export function TimelineCalendar({
     [
       blocks,
       bookingById,
-      bookings,
       canEdit,
+      occupancy,
       onChange,
       onRequestTypeChange,
       resolvePointerCell,
@@ -793,8 +905,8 @@ export function TimelineCalendar({
       activeDrag.target.column,
       start
     );
-    const g = bookingGeometry(checkIn, checkOut, start);
-    const clipped = clampBarGeometry(g, days);
+    const g = bookingGeometry(checkIn, checkOut, start, dayWidth);
+    const clipped = clampBarGeometry(g, days, dayWidth);
     if (!clipped.visible) return null;
     return {
       roomIndex: activeDrag.target.roomIndex,
@@ -806,7 +918,35 @@ export function TimelineCalendar({
       invalid: !!activeDrag.error,
       typeChange: !!activeDrag.typeChange && !activeDrag.error,
     };
-  }, [activeBooking, activeDrag, days, start]);
+  }, [activeBooking, activeDrag, dayWidth, days, start]);
+
+  // Screen-reader announcements name the guest instead of dnd-kit's internal id.
+  const accessibility = React.useMemo(() => {
+    const describe = (id: string | number) => {
+      const bookingId = String(id).replace(/^(booking|left|right):/, "");
+      const booking = bookingById.get(bookingId);
+      const name = booking?.guestName ?? booking?.reference ?? "booking";
+      if (String(id).startsWith("left:")) return `check-in date of ${name}`;
+      if (String(id).startsWith("right:")) return `check-out date of ${name}`;
+      return name;
+    };
+    return {
+      announcements: {
+        onDragStart: ({ active }: { active: { id: string | number } }) =>
+          `Picked up ${describe(active.id)}.`,
+        onDragMove: () => undefined,
+        onDragOver: () => undefined,
+        onDragEnd: ({ active }: { active: { id: string | number } }) =>
+          `Dropped ${describe(active.id)}.`,
+        onDragCancel: ({ active }: { active: { id: string | number } }) =>
+          `Cancelled. ${describe(active.id)} was not moved.`,
+      },
+      screenReaderInstructions: {
+        draggable:
+          "To move a booking, press Space. Use the arrow keys to change the room or dates, then press Space or Enter to drop it, or Escape to cancel.",
+      },
+    };
+  }, [bookingById]);
 
   const guardedOpenBooking = React.useCallback(
     (id: string) => {
@@ -819,6 +959,7 @@ export function TimelineCalendar({
   return (
     <DndContext
       sensors={sensors}
+      accessibility={accessibility}
       onDragStart={handleDragStart}
       onDragMove={handleDragMove}
       onDragCancel={handleDragCancel}
@@ -829,8 +970,8 @@ export function TimelineCalendar({
           <div
             className="rl-timeline-canvas"
             style={{
-              width: roomColWidth + days * DAY_WIDTH,
-              height: HEADER_HEIGHT + virtualizer.getTotalSize(),
+              width: roomColWidth + days * dayWidth,
+              height: HEADER_HEIGHT + rowsHeight,
             }}
           >
             <div className="rl-timeline-header">
@@ -838,26 +979,38 @@ export function TimelineCalendar({
                 <span>Rooms</span>
                 <small>{rooms.length} shown</small>
               </div>
-              <div className="rl-date-header" style={{ width: days * DAY_WIDTH }}>
-                {dates.map((d) => (
-                  <div
-                    key={d.toISOString()}
-                    data-dow={d.getDay()}
-                    className={cn("rl-date", format(d, "yyyy-MM-dd") === todayKey && "today")}
-                    style={{ width: DAY_WIDTH }}
-                  >
-                    <strong>{format(d, "EEE")}</strong>
-                    <span>{format(d, "MMM d")}</span>
-                  </div>
-                ))}
+              <div className="rl-date-header" style={{ width: days * dayWidth }}>
+                {dates.map((d) => {
+                  const key = format(d, "yyyy-MM-dd");
+                  const isToday = key === todayKey;
+                  return (
+                    <div
+                      key={key}
+                      data-dow={d.getDay()}
+                      className={cn("rl-date", isToday && "today")}
+                      style={{ width: dayWidth }}
+                      aria-current={isToday ? "date" : undefined}
+                    >
+                      <strong>{format(d, "EEE")}</strong>
+                      <span>{format(d, "MMM d")}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
+            {/* Column washes end at the last room row. The canvas is at least
+                as tall as the viewport, so `bottom: 0` would run them into the
+                empty space below a short rack. */}
             {weekendColumns.map((index) => (
               <div
                 key={index}
                 className="rl-weekend-column"
-                style={{ left: roomColWidth + index * DAY_WIDTH, width: DAY_WIDTH }}
+                style={{
+                  left: roomColWidth + index * dayWidth,
+                  width: dayWidth,
+                  height: rowsHeight,
+                }}
                 aria-hidden
               />
             ))}
@@ -865,7 +1018,11 @@ export function TimelineCalendar({
             {todayColumnVisible && (
               <div
                 className="rl-today-column"
-                style={{ left: roomColWidth + todayColumn * DAY_WIDTH, width: DAY_WIDTH }}
+                style={{
+                  left: roomColWidth + todayColumn * dayWidth,
+                  width: dayWidth,
+                  height: rowsHeight,
+                }}
                 aria-hidden
               />
             )}
@@ -876,7 +1033,7 @@ export function TimelineCalendar({
                 top: HEADER_HEIGHT,
                 left: 0,
                 width: "100%",
-                height: virtualizer.getTotalSize(),
+                height: rowsHeight,
               }}
             >
               {virtualizer.getVirtualItems().map((v) => {
@@ -895,6 +1052,7 @@ export function TimelineCalendar({
                     <RoomRow
                       room={room}
                       roomColumnWidth={roomColWidth}
+                      dayWidth={dayWidth}
                       bookings={assignedByRoom.get(room.id) ?? EMPTY_BOOKINGS}
                       blocks={blocksByRoom.get(room.id) ?? EMPTY_BLOCKS}
                       conflicts={conflicts}
@@ -930,7 +1088,7 @@ export function TimelineCalendar({
                   <span className="rl-drag-hint">
                     {preview.invalid
                       ? activeDrag?.error
-                      : `${format(parseISO(preview.checkIn), "MMM d")} → ${format(parseISO(preview.checkOut), "MMM d")} · ${preview.nights}n${preview.typeChange ? " · Type change" : ""}`}
+                      : `${format(parseISO(preview.checkIn), "MMM d")} – ${format(parseISO(preview.checkOut), "MMM d")} · ${preview.nights}n${preview.typeChange ? " · New room type" : ""}`}
                   </span>
                 </div>
               )}
@@ -956,6 +1114,7 @@ export function TimelineCalendar({
                 <TrayBooking
                   key={b.id}
                   booking={b}
+                  canEdit={canEdit}
                   isAssigning={assigningIds?.has(b.id) ?? false}
                   onOpen={() => guardedOpenBooking(b.groupId ?? b.id)}
                   onAutoAssign={() => onAutoAssign(b.id)}
@@ -981,11 +1140,10 @@ export function TimelineCalendar({
             data-cal-status={activeStatusKey}
             style={{ width: dragWidth ?? undefined }}
           >
-            <GripVertical className="rl-booking-grip" aria-hidden />
             <span className="rl-booking-name">
               {activeBooking.guestName ?? activeBooking.reference}
             </span>
-            <span className="rl-booking-pay is-paid">
+            <span className="rl-drag-overlay-dates">
               {format(parseISO(activeBooking.checkIn), "MMM d")} –{" "}
               {format(parseISO(activeBooking.checkOut), "MMM d")}
             </span>

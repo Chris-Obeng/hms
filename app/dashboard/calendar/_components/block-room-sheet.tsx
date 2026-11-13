@@ -23,7 +23,21 @@ interface BlockRoomSheetProps {
   prefillEndDate?: Date;
   editBlock?: CalendarAvailabilityBlock | null;
   minDate?: Date;
-  onSuccess?: () => void;
+  /** Called after the server saved the block, with what was saved. */
+  onSuccess?: (result: BlockSheetResult) => void;
+}
+
+export interface BlockSheetResult {
+  mode: "create" | "update";
+  /** The edited block's id; null for a new block (the server returns none). */
+  blockId: string | null;
+  roomId: string;
+  /** First blocked night, yyyy-MM-dd. */
+  startDate: string;
+  /** Last blocked night (inclusive), yyyy-MM-dd. */
+  lastNight: string;
+  reason: string;
+  notes: string | null;
 }
 
 export function BlockRoomSheet({
@@ -96,21 +110,22 @@ export function BlockRoomSheet({
 
     const startStr = format(dateRange!.from!, "yyyy-MM-dd");
     const endStr = format(dateRange!.to!, "yyyy-MM-dd");
+    const trimmedNotes = notes.trim() || null;
+    const roomId = isEditing ? editBlock!.roomId : selectedRoomId;
 
-    const result = isEditing
-      ? await updateAvailabilityBlock(editBlock!.id, {
-          startDate: startStr,
-          endDate: endStr,
-          reason,
-          notes: notes.trim() || null,
-        })
-      : await createAvailabilityBlock(
-          selectedRoomId,
-          startStr,
-          endStr,
-          reason,
-          notes.trim() || null
-        );
+    let result: { success: boolean; error?: string };
+    try {
+      result = isEditing
+        ? await updateAvailabilityBlock(editBlock!.id, {
+            startDate: startStr,
+            endDate: endStr,
+            reason,
+            notes: trimmedNotes,
+          })
+        : await createAvailabilityBlock(selectedRoomId, startStr, endStr, reason, trimmedNotes);
+    } catch {
+      result = { success: false, error: "Couldn't reach the server. Check your connection and try again." };
+    }
 
     if (result.success) {
       toast.success(isEditing ? "Block updated" : "Room blocked", {
@@ -118,7 +133,15 @@ export function BlockRoomSheet({
       });
       setLoading(false);
       onOpenChange(false);
-      if (onSuccess) onSuccess();
+      onSuccess?.({
+        mode: isEditing ? "update" : "create",
+        blockId: isEditing ? editBlock!.id : null,
+        roomId,
+        startDate: startStr,
+        lastNight: endStr,
+        reason,
+        notes: trimmedNotes,
+      });
     } else {
       toast.danger(result.error || (isEditing ? "Failed to update block" : "Failed to block room"));
       setLoading(false);
