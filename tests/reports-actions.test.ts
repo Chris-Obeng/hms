@@ -113,6 +113,8 @@ describe("report actions: one reconciled room-revenue basis", () => {
     expect(result.availableRoomNights).toBeNull();
     expect(result.byRoomType[0]).toMatchObject({ booked: 2, capacity: null, occupancy: null });
     expect(result.meta.warnings.join()).toContain("Historical capacity is unavailable");
+    // The chart still gets the recorded day, with occupancy over recorded days only.
+    expect(result.coverage).toEqual({ occupancy: 5, recordedDays: 1, completedDays: 2, firstRecordedDate: "2026-06-11" });
     expect(state.queries.some(q => q.table === "rooms")).toBe(false);
   });
   it("uses dated expansion for current and prior capacity independently", async () => {
@@ -120,6 +122,7 @@ describe("report actions: one reconciled room-revenue basis", () => {
     const result = await getOccupancyReport("2026-06-10", "2026-06-11", scope);
     expect(result.availableRoomNights).toBe(30);
     expect(result.occupancy).toBe(6.7);
+    expect(result.coverage).toEqual({ occupancy: 6.7, recordedDays: 2, completedDays: 2, firstRecordedDate: "2026-06-10" });
     expect(result.byRoomType[0].capacity).toBe(30);
   });
   it("retrieves 1000+ bookings/night snapshots without truncating any metric", async () => {
