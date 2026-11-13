@@ -360,7 +360,7 @@ export function HotelSettingsClient({
             value={values.taxPercentage}
             minValue={0}
             maxValue={100}
-            step={0.5}
+            step={0.1}
             isDisabled={disabled}
             onChange={(v) => set("taxPercentage", typeof v === "number" && !Number.isNaN(v) ? v : 0)}
             formatOptions={{ maximumFractionDigits: 2 }}
