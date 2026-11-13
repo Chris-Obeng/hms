@@ -468,8 +468,8 @@
  * default token values, scoped to calendars only. */
 .calendar,
 .range-calendar {
-  --accent: oklch(0.6204 0.195 253.83);
-  --accent-foreground: oklch(0.9911 0 0);
+  --accent: var(--primary);
+  --accent-foreground: var(--primary-foreground);
   --muted: oklch(0.5517 0.0138 285.94);
 }
 /* HeroUI paints the month heading + nav arrows with text-default, which this

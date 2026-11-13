@@ -2,19 +2,15 @@
 
 import * as React from "react";
 import { Check } from "lucide-react";
+import { Button } from "@heroui/react";
 import { cn } from "@/lib/utils";
 
 export type WizardStep = 1 | 2 | 3;
 
-interface StepMeta {
-  num: WizardStep;
-  label: string;
-}
-
-const STEPS: StepMeta[] = [
+const STEPS: { num: WizardStep; label: string }[] = [
   { num: 1, label: "Dates" },
-  { num: 2, label: "Availability" },
-  { num: 3, label: "Summary" },
+  { num: 2, label: "Rooms" },
+  { num: 3, label: "Guest" },
 ];
 
 interface BookingStepperProps {
@@ -25,97 +21,58 @@ interface BookingStepperProps {
   className?: string;
 }
 
-/** 3-step indicator for the new-reservation wizard; click-to-return on reached steps. */
+/**
+ * Three labelled steps joined by a hairline. Reached steps are pressable to go
+ * back; the same compact row works on phones and desktop.
+ */
 export function BookingStepper({ current, canReach, onStepChange, className }: BookingStepperProps) {
-  const total = STEPS.length;
-  const activeMeta = STEPS.find((s) => s.num === current) ?? STEPS[0];
-  const progressPct = ((current - 1) / (total - 1)) * 100;
-
   return (
-    <div className={cn("w-full", className)}>
-      {/* Mobile: compact step counter + track */}
-      <div className="sm:hidden">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <p className="truncate text-xs font-semibold text-foreground">
-            <span className="font-medium text-muted-foreground">
-              Step {current} of {total}
-            </span>
-            <span className="mx-2 text-border" aria-hidden>
-              ·
-            </span>
-            {activeMeta.label}
-          </p>
-          <p className="shrink-0 text-2xs font-medium tabular-nums text-muted-foreground">
-            {Math.round((current / total) * 100)}%
-          </p>
-        </div>
-        <div
-          className="h-1 w-full overflow-hidden rounded-full bg-muted"
-          role="progressbar"
-          aria-valuenow={current}
-          aria-valuemin={1}
-          aria-valuemax={total}
-          aria-label={`Reservation progress: step ${current} of ${total}`}
-        >
-          <div
-            className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
-            style={{ width: `${Math.max(progressPct, current === 1 ? 8 : progressPct)}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Desktop: numbered stepper with connectors */}
-      <nav aria-label="Reservation progress" className="hidden items-center gap-2 sm:flex">
-        {STEPS.map((s, i) => {
-          const done = current > s.num;
-          const active = current === s.num;
-          const reachable = canReach(s.num);
-          return (
-            <React.Fragment key={s.num}>
-              {i > 0 && (
-                <div
-                  aria-hidden
-                  className={cn(
-                    "h-px flex-1 rounded-full transition-colors",
-                    current > s.num - 1 ? "bg-primary/40" : "bg-border"
-                  )}
-                />
-              )}
-              <button
-                type="button"
-                disabled={!reachable}
-                onClick={() => reachable && onStepChange(s.num)}
-                aria-current={active ? "step" : undefined}
+    <nav aria-label="Booking steps" className={cn("flex items-center gap-2", className)}>
+      {STEPS.map((s, i) => {
+        const done = current > s.num;
+        const active = current === s.num;
+        const reachable = canReach(s.num) && !active;
+        return (
+          <React.Fragment key={s.num}>
+            {i > 0 && (
+              <span
+                aria-hidden
                 className={cn(
-                  "flex shrink-0 items-center gap-2 rounded-full px-1 py-1 transition-opacity",
-                  reachable ? "cursor-pointer" : "cursor-not-allowed opacity-40"
+                  "h-px min-w-4 flex-1 transition-colors duration-200",
+                  current >= s.num ? "bg-primary/40" : "bg-border"
+                )}
+              />
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              isDisabled={!reachable && !active}
+              onPress={() => reachable && onStepChange(s.num)}
+              aria-current={active ? "step" : undefined}
+              className={cn(
+                "h-8 shrink-0 gap-2 rounded-full px-2 text-sm font-medium md:h-8",
+                active ? "pointer-events-none text-foreground" : "text-muted-foreground",
+                "data-[disabled=true]:opacity-100"
+              )}
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  "grid size-5 place-items-center rounded-full text-2xs font-semibold transition-colors duration-200",
+                  active
+                    ? "bg-primary text-primary-foreground"
+                    : done
+                      ? "bg-primary/12 text-primary"
+                      : "bg-secondary text-muted-foreground"
                 )}
               >
-                <span
-                  className={cn(
-                    "flex size-6 shrink-0 items-center justify-center rounded-full text-2xs font-semibold transition-colors",
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : done
-                        ? "bg-primary/15 text-primary"
-                        : "border border-border bg-muted text-muted-foreground"
-                  )}
-                >
-                  {done ? <Check className="size-4" strokeWidth={2.5} aria-hidden /> : s.num}
-                </span>
-                <span
-                  className={cn(
-                    "text-xs font-medium",
-                    active ? "text-foreground" : "text-muted-foreground"
-                  )}
-                >
-                  {s.label}
-                </span>
-              </button>
-            </React.Fragment>
-          );
-        })}
-      </nav>
-    </div>
+                {done ? <Check className="size-3" strokeWidth={3} /> : s.num}
+              </span>
+              {s.label}
+            </Button>
+          </React.Fragment>
+        );
+      })}
+    </nav>
   );
 }

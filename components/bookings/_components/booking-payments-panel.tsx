@@ -168,7 +168,7 @@ export function BookingPaymentsPanel({
   return (
     <div className="flex min-h-full flex-col">
       {/* Balance band */}
-      <section aria-label="Balance" className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-out motion-reduce:animate-none px-6 pb-2 pt-6">
+      <section aria-label="Balance" className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-[var(--ease-out-ui)] motion-reduce:animate-none px-6 pb-2 pt-6">
         <div
           className={cn(
             "flex flex-wrap items-center justify-between gap-4 rounded-2xl p-4",

@@ -59,7 +59,7 @@ export function BookingOverviewPanel({
     : null;
 
   return (
-    <div className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-out motion-reduce:animate-none flex min-h-full flex-col gap-6 px-6 py-6">
+    <div className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-[var(--ease-out-ui)] motion-reduce:animate-none flex min-h-full flex-col gap-6 px-6 py-6">
       {booking.status === "cancelled" && booking.cancelledAt && (
         <Alert status="danger" className="rounded-2xl">
           <Alert.Indicator />
