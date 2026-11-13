@@ -33,6 +33,7 @@ import {
   Plus,
   Power,
   Trash2,
+  Wrench,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -51,6 +52,7 @@ import {
 } from "@/app/actions/rooms";
 import { toAmenityObjects } from "@/lib/amenities";
 import { countAvailableRooms, roomState, type RoomState } from "@/lib/rooms/room-state";
+import { usePropertyDayRefresh } from "@/hooks/use-property-day-refresh";
 
 import { RoomTypeForm, type RoomTypeFormValues } from "./_components/room-type-form";
 import { RoomsTabs } from "./_components/rooms-tabs";
@@ -109,6 +111,8 @@ interface RoomsClientProps {
   currency: string;
   hotelId: string;
   propertyToday?: string;
+  /** Hotel timezone, so the board re-renders when the property date changes. */
+  timeZone?: string;
   canBlockRooms?: boolean;
   canManageRooms?: boolean;
   canDeleteRoomTypes?: boolean;
@@ -193,12 +197,14 @@ export function RoomsClient({
   currency,
   hotelId,
   propertyToday,
+  timeZone = "UTC",
   canBlockRooms = true,
   canManageRooms = true,
   canDeleteRoomTypes = true,
   initialSearch,
 }: RoomsClientProps) {
   const router = useRouter();
+  usePropertyDayRefresh(propertyToday, timeZone);
   const supabase = React.useMemo(() => createBrowserClient(), []);
   const [, startTransition] = React.useTransition();
   const [optimisticRoomTypes, dispatchOptimistic] = React.useOptimistic(
@@ -371,6 +377,22 @@ export function RoomsClient({
         setIsSavingNotes(false);
       }
     });
+  };
+
+  // Legacy maintenance / out-of-service rooms are unsellable in booking SQL and
+  // nothing else sets the status any more, so this is their only way back.
+  const handleReturnToService = async (room: RoomItem) => {
+    try {
+      const result = await updateRoom(room.id, { status: "available" });
+      if (!result.success) {
+        toast.danger("Couldn't return the room to service", { description: result.error });
+        return;
+      }
+      toast.success(`Room ${room.roomNumber} is back in service`);
+      router.refresh();
+    } catch {
+      toast.danger("Couldn't return the room to service — check your connection and try again");
+    }
   };
 
   const openAddRoom = (typeId?: string) => {
@@ -717,6 +739,8 @@ export function RoomsClient({
               onBlockDates={(id) => setBlockRoomId(id)}
               onEditNotes={openNotesEditor}
               onEditDetails={openEditRoom}
+              onReturnToService={(room) => void handleReturnToService(room)}
+              propertyToday={propertyToday}
               isHighlighted={(room) => isFiltering && room.roomNumber.toLowerCase().includes(normalizedQuery)}
             />
           ))}
@@ -1068,6 +1092,8 @@ interface RoomRowProps {
   onBlockDates: () => void;
   onEditNotes: () => void;
   onEditDetails: () => void;
+  onReturnToService: () => void;
+  propertyToday?: string;
 }
 
 /**
@@ -1083,12 +1109,18 @@ function RoomRow({
   onBlockDates,
   onEditNotes,
   onEditDetails,
+  onReturnToService,
+  propertyToday,
 }: RoomRowProps) {
   const state = roomState(room);
   const config = STATE_CONFIG[state];
   const hasRowActions = canManageRooms || canBlockRooms;
   const inactive = state === "inactive";
   const checkout = room.stay?.checkOut ? shortDate(room.stay.checkOut) : null;
+  // Still checked in after the departure date: the stay no longer holds the
+  // room in booking SQL, so the front desk needs to see it.
+  const overdue = !!(room.stay?.checkOut && propertyToday && room.stay.checkOut < propertyToday);
+  const outOfService = room.status === "maintenance" || room.status === "out_of_service";
   const blockReason = room.block?.reason
     ? BLOCK_REASON_LABELS[room.block.reason] ?? room.block.reason.replaceAll("_", " ")
     : null;
@@ -1108,7 +1140,13 @@ function RoomRow({
             {room.stay ? (
               <>
                 <span className="font-medium text-foreground">{room.stay.guestName}</span>
-                {checkout ? ` · out ${checkout}` : null}
+                {overdue ? (
+                  <>
+                    {" · "}
+                    <span className="font-semibold text-danger-soft-foreground">Overdue</span>
+                    {checkout ? `, was due out ${checkout}` : null}
+                  </>
+                ) : checkout ? ` · out ${checkout}` : null}
               </>
             ) : state === "blocked" && room.block ? (
               [blockReason, `back ${shortDate(room.block.endDate)}`].filter(Boolean).join(" · ")
@@ -1136,6 +1174,7 @@ function RoomRow({
                   if (key === "edit" && canManageRooms) onEditDetails();
                   if (key === "block" && canBlockRooms) onBlockDates();
                   if (key === "notes" && canManageRooms) onEditNotes();
+                  if (key === "return-to-service" && canManageRooms && outOfService) onReturnToService();
                 }}
               >
                 {canManageRooms && (
@@ -1154,6 +1193,12 @@ function RoomRow({
                   <Dropdown.Item id="notes" textValue="Notes">
                     <NotebookPen className="size-4 text-muted-foreground" aria-hidden="true" />
                     <Label>Notes</Label>
+                  </Dropdown.Item>
+                )}
+                {canManageRooms && outOfService && (
+                  <Dropdown.Item id="return-to-service" textValue="Return to service">
+                    <Wrench className="size-4 text-muted-foreground" aria-hidden="true" />
+                    <Label>Return to service</Label>
                   </Dropdown.Item>
                 )}
               </Dropdown.Menu>
@@ -1192,6 +1237,8 @@ interface TypeSectionProps {
   onBlockDates: (id: string) => void;
   onEditNotes: (room: RoomItem) => void;
   onEditDetails: (room: RoomItem, typeId: string) => void;
+  onReturnToService: (room: RoomItem) => void;
+  propertyToday?: string;
   isHighlighted: (room: RoomItem) => boolean;
 }
 
@@ -1211,8 +1258,12 @@ function TypeSection({
   onBlockDates,
   onEditNotes,
   onEditDetails,
+  onReturnToService,
+  propertyToday,
   isHighlighted,
 }: TypeSectionProps) {
+  // Switched-off rooms are not counted as rooms the type can offer.
+  const activeRooms = type.rooms.filter((room) => room.isActive !== false).length;
   const sleeps = (type.maxAdults ?? 0) + (type.maxChildren ?? 0);
   const facts = [type.bedConfiguration, sleeps ? `Sleeps ${sleeps}` : null].filter(Boolean).join(" · ");
 
@@ -1233,7 +1284,7 @@ function TypeSection({
               <span className="font-semibold tabular-nums text-foreground sm:hidden">{formatCurrency(type.basePrice, currency)} / night · </span>
               {facts ? <span className="hidden sm:inline">{facts} · </span> : null}
               <span className="tabular-nums">
-                {type.availableRooms} of {type.rooms.length} available
+                {type.availableRooms} of {activeRooms} available
               </span>
             </p>
           </div>
@@ -1282,6 +1333,8 @@ function TypeSection({
                 onBlockDates={() => onBlockDates(room.id)}
                 onEditNotes={() => onEditNotes(room)}
                 onEditDetails={() => onEditDetails(room, type.id)}
+                onReturnToService={() => onReturnToService(room)}
+                propertyToday={propertyToday}
               />
             ))}
           </ul>

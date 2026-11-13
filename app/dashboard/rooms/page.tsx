@@ -152,6 +152,7 @@ export default async function RoomsPage({
       currency={hotel.currency ?? "GHS"}
       hotelId={hotel.id}
       propertyToday={propertyToday}
+      timeZone={hotel.timezone || "UTC"}
       canBlockRooms={canBlockRooms}
       canManageRooms={canManageRooms}
       canDeleteRoomTypes={canDeleteRoomTypes}

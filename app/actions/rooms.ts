@@ -426,6 +426,7 @@ export async function updateRoom(id: string, input: Partial<RoomInput>) {
           roomNumber: before.room_number,
           floor: before.floor,
           notes: before.notes,
+          ...(input.status !== undefined ? { status: before.status } : {}),
         }
       : null,
     afterState: {
@@ -433,6 +434,7 @@ export async function updateRoom(id: string, input: Partial<RoomInput>) {
       ...(input.roomNumber !== undefined ? { roomNumber: input.roomNumber } : {}),
       ...(input.floor !== undefined ? { floor: input.floor || null } : {}),
       ...(input.notes !== undefined ? { notes: input.notes || null } : {}),
+      ...(input.status !== undefined ? { status: input.status } : {}),
     },
   });
 
