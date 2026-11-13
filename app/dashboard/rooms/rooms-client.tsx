@@ -1092,7 +1092,6 @@ function RoomRow({
   const blockReason = room.block?.reason
     ? BLOCK_REASON_LABELS[room.block.reason] ?? room.block.reason.replaceAll("_", " ")
     : null;
-  const meta = room.floor ? `Floor ${room.floor}` : null;
 
   return (
     <li
@@ -1114,7 +1113,7 @@ function RoomRow({
             ) : state === "blocked" && room.block ? (
               [blockReason, `back ${shortDate(room.block.endDate)}`].filter(Boolean).join(" · ")
             ) : (
-              [meta, room.notes].filter(Boolean).join(" · ") || "\u00a0"
+              (room.floor ? `Floor ${room.floor}` : null) ?? "\u00a0"
             )}
           </p>
         </div>
