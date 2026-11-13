@@ -62,17 +62,6 @@ export function reportDelta(value: number | null | undefined, label = "vs prior 
   return { text, direction: directions };
 }
 
-/** Tender colours for the composition ring. Follows the chart tokens, so it inherits the theme. */
-export const TENDER_COLORS: Record<string, string> = {
-  cash: "var(--chart-1)",
-  card: "var(--chart-2)",
-  mobile_money: "var(--chart-3)",
-  bank_transfer: "var(--chart-4)",
-  pos: "var(--chart-5)",
-  // Online payments get a teal of their own; red would read as a failed payment.
-  paystack_link: "color-mix(in oklch, var(--chart-2) 55%, var(--chart-1))",
-};
-export const OTHER_TENDER_COLOR = "var(--muted-foreground)";
 export const INVENTORY_EXPLANATION = "Historical room inventory is not available for every date. Occupancy and RevPAR are unavailable where capacity cannot be verified.";
 
 export const ROOM_REVENUE_BASIS = "Net nightly room charges and reconciled adjustments, excluding tax, for completed nights of checked-in or checked-out stays. Confirmed bookings and today's incomplete night are excluded. This is not cash collected or the full booked reservation value.";

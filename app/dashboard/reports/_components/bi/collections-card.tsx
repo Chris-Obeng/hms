@@ -6,7 +6,7 @@ import { DonutRing } from "@/components/ui/pen/donut-ring";
 import { cn } from "@/lib/utils";
 import { BI_CARD, BI_CARD_DESCRIPTION, BI_CARD_TITLE } from "./bi-styles";
 import { moneyAmount, share } from "./bi-format";
-import { OTHER_TENDER_COLOR, TENDER_COLORS } from "../report-utils";
+import { OTHER_PAYMENT_METHOD_COLOR, PAYMENT_METHOD_COLORS } from "@/lib/payment-method-colors";
 import type { MethodSlice } from "../../actions";
 
 /** Methods shown by name; anything past this folds into one "Other" row. */
@@ -22,10 +22,10 @@ function toSegments(rows: MethodSlice[]): Segment[] {
   let fallback = 0;
   const segments = named.map((row) => ({
     key: row.method, label: PAYMENT_METHOD_LABELS[row.method] ?? row.method, value: row.amount,
-    color: TENDER_COLORS[row.method] ?? FALLBACK_COLORS[fallback++ % FALLBACK_COLORS.length],
+    color: PAYMENT_METHOD_COLORS[row.method] ?? FALLBACK_COLORS[fallback++ % FALLBACK_COLORS.length],
   }));
   const rest = sorted.slice(named.length);
-  if (rest.length) segments.push({ key: "other", label: "Other", value: rest.reduce((sum, row) => sum + row.amount, 0), color: OTHER_TENDER_COLOR });
+  if (rest.length) segments.push({ key: "other", label: "Other", value: rest.reduce((sum, row) => sum + row.amount, 0), color: OTHER_PAYMENT_METHOD_COLOR });
   return segments;
 }
 
