@@ -37,7 +37,6 @@ describe("query keys", () => {
   });
 
   it("gives each pricing query its own namespace suffix", () => {
-    expect(qk.pricingSeasons("org", "hotel")[1]).toBe("seasons");
     expect(qk.pricingOccupancy("org", "hotel", "a", "b")[1]).toBe("occupancy");
   });
 

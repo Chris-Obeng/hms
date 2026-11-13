@@ -1,12 +1,11 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { RouterProvider, Tabs } from "@heroui/react";
 
 const SECTIONS = [
   { id: "rooms", label: "Rooms", href: "/dashboard/rooms" },
   { id: "rates", label: "Rates", href: "/dashboard/rooms/pricing" },
-  { id: "seasons", label: "Seasons", href: "/dashboard/rooms/pricing?tab=seasons" },
 ] as const;
 
 export type RoomsSection = (typeof SECTIONS)[number]["id"];
@@ -15,12 +14,7 @@ export type RoomsSection = (typeof SECTIONS)[number]["id"];
 export function RoomsTabs() {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const active: RoomsSection = pathname.startsWith("/dashboard/rooms/pricing")
-    ? searchParams.get("tab") === "seasons"
-      ? "seasons"
-      : "rates"
-    : "rooms";
+  const active: RoomsSection = pathname.startsWith("/dashboard/rooms/pricing") ? "rates" : "rooms";
 
   return (
     <RouterProvider navigate={(href) => router.push(href, { scroll: false })}>
