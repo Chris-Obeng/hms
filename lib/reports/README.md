@@ -62,8 +62,9 @@ each hotel's first capture once, from room creation dates (a room counts from
 its property-local creation date; the hotel's creation date gets an empty map
 when it came first). It ran only for hotels whose rooms still reproduce that
 first capture: no room created by then is inactive now (deactivation dates are
-not recorded), no audited edit by then changed a room's type, and the active
-rooms match the per-type counts exactly. Other hotels keep their first capture
+not recorded), no audited edit has ever changed a room's type (a later swap
+keeps the counts but would misattribute earlier days), and the active rooms
+match the per-type counts exactly. Other hotels keep their first capture
 as the baseline. Rebuilt rows have a `captured_at` long after their
 `effective_date`. Dates before a hotel's earliest row remain unknown, and the
 report code still never derives past capacity from current rooms.

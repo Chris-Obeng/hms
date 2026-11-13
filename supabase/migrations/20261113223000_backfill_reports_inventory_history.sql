@@ -10,10 +10,13 @@
 --     earlier history unknowable);
 --   * the still-active rooms reproduce the first snapshot's per-type counts
 --     exactly (a mismatch means a room changed type or was removed later);
---   * no audited edit before that date moved a room to another type.
+--   * no audited edit ever moved a room to another type. Checking only up to
+--     that date is not enough: two rooms swapping types afterwards keep the
+--     per-type counts but would misattribute every earlier day.
 -- Hotels that fail a check keep their unknown history and are reported with
--- a NOTICE. Rooms the app never deletes; room-type deletion cascades are
--- covered by the count check.
+-- a NOTICE. The app never deletes rooms, and room types cannot be deleted
+-- while rooms use them (ON DELETE RESTRICT); a deletion made outside the app
+-- after that date is caught by the count check.
 --
 -- Rows are written for each date the room count changed (snapshots carry
 -- forward), plus an empty inventory on the hotel's creation date when that
@@ -22,7 +25,9 @@
 BEGIN;
 
 -- Hold room and hotel writers for the few statements below, as the baseline
--- migration did, so the rooms read here match the history written.
+-- migration did, so the rooms read here match the history written. Give up
+-- rather than queue behind a long transaction (and stall writers behind us).
+SET LOCAL lock_timeout = '5s';
 LOCK TABLE public.rooms IN SHARE ROW EXCLUSIVE MODE;
 LOCK TABLE public.hotels IN SHARE ROW EXCLUSIVE MODE;
 
@@ -60,11 +65,10 @@ BEGIN
       SELECT 1 FROM public.audit_logs a
        WHERE a.hotel_id = v_hotel.id
          AND a.action = 'room.updated'
-         AND (a.created_at AT TIME ZONE v_zone)::date <= v_first_date
          AND a.after_state ? 'roomTypeId'
          AND a.before_state ->> 'roomTypeId' IS DISTINCT FROM a.after_state ->> 'roomTypeId'
     ) THEN
-      RAISE NOTICE 'reports inventory backfill skipped for hotel %: a room changed type by %', v_hotel.id, v_first_date;
+      RAISE NOTICE 'reports inventory backfill skipped for hotel %: a room changed type', v_hotel.id;
       CONTINUE;
     END IF;
 

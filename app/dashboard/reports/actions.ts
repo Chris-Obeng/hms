@@ -2,7 +2,7 @@
 
 import { differenceInCalendarDays, eachDayOfInterval, format, parseISO, startOfWeek, subDays } from "date-fns";
 import { fromMinor, sumMinor } from "@/lib/money";
-import { adr, allocateNightlyRevenue, occupancy, pctDelta, pointsDelta, revpag, revpar, type NightFact, type NightRow } from "@/lib/reports/bi-math";
+import { adr, allocateNightlyRevenue, occupancy, oversoldDays, pctDelta, pointsDelta, revpag, revpar, type NightFact, type NightRow } from "@/lib/reports/bi-math";
 import { historicalCapacity, type CapacityDay, type InventorySnapshot } from "@/lib/reports/inventory";
 import { BALANCE_BASIS, INVENTORY_BASIS, ROOM_BASIS, STAYED, loadInventory, loadNights, loadOutstanding, loadOutstandingSummary, loadStays, reportContext, resolveReportScope, withWarnings, type ReportContext, type ReportMeta, type ReportScope, type ReportStay } from "@/lib/reports/data";
 import { readAllPages, reportReadError } from "@/lib/reports/pagination";
@@ -48,6 +48,13 @@ function foldRange(ctx: ReportContext, stays: ReportStay[], nights: NightRow[], 
   if (completed.some(day => day.capacity == null)) warnings.push(`Historical capacity is unavailable for part or all of ${ymd(start)}–${ymd(end)}: no matching dated inventory baseline exists. Occupancy and RevPAR are unavailable; current rooms are never used to invent past capacity.`);
   if (capacity.some(day => day.date >= ctx.today)) warnings.push("Today's room night is incomplete and excluded from revenue, room-nights and capacity; today's occupancy and RevPAR are unavailable.");
   if (availableRoomNights === 0) warnings.push("Recorded capacity is zero; occupancy and RevPAR have no valid denominator.");
+  // Occupancy is never clamped; more room-nights than rooms means stays overlap
+  // (often an early check-out that kept its original departure date).
+  const oversold = oversoldDays(allocation.facts, completed);
+  if (oversold.length) {
+    const listed = oversold.slice(0, 3).join(", ") + (oversold.length > 3 ? ` and ${oversold.length - 3} more` : "");
+    warnings.push(`Room-nights sold exceed the recorded rooms on ${listed}, so occupancy is over 100% there. Overlapping stays in the same room, such as an early check-out that kept its original departure date, are counted twice.`);
+  }
   const participating = new Set(allocation.facts.map(n => n.bookingId));
   return { ...allocation, warnings, availableRoomNights, capacity,
     occupancy: occupancy(allocation.roomNights, availableRoomNights), adr: adr(allocation.revenue, allocation.roomNights), revpar: revpar(allocation.revenue, availableRoomNights),
