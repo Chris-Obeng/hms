@@ -13,7 +13,7 @@ import { qk } from "@/lib/query-keys";
 const mocks = vi.hoisted(() => ({
   identity: { isLoaded: true, userId: "staff-a", orgId: "org-a" },
   overview: vi.fn(), revenue: vi.fn(), occupancy: vi.fn(), guests: vi.fn(),
-  roomsSold: vi.fn(), freshness: vi.fn(),
+  roomsSold: vi.fn(),
 }));
 vi.mock("@clerk/nextjs", () => ({ useAuth: () => mocks.identity }));
 // The URL carries range state; a no-op router keeps the test outside the app shell.
@@ -23,7 +23,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: replaceMock, pu
 vi.mock("@/app/dashboard/reports/actions", () => ({
   getReportsOverview: mocks.overview, getRevenueReport: mocks.revenue,
   getOccupancyReport: mocks.occupancy, getGuestsReport: mocks.guests,
-  getRoomsSoldTonight: mocks.roomsSold, getBiFreshness: mocks.freshness,
+  getRoomsSoldTonight: mocks.roomsSold,
 }));
 // JSDOM has no layout; retain the real chart and its data, with a measured test viewport.
 vi.mock("recharts", async (original) => ({
@@ -79,7 +79,6 @@ beforeEach(() => {
       soldRooms: 6, heldRooms: 2, sellableRooms: 9, availableRooms: 1, soldPercent: 66.7, issues: [] },
     timeZone: meta.timeZone,
   });
-  mocks.freshness.mockResolvedValue({ lastCloseAt: null, timeZone: meta.timeZone });
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
   Object.defineProperty(Element.prototype, "getAnimations", { configurable: true, value: () => [] });
   Object.defineProperty(window, "matchMedia", { configurable: true, value: vi.fn((query: string) => ({
@@ -149,21 +148,28 @@ describe("business intelligence page semantics", () => {
     renderClient();
     expect(await screen.findByText(/12,345/)).toBeDefined();
     expect(screen.getByText(/Sep 11 – Sep 30/)).toBeDefined();
-    expect(screen.getAllByText("+6.4% vs prior period").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("−1.5% vs prior period").length).toBeGreaterThan(0);
+    const revenueKpi = screen.getByRole("article", { name: "Room revenue" });
+    expect(revenueKpi.textContent).toContain("+6.4%");
+    expect(revenueKpi.textContent).toContain("vs prior period");
+    expect(screen.getByRole("article", { name: "ADR" }).textContent).toContain("−1.5%");
+    expect(screen.getByRole("article", { name: "Room nights" }).textContent).toContain("No comparison");
   });
-  it("renders the revenue, collections, occupancy, room type, sources and guests sections", async () => {
+  it("renders the KPI cards without sparklines", async () => {
     renderClient();
-    expect(await screen.findByRole("heading", { name: "Collections" })).toBeDefined();
-    expect(screen.getByRole("heading", { name: "Occupancy", level: 2 })).toBeDefined();
-    expect(screen.getByRole("heading", { name: "Room type performance" })).toBeDefined();
-    expect(screen.getByRole("heading", { name: "Booking sources" })).toBeDefined();
-    expect(screen.getByRole("heading", { name: "Guests" })).toBeDefined();
+    const kpis = await screen.findAllByRole("article");
+    expect(kpis.map((kpi) => kpi.getAttribute("aria-label"))).toEqual(["Room revenue", "Occupancy", "ADR", "RevPAR", "Room nights"]);
+    for (const kpi of kpis) expect(kpi.querySelector("svg path[fill]:not([fill='none'])")).toBeNull();
   });
-  it("shows tonight's rooms sold ring with its sellable note", async () => {
+  it("renders only the revenue, collections and occupancy sections", async () => {
     renderClient();
-    expect(await screen.findByText(/9 sellable of 12 active rooms/)).toBeDefined();
-    expect(screen.getAllByText("66.7%").length).toBeGreaterThan(0);
+    expect(await screen.findByRole("heading", { name: "Room revenue", level: 2 })).toBeDefined();
+    expect(screen.getByRole("heading", { name: "Collections", level: 2 })).toBeDefined();
+    expect(await screen.findByRole("heading", { name: "Occupancy", level: 2 })).toBeDefined();
+    for (const name of ["Room type performance", "Rooms sold", "Booking sources", "Guests"]) expect(screen.queryByRole("heading", { name })).toBeNull();
+    expect(screen.queryByText(/sellable of 12 active rooms/)).toBeNull();
+    expect(screen.queryByText(/Unpaid balances/)).toBeNull();
+    expect(screen.queryByText(/View receivables/)).toBeNull();
+    expect(screen.queryByText(/Night audit/)).toBeNull();
   });
   it("offers the CSV export of the loaded figures", async () => {
     renderClient();
@@ -183,17 +189,16 @@ describe("business intelligence page semantics", () => {
     expect(alerts[0].textContent).toContain("Report service unavailable.");
     expect(screen.getAllByRole("button", { name: "Try again" }).length).toBeGreaterThan(0);
   });
-  it("keeps backend notes behind one disclosure", async () => {
+  it("no longer shows the figure notes disclosure", async () => {
     mocks.overview.mockResolvedValueOnce(overview({ meta: { ...meta, warnings: ["Historical capacity is unavailable."] } }));
     renderClient();
-    const notes = (await screen.findByText("How these figures work")).closest("details");
-    expect(notes?.textContent).toContain("Historical capacity is unavailable");
-    expect(notes?.hasAttribute("open")).toBe(false);
+    await screen.findByRole("heading", { name: "Collections", level: 2 });
+    expect(screen.queryByText("How these figures work")).toBeNull();
   });
 });
 
 describe("report client fetch boundaries", () => {
-  it("requests every section for the applied range and passes the tenant scope", async () => {
+  it("requests the figures behind the page and the export for the applied range and passes the tenant scope", async () => {
     renderClient();
     await screen.findByRole("heading", { name: "Business Intelligence" });
     await act(async () => {});
@@ -202,7 +207,6 @@ describe("report client fetch boundaries", () => {
     expect(mocks.guests).toHaveBeenCalledExactlyOnceWith(meta.startDate, meta.endDate, scope);
     expect(mocks.revenue).toHaveBeenCalledExactlyOnceWith(meta.startDate, meta.endDate, scope);
     expect(mocks.roomsSold).toHaveBeenCalledExactlyOnceWith(scope);
-    expect(mocks.freshness).toHaveBeenCalledExactlyOnceWith(scope);
   });
   it("rewrites a crafted URL that fell back to the server default and drops the pre-BI tab param", async () => {
     window.history.replaceState(null, "", "/dashboard/reports?tab=nope&startDate=9999-01-01&endDate=9999-01-02");

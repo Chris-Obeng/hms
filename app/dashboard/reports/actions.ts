@@ -10,7 +10,6 @@ import { classifyArrivingGuests } from "@/lib/reports/guests";
 import { loadTenderMix } from "@/lib/reports/collections";
 import { classifyArrivals, type StayMix } from "@/lib/reports/arrivals";
 import { fetchDashboardOccupancy } from "@/lib/dashboard/fetch-dashboard-occupancy";
-import { requestNightAudit } from "@/lib/night-audit/durable-close";
 import type { RoomsSoldMetric } from "@/lib/metrics/dashboard-occupancy";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
@@ -215,20 +214,9 @@ export async function getGuestsReport(startDate: string, endDate: string, expect
 }
 
 export interface RoomsSoldTonight { metric: RoomsSoldMetric; timeZone: string }
-/** Tonight's sales snapshot for the BI rooms-sold ring; same primitive the dashboard donut uses. */
+/** Tonight's sales snapshot for the BI CSV export; same primitive the dashboard donut uses. */
 export async function getRoomsSoldTonight(expectedScope: ReportScope): Promise<RoomsSoldTonight> {
   const scope = await resolveReportScope(expectedScope);
   const metric = await fetchDashboardOccupancy(scope.supabase as unknown as SupabaseClient<Database>, scope.hotelId, scope.today, scope.timeZone);
   return { metric, timeZone: scope.timeZone };
-}
-export interface BiFreshness { lastCloseAt: string | null; timeZone: string }
-/** Whether the latest business day has been closed, for the freshness footer. Best effort: an unset night-audit RPC is not a report failure. */
-export async function getBiFreshness(expectedScope: ReportScope): Promise<BiFreshness> {
-  const scope = await resolveReportScope(expectedScope);
-  try {
-    const summary = await requestNightAudit(scope.supabase as unknown as Parameters<typeof requestNightAudit>[0], scope.hotelId, { close: false });
-    return { lastCloseAt: summary.isClosed ? (summary.lastAudit?.at ?? summary.capturedAt ?? null) : null, timeZone: scope.timeZone };
-  } catch {
-    return { lastCloseAt: null, timeZone: scope.timeZone };
-  }
 }
