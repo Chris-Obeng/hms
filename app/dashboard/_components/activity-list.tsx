@@ -26,7 +26,13 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
 import { formatDate, formatRoomLabel, getNights } from "@/lib/format";
-import { getPaymentLabel, getStatusLabel } from "@/lib/booking-status";
+import {
+  getPaymentLabel,
+  getStatusLabel,
+  PAYMENT_DOT_COLORS,
+  STATUS_COLORS,
+  STATUS_DOT_FALLBACK,
+} from "@/lib/booking-status";
 import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
 import { CAPS, isFresh, onIdle } from "@/lib/cache/prefetch-helpers";
 import type { ActivityTab } from "./activity-tabs";
@@ -86,26 +92,13 @@ const EMPTY_COPY: Record<ActivityTab, { title: string; hint: string }> = {
   overbookings: { title: "No room conflicts", hint: "Every stay on this date has its own room." },
 };
 
-/** Desktop column template, shared by the header band and every row. */
+/**
+ * Row grid shared by the header band and every row: two columns on phones
+ * (guest | pay, stay | action), five from md up.
+ */
 const ROW_GRID =
   "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 [grid-template-areas:'guest_pay'_'stay_action'] " +
   "md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_6rem_9rem] md:items-center md:gap-x-4 md:[grid-template-areas:'guest_room_stay_pay_action']";
-
-/** One dot per payment state, so the column reads at a glance without a row of chips. */
-const PAYMENT_DOT: Record<string, string> = {
-  paid: "bg-success",
-  partial: "bg-warning",
-  refunded: "bg-muted-foreground",
-};
-
-/** Booking state shown in the action column once there is no next step. */
-const STATUS_DOT: Record<string, string> = {
-  checked_in: "bg-success",
-  confirmed: "bg-primary",
-  pending: "bg-warning",
-  cancelled: "bg-danger",
-  no_show: "bg-danger",
-};
 
 /**
  * Front-desk queue for the selected view. Each row answers the four questions a
@@ -389,7 +382,6 @@ function BookingRow({
       onFocusCapture={() => onHoverPrefetch?.(booking.id)}
       className={cn(ROW_GRID, "cursor-pointer px-4 py-3 transition-colors duration-150 ease-[var(--ease-out-ui)] active:bg-secondary/80 sm:px-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary/50")}
     >
-
       {/* Guest */}
       <div className="min-w-0 [grid-area:guest]">
         {/* Wraps so the notes icon and Conflict chip drop below a long name on
@@ -469,7 +461,7 @@ function BookingRow({
           <SplitAction
             label="Check in"
             menuLabel="Check-in options"
-            variant="secondary"
+            variant="primary"
             onMain={() => onCheckIn(booking.id)}
             items={[
               ...paymentItem,
@@ -486,7 +478,7 @@ function BookingRow({
             items={paymentItem}
           />
         ) : (
-          <StatusChip status={booking.status} />
+          <StatusLabel status={booking.status} />
         )}
       </div>
     </li>
@@ -546,25 +538,26 @@ function SplitAction({
   );
 }
 
-/** A status dot and its word: the dot gives the scan, the word keeps it readable without colour. */
-function DotLabel({ dot, label, className }: { dot: string | undefined; label: string; className?: string }) {
+/**
+ * A status dot and its word: the dot gives the scan, the word keeps it readable
+ * without colour. Colours come from lib/booking-status so a row matches the drawer.
+ */
+function DotLabel({ dot, label }: { dot: string | undefined; label: string }) {
   return (
-    <span className={cn("inline-flex items-center gap-2 whitespace-nowrap text-xs font-medium text-foreground", className)}>
-      <span
-        aria-hidden="true"
-        className={cn("size-2 shrink-0 rounded-full", dot ?? "border border-muted-foreground/60")}
-      />
+    <span className="inline-flex items-center gap-2 whitespace-nowrap text-xs font-medium text-foreground">
+      <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", dot ?? STATUS_DOT_FALLBACK)} />
       {label}
     </span>
   );
 }
 
 function PaymentStatus({ status }: { status: string }) {
-  return <DotLabel dot={PAYMENT_DOT[status]} label={getPaymentLabel(status)} />;
+  return <DotLabel dot={PAYMENT_DOT_COLORS[status]} label={getPaymentLabel(status)} />;
 }
 
-export function StatusChip({ status, className }: { status: string; className?: string }) {
-  return <DotLabel dot={STATUS_DOT[status]} label={getStatusLabel(status ?? "")} className={className} />;
+/** Booking state shown in the action column once there is no next step. */
+function StatusLabel({ status }: { status: string }) {
+  return <DotLabel dot={STATUS_COLORS[status]} label={getStatusLabel(status)} />;
 }
 
 function EmptyState({
@@ -700,5 +693,3 @@ function buildSummary(
   }
   return `${total} ${noun}`;
 }
-
-export { getPaymentLabel };

@@ -58,7 +58,7 @@ export function ActivityTabs({ tabs, activeTab, onTabChange, children }: Activit
                   className={cn(
                     "text-xs font-medium tabular-nums",
                     isAlert
-                      ? "text-danger"
+                      ? "text-destructive"
                       : "text-muted-foreground group-data-[selected=true]:text-foreground"
                   )}
                 >

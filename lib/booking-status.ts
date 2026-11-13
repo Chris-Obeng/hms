@@ -119,6 +119,14 @@ export const PAYMENT_STATUS_TONE: Record<string, string> = {
   refunded: "text-muted-foreground",
 };
 
+/** Booking payment-status → dot colour, matching PAYMENT_STATUS_TONE and STATUS_COLORS. */
+export const PAYMENT_DOT_COLORS: Record<string, string> = {
+  paid: "bg-emerald-500",
+  partial: "bg-amber-500",
+  unpaid: "bg-destructive",
+  refunded: "bg-muted-foreground/50",
+};
+
 /**
  * Individual payment-record status → text tone. Successful payments stay
  * neutral (no entry); only records that need attention carry colour.
