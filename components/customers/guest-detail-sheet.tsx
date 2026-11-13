@@ -8,6 +8,7 @@ import {
   Chip,
   Disclosure,
   Drawer,
+  FieldError,
   Input,
   Label,
   Skeleton,
@@ -318,7 +319,7 @@ export function GuestDetailSheet({
               variant="ghost"
               aria-label="Close guest profile"
               onPress={() => handleClose(false)}
-              className="hidden shrink-0 rounded-lg text-muted-foreground md:inline-flex"
+              className="shrink-0 rounded-lg text-muted-foreground max-md:size-11"
             >
               <X className="size-4" aria-hidden="true" />
             </Button>
@@ -343,7 +344,7 @@ export function GuestDetailSheet({
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {/* ── Overview ── */}
-              <Tabs.Panel id="overview" className={cn("mt-0 flex min-h-full flex-col gap-6 p-6", ENTER)}>
+              <Tabs.Panel id="overview" className="mt-0 flex min-h-full flex-col gap-6 p-6">
                 <section aria-label="Guest stats" className="grid grid-cols-3 gap-3 rounded-2xl bg-secondary/60 p-4">
                   <Stat label="Stays" value={stayCount.toLocaleString("en")} />
                   <Stat label="Nights" value={roomNights === null ? "—" : roomNights.toLocaleString("en")} />
@@ -358,6 +359,7 @@ export function GuestDetailSheet({
                       !editingContact && (
                         <EditButton
                           label="Edit"
+                          ariaLabel="Edit contact"
                           onPress={() => {
                             resetContactDraft();
                             setEditingContact(true);
@@ -375,6 +377,7 @@ export function GuestDetailSheet({
                       }}
                     >
                       <DrawerField label="Email" type="email" autoFocus value={contactDraft.email}
+                        errorMessage="Enter a valid email address"
                         onChange={(v) => setContactDraft((p) => ({ ...p, email: v }))} />
                       <DrawerField label="Phone" type="tel" value={contactDraft.phone}
                         onChange={(v) => setContactDraft((p) => ({ ...p, phone: v }))} />
@@ -407,6 +410,7 @@ export function GuestDetailSheet({
                     action={
                       <EditButton
                         label={editingTags ? "Done" : guest.tags.length ? "Edit" : "Add"}
+                        ariaLabel={editingTags ? "Done editing tags" : guest.tags.length ? "Edit tags" : "Add tags"}
                         icon={!editingTags}
                         onPress={() => setEditingTags((p) => !p)}
                       />
@@ -439,6 +443,7 @@ export function GuestDetailSheet({
                               key={tag}
                               size="sm"
                               variant="tertiary"
+                              aria-label={`Add tag ${tagLabel(tag)}`}
                               isDisabled={savingTags}
                               onPress={() => void handleAddTag(tag)}
                               className="gap-1 rounded-lg font-medium text-muted-foreground max-md:h-11"
@@ -485,6 +490,7 @@ export function GuestDetailSheet({
                       !editingNotes && (
                         <EditButton
                           label={guest.notes ? "Edit" : "Add note"}
+                          ariaLabel={guest.notes ? "Edit notes" : "Add note"}
                           onPress={() => {
                             setNotesDraft(guest.notes || "");
                             setEditingNotes(true);
@@ -553,7 +559,7 @@ export function GuestDetailSheet({
               </Tabs.Panel>
 
               {/* ── History ── */}
-              <Tabs.Panel id="history" className={cn("mt-0 px-6 py-2", ENTER)}>
+              <Tabs.Panel id="history" className="mt-0 px-6 py-2">
                 <BookingHistory
                   open={open}
                   bookings={bookings}
@@ -616,11 +622,17 @@ function SectionHead({ title, action }: { title: string; action?: React.ReactNod
   );
 }
 
-function EditButton({ label, onPress, icon = true }: { label: string; onPress: () => void; icon?: boolean }) {
+function EditButton({ label, ariaLabel, onPress, icon = true }: {
+  label: string;
+  ariaLabel: string;
+  onPress: () => void;
+  icon?: boolean;
+}) {
   return (
     <Button
       size="sm"
       variant="ghost"
+      aria-label={ariaLabel}
       onPress={onPress}
       className="h-11 gap-1 rounded-lg px-2 text-xs font-medium text-muted-foreground md:h-8"
     >
@@ -643,17 +655,20 @@ function EditorActions({ saving, onCancel }: { saving: boolean; onCancel: () => 
   );
 }
 
-function DrawerField({ label, value, onChange, type, autoFocus }: {
+function DrawerField({ label, value, onChange, type, autoFocus, errorMessage }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
   autoFocus?: boolean;
+  /** Shown (in text, not only as a red border) when native validation fails. */
+  errorMessage?: string;
 }) {
   return (
     <TextField value={value} onChange={onChange} type={type} autoFocus={autoFocus} className="w-full">
       <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
       <Input className="rounded-xl max-md:h-11 max-md:text-base" />
+      {errorMessage && <FieldError>{errorMessage}</FieldError>}
     </TextField>
   );
 }
