@@ -520,7 +520,7 @@ function ConfirmLifecycleDialog({ open, mode, busy, onClose, onConfirm }: {
             </p>
           </AlertDialog.Body>
           <AlertDialog.Footer>
-            <Button slot="close" variant="tertiary" className="rounded-xl">
+            <Button slot="close" variant="tertiary" autoFocus className="rounded-xl">
               Keep reservation
             </Button>
             <Button

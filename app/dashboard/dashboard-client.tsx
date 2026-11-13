@@ -748,7 +748,7 @@ export function DashboardClient({
                   Cancel
                 </Button>
                 <Button
-                  autoFocus
+                  autoFocus={isEarlyCheckin}
                   fullWidth
                   variant="primary"
                   onPress={isEarlyCheckin ? confirmEarlyCheckin : confirmEarlyCheckout}
