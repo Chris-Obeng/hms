@@ -4,21 +4,26 @@
 @import "./landing.css";
 
 @theme inline {
-  /* ── 8-point grid: token scales (documented) ───────────────────
-   *  Spacing: Tailwind v4 default --spacing is 0.25rem (4px). Use
-   *    steps 1,2,3,4,6,8,12,16 (4,8,12,16,24,32,48,64px) for
-   *    padding, margin, gap, sizes. Avoid half steps (.5) and
-   *    5,7,9,11 in new code. Page padding 16 mobile / 24 tablet /
-   *    32 desktop; section spacing 32/48/64.
-   *  Control heights: 32 (h-8), 40 (h-10), 48 (h-12); touch
-   *    targets on mobile >= 44px (min-h-11).
-   *  Radius: derives from --radius (0.625rem = 10px):
-   *    sm 6, md 8, lg 10, xl 14, 2xl 18, 3xl 22, 4xl 26 px.
-   *    These are off-scale (target 4/8/12/16/full) but shared by
-   *    every component; NOT changed (see UI_8PT_INVENTORY.md,
-   *    Needs decision).
-   *  Type: sizes 11/12/14/15/22/28/36px; line-heights snap to
-   *    multiples of 4 (16/20/24/28; KPI 28/36 at 1.0).
+  /* ── 8-point system (enforced by `pnpm lint:ui`) ───────────────
+   *  Spacing: Tailwind --spacing is 4px.
+   *    Layout (page padding, gaps between sections and cards, card
+   *    padding): multiples of 8 only -> 16, 24, 32, 48, 64
+   *    (steps 4, 6, 8, 12, 16). Page padding 16 / 24 / 32 lives in
+   *    app/dashboard/layout.tsx.
+   *    Inside components: 4, 8, 12, 16 (steps 1, 2, 3, 4).
+   *    Not allowed: half steps (.5) and 20 / 28px (steps 5, 7).
+   *  Control heights: 32 (h-8), 40 (h-10), 48 (h-12); 44 (h-11)
+   *    only as the mobile touch target. HeroUI defaults are
+   *    re-based to match in the "Control heights" block below.
+   *  Radius: sm 4, md 8, lg 8, xl 12, 2xl 16, 3xl 24, 4xl 24,
+   *    full. HeroUI derives its radii from --radius (8px).
+   *  Type: use the size utilities, each ships a line-height on
+   *    the 4px grid:
+   *      text-2xs 11/16   text-xs 12/16   text-sm 14/20
+   *      text-md 15/24    text-base 16/24 text-lg 18/28
+   *      text-xl 20/28    text-2xl 24/32
+   *    Arbitrary text-[Npx] is reserved for title and display
+   *    type (22px and up). Nothing renders below 11px.
    * ────────────────────────────────────────────────────────────── */
   @keyframes accordion-down {
     from {
@@ -84,13 +89,25 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* Radius scale on the 4/8 grid (was 6/8/10/14/18/22/26 from a
+     10px --radius). Fixed values so the scale does not move if
+     --radius (consumed by HeroUI) changes. */
+  --radius-sm: 0.25rem;   /* 4px */
+  --radius-md: 0.5rem;    /* 8px */
+  --radius-lg: 0.5rem;    /* 8px */
+  --radius-xl: 0.75rem;   /* 12px */
+  --radius-2xl: 1rem;     /* 16px */
+  --radius-3xl: 1.5rem;   /* 24px */
+  --radius-4xl: 1.5rem;   /* 24px */
+
+  /* Font sizes added to Tailwind's scale (xs 12/16, sm 14/20,
+     base 16/24, lg 18/28, xl 20/28, 2xl 24/32). Names must stay
+     t-shirt sizes: tailwind-merge (cn() and HeroUI's tv()) treats
+     any other text-* name as a colour and drops it on conflict. */
+  --text-2xs: 0.6875rem;              /* 11px */
+  --text-2xs--line-height: 1rem;      /* 16px */
+  --text-md: 0.9375rem;               /* 15px */
+  --text-md--line-height: 1.5rem;     /* 24px */
 
   /* ── Typography scale ──────────────────────────────────────────
    *  Six semantic levels. All Plus Jakarta Sans.
@@ -292,7 +309,9 @@
   --chart-3: oklch(0.78 0.14 75);    /* amber         */
   --chart-4: oklch(0.6 0.18 300);    /* violet        */
   --chart-5: oklch(0.64 0.19 22);    /* coral red     */
-  --radius: 0.625rem;
+  /* 8px: HeroUI's own default. HeroUI multiplies it (x0.5, x1, x1.5,
+     x2, x3) to get 4 / 8 / 12 / 16 / 24px radii. */
+  --radius: 0.5rem;
   /* The pen design file's accent blue — charts and icon chips on staff pages. */
   --pen-accent: #0485F7;
   /* Shared physical motion curves (Emil Kowalski / Apple fluid UI) */
@@ -341,6 +360,63 @@
   --button-bg-hover: color-mix(in oklch, var(--primary) 90%, black);
   --button-bg-pressed: color-mix(in oklch, var(--primary) 90%, black);
   --button-fg: var(--primary-foreground);
+}
+
+/* ── Control heights (8-point) ────────────────────────────────────────
+ *  HeroUI ships 36px default buttons and fields on desktop and 36px small
+ *  buttons on mobile. Re-base them to sm 32 / md 40 / lg 48, with small
+ *  buttons growing to 40 below md for touch. Same layer as HeroUI and later
+ *  in source order, so these win; utility classes on an element still win.
+ * ──────────────────────────────────────────────────────────────────── */
+@layer components {
+  .button,
+  .toggle-button,
+  .button--sm,
+  .toggle-button--sm {
+    height: 2.5rem;
+  }
+  .button--lg,
+  .toggle-button--lg {
+    height: 3rem;
+  }
+  .button--icon-only,
+  .button--icon-only.button--sm {
+    width: 2.5rem;
+  }
+  .button--icon-only.button--lg {
+    width: 3rem;
+  }
+  @media (width >= 48rem) {
+    .button--sm,
+    .toggle-button--sm {
+      height: 2rem;
+    }
+    .button--icon-only.button--sm {
+      width: 2rem;
+    }
+  }
+
+  .search-field__group,
+  .number-field__group,
+  .date-input-group,
+  .color-input-group {
+    height: 2.5rem;
+  }
+  .input-group,
+  .select__trigger,
+  .autocomplete__trigger {
+    min-height: 2.5rem;
+  }
+  /* Standalone inputs size from padding + line-height (42px mobile with 16px
+     text, 38px from sm up). Pin them to the grid. */
+  .input {
+    min-height: 2.75rem;
+  }
+  @media (width >= 40rem) {
+    .input {
+      min-height: 2.5rem;
+    }
+  }
 }
 
 @layer base {
@@ -516,7 +592,7 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  padding: 8px 2px 10px;
+  padding: 8px 2px;
   font-size: 13px;
   font-weight: 500;
   color: var(--muted-foreground);
