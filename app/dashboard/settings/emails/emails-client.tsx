@@ -10,7 +10,7 @@ import { NotificationTemplatesClient } from "../notifications/templates-client";
 type Templates = Record<NotificationEventType, NotificationTemplate>;
 
 /** Guest emails: the transactional messages guests receive, one editor each. */
-export default function GuestEmailsPage() {
+export function GuestEmailsClient() {
   const [templates, setTemplates] = React.useState<Templates | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [attempt, setAttempt] = React.useState(0);
