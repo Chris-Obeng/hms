@@ -1,16 +1,16 @@
-﻿import type { Metadata, Viewport } from "next";
+import type { Metadata, Viewport } from "next";
+import { landingDisplay, landingText } from "@/components/landing/fonts";
 import { SiteHeader } from "@/components/landing/site-header";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { Hero } from "@/components/landing/hero";
-import { Showcase } from "@/components/landing/showcase";
-import { DeepDive } from "@/components/landing/deep-dive";
-import { How } from "@/components/landing/how";
-import { DemoCta } from "@/components/landing/demo-cta";
+import { Features } from "@/components/landing/features";
+import { Setup } from "@/components/landing/setup";
+import { ClosingCta } from "@/components/landing/closing-cta";
+import { RevealObserver } from "@/components/landing/reveal-observer";
 
-const title =
-  "RoomLine — Hotel software for independent properties in Ghana";
+const title = "RoomLine: hotel software for independent hotels in Ghana";
 const description =
-  "Run a calmer front desk. Reservations, rooms, Mobile Money payments, direct bookings, and night audit in one place for independent hotels and guesthouses in Ghana.";
+  "Run a calmer front desk. A live room calendar, MoMo, card and cash on one GHS bill, a commission-free booking page and a one-click night audit for hotels and guesthouses in Ghana.";
 
 const deploymentHost =
   process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
@@ -50,25 +50,28 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
-  themeColor: "#f6f6f3",
+  themeColor: "#f5f3ee",
   colorScheme: "light",
 };
 
 export default function HomePage() {
   return (
-    <div data-theme="roomline-landing" className="rl-landing">
+    <div
+      id="top"
+      className={`rl-landing ${landingDisplay.variable} ${landingText.variable}`}
+    >
       <a href="#main-content" className="rl-skip">
         Skip to content
       </a>
       <SiteHeader />
       <main id="main-content" tabIndex={-1}>
         <Hero />
-        <Showcase />
-        <DeepDive />
-        <How />
-        <DemoCta />
+        <Features />
+        <Setup />
+        <ClosingCta />
       </main>
       <SiteFooter />
+      <RevealObserver />
     </div>
   );
 }
