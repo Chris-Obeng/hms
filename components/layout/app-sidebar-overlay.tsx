@@ -13,7 +13,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   ChevronsUpDown,
-  ChevronDown,
+  UserCog,
   CalendarRange,
   CalendarDays,
   BedDouble,
@@ -63,8 +63,9 @@ function getRoleChipColor(
 
 // ── Nav structure ──────────────────────────────────────────────
 
-// The Settings entry expands in place instead of navigating to a hub page.
-const SETTINGS_KEY = "/dashboard/settings";
+// Settings sections live in tabs on the Settings page itself, so the sidebar
+// needs a single entry (the hub route redirects to the first tab).
+const SETTINGS_URL = "/dashboard/settings/hotel";
 
 interface NavItem {
   title: string;
@@ -100,7 +101,8 @@ const navGroups: NavGroup[] = [
   {
     title: "Settings",
     items: [
-      { title: "Settings", url: SETTINGS_KEY, icon: Settings },
+      { title: "Settings", url: SETTINGS_URL, icon: Settings },
+      { title: "Staff", url: "/dashboard/staff", icon: UserCog },
       { title: "Support", url: "/support", icon: LifeBuoy },
     ],
   },
@@ -110,36 +112,6 @@ const navGroups: NavGroup[] = [
 // active route; the icon takes the brand color only while selected.
 const ITEM_CLASS =
   "flex h-10 items-center gap-3 rounded-lg px-2 text-sm font-medium text-sidebar-foreground/75 outline-hidden cursor-pointer select-none transition-[background-color,color] duration-150 ring-sidebar-ring ring-inset focus-visible:ring-2 data-[hovered=true]:bg-sidebar-foreground/[0.055] data-[hovered=true]:text-sidebar-foreground data-[selected=true]:bg-sidebar-accent data-[selected=true]:font-medium data-[selected=true]:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-sidebar-foreground/55 [&_svg]:transition-colors data-[hovered=true]:[&_svg]:text-sidebar-foreground data-[selected=true]:[&_svg]:text-sidebar-primary";
-
-// Child rows sit under their parent, quieter and smaller; the pill still marks
-// the active destination.
-const CHILD_ITEM_CLASS =
-  "flex h-8 cursor-pointer select-none items-center rounded-lg pl-9 pr-2 text-sm font-normal text-sidebar-foreground/60 outline-hidden ring-sidebar-ring ring-inset transition-[background-color,color] duration-150 focus-visible:ring-2 data-[hovered=true]:bg-sidebar-foreground/[0.055] data-[hovered=true]:text-sidebar-foreground data-[selected=true]:bg-sidebar-accent data-[selected=true]:font-medium data-[selected=true]:text-sidebar-accent-foreground";
-
-const SETTINGS_CHILDREN: { title: string; url: string; match: (pathname: string) => boolean }[] = [
-  {
-    title: "Hotel profile",
-    url: "/dashboard/settings/hotel",
-    match: (p) => p.startsWith("/dashboard/settings/hotel"),
-  },
-  {
-    title: "Notifications",
-    url: "/dashboard/settings/notifications",
-    match: (p) => p === "/dashboard/settings/notifications",
-  },
-  {
-    title: "Guest emails",
-    url: "/dashboard/settings/emails",
-    match: (p) => p.startsWith("/dashboard/settings/emails"),
-  },
-  { title: "Payments", url: "/dashboard/payments?tab=setup", match: () => false },
-  { title: "Staff", url: "/dashboard/staff", match: (p) => p.startsWith("/dashboard/staff") },
-  {
-    title: "Audit log",
-    url: "/dashboard/settings/audit-log",
-    match: (p) => p.startsWith("/dashboard/settings/audit-log"),
-  },
-];
 
 // Group label per the design: a small quiet title above each nav cluster,
 // with a hairline divider between clusters.
@@ -160,25 +132,11 @@ export function AppSidebar() {
   // Sub-routes keep their parent entry lit (the pill marks the destination).
   const activePath = React.useMemo(() => {
     if (pathname.startsWith("/dashboard/rooms/")) return "/dashboard/rooms";
-    const child = SETTINGS_CHILDREN.find((c) => c.match(pathname));
-    if (child) return child.url;
+    if (pathname.startsWith("/dashboard/settings")) return SETTINGS_URL;
+    if (pathname.startsWith("/dashboard/staff")) return "/dashboard/staff";
     return pathname;
   }, [pathname]);
   const selectedKeys = React.useMemo(() => new Set([activePath]), [activePath]);
-
-  // Settings children stay hidden until Settings is opened, and open by
-  // themselves when the user is already somewhere inside that section.
-  const insideSettings = React.useMemo(() => {
-    if (pathname.startsWith("/dashboard/settings")) return true;
-    return SETTINGS_CHILDREN.some((c) => c.match(pathname));
-  }, [pathname]);
-  // Expanded by default inside that section; a click stores an explicit choice
-  // for the current route so it survives re-renders but not navigation.
-  const [settingsToggle, setSettingsToggle] = React.useState<{ path: string; open: boolean } | null>(
-    null
-  );
-  const settingsOpen =
-    settingsToggle?.path === pathname ? settingsToggle.open : insideSettings;
 
   const prevPathname = React.useRef(pathname);
   const lastNavRef = React.useRef<string | null>(null);
@@ -208,24 +166,9 @@ export function AppSidebar() {
       if (keys === "all") return;
       const key = [...keys][0] as string | undefined;
       if (!key) return;
-      if (key === SETTINGS_KEY) {
-        if (!settingsOpen) setSettingsToggle({ path: pathname, open: true });
-        navigateTo("/dashboard/settings/hotel");
-        return;
-      }
       navigateTo(key);
     },
-    [navigateTo, settingsOpen, pathname]
-  );
-
-  // React Aria fires onAction even for an already-selected row, which is what
-  // lets a second click on Settings collapse the tree again.
-  const handleAction = React.useCallback(
-    (key: React.Key) => {
-      if (key !== SETTINGS_KEY) return;
-      setSettingsToggle({ path: pathname, open: !settingsOpen });
-    },
-    [pathname, settingsOpen]
+    [navigateTo]
   );
 
   const clerkRole = membership?.role ?? null;
@@ -284,42 +227,14 @@ export function AppSidebar() {
               selectionMode="single"
               selectedKeys={selectedKeys}
               onSelectionChange={handleSelectionChange}
-              onAction={handleAction}
               className="w-full bg-transparent p-0"
               aria-label={`${group.title} navigation`}
             >
               {group.items.map((item) => (
-                <React.Fragment key={item.url}>
-                  <ListBox.Item
-                    key={item.url}
-                    id={item.url}
-                    textValue={item.title}
-                    className={ITEM_CLASS}
-                  >
-                    <item.icon />
-                    <span className="flex-1 truncate">{item.title}</span>
-                    {item.url === SETTINGS_KEY && (
-                      <ChevronDown
-                        aria-hidden
-                        className={cn(
-                          "size-4! shrink-0 text-sidebar-foreground/40 transition-transform duration-150",
-                          settingsOpen && "rotate-180"
-                        )}
-                      />
-                    )}
-                  </ListBox.Item>
-                  {item.url === SETTINGS_KEY && settingsOpen &&
-                    SETTINGS_CHILDREN.map((child) => (
-                      <ListBox.Item
-                        key={child.url}
-                        id={child.url}
-                        textValue={child.title}
-                        className={CHILD_ITEM_CLASS}
-                      >
-                        <span className="truncate">{child.title}</span>
-                      </ListBox.Item>
-                    ))}
-                </React.Fragment>
+                <ListBox.Item key={item.url} id={item.url} textValue={item.title} className={ITEM_CLASS}>
+                  <item.icon />
+                  <span className="flex-1 truncate">{item.title}</span>
+                </ListBox.Item>
               ))}
             </ListBox>
           </React.Fragment>)}
