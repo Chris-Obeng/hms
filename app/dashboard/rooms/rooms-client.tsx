@@ -58,11 +58,12 @@ import { BlockRoomSheet } from "../calendar/_components/block-room-sheet";
 
 type RoomStatus = "available" | "occupied" | "maintenance" | "out_of_service";
 
-const STATUS_CONFIG: Record<RoomStatus, { label: string; dot: string; chip: "success" | "accent" | "warning" | "danger" }> = {
-  available: { label: "Available", dot: "bg-emerald-500", chip: "success" },
-  occupied: { label: "Occupied", dot: "bg-primary", chip: "accent" },
-  maintenance: { label: "Maintenance", dot: "bg-amber-500", chip: "warning" },
-  out_of_service: { label: "Out of service", dot: "bg-destructive", chip: "danger" },
+/** Status pill: a dot plus the label, so state never rests on colour alone. */
+const STATUS_CONFIG: Record<RoomStatus, { label: string; dot: string; tint: string }> = {
+  available: { label: "Available", dot: "bg-emerald-500", tint: "bg-emerald-500/10 text-emerald-800" },
+  occupied: { label: "Occupied", dot: "bg-primary", tint: "bg-primary/10 text-primary" },
+  maintenance: { label: "Maintenance", dot: "bg-amber-500", tint: "bg-amber-500/15 text-amber-900" },
+  out_of_service: { label: "Out of service", dot: "bg-destructive", tint: "bg-danger/10 text-danger" },
 };
 
 const STATUS_TRANSITIONS: Record<RoomStatus, RoomStatus[]> = {
@@ -674,23 +675,23 @@ export function RoomsClient({
 
       <RoomsTabs />
 
-      <Card className={LIST_CARD}>
-        {hasTypes && (
-          <div className="flex flex-wrap items-center gap-3 p-4 sm:px-6">
-            <SearchField value={query} onChange={setQuery} aria-label="Search rooms" className="w-full min-w-0 sm:w-72">
-              <SearchField.Group className="w-full rounded-xl max-md:h-11">
-                <SearchField.SearchIcon />
-                <SearchField.Input placeholder="Room number or type" />
-                <SearchField.ClearButton />
-              </SearchField.Group>
-            </SearchField>
-            <p className="text-xs tabular-nums text-muted-foreground sm:ml-auto">
-              {totalRooms} {totalRooms === 1 ? "room" : "rooms"} · {totalAvailable} available
-            </p>
-          </div>
-        )}
+      {hasTypes && (
+        <div className="flex flex-wrap items-center gap-3">
+          <SearchField value={query} onChange={setQuery} aria-label="Search rooms" className="w-full min-w-0 sm:w-72">
+            <SearchField.Group className="w-full rounded-xl max-md:h-11">
+              <SearchField.SearchIcon />
+              <SearchField.Input placeholder="Room number or type" />
+              <SearchField.ClearButton />
+            </SearchField.Group>
+          </SearchField>
+          <p className="text-xs tabular-nums text-muted-foreground sm:ml-auto">
+            {totalRooms} {totalRooms === 1 ? "room" : "rooms"} · {totalAvailable} available
+          </p>
+        </div>
+      )}
 
-        {!hasTypes ? (
+      {!hasTypes ? (
+        <Card className={LIST_CARD}>
           <ListEmpty
             icon={BedDouble}
             title="No room types yet"
@@ -704,7 +705,9 @@ export function RoomsClient({
               ) : undefined
             }
           />
-        ) : visibleTypes.length === 0 ? (
+        </Card>
+      ) : visibleTypes.length === 0 ? (
+        <Card className={LIST_CARD}>
           <ListEmpty
             icon={BedDouble}
             title={`No rooms match “${query.trim()}”`}
@@ -714,8 +717,10 @@ export function RoomsClient({
               </Button>
             }
           />
-        ) : (
-          visibleTypes.map(({ type, rooms }) => (
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          {visibleTypes.map(({ type, rooms }) => (
             <TypeSection
               key={type.id}
               type={type}
@@ -737,9 +742,9 @@ export function RoomsClient({
               onEditDetails={openEditRoom}
               isHighlighted={(room) => isFiltering && room.roomNumber.toLowerCase().includes(normalizedQuery)}
             />
-          ))
-        )}
-      </Card>
+          ))}
+        </div>
+      )}
 
       {/* New room type */}
       <Modal.Backdrop
@@ -1090,6 +1095,7 @@ interface RoomRowProps {
   onEditDetails: () => void;
 }
 
+/** One room as a tile: number and actions on top, who or what is in it, then its status. */
 function RoomRow({
   room,
   isHighlighted,
@@ -1108,51 +1114,99 @@ function RoomRow({
   const hasRowActions = canManageRooms || canBlockRooms;
   const checkout = room.stay?.checkOut
     ? new Date(`${room.stay.checkOut}T00:00:00Z`).toLocaleDateString("en", {
-        weekday: "short",
         month: "short",
         day: "numeric",
         timeZone: "UTC",
       })
     : null;
   const inactive = room.isActive === false;
+  const meta = [room.floor ? `Floor ${room.floor}` : null, inactive ? "Inactive" : null].filter(Boolean).join(" · ");
+  const pill = (
+    <>
+      <span className={cn("size-2 shrink-0 rounded-full", config.dot)} aria-hidden="true" />
+      <span className="min-w-0 truncate text-left text-xs font-medium sm:flex-1">{config.label}</span>
+    </>
+  );
 
   return (
     <li
       ref={registerRef}
       className={cn(
-        "flex items-center gap-3 px-4 py-2 transition-colors duration-150 sm:px-6",
-        isHighlighted && "bg-primary/[0.05]",
+        "grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 rounded-2xl border border-border/60 bg-card p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-x-2 sm:gap-y-3",
+        isHighlighted && "border-primary ring-2 ring-primary/30",
         inactive && "opacity-70"
       )}
     >
-      <div className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-3">
-        <span className="block font-mono text-sm font-semibold tabular-nums text-foreground sm:w-14 sm:shrink-0">{room.roomNumber}</span>
-        <span className="mt-1 block min-w-0 truncate text-xs text-muted-foreground sm:mt-0 sm:flex-1">
-          {[room.floor ? `Floor ${room.floor}` : null, inactive ? "Inactive" : null].filter(Boolean).join(" · ")}
-          {(room.floor || inactive) && (room.stay || room.notes) ? " · " : ""}
-          {room.stay ? (
-            <>
-              <span className="font-medium text-foreground">{room.stay.guestName}</span>
-              {checkout ? ` · out ${checkout}` : null}
-            </>
-          ) : (
-            room.notes
-          )}
-        </span>
-      </div>
+        <div className="order-1 min-w-0">
+          <p className="truncate text-md font-semibold tabular-nums text-foreground">{room.roomNumber}</p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {room.stay ? (
+              <>
+                <span className="font-medium text-foreground">{room.stay.guestName}</span>
+                {checkout ? ` · out ${checkout}` : null}
+              </>
+            ) : (
+              [meta, room.notes].filter(Boolean).join(" · ") || "\u00a0"
+            )}
+          </p>
+        </div>
+        {hasRowActions && (
+          <div className="order-3 sm:order-2">
+          <Dropdown>
+            <Button
+              variant="ghost"
+              isIconOnly
+              size="sm"
+              aria-label={`Actions for room ${room.roomNumber}`}
+              className="shrink-0 rounded-lg text-muted-foreground max-md:size-11 sm:-mr-1 sm:-mt-1"
+            >
+              <EllipsisVertical className="size-4" />
+            </Button>
+            <Dropdown.Popover placement="bottom end">
+              <Dropdown.Menu
+                aria-label={`Actions for room ${room.roomNumber}`}
+                onAction={(key) => {
+                  if (key === "edit" && canManageRooms) onEditDetails();
+                  if (key === "block" && canBlockRooms) onBlockDates();
+                  if (key === "notes" && canManageRooms) onEditNotes();
+                }}
+              >
+                {canManageRooms && (
+                  <Dropdown.Item id="edit" textValue="Edit room">
+                    <Pencil className="size-4 text-muted-foreground" aria-hidden="true" />
+                    <Label>Edit room</Label>
+                  </Dropdown.Item>
+                )}
+                {canBlockRooms && (
+                  <Dropdown.Item id="block" textValue="Block dates">
+                    <CalendarOff className="size-4 text-muted-foreground" aria-hidden="true" />
+                    <Label>Block dates</Label>
+                  </Dropdown.Item>
+                )}
+                {canManageRooms && (
+                  <Dropdown.Item id="notes" textValue="Notes">
+                    <NotebookPen className="size-4 text-muted-foreground" aria-hidden="true" />
+                    <Label>Notes</Label>
+                  </Dropdown.Item>
+                )}
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
+          </div>
+        )}
 
       {canEditStatus ? (
+        <div className={cn("order-2 sm:order-3 sm:col-span-2", !hasRowActions && "col-span-2 justify-self-end sm:justify-self-stretch")}>
         <Dropdown>
           <Button
             variant="ghost"
             aria-label={`Status of room ${room.roomNumber}: ${config.label}. Change status`}
-            className="h-11 shrink-0 gap-2 rounded-lg px-3 sm:h-10"
+            className={cn("h-11 justify-start gap-2 rounded-xl px-3 sm:w-full md:h-8", config.tint)}
           >
-            <span className={cn("size-2 shrink-0 rounded-full", config.dot)} aria-hidden="true" />
-            <span className="text-xs font-medium text-foreground">{config.label}</span>
-            <ChevronDown className="size-3 text-muted-foreground" aria-hidden="true" />
+            {pill}
+            <ChevronDown className="size-3 shrink-0 opacity-70" aria-hidden="true" />
           </Button>
-          <Dropdown.Popover placement="bottom end">
+          <Dropdown.Popover placement="bottom start">
             <Dropdown.Menu aria-label={`Change status of room ${room.roomNumber}`} onAction={(key) => onStatusChange(key as RoomStatus)}>
               {transitions.map((nextStatus) => (
                 <Dropdown.Item key={nextStatus} id={nextStatus} textValue={STATUS_CONFIG[nextStatus].label}>
@@ -1163,52 +1217,17 @@ function RoomRow({
             </Dropdown.Menu>
           </Dropdown.Popover>
         </Dropdown>
+        </div>
       ) : (
-        <Chip size="sm" variant="soft" color={config.chip} className="shrink-0">
-          {config.label}
-        </Chip>
-      )}
-
-      {hasRowActions && (
-        <Dropdown>
-          <Button
-            variant="ghost"
-            isIconOnly
-            aria-label={`Actions for room ${room.roomNumber}`}
-            className="shrink-0 rounded-lg text-muted-foreground max-md:size-11"
-          >
-            <EllipsisVertical className="size-4" />
-          </Button>
-          <Dropdown.Popover placement="bottom end">
-            <Dropdown.Menu
-              aria-label={`Actions for room ${room.roomNumber}`}
-              onAction={(key) => {
-                if (key === "edit" && canManageRooms) onEditDetails();
-                if (key === "block" && canBlockRooms) onBlockDates();
-                if (key === "notes" && canManageRooms) onEditNotes();
-              }}
-            >
-              {canManageRooms && (
-                <Dropdown.Item id="edit" textValue="Edit room">
-                  <Pencil className="size-4 text-muted-foreground" aria-hidden="true" />
-                  <Label>Edit room</Label>
-                </Dropdown.Item>
-              )}
-              {canBlockRooms && (
-                <Dropdown.Item id="block" textValue="Block dates">
-                  <CalendarOff className="size-4 text-muted-foreground" aria-hidden="true" />
-                  <Label>Block dates</Label>
-                </Dropdown.Item>
-              )}
-              {canManageRooms && (
-                <Dropdown.Item id="notes" textValue="Notes">
-                  <NotebookPen className="size-4 text-muted-foreground" aria-hidden="true" />
-                  <Label>Notes</Label>
-                </Dropdown.Item>
-              )}
-            </Dropdown.Menu>
-          </Dropdown.Popover>
-        </Dropdown>
+        <span
+          className={cn(
+            "order-2 flex h-8 items-center gap-2 rounded-xl px-3 sm:order-3 sm:col-span-2",
+            !hasRowActions && "col-span-2 justify-self-end sm:justify-self-stretch",
+            config.tint
+          )}
+        >
+          {pill}
+        </span>
       )}
     </li>
   );
@@ -1259,73 +1278,79 @@ function TypeSection({
   const facts = [type.bedConfiguration, sleeps ? `Sleeps ${sleeps}` : null].filter(Boolean).join(" · ");
 
   return (
-    <section aria-label={type.name} className="border-t border-border/50">
-      <div className="flex items-center gap-3 bg-secondary/40 py-3 pl-4 pr-2 sm:pl-6 sm:pr-4">
-        <div className="min-w-0 flex-1">
-          <h2 className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
-            <span className="truncate">{type.name}</span>
-            {type.isActive === false && (
-              <Chip size="sm" variant="secondary" className="shrink-0">
-                Inactive
-              </Chip>
-            )}
-          </h2>
-          <p className="mt-1 truncate text-xs text-muted-foreground">
-            {facts ? `${facts} · ` : ""}
-            <span className="tabular-nums">
-              {type.availableRooms} of {type.rooms.length} available
-            </span>
+    <Card className="gap-4 rounded-3xl border border-border/60 p-4 shadow-[0_1px_2px_rgb(15_23_42/0.04)] sm:p-6">
+      <section aria-label={type.name} className="space-y-4">
+        <header className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="flex min-w-0 items-center gap-2 text-md font-semibold text-foreground">
+              <span className="truncate">{type.name}</span>
+              {type.isActive === false && (
+                <Chip size="sm" variant="secondary" className="shrink-0">
+                  Inactive
+                </Chip>
+              )}
+            </h2>
+            <p className="mt-1 truncate text-xs text-muted-foreground">
+              <span className="font-semibold tabular-nums text-foreground sm:hidden">{formatCurrency(type.basePrice, currency)} / night · </span>
+              {facts ? <span className="hidden sm:inline">{facts} · </span> : null}
+              <span className="tabular-nums">
+                {type.availableRooms} of {type.rooms.length} available
+              </span>
+            </p>
+          </div>
+          <p className="hidden shrink-0 pt-1 text-sm font-semibold tabular-nums text-foreground sm:block">
+            {formatCurrency(type.basePrice, currency)}
+            <span className="font-normal text-muted-foreground"> / night</span>
           </p>
-        </div>
-        <p className="shrink-0 text-right text-sm font-semibold tabular-nums text-foreground">
-          {formatCurrency(type.basePrice, currency)}
-          <span className="block text-2xs font-normal text-muted-foreground">per night</span>
-        </p>
-        {canManageRooms && (
-          <TypeActionsDropdown
-            type={type}
-            canDelete={canDeleteRoomTypes}
-            onEdit={onTypeEdit}
-            onAddRoom={onAddRoom}
-            onToggleActive={onTypeToggleActive}
-            onDelete={onTypeDelete}
-          />
-        )}
-      </div>
+          {canManageRooms && (
+            <TypeActionsDropdown
+              type={type}
+              canDelete={canDeleteRoomTypes}
+              onEdit={onTypeEdit}
+              onAddRoom={onAddRoom}
+              onToggleActive={onTypeToggleActive}
+              onDelete={onTypeDelete}
+            />
+          )}
+        </header>
 
-      {rooms.length === 0 ? (
-        <div className="flex items-center justify-between gap-3 border-t border-border/50 px-4 py-4 sm:px-6">
-          <p className="text-xs text-muted-foreground">{isFiltering ? "No matching rooms" : "No rooms yet"}</p>
-          {canManageRooms && !isFiltering && (
-            <Button size="sm" variant="secondary" onPress={onAddRoom} className="rounded-lg max-md:h-11">
+        {rooms.length === 0 ? (
+          canManageRooms && !isFiltering ? (
+            <Button
+              variant="ghost"
+              onPress={onAddRoom}
+              className="h-20 w-full gap-2 rounded-2xl border border-dashed border-border text-sm font-medium text-muted-foreground"
+            >
               <Plus className="size-4" aria-hidden="true" />
               Add room
             </Button>
-          )}
-        </div>
-      ) : (
-        <ul className="divide-y divide-border/50 border-t border-border/50">
-          {rooms.map((room) => (
-            <RoomRow
-              key={room.id}
-              room={room}
-              isHighlighted={isHighlighted(room)}
-              canEditStatus={canEditStatus}
-              canBlockRooms={canBlockRooms}
-              canManageRooms={canManageRooms}
-              registerRef={(element) => {
-                if (element) registerRef.current.set(room.id, element);
-                else registerRef.current.delete(room.id);
-              }}
-              onStatusChange={(status) => onStatusChange(room, status)}
-              onBlockDates={() => onBlockDates(room.id)}
-              onEditNotes={() => onEditNotes(room)}
-              onEditDetails={() => onEditDetails(room, type.id)}
-            />
-          ))}
-        </ul>
-      )}
-    </section>
+          ) : (
+            <p className="text-xs text-muted-foreground">{isFiltering ? "No matching rooms" : "No rooms yet"}</p>
+          )
+        ) : (
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+            {rooms.map((room) => (
+              <RoomRow
+                key={room.id}
+                room={room}
+                isHighlighted={isHighlighted(room)}
+                canEditStatus={canEditStatus}
+                canBlockRooms={canBlockRooms}
+                canManageRooms={canManageRooms}
+                registerRef={(element) => {
+                  if (element) registerRef.current.set(room.id, element);
+                  else registerRef.current.delete(room.id);
+                }}
+                onStatusChange={(status) => onStatusChange(room, status)}
+                onBlockDates={() => onBlockDates(room.id)}
+                onEditNotes={() => onEditNotes(room)}
+                onEditDetails={() => onEditDetails(room, type.id)}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+    </Card>
   );
 }
 
