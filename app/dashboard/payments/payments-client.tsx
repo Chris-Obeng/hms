@@ -107,27 +107,34 @@ export function PaymentsClient({
     router.replace(next === "activity" ? activityUrl({ tab: next }) : `/dashboard/payments?tab=${next}`, { scroll: false });
   }
 
+  // Pending debounced search. Every explicit filter change cancels it: those
+  // handlers already send the current text, and a stale timer would replay the
+  // filters captured when the text last changed.
+  const searchTimer = React.useRef<number | undefined>(undefined);
+  const cancelPendingSearch = () => window.clearTimeout(searchTimer.current);
+
   function applyRange(nextStart: string, nextEnd: string) {
+    cancelPendingSearch();
     setStartDate(nextStart); setEndDate(nextEnd); setPage(1);
     router.replace(activityUrl({ tab: "activity", startDate: nextStart, endDate: nextEnd, page: 1 }), { scroll: false });
     void loadActivity({ startDate: nextStart, endDate: nextEnd, page: 1 });
   }
 
   function applyFilters() {
+    cancelPendingSearch();
     setPage(1);
     router.replace(activityUrl({ tab: "activity", page: 1 }), { scroll: false });
     void loadActivity({ page: 1 });
   }
 
-  // Search applies itself after a short pause; Enter applies at once.
-  const searchMounted = React.useRef(false);
+  // Search applies itself after a short pause; Enter applies at once. Only a
+  // changed value arms the timer, so mount (and Strict Mode's re-run) doesn't.
+  const lastSearch = React.useRef(search);
   React.useEffect(() => {
-    if (!searchMounted.current) {
-      searchMounted.current = true;
-      return;
-    }
-    const t = window.setTimeout(() => applyFilters(), 400);
-    return () => window.clearTimeout(t);
+    if (search === lastSearch.current) return;
+    lastSearch.current = search;
+    searchTimer.current = window.setTimeout(() => applyFilters(), 400);
+    return cancelPendingSearch;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only the typed text should re-arm the timer
   }, [search]);
 
@@ -152,10 +159,10 @@ export function PaymentsClient({
       <Tabs.Panel id="activity" className="mt-0 p-0 pt-6"><ActivityView
         activity={activity} error={error} loading={loading} currency={currency} timeZone={timeZone}
         status={status} method={method} search={search} page={page}
-        onStatus={(value) => { setStatus(value); setPage(1); router.replace(activityUrl({ tab: "activity", status: value, page: 1 }), { scroll: false }); void loadActivity({ status: value, page: 1 }); }}
-        onMethod={(value) => { setMethod(value); setPage(1); router.replace(activityUrl({ tab: "activity", method: value, page: 1 }), { scroll: false }); void loadActivity({ method: value, page: 1 }); }}
+        onStatus={(value) => { cancelPendingSearch(); setStatus(value); setPage(1); router.replace(activityUrl({ tab: "activity", status: value, page: 1 }), { scroll: false }); void loadActivity({ status: value, page: 1 }); }}
+        onMethod={(value) => { cancelPendingSearch(); setMethod(value); setPage(1); router.replace(activityUrl({ tab: "activity", method: value, page: 1 }), { scroll: false }); void loadActivity({ method: value, page: 1 }); }}
         onSearch={setSearch} onApply={applyFilters}
-        onPage={(next) => { setPage(next); router.replace(activityUrl({ tab: "activity", page: next }), { scroll: false }); void loadActivity({ page: next }); }}
+        onPage={(next) => { cancelPendingSearch(); setPage(next); router.replace(activityUrl({ tab: "activity", page: next }), { scroll: false }); void loadActivity({ page: next }); }}
         onOpenBooking={(id) => { setBookingId(id); setDrawerOpen(true); }}
       /></Tabs.Panel>
       <Tabs.Panel id="payouts" className="mt-0 p-0 pt-6"><PayoutsPanel load={getMyHotelPayouts} timeZone={timeZone} range={{ start: startDate, end: endDate }} /></Tabs.Panel>
@@ -239,18 +246,27 @@ function LedgerCard({ activity, loading, timeZone, status, method, search, page,
             const online = onlineRow(row);
             const time = row.paidAt ? formatDateInTimeZone(row.paidAt, timeZone, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "—";
             const open = row.bookingId ? () => onOpenBooking(row.bookingId!) : undefined;
+            const phoneSummary = <>
+              <span className="flex items-baseline justify-between gap-3">
+                <span className="truncate text-sm font-medium text-foreground">{row.guestName ?? "Guest"}</span>
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{formatCurrency(row.amount, row.currency)}</span>
+              </span>
+              <span className="flex items-center justify-between gap-3">
+                <span className="truncate text-xs text-muted-foreground">{time} · {online ? "Online" : getMethodLabel(row.method)}</span>
+                <Chip size="sm" variant="soft" color={statusTone(row.status)}>{statusLabel(row.status)}</Chip>
+              </span>
+            </>;
             return <li key={row.id}
               onClick={open}
               className={cn(LEDGER_GRID, "flex flex-col gap-1 px-4 py-3 sm:px-6", open && "cursor-pointer transition-colors duration-150 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary/50")}>
-              {/* Phones: guest + amount on top, method + status below */}
-              <div className="flex items-baseline justify-between gap-3 md:hidden">
-                <span className="truncate text-sm font-medium text-foreground">{row.guestName ?? "Guest"}</span>
-                <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{formatCurrency(row.amount, row.currency)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 md:hidden">
-                <span className="truncate text-xs text-muted-foreground">{time} · {online ? "Online" : getMethodLabel(row.method)}</span>
-                <Chip size="sm" variant="soft" color={statusTone(row.status)}>{statusLabel(row.status)}</Chip>
-              </div>
+              {/* Phones: guest + amount on top, method + status below. A real button
+                  when the row opens a booking, so keyboard and screen-reader users can too. */}
+              {open ? (
+                <button type="button" onClick={(e) => { e.stopPropagation(); open(); }}
+                  className="flex w-full flex-col gap-1 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden">
+                  {phoneSummary}
+                </button>
+              ) : <span className="flex flex-col gap-1 md:hidden">{phoneSummary}</span>}
 
               <div className="hidden min-w-0 md:block">
                 <p className="text-sm tabular-nums text-foreground">{time}</p>
