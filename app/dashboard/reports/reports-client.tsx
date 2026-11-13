@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, Skeleton } from "@heroui/react";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { qk } from "@/lib/query-keys";
-import { formatDate } from "@/lib/format";
+import { formatCurrencySymbol, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   getGuestsReport, getOccupancyReport, getReportsOverview,
@@ -20,7 +20,7 @@ import { CollectionsCard } from "./_components/bi/collections-card";
 import { OccupancyTrendCard } from "./_components/bi/occupancy-trend-card";
 import { RangeControl } from "@/components/ui/pen/range-control";
 import { ExportButton } from "./_components/bi/export-button";
-import { deltaText, moneyAmount } from "./_components/bi/bi-format";
+import { deltaText } from "./_components/bi/bi-format";
 import { BI_CARD } from "./_components/bi/bi-styles";
 import type { RoomsSoldMetric } from "@/lib/metrics/dashboard-occupancy";
 
@@ -103,8 +103,6 @@ function BiSession({ orgId, hotelId, timeZone, today, initialStartDate, initialE
   const exportButton = <ExportButton range={range} overview={overviewData} occupancy={occupancyData} guests={guestsData} revenue={revenueData}
     roomsSold={roomsSold.data?.metric} disabled={overview.isPending} />;
 
-  const currency = overviewData?.currency;
-
   return <div className="mx-auto w-full max-w-7xl pt-6 md:pt-8">
     <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div className="min-w-0 space-y-1">
@@ -113,7 +111,6 @@ function BiSession({ orgId, hotelId, timeZone, today, initialStartDate, initialE
           {reportPeriodLabel(range)}
           {overviewData && overviewData.meta.priorStartDate !== overviewData.meta.startDate
             && <span> · compared with {formatDate(overviewData.meta.priorStartDate, "MMM d")} – {formatDate(overviewData.meta.priorEndDate, "MMM d")}</span>}
-          {currency && <span> · amounts in {currency}</span>}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -193,7 +190,8 @@ const KPI_LAYOUT = [
 ];
 
 function KpiStrip({ data }: { data: OverviewData }) {
-  const money = (value: number) => moneyAmount(value, data.currency, { maximumFractionDigits: 0 });
+  // Money carries the cedi symbol so staff can tell it from counts at a glance.
+  const money = (value: number) => formatCurrencySymbol(value, data.currency);
   const percent = (value: number | null) => value === null ? null : `${value.toLocaleString("en", { maximumFractionDigits: 1 })}%`;
   const kpis: KpiFigure[] = [
     { label: "Room revenue", amount: money(data.revenue), delta: data.deltas.revenue },

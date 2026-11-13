@@ -4,9 +4,9 @@ import { useId } from "react";
 import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import { Button, Card, Disclosure, Table } from "@heroui/react";
 import { BI_AXIS_TICK, BI_CARD, BI_CARD_DESCRIPTION, BI_CARD_HEADER, BI_CARD_TITLE } from "./bi-styles";
-import { formatDate } from "@/lib/format";
+import { formatCurrencySymbol, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { compactNumber, moneyAmount } from "./bi-format";
+import { compactNumber } from "./bi-format";
 import { tooltipStyle } from "../shells";
 import type { OverviewSeriesPoint } from "../../actions";
 
@@ -80,7 +80,7 @@ export function RevenueCard({ currency, current, prior, className }: {
             if (typeof iso !== "string") return String(label ?? "");
             return weekly ? `Week of ${formatDate(iso, "MMM d, yyyy")}` : formatDate(iso, "EEE, MMM d, yyyy");
           }}
-          formatter={(value, name) => [`${moneyAmount(Number(value), currency, { maximumFractionDigits: 0 })} ${currency}`, name === "prior" ? "Prior period" : "This period"]} />
+          formatter={(value, name) => [formatCurrencySymbol(Number(value), currency), name === "prior" ? "Prior period" : "This period"]} />
         <Area type="monotone" dataKey="prior" stroke="var(--muted-foreground)" strokeOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 4"
           fill="transparent" connectNulls isAnimationActive={false} dot={false} activeDot={false} />
         <Area type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={2} fill={`url(#${gradientId})`}
@@ -121,8 +121,8 @@ function DataTable({ rows, currency, weekly }: { rows: TrendRow[]; currency: str
               <Table.Body>
                 {rows.map((row) => <Table.Row key={row.date} id={row.date}>
                   <Table.Cell className="font-medium">{formatDate(row.date, "MMM d, yyyy")}</Table.Cell>
-                  <Table.Cell className="text-right">{moneyAmount(row.value, currency)}</Table.Cell>
-                  <Table.Cell className="text-right text-muted-foreground">{row.prior === null ? "—" : moneyAmount(row.prior, currency)}</Table.Cell>
+                  <Table.Cell className="text-right">{formatCurrencySymbol(row.value, currency, { exact: true })}</Table.Cell>
+                  <Table.Cell className="text-right text-muted-foreground">{row.prior === null ? "—" : formatCurrencySymbol(row.prior, currency, { exact: true })}</Table.Cell>
                 </Table.Row>)}
               </Table.Body>
             </Table.Content>

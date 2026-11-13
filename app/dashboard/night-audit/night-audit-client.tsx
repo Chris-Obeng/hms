@@ -12,7 +12,7 @@ import { DonutRing } from "@/components/ui/pen/donut-ring";
 import { MIN_AUDIT_DATE, type NightAuditSummary } from "@/lib/night-audit/summary";
 import { PAYMENT_METHOD_LABELS } from "@/lib/booking-status";
 import { OTHER_PAYMENT_METHOD_COLOR, PAYMENT_METHOD_COLORS } from "@/lib/payment-method-colors";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrencySymbol, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** Same quiet surface as the Rooms, Rates and Reports cards. */
@@ -51,9 +51,9 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
   React.useEffect(() => () => { if (navigationTimer.current) clearTimeout(navigationTimer.current); }, []);
   const busy = isExecuting || isNavigating;
   /** Exact amount with the currency, for the permanent record in the close dialog. */
-  const money = (value: number | null) => value === null || !summary.currency ? "Unavailable" : formatCurrency(value, summary.currency);
-  /** Page figures drop the currency (stated once in the header) and the empty decimals. */
-  const amount = (value: number | null) => value === null || !summary.currency ? null : value.toLocaleString("en", { maximumFractionDigits: 2 });
+  const money = (value: number | null) => value === null || !summary.currency ? "Unavailable" : formatCurrencySymbol(value, summary.currency, { exact: true });
+  /** Page figures carry the cedi symbol, without decimals, so staff can tell money from counts. */
+  const amount = (value: number | null) => value === null || !summary.currency ? null : formatCurrencySymbol(value, summary.currency);
   const unresolved = (summary.pendingArrivals ?? 0) + (summary.pendingDepartures ?? 0);
   const blockers = unresolved + (summary.rateIssues ?? 0) + (summary.paymentIssues ?? 0);
   const waitingForMidnight = !summary.isClosed && blockers === 0 && summary.auditDate >= summary.propertyToday;
@@ -145,7 +145,6 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
     <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0 space-y-1">
         <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">Night audit</h1>
-        {summary.currency && <p className="text-sm leading-5 text-muted-foreground">Amounts in {summary.currency}</p>}
       </div>
       <DateNavigator
         selectedDate={new Date(`${summary.auditDate}T00:00:00`)}

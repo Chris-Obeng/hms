@@ -5,7 +5,8 @@ import { PAYMENT_METHOD_LABELS } from "@/lib/booking-status";
 import { DonutRing } from "@/components/ui/pen/donut-ring";
 import { cn } from "@/lib/utils";
 import { BI_CARD, BI_CARD_DESCRIPTION, BI_CARD_TITLE } from "./bi-styles";
-import { moneyAmount, share } from "./bi-format";
+import { share } from "./bi-format";
+import { formatCurrencySymbol } from "@/lib/format";
 import { OTHER_PAYMENT_METHOD_COLOR, PAYMENT_METHOD_COLORS } from "@/lib/payment-method-colors";
 import type { MethodSlice } from "../../actions";
 
@@ -41,7 +42,7 @@ export function CollectionsCard({ collected, byMethod, currency, className }: {
 }) {
   const segments = toSegments(byMethod);
   const total = segments.reduce((sum, row) => sum + row.value, 0);
-  const whole = (value: number) => moneyAmount(value, currency, { maximumFractionDigits: 0 });
+  const whole = (value: number) => formatCurrencySymbol(value, currency);
 
   return <Card render={(props) => <section {...props} />} className={cn(BI_CARD, className)}>
     <div className="min-w-0">
