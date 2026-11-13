@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import {
   AlertDialog,
-  Avatar,
   Button,
   ButtonGroup,
   Chip,
@@ -26,7 +25,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
-import { formatDate, formatRoomLabel, getInitials, getNights } from "@/lib/format";
+import { formatDate, formatRoomLabel, getNights } from "@/lib/format";
 import { getPaymentLabel, getStatusLabel } from "@/lib/booking-status";
 import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
 import { CAPS, isFresh, onIdle } from "@/lib/cache/prefetch-helpers";
@@ -89,8 +88,24 @@ const EMPTY_COPY: Record<ActivityTab, { title: string; hint: string }> = {
 
 /** Desktop column template, shared by the header band and every row. */
 const ROW_GRID =
-  "grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 gap-y-1 [grid-template-areas:'avatar_guest_pay'_'avatar_stay_action'] " +
-  "md:grid-cols-[auto_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_5rem_9rem] md:items-center md:gap-x-4 md:[grid-template-areas:'avatar_guest_room_stay_pay_action']";
+  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 [grid-template-areas:'guest_pay'_'stay_action'] " +
+  "md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_6rem_9rem] md:items-center md:gap-x-4 md:[grid-template-areas:'guest_room_stay_pay_action']";
+
+/** One dot per payment state, so the column reads at a glance without a row of chips. */
+const PAYMENT_DOT: Record<string, string> = {
+  paid: "bg-success",
+  partial: "bg-warning",
+  refunded: "bg-muted-foreground",
+};
+
+/** Booking state shown in the action column once there is no next step. */
+const STATUS_DOT: Record<string, string> = {
+  checked_in: "bg-success",
+  confirmed: "bg-primary",
+  pending: "bg-warning",
+  cancelled: "bg-danger",
+  no_show: "bg-danger",
+};
 
 /**
  * Front-desk queue for the selected view. Each row answers the four questions a
@@ -218,7 +233,6 @@ export function ActivityList({
         <Skeleton className="h-10 w-full rounded-xl" />
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3">
-            <Skeleton className="size-8 shrink-0 rounded-2xl" />
             <Skeleton className="h-4 flex-1 rounded-md" />
             <Skeleton className="h-8 w-24 rounded-xl" />
           </div>
@@ -291,10 +305,9 @@ export function ActivityList({
             aria-hidden="true"
             className={cn(
               ROW_GRID,
-              "hidden border-b border-border/50 bg-secondary/40 px-6 py-2 text-2xs font-medium text-muted-foreground md:grid"
+              "hidden border-b border-border/50 px-6 py-2 text-xs font-medium text-muted-foreground md:grid"
             )}
           >
-            <span className="size-8 [grid-area:avatar]" />
             <span className="[grid-area:guest]">Guest</span>
             <span className="[grid-area:room]">Room</span>
             <span className="[grid-area:stay]">Stay</span>
@@ -374,16 +387,8 @@ function BookingRow({
       onClick={() => onViewDetails?.(booking)}
       onMouseEnter={() => onHoverPrefetch?.(booking.id)}
       onFocusCapture={() => onHoverPrefetch?.(booking.id)}
-      className={cn(ROW_GRID, "cursor-pointer px-4 py-3 transition-colors duration-150 active:bg-secondary/80 sm:px-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary/50")}
+      className={cn(ROW_GRID, "cursor-pointer px-4 py-3 transition-colors duration-150 ease-[var(--ease-out-ui)] active:bg-secondary/80 sm:px-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary/50")}
     >
-      <Avatar
-        size="sm"
-        color={booking.hasConflict ? "danger" : "default"}
-        className="[grid-area:avatar] max-md:mt-1"
-        aria-hidden="true"
-      >
-        <Avatar.Fallback className="font-semibold">{getInitials(booking.guestName)}</Avatar.Fallback>
-      </Avatar>
 
       {/* Guest */}
       <div className="min-w-0 [grid-area:guest]">
@@ -402,7 +407,7 @@ function BookingRow({
           </button>
           {booking.hasNotes && (
             <MessageSquareText
-              className="size-4 shrink-0 text-amber-500"
+              className="size-4 shrink-0 text-muted-foreground"
               aria-label="Has notes or special requests"
             />
           )}
@@ -427,11 +432,7 @@ function BookingRow({
       {/* Room (desktop) */}
       <div className="hidden min-w-0 [grid-area:room] md:block">
         <p className="truncate text-sm font-medium text-foreground">
-          {room ?? (
-            <Chip size="sm" color="warning" variant="soft">
-              Unassigned
-            </Chip>
-          )}
+          {room ?? <span className="text-amber-700">Unassigned</span>}
           {booking.roomsCount > 1 && (
             <span className="ml-1 text-xs font-normal text-muted-foreground">×{booking.roomsCount}</span>
           )}
@@ -456,7 +457,7 @@ function BookingRow({
 
       {/* Payment */}
       <div className="flex items-start justify-end [grid-area:pay] md:items-center md:justify-start">
-        {!isCancelled && <PaymentChip status={booking.paymentStatus} />}
+        {!isCancelled && <PaymentStatus status={booking.paymentStatus} />}
       </div>
 
       {/* Next step */}
@@ -468,7 +469,7 @@ function BookingRow({
           <SplitAction
             label="Check in"
             menuLabel="Check-in options"
-            variant="primary"
+            variant="secondary"
             onMain={() => onCheckIn(booking.id)}
             items={[
               ...paymentItem,
@@ -545,31 +546,25 @@ function SplitAction({
   );
 }
 
-function PaymentChip({ status }: { status: string }) {
-  const color = status === "paid" ? "success" : status === "partial" ? "warning" : "default";
+/** A status dot and its word: the dot gives the scan, the word keeps it readable without colour. */
+function DotLabel({ dot, label, className }: { dot: string | undefined; label: string; className?: string }) {
   return (
-    <Chip size="sm" variant="soft" color={color} className="font-medium">
-      {getPaymentLabel(status)}
-    </Chip>
+    <span className={cn("inline-flex items-center gap-2 whitespace-nowrap text-xs font-medium text-foreground", className)}>
+      <span
+        aria-hidden="true"
+        className={cn("size-2 shrink-0 rounded-full", dot ?? "border border-muted-foreground/60")}
+      />
+      {label}
+    </span>
   );
 }
 
+function PaymentStatus({ status }: { status: string }) {
+  return <DotLabel dot={PAYMENT_DOT[status]} label={getPaymentLabel(status)} />;
+}
+
 export function StatusChip({ status, className }: { status: string; className?: string }) {
-  const color =
-    status === "checked_in"
-      ? "success"
-      : status === "pending"
-        ? "warning"
-        : status === "cancelled" || status === "no_show"
-          ? "danger"
-          : status === "confirmed"
-            ? "accent"
-            : "default";
-  return (
-    <Chip size="sm" variant="soft" color={color} className={cn("font-medium", className)}>
-      {getStatusLabel(status ?? "")}
-    </Chip>
-  );
+  return <DotLabel dot={STATUS_DOT[status]} label={getStatusLabel(status ?? "")} className={className} />;
 }
 
 function EmptyState({

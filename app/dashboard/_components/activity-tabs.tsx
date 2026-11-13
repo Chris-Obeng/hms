@@ -53,12 +53,13 @@ export function ActivityTabs({ tabs, activeTab, onTabChange, children }: Activit
                 className="group h-12 w-auto flex-none gap-2 px-0 text-sm font-medium text-muted-foreground data-[selected=true]:font-semibold data-[selected=true]:text-foreground"
               >
                 {tab.label}
+                {/* Counts are quiet numbers, not pills; only a conflict count takes a colour. */}
                 <span
                   className={cn(
-                    "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-2 text-2xs font-semibold tabular-nums transition-colors duration-150",
+                    "text-xs font-medium tabular-nums",
                     isAlert
-                      ? "bg-destructive/10 text-destructive"
-                      : "bg-secondary text-muted-foreground group-data-[selected=true]:bg-primary/10 group-data-[selected=true]:text-primary"
+                      ? "text-danger"
+                      : "text-muted-foreground group-data-[selected=true]:text-foreground"
                   )}
                 >
                   {tab.count}

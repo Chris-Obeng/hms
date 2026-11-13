@@ -618,11 +618,11 @@ export function DashboardClient({
         )}
       >
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0">
-            <p className="truncate text-xs font-medium text-muted-foreground">{hotelName}</p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-[-0.02em] text-foreground">
+          <div className="min-w-0 space-y-1">
+            <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">
               Front desk
             </h1>
+            <p className="truncate text-sm leading-5 text-muted-foreground">{hotelName}</p>
           </div>
           <DateNavigator
             selectedDate={selectedDate}
@@ -770,8 +770,8 @@ export function DashboardSkeleton() {
     <div className="mx-auto w-full max-w-7xl space-y-6 pt-6 md:pt-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2">
-          <Skeleton className="h-4 w-32 rounded-md" />
           <Skeleton className="h-8 w-40 rounded-lg" />
+          <Skeleton className="h-4 w-32 rounded-md" />
         </div>
         <Skeleton className="h-10 w-full rounded-xl sm:w-72" />
       </div>
@@ -787,7 +787,6 @@ export function DashboardSkeleton() {
             <Skeleton className="h-10 w-full rounded-xl sm:ml-auto sm:w-64" />
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3">
-                <Skeleton className="size-8 shrink-0 rounded-2xl" />
                 <Skeleton className="h-4 flex-1 rounded-md" />
                 <Skeleton className="h-8 w-24 rounded-xl" />
               </div>
