@@ -48,7 +48,7 @@ export function DatesStep({ value, onChange, nights, error }: DatesStepProps) {
             {formatDate(new Date(value.start.year, value.start.month - 1, value.start.day))} →{" "}
             {formatDate(new Date(value.end.year, value.end.month - 1, value.end.day))}
           </span>
-          <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
+          <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-2xs font-semibold text-primary">
             {nightsLabel(nights)}
           </span>
         </div>

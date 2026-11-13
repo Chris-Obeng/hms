@@ -622,7 +622,7 @@ export function RoomsClient({
     "h-11 rounded-xl border-border/70 bg-background text-base sm:h-10 sm:text-sm";
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4 pt-1 md:space-y-5">
+    <div className="mx-auto w-full max-w-7xl space-y-4 pt-1 md:space-y-6">
       <PageHeader
         title="Rooms"
         subtitle={`${optimisticRoomTypes.length} ${optimisticRoomTypes.length === 1 ? "type" : "types"} · ${totalRooms} ${totalRooms === 1 ? "room" : "rooms"} · ${totalAvailable} available`}
@@ -633,7 +633,7 @@ export function RoomsClient({
                 variant="primary"
                 size="sm"
                 onPress={() => openAddRoom()}
-                className="ui-press h-11 gap-2 rounded-xl px-4 text-xs font-semibold shadow-2xs sm:h-9"
+                className="ui-press h-11 gap-2 rounded-xl px-4 text-xs font-semibold shadow-2xs sm:h-10"
               >
                 <Plus className="size-4" aria-hidden="true" />
                 Add room
@@ -644,7 +644,7 @@ export function RoomsClient({
                 variant="outline"
                 size="sm"
                 aria-label="Room type actions"
-                className="ui-press h-11 min-w-11 gap-2 rounded-xl px-3 text-xs font-semibold sm:h-9 sm:min-w-0"
+                className="ui-press h-11 min-w-11 gap-2 rounded-xl px-3 text-xs font-semibold sm:h-10 sm:min-w-0"
               >
                 <span className="hidden sm:inline">Room types</span>
                 <EllipsisVertical className="size-4 sm:hidden" />
@@ -690,11 +690,11 @@ export function RoomsClient({
             aria-label="Search rooms"
             className="w-full sm:max-w-sm"
           >
-            <SearchField.Group className="h-11 rounded-xl border-border/70 bg-card sm:h-9">
+            <SearchField.Group className="h-11 rounded-xl border-border/70 bg-card sm:h-10">
               <SearchField.SearchIcon className="size-4 text-muted-foreground/70" />
               <SearchField.Input
                 placeholder="Search room number or type…"
-                className="text-base sm:text-[13px]"
+                className="text-base sm:text-sm"
               />
               <SearchField.ClearButton />
             </SearchField.Group>
@@ -704,7 +704,7 @@ export function RoomsClient({
 
       {/* Body — single responsive DOM tree */}
       {optimisticRoomTypes.length === 0 ? (
-        <div className="rounded-[20px] border border-border/60 bg-card">
+        <div className="rounded-3xl border border-border/60 bg-card">
           <EmptyStatePanel
             icon={BedDouble}
             title="No room types yet"
@@ -729,7 +729,7 @@ export function RoomsClient({
           />
         </div>
       ) : visibleTypes.length === 0 ? (
-        <div className="rounded-[20px] border border-border/60 bg-card">
+        <div className="rounded-3xl border border-border/60 bg-card">
           <EmptyStatePanel
             icon={BedDouble}
             title={`No matches for “${query.trim()}”`}
@@ -746,11 +746,11 @@ export function RoomsClient({
           />
         </div>
       ) : (
-        <div className="flex flex-col gap-4 lg:gap-0 lg:overflow-hidden lg:rounded-[20px] lg:border lg:border-border/60 lg:bg-card lg:shadow-[0_1px_3px_rgb(0_0_0/0.04)]">
+        <div className="flex flex-col gap-4 lg:gap-0 lg:overflow-hidden lg:rounded-3xl lg:border lg:border-border/60 lg:bg-card lg:shadow-[0_1px_3px_rgb(0_0_0/0.04)]">
           {visibleTypes.map(({ type, rooms }) => (
             <div
               key={type.id}
-              className="max-lg:overflow-hidden max-lg:rounded-[20px] max-lg:border max-lg:border-border/60 max-lg:bg-card max-lg:shadow-[0_1px_3px_rgb(0_0_0/0.04)] lg:border-b lg:border-border/60 lg:last:border-b-0"
+              className="max-lg:overflow-hidden max-lg:rounded-3xl max-lg:border max-lg:border-border/60 max-lg:bg-card max-lg:shadow-[0_1px_3px_rgb(0_0_0/0.04)] lg:border-b lg:border-border/60 lg:last:border-b-0"
             >
               <TypeSection
                 type={type}
@@ -1046,13 +1046,13 @@ export function RoomsClient({
         }}
       >
         <AlertDialog.Container placement="center" size="sm">
-          <AlertDialog.Dialog className="rounded-[24px] border border-border/70 bg-card p-6 shadow-2xl sm:max-w-[380px]">
+          <AlertDialog.Dialog className="rounded-3xl border border-border/70 bg-card p-6 shadow-2xl sm:max-w-[380px]">
             <AlertDialog.Header>
               <AlertDialog.Heading className="text-base font-semibold text-foreground">
                 Delete {typeToDelete?.name}?
               </AlertDialog.Heading>
             </AlertDialog.Header>
-            <AlertDialog.Body className="py-2 text-[13px] text-muted-foreground">
+            <AlertDialog.Body className="py-2 text-sm text-muted-foreground">
               <p>This permanently deletes the room type and its pricing rules.</p>
             </AlertDialog.Body>
             <AlertDialog.Footer className="flex justify-end gap-2 pt-3">
@@ -1122,7 +1122,7 @@ export function RoomsClient({
                         aria-label={`Move ${type.name} up`}
                         isDisabled={index === 0}
                         onPress={() => moveReorderItem(index, -1)}
-                        className="ui-press size-9 min-w-9 rounded-lg text-muted-foreground"
+                        className="ui-press size-10 min-w-10 rounded-lg text-muted-foreground"
                       >
                         <ChevronUp className="size-4" />
                       </Button>
@@ -1133,7 +1133,7 @@ export function RoomsClient({
                         aria-label={`Move ${type.name} down`}
                         isDisabled={index === reorderIds.length - 1}
                         onPress={() => moveReorderItem(index, 1)}
-                        className="ui-press size-9 min-w-9 rounded-lg text-muted-foreground"
+                        className="ui-press size-10 min-w-10 rounded-lg text-muted-foreground"
                       >
                         <ChevronDown className="size-4" />
                       </Button>
@@ -1215,12 +1215,12 @@ function RoomRow({
     <li
       ref={registerRef}
       className={cn(
-        "flex items-center gap-3 border-b border-border/50 px-4 py-3 last:border-b-0 transition-colors duration-150 sm:px-5 sm:py-3",
+        "flex items-center gap-3 border-b border-border/50 px-4 py-3 last:border-b-0 transition-colors duration-150 sm:px-6 sm:py-3",
         "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/20",
         isHighlighted && "bg-[#0485F70A]"
       )}
     >
-      <span className="w-12 shrink-0 font-mono text-[13px] font-semibold tabular-nums text-foreground">
+      <span className="w-12 shrink-0 font-mono text-sm font-semibold tabular-nums text-foreground">
         {room.roomNumber}
       </span>
 
@@ -1251,7 +1251,7 @@ function RoomRow({
             variant="ghost"
             size="sm"
             aria-label={`Change status of room ${room.roomNumber}`}
-            className="ui-press h-11 shrink-0 gap-2 rounded-lg px-3 sm:h-9"
+            className="ui-press h-11 shrink-0 gap-2 rounded-lg px-3 sm:h-10"
           >
             <span className={cn("size-2 shrink-0 rounded-full", config.dot)} aria-hidden="true" />
             <span className="text-xs font-medium text-foreground">{config.label}</span>
@@ -1276,7 +1276,7 @@ function RoomRow({
           </Dropdown.Popover>
         </Dropdown>
       ) : (
-        <span className="inline-flex h-9 shrink-0 items-center gap-2 px-3 text-xs font-medium text-foreground">
+        <span className="inline-flex h-10 shrink-0 items-center gap-2 px-3 text-xs font-medium text-foreground">
           <span className={cn("size-2 shrink-0 rounded-full", config.dot)} aria-hidden="true" />
           {config.label}
         </span>
@@ -1288,7 +1288,7 @@ function RoomRow({
             variant="ghost"
             isIconOnly
             aria-label={`Actions for room ${room.roomNumber}`}
-            className="ui-press size-11 min-w-11 shrink-0 rounded-lg text-muted-foreground sm:size-9 sm:min-w-9"
+            className="ui-press size-11 min-w-11 shrink-0 rounded-lg text-muted-foreground sm:size-10 sm:min-w-10"
           >
             <EllipsisVertical className="size-4" />
           </Button>
@@ -1378,13 +1378,13 @@ function TypeSection({
 
   return (
     <>
-      <div className="border-b border-border/60 bg-secondary/70 px-4 py-3 sm:px-5">
+      <div className="border-b border-border/60 bg-secondary/70 px-4 py-3 sm:px-6">
         <div className="flex items-center gap-3">
-          <span className="truncate text-[14px] font-semibold text-foreground sm:text-[15px]">
+          <span className="truncate text-sm font-semibold text-foreground sm:text-md">
             {type.name}
           </span>
           {type.isActive === false && (
-            <span className="shrink-0 rounded-md border border-border/70 bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground">
+            <span className="shrink-0 rounded-md border border-border/70 bg-background px-2 py-1 text-2xs font-medium text-muted-foreground">
               Inactive
             </span>
           )}
@@ -1406,14 +1406,14 @@ function TypeSection({
         <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
           <span className="truncate">{facts}</span>
           <span className="min-w-0 flex-1" aria-hidden="true" />
-          <span className="shrink-0 font-mono text-[11px] tabular-nums">
+          <span className="shrink-0 font-mono text-2xs tabular-nums">
             {rooms.length} {rooms.length === 1 ? "room" : "rooms"} · {type.availableRooms} available
           </span>
         </div>
       </div>
 
       {rooms.length === 0 ? (
-        <p className="px-4 py-5 text-xs text-muted-foreground sm:px-5">
+        <p className="px-4 py-6 text-xs text-muted-foreground sm:px-6">
           {isFiltering ? "No matching rooms in this type." : "No rooms added yet."}
         </p>
       ) : (
@@ -1443,7 +1443,7 @@ function TypeSection({
         <button
           type="button"
           onClick={onAddRoom}
-          className="ui-press flex min-h-11 w-full cursor-pointer items-center gap-2 border-t border-border/50 px-4 py-3 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-10 sm:px-5 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/20 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+          className="ui-press flex min-h-11 w-full cursor-pointer items-center gap-2 border-t border-border/50 px-4 py-3 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-10 sm:px-4 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/20 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
         >
           <Plus className="size-4" aria-hidden="true" />
           Add room
@@ -1476,7 +1476,7 @@ function TypeActionsDropdown({
         variant="ghost"
         isIconOnly
         aria-label={`Actions for ${type.name}`}
-        className="ui-press size-11 min-w-11 rounded-lg text-muted-foreground sm:size-9 sm:min-w-9"
+        className="ui-press size-11 min-w-11 rounded-lg text-muted-foreground sm:size-10 sm:min-w-10"
       >
         <EllipsisVertical className="size-4" />
       </Button>

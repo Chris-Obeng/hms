@@ -40,7 +40,7 @@ export function OccupancyTrendCard({ daily, coverage, delta, className }: {
       </div>
       <div className="flex flex-wrap items-center gap-4">
         <span className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs leading-4 text-muted-foreground" aria-hidden="true">
-          <span className="flex items-center gap-2"><span className="size-3 rounded-[3px] bg-violet-500" /> Daily occupancy</span>
+          <span className="flex items-center gap-2"><span className="size-3 rounded-sm bg-violet-500" /> Daily occupancy</span>
           <span className="flex items-center gap-2"><span className="w-4 border-t-2 border-dashed border-[#64748b]" /> {partial ? "Average of recorded days" : "Period average"}{averageText && <span className="font-medium tabular-nums text-foreground">{averageText}</span>}</span>
         </span>
         {chipText && <Chip size="sm" variant="soft" color={chipColor} className="font-medium tabular-nums">{chipText}</Chip>}
@@ -48,7 +48,7 @@ export function OccupancyTrendCard({ daily, coverage, delta, className }: {
     </Card.Header>
     <Card.Content>
       {!chartable
-        ? <p className="py-8 text-center text-[13px] leading-5 text-muted-foreground">No room count is recorded for these dates yet, so occupancy can’t be shown. Room counts are saved from the day rooms are added or changed.</p>
+        ? <p className="py-8 text-center text-sm leading-5 text-muted-foreground">No room count is recorded for these dates yet, so occupancy can’t be shown. Room counts are saved from the day rooms are added or changed.</p>
         : <figure aria-label={`Daily occupancy bar chart. ${partial ? "Average of recorded days" : "Period average"} ${averageText}.`} className="h-48 w-full md:h-56">
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <BarChart data={daily} accessibilityLayer={false} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barCategoryGap={2}>

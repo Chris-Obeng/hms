@@ -904,7 +904,7 @@ function CalendarClientContent({
           <button
             type="button"
             onClick={clearFilters}
-            className="ui-press ml-1 inline-flex min-h-9 cursor-pointer items-center rounded-md px-3 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-7 [@media(hover:hover)_and_(pointer:fine)]:hover:text-primary"
+            className="ui-press ml-1 inline-flex min-h-10 cursor-pointer items-center rounded-md px-3 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-8 [@media(hover:hover)_and_(pointer:fine)]:hover:text-primary"
           >
             Clear all
           </button>
@@ -930,7 +930,7 @@ function CalendarClientContent({
             <span className="mb-3 grid size-11 place-items-center rounded-2xl border border-destructive/20 bg-destructive/10 text-destructive">
               <TriangleAlert className="size-5" aria-hidden="true" />
             </span>
-            <h2 className="text-[15px] font-semibold text-foreground">
+            <h2 className="text-md font-semibold text-foreground">
               Couldn&apos;t load the calendar
             </h2>
             <p className="mt-1 max-w-sm text-xs text-muted-foreground">
@@ -972,7 +972,7 @@ function CalendarClientContent({
             <span className="mb-3 grid size-11 place-items-center rounded-2xl border border-border/60 bg-muted/40 text-muted-foreground">
               <SlidersHorizontal className="size-5" aria-hidden="true" />
             </span>
-            <h2 className="text-[15px] font-semibold text-foreground">
+            <h2 className="text-md font-semibold text-foreground">
               All room types are hidden
             </h2>
             <p className="mt-1 max-w-xs text-xs text-muted-foreground">
@@ -992,7 +992,7 @@ function CalendarClientContent({
             <span className="mb-3 grid size-11 place-items-center rounded-2xl border border-border/60 bg-muted/40 text-muted-foreground">
               <BedDouble className="size-5" aria-hidden="true" />
             </span>
-            <h2 className="text-[15px] font-semibold text-foreground">No rooms configured</h2>
+            <h2 className="text-md font-semibold text-foreground">No rooms configured</h2>
             <p className="mt-1 max-w-xs text-xs text-muted-foreground">
               Add your room types and room numbers to manage stays on the timeline.
             </p>
@@ -1029,7 +1029,7 @@ function CalendarClientContent({
         isKeyboardDismissDisabled={false}
       >
         <AlertDialog.Container placement="center" size="md">
-          <AlertDialog.Dialog className="relative overflow-hidden rounded-[24px] border border-border/70 bg-card p-6 shadow-2xl outline-none sm:max-w-[440px]">
+          <AlertDialog.Dialog className="relative overflow-hidden rounded-3xl border border-border/70 bg-card p-6 shadow-2xl outline-none sm:max-w-[440px]">
             <AlertDialog.Header className="flex items-center gap-3 pb-1">
               <span
                 aria-hidden="true"
@@ -1091,11 +1091,11 @@ function CalendarClientContent({
                 >
                   <span className="flex-1">
                     <span className="flex items-center justify-between gap-3">
-                      <span className="text-[13px] font-semibold text-foreground">
+                      <span className="text-sm font-semibold text-foreground">
                         Keep current rate
                       </span>
                       {typeChangePreview && (
-                        <span className="shrink-0 font-mono text-[13px] font-semibold tabular-nums text-foreground">
+                        <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-foreground">
                           {formatMoney(
                             typeChangePreview.currentTotalMinor,
                             typeChangePreview.currency
@@ -1128,11 +1128,11 @@ function CalendarClientContent({
                 >
                   <span className="flex-1">
                     <span className="flex items-center justify-between gap-3">
-                      <span className="text-[13px] font-semibold text-foreground">
+                      <span className="text-sm font-semibold text-foreground">
                         Reprice at {pendingTypeChange?.toTypeName} rate
                       </span>
                       {typeChangePreview?.repriceTotalMinor != null && (
-                        <span className="shrink-0 font-mono text-[13px] font-semibold tabular-nums text-foreground">
+                        <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-foreground">
                           {formatMoney(
                             typeChangePreview.repriceTotalMinor,
                             typeChangePreview.currency
@@ -1273,7 +1273,7 @@ function FilterChip({ label, onClick }: { label: string; onClick: () => void }) 
       type="button"
       onClick={onClick}
       aria-label={`Remove filter ${label}`}
-      className="ui-press inline-flex min-h-9 max-w-[212px] cursor-pointer items-center gap-2 rounded-lg border border-border/70 bg-card px-3 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-7 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
+      className="ui-press inline-flex min-h-10 max-w-[212px] cursor-pointer items-center gap-2 rounded-lg border border-border/70 bg-card px-3 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
     >
       <span className="truncate capitalize">{label}</span>
       <X className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -1322,18 +1322,18 @@ function FilterDrawer({
       <Drawer.Content placement={isMobile ? "bottom" : "right"}>
         <Drawer.Dialog
           aria-labelledby="calendar-filters-title"
-          className="flex h-[84dvh] max-h-[84dvh] w-full flex-col overflow-hidden rounded-t-[24px] bg-background shadow-2xl md:h-dvh md:max-h-dvh md:w-[min(21rem,100vw)] md:rounded-none md:border-l md:border-border/70"
+          className="flex h-[84dvh] max-h-[84dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-background shadow-2xl md:h-dvh md:max-h-dvh md:w-[min(21rem,100vw)] md:rounded-none md:border-l md:border-border/70"
         >
           {isMobile && <Drawer.Handle className="mt-3 shrink-0" />}
           <Drawer.CloseTrigger className="ui-press absolute right-4 top-4 z-10 inline-flex size-10 items-center justify-center rounded-xl bg-muted/70 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" />
 
-          <Drawer.Header className="shrink-0 flex-row items-center justify-between border-b border-border/50 px-5 pb-4 pr-14 pt-5">
-            <Drawer.Heading id="calendar-filters-title" className="text-[15px] font-semibold text-foreground">
+          <Drawer.Header className="shrink-0 flex-row items-center justify-between border-b border-border/50 px-6 pb-4 pr-14 pt-6">
+            <Drawer.Heading id="calendar-filters-title" className="text-md font-semibold text-foreground">
               View &amp; filters
             </Drawer.Heading>
           </Drawer.Header>
 
-          <Drawer.Body className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-5 py-4">
+          <Drawer.Body className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-6 py-4">
             {/* Mobile-only view horizon, block room & color legend */}
             <div className="space-y-4 md:hidden">
               <FilterGroup title="Horizon">
@@ -1427,7 +1427,7 @@ function FilterDrawer({
             </FilterGroup>
           </Drawer.Body>
 
-          <Drawer.Footer className="flex shrink-0 items-center justify-between gap-2 border-t border-border/50 bg-muted/10 px-5 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3">
+          <Drawer.Footer className="flex shrink-0 items-center justify-between gap-2 border-t border-border/50 bg-muted/10 px-6 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3">
             <Button
               variant="ghost"
               size="sm"

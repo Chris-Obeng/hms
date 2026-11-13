@@ -30,12 +30,12 @@ export function ViewModeToggle({ value, onChange, className }: ViewModeTogglePro
       selectedKeys={new Set([value])}
       onSelectionChange={handleSelect}
       aria-label="View mode"
-      className={cn("hidden h-9 shrink-0 rounded-xl md:flex", className)}
+      className={cn("hidden h-10 shrink-0 rounded-xl md:flex", className)}
     >
-      <ToggleButton isIconOnly id="table" size="sm" aria-label="List view" className="size-9">
+      <ToggleButton isIconOnly id="table" size="sm" aria-label="List view" className="size-10">
         <List className="size-4" />
       </ToggleButton>
-      <ToggleButton isIconOnly id="grid" size="sm" aria-label="Grid view" className="size-9">
+      <ToggleButton isIconOnly id="grid" size="sm" aria-label="Grid view" className="size-10">
         <ToggleButtonGroup.Separator />
         <LayoutGrid className="size-4" />
       </ToggleButton>

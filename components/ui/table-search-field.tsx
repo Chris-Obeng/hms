@@ -34,7 +34,7 @@ export function TableSearchField({
       onChange={onChange}
       className={cn("min-w-0 max-w-sm flex-1", className)}
     >
-      <SearchField.Group className="h-11 rounded-xl border-border/60 bg-background sm:h-9">
+      <SearchField.Group className="h-11 rounded-xl border-border/60 bg-background sm:h-10">
         <SearchField.SearchIcon />
         <SearchField.Input
           ref={inputRef}
@@ -45,7 +45,7 @@ export function TableSearchField({
               else inputRef.current?.blur();
             }
           }}
-          className="text-base sm:text-[13px]"
+          className="text-base sm:text-sm"
         />
         <SearchField.ClearButton />
       </SearchField.Group>

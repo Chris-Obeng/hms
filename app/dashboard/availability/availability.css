@@ -29,7 +29,7 @@
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
   border: 1px solid color-mix(in oklch, var(--av-border) 80%, transparent);
-  border-radius: 20px;
+  border-radius: 24px;
   background: var(--av-surface);
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
 }

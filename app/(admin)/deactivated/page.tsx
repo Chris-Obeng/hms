@@ -73,7 +73,7 @@ export default async function DeactivatedPage() {
   return (
     <main className="w-full min-h-[100dvh] bg-background text-foreground flex items-center justify-center p-4 font-sans">
       <div className="w-full max-w-md rounded-2xl border border-border/50 bg-card p-8 shadow-xs">
-        <div className="mx-auto mb-5 grid size-11 place-items-center rounded-full bg-secondary text-muted-foreground">
+        <div className="mx-auto mb-6 grid size-11 place-items-center rounded-full bg-secondary text-muted-foreground">
           {isHotelPending ? (
             <Clock className="size-5" aria-hidden />
           ) : (

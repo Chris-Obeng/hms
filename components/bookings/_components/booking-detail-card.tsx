@@ -15,7 +15,7 @@ export function DetailCard({
     <div className="min-w-0 space-y-1 border-l border-border/60 py-1 pl-3">
       <div className="flex items-center gap-2">
         <Icon className="size-3 text-muted-foreground/50" />
-        <span className="text-[11px] font-medium text-muted-foreground">
+        <span className="text-2xs font-medium text-muted-foreground">
           {label}
         </span>
       </div>

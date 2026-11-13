@@ -206,7 +206,7 @@ const NotificationRow = React.memo(function NotificationRow({
               )}
               <p
                 className={cn(
-                  "truncate text-[13.5px] leading-snug tracking-[-0.01em]",
+                  "truncate text-sm leading-snug tracking-[-0.01em]",
                   !item.is_read
                     ? "font-semibold text-foreground"
                     : "font-medium text-foreground/85"
@@ -217,14 +217,14 @@ const NotificationRow = React.memo(function NotificationRow({
             </div>
 
             {relativeTime && (
-              <span className="shrink-0 text-[11px] font-normal tabular-nums text-muted-foreground">
+              <span className="shrink-0 text-2xs font-normal tabular-nums text-muted-foreground">
                 {relativeTime}
               </span>
             )}
           </div>
 
           {presented.message && (
-            <p className="mt-1 line-clamp-2 text-[12.5px] leading-[1.45] text-muted-foreground">
+            <p className="mt-1 line-clamp-2 text-xs leading-[1.45] text-muted-foreground">
               {presented.message}
             </p>
           )}
@@ -232,13 +232,13 @@ const NotificationRow = React.memo(function NotificationRow({
           {(presented.actionLabel || presented.reference) && (
             <div className="mt-2 flex flex-wrap items-center gap-3">
               {presented.actionLabel && (
-                <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-primary">
+                <span className="inline-flex items-center gap-1 text-2xs font-semibold text-primary">
                   {presented.actionLabel}
                   <ArrowUpRight className="size-3" />
                 </span>
               )}
               {presented.reference && (
-                <span className="text-[11px] tabular-nums text-muted-foreground/75">
+                <span className="text-2xs tabular-nums text-muted-foreground/75">
                   Ref #{presented.reference}
                 </span>
               )}
@@ -256,7 +256,7 @@ const NotificationRow = React.memo(function NotificationRow({
           onDismiss(item.id);
         }}
         className={cn(
-          "ui-press absolute top-3 right-3 inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground/65 outline-none",
+          "ui-press absolute top-3 right-3 inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground/65 outline-none",
           "max-md:size-11 max-md:top-2 max-md:right-1 max-md:opacity-100",
           "md:opacity-0 md:group-hover/notif:opacity-100 md:focus-visible:opacity-100",
           "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",
@@ -318,7 +318,7 @@ export function NotificationPanel({
       {/* Tier 1: Title & Preferences chrome — isolated from dynamic list actions */}
       <div className="flex shrink-0 items-center justify-between gap-2 px-4 pt-4 pb-3 max-md:pt-2">
         <div className="flex min-w-0 items-center gap-2">
-          <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-foreground">
+          <h2 className="text-md font-semibold tracking-[-0.01em] text-foreground">
             Notifications
           </h2>
           {unreadCount > 0 && (
@@ -326,7 +326,7 @@ export function NotificationPanel({
               size="sm"
               variant="soft"
               color="accent"
-              className="h-5 shrink-0 rounded-full px-2 text-[11px] font-semibold tabular-nums"
+              className="h-5 shrink-0 rounded-full px-2 text-2xs font-semibold tabular-nums"
             >
               {unreadCount} new
             </Chip>
@@ -367,7 +367,7 @@ export function NotificationPanel({
             aria-selected={filter === "all"}
             onClick={() => onFilterChange("all")}
             className={cn(
-              "ui-press inline-flex h-7 max-md:h-8 cursor-pointer items-center whitespace-nowrap rounded-md px-3 text-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+              "ui-press inline-flex h-8 max-md:h-8 cursor-pointer items-center whitespace-nowrap rounded-md px-3 text-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
               filter === "all"
                 ? "bg-card font-semibold text-foreground shadow-2xs ring-1 ring-border/60"
                 : "font-medium text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
@@ -381,7 +381,7 @@ export function NotificationPanel({
             aria-selected={filter === "unread"}
             onClick={() => onFilterChange("unread")}
             className={cn(
-              "ui-press inline-flex h-7 max-md:h-8 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md px-3 text-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+              "ui-press inline-flex h-8 max-md:h-8 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md px-3 text-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
               filter === "unread"
                 ? "bg-card font-semibold text-foreground shadow-2xs ring-1 ring-border/60"
                 : "font-medium text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
@@ -390,7 +390,7 @@ export function NotificationPanel({
             <span>Unread</span>
             <span
               className={cn(
-                "tabular-nums text-[11px]",
+                "tabular-nums text-2xs",
                 unreadCount > 0 ? "text-primary font-semibold" : "text-muted-foreground/70"
               )}
             >
@@ -405,7 +405,7 @@ export function NotificationPanel({
             disabled={!canMarkAllRead}
             onClick={onMarkAllRead}
             className={cn(
-              "ui-press inline-flex h-7 max-md:h-9 items-center gap-1 whitespace-nowrap rounded-md px-2 text-xs font-medium outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-ring/50",
+              "ui-press inline-flex h-8 max-md:h-10 items-center gap-1 whitespace-nowrap rounded-md px-2 text-xs font-medium outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-ring/50",
               canMarkAllRead
                 ? "cursor-pointer text-foreground/85 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
                 : "pointer-events-none text-muted-foreground opacity-40"
@@ -425,7 +425,7 @@ export function NotificationPanel({
             disabled={!canClearRead}
             onClick={onClearRead}
             className={cn(
-              "ui-press inline-flex h-7 max-md:h-9 items-center whitespace-nowrap rounded-md px-2 text-xs font-medium outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-ring/50",
+              "ui-press inline-flex h-8 max-md:h-10 items-center whitespace-nowrap rounded-md px-2 text-xs font-medium outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-ring/50",
               canClearRead
                 ? "cursor-pointer text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
                 : "pointer-events-none text-muted-foreground opacity-40"

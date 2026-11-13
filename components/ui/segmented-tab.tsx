@@ -18,7 +18,7 @@ export function SegmentedTab({
     <Tabs.Tab
       id={id}
       className="
-        flex h-9 cursor-pointer items-center justify-center rounded-lg px-3 text-[13px]
+        flex h-10 cursor-pointer items-center justify-center rounded-lg px-3 text-sm
         font-semibold text-muted-foreground outline-none transition-colors
         data-[hovered=true]:text-foreground
         data-[selected=true]:bg-background data-[selected=true]:text-foreground

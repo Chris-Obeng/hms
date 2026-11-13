@@ -283,7 +283,7 @@
   font-weight: 600;
   line-height: 1;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: 4px;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -482,7 +482,7 @@
 .rl-booking-pay {
   flex: none;
   padding: 1px 8px;
-  border-radius: 5px;
+  border-radius: 4px;
   font-size: 11px;
   font-weight: 600;
   background: rgb(255 255 255 / 0.2);
@@ -495,7 +495,7 @@
 .rl-booking-rooms {
   flex: none;
   padding: 1px 4px;
-  border-radius: 5px;
+  border-radius: 4px;
   font-size: 11px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -637,7 +637,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: 4px;
   font-size: 11px;
   font-weight: 600;
   background: var(--card);
@@ -708,7 +708,7 @@
   justify-content: center;
   min-width: 20px;
   padding: 1px 8px;
-  border-radius: 6px;
+  border-radius: 4px;
   font-family: var(--font-mono), monospace;
   font-size: 11px;
   font-weight: 600;
@@ -745,7 +745,7 @@
   height: 40px;
   padding: 0 4px 0 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--card);
   font-size: 12px;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
@@ -801,13 +801,13 @@
 .rl-tray-main:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 1px;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .rl-tray-nights {
   flex: none;
   padding: 1px 8px;
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--muted);
   font-family: var(--font-mono), monospace;
   font-size: 11px;

@@ -51,7 +51,7 @@ export function CompletePaymentPanel({
   }
 
   return (
-    <div className="booking-surface p-5 space-y-3">
+    <div className="booking-surface p-6 space-y-3">
       <div className="flex items-start gap-3">
         <span className="booking-status-icon" aria-hidden>
           <Lock className="size-4" strokeWidth={1.75} />

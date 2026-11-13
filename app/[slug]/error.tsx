@@ -25,14 +25,14 @@ export default function BookingCheckoutError({
       <h1 className="text-[22px] sm:text-[26px] font-semibold tracking-[-0.3px] text-[#18181B]">
         We couldn&apos;t continue your booking
       </h1>
-      <p className="mt-2 max-w-sm text-[13px] text-[#71717A] leading-relaxed">
+      <p className="mt-2 max-w-sm text-sm text-[#71717A] leading-relaxed">
         You have not been charged. Retry to pick up where you left off — any
         rooms held for you are still yours for a few more minutes.
       </p>
       <button
         type="button"
         onClick={() => reset()}
-        className="mt-6 booking-btn-primary h-10 px-6 text-[14px] inline-flex items-center justify-center cursor-pointer"
+        className="mt-6 booking-btn-primary h-10 px-6 text-sm inline-flex items-center justify-center cursor-pointer"
       >
         Try again
       </button>

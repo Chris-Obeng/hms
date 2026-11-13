@@ -43,7 +43,7 @@ export function NotesEditor({
         className="w-full resize-none rounded-xl border border-border/60 bg-background px-3 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40"
       />
       <div className="flex items-center justify-between">
-        <span id={countId} aria-live="polite" className="text-[11px] tabular-nums text-muted-foreground">
+        <span id={countId} aria-live="polite" className="text-2xs tabular-nums text-muted-foreground">
           {value.length}/{maxLength}
         </span>
         <div className="flex items-center gap-2">

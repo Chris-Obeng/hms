@@ -72,7 +72,7 @@ function StatusChip({ kind, value }: { kind: "status" | "payment"; value: string
   return (
     <span
       className={cn(
-        "inline-flex items-center whitespace-nowrap rounded-md border px-2 py-1 text-[11px] font-medium",
+        "inline-flex items-center whitespace-nowrap rounded-md border px-2 py-1 text-2xs font-medium",
         cls
       )}
     >
@@ -109,19 +109,19 @@ function ReservationCard({
       }}
       onPointerEnter={() => onHoverPrefetch?.(row.id)}
       onFocus={() => onHoverPrefetch?.(row.id)}
-      className="ui-press flex cursor-pointer flex-col gap-3 rounded-[20px] border border-border/60 bg-card p-4 shadow-[0_1px_3px_rgb(0_0_0/0.04)] outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:border-border"
+      className="ui-press flex cursor-pointer flex-col gap-3 rounded-3xl border border-border/60 bg-card p-4 shadow-[0_1px_3px_rgb(0_0_0/0.04)] outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:border-border"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span
             aria-hidden="true"
-            className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-[11px] font-semibold text-secondary-foreground"
+            className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-2xs font-semibold text-secondary-foreground"
           >
             {getInitials(row.guestName)}
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-foreground">{row.guestName}</p>
-            <p className="font-mono text-[11px] text-muted-foreground">
+            <p className="font-mono text-2xs text-muted-foreground">
               {row.reference} · {source.label}
             </p>
           </div>
@@ -136,7 +136,7 @@ function ReservationCard({
         <span className="tabular-nums text-foreground">
           {formatDate(row.checkOut, "MMM d, yyyy")}
         </span>
-        <span className="ml-auto font-mono text-[11px] font-medium tabular-nums text-muted-foreground">
+        <span className="ml-auto font-mono text-2xs font-medium tabular-nums text-muted-foreground">
           {nights}n
         </span>
       </div>
@@ -147,11 +147,11 @@ function ReservationCard({
             {formatCurrency(row.totalAmount, currency, { minimumFractionDigits: 0 })}
           </span>
           {outstanding > 0 ? (
-            <span className="text-[11px] font-medium tabular-nums text-destructive">
+            <span className="text-2xs font-medium tabular-nums text-destructive">
               {formatCurrency(outstanding, currency, { minimumFractionDigits: 0 })} due
             </span>
           ) : (
-            <span className="text-[11px] text-emerald-600">{getPaymentLabel(row.paymentStatus)}</span>
+            <span className="text-2xs text-emerald-600">{getPaymentLabel(row.paymentStatus)}</span>
           )}
         </div>
 
@@ -276,7 +276,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
           <div className="flex min-w-0 items-center gap-3">
             <span
               aria-hidden="true"
-              className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-[11px] font-semibold text-secondary-foreground"
+              className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-2xs font-semibold text-secondary-foreground"
             >
               {getInitials(row.original.guestName)}
             </span>
@@ -284,7 +284,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
               <span className="max-w-[192px] truncate text-sm font-semibold text-foreground">
                 {row.original.guestName}
               </span>
-              <span className="font-mono text-[11px] text-muted-foreground">
+              <span className="font-mono text-2xs text-muted-foreground">
                 {row.original.reference}
                 {" · "}
                 {(SOURCE_BADGES[row.original.source] || SOURCE_BADGES.direct).label}
@@ -299,7 +299,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
         filterFn: (row, id, value) => row.getValue(id) === value,
         cell: ({ row }) => (
           <div className="flex min-w-0 flex-col">
-            <span className="whitespace-nowrap text-[13px] font-medium tabular-nums text-foreground">
+            <span className="whitespace-nowrap text-sm font-medium tabular-nums text-foreground">
               {formatDate(row.original.checkIn, "MMM d")} →{" "}
               {formatDate(row.original.checkOut, "MMM d, yyyy")}
             </span>
@@ -333,11 +333,11 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
         header: "Total",
         cell: ({ row }) => (
           <div className="flex flex-col whitespace-nowrap">
-            <span className="text-[13px] font-semibold tabular-nums text-foreground">
+            <span className="text-sm font-semibold tabular-nums text-foreground">
               {formatCurrency(row.original.totalAmount, currency)}
             </span>
             {(row.original.outstandingBalance ?? 0) > 0 && (
-              <span className="text-[11px] font-medium tabular-nums text-destructive">
+              <span className="text-2xs font-medium tabular-nums text-destructive">
                 {formatCurrency(row.original.outstandingBalance ?? 0, currency, {
                   minimumFractionDigits: 0,
                 })}{" "}
@@ -481,11 +481,11 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
   );
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4 pt-1 md:space-y-5">
+    <div className="mx-auto w-full max-w-7xl space-y-4 pt-1 md:space-y-6">
       {/* Header */}
       <header className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-[24px]">
+          <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-2xl">
             Reservations
           </h1>
           <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
@@ -499,7 +499,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
           variant="primary"
           size="sm"
           onPress={openNewBooking}
-          className="ui-press inline-flex h-11 shrink-0 gap-2 rounded-xl px-4 text-xs font-semibold shadow-2xs sm:h-9"
+          className="ui-press inline-flex h-11 shrink-0 gap-2 rounded-xl px-4 text-xs font-semibold shadow-2xs sm:h-10"
         >
           <Plus className="size-4" aria-hidden="true" />
           New booking
@@ -552,7 +552,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
             />
           </>
         ) : (
-          <div className="rounded-[20px] border border-border/60 bg-card">{emptyState}</div>
+          <div className="rounded-3xl border border-border/60 bg-card">{emptyState}</div>
         )}
       </div>
 
@@ -579,14 +579,14 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
             />
           </div>
         ) : (
-          <div className="hidden rounded-[20px] border border-border/60 bg-card md:block">
+          <div className="hidden rounded-3xl border border-border/60 bg-card md:block">
             {emptyState}
           </div>
         ))}
 
       {/* Desktop table view */}
       {viewMode === "table" && (
-        <div className="hidden overflow-hidden rounded-[20px] border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)] md:block">
+        <div className="hidden overflow-hidden rounded-3xl border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)] md:block">
           <Table variant="secondary">
             <Table.ScrollContainer>
               <Table.Content aria-label="Reservations" className="min-w-[760px]">

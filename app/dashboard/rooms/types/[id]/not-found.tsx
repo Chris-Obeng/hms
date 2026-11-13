@@ -12,7 +12,7 @@ export default function RoomTypeNotFound() {
       <p className="mt-1 max-w-sm text-sm text-muted-foreground">
         It may have been deleted, or the link you followed is out of date.
       </p>
-      <Link href="/dashboard/rooms" className="mt-5">
+      <Link href="/dashboard/rooms" className="mt-6">
         <Button variant="secondary" className="rounded-xl text-sm">
           Back to Rooms
         </Button>

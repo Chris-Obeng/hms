@@ -319,19 +319,19 @@ export function GuestDetailSheet({
               <div className="flex flex-wrap items-center gap-2 pr-8">
                 {guest.tags.map((tag) => (
                   <span key={tag}
-                    className={cn("inline-flex h-5 items-center rounded-md px-2 text-[11px] font-semibold", tagClasses(tag))}>
+                    className={cn("inline-flex h-5 items-center rounded-md px-2 text-2xs font-semibold", tagClasses(tag))}>
                     {tag}
                   </span>
                 ))}
                 <button type="button" aria-label="Edit tags" onClick={() => setEditingTags((p) => !p)}
-                  className="ui-press inline-flex min-h-9 cursor-pointer items-center rounded-md px-2 text-[11px] font-medium text-muted-foreground underline-offset-2 sm:min-h-6 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:underline">
+                  className="ui-press inline-flex min-h-10 cursor-pointer items-center rounded-md px-2 text-2xs font-medium text-muted-foreground underline-offset-2 sm:min-h-6 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:underline">
                   {editingTags ? "done" : "edit"}
                 </button>
               </div>
             )}
             {guest.tags.length === 0 && (
               <button type="button" onClick={() => setEditingTags(true)}
-                className="ui-press inline-flex min-h-9 cursor-pointer items-center rounded-md px-1 text-[11px] font-medium text-muted-foreground underline-offset-2 sm:min-h-6 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:underline">
+                className="ui-press inline-flex min-h-10 cursor-pointer items-center rounded-md px-1 text-2xs font-medium text-muted-foreground underline-offset-2 sm:min-h-6 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:underline">
                 + add tags
               </button>
             )}
@@ -342,10 +342,10 @@ export function GuestDetailSheet({
             <div className="shrink-0 border-b border-border/60 bg-card px-6 py-3">
               <div className="flex flex-wrap gap-2">
                 {guest.tags.map((tag) => (
-                  <span key={tag} className="inline-flex items-center gap-1 rounded-md bg-secondary pl-2 pr-1 py-1 text-[11px] font-medium capitalize text-muted-foreground">
+                  <span key={tag} className="inline-flex items-center gap-1 rounded-md bg-secondary pl-2 pr-1 py-1 text-2xs font-medium capitalize text-muted-foreground">
                     {tag}
                     <button type="button" onClick={() => handleRemoveTag(tag)} aria-label={`Remove tag ${tag}`} disabled={savingTags}
-                      className="ui-press grid size-7 cursor-pointer place-items-center rounded disabled:opacity-40 sm:size-5 [@media(hover:hover)_and_(pointer:fine)]:hover:opacity-60">
+                      className="ui-press grid size-8 cursor-pointer place-items-center rounded disabled:opacity-40 sm:size-5 [@media(hover:hover)_and_(pointer:fine)]:hover:opacity-60">
                       <X aria-hidden className="size-3" />
                     </button>
                   </span>
@@ -356,7 +356,7 @@ export function GuestDetailSheet({
                 <div className="mt-2 flex flex-wrap gap-2">
                   {SUGGESTED_TAGS.filter((t) => !guest.tags.includes(t)).map((tag) => (
                     <button key={tag} type="button" onClick={() => handleAddTag(tag)} disabled={savingTags}
-                      className="ui-press inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-lg border border-dashed border-border/70 px-3 py-1 text-[11px] capitalize text-muted-foreground disabled:opacity-40 sm:min-h-7 sm:px-2 sm:py-1 [@media(hover:hover)_and_(pointer:fine)]:hover:border-foreground/30 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground">
+                      className="ui-press inline-flex min-h-10 cursor-pointer items-center gap-1 rounded-lg border border-dashed border-border/70 px-3 py-1 text-2xs capitalize text-muted-foreground disabled:opacity-40 sm:min-h-8 sm:px-2 sm:py-1 [@media(hover:hover)_and_(pointer:fine)]:hover:border-foreground/30 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground">
                       <Plus aria-hidden className="size-3" />
                       {tag}
                     </button>
@@ -366,9 +366,9 @@ export function GuestDetailSheet({
               <form onSubmit={(e) => { e.preventDefault(); handleAddTag(newTagInput); }} className="mt-2 flex items-center gap-2">
                 <input value={newTagInput} onChange={(e) => setNewTagInput(e.target.value)} placeholder="Add custom tag…"
                   aria-label="Add custom tag" disabled={savingTags}
-                  className="h-11 min-w-0 flex-1 rounded-xl border border-border/70 bg-card px-3 text-base text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:h-9 sm:text-[13px]" />
+                  className="h-11 min-w-0 flex-1 rounded-xl border border-border/70 bg-card px-3 text-base text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:h-10 sm:text-sm" />
                 <button type="submit" disabled={!newTagInput.trim() || savingTags}
-                  className="ui-press h-11 shrink-0 cursor-pointer rounded-full bg-secondary px-4 text-xs font-semibold text-foreground disabled:opacity-40 sm:h-9 sm:px-4">
+                  className="ui-press h-11 shrink-0 cursor-pointer rounded-full bg-secondary px-4 text-xs font-semibold text-foreground disabled:opacity-40 sm:h-10 sm:px-4">
                   Add
                 </button>
               </form>
@@ -457,7 +457,7 @@ export function GuestDetailSheet({
                           setContactDraft({ email: guest.email || "", phone: guest.phone || "", nationality: guest.nationality || "" });
                           setEditingContact(true);
                         }}
-                        className="ui-press flex min-h-11 cursor-pointer items-center gap-3 py-2 text-[13px] font-medium text-[var(--pen-accent)] sm:min-h-0">
+                        className="ui-press flex min-h-11 cursor-pointer items-center gap-3 py-2 text-sm font-medium text-[var(--pen-accent)] sm:min-h-0">
                         Edit contact
                       </button>
                     </>
@@ -465,16 +465,16 @@ export function GuestDetailSheet({
                 </section>
 
                 {/* Notes band fills the rest */}
-                <section aria-label="Guest notes" className="flex flex-1 flex-col gap-3 px-6 pb-5 pt-4">
+                <section aria-label="Guest notes" className="flex flex-1 flex-col gap-3 px-6 pb-6 pt-4">
                   <div className="flex items-center gap-3">
-                    <h3 className="flex items-center gap-2 text-[13px] font-semibold text-foreground">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                       Notes
                       {guest.notes && <span aria-hidden className="size-2 rounded-full bg-[var(--warning)]" />}
                     </h3>
                     <span className="min-w-0 flex-1" aria-hidden="true" />
                     <button type="button" aria-label={editingNotes ? "Close notes editor" : "Edit notes"}
                       onClick={() => { setNotesDraft(guest.notes || ""); setEditingNotes((p) => !p); }}
-                      className={cn("ui-press grid size-11 cursor-pointer place-items-center rounded-lg sm:size-7 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",
+                      className={cn("ui-press grid size-11 cursor-pointer place-items-center rounded-lg sm:size-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",
                         editingNotes ? "text-foreground" : "text-muted-foreground/60")}>
                       <StickyNote className="size-4 sm:size-4" aria-hidden="true" />
                     </button>
@@ -531,7 +531,7 @@ export function GuestDetailSheet({
                   })
                 );
               }}
-              className="ui-press flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[var(--pen-accent)] text-[13px] font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-10">
+              className="ui-press flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[var(--pen-accent)] text-sm font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-10">
               New booking
             </button>
           </div>
@@ -544,12 +544,12 @@ export function GuestDetailSheet({
 function StatCell({ value, label }: { value: string; label: string }) {
   return <div className="flex min-w-0 flex-col gap-1">
     <span className="font-mono text-base font-semibold tabular-nums text-foreground">{value}</span>
-    <span className="text-[11px] text-muted-foreground">{label}</span>
+    <span className="text-2xs text-muted-foreground">{label}</span>
   </div>;
 }
 
 function ContactRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
-  return <div className="flex items-center gap-3 py-2 text-[13px] text-foreground">
+  return <div className="flex items-center gap-3 py-2 text-sm text-foreground">
     <span className="text-muted-foreground/60">{icon}</span>
     <span className="min-w-0 flex-1 truncate">{children}</span>
   </div>;
@@ -568,7 +568,7 @@ function ContactField({ label, value, onChange, placeholder, type, autoFocus }: 
     <label htmlFor={id} className="mb-1 block text-xs font-medium text-muted-foreground">{label}</label>
     <input id={id} type={type} value={value} placeholder={placeholder} autoFocus={autoFocus}
       onChange={(e) => onChange(e.target.value)}
-      className="h-11 w-full rounded-xl border border-border/70 bg-card px-3 text-base text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:h-10 sm:text-[13px]" />
+      className="h-11 w-full rounded-xl border border-border/70 bg-card px-3 text-base text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:h-10 sm:text-sm" />
   </div>;
 }
 
@@ -655,8 +655,8 @@ function BookingHistory({
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <CalendarX2 aria-hidden className="mb-2 size-6 text-muted-foreground/30" />
-        <p className="text-[13px] font-medium text-foreground">No booking history</p>
-        <p className="mt-1 text-[11px] text-muted-foreground">This guest has no bookings yet.</p>
+        <p className="text-sm font-medium text-foreground">No booking history</p>
+        <p className="mt-1 text-2xs text-muted-foreground">This guest has no bookings yet.</p>
       </div>
     );
   }
@@ -669,11 +669,11 @@ function BookingHistory({
         <div key={r.key} className="border-b border-border/50 py-3 last:border-b-0">
           <div className="flex items-center justify-between gap-2">
             <span className="flex min-w-0 items-center gap-2">
-              <span className="truncate font-mono text-[13px] font-medium text-foreground">
+              <span className="truncate font-mono text-sm font-medium text-foreground">
                 {r.reference}
               </span>
               {r.roomsTotal > 1 && (
-                <span className="inline-flex shrink-0 items-center rounded-full bg-secondary px-2 py-1 text-[11px] font-semibold text-muted-foreground">
+                <span className="inline-flex shrink-0 items-center rounded-full bg-secondary px-2 py-1 text-2xs font-semibold text-muted-foreground">
                   {r.roomsTotal} rooms
                 </span>
               )}
@@ -691,10 +691,10 @@ function BookingHistory({
             {r.roomsTotal > 1 ? "" : r.roomNumber ? ` · Rm ${r.roomNumber}` : ""}
           </p>
           <div className="mt-1 flex items-center justify-between gap-2">
-            <span className="font-mono text-[13px] font-semibold tabular-nums text-foreground">
+            <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
               {formatCurrency(r.totalAmount, currency)}
             </span>
-            <span className={cn("text-[11px] font-medium", PAYMENT_STATUS_TONE[r.paymentStatus] ?? "text-muted-foreground")}>
+            <span className={cn("text-2xs font-medium", PAYMENT_STATUS_TONE[r.paymentStatus] ?? "text-muted-foreground")}>
               {getPaymentLabel(r.paymentStatus)}
             </span>
           </div>
@@ -717,7 +717,7 @@ const HISTORY_DOTS: Record<string, string> = {
 
 function StatusChip({ status }: { status: string }) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-2 text-[11px] font-medium text-muted-foreground">
+    <span className="inline-flex shrink-0 items-center gap-2 text-2xs font-medium text-muted-foreground">
       <span className={cn("size-2 rounded-full", HISTORY_DOTS[status] ?? "bg-muted-foreground")} />
       {getStatusLabel(status)}
     </span>

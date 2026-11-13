@@ -128,7 +128,7 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
   return (
     <div className="space-y-6">
       {/* Fee model + amount */}
-      <section className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6">
+      <section className="rounded-2xl border border-border/60 bg-card p-4 sm:p-6">
         <RadioGroup
           value={values.feeType}
           onChange={(v) => set("feeType", v as PlatformFeeType)}
@@ -185,7 +185,7 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
               </Description>
             </NumberField>
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-6">
               <NumberField
                 value={num(values.feeFlatMajor)}
                 onChange={(n) => set("feeFlatMajor", num(n))}
@@ -230,7 +230,7 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
       </section>
 
       {/* How it works */}
-      <section className="rounded-2xl border border-border/60 bg-muted/40 p-5">
+      <section className="rounded-2xl border border-border/60 bg-muted/40 p-6">
         <div className="flex gap-3">
           <Info className="mt-1 size-4 shrink-0 text-muted-foreground" />
           <div className="space-y-2 text-sm text-muted-foreground">

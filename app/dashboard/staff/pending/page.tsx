@@ -41,18 +41,18 @@ export default async function PendingStaffPage() {
   }));
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-5 pt-1">
+    <div className="mx-auto w-full max-w-7xl space-y-6 pt-1">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link
           href="/dashboard/staff"
           aria-label="Back to staff"
-          className="ui-press inline-flex size-11 items-center justify-center rounded-xl text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+          className="ui-press inline-flex size-11 items-center justify-center rounded-xl text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
         </Link>
         <div>
-          <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-[24px]">
+          <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-2xl">
             Pending requests
           </h1>
           <p className="mt-1 text-xs text-muted-foreground">

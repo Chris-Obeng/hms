@@ -5,11 +5,11 @@ export default function PlatformLoading() {
   return (
     <div className="space-y-6" aria-busy="true" aria-label="Loading Hotel Oversight">
       <div className="space-y-1">
-        <Skeleton className="h-7 w-56 rounded-lg" />
+        <Skeleton className="h-8 w-56 rounded-lg" />
         <Skeleton className="h-4 w-72 rounded-md" />
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="card-default p-4 space-y-3">
             <Skeleton className="h-3 w-20 rounded-md" />
@@ -20,10 +20,10 @@ export default function PlatformLoading() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Skeleton className="h-9 w-full sm:w-64 rounded-lg" />
+        <Skeleton className="h-10 w-full sm:w-64 rounded-lg" />
         <div className="flex gap-2">
           {[0, 1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-9 w-20 rounded-lg" />
+            <Skeleton key={i} className="h-10 w-20 rounded-lg" />
           ))}
         </div>
       </div>

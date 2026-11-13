@@ -55,7 +55,7 @@ function NavStepper({
           aria-label="Previous period"
           onPress={() => onNavigate(-1)}
           className={cn(
-            "ui-press rounded-[9px] text-muted-foreground shadow-none [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",
+            "ui-press rounded-lg text-muted-foreground shadow-none [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",
             compact ? "size-10 min-w-10" : "size-8 min-w-8"
           )}
         >
@@ -76,7 +76,7 @@ function NavStepper({
           aria-label="Jump to today"
           onPress={onToday}
           className={cn(
-            "ui-press rounded-[9px] px-3 text-xs font-semibold text-foreground shadow-none [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted",
+            "ui-press rounded-lg px-3 text-xs font-semibold text-foreground shadow-none [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted",
             compact ? "hidden h-10 min-[390px]:inline-flex" : "h-8"
           )}
         >
@@ -95,7 +95,7 @@ function NavStepper({
           aria-label="Next period"
           onPress={() => onNavigate(1)}
           className={cn(
-            "ui-press rounded-[9px] text-muted-foreground shadow-none [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",
+            "ui-press rounded-lg text-muted-foreground shadow-none [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",
             compact ? "size-10 min-w-10" : "size-8 min-w-8"
           )}
         >
@@ -134,7 +134,7 @@ function RangePicker({
               <span className="truncate tabular-nums">{rangeLabel}</span>
               <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             </span>
-            <span className="mt-1 flex items-center gap-2 text-[11px] leading-tight text-muted-foreground">
+            <span className="mt-1 flex items-center gap-2 text-2xs leading-tight text-muted-foreground">
               <span
                 className={cn(
                   "size-2 rounded-full",
@@ -151,7 +151,7 @@ function RangePicker({
           variant="ghost"
           size="sm"
           aria-label="Pick start date"
-          className="ui-press inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-border/70 bg-background px-3 text-xs font-semibold tabular-nums text-foreground shadow-none lg:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/50"
+          className="ui-press inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-border/70 bg-background px-3 text-xs font-semibold tabular-nums text-foreground shadow-none lg:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/50"
         >
           <CalendarDays className="size-4 text-muted-foreground" aria-hidden="true" />
           <span>{rangeLabel}</span>
@@ -199,7 +199,7 @@ function RangePicker({
                 onToday();
                 setOpen(false);
               }}
-              className="h-9 rounded-lg px-3 text-xs font-semibold text-primary"
+              className="h-10 rounded-lg px-3 text-xs font-semibold text-primary"
             >
               Jump to today
             </Button>
@@ -229,7 +229,7 @@ function ViewPresetPills({
             aria-pressed={active}
             onClick={() => onViewPresetChange(preset.label)}
             className={cn(
-              "ui-press h-8 cursor-pointer rounded-[9px] px-2 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring lg:px-3",
+              "ui-press h-8 cursor-pointer rounded-lg px-2 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring lg:px-3",
               active
                 ? "bg-card font-semibold text-foreground shadow-2xs ring-1 ring-border/60"
                 : "text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
@@ -250,7 +250,7 @@ function LegendPopover() {
         variant="ghost"
         size="sm"
         aria-label="Status color legend"
-        className="ui-press inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-transparent px-2 text-xs font-medium text-muted-foreground shadow-none lg:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+        className="ui-press inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-transparent px-2 text-xs font-medium text-muted-foreground shadow-none lg:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
       >
         <span className="flex items-center gap-1" aria-hidden="true">
           <span className="size-2 rounded-full" style={{ background: "var(--cal-confirmed)" }} />
@@ -297,7 +297,7 @@ export function CalendarToolbar(props: CalendarToolbarProps) {
   return (
     <div className="shrink-0 border-b border-border bg-card">
       {/* ── Desktop & Tablet (md+) ── */}
-      <div className="hidden h-13 items-center gap-2 px-3 md:flex lg:gap-2 lg:px-5">
+      <div className="hidden h-13 items-center gap-2 px-3 md:flex lg:gap-2 lg:px-6">
         <NavStepper onNavigate={props.onNavigate} onToday={props.onToday} />
         <RangePicker
           startDate={props.startDate}
@@ -332,7 +332,7 @@ export function CalendarToolbar(props: CalendarToolbarProps) {
             }}
             placeholder="Guest, room, ref…"
             aria-label="Search bookings"
-            className="h-9 w-28 rounded-xl border border-border/70 bg-background pl-8 pr-7 text-xs text-foreground outline-none transition-[border-color] duration-150 placeholder:text-muted-foreground/70 focus:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 lg:w-52"
+            className="h-10 w-28 rounded-xl border border-border/70 bg-background pl-8 pr-8 text-xs text-foreground outline-none transition-[border-color] duration-150 placeholder:text-muted-foreground/70 focus:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 lg:w-52"
           />
           {props.searchQuery && (
             <button
@@ -353,7 +353,7 @@ export function CalendarToolbar(props: CalendarToolbarProps) {
             aria-label={`Filters${props.activeFilterCount > 0 ? ` (${props.activeFilterCount} active)` : ""}`}
             onPress={props.onOpenFilters}
             className={cn(
-              "ui-press relative inline-flex h-9 shrink-0 items-center gap-2 rounded-xl border px-3 text-xs font-medium shadow-none lg:px-3",
+              "ui-press relative inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border px-3 text-xs font-medium shadow-none lg:px-3",
               props.activeFilterCount > 0
                 ? "border-primary/40 bg-primary/[0.08] font-semibold text-primary"
                 : "border-border/70 bg-background text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/50"
@@ -362,7 +362,7 @@ export function CalendarToolbar(props: CalendarToolbarProps) {
             <SlidersHorizontal className="size-4" aria-hidden="true" />
             <span className="hidden xl:inline">Filters</span>
             {props.activeFilterCount > 0 && (
-              <span className="inline-flex min-w-4 justify-center rounded-md bg-primary px-1 py-1 font-mono text-[11px] font-semibold leading-none text-primary-foreground">
+              <span className="inline-flex min-w-4 justify-center rounded-md bg-primary px-1 py-1 font-mono text-2xs font-semibold leading-none text-primary-foreground">
                 {props.activeFilterCount}
               </span>
             )}
@@ -378,7 +378,7 @@ export function CalendarToolbar(props: CalendarToolbarProps) {
               size="sm"
               aria-label="Block room dates"
               onPress={props.onBlockRoom}
-              className="ui-press size-9 min-w-9 shrink-0 rounded-xl border border-border/70 bg-background text-foreground shadow-none [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/50"
+              className="ui-press size-10 min-w-10 shrink-0 rounded-xl border border-border/70 bg-background text-foreground shadow-none [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/50"
             >
               <CalendarOff className="size-4" aria-hidden="true" />
             </Button>
@@ -392,7 +392,7 @@ export function CalendarToolbar(props: CalendarToolbarProps) {
             size="sm"
             aria-label="New booking"
             onPress={props.onNewBooking}
-            className="ui-press h-9 shrink-0 gap-2 rounded-xl px-3 text-xs font-semibold shadow-2xs lg:px-4"
+            className="ui-press h-10 shrink-0 gap-2 rounded-xl px-3 text-xs font-semibold shadow-2xs lg:px-4"
           >
             <Plus className="size-4" aria-hidden="true" />
             <span className="hidden lg:inline">New booking</span>
@@ -448,7 +448,7 @@ export function CalendarToolbar(props: CalendarToolbarProps) {
             >
               <SlidersHorizontal className="size-4" />
               {props.activeFilterCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-primary font-mono text-[11px] font-semibold leading-none text-primary-foreground">
+                <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-primary font-mono text-2xs font-semibold leading-none text-primary-foreground">
                   {props.activeFilterCount}
                 </span>
               )}
@@ -501,7 +501,7 @@ export function CalendarToolbar(props: CalendarToolbarProps) {
                     props.onSearchQueryChange("");
                     mobileInputRef.current?.focus();
                   }}
-                  className="ui-press absolute right-2 top-1/2 grid size-9 -translate-y-1/2 cursor-pointer place-items-center rounded-lg text-muted-foreground"
+                  className="ui-press absolute right-2 top-1/2 grid size-10 -translate-y-1/2 cursor-pointer place-items-center rounded-lg text-muted-foreground"
                 >
                   <X className="size-4" />
                 </button>

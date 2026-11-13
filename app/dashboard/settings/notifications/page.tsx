@@ -359,7 +359,7 @@ export default function NotificationSettingsPage() {
               <Info className="size-4" />
               <span>Alert Status</span>
             </div>
-            <p className="text-muted-foreground/80 pl-5">
+            <p className="text-muted-foreground/80 pl-6">
               Status:{" "}
               <span className="font-semibold text-foreground">
                 {iosNeedsInstall
@@ -374,17 +374,17 @@ export default function NotificationSettingsPage() {
               </span>
             </p>
             {iosNeedsInstall && (
-              <p className="text-muted-foreground pl-5 leading-normal">
+              <p className="text-muted-foreground pl-6 leading-normal">
                 On iPhone or iPad, tap Share in Safari and choose &ldquo;Add to Home Screen&rdquo;, then open RoomLine from your Home Screen to turn on device alerts.
               </p>
             )}
             {!iosNeedsInstall && notificationPermission === "denied" && (
-              <p className="text-destructive/80 pl-5 leading-normal">
+              <p className="text-destructive/80 pl-6 leading-normal">
                 Alerts are blocked by your browser. Click the site settings icon next to the address bar and allow notifications to turn them back on.
               </p>
             )}
             {notificationPermission === "granted" && browserAlertsEnabled && (
-              <p className="text-emerald-700 pl-5 leading-normal">
+              <p className="text-emerald-700 pl-6 leading-normal">
                 You&apos;ll receive instant booking and payment alerts for your account here, even when the dashboard tab is closed.
               </p>
             )}

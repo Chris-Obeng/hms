@@ -111,7 +111,7 @@ export function BookingDateRangePicker({
       className={cn(
         "group flex w-full cursor-pointer text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#0485F7] touch-manipulation",
         // Mobile (`v24Sj`): 50px soft grey cell, stacked When + range
-        "h-12 flex-col justify-center gap-1 rounded-[12px] bg-[#F5F5F5] hover:bg-[#EBEBEC]/75 px-3",
+        "h-12 flex-col justify-center gap-1 rounded-xl bg-[#F5F5F5] hover:bg-[#EBEBEC]/75 px-3",
         // Desktop (`dZjQo`): 52px soft grey cell, left calendar icon + stacked label/range
         "md:h-[52px] md:w-auto md:flex-row md:items-center md:justify-start md:gap-3 md:px-4",
         className
@@ -126,21 +126,21 @@ export function BookingDateRangePicker({
       {/* Mobile top row */}
       <span className="flex md:hidden items-center gap-2">
         <CalendarIcon className="size-3 shrink-0 text-[#0485F7]" strokeWidth={2} />
-        <span className="text-[10px] font-medium tracking-[0.2px] text-[#71717A]">
+        <span className="text-2xs font-medium tracking-[0.2px] text-[#71717A]">
           When
         </span>
       </span>
 
       {/* Desktop stacked + Mobile bottom row */}
       <span className="flex flex-col min-w-0 w-full md:w-auto gap-1">
-        <span className="hidden md:block text-[10px] font-medium tracking-[0.3px] text-[#71717A]">
+        <span className="hidden md:block text-2xs font-medium tracking-[0.3px] text-[#71717A]">
           When
         </span>
         <span className="flex items-center justify-between md:justify-start gap-2 min-w-0">
-          <span className="hidden min-[400px]:inline md:inline text-[11px] md:text-[13px] font-medium text-[#18181B] truncate whitespace-nowrap">
+          <span className="hidden min-[400px]:inline md:inline text-2xs md:text-sm font-medium text-[#18181B] truncate whitespace-nowrap">
             {formattedCheckIn} — {formattedCheckOut}
           </span>
-          <span className="inline min-[400px]:hidden text-[11px] font-medium text-[#18181B] truncate whitespace-nowrap">
+          <span className="inline min-[400px]:hidden text-2xs font-medium text-[#18181B] truncate whitespace-nowrap">
             {compactCheckIn} — {compactCheckOut}
           </span>
           <ChevronDown
@@ -156,20 +156,20 @@ export function BookingDateRangePicker({
   );
 
   const summaryBar = (
-    <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-[14px] bg-[#F5F5F5] px-4 py-3">
+    <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-xl bg-[#F5F5F5] px-4 py-3">
       <div className="min-w-0">
-        <p className="text-[10px] font-medium text-[#71717A]">Check-in</p>
+        <p className="text-2xs font-medium text-[#71717A]">Check-in</p>
         <p className="text-xs font-semibold text-[#18181B] truncate">
           {formattedCheckIn}
         </p>
       </div>
       <div className="min-w-0 border-l border-[#E4E4E7] pl-3">
-        <p className="text-[10px] font-medium text-[#71717A]">Check-out</p>
+        <p className="text-2xs font-medium text-[#71717A]">Check-out</p>
         <p className="text-xs font-semibold text-[#18181B] truncate">
           {formattedCheckOut}
         </p>
       </div>
-      <span className="inline-flex items-center rounded-full bg-[#0485F7]/15 px-3 py-1 text-[11px] font-semibold text-[#0485F7] tabular-nums">
+      <span className="inline-flex items-center rounded-full bg-[#0485F7]/15 px-3 py-1 text-2xs font-semibold text-[#0485F7] tabular-nums">
         {nights} {nights === 1 ? "night" : "nights"}
       </span>
     </div>
@@ -215,7 +215,7 @@ export function BookingDateRangePicker({
                 <Button
                   variant="primary"
                   slot="close"
-                  className="booking-btn-primary h-11 w-full text-[15px] touch-manipulation"
+                  className="booking-btn-primary h-11 w-full text-md touch-manipulation"
                 >
                   Apply · {nights} {nights === 1 ? "night" : "nights"}
                 </Button>
@@ -233,9 +233,9 @@ export function BookingDateRangePicker({
 
       <Popover.Content
         placement="bottom start"
-        className="booking-portal w-auto max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-[24px] border border-[#E4E4E7] bg-white p-0 shadow-[0_12px_32px_rgba(0,0,0,0.12)]"
+        className="booking-portal w-auto max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-3xl border border-[#E4E4E7] bg-white p-0 shadow-[0_12px_32px_rgba(0,0,0,0.12)]"
       >
-        <Popover.Dialog className="booking-calendar-surface p-5 outline-none space-y-4">
+        <Popover.Dialog className="booking-calendar-surface p-6 outline-none space-y-4">
           {summaryBar}
           {calendar}
         </Popover.Dialog>

@@ -193,7 +193,7 @@ export function BookingPaymentsPanel({
   return (
     <div className="flex min-h-full flex-col">
       {/* Balance band */}
-      <section aria-label="Balance" className="border-b border-border/50 px-5 py-4 sm:px-6">
+      <section aria-label="Balance" className="border-b border-border/50 px-4 py-4 sm:px-6">
         <div
           className={cn(
             "flex flex-wrap items-center justify-between gap-4 rounded-2xl border px-4 py-4",
@@ -208,15 +208,15 @@ export function BookingPaymentsPanel({
                 {isFullyPaid ? "Balance settled" : "Balance due"}
               </p>
               {isFullyPaid ? (
-                <span className="rounded-md bg-emerald-500/12 px-2 py-1 text-[10px] font-semibold text-emerald-700">
+                <span className="rounded-md bg-emerald-500/12 px-2 py-1 text-2xs font-semibold text-emerald-700">
                   Paid in full
                 </span>
               ) : amountPaid > 0 ? (
-                <span className="rounded-md bg-amber-500/15 px-2 py-1 text-[10px] font-semibold text-amber-800">
+                <span className="rounded-md bg-amber-500/15 px-2 py-1 text-2xs font-semibold text-amber-800">
                   Partial
                 </span>
               ) : (
-                <span className="rounded-md bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
+                <span className="rounded-md bg-muted px-2 py-1 text-2xs font-medium text-muted-foreground">
                   Unpaid
                 </span>
               )}
@@ -233,7 +233,7 @@ export function BookingPaymentsPanel({
             <button
               type="button"
               onClick={openForm}
-              className="ui-press inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
+              className="ui-press inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
             >
               <Plus className="size-4" aria-hidden="true" />
               Record payment
@@ -246,10 +246,10 @@ export function BookingPaymentsPanel({
       {showForm && (
         <form
           onSubmit={handleRecordPayment}
-          className="flex flex-col gap-3 border-b border-border/50 bg-muted/20 px-5 py-4 sm:px-6"
+          className="flex flex-col gap-3 border-b border-border/50 bg-muted/20 px-4 py-4 sm:px-6"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-foreground">Record payment</span>
+            <span className="text-sm font-semibold text-foreground">Record payment</span>
             <button
               type="button"
               aria-label="Close payment form"
@@ -319,7 +319,7 @@ export function BookingPaymentsPanel({
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="ui-press h-9 cursor-pointer rounded-xl border border-border/70 bg-card px-4 text-xs font-semibold text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
+              className="ui-press h-10 cursor-pointer rounded-xl border border-border/70 bg-card px-4 text-xs font-semibold text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
             >
               Cancel
             </button>
@@ -331,7 +331,7 @@ export function BookingPaymentsPanel({
                 Number(paymentAmount) <= 0 ||
                 (!!group && !selectedLineId)
               }
-              className="ui-press h-9 cursor-pointer rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground disabled:opacity-55 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
+              className="ui-press h-10 cursor-pointer rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground disabled:opacity-55 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
             >
               {savingPayment ? "Recording…" : "Save payment"}
             </button>
@@ -340,7 +340,7 @@ export function BookingPaymentsPanel({
       )}
 
       {/* Charges band */}
-      <section aria-label="Charges" className="border-b border-border/50 px-5 py-2 sm:px-6">
+      <section aria-label="Charges" className="border-b border-border/50 px-4 py-2 sm:px-6">
         {group ? (
           group.lines.map((l, index) => (
             <ChargeRow
@@ -393,7 +393,7 @@ export function BookingPaymentsPanel({
       </section>
 
       {/* Payment history band */}
-      <section aria-label="Payment history" className="px-5 py-2 sm:px-6">
+      <section aria-label="Payment history" className="px-4 py-2 sm:px-6">
         {booking.payments.length > 0 ? (
           booking.payments.map((payment, index) => (
             <div key={payment.id}>
@@ -406,7 +406,7 @@ export function BookingPaymentsPanel({
                   <PaymentMethodIcon method={payment.method} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-medium text-foreground">
+                  <p className="truncate text-sm font-medium text-foreground">
                     {getMethodLabel(payment.method)}
                   </p>
                   <p className="mt-1 truncate text-xs text-muted-foreground">
@@ -460,7 +460,7 @@ function ChargeRow({
         <div className="min-w-0">
           <p
             className={cn(
-              "truncate text-[13px]",
+              "truncate text-sm",
               strong
                 ? "font-semibold text-foreground"
                 : quiet
@@ -470,16 +470,16 @@ function ChargeRow({
           >
             {name}
           </p>
-          {sub && <p className="mt-1 font-mono text-[11px] tabular-nums text-muted-foreground">{sub}</p>}
+          {sub && <p className="mt-1 font-mono text-2xs tabular-nums text-muted-foreground">{sub}</p>}
         </div>
         <span
           className={cn(
             "shrink-0 font-mono tabular-nums",
             strong
-              ? "text-[13px] font-semibold text-foreground"
+              ? "text-sm font-semibold text-foreground"
               : quiet
                 ? "text-xs text-muted-foreground"
-                : "text-[13px] font-medium text-foreground"
+                : "text-sm font-medium text-foreground"
           )}
         >
           {amount}

@@ -55,7 +55,7 @@ function AuditEntryRow({ row, isLast }: { row: AuditLogRow; isLast: boolean }) {
   return (
     <li
       className={cn(
-        "flex items-start gap-3 px-4 py-3 sm:px-5 sm:py-[12px]",
+        "flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-[12px]",
         !isLast && "border-b border-border"
       )}
     >
@@ -64,10 +64,10 @@ function AuditEntryRow({ row, isLast }: { row: AuditLogRow; isLast: boolean }) {
       </time>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-[4px]">
-          <span className="shrink-0 text-[12.5px] font-semibold text-foreground sm:text-[13px]">
+          <span className="shrink-0 text-xs font-semibold text-foreground sm:text-sm">
             {actor}
           </span>
-          <span className="min-w-0 truncate text-[12.5px] text-foreground sm:text-[13px]">
+          <span className="min-w-0 truncate text-xs text-foreground sm:text-sm">
             {verb}
           </span>
           {ref && (
@@ -76,12 +76,12 @@ function AuditEntryRow({ row, isLast }: { row: AuditLogRow; isLast: boolean }) {
             </span>
           )}
           <span className="flex-1" />
-          <time className="shrink-0 font-mono text-[11px] font-medium tabular-nums text-foreground sm:hidden">
+          <time className="shrink-0 font-mono text-2xs font-medium tabular-nums text-foreground sm:hidden">
             {time}
           </time>
         </div>
         {(ref || meta) && (
-          <p className="mt-[4px] truncate font-mono text-[10px] text-muted-foreground sm:mt-1 sm:text-xs">
+          <p className="mt-[4px] truncate font-mono text-2xs text-muted-foreground sm:mt-1 sm:text-xs">
             {/* Phones move the reference here — on a 390px row the long
                 numeric codes would crowd the verb off the first line. */}
             {ref && (
@@ -111,12 +111,12 @@ function DayGroup({
 }) {
   return (
     <section>
-      <div className="flex h-[36px] items-center gap-2 bg-muted px-4 sm:h-10 sm:px-5">
-        <span className="text-xs font-semibold text-foreground sm:text-[13px]">
+      <div className="flex h-[36px] items-center gap-2 bg-muted px-4 sm:h-10 sm:px-4">
+        <span className="text-xs font-semibold text-foreground sm:text-sm">
           {formatDate(date, "EEEE, d MMMM yyyy", date)}
         </span>
         <span className="flex-1" />
-        <span className="font-mono text-[10px] font-medium text-foreground/60 sm:text-[11px]">
+        <span className="font-mono text-2xs font-medium text-foreground/60 sm:text-2xs">
           {entries.length} {entries.length === 1 ? "entry" : "entries"}
         </span>
       </div>
@@ -135,14 +135,14 @@ function DayGroup({
 function LoadingState({ page }: { page: number }) {
   return (
     <div aria-live="polite" aria-busy="true">
-      <div className="flex h-[36px] items-center justify-between gap-2 bg-muted px-4 sm:h-10 sm:px-5">
+      <div className="flex h-[36px] items-center justify-between gap-2 bg-muted px-4 sm:h-10 sm:px-4">
         <Skeleton className="h-[12px] w-40 rounded-md bg-foreground/15" />
         <Skeleton className="h-3 w-24 rounded bg-foreground/15" />
       </div>
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="flex items-center gap-3 border-b border-border px-4 py-3 sm:px-5 sm:py-[12px]"
+          className="flex items-center gap-3 border-b border-border px-4 py-3 sm:px-6 sm:py-[12px]"
         >
           <Skeleton className="hidden h-3 w-9 rounded sm:block" />
           <div className="flex-1 space-y-2">
@@ -151,7 +151,7 @@ function LoadingState({ page }: { page: number }) {
           </div>
         </div>
       ))}
-      <div className="flex items-center justify-center gap-2 px-5 py-3">
+      <div className="flex items-center justify-center gap-2 px-6 py-3">
         <Spinner size="sm" className="text-primary" />
         <span className="text-xs text-muted-foreground">Loading page {page}…</span>
       </div>
@@ -169,7 +169,7 @@ function EmptyState({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 px-5 py-14 sm:py-16">
+    <div className="flex flex-col items-center gap-3 px-6 py-14 sm:py-16">
       <div className="flex size-11 items-center justify-center rounded-2xl bg-secondary">
         {icon}
       </div>
@@ -181,17 +181,17 @@ function EmptyState({
 
 function ErrorBand({ page, onRetry }: { page: number; onRetry: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-3 border-t border-border px-5 pb-6 pt-5">
+    <div className="flex flex-col items-center gap-3 border-t border-border px-6 pb-6 pt-6">
       <div className="flex items-center gap-2">
         <CircleAlert className="size-[16px] shrink-0 text-destructive" aria-hidden />
-        <p className="text-[12.5px] font-medium text-destructive">
+        <p className="text-xs font-medium text-destructive">
           Couldn&apos;t load page {page}. Check your connection and try again.
         </p>
       </div>
       <button
         type="button"
         onClick={onRetry}
-        className="flex h-8 items-center rounded-full bg-secondary px-4 text-[13px] font-medium text-primary transition-colors hover:bg-secondary/70"
+        className="flex h-8 items-center rounded-full bg-secondary px-4 text-sm font-medium text-primary transition-colors hover:bg-secondary/70"
       >
         Try again
       </button>
@@ -229,14 +229,14 @@ function Pagination({
   return (
     <nav
       aria-label="Audit log pages"
-      className="flex items-center justify-center gap-2 border-t border-border px-4 pb-4 pt-4 sm:gap-2 sm:px-5 sm:pb-[16px] sm:pt-4"
+      className="flex items-center justify-center gap-2 border-t border-border px-4 pb-4 pt-4 sm:gap-2 sm:px-6 sm:pb-[16px] sm:pt-4"
     >
       <button
         type="button"
         aria-label="Previous page"
         disabled={page <= 1}
         onClick={() => onChange(page - 1)}
-        className="flex h-8 w-8 items-center justify-center gap-2 rounded-full text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:text-muted-foreground/50 sm:h-9 sm:w-auto sm:px-3 sm:text-sm"
+        className="flex h-8 w-8 items-center justify-center gap-2 rounded-full text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:text-muted-foreground/50 sm:h-10 sm:w-auto sm:px-3 sm:text-sm"
       >
         <ChevronLeft className="size-4" aria-hidden />
         <span className="hidden lg:inline">Previous</span>
@@ -255,7 +255,7 @@ function Pagination({
             aria-label={`Page ${item}`}
             onClick={() => onChange(item)}
             className={cn(
-              "flex size-8 items-center justify-center rounded-full text-[13px] font-medium transition-colors sm:size-9 sm:text-sm",
+              "flex size-8 items-center justify-center rounded-full text-sm font-medium transition-colors sm:size-10 sm:text-sm",
               item === page
                 ? "bg-secondary text-secondary-foreground"
                 : "text-foreground hover:bg-muted"
@@ -271,7 +271,7 @@ function Pagination({
         aria-label="Next page"
         disabled={page >= pageCount}
         onClick={() => onChange(page + 1)}
-        className="flex h-8 w-8 items-center justify-center gap-2 rounded-full text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:text-muted-foreground/50 sm:h-9 sm:w-auto sm:px-3 sm:text-sm"
+        className="flex h-8 w-8 items-center justify-center gap-2 rounded-full text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:text-muted-foreground/50 sm:h-10 sm:w-auto sm:px-3 sm:text-sm"
       >
         <span className="hidden lg:inline">Next</span>
         <ChevronRight className="size-4" aria-hidden />
@@ -304,7 +304,7 @@ function Toolbar({
   }
 
   return (
-    <div className="mb-4 flex items-center gap-2 lg:mb-0 lg:border-b lg:border-border lg:px-5 lg:py-4">
+    <div className="mb-4 flex items-center gap-2 lg:mb-0 lg:border-b lg:border-border lg:px-6 lg:py-4">
       <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-xl bg-card px-3 shadow-sm lg:w-[360px] lg:flex-none">
         <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         <input
@@ -313,7 +313,7 @@ function Toolbar({
           onChange={(e) => onInputChange(e.target.value)}
           placeholder="Search actions, staff, or references"
           aria-label="Search audit log"
-          className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
+          className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
         />
         {input && (
           <button
@@ -333,7 +333,7 @@ function Toolbar({
           aria-label="Filter by action"
         >
           <Funnel className="size-4 text-foreground" aria-hidden />
-          <span className="hidden text-[13px] font-medium text-foreground lg:inline">Filters</span>
+          <span className="hidden text-sm font-medium text-foreground lg:inline">Filters</span>
         </Dropdown.Trigger>
         <Dropdown.Popover placement="bottom end" className="w-[260px] rounded-3xl p-1 shadow-lg">
           <Dropdown.Menu
@@ -342,7 +342,7 @@ function Toolbar({
             selectedKeys={new Set([category])}
             onSelectionChange={handleSelection}
           >
-            <Dropdown.Item id="all" textValue="All actions" className="h-9 rounded-2xl px-3">
+            <Dropdown.Item id="all" textValue="All actions" className="h-10 rounded-2xl px-3">
               <Dropdown.ItemIndicator />
               <span className="text-sm text-foreground">All actions</span>
               <span className="flex-1" />
@@ -356,7 +356,7 @@ function Toolbar({
                 key={c.id}
                 id={c.id}
                 textValue={c.label}
-                className="h-9 rounded-2xl px-3"
+                className="h-10 rounded-2xl px-3"
               >
                 <Dropdown.ItemIndicator />
                 <span className="text-sm text-foreground">{c.label}</span>

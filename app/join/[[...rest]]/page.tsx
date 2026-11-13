@@ -81,7 +81,7 @@ export default async function JoinPage(props: {
   if (!token) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#FDFCFA] p-6">
-        <div className="max-w-md w-full bg-white border border-[#E9E2D6] rounded-[16px] p-6 shadow-sm text-center space-y-2">
+        <div className="max-w-md w-full bg-white border border-[#E9E2D6] rounded-2xl p-6 shadow-sm text-center space-y-2">
           <h2 className="text-lg font-semibold text-[#9B2C2C]">Invalid invite link</h2>
           <p className="text-sm text-[#6B7571]">The invitation token is missing. Ask your manager to resend the invite.</p>
         </div>
@@ -99,7 +99,7 @@ export default async function JoinPage(props: {
     
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#FDFCFA] p-6">
-        <div className="max-w-md w-full bg-white border border-[#E9E2D6] rounded-[16px] p-6 shadow-sm text-center space-y-2">
+        <div className="max-w-md w-full bg-white border border-[#E9E2D6] rounded-2xl p-6 shadow-sm text-center space-y-2">
           <h2 className="text-lg font-semibold text-[#9B2C2C]">Invalid invite link</h2>
           <p className="text-sm text-[#6B7571]">{res.error}</p>
         </div>

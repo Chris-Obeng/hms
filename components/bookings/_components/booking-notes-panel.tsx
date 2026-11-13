@@ -61,16 +61,16 @@ export function BookingNotesPanel({ booking, onRefresh }: BookingNotesPanelProps
     >
       {/* Guest requests — read-only */}
       <div>
-        <p className="mb-2 text-[11px] font-medium text-muted-foreground">Guest requests</p>
+        <p className="mb-2 text-2xs font-medium text-muted-foreground">Guest requests</p>
         {booking.specialRequests ? (
-          <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/90">
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
             {booking.specialRequests}
           </p>
         ) : (
-          <p className="text-[13px] text-muted-foreground/50">None</p>
+          <p className="text-sm text-muted-foreground/50">None</p>
         )}
         {booking.estimatedArrival && (
-          <p className="mt-2 text-[11px] text-muted-foreground">
+          <p className="mt-2 text-2xs text-muted-foreground">
             Estimated arrival{" "}
             <span className="font-semibold tabular-nums text-foreground">
               {booking.estimatedArrival.slice(0, 5)}
@@ -82,7 +82,7 @@ export function BookingNotesPanel({ booking, onRefresh }: BookingNotesPanelProps
       {/* Internal notes — editable */}
       <div className="border-t border-border/50 pt-4">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="text-[11px] font-medium text-muted-foreground">Internal notes</p>
+          <p className="text-2xs font-medium text-muted-foreground">Internal notes</p>
           {!editingNotes && (
             <Button
               size="sm"
@@ -91,7 +91,7 @@ export function BookingNotesPanel({ booking, onRefresh }: BookingNotesPanelProps
                 setNotesDraft(booking.internalNotes || "");
                 setEditingNotes(true);
               }}
-              className="h-7 rounded-lg px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+              className="h-8 rounded-lg px-2 text-2xs font-medium text-muted-foreground hover:text-foreground"
             >
               <PenLine className="size-3" />
               {booking.internalNotes ? "Edit" : "Add"}
@@ -113,7 +113,7 @@ export function BookingNotesPanel({ booking, onRefresh }: BookingNotesPanelProps
             placeholder="Staff-only notes (preferences, special needs, issues)…"
           />
         ) : (
-          <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/90">
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
             {booking.internalNotes || (
               <span className="text-muted-foreground/50">Visible to staff only</span>
             )}

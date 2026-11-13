@@ -112,7 +112,7 @@ export function RoomImagesUpload({
                 <X className="size-3" />
               </button>
               {idx === 0 && (
-                <div className="absolute bottom-1 left-1 bg-foreground/80 text-background text-[9px] px-2 py-1 rounded-full font-medium">
+                <div className="absolute bottom-1 left-1 bg-foreground/80 text-background text-2xs px-2 py-1 rounded-full font-medium">
                   Cover
                 </div>
               )}
@@ -122,7 +122,7 @@ export function RoomImagesUpload({
                 value={img.caption}
                 onChange={(e) => updateCaption(idx, e.target.value)}
                 placeholder="Caption…"
-                className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity placeholder:text-white/50 outline-none"
+                className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-2xs px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity placeholder:text-white/50 outline-none"
               />
             </div>
           ))}

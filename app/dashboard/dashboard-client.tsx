@@ -610,17 +610,17 @@ export function DashboardClient({
       <div
         aria-busy={isDateSwitching}
         className={cn(
-          "mx-auto w-full max-w-[1440px] space-y-4 pt-1 transition-opacity duration-150 md:space-y-5",
+          "mx-auto w-full max-w-[1440px] space-y-4 pt-1 transition-opacity duration-150 md:space-y-6",
           isDateSwitching && "opacity-65"
         )}
       >
         {/* Compact page header — wayfinding + explicit New booking CTA */}
         <header className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="truncate text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-[24px]">
+            <h1 className="truncate text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-2xl">
               Front desk
             </h1>
-            <p className="mt-1 truncate text-xs text-muted-foreground sm:text-[13px]">
+            <p className="mt-1 truncate text-xs text-muted-foreground sm:text-sm">
               {hotelName}
               {dateParamStr !== propertyTodayStr && (
                 <span> · Viewing {formatDate(dateParamStr, "EEE, MMM d, yyyy")}</span>
@@ -632,7 +632,7 @@ export function DashboardClient({
             variant="primary"
             size="sm"
             onPress={openNewBookingModal}
-            className="ui-press inline-flex h-11 shrink-0 gap-2 rounded-xl px-4 text-xs font-semibold shadow-2xs sm:h-9"
+            className="ui-press inline-flex h-11 shrink-0 gap-2 rounded-xl px-4 text-xs font-semibold shadow-2xs sm:h-10"
           >
             <Plus className="size-4" aria-hidden="true" />
             New booking
@@ -668,8 +668,8 @@ export function DashboardClient({
          * - Desktop (≥1024px): Left rail [DateCard + Rooms Sold] 312px (md:order-1),
          *   Activity main workspace on right (md:order-2)
          */}
-        <div className="grid grid-cols-1 items-start gap-4 md:gap-5 lg:grid-cols-[312px_minmax(0,1fr)] lg:gap-6">
-          <div className="order-2 flex flex-col gap-4 md:order-1 md:grid md:grid-cols-[260px_minmax(0,1fr)] md:items-stretch md:gap-5 lg:flex lg:flex-col lg:gap-5">
+        <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-[312px_minmax(0,1fr)] lg:gap-6">
+          <div className="order-2 flex flex-col gap-4 md:order-1 md:grid md:grid-cols-[260px_minmax(0,1fr)] md:items-stretch md:gap-6 lg:flex lg:flex-col lg:gap-6">
             <div className="hidden md:block">
               <DateCard
                 selectedDate={selectedDate}
@@ -685,7 +685,7 @@ export function DashboardClient({
 
           <section
             aria-label="Front-desk activity"
-            className="order-1 min-w-0 overflow-hidden rounded-[20px] border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)] md:order-2"
+            className="order-1 min-w-0 overflow-hidden rounded-3xl border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)] md:order-2"
           >
             <ActivityTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
@@ -746,11 +746,11 @@ export function DashboardClient({
           }}
         >
           <AlertDialog.Container placement="center" size="sm">
-            <AlertDialog.Dialog className="rounded-[28px] border border-border/60 bg-card px-6 pb-6 pt-7 shadow-2xl outline-none sm:max-w-[400px] sm:px-7 sm:pb-7 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none">
+            <AlertDialog.Dialog className="rounded-3xl border border-border/60 bg-card px-6 pb-6 pt-8 shadow-2xl outline-none sm:max-w-[400px] sm:px-8 sm:pb-8 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none">
               <AlertDialog.Header className="flex flex-col items-center gap-4 pb-0 text-center">
                 <span
                   className={cn(
-                    "grid size-14 place-items-center rounded-[18px] border shadow-xs",
+                    "grid size-14 place-items-center rounded-2xl border shadow-xs",
                     earlyCheckinBooking
                       ? "border-primary/15 bg-primary/10 text-primary"
                       : "border-amber-700/15 bg-amber-700/10 text-amber-700"
@@ -759,12 +759,12 @@ export function DashboardClient({
                 >
                   <CalendarClock className="size-[24px]" />
                 </span>
-                <AlertDialog.Heading className="text-balance text-center text-[17px] font-semibold leading-tight tracking-tight text-foreground">
+                <AlertDialog.Heading className="text-balance text-center text-lg font-semibold leading-tight tracking-tight text-foreground">
                   {earlyCheckinBooking ? "Check in early?" : "Check out early?"}
                 </AlertDialog.Heading>
               </AlertDialog.Header>
               <AlertDialog.Body className="px-1 pb-0 pt-3 text-center">
-                <p className="text-balance text-[13.5px] leading-relaxed text-muted-foreground">
+                <p className="text-balance text-sm leading-relaxed text-muted-foreground">
                   {earlyCheckinBooking?.guestName || earlyCheckoutBooking?.guestName} is scheduled
                   for{" "}
                   <span className="font-semibold tabular-nums text-foreground">
@@ -785,7 +785,7 @@ export function DashboardClient({
                   autoFocus={!!earlyCheckinBooking}
                   onPress={earlyCheckinBooking ? confirmEarlyCheckin : confirmEarlyCheckout}
                   className={cn(
-                    "ui-press h-12 w-full rounded-full text-[15px] font-semibold text-white shadow-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                    "ui-press h-12 w-full rounded-full text-md font-semibold text-white shadow-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                     earlyCheckinBooking
                       ? "bg-primary [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
                       : "bg-amber-700 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-amber-800"
@@ -797,7 +797,7 @@ export function DashboardClient({
                   slot="close"
                   variant="tertiary"
                   onPress={closeEarlyConfirmation}
-                  className="ui-press h-12 w-full rounded-full border border-border/70 bg-background text-[15px] font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
+                  className="ui-press h-12 w-full rounded-full border border-border/70 bg-background text-md font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
                 >
                   Cancel
                 </Button>
@@ -812,22 +812,22 @@ export function DashboardClient({
 
 export function DashboardSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-[1440px] space-y-4 pt-1 md:space-y-5">
+    <div className="mx-auto w-full max-w-[1440px] space-y-4 pt-1 md:space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div className="space-y-2">
-          <Skeleton className="h-7 w-36 rounded-lg" />
+          <Skeleton className="h-8 w-36 rounded-lg" />
           <Skeleton className="h-4 w-48 rounded-md" />
         </div>
-        <Skeleton className="h-11 w-32 shrink-0 rounded-xl sm:h-9" />
+        <Skeleton className="h-11 w-32 shrink-0 rounded-xl sm:h-10" />
       </div>
 
       {/* Mobile week strip skeleton */}
-      <Skeleton className="h-[108px] w-full rounded-[20px] md:hidden" />
+      <Skeleton className="h-[108px] w-full rounded-3xl md:hidden" />
 
-      <div className="grid grid-cols-1 items-start gap-4 md:gap-5 lg:grid-cols-[312px_minmax(0,1fr)] lg:gap-6">
-        <div className="order-2 flex flex-col gap-4 md:order-1 md:grid md:grid-cols-[260px_minmax(0,1fr)] md:gap-5 lg:flex lg:flex-col lg:gap-5">
-          <Skeleton className="hidden h-[176px] w-full rounded-[20px] md:block" />
-          <div className="space-y-4 rounded-[20px] border border-border/60 bg-card p-5">
+      <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-[312px_minmax(0,1fr)] lg:gap-6">
+        <div className="order-2 flex flex-col gap-4 md:order-1 md:grid md:grid-cols-[260px_minmax(0,1fr)] md:gap-6 lg:flex lg:flex-col lg:gap-6">
+          <Skeleton className="hidden h-[176px] w-full rounded-3xl md:block" />
+          <div className="space-y-4 rounded-3xl border border-border/60 bg-card p-6">
             <div className="space-y-2">
               <Skeleton className="h-4 w-24 rounded-md" />
               <Skeleton className="h-4 w-36 rounded-md" />
@@ -841,14 +841,14 @@ export function DashboardSkeleton() {
           </div>
         </div>
 
-        <div className="order-1 overflow-hidden rounded-[20px] border border-border/60 bg-card md:order-2">
+        <div className="order-1 overflow-hidden rounded-3xl border border-border/60 bg-card md:order-2">
           <div className="flex gap-2 border-b border-border/50 bg-muted/20 p-3">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-9 w-24 shrink-0 rounded-xl" />
+              <Skeleton key={i} className="h-10 w-24 shrink-0 rounded-xl" />
             ))}
           </div>
-          <div className="space-y-3 p-5">
-            <Skeleton className="h-9 w-full rounded-xl" />
+          <div className="space-y-3 p-6">
+            <Skeleton className="h-10 w-full rounded-xl" />
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-16 w-full rounded-2xl" />
             ))}
