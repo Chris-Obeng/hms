@@ -18,7 +18,7 @@ import {
   toast,
 } from "@heroui/react";
 import type { CalendarDate } from "@internationalized/date";
-import { CalendarDays, ChevronLeft, ChevronRight, Tag } from "lucide-react";
+import { CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Tag } from "lucide-react";
 import { format, addDays, subDays, parseISO } from "date-fns";
 
 import { qk } from "@/lib/query-keys";
@@ -27,6 +27,8 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { toCalendarDate, fromCalendarDate } from "@/lib/date-convert";
 import { usePricingStore } from "@/lib/store/pricing-store";
+import { usePropertyDayRefresh } from "@/hooks/use-property-day-refresh";
+import { overridePriceProblem } from "@/lib/pricing/override-price";
 import { ListEmpty } from "@/components/ui/list-card";
 import { LIST_CARD } from "@/components/ui/list-styles";
 import { RoomsTabs } from "../_components/rooms-tabs";
@@ -76,15 +78,16 @@ function isWeekend(dateStr: string): boolean {
   return day === 5 || day === 6; // Friday and Saturday rate nights (property default)
 }
 
-/** The price a night falls back to once its one-night change is removed. */
-function baseFallbackCell(
-  rt: PricingClientProps["roomTypes"][number] | undefined,
-  dateStr: string,
-  existingCell?: ResolvedPriceCell
-): Pick<ResolvedPriceCell, "price" | "source" | "seasonName"> {
-  if (!rt) return { price: existingCell?.price ?? 0, source: "base", seasonName: undefined };
-  const price = isWeekend(dateStr) && rt.weekend_price != null ? rt.weekend_price : rt.base_price;
-  return { price, source: "base", seasonName: undefined };
+/**
+ * A grid cell. `pending` marks a night whose one-night change is being removed:
+ * the price it falls back to (base, weekend or a season) is only known once the
+ * refetch lands, so the old price stays on screen, marked as updating.
+ */
+type GridCell = ResolvedPriceCell & { pending?: boolean };
+
+/** Puts one cell back (or patches it) without touching the rest of the grid. */
+function replaceCell(cells: GridCell[] | undefined, roomTypeId: string, date: string, next: (cell: GridCell) => GridCell) {
+  return cells?.map((cell) => (cell.roomTypeId === roomTypeId && cell.date === date ? next(cell) : cell));
 }
 
 export function PricingClient({
@@ -98,8 +101,12 @@ export function PricingClient({
 }: PricingClientProps) {
   const queryClient = useQueryClient();
   const todayStr = propertyToday ?? businessToday(hotelTimezone);
+  usePropertyDayRefresh(propertyToday, hotelTimezone);
 
-  const { startDateStr, endDateStr, rangeInitialized, setDateRange } = usePricingStore();
+  const { startDateStr, endDateStr, rangeInitialized: storeInitialized, anchoredToday, setDateRange, anchorToToday } = usePricingStore();
+  // A window anchored on an earlier property date is stale (the store outlives
+  // client navigations), so it counts as not set until it is re-anchored.
+  const rangeInitialized = storeInitialized && anchoredToday === todayStr;
 
   // Popover open state for the start-date picker
   const [rangePopoverOpen, setRangePopoverOpen] = useState(false);
@@ -107,12 +114,12 @@ export function PricingClient({
   // Anchor the store to the property's business date on first mount so SSR and
   // the first client queries never use the browser's local date.
   useEffect(() => {
-    if (!rangeInitialized) {
-      const propStart = todayStr;
-      const propEnd = format(addDays(parseISO(todayStr), WINDOW_OPTIONS[0] - 1), "yyyy-MM-dd");
-      setDateRange(propStart, propEnd);
-    }
-  }, [rangeInitialized, setDateRange, todayStr]);
+    if (rangeInitialized) return;
+    // A new day keeps the window length the user picked; a first visit gets the default.
+    const { startDateStr: start, endDateStr: end } = usePricingStore.getState();
+    const length = Math.round((parseISO(end).getTime() - parseISO(start).getTime()) / 86_400_000) + 1;
+    anchorToToday(todayStr, storeInitialized && (WINDOW_OPTIONS as readonly number[]).includes(length) ? length : WINDOW_OPTIONS[0]);
+  }, [rangeInitialized, storeInitialized, anchorToToday, todayStr]);
 
   const effectiveStart = rangeInitialized ? startDateStr : todayStr;
   const effectiveEnd = rangeInitialized
@@ -151,10 +158,7 @@ export function PricingClient({
   };
 
   const handleSetWindow = (days: number) => {
-    const base = parseISO(todayStr);
-    const start = format(base, "yyyy-MM-dd");
-    const end = format(addDays(base, days - 1), "yyyy-MM-dd");
-    setDateRange(start, end);
+    anchorToToday(todayStr, days);
   };
 
   const handleDateReset = () => {
@@ -176,8 +180,8 @@ export function PricingClient({
 
   // Map resolved rates for fast index lookups
   const resolvedRateMap = useMemo(() => {
-    const map = new Map<string, ResolvedPriceCell>();
-    resolvedRates.forEach((cell) => {
+    const map = new Map<string, GridCell>();
+    (resolvedRates as GridCell[]).forEach((cell) => {
       map.set(`${cell.roomTypeId}_${cell.date}`, cell);
     });
     return map;
@@ -199,23 +203,21 @@ export function PricingClient({
     return map;
   }, [roomsLeft]);
 
-  // Realtime: bookings change rooms left; overrides made elsewhere change rates.
+  // Realtime: bookings and availability blocks change rooms left. Rate changes
+  // have no feed: daily_rate_overrides is deliberately not in the realtime
+  // publication (migration 20260802010000), so prices refresh on refetch.
   useEffect(() => {
     const supabase = createClient();
     const inventory = createCoalescer();
-    const rates = createCoalescer();
+    const refreshRoomsLeft = () =>
+      inventory.schedule(() => void queryClient.invalidateQueries({ queryKey: ["pricing", "occupancy"] }));
     const channel = supabase
       .channel(`hotel:${hotelId}:rates`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` }, () =>
-        inventory.schedule(() => void queryClient.invalidateQueries({ queryKey: ["pricing", "occupancy"] }))
-      )
-      .on("postgres_changes", { event: "*", schema: "public", table: "daily_rate_overrides", filter: `hotel_id=eq.${hotelId}` }, () =>
-        rates.schedule(() => void queryClient.invalidateQueries({ queryKey: ["pricing", "resolved"] }))
-      )
-      .subscribe(onRealtimeStatus({ label: "rates", hotelId, table: "bookings,daily_rate_overrides" }));
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` }, refreshRoomsLeft)
+      .on("postgres_changes", { event: "*", schema: "public", table: "availability_blocks", filter: `hotel_id=eq.${hotelId}` }, refreshRoomsLeft)
+      .subscribe(onRealtimeStatus({ label: "rates", hotelId, table: "bookings,availability_blocks" }));
     return () => {
       inventory.cancel();
-      rates.cancel();
       void supabase.removeChannel(channel);
     };
   }, [hotelId, queryClient]);
@@ -236,30 +238,30 @@ export function PricingClient({
         effectiveEnd
       );
       await queryClient.cancelQueries({ queryKey });
-      const previousRates = queryClient.getQueryData<ResolvedPriceCell[]>(queryKey);
+      const previousCell = queryClient
+        .getQueryData<GridCell[]>(queryKey)
+        ?.find((cell) => cell.roomTypeId === variables.roomTypeId && cell.date === variables.date);
+      queryClient.setQueryData<GridCell[]>(queryKey, (cells) =>
+        replaceCell(cells, variables.roomTypeId, variables.date, (cell) => ({
+          ...cell,
+          price: variables.price,
+          source: "daily" as const,
+          pending: false,
+        }))
+      );
 
-      if (previousRates) {
-        const updated = previousRates.map((cell) => {
-          if (cell.roomTypeId === variables.roomTypeId && cell.date === variables.date) {
-            return {
-              ...cell,
-              price: variables.price,
-              source: "daily" as const,
-            };
-          }
-          return cell;
-        });
-        queryClient.setQueryData(queryKey, updated);
-      }
-
-      return { previousRates, queryKey };
+      return { previousCell, queryKey };
     },
     onSuccess: () => {
       toast.success("Price updated");
     },
-    onError: (err, _variables, context) => {
-      if (context?.previousRates && context.queryKey) {
-        queryClient.setQueryData(context.queryKey, context.previousRates);
+    onError: (err, variables, context) => {
+      // Only this night goes back; other edits still in flight keep their values.
+      const previousCell = context?.previousCell;
+      if (previousCell && context.queryKey) {
+        queryClient.setQueryData<GridCell[]>(context.queryKey, (cells) =>
+          replaceCell(cells, variables.roomTypeId, variables.date, () => previousCell)
+        );
       }
       toast.danger(err.message || "Failed to update price");
     },
@@ -294,28 +296,25 @@ export function PricingClient({
         effectiveEnd
       );
       await queryClient.cancelQueries({ queryKey });
-      const previousRates = queryClient.getQueryData<ResolvedPriceCell[]>(queryKey);
-      if (previousRates) {
-        const rt = roomTypes.find((r) => r.id === variables.roomTypeId);
-        queryClient.setQueryData(
-          queryKey,
-          previousRates.map((cell) => {
-            if (cell.roomTypeId !== variables.roomTypeId || cell.date !== variables.date) {
-              return cell;
-            }
-            const fallback = baseFallbackCell(rt, variables.date, cell);
-            return { ...cell, ...fallback };
-          })
-        );
-      }
-      return { previousRates, queryKey };
+      const previousCell = queryClient
+        .getQueryData<GridCell[]>(queryKey)
+        ?.find((cell) => cell.roomTypeId === variables.roomTypeId && cell.date === variables.date);
+      // The fallback price may be base, weekend or a season; keep the current
+      // price, marked as updating, until the refetch says which.
+      queryClient.setQueryData<GridCell[]>(queryKey, (cells) =>
+        replaceCell(cells, variables.roomTypeId, variables.date, (cell) => ({ ...cell, pending: true }))
+      );
+      return { previousCell, queryKey };
     },
     onSuccess: () => {
       toast.success("Override cleared");
     },
-    onError: (err, _variables, context) => {
-      if (context?.previousRates && context.queryKey) {
-        queryClient.setQueryData(context.queryKey, context.previousRates);
+    onError: (err, variables, context) => {
+      const previousCell = context?.previousCell;
+      if (previousCell && context.queryKey) {
+        queryClient.setQueryData<GridCell[]>(context.queryKey, (cells) =>
+          replaceCell(cells, variables.roomTypeId, variables.date, () => previousCell)
+        );
       }
       toast.danger(err.message || "Failed to clear override");
     },
@@ -334,6 +333,9 @@ export function PricingClient({
   });
 
   const isWindowAtToday = effectiveStart === todayStr;
+  // Seasons can no longer be edited here, but any left in the data still price
+  // nights; the legend names the marker only when one is on screen.
+  const hasSeasonPrice = resolvedRates.some((cell) => cell.source === "seasonal");
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 pt-6 md:pt-8">
@@ -417,7 +419,7 @@ export function PricingClient({
             </Button>
           )}
 
-          <RateLegend currency={currency} canEdit={canManagePricing} />
+          <RateLegend currency={currency} canEdit={canManagePricing} showSeason={hasSeasonPrice} />
         </div>
 
         {roomTypes.length === 0 ? (
@@ -550,8 +552,8 @@ function sourceText(cell: ResolvedPriceCell | undefined): string {
   return cell.isWeekend ? "Base weekend price" : "Base price";
 }
 
-/** One line beside the toolbar: the currency, the one highlight, and how to edit. */
-function RateLegend({ currency, canEdit }: { currency: string; canEdit: boolean }) {
+/** One line beside the toolbar: the currency, the markers, and how to edit. */
+function RateLegend({ currency, canEdit, showSeason }: { currency: string; canEdit: boolean; showSeason: boolean }) {
   return (
     <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground lg:ml-auto" aria-label="Price key">
       <li>Prices in {currency}</li>
@@ -559,6 +561,12 @@ function RateLegend({ currency, canEdit }: { currency: string; canEdit: boolean 
         <span aria-hidden="true" className="size-2 rounded-full bg-primary" />
         Changed for one night
       </li>
+      {showSeason && (
+        <li className="flex items-center gap-2">
+          <CalendarRange aria-hidden="true" className="size-3" />
+          Season price
+        </li>
+      )}
       {canEdit && <li>Select a price to change it</li>}
     </ul>
   );
@@ -569,7 +577,7 @@ interface RateCellProps {
   roomTypeName: string;
   dateStr: string;
   isToday: boolean;
-  cell: ResolvedPriceCell | undefined;
+  cell: GridCell | undefined;
   left: number | undefined;
   currency: string;
   canEdit: boolean;
@@ -596,7 +604,7 @@ function RateCell({ layout, roomTypeName, dateStr, isToday, cell, left, currency
         </span>
       )}
       {cell ? (
-        <span className={cn("font-semibold tabular-nums", isTile ? "text-md" : "text-sm", priceTone, stopSell && "text-muted-foreground line-through")}>
+        <span className={cn("font-semibold tabular-nums", isTile ? "text-md" : "text-sm", priceTone, stopSell && "text-muted-foreground line-through", cell.pending && "opacity-50")}>
           {formatPrice(cell.price)}
         </span>
       ) : (
@@ -615,8 +623,11 @@ function RateCell({ layout, roomTypeName, dateStr, isToday, cell, left, currency
           )}
         </span>
       )}
-      {cell?.source === "daily" && (
+      {cell?.source === "daily" && !cell.pending && (
         <span aria-hidden="true" className={cn("absolute size-2 rounded-full bg-primary", isTile ? "right-3 top-3" : "right-1 top-1")} />
+      )}
+      {cell?.source === "seasonal" && (
+        <CalendarRange aria-hidden="true" className={cn("absolute size-3 text-muted-foreground", isTile ? "right-3 top-3" : "right-1 top-1")} />
       )}
     </>
   );
@@ -629,11 +640,11 @@ function RateCell({ layout, roomTypeName, dateStr, isToday, cell, left, currency
       )
     : "relative flex w-full flex-col items-center gap-1 rounded-xl px-1 py-2 text-center";
 
-  const label = `${roomTypeName}, ${format(date, "EEEE, MMMM d")}: ${cell ? `${formatPrice(cell.price)} ${currency}` : "loading"}${cell ? `, ${sourceText(cell)}` : ""}${left !== undefined ? `, ${leftLabel(left)}` : ""}${marks.length ? `. ${marks.map((m) => m.title).join(". ")}` : ""}`;
+  const label = `${roomTypeName}, ${format(date, "EEEE, MMMM d")}: ${cell ? `${formatPrice(cell.price)} ${currency}` : "loading"}${cell ? `, ${cell.pending ? "updating" : sourceText(cell)}` : ""}${left !== undefined ? `, ${leftLabel(left)}` : ""}${marks.length ? `. ${marks.map((m) => m.title).join(". ")}` : ""}`;
 
-  if (!canEdit || !cell) {
+  if (!canEdit || !cell || cell.pending) {
     return (
-      <div aria-label={label} role="group" className={shape}>
+      <div aria-label={label} role="group" aria-busy={cell?.pending || undefined} className={shape}>
         {body}
       </div>
     );
@@ -691,8 +702,10 @@ function RateEditor({ roomTypeName, dateStr, cell, left, currency, notes, onClos
   onReset: () => void;
 }) {
   const [value, setValue] = useState(String(cell.price));
-  const price = Number.parseFloat(value);
-  const isValid = Number.isFinite(price) && price >= 0.01;
+  const price = Number(value.trim());
+  // Same limits as the server: above 0, below 100,000,000, two decimals at most.
+  const problem = value.trim() === "" ? "Enter a price above 0" : overridePriceProblem(price);
+  const isValid = problem === null;
 
   const submit = () => {
     if (!isValid) return;
@@ -731,7 +744,7 @@ function RateEditor({ roomTypeName, dateStr, cell, left, currency, notes, onClos
             className="min-w-0 tabular-nums max-md:text-base"
           />
         </InputGroup>
-        <FieldError>Enter a price above 0</FieldError>
+        <FieldError>{problem}</FieldError>
       </TextField>
 
       <p className="text-xs text-muted-foreground">{sourceText(cell)}</p>

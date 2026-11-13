@@ -18,12 +18,17 @@ import {
   type RoomsLeftResult,
 } from "@/lib/availability/rooms-left";
 import { toDailyOverrideInsert } from "@/lib/supabase/trigger-derived";
+import { overridePriceProblem } from "@/lib/pricing/override-price";
+import { format, isValid, parseISO } from "date-fns";
 
 // Schemas for input validation
 const DailyOverrideSchema = z.object({
   roomTypeId: z.string().uuid("Invalid room type ID"),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
-  price: z.coerce.number().min(0.01, "Price must be greater than 0"),
+  price: z.coerce.number({ error: "Enter a price above 0" }).superRefine((price, issue) => {
+    const problem = overridePriceProblem(price);
+    if (problem) issue.addIssue({ code: "custom", message: problem });
+  }),
 });
 
 // ── Daily Rate Overrides ─────────────────────────────────────────────
@@ -33,7 +38,11 @@ export async function upsertDailyRateOverride(roomTypeId: string, date: string, 
     const ctx = await requireMinRole("manager", "set daily overrides");
     const hotelId = ctx.hotelId;
 
-    DailyOverrideSchema.parse({ roomTypeId, date, price });
+    // Bad input is the caller's mistake, not an incident: answer in words, no Sentry.
+    const parsed = DailyOverrideSchema.safeParse({ roomTypeId, date, price });
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? "Enter a valid price" };
+    }
 
     const supabase = await createClient();
 
@@ -73,7 +82,11 @@ export async function upsertDailyRateOverride(roomTypeId: string, date: string, 
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      // Still reported, but the toast never shows database text.
+      await toActionError(error, { action: "pricing.upsertDailyRateOverride", hotelId });
+      return { success: false, error: "Couldn't save this price. Try again." };
+    }
 
     await writeAuditLog(supabase, {
       hotelId,
@@ -352,9 +365,10 @@ export async function getRoomsLeft(
   endDate: string
 ): Promise<{ success: true; data: RoomsLeftResult } | { success: false; error: string }> {
   try {
-    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRe.test(startDate) || !dateRe.test(endDate)) {
-      return { success: false, error: "Invalid date format — expected YYYY-MM-DD" };
+    // A real calendar date only: 2026-02-30 would roll over and 2026-99-99
+    // would throw later. Bad input is not an incident, so nothing goes to Sentry.
+    if (!isCalendarDate(startDate) || !isCalendarDate(endDate)) {
+      return { success: false, error: "Invalid date" };
     }
     if (startDate > endDate) {
       return { success: false, error: "startDate must be <= endDate" };
@@ -410,4 +424,10 @@ export async function getRoomsLeft(
   } catch (err) {
     return toActionError(err, { action: "pricing.getRoomsLeft" });
   }
+}
+
+function isCalendarDate(value: string): boolean {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = parseISO(value);
+  return isValid(date) && format(date, "yyyy-MM-dd") === value;
 }

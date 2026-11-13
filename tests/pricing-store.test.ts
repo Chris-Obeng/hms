@@ -31,3 +31,18 @@ describe("viewport", () => {
     expect(s.rangeInitialized).toBe(true);
   });
 });
+
+describe("anchoring to the property date", () => {
+  it("starts the window on today and remembers the date it anchored to", () => {
+    usePricingStore.getState().anchorToToday("2026-10-21", 14);
+    const s = usePricingStore.getState();
+    expect(s).toMatchObject({ startDateStr: "2026-10-21", endDateStr: "2026-11-03", rangeInitialized: true, anchoredToday: "2026-10-21" });
+  });
+  it("re-anchors a moved window when the property date changes, keeping its length", () => {
+    usePricingStore.getState().anchorToToday("2026-10-21", 30);
+    usePricingStore.getState().setDateRange("2026-12-01", "2026-12-30");
+    expect(usePricingStore.getState().anchoredToday).toBe("2026-10-21");
+    usePricingStore.getState().anchorToToday("2026-10-22", 30);
+    expect(usePricingStore.getState()).toMatchObject({ startDateStr: "2026-10-22", endDateStr: "2026-11-20", anchoredToday: "2026-10-22" });
+  });
+});
