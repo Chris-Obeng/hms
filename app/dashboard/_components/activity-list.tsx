@@ -387,14 +387,16 @@ function BookingRow({
 
       {/* Guest */}
       <div className="min-w-0 [grid-area:guest]">
-        <div className="flex min-w-0 items-center gap-2">
+        {/* Wraps so the notes icon and Conflict chip drop below a long name on
+            phones instead of squeezing it to one letter. */}
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               onViewDetails?.(booking);
             }}
-            className="min-w-0 truncate rounded-sm text-left text-sm font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-w-0 max-w-full truncate rounded-sm text-left text-sm font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {booking.guestName}
           </button>

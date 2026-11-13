@@ -119,7 +119,7 @@ export function BookingOverviewPanel({
               return (
                 <li key={l.id} className="flex items-center gap-3 px-4 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-2 truncate text-sm font-semibold text-foreground">
+                    <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
                       <span
                         aria-hidden="true"
                         className={cn(
@@ -127,17 +127,19 @@ export function BookingOverviewPanel({
                           LINE_DOTS[l.status ?? ""] ?? "bg-muted-foreground/40"
                         )}
                       />
-                      {l.roomTypeName ?? "Room"}
-                      {l.roomNumber ? (
-                        <span className="font-normal text-muted-foreground">
-                          {" "}
-                          · {formatRoomLabel(l.roomNumber)}
-                        </span>
-                      ) : (
-                        <span className="font-normal text-amber-700"> · Unassigned</span>
-                      )}
+                      <span className="min-w-0 truncate">
+                        {l.roomTypeName ?? "Room"}
+                        {l.roomNumber ? (
+                          <span className="font-normal text-muted-foreground">
+                            {" "}
+                            · {formatRoomLabel(l.roomNumber)}
+                          </span>
+                        ) : (
+                          <span className="font-normal text-amber-700"> · Unassigned</span>
+                        )}
+                      </span>
                     </p>
-                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {getStatusLabel(l.status ?? "")} · {occupancyText(l.adults ?? 1, l.children ?? 0)} ·{" "}
                       <span className="tabular-nums">{formatCurrency(l.totalAmount, currency)}</span>
                     </p>
@@ -215,7 +217,7 @@ export function BookingOverviewPanel({
           {booking.guest?.id && (
             <Link
               href={`/dashboard/customers?guestId=${booking.guest.id}`}
-              className="inline-flex min-h-10 items-center gap-1 rounded-lg text-sm font-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex min-h-11 items-center gap-1 rounded-lg text-sm font-medium text-primary md:min-h-10 outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Guest profile
               <ArrowUpRight className="size-4" aria-hidden="true" />
@@ -311,7 +313,7 @@ function ContactLink({
   return (
     <a
       href={href}
-      className="flex min-h-10 items-center gap-3 rounded-lg text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:text-primary"
+      className="flex min-h-11 items-center gap-3 rounded-lg text-sm text-foreground md:min-h-10 outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:text-primary"
     >
       <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-xl bg-secondary text-muted-foreground">
         {icon}
