@@ -19,6 +19,10 @@ import {
   syncPushSubscriptionStatus,
 } from "@/lib/push";
 
+
+/** Minimum gap between chimes so a burst of alerts sounds once. */
+const CHIME_COOLDOWN_MS = 4000;
+
 export interface UseNotificationsOptions {
   hotelId?: string;
   staffId?: string;
@@ -126,12 +130,18 @@ export function useNotifications({
     []
   );
 
-  // Preload front-desk chime audio
+  // Preload front-desk chime audio. The old per-device "sound" preference was
+  // retired with its settings toggle; clear it so no device stays silently muted.
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     const audio = new Audio("/audio/chime.mp3");
     audio.volume = 0.5;
     chimeRef.current = audio;
+    try {
+      localStorage.removeItem("RoomLine_sound_enabled");
+    } catch {
+      // Storage unavailable (private mode) — nothing to clear.
+    }
   }, []);
 
   // Reconcile shared-workstation browser PushSubscription ownership on shift login
@@ -140,9 +150,21 @@ export function useNotifications({
     void syncPushSubscriptionStatus();
   }, [enabled, staffId]);
 
+  const lastChimeAtRef = React.useRef(0);
+  /**
+   * One short chime per burst, and only while RoomLine is on screen:
+   * - Hidden tab: the push / OS notification carries its own sound, so a
+   *   second chime from a background tab would double up.
+   * - Bursts (a group booking writes several alerts): at most one chime
+   *   every few seconds.
+   */
   const playChime = React.useCallback(() => {
     const audio = chimeRef.current;
     if (!audio) return;
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+    const now = Date.now();
+    if (now - lastChimeAtRef.current < CHIME_COOLDOWN_MS) return;
+    lastChimeAtRef.current = now;
     try {
       audio.currentTime = 0;
       audio.play().catch(() => {
@@ -557,13 +579,7 @@ export function useNotifications({
               commitUnreadCount((prev) => prev + 1);
               setRingSignal((prev) => prev + 1);
 
-              try {
-                const soundEnabled =
-                  localStorage.getItem("RoomLine_sound_enabled") !== "false";
-                if (soundEnabled) playChime();
-              } catch {
-                playChime();
-              }
+              playChime();
 
               void maybeShowForegroundBrowserAlert(newItem);
             }
