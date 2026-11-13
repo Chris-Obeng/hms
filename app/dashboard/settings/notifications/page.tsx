@@ -30,7 +30,6 @@ const EVENT_TYPES = [
 
 export default function NotificationSettingsPage() {
   const [loading, setLoading] = React.useState(true);
-  const [soundEnabled, setSoundEnabled] = React.useState(true);
   const [pushSupported, setPushSupported] = React.useState(true);
   const [iosNeedsInstall, setIosNeedsInstall] = React.useState(false);
   const [browserAlertsEnabled, setBrowserAlertsEnabled] = React.useState(false);
@@ -87,15 +86,6 @@ export default function NotificationSettingsPage() {
     void loadPrefs();
 
     const deviceSetup = window.setTimeout(() => {
-      try {
-        const sound = localStorage.getItem("RoomLine_sound_enabled");
-        if (sound !== null) {
-          setSoundEnabled(sound === "true");
-        }
-      } catch {
-        // Ignore storage read errors
-      }
-
       setPushSupported(isWebPushSupported());
       setIosNeedsInstall(isIosNonStandaloneBrowser());
       setNotificationPermission(getSafeNotificationPermission());
@@ -160,17 +150,6 @@ export default function NotificationSettingsPage() {
       .catch(() => {});
   };
 
-  // Toggle sound
-  const toggleSound = () => {
-    const newVal = !soundEnabled;
-    setSoundEnabled(newVal);
-    try {
-      localStorage.setItem("RoomLine_sound_enabled", String(newVal));
-    } catch {
-      // Ignore storage write errors
-    }
-  };
-
   // Toggle browser push alerts
   const toggleBrowserAlerts = async () => {
     if (typeof window === "undefined" || togglingAlerts) return;
@@ -215,36 +194,6 @@ export default function NotificationSettingsPage() {
     }
   };
 
-  // Play the real front-desk chime (/audio/chime.mp3), with clean AudioContext fallback
-  const playTestSound = async () => {
-    try {
-      const audio = new Audio("/audio/chime.mp3");
-      audio.volume = 0.5;
-      await audio.play();
-      toast.success("Test chime played");
-    } catch {
-      try {
-        const audioCtx = new AudioContext();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        oscillator.frequency.value = 800;
-        oscillator.type = "sine";
-        gainNode.gain.setValueAtTime(0.25, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.45);
-        oscillator.start(audioCtx.currentTime);
-        oscillator.stop(audioCtx.currentTime + 0.45);
-        oscillator.onended = () => {
-          void audioCtx.close().catch(() => {});
-        };
-        toast.success("Test chime played");
-      } catch {
-        toast.danger("Could not play test sound");
-      }
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex flex-col gap-8" aria-busy="true" aria-label="Loading notification settings">
@@ -268,19 +217,11 @@ export default function NotificationSettingsPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <SettingsGroup title="This device" className="gap-0 py-2 sm:py-2">
-        <ul className="divide-y divide-border/60">
-          <li className="py-3">
-            <SettingsRow label="Sound">
-              <Button size="sm" variant="ghost" onPress={() => void playTestSound()} className="rounded-lg text-muted-foreground">
-                Test
-              </Button>
-              <ToggleSwitch label="Notification sound" isSelected={soundEnabled} onChange={toggleSound} />
-            </SettingsRow>
-          </li>
+      <SettingsGroup title="Push notifications" className="gap-0 py-2 sm:py-2">
+        <ul>
           <li className="py-3">
             <SettingsRow
-              label="Push alerts"
+              label="On this device"
               hint={
                 pushStatus ? (
                   <span className={pushStatus.tone === "danger" ? "text-destructive" : undefined}>{pushStatus.text}</span>
