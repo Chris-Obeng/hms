@@ -12,6 +12,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint --cache app components lib hooks scripts tests types proxy.ts next.config.ts instrumentation.ts instrumentation-client.ts sentry.server.config.ts sentry.edge.config.ts eslint.config.mjs postcss.config.mjs vitest.config.mts",
+    "lint:ui": "node scripts/ui-8pt-audit.mjs --check",
     "typecheck": "tsc --noEmit",
     "check:landing": "tsc -p tsconfig.check.json",
     "test": "vitest run",

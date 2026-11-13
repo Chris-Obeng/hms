@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Visual tooling only. Counts 8-point-grid smells per file.
 // Usage: node scripts/ui-8pt-audit.mjs [--json out.json] [--top N]
+//        node scripts/ui-8pt-audit.mjs --check   (fails on rule violations; see checkRules)
 import { readdirSync, readFileSync, statSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 
@@ -55,6 +56,115 @@ function cssOffGrid(src) {
 }
 
 const files = SCAN_DIRS.flatMap((d) => walk(join(ROOT, d))).sort();
+
+// ── --check: hard rules of the 8-point system (documented in app/globals.css) ──
+// Allowed exceptions live in ui-audit/8pt-allowlist.json as
+// { "file": "<repo-relative path>", "token": "<exact class or css value>" | "*", "reason": "..." }.
+const VARIANTS = "(?:[a-z0-9*@\\[\\]&>_=/.()-]+:)*";
+const BOUND = "(?<=^|[\\s\"'`{(,:!])";
+const TW_RULES = [
+  {
+    id: "half-step",
+    why: "half steps are off the grid",
+    re: new RegExp(`${BOUND}${VARIANTS}-?${SPACING_PREFIX}-\\d+\\.5(?![\\w./%\\]-])`, "g"),
+  },
+  {
+    id: "spacing-20-28",
+    why: "padding, margin and gap use 4/8/12/16 inside components and multiples of 8 for layout",
+    re: new RegExp(`${BOUND}${VARIANTS}-?(?:p|px|py|pt|pr|pb|pl|ps|pe|m|mx|my|mt|mr|mb|ml|ms|me|gap|gap-x|gap-y|space-x|space-y)-(?:5|7|9|11)(?![\\w./%\\]-])`, "g"),
+  },
+  {
+    id: "control-height",
+    why: "control heights are 32 / 40 / 48 (44 for mobile touch); no 28 or 36",
+    re: new RegExp(`${BOUND}${VARIANTS}(?:h|min-h)-(?:7|9)(?![\\w./%\\]-])`, "g"),
+  },
+  {
+    id: "arbitrary-text",
+    why: "use the type scale (text-2xs/xs/sm/md/base/lg/xl/2xl); arbitrary sizes only for 22px+ display type",
+    re: new RegExp(`${BOUND}${VARIANTS}text-\\[(\\d*\\.?\\d+)(px|rem)\\]`, "g"),
+    keep: (m) => (m[2] === "rem" ? Number(m[1]) * 16 : Number(m[1])) >= 22,
+  },
+  {
+    id: "arbitrary-radius",
+    why: "use the radius scale (rounded-sm/lg/xl/2xl/3xl/full)",
+    re: new RegExp(`${BOUND}${VARIANTS}rounded(?:-[a-z]{1,2})?-\\[([^\\]]+)\\]`, "g"),
+    keep: (m) => /^(?:[0-2](?:\.\d+)?px|0)$/.test(m[1]), // hairline radii (<= 2px) are exempt
+  },
+  {
+    id: "arbitrary-off-4",
+    why: "arbitrary spacing and sizes must be multiples of 4px",
+    re: new RegExp(`${BOUND}${VARIANTS}-?${SPACING_PREFIX}-\\[-?(\\d*\\.?\\d+)(px|rem)\\]`, "g"),
+    keep: (m) => {
+      const px = Math.abs(m[2] === "rem" ? Number(m[1]) * 16 : Number(m[1]));
+      return px <= 2 || px % 4 === 0;
+    },
+  },
+];
+const CSS_RULES = [
+  {
+    id: "css-off-4",
+    why: "CSS spacing and sizes must be multiples of 4px",
+    decl: /(?<=^|[{;])\s*(?:padding|margin|gap|row-gap|column-gap|width|height|min-width|min-height|max-width|max-height|top|left|right|bottom|inset)[\w-]*\s*:([^;{}]*)/gm,
+    bad: (px) => px > 2 && px % 4 !== 0,
+  },
+  {
+    id: "css-radius",
+    why: "border radius uses 4 / 8 / 12 / 16 / 24 / full",
+    decl: /(?<=^|[{;])\s*(?:border(?:-[a-z]+)*-radius|--[\w-]*radius)\s*:([^;{}]*)/gm,
+    bad: (px) => px > 2 && ![4, 8, 12, 16, 24].includes(px) && px < 99,
+  },
+];
+
+function loadAllowlist() {
+  try {
+    return JSON.parse(readFileSync(join(ROOT, "ui-audit/8pt-allowlist.json"), "utf8"));
+  } catch {
+    return [];
+  }
+}
+
+function checkRules() {
+  const allow = loadAllowlist();
+  const allowed = (rel, token) =>
+    allow.some((a) => a.file === rel && (a.token === "*" || a.token === token));
+  const problems = [];
+  for (const f of files) {
+    const rel = relative(ROOT, f);
+    const src = readFileSync(f, "utf8");
+    const lineOf = (i) => src.slice(0, i).split("\n").length;
+    if (f.endsWith(".css")) {
+      for (const rule of CSS_RULES) {
+        for (const d of src.matchAll(rule.decl)) {
+          for (const v of d[1].matchAll(/(?<![\w.#-])-?(\d*\.?\d+)(px|rem)\b/g)) {
+            const px = Math.abs(v[2] === "rem" ? Number(v[1]) * 16 : Number(v[1]));
+            if (!rule.bad(px) || allowed(rel, v[0])) continue;
+            problems.push(`${rel}:${lineOf(d.index)}  ${rule.id}  ${d[0].trim()}  (${rule.why})`);
+          }
+        }
+      }
+      continue;
+    }
+    for (const rule of TW_RULES) {
+      for (const m of src.matchAll(rule.re)) {
+        if (rule.keep?.(m) || allowed(rel, m[0])) continue;
+        problems.push(`${rel}:${lineOf(m.index)}  ${rule.id}  ${m[0]}  (${rule.why})`);
+      }
+    }
+  }
+  return problems;
+}
+
+if (process.argv.includes("--check")) {
+  const problems = checkRules();
+  if (problems.length) {
+    console.error(problems.join("\n"));
+    console.error(`\n${problems.length} 8-point violation(s). Fix them, or add a reasoned entry to ui-audit/8pt-allowlist.json.`);
+    process.exit(1);
+  }
+  console.log("8-point check passed.");
+  process.exit(0);
+}
+
 const result = {};
 const totals = {
   oddSteps: 0, arbitrary: 0, arbText: 0, arbRounded: 0, arbLeading: 0,
