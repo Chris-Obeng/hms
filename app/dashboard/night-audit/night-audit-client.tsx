@@ -258,7 +258,7 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
     {summary.warnings.length > 0 && (
       <Disclosure>
         <Disclosure.Heading>
-          <Button slot="trigger" variant="ghost" size="sm" className="-ml-3 gap-2 text-xs font-medium text-muted-foreground">
+          <Button slot="trigger" variant="ghost" size="sm" className="-ml-3 gap-2 text-xs font-medium text-muted-foreground max-md:h-11">
             About these figures
             <Disclosure.Indicator />
           </Button>
@@ -280,7 +280,7 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
           <p className="text-sm text-muted-foreground">These figures are recorded permanently and cannot be changed later.</p>
           <dl className="divide-y divide-border/50 rounded-2xl bg-secondary/60 px-4">
             <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-muted-foreground">Room revenue</dt><dd className="font-medium tabular-nums text-foreground">{money(roomRevenueInclTax)}</dd></div>
-            <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-muted-foreground">Room nights</dt><dd className="font-medium tabular-nums text-foreground">{summary.roomNights?.toLocaleString() ?? "Unavailable"}</dd></div>
+            <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-muted-foreground">Room nights</dt><dd className="font-medium tabular-nums text-foreground">{summary.roomNights?.toLocaleString("en") ?? "Unavailable"}</dd></div>
             <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-muted-foreground">Collected</dt><dd className="font-medium tabular-nums text-foreground">{money(summary.collections)}</dd></div>
           </dl>
           <TextField fullWidth value={notes} onChange={setNotes} isDisabled={isExecuting}>
