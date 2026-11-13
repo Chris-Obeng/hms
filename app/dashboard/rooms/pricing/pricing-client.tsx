@@ -15,6 +15,7 @@ import {
   DateRangePicker,
   Drawer,
   Dropdown,
+  FieldError,
   Input,
   InputGroup,
   Label,
@@ -49,12 +50,10 @@ import { businessToday } from "@/lib/business-date";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import { formatCurrency } from "@/lib/format";
 import { toCalendarDate, fromCalendarDate } from "@/lib/date-convert";
-import { usePricingStore, SelectedCell } from "@/lib/store/pricing-store";
+import { usePricingStore } from "@/lib/store/pricing-store";
 import { ListEmpty } from "@/components/ui/list-card";
 import { LIST_CARD, LIST_HEADER, LIST_ROWS } from "@/components/ui/list-styles";
-import { PenCard, PenCardHead } from "@/components/ui/pen/pen-card";
 import { RoomsTabs } from "../_components/rooms-tabs";
 
 // Server Actions
@@ -66,8 +65,6 @@ import {
   upsertSeasonalRateOverride,
   upsertDailyRateOverride,
   deleteDailyRateOverride,
-  bulkUpsertDailyRateOverrides,
-  bulkDeleteDailyRateOverrides,
   getResolvedRates,
   getRoomsLeft,
   ResolvedPriceCell,
@@ -78,6 +75,15 @@ import { createCoalescer } from "@/lib/realtime/coalesce";
 
 const ENTER = "animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-[var(--ease-out-ui)] motion-reduce:animate-none";
 const FIELD_LABEL = "text-xs font-medium text-muted-foreground";
+
+/** Day windows on offer; the first is the default. */
+const WINDOW_OPTIONS = [14, 30] as const;
+
+/** Prices show as plain numbers; the currency appears once, in the legend and the editor. */
+const PRICE_FORMAT = new Intl.NumberFormat("en", { maximumFractionDigits: 2 });
+function formatPrice(amount: number): string {
+  return PRICE_FORMAT.format(amount);
+}
 
 /** Seasons list: one template for header band and rows (lg and up). */
 const SEASON_GRID =
@@ -178,13 +184,6 @@ export function PricingClient({
   const {
     activeTab,
     setActiveTab,
-    selectedCells,
-    setSelectedCells,
-    clearSelection,
-    dragStartCell,
-    setDragStartCell,
-    editingCell,
-    setEditingCell,
     newSeasonOpen,
     setNewSeasonOpen,
     editSeasonId,
@@ -206,10 +205,6 @@ export function PricingClient({
   const [seasonPriority, setSeasonPriority] = useState("0");
   const [selectedSeasonForOverrides, setSelectedSeasonForOverrides] = useState<SeasonRow | null>(null);
   const [seasonalOverrides, setSeasonalOverrides] = useState<Record<string, { basePrice: string; weekendPrice: string }>>({});
-  
-  // Single/Bulk daily price edit state
-  const [bulkPriceInput, setBulkPriceInput] = useState("");
-  const [singlePriceInput, setSinglePriceInput] = useState("");
 
   // Popover open states for date pickers
   const [rangePopoverOpen, setRangePopoverOpen] = useState(false);
@@ -224,7 +219,7 @@ export function PricingClient({
     }
     if (!rangeInitialized) {
       const propStart = todayStr;
-      const propEnd = format(addDays(parseISO(todayStr), 29), "yyyy-MM-dd");
+      const propEnd = format(addDays(parseISO(todayStr), WINDOW_OPTIONS[0] - 1), "yyyy-MM-dd");
       setDateRange(propStart, propEnd);
     }
   }, [initialTab, rangeInitialized, setActiveTab, setDateRange, todayStr]);
@@ -236,7 +231,7 @@ export function PricingClient({
   const effectiveStart = rangeInitialized ? startDateStr : todayStr;
   const effectiveEnd = rangeInitialized
     ? endDateStr
-    : format(addDays(parseISO(todayStr), 29), "yyyy-MM-dd");
+    : format(addDays(parseISO(todayStr), WINDOW_OPTIONS[0] - 1), "yyyy-MM-dd");
 
   // Generate date columns dynamically based on the current range (timezone-safe calendar math)
   const dateColumns = useMemo(() => {
@@ -260,7 +255,6 @@ export function PricingClient({
     const newStart = format(subDays(currentStart, windowDays), "yyyy-MM-dd");
     const newEnd = format(subDays(currentStart, 1), "yyyy-MM-dd");
     setDateRange(newStart, newEnd);
-    clearSelection();
   };
 
   const handleNextWindow = () => {
@@ -268,7 +262,6 @@ export function PricingClient({
     const newStart = format(addDays(currentStart, windowDays), "yyyy-MM-dd");
     const newEnd = format(addDays(currentStart, windowDays * 2 - 1), "yyyy-MM-dd");
     setDateRange(newStart, newEnd);
-    clearSelection();
   };
 
   const handleSetWindow = (days: number) => {
@@ -276,11 +269,10 @@ export function PricingClient({
     const start = format(base, "yyyy-MM-dd");
     const end = format(addDays(base, days - 1), "yyyy-MM-dd");
     setDateRange(start, end);
-    clearSelection();
   };
 
   const handleDateReset = () => {
-    handleSetWindow(30);
+    handleSetWindow(windowDays);
   };
 
   // ── Queries ────────────────────────────────────────────────────────
@@ -349,12 +341,6 @@ export function PricingClient({
   const roomsLeftByCell = useMemo(() => {
     const map = new Map<string, number>();
     roomsLeft?.types.forEach((t) => t.cells.forEach((c) => map.set(`${t.roomTypeId}_${c.date}`, c.available)));
-    return map;
-  }, [roomsLeft]);
-
-  const roomsLeftTotals = useMemo(() => {
-    const map = new Map<string, NonNullable<typeof roomsLeft>["totals"][number]>();
-    roomsLeft?.totals.forEach((c) => map.set(c.date, c));
     return map;
   }, [roomsLeft]);
 
@@ -583,7 +569,6 @@ export function PricingClient({
         queryClient.setQueryData(queryKey, updated);
       }
 
-      setEditingCell(null);
       return { previousRates, queryKey };
     },
     onSuccess: () => {
@@ -640,7 +625,6 @@ export function PricingClient({
           })
         );
       }
-      setEditingCell(null);
       return { previousRates, queryKey };
     },
     onSuccess: () => {
@@ -651,132 +635,6 @@ export function PricingClient({
         queryClient.setQueryData(context.queryKey, context.previousRates);
       }
       toast.danger(err.message || "Failed to clear override");
-    },
-    onSettled: (_data, _err, _variables, context) => {
-      const queryKey =
-        context?.queryKey ??
-        qk.pricingResolved(
-          orgId,
-          hotelId,
-          roomTypes.map((rt) => rt.id),
-          effectiveStart,
-          effectiveEnd
-        );
-      void queryClient.invalidateQueries({ queryKey });
-    },
-  });
-
-  // Bulk Daily Override Mutation (Optimistic)
-  const bulkSaveDailyOverridesMutation = useMutation({
-    mutationFn: async ({ price, cells }: { price: number; cells: SelectedCell[] }) => {
-      const upserts = cells.map((cell) => ({
-        roomTypeId: cell.roomTypeId,
-        date: cell.date,
-        price,
-      }));
-      const res = await bulkUpsertDailyRateOverrides(upserts);
-      if (!res.success) {
-        throw new Error(res.error || "Failed to save bulk prices");
-      }
-    },
-    onMutate: async ({ price, cells }) => {
-      const queryKey = qk.pricingResolved(
-        orgId,
-        hotelId,
-        roomTypes.map((rt) => rt.id),
-        effectiveStart,
-        effectiveEnd
-      );
-      await queryClient.cancelQueries({ queryKey });
-      const previousRates = queryClient.getQueryData<ResolvedPriceCell[]>(queryKey);
-      if (previousRates) {
-        const keySet = new Set(cells.map((c) => `${c.roomTypeId}_${c.date}`));
-        queryClient.setQueryData(
-          queryKey,
-          previousRates.map((cell) =>
-            keySet.has(`${cell.roomTypeId}_${cell.date}`)
-              ? { ...cell, price, source: "daily" as const }
-              : cell
-          )
-        );
-      }
-      setBulkPriceInput("");
-      clearSelection();
-      return { previousRates, queryKey, count: cells.length };
-    },
-    onSuccess: (_data, variables) => {
-      toast.success(`Updated ${variables.cells.length} rate${variables.cells.length === 1 ? "" : "s"}`);
-    },
-    onError: (err, _variables, context) => {
-      if (context?.previousRates && context.queryKey) {
-        queryClient.setQueryData(context.queryKey, context.previousRates);
-      }
-      toast.danger(err.message || "Failed to save bulk prices");
-    },
-    onSettled: (_data, _err, _variables, context) => {
-      const queryKey =
-        context?.queryKey ??
-        qk.pricingResolved(
-          orgId,
-          hotelId,
-          roomTypes.map((rt) => rt.id),
-          effectiveStart,
-          effectiveEnd
-        );
-      void queryClient.invalidateQueries({ queryKey });
-    },
-  });
-
-  // Bulk Clear Daily Override Mutation (Optimistic)
-  const bulkClearDailyOverridesMutation = useMutation({
-    mutationFn: async ({ cells }: { cells: SelectedCell[] }) => {
-      const deletes = cells.map((cell) => ({
-        roomTypeId: cell.roomTypeId,
-        date: cell.date,
-      }));
-      const res = await bulkDeleteDailyRateOverrides(deletes);
-      if (!res.success) {
-        throw new Error(res.error || "Failed to clear overrides");
-      }
-    },
-    onMutate: async ({ cells }) => {
-      const queryKey = qk.pricingResolved(
-        orgId,
-        hotelId,
-        roomTypes.map((rt) => rt.id),
-        effectiveStart,
-        effectiveEnd
-      );
-      await queryClient.cancelQueries({ queryKey });
-      const previousRates = queryClient.getQueryData<ResolvedPriceCell[]>(queryKey);
-      if (previousRates) {
-        const keySet = new Set(cells.map((c) => `${c.roomTypeId}_${c.date}`));
-        const rtMap = new Map(roomTypes.map((rt) => [rt.id, rt]));
-        queryClient.setQueryData(
-          queryKey,
-          previousRates.map((cell) => {
-            if (!keySet.has(`${cell.roomTypeId}_${cell.date}`)) return cell;
-            const fallback = resolveFallbackCell(
-              rtMap.get(cell.roomTypeId),
-              cell.date,
-              seasons,
-              cell
-            );
-            return { ...cell, ...fallback };
-          })
-        );
-      }
-      clearSelection();
-      return { previousRates, queryKey };
-    },
-    onSuccess: (_data, variables) => {
-      toast.success(`Cleared ${variables.cells.length} override${variables.cells.length === 1 ? "" : "s"}`);
-    },
-    onError: (err, _variables, context) => {
-      if (context?.previousRates && context.queryKey) {
-        queryClient.setQueryData(context.queryKey, context.previousRates);
-      }
-      toast.danger(err.message || "Failed to clear overrides");
     },
     onSettled: (_data, _err, _variables, context) => {
       const queryKey =
@@ -828,186 +686,12 @@ export function PricingClient({
     setSeasonDetailOpen(true);
   };
 
-  // Click cell handler (Daily Calendar Grid)
-  const handleCellClick = (roomTypeId: string, date: string, e: React.MouseEvent) => {
-    if (!canManagePricing) return;
-    // If shift key or drag active, handle range selection
-    if (e.shiftKey && selectedCells.length > 0) {
-      const first = selectedCells[0];
-      const newSelection = getCellRange(first.roomTypeId, first.date, roomTypeId, date);
-      setSelectedCells(newSelection);
-      setEditingCell(null);
-      return;
-    }
-
-    setSelectedCells([{ roomTypeId, date }]);
-    const cellData = resolvedRateMap.get(`${roomTypeId}_${date}`);
-    const price = cellData ? String(cellData.price) : "";
-    setSinglePriceInput(price);
-    setBulkPriceInput(price);
-    setEditingCell(null);
-  };
-
-  // Bounding box range calculation (spreadsheet selection)
-  const getCellRange = (
-    rtStartId: string,
-    dateStart: string,
-    rtEndId: string,
-    dateEnd: string
-  ): SelectedCell[] => {
-    const rtStartIndex = roomTypes.findIndex((r) => r.id === rtStartId);
-    const rtEndIndex = roomTypes.findIndex((r) => r.id === rtEndId);
-    const dateStartIndex = dateColumns.indexOf(dateStart);
-    const dateEndIndex = dateColumns.indexOf(dateEnd);
-
-    if (rtStartIndex === -1 || rtEndIndex === -1 || dateStartIndex === -1 || dateEndIndex === -1) {
-      return [];
-    }
-
-    const minRt = Math.min(rtStartIndex, rtEndIndex);
-    const maxRt = Math.max(rtStartIndex, rtEndIndex);
-    const minDate = Math.min(dateStartIndex, dateEndIndex);
-    const maxDate = Math.max(dateStartIndex, dateEndIndex);
-
-    const range: SelectedCell[] = [];
-    for (let r = minRt; r <= maxRt; r++) {
-      for (let d = minDate; d <= maxDate; d++) {
-        range.push({
-          roomTypeId: roomTypes[r].id,
-          date: dateColumns[d],
-        });
-      }
-    }
-    return range;
-  };
-
-  // Drag selection handlers
-  const handleCellMouseDown = (roomTypeId: string, date: string, e: React.MouseEvent) => {
-    if (!canManagePricing) return;
-    if (e.button !== 0) return; // Left click only
-    if (e.shiftKey) return;
-
-    setDragStartCell({ roomTypeId, date });
-    
-    // Select the single cell immediately for responsive visuals
-    setSelectedCells([{ roomTypeId, date }]);
-    
-    // Auto fill single edit
-    const cellData = resolvedRateMap.get(`${roomTypeId}_${date}`);
-    setSinglePriceInput(cellData ? String(cellData.price) : "");
-  };
-
-  const handleCellMouseEnter = (roomTypeId: string, date: string) => {
-    if (!dragStartCell) return;
-    const range = getCellRange(dragStartCell.roomTypeId, dragStartCell.date, roomTypeId, date);
-    setSelectedCells(range);
-    
-    // Clear editing cell if dragging to multiple cells
-    if (range.length > 1) {
-      setEditingCell(null);
-    }
-  };
-
-  const handleCellMouseUp = (roomTypeId: string, date: string) => {
-    if (!dragStartCell) return;
-
-    const isSingleClick = dragStartCell.roomTypeId === roomTypeId && dragStartCell.date === date;
-    if (isSingleClick) {
-      // Establish single selection. Persistent editor handles price changes.
-      setSelectedCells([{ roomTypeId, date }]);
-      const cellData = resolvedRateMap.get(`${roomTypeId}_${date}`);
-      const price = cellData ? String(cellData.price) : "";
-      setSinglePriceInput(price);
-      setBulkPriceInput(price);
-      setEditingCell(null);
-    } else {
-      // Range drag finished
-      setEditingCell(null);
-    }
-    setDragStartCell(null);
-  };
-
-  useEffect(() => {
-    // Attach mouseup on window to catch drops outside grid
-    const handleUp = () => setDragStartCell(null);
-    window.addEventListener("mouseup", handleUp);
-    return () => window.removeEventListener("mouseup", handleUp);
-  }, [setDragStartCell]);
-
-  // Keyboard navigation (roving tabIndex — Arrow keys move within grid; Tab exits naturally)
-  const handleKeyDown = (e: React.KeyboardEvent, currentRtId: string, currentDate: string) => {
-    const rtIndex = roomTypes.findIndex((r) => r.id === currentRtId);
-    const dateIndex = dateColumns.indexOf(currentDate);
-
-    let nextRtId = currentRtId;
-    let nextDate = currentDate;
-
-    if (e.key === "ArrowUp" && rtIndex > 0) {
-      nextRtId = roomTypes[rtIndex - 1].id;
-    } else if (e.key === "ArrowDown" && rtIndex < roomTypes.length - 1) {
-      nextRtId = roomTypes[rtIndex + 1].id;
-    } else if (e.key === "ArrowLeft" && dateIndex > 0) {
-      nextDate = dateColumns[dateIndex - 1];
-    } else if (e.key === "ArrowRight" && dateIndex < dateColumns.length - 1) {
-      nextDate = dateColumns[dateIndex + 1];
-    } else if (e.key === "Home" && dateColumns.length > 0) {
-      nextDate = dateColumns[0];
-    } else if (e.key === "End" && dateColumns.length > 0) {
-      nextDate = dateColumns[dateColumns.length - 1];
-    } else if (e.key === "Escape") {
-      clearSelection();
-      setEditingCell(null);
-      return;
-    } else if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      if (canManagePricing) setEditingCell({ roomTypeId: currentRtId, date: currentDate });
-      return;
-    } else {
-      return; // Allow Tab / Shift+Tab to exit the grid cleanly
-    }
-
-    e.preventDefault();
-    if (canManagePricing) {
-      setSelectedCells([{ roomTypeId: nextRtId, date: nextDate }]);
-    }
-    setEditingCell(null);
-
-    // Autofill single edit value
-    const cellData = resolvedRateMap.get(`${nextRtId}_${nextDate}`);
-    setSinglePriceInput(cellData ? String(cellData.price) : "");
-
-    // Scroll active element into view if needed
-    const cellElement = document.getElementById(`cell-${nextRtId}-${nextDate}`);
-    cellElement?.focus();
-  };
-
   // Season status: past, active or upcoming relative to the property date
   const getSeasonStatus = (startDate: string, endDate: string) => {
     if (endDate < todayStr) return <Chip size="sm" variant="soft" color="default">Past</Chip>;
     if (startDate <= todayStr && endDate >= todayStr) return <Chip size="sm" variant="soft" color="success">Active</Chip>;
     return <Chip size="sm" variant="soft" color="accent">Upcoming</Chip>;
   };
-
-  // Inline single save action
-  const handleSaveSingleOverride = (roomTypeId: string, date: string) => {
-    const price = parseFloat(singlePriceInput);
-    if (!Number.isFinite(price) || price < 0.01) {
-      toast.danger("Enter a valid rate of at least 0.01");
-      return;
-    }
-    saveDailyOverrideMutation.mutate({ roomTypeId, date, price });
-  };
-
-  // Bulk save action
-  const handleSaveBulkOverride = () => {
-    const price = parseFloat(bulkPriceInput);
-    if (!Number.isFinite(price) || price < 0.01) {
-      toast.danger("Enter a valid rate of at least 0.01");
-      return;
-    }
-    bulkSaveDailyOverridesMutation.mutate({ price, cells: selectedCells });
-  };
-
 
   // ── Render ─────────────────────────────────────────────────────────
 
@@ -1078,7 +762,6 @@ export function PricingClient({
                         if (!d) return;
                         const startDate = fromCalendarDate(d as CalendarDate);
                         setDateRange(format(startDate, "yyyy-MM-dd"), format(addDays(startDate, windowDays - 1), "yyyy-MM-dd"));
-                        clearSelection();
                         setRangePopoverOpen(false);
                       }}
                     >
@@ -1105,16 +788,16 @@ export function PricingClient({
               aria-label="Days shown"
               selectionMode="single"
               disallowEmptySelection
-              selectedKeys={[30, 60, 90].includes(windowDays) ? [String(windowDays)] : []}
+              selectedKeys={(WINDOW_OPTIONS as readonly number[]).includes(windowDays) ? [String(windowDays)] : []}
               onSelectionChange={(keys) => {
                 const next = Number([...keys][0]);
                 if (next) handleSetWindow(next);
               }}
             >
-              {[30, 60, 90].map((d, i) => (
-                <ToggleButton key={d} id={String(d)} aria-label={`${d} days`} className="tabular-nums max-md:h-11">
+              {WINDOW_OPTIONS.map((d, i) => (
+                <ToggleButton key={d} id={String(d)} className="tabular-nums max-md:h-11">
                   {i > 0 && <ToggleButtonGroup.Separator />}
-                  {d}d
+                  {d} days
                 </ToggleButton>
               ))}
             </ToggleButtonGroup>
@@ -1125,7 +808,7 @@ export function PricingClient({
               </Button>
             )}
 
-            <RateLegend />
+            <RateLegend currency={currency} canEdit={canManagePricing} />
           </div>
 
           {roomTypes.length === 0 ? (
@@ -1134,136 +817,70 @@ export function PricingClient({
             </Card>
           ) : (
             <>
-              {/* Desktop: spreadsheet grid (keyboard: arrows move, Enter edits, Esc clears) */}
+              {/* Desktop: room types down, nights across. Each price opens its own editor. */}
               <Card className={cn(LIST_CARD, "hidden lg:flex")}>
                 {loadingRates ? (
                   <div className="space-y-3 p-6">
                     {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full rounded-xl" />)}
                   </div>
                 ) : (
-                  <div className="native-scroll relative max-h-[600px] overflow-auto">
-                    <table className="w-full border-collapse text-left text-sm">
-                      <thead className="sticky top-0 z-20 bg-card">
-                        <tr className="border-b border-border/60">
-                          <th scope="col" className="sticky left-0 z-30 min-w-48 border-r border-border/60 bg-card px-4 py-2 text-2xs font-medium text-muted-foreground">
+                  <div className="native-scroll overflow-x-auto">
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr>
+                          <th scope="col" className="sticky left-0 z-10 w-48 min-w-48 bg-card px-6 pb-3 pt-4 text-left align-bottom text-xs font-medium text-muted-foreground">
                             Room type
                           </th>
-                          {dateColumns.map((dateStr) => {
+                          {dateColumns.map((dateStr, index) => {
                             const d = parseISO(dateStr);
                             const isToday = dateStr === todayStr;
+                            const showMonth = index === 0 || d.getDate() === 1;
                             return (
                               <th
                                 key={dateStr}
                                 scope="col"
-                                className={cn(
-                                  "min-w-24 border-r border-border/40 px-2 py-2 text-center font-normal",
-                                  isWeekend(dateStr) && "bg-secondary/50",
-                                  isToday && "shadow-[inset_0_2px_0_var(--primary)]"
-                                )}
+                                aria-label={format(d, "EEEE, MMMM d")}
+                                className={cn("min-w-16 px-1 pb-3 pt-4 text-center align-bottom font-normal", isWeekend(dateStr) && "bg-secondary/50")}
                               >
-                                <div className={cn("text-2xs text-muted-foreground", isToday && "text-primary")}>{format(d, "EEE")}</div>
-                                <div className={cn("mt-1 text-xs font-semibold tabular-nums text-foreground", isToday && "text-primary")}>{format(d, "d MMM")}</div>
+                                <span className={cn("block text-2xs text-muted-foreground", isToday && "font-medium text-primary")}>
+                                  {isToday ? "Today" : format(d, "EEE")}
+                                </span>
+                                <span
+                                  className={cn(
+                                    "mx-auto mt-1 flex h-6 w-fit min-w-6 items-center justify-center rounded-full px-1 text-sm font-semibold tabular-nums text-foreground",
+                                    isToday && "bg-primary text-primary-foreground"
+                                  )}
+                                >
+                                  {showMonth ? format(d, "MMM d") : format(d, "d")}
+                                </span>
                               </th>
                             );
                           })}
                         </tr>
                       </thead>
                       <tbody>
-                        {roomsLeft && (
-                          <tr className="border-b border-border/60 bg-secondary/30">
-                            <th scope="row" className="sticky left-0 z-10 border-r border-border/60 bg-card px-4 py-2 align-middle font-normal">
-                              <div className="text-xs font-semibold text-foreground">All rooms</div>
-                              <div className="mt-1 text-2xs text-muted-foreground">Left · sold</div>
+                        {roomTypes.map((rt) => (
+                          <tr key={rt.id} className="border-t border-border/60">
+                            <th scope="row" className="sticky left-0 z-10 bg-card px-6 py-2 text-left align-middle font-normal">
+                              <span className="block max-w-40 truncate text-sm font-semibold text-foreground">{rt.name}</span>
+                              <span className="mt-1 block text-2xs tabular-nums text-muted-foreground">Base {formatPrice(rt.base_price)}</span>
                             </th>
-                            {dateColumns.map((dateStr) => {
-                              const t = roomsLeftTotals.get(dateStr);
-                              return (
-                                <td key={dateStr} className={cn("border-r border-border/40 px-2 py-2 text-center align-middle", isWeekend(dateStr) && "bg-secondary/50")}>
-                                  {t ? (
-                                    <div title={`${t.available} of ${t.totalRooms} rooms left`}>
-                                      <div className={cn("text-xs font-semibold tabular-nums", t.available === 0 ? "text-amber-700" : "text-foreground")}>{t.available}</div>
-                                      <div className="mt-1 text-2xs tabular-nums text-muted-foreground">{t.occupancy}%</div>
-                                    </div>
-                                  ) : (
-                                    <span className="text-2xs text-muted-foreground">—</span>
-                                  )}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        )}
-                        {roomTypes.map((rt, rtIdx) => (
-                          <tr key={rt.id} className="border-b border-border/40 last:border-b-0">
-                            <th scope="row" className="sticky left-0 z-10 border-r border-border/60 bg-card px-4 py-3 align-middle font-normal">
-                              <div className="truncate text-sm font-semibold text-foreground">{rt.name}</div>
-                              <div className="mt-1 text-2xs tabular-nums text-muted-foreground">Base {formatCurrency(rt.base_price, currency)}</div>
-                            </th>
-                            {dateColumns.map((dateStr, dateIdx) => {
-                              const cell = resolvedRateMap.get(`${rt.id}_${dateStr}`);
-                              const isSelected = selectedCells.some((c) => c.roomTypeId === rt.id && c.date === dateStr);
-                              const isTabStop =
-                                selectedCells.length > 0
-                                  ? selectedCells[0]?.roomTypeId === rt.id && selectedCells[0]?.date === dateStr
-                                  : rtIdx === 0 && dateIdx === 0;
-                              const isEditing = editingCell?.roomTypeId === rt.id && editingCell?.date === dateStr;
-                              // A season covers this date but sets no rate for this room type
-                              const isSeasonUnconfigured = cell?.source === "base" && !!cell?.seasonName;
-                              const sourceLabel =
-                                cell?.source === "daily" ? "daily override" : cell?.source === "seasonal" ? `season ${cell.seasonName ?? ""}` : isSeasonUnconfigured ? `base, season ${cell?.seasonName} has no rate` : "base rate";
-                              const left = roomsLeftByCell.get(`${rt.id}_${dateStr}`);
-                              const marks = cell?.restrictions ? restrictionMarkers(cell.restrictions) : [];
-
-                              return (
-                                <td
-                                  key={dateStr}
-                                  id={`cell-${rt.id}-${dateStr}`}
-                                  tabIndex={isTabStop ? 0 : -1}
-                                  aria-label={`${rt.name}, ${format(parseISO(dateStr), "EEE d MMM")}: ${cell ? formatCurrency(cell.price, currency) : "loading"}, ${sourceLabel}${left !== undefined ? `, ${leftLabel(left)}` : ""}${marks.length ? `. ${marks.map((m) => m.title).join(". ")}` : ""}`}
-                                  title={marks.length ? marks.map((m) => m.title).join(" · ") : undefined}
-                                  aria-selected={isSelected}
-                                  onKeyDown={(e) => handleKeyDown(e, rt.id, dateStr)}
-                                  onMouseDown={(e) => handleCellMouseDown(rt.id, dateStr, e)}
-                                  onMouseEnter={() => handleCellMouseEnter(rt.id, dateStr)}
-                                  onMouseUp={() => handleCellMouseUp(rt.id, dateStr)}
-                                  onClick={(e) => handleCellClick(rt.id, dateStr, e)}
-                                  className={cn(
-                                    "relative select-none border-r border-border/40 px-2 py-3 text-center align-middle outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
-                                    canManagePricing && "cursor-pointer [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/[0.04]",
-                                    isWeekend(dateStr) && "bg-secondary/50",
-                                    !isSelected && cell?.source === "seasonal" && "bg-emerald-500/[0.06] text-emerald-800",
-                                    !isSelected && cell?.source === "daily" && "bg-primary/[0.07] font-semibold text-primary",
-                                    isSelected && "z-10 bg-primary/10 ring-2 ring-inset ring-primary"
-                                  )}
-                                >
-                                  {cell ? (
-                                    <span className={cn("block text-xs font-medium tabular-nums", cell.restrictions?.stopSell && "text-muted-foreground line-through")}>
-                                      {formatCurrency(cell.price, currency)}
-                                    </span>
-                                  ) : (
-                                    <Skeleton className="mx-auto h-4 w-12 rounded-md" />
-                                  )}
-                                  <CellMeta left={left} marks={marks} />
-                                  {cell?.source === "daily" && <span aria-hidden="true" className="absolute right-1 top-1 size-1 rounded-full bg-primary" />}
-                                  {isSeasonUnconfigured && <span aria-hidden="true" className="absolute right-1 top-1 size-1 rounded-full bg-amber-500" />}
-
-                                  {canManagePricing && isEditing && (
-                                    <SingleRatePopover
-                                      label={`${rt.name} · ${format(parseISO(dateStr), "EEE d MMM")}`}
-                                      notes={marks.map((m) => m.title)}
-                                      currency={currency}
-                                      value={singlePriceInput}
-                                      onValue={setSinglePriceInput}
-                                      onClose={() => setEditingCell(null)}
-                                      onSave={() => handleSaveSingleOverride(rt.id, dateStr)}
-                                      saving={saveDailyOverrideMutation.isPending}
-                                      canClear={cell?.source === "daily"}
-                                      clearing={clearDailyOverrideMutation.isPending}
-                                      onClear={() => clearDailyOverrideMutation.mutate({ roomTypeId: rt.id, date: dateStr })}
-                                    />
-                                  )}
-                                </td>
-                              );
-                            })}
+                            {dateColumns.map((dateStr) => (
+                              <td key={dateStr} className={cn("px-1 py-2 align-middle", isWeekend(dateStr) && "bg-secondary/50")}>
+                                <RateCell
+                                  layout="grid"
+                                  roomTypeName={rt.name}
+                                  dateStr={dateStr}
+                                  isToday={dateStr === todayStr}
+                                  cell={resolvedRateMap.get(`${rt.id}_${dateStr}`)}
+                                  left={roomsLeftByCell.get(`${rt.id}_${dateStr}`)}
+                                  currency={currency}
+                                  canEdit={canManagePricing}
+                                  onSave={(price) => saveDailyOverrideMutation.mutate({ roomTypeId: rt.id, date: dateStr, price })}
+                                  onReset={() => clearDailyOverrideMutation.mutate({ roomTypeId: rt.id, date: dateStr })}
+                                />
+                              </td>
+                            ))}
                           </tr>
                         ))}
                       </tbody>
@@ -1272,120 +889,40 @@ export function PricingClient({
                 )}
               </Card>
 
-              {/* Below lg: one card per room type with a scrollable day grid */}
+              {/* Below lg: one card per room type with a tile per night */}
               <div className="space-y-4 lg:hidden">
                 {roomTypes.map((rt) => (
-                  <PenCard key={rt.id}>
-                    <PenCardHead
-                      title={rt.name}
-                      actions={
-                        <span className="text-xs tabular-nums text-muted-foreground">
-                          Base {formatCurrency(rt.base_price, currency)}
-                          {rt.weekend_price ? ` · Weekend ${formatCurrency(rt.weekend_price, currency)}` : ""}
-                        </span>
-                      }
-                    />
-                    <div className="native-scroll grid max-h-80 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-4">
-                      {dateColumns.map((dateStr) => {
-                        const cell = resolvedRateMap.get(`${rt.id}_${dateStr}`);
-                        const active = selectedCells.some((c) => c.roomTypeId === rt.id && c.date === dateStr);
-                        const left = roomsLeftByCell.get(`${rt.id}_${dateStr}`);
-                        const marks = cell?.restrictions ? restrictionMarkers(cell.restrictions) : [];
-                        return (
-                          <button
-                            type="button"
-                            key={dateStr}
-                            disabled={!canManagePricing}
-                            aria-pressed={active}
-                            aria-label={`${format(parseISO(dateStr), "EEE d MMM")}: ${cell ? formatCurrency(cell.price, currency) : "loading"}${left !== undefined ? `, ${leftLabel(left)}` : ""}${marks.length ? `. ${marks.map((m) => m.title).join(". ")}` : ""}`}
-                            onClick={(e) => handleCellClick(rt.id, dateStr, e)}
-                            className={cn(
-                              "relative flex min-h-14 select-none flex-col justify-between rounded-xl border border-border/60 p-3 text-left outline-none transition-transform duration-150 ease-[var(--ease-out-ui)] focus-visible:ring-2 focus-visible:ring-ring enabled:active:scale-[0.97] disabled:cursor-default motion-reduce:transition-none",
-                              isWeekend(dateStr) && "bg-secondary/50",
-                              cell?.source === "seasonal" && "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-800",
-                              cell?.source === "daily" && "border-primary/20 bg-primary/[0.07] text-primary",
-                              active && "border-primary ring-2 ring-primary"
-                            )}
-                          >
-                            <span className="text-2xs font-medium text-muted-foreground">{format(parseISO(dateStr), "EEE d MMM")}</span>
-                            <span className={cn("mt-1 text-sm font-semibold tabular-nums", cell?.restrictions?.stopSell && "text-muted-foreground line-through")}>
-                              {cell ? formatCurrency(cell.price, currency) : <Skeleton className="h-4 w-12 rounded-md" />}
-                            </span>
-                            <CellMeta left={left} marks={marks} align="start" />
-                            {cell?.source === "daily" && <span aria-hidden="true" className="absolute right-2 top-2 size-1 rounded-full bg-primary" />}
-                          </button>
-                        );
-                      })}
+                  <Card key={rt.id} className="gap-4 rounded-3xl border border-border/60 p-4 shadow-[0_1px_2px_rgb(15_23_42/0.04)] sm:p-6">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <h2 className="truncate text-md font-semibold text-foreground">{rt.name}</h2>
+                      <p className="shrink-0 text-xs tabular-nums text-muted-foreground">Base {formatPrice(rt.base_price)}</p>
                     </div>
-                  </PenCard>
+                    {loadingRates ? (
+                      <Skeleton className="h-16 w-full rounded-2xl" />
+                    ) : (
+                      <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-7">
+                        {dateColumns.map((dateStr) => (
+                          <li key={dateStr} className="min-w-0">
+                            <RateCell
+                              layout="tile"
+                              roomTypeName={rt.name}
+                              dateStr={dateStr}
+                              isToday={dateStr === todayStr}
+                              cell={resolvedRateMap.get(`${rt.id}_${dateStr}`)}
+                              left={roomsLeftByCell.get(`${rt.id}_${dateStr}`)}
+                              currency={currency}
+                              canEdit={canManagePricing}
+                              onSave={(price) => saveDailyOverrideMutation.mutate({ roomTypeId: rt.id, date: dateStr, price })}
+                              onReset={() => clearDailyOverrideMutation.mutate({ roomTypeId: rt.id, date: dateStr })}
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
                 ))}
               </div>
             </>
-          )}
-
-          {/* Selection bar: appears only while nights are selected */}
-          {canManagePricing && selectedCells.length > 0 && (
-            <div className="sticky bottom-4 z-20">
-              <Card className="flex-col gap-3 rounded-2xl border border-border/70 px-4 py-3 shadow-[0_8px_30px_rgb(15_23_42/0.12)] animate-in fade-in-0 slide-in-from-bottom-2 duration-200 ease-[var(--ease-out-ui)] motion-reduce:animate-none sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-foreground">
-                    {selectedCells.length} {selectedCells.length === 1 ? "night" : "nights"} selected
-                  </p>
-                  <Button variant="ghost" onPress={clearSelection} className="rounded-xl max-md:h-11">
-                    Cancel
-                  </Button>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <TextField
-                    aria-label={`New rate in ${currency}`}
-                    value={bulkPriceInput}
-                    onChange={setBulkPriceInput}
-                    type="number"
-                    className="w-36"
-                  >
-                    <InputGroup className="rounded-xl max-md:h-11">
-                      <InputGroup.Prefix className="text-xs font-medium text-muted-foreground">{currency}</InputGroup.Prefix>
-                      <InputGroup.Input
-                        min="0.01"
-                        step="0.01"
-                        inputMode="decimal"
-                        placeholder="0.00"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleSaveBulkOverride();
-                        }}
-                        className="min-w-0 tabular-nums max-md:text-base"
-                      />
-                    </InputGroup>
-                  </TextField>
-                  <Button
-                    variant="primary"
-                    isPending={bulkSaveDailyOverridesMutation.isPending}
-                    onPress={handleSaveBulkOverride}
-                    className="rounded-xl font-semibold max-md:h-11"
-                  >
-                    Set rate
-                  </Button>
-                  <Dropdown>
-                    <Button isIconOnly variant="secondary" aria-label="More selection actions" className="rounded-xl max-md:size-11">
-                      <EllipsisVertical className="size-4" />
-                    </Button>
-                    <Dropdown.Popover placement="top end">
-                      <Dropdown.Menu
-                        aria-label="More selection actions"
-                        onAction={(key) => {
-                          if (key === "clear-override") bulkClearDailyOverridesMutation.mutate({ cells: selectedCells });
-                        }}
-                      >
-                        <Dropdown.Item id="clear-override" textValue="Remove overrides">
-                          <X className="size-4 text-muted-foreground" aria-hidden="true" />
-                          <Label>Remove overrides</Label>
-                        </Dropdown.Item>
-                      </Dropdown.Menu>
-                    </Dropdown.Popover>
-                  </Dropdown>
-                </div>
-              </Card>
-            </div>
           )}
         </div>
       ) : (
@@ -1628,8 +1165,8 @@ export function PricingClient({
                       <div className="flex items-baseline justify-between gap-3">
                         <p className="truncate text-sm font-semibold text-foreground">{rt.name}</p>
                         <p className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                          Now {formatCurrency(rt.base_price, currency)}
-                          {rt.weekend_price ? ` · ${formatCurrency(rt.weekend_price, currency)}` : ""}
+                          Now {formatPrice(rt.base_price)}
+                          {rt.weekend_price ? ` · ${formatPrice(rt.weekend_price)}` : ""}
                         </p>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
@@ -1695,50 +1232,226 @@ export function PricingClient({
 }
 
 function leftLabel(left: number) {
-  return left === 0 ? "sold out" : `${left} left`;
+  return left === 0 ? "Full" : `${left} left`;
 }
 
-/** Second line of a rate cell: rooms left, then any restriction badges. */
-function CellMeta({ left, marks, align = "center" }: {
-  left: number | undefined;
-  marks: ReturnType<typeof restrictionMarkers>;
-  align?: "center" | "start";
-}) {
-  if (left === undefined && marks.length === 0) return null;
+/** Where a night's price comes from, in words, for the editor. */
+function sourceText(cell: ResolvedPriceCell | undefined): string {
+  if (!cell) return "";
+  if (cell.source === "daily") return "Changed for this night only";
+  if (cell.source === "seasonal") return cell.seasonName ? `Season: ${cell.seasonName}` : "Season price";
+  if (cell.seasonName) return `Base price. ${cell.seasonName} has no price for this room yet.`;
+  return cell.isWeekend ? "Base weekend price" : "Base price";
+}
+
+/** One line beside the toolbar: the currency, the one highlight, and how to edit. */
+function RateLegend({ currency, canEdit }: { currency: string; canEdit: boolean }) {
   return (
-    <span aria-hidden="true" className={cn("mt-1 flex flex-wrap items-center gap-1 text-2xs font-normal tabular-nums", align === "center" ? "justify-center" : "justify-start")}>
-      {left !== undefined && (
-        <span className={left === 0 ? "font-medium text-amber-700" : "text-muted-foreground"}>{left === 0 ? "Full" : `${left} left`}</span>
-      )}
-      {marks.slice(0, 2).map((m) => (
-        <span key={m.code} className={cn("rounded px-1 font-semibold", m.code === "stop" ? "bg-danger/10 text-danger" : "bg-amber-500/15 text-amber-800")}>
-          {m.label}
-        </span>
-      ))}
-      {marks.length > 2 && <span className="text-muted-foreground">+{marks.length - 2}</span>}
-    </span>
+    <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground lg:ml-auto" aria-label="Price key">
+      <li>Prices in {currency}</li>
+      <li className="flex items-center gap-2">
+        <span aria-hidden="true" className="size-2 rounded-full bg-primary" />
+        Changed for one night
+      </li>
+      {canEdit && <li>Select a price to change it</li>}
+    </ul>
   );
 }
 
-/** Swatches explain the cell tints; each also carries text, so state is never colour-only. */
-function RateLegend() {
-  const items = [
-    { label: "Base", swatch: "border border-border bg-card" },
-    { label: "Season", swatch: "bg-emerald-500/30" },
-    { label: "Override", swatch: "bg-primary/40" },
-    { label: "Season, no rate", swatch: "border border-border bg-card", dot: "bg-amber-500" },
-  ];
+interface RateCellProps {
+  layout: "grid" | "tile";
+  roomTypeName: string;
+  dateStr: string;
+  isToday: boolean;
+  cell: ResolvedPriceCell | undefined;
+  left: number | undefined;
+  currency: string;
+  canEdit: boolean;
+  onSave: (price: number) => void;
+  onReset: () => void;
+}
+
+/** A night's price. Managers tap it to open a small editor in a popover. */
+function RateCell({ layout, roomTypeName, dateStr, isToday, cell, left, currency, canEdit, onSave, onReset }: RateCellProps) {
+  const [open, setOpen] = useState(false);
+  const date = parseISO(dateStr);
+  const marks = cell?.restrictions ? restrictionMarkers(cell.restrictions) : [];
+  const stopSell = !!cell?.restrictions?.stopSell;
+  const isTile = layout === "tile";
+
+  // Only a one-night change stands out; the editor says whether a price is base or season.
+  const priceTone = cell?.source === "daily" ? "text-primary" : "text-foreground";
+
+  const body = (
+    <>
+      {isTile && (
+        <span className={cn("text-xs text-muted-foreground", isToday && "font-medium text-primary")}>
+          {isToday ? "Today" : format(date, date.getDate() === 1 ? "MMM d" : "EEE d")}
+        </span>
+      )}
+      {cell ? (
+        <span className={cn("font-semibold tabular-nums", isTile ? "text-md" : "text-sm", priceTone, stopSell && "text-muted-foreground line-through")}>
+          {formatPrice(cell.price)}
+        </span>
+      ) : (
+        <Skeleton className="h-4 w-12 rounded-md" />
+      )}
+      {(left !== undefined || marks.length > 0) && (
+        <span className="flex items-center gap-1 whitespace-nowrap text-2xs tabular-nums">
+          {left !== undefined && (
+            <span className={left === 0 ? "font-medium text-amber-700" : "text-muted-foreground"}>{leftLabel(left)}</span>
+          )}
+          {marks[0] && (
+            <span className={cn("font-semibold", marks[0].code === "stop" ? "text-danger" : "text-amber-800")}>
+              {marks[0].label}
+              {marks.length > 1 ? ` +${marks.length - 1}` : ""}
+            </span>
+          )}
+        </span>
+      )}
+      {cell?.source === "daily" && (
+        <span aria-hidden="true" className={cn("absolute size-2 rounded-full bg-primary", isTile ? "right-3 top-3" : "right-1 top-1")} />
+      )}
+    </>
+  );
+
+  const shape = isTile
+    ? cn(
+        "relative flex min-h-16 w-full flex-col items-start gap-1 rounded-2xl border border-border/60 p-3 text-left",
+        isToday ? "border-primary/40" : "",
+        isWeekend(dateStr) ? "bg-secondary/50" : "bg-card"
+      )
+    : "relative flex w-full flex-col items-center gap-1 rounded-xl px-1 py-2 text-center";
+
+  const label = `${roomTypeName}, ${format(date, "EEEE, MMMM d")}: ${cell ? `${formatPrice(cell.price)} ${currency}` : "loading"}${cell ? `, ${sourceText(cell)}` : ""}${left !== undefined ? `, ${leftLabel(left)}` : ""}${marks.length ? `. ${marks.map((m) => m.title).join(". ")}` : ""}`;
+
+  if (!canEdit || !cell) {
+    return (
+      <div aria-label={label} role="group" className={shape}>
+        {body}
+      </div>
+    );
+  }
+
   return (
-    <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground lg:ml-auto" aria-label="Rate colours">
-      {items.map((i) => (
-        <li key={i.label} className="flex items-center gap-2">
-          <span aria-hidden="true" className={cn("relative size-3 rounded", i.swatch)}>
-            {i.dot && <span className={cn("absolute right-0 top-0 size-1 rounded-full", i.dot)} />}
-          </span>
-          {i.label}
-        </li>
-      ))}
-    </ul>
+    <Popover isOpen={open} onOpenChange={setOpen}>
+      <Popover.Trigger
+        aria-label={`${label}. Change price`}
+        className={cn(
+          shape,
+          "cursor-pointer outline-none transition-[background-color,transform] duration-150 ease-[var(--ease-out-ui)] focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none",
+          "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary",
+          isTile && "active:scale-[0.97]",
+          open && "bg-primary/10 ring-2 ring-primary"
+        )}
+      >
+        {body}
+      </Popover.Trigger>
+      <Popover.Content placement="bottom" className="w-72 rounded-2xl p-0">
+        <Popover.Dialog aria-label={`${roomTypeName}, ${format(date, "EEEE, MMMM d")}`} className="p-0 outline-none">
+          <RateEditor
+            roomTypeName={roomTypeName}
+            dateStr={dateStr}
+            cell={cell}
+            left={left}
+            currency={currency}
+            notes={marks.map((m) => m.title)}
+            onClose={() => setOpen(false)}
+            onSave={(price) => {
+              setOpen(false);
+              onSave(price);
+            }}
+            onReset={() => {
+              setOpen(false);
+              onReset();
+            }}
+          />
+        </Popover.Dialog>
+      </Popover.Content>
+    </Popover>
+  );
+}
+
+/** The popover body: one price field, where the price comes from, and Save. */
+function RateEditor({ roomTypeName, dateStr, cell, left, currency, notes, onClose, onSave, onReset }: {
+  roomTypeName: string;
+  dateStr: string;
+  cell: ResolvedPriceCell;
+  left: number | undefined;
+  currency: string;
+  notes: string[];
+  onClose: () => void;
+  onSave: (price: number) => void;
+  onReset: () => void;
+}) {
+  const [value, setValue] = useState(String(cell.price));
+  const price = Number.parseFloat(value);
+  const isValid = Number.isFinite(price) && price >= 0.01;
+
+  const submit = () => {
+    if (!isValid) return;
+    if (price === cell.price) {
+      onClose();
+      return;
+    }
+    onSave(price);
+  };
+
+  return (
+    <form
+      className="grid gap-4 p-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit();
+      }}
+    >
+      <div className="min-w-0">
+        <Popover.Heading className="truncate text-sm font-semibold text-foreground">{roomTypeName}</Popover.Heading>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {format(parseISO(dateStr), "EEEE, MMM d")}
+          {left !== undefined ? ` · ${left === 0 ? "Sold out" : `${left} left`}` : ""}
+        </p>
+      </div>
+
+      <TextField value={value} onChange={setValue} type="number" isInvalid={value !== "" && !isValid} autoFocus className="w-full min-w-0">
+        <Label className={FIELD_LABEL}>Price per night</Label>
+        <InputGroup className="w-full min-w-0 rounded-xl max-md:h-11">
+          <InputGroup.Prefix className="text-xs font-medium text-muted-foreground">{currency}</InputGroup.Prefix>
+          <InputGroup.Input
+            inputMode="decimal"
+            min="0.01"
+            step="0.01"
+            onFocus={(event) => event.target.select()}
+            className="min-w-0 tabular-nums max-md:text-base"
+          />
+        </InputGroup>
+        <FieldError>Enter a price above 0</FieldError>
+      </TextField>
+
+      <p className="text-xs text-muted-foreground">{sourceText(cell)}</p>
+
+      {notes.length > 0 && (
+        <ul className="grid gap-1 rounded-xl bg-amber-500/[0.08] px-3 py-2 text-xs text-amber-900">
+          {notes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      )}
+
+      <div className="flex items-center gap-2">
+        {cell.source === "daily" && (
+          <Button size="sm" variant="ghost" onPress={onReset} className="rounded-lg text-danger max-md:h-11">
+            Reset
+          </Button>
+        )}
+        <Button size="sm" variant="tertiary" onPress={onClose} className="ml-auto rounded-lg max-md:h-11">
+          Cancel
+        </Button>
+        <Button size="sm" type="submit" variant="primary" isDisabled={!isValid} className="rounded-lg font-semibold max-md:h-11">
+          Save
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -1785,73 +1498,6 @@ function ApplyAllField({ label, currency, value, onValue, onApply }: {
       <Button size="sm" variant="secondary" fullWidth isDisabled={!value.trim()} onPress={onApply} className="rounded-lg max-md:h-11">
         Apply to all
       </Button>
-    </div>
-  );
-}
-
-/** Inline editor for one night (opened with Enter on a focused cell). */
-function SingleRatePopover({ label, notes = [], currency, value, onValue, onClose, onSave, saving, canClear, clearing, onClear }: {
-  label: string;
-  /** Restriction descriptions for this night, shown above the input. */
-  notes?: string[];
-  currency: string;
-  value: string;
-  onValue: (value: string) => void;
-  onClose: () => void;
-  onSave: () => void;
-  saving: boolean;
-  canClear: boolean;
-  clearing: boolean;
-  onClear: () => void;
-}) {
-  return (
-    <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
-      <Popover isOpen onOpenChange={(open) => !open && onClose()}>
-        <Popover.Trigger>
-          <button type="button" aria-label={`Edit ${label}`} className="absolute inset-0 size-full cursor-pointer bg-transparent outline-none" />
-        </Popover.Trigger>
-        <Popover.Content placement="top" className="w-64 rounded-2xl p-0">
-          <Popover.Dialog aria-label={label} className="grid gap-3 p-4 outline-none">
-            <p className="truncate text-xs font-semibold text-foreground">{label}</p>
-            {notes.length > 0 && (
-              <ul className="grid gap-1 rounded-xl bg-amber-500/[0.08] px-3 py-2 text-2xs leading-snug text-amber-900">
-                {notes.map((n) => (
-                  <li key={n}>{n}</li>
-                ))}
-              </ul>
-            )}
-            <TextField aria-label={`Rate in ${currency}`} value={value} onChange={onValue} type="number" autoFocus className="w-full min-w-0">
-              <InputGroup className="w-full min-w-0 rounded-xl">
-                <InputGroup.Prefix className="text-xs font-medium text-muted-foreground">{currency}</InputGroup.Prefix>
-                <InputGroup.Input
-                  inputMode="decimal"
-                  min="0.01"
-                  step="0.01"
-                  onFocus={(e) => e.target.select()}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") onSave();
-                    else if (e.key === "Escape") onClose();
-                  }}
-                  className="min-w-0 tabular-nums"
-                />
-              </InputGroup>
-            </TextField>
-            <div className="flex items-center gap-2">
-              {canClear && (
-                <Button size="sm" variant="ghost" isPending={clearing} onPress={onClear} className="rounded-lg text-danger">
-                  Remove
-                </Button>
-              )}
-              <Button size="sm" variant="tertiary" onPress={onClose} className="ml-auto rounded-lg">
-                Cancel
-              </Button>
-              <Button size="sm" variant="primary" isPending={saving} onPress={onSave} className="rounded-lg font-semibold">
-                Save
-              </Button>
-            </div>
-          </Popover.Dialog>
-        </Popover.Content>
-      </Popover>
     </div>
   );
 }

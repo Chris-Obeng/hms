@@ -47,15 +47,6 @@ const DailyOverrideSchema = z.object({
   price: z.coerce.number().min(0.01, "Price must be greater than 0"),
 });
 
-const BulkDailyOverrideSchema = z.array(DailyOverrideSchema).min(1).max(500);
-
-const DailyOverrideDeleteSchema = z.object({
-  roomTypeId: z.string().uuid("Invalid room type ID"),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
-});
-// min(1) is enforced here — callers must NOT early-return before this parse
-const BulkDailyOverrideDeleteSchema = z.array(DailyOverrideDeleteSchema).min(1).max(500);
-
 // ── Seasonal Rates CRUD ──────────────────────────────────────────────
 
 export async function createSeasonalRate(
@@ -597,122 +588,6 @@ export async function deleteDailyRateOverride(roomTypeId: string, date: string) 
     return { success: true as const };
   } catch (err) {
     return toActionError(err, { action: "pricing.deleteDailyRateOverride" });
-  }
-}
-
-export async function bulkUpsertDailyRateOverrides(
-  overrides: { roomTypeId: string; date: string; price: number }[]
-) {
-  try {
-    const ctx = await requireMinRole("manager", "set bulk daily overrides");
-    const hotelId = ctx.hotelId;
-
-    BulkDailyOverrideSchema.parse(overrides);
-
-    const supabase = await createClient();
-
-    // Ensure all unique room type IDs involved belong to this hotel
-    const uniqueRoomTypeIds = Array.from(new Set(overrides.map((o) => o.roomTypeId)));
-    const { data: validRoomTypes, error: rtCheckErr } = await supabase
-      .from("room_types")
-      .select("id")
-      .eq("hotel_id", hotelId)
-      .in("id", uniqueRoomTypeIds);
-
-    if (rtCheckErr || !validRoomTypes || validRoomTypes.length !== uniqueRoomTypeIds.length) {
-      return { success: false, error: "Access denied: One or more room types are invalid" };
-    }
-
-    const rowsToUpsert = overrides.map((o) =>
-      toDailyOverrideInsert({
-        hotel_id: hotelId,
-        room_type_id: o.roomTypeId,
-        date: o.date,
-        price: o.price,
-      })
-    );
-
-    const { data, error } = await supabase
-      .from("daily_rate_overrides")
-      .upsert(rowsToUpsert, { onConflict: "room_type_id,date" })
-      .select();
-
-    if (error) throw error;
-
-    // One summary row, never one per date: before_state/after_state are
-    // GIN-indexed, so logging a 500-date bulk edit row-by-row would write 500
-    // index entries for a single staff action.
-    const sortedDates = overrides.map((o) => o.date).sort();
-    const prices = overrides.map((o) => o.price);
-
-    await writeAuditLog(supabase, {
-      hotelId,
-      staffId: ctx.staffId,
-      staffName: ctx.staffName,
-      action: "rate.daily_override_bulk_upserted",
-      entityType: "daily_rate_override",
-      afterState: {
-        room_type_ids: uniqueRoomTypeIds,
-        date_from: sortedDates[0],
-        date_to: sortedDates[sortedDates.length - 1],
-        row_count: data?.length ?? overrides.length,
-        price_min: Math.min(...prices),
-        price_max: Math.max(...prices),
-      },
-    });
-
-    revalidatePath("/dashboard/rooms/pricing");
-    return { success: true, data };
-  } catch (err) {
-    return toActionError(err, { action: "pricing.bulkUpsertDailyRateOverrides" });
-  }
-}
-
-export async function bulkDeleteDailyRateOverrides(
-  overrides: { roomTypeId: string; date: string }[]
-) {
-  try {
-    const ctx = await requireMinRole("manager", "clear bulk overrides");
-    const hotelId = ctx.hotelId;
-
-    const supabase = await createClient();
-
-    // Parse first — Zod .min(1) will throw if array is empty
-    const parsed = BulkDailyOverrideDeleteSchema.parse(overrides);
-
-    let query = supabase.from("daily_rate_overrides").delete().eq("hotel_id", hotelId);
-
-    const filterStrings = parsed.map(
-      (o) => `and(room_type_id.eq.${o.roomTypeId},date.eq.${o.date})`
-    );
-    query = query.or(filterStrings.join(","));
-
-    const { data: deleted, error } = await query.select("room_type_id, date, price");
-    if (error) throw error;
-
-    // One summary row for the whole clear, matching the bulk upsert above.
-    if (deleted && deleted.length > 0) {
-      const sortedDates = deleted.map((row) => row.date).sort();
-
-      await writeAuditLog(supabase, {
-        hotelId,
-        staffId: ctx.staffId,
-        staffName: ctx.staffName,
-        action: "rate.daily_override_bulk_deleted",
-        entityType: "daily_rate_override",
-        beforeState: {
-          room_type_ids: Array.from(new Set(deleted.map((row) => row.room_type_id))),
-          date_from: sortedDates[0],
-          date_to: sortedDates[sortedDates.length - 1],
-          row_count: deleted.length,
-        },
-      });
-    }
-
-    revalidatePath("/dashboard/rooms/pricing");
-    return { success: true as const };
-  } catch (err) {
-    return toActionError(err, { action: "pricing.bulkDeleteDailyRateOverrides" });
   }
 }
 
