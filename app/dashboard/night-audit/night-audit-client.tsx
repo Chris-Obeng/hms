@@ -164,9 +164,9 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
     </header>
 
     {error && !confirmOpen && (
-      <Alert status="danger" className="rounded-2xl">
+      <Alert status="danger" role="alert" className="rounded-2xl">
         <Alert.Indicator />
-        <Alert.Content><Alert.Description>{error}</Alert.Description></Alert.Content>
+        <Alert.Content><Alert.Description className="text-destructive">{error}</Alert.Description></Alert.Content>
       </Alert>
     )}
 
@@ -186,6 +186,7 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
             {summary.isClosed ? "This day is closed." : waitingForMidnight ? "This day is still in progress." : blockers > 0 ? `${blockers} items still need resolving before this day can close.` : "This day is ready to close."}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">{busy ? (isExecuting ? "Recording the close…" : "Loading this day…") : statusDetail}</p>
+          <p role="status" className="sr-only">{busy ? (isExecuting ? "Recording the close…" : "Loading this day…") : ""}</p>
           {!canRunAudit && !summary.isClosed && <p className="mt-1 text-sm text-muted-foreground">A manager or super admin can close the day.</p>}
           {summary.lastAudit?.notes && <p className="mt-3 whitespace-pre-wrap break-words rounded-xl bg-secondary/70 px-3 py-2 text-sm text-foreground">{summary.lastAudit.notes}</p>}
         </div>
@@ -291,9 +292,9 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
         <AlertDialog.Body className="space-y-4">
           <p className="text-sm text-muted-foreground">These figures are recorded permanently and cannot be changed later.</p>
           <dl className="divide-y divide-border/50 rounded-2xl bg-secondary/60 px-4">
-            <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-muted-foreground">Room revenue</dt><dd className="font-medium tabular-nums">{money(roomRevenueInclTax)}</dd></div>
-            <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-muted-foreground">Room nights</dt><dd className="font-medium tabular-nums">{summary.roomNights?.toLocaleString() ?? "Unavailable"}</dd></div>
-            <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-muted-foreground">Collected</dt><dd className="font-medium tabular-nums">{money(summary.collections)}</dd></div>
+            <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-muted-foreground">Room revenue</dt><dd className="font-medium tabular-nums text-foreground">{money(roomRevenueInclTax)}</dd></div>
+            <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-muted-foreground">Room nights</dt><dd className="font-medium tabular-nums text-foreground">{summary.roomNights?.toLocaleString() ?? "Unavailable"}</dd></div>
+            <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-muted-foreground">Collected</dt><dd className="font-medium tabular-nums text-foreground">{money(summary.collections)}</dd></div>
           </dl>
           <TextField fullWidth value={notes} onChange={setNotes} isDisabled={isExecuting}>
             <Label>Handover note</Label>
