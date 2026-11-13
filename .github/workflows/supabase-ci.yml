@@ -7,6 +7,8 @@ on:
       - "types/database.types.ts"
       - "app/**"
       - "lib/**"
+      - "components/**"
+      - "ui-audit/**"
       - "scripts/**"
       - "package.json"
       - ".github/workflows/supabase-ci.yml"
@@ -39,6 +41,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Check UI against the 8-point system
+        run: pnpm lint:ui
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1

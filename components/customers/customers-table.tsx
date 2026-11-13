@@ -124,7 +124,7 @@ function GuestCard({
       }}
       onPointerEnter={() => onHoverPrefetch?.(guest.id)}
       onFocus={() => onHoverPrefetch?.(guest.id)}
-      className="ui-press flex cursor-pointer flex-col gap-3 rounded-[20px] border border-border/60 bg-card p-4 text-left shadow-[0_1px_3px_rgb(0_0_0/0.04)] outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:border-border"
+      className="ui-press flex cursor-pointer flex-col gap-3 rounded-3xl border border-border/60 bg-card p-4 text-left shadow-[0_1px_3px_rgb(0_0_0/0.04)] outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:border-border"
     >
       <div className="flex items-center gap-3">
         <GuestInitials fullName={guest.fullName} />
@@ -523,7 +523,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
 
   return (
     <>
-      <div className="mx-auto w-full max-w-7xl space-y-4 pt-1 md:space-y-5">
+      <div className="mx-auto w-full max-w-7xl space-y-4 pt-1 md:space-y-6">
         <PageHeader
           title="Guests"
           subtitle={
@@ -562,7 +562,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
 
         {/* Desktop table view */}
         {viewMode === "table" && (
-          <div className="hidden overflow-hidden rounded-[20px] border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)] md:block">
+          <div className="hidden overflow-hidden rounded-3xl border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)] md:block">
             <Table variant="secondary">
           <Table.ScrollContainer>
             <Table.Content aria-label="Guests" className="min-w-[760px]">
@@ -638,7 +638,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
               />
             </div>
           ) : (
-            <div className="hidden rounded-[20px] border border-border/60 bg-card md:block">
+            <div className="hidden rounded-3xl border border-border/60 bg-card md:block">
               {emptyState}
             </div>
           ))}
@@ -659,7 +659,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
               />
             </>
           ) : (
-            <div className="rounded-[20px] border border-border/60 bg-card">
+            <div className="rounded-3xl border border-border/60 bg-card">
               {emptyState}
             </div>
           )}

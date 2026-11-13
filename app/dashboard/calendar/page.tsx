@@ -130,7 +130,7 @@ function CalendarLoadErrorState() {
       </div>
       <h2 className="text-lg font-semibold text-foreground">Calendar could not be loaded</h2>
       <p className="text-sm text-muted-foreground mt-1 max-w-sm">Something went wrong while loading bookings and rooms. This is usually temporary — try again.</p>
-      <Link href="/dashboard/calendar" className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
+      <Link href="/dashboard/calendar" className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
         Retry
       </Link>
     </div>

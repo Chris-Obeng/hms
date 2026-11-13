@@ -131,10 +131,10 @@ export function PaymentsClient({
     void loadActivity({ page: 1 });
   }
 
-  return <div className="payments-page mx-auto w-full max-w-7xl space-y-5" data-payments>
+  return <div className="payments-page mx-auto w-full max-w-7xl space-y-6" data-payments>
     <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-[24px]">Payments</h1>
+        <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-2xl">Payments</h1>
       </div>
       {/* The chip sits alone top-right; choosing dates applies them. */}
       <div className="max-sm:hidden">
@@ -148,7 +148,7 @@ export function PaymentsClient({
         <Tabs.Tab id="payouts">Online payouts<Tabs.Indicator /></Tabs.Tab>
         {canConfigure && <Tabs.Tab id="setup">Setup<Tabs.Indicator /></Tabs.Tab>}
       </Tabs.List></Tabs.ListContainer>
-      <Tabs.Panel id="activity" className="pt-5"><ActivityView
+      <Tabs.Panel id="activity" className="pt-6"><ActivityView
         activity={activity} error={error} loading={loading} startDate={startDate} endDate={endDate} today={today} currency={currency} timeZone={timeZone}
         status={status} method={method} search={search} page={page}
         onApplyRange={applyRange}
@@ -158,8 +158,8 @@ export function PaymentsClient({
         onPage={(next) => { setPage(next); router.replace(activityUrl({ tab: "activity", page: next }), { scroll: false }); void loadActivity({ page: next }); }}
         onOpenBooking={(id) => { setBookingId(id); setDrawerOpen(true); }}
       /></Tabs.Panel>
-      <Tabs.Panel id="payouts" className="pt-5"><PayoutsPanel load={getMyHotelPayouts} timeZone={timeZone} range={{ start: startDate, end: endDate }} /></Tabs.Panel>
-      {canConfigure && <Tabs.Panel id="setup" className="pt-5"><PaymentsSettingsClient initialData={initialSetup} /></Tabs.Panel>}
+      <Tabs.Panel id="payouts" className="pt-6"><PayoutsPanel load={getMyHotelPayouts} timeZone={timeZone} range={{ start: startDate, end: endDate }} /></Tabs.Panel>
+      {canConfigure && <Tabs.Panel id="setup" className="pt-6"><PaymentsSettingsClient initialData={initialSetup} /></Tabs.Panel>}
     </Tabs>
     <BookingDetailDrawer bookingId={bookingId} open={drawerOpen} onClose={() => { setDrawerOpen(false); setBookingId(null); }} currency={currency} />
   </div>;
@@ -186,7 +186,7 @@ function ActivityView({ activity, error, loading, startDate, endDate, today, cur
     {/* Mobile: full-width collected figure, then the channel split. */}
     <div className="sm:hidden">
       <PenKpi label="Collected" value={moneyLabel(totals?.successfulAmount ?? 0, currency)} icon={Banknote} hint={rangeLabel} mobile className="w-full min-w-0 shrink" />
-      <div className="mt-3 grid grid-cols-2 gap-3">
+      <div className="mt-4 grid grid-cols-2 gap-4">
         <PenKpi label="Online payments" value={moneyLabel(totals?.onlineAmount ?? 0, currency)} icon={Globe} hint={`${(totals?.onlineCount ?? 0).toLocaleString("en")} payments`} mobile className="w-full min-w-0 shrink" />
         <PenKpi label="Collected by staff" value={moneyLabel(totals?.staffAmount ?? 0, currency)} icon={Wallet} hint={`${(totals?.staffCount ?? 0).toLocaleString("en")} payments`} mobile className="w-full min-w-0 shrink" />
       </div>
@@ -210,11 +210,11 @@ function moneyLabel(amount: number, currency: string): string {
 }
 
 const LEDGER_COLUMNS = [
-  { label: "Payment", width: "190px" },
+  { label: "Payment", width: "192px" },
   { label: "Guest / booking", width: "1fr" },
   { label: "Amount", width: "140px", align: "right" as const },
   { label: "Status", width: "120px" },
-  { label: "Recorded by", width: "150px" },
+  { label: "Recorded by", width: "152px" },
   { label: "", width: "56px" },
 ];
 
@@ -229,7 +229,7 @@ function LedgerCard({ activity, loading, timeZone, startDate, endDate, today, st
 }) {
   return <section className="flex flex-col gap-3 rounded-3xl bg-card p-4 shadow-[0_2px_4px_rgb(0_0_0/0.04)]" aria-label="Payment ledger">
     <header className="flex items-center justify-between gap-4">
-      <h2 className="text-[15px] font-semibold text-foreground">Payment ledger</h2>
+      <h2 className="text-md font-semibold text-foreground">Payment ledger</h2>
       <p className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">{activity ? `${activity.totalCount.toLocaleString("en")} records` : "—"}</p>
     </header>
 
@@ -240,7 +240,7 @@ function LedgerCard({ activity, loading, timeZone, startDate, endDate, today, st
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-[minmax(0,1fr)_10rem_10rem_auto]">
       <div className="relative sm:col-span-2 md:col-span-1">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/70" aria-hidden="true" />
-        <input type="search" value={search} onChange={(event) => onSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") onApply(); }} placeholder="Search guest, booking, or reference…" aria-label="Search payments" className="h-11 w-full rounded-xl border border-border/70 bg-card pl-9 pr-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/80 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:h-10 sm:text-[13px] [@media(hover:hover)_and_(pointer:fine)]:hover:border-border" />
+        <input type="search" value={search} onChange={(event) => onSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") onApply(); }} placeholder="Search guest, booking, or reference…" aria-label="Search payments" className="h-11 w-full rounded-xl border border-border/70 bg-card pl-9 pr-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/80 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:h-10 sm:text-sm [@media(hover:hover)_and_(pointer:fine)]:hover:border-border" />
       </div>
       <HeroSelectField value={status} triggerClassName="min-h-11 sm:min-h-10" onValueChange={(value) => onStatus(value as PaymentActivityStatus)} options={STATUS_OPTIONS.map((option) => ({ value: option.value, label: option.label }))} ariaLabel="Payment status" />
       <HeroSelectField value={method} triggerClassName="min-h-11 sm:min-h-10" onValueChange={onMethod} options={methods} ariaLabel="Payment method" />
@@ -248,8 +248,8 @@ function LedgerCard({ activity, loading, timeZone, startDate, endDate, today, st
     </div>
 
     {/* Desktop table */}
-    <div className="rounded-[20px] bg-secondary p-1 pt-0 max-md:hidden">
-      <table className="w-full border-collapse text-[13px]">
+    <div className="rounded-3xl bg-secondary p-1 pt-0 max-md:hidden">
+      <table className="w-full border-collapse text-sm">
         <caption className="sr-only">Payment ledger records</caption>
         <thead><tr>
           {LEDGER_COLUMNS.map((column, index) => <th key={column.label + index} scope="col"
@@ -262,11 +262,11 @@ function LedgerCard({ activity, loading, timeZone, startDate, endDate, today, st
             : activity?.rows.length ? activity.rows.map((row) => <tr key={row.id} className="border-b border-border/50 bg-card last:border-b-0">
               <td className="whitespace-nowrap px-4 py-3 align-top">
                 <p className="font-medium tabular-nums">{row.paidAt ? formatDateInTimeZone(row.paidAt, timeZone, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "—"}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">{onlineRow(row) ? "Online" : getMethodLabel(row.method)}</p>
+                <p className="mt-1 text-2xs text-muted-foreground">{onlineRow(row) ? "Online" : getMethodLabel(row.method)}</p>
               </td>
               <td className="px-4 py-3 align-top">
                 <p className="font-medium">{row.guestName ?? "Guest"}</p>
-                <p className="mt-1 font-mono text-[11px] text-muted-foreground">{row.bookingReference ?? "No booking reference"}</p>
+                <p className="mt-1 font-mono text-2xs text-muted-foreground">{row.bookingReference ?? "No booking reference"}</p>
               </td>
               <td className="px-4 py-3 text-right align-top font-mono font-semibold tabular-nums">{formatCurrency(row.amount, row.currency)}</td>
               <td className="px-4 py-3 align-top"><Chip size="sm" variant="soft" color={statusTone(row.status)}>{statusLabel(row.status)}</Chip></td>
@@ -284,16 +284,16 @@ function LedgerCard({ activity, loading, timeZone, startDate, endDate, today, st
         {index > 0 && <div className="h-px bg-border/50" aria-hidden="true" />}
         <div className="flex flex-col gap-2 py-3">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-[13px] font-medium text-foreground">{row.guestName ?? "Guest"}</span>
-            <span className="font-mono text-[13px] font-semibold tabular-nums text-foreground">{formatCurrency(row.amount, row.currency)}</span>
+            <span className="text-sm font-medium text-foreground">{row.guestName ?? "Guest"}</span>
+            <span className="font-mono text-sm font-semibold tabular-nums text-foreground">{formatCurrency(row.amount, row.currency)}</span>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[11px] text-muted-foreground">{onlineRow(row) ? "Online" : getMethodLabel(row.method)}</span>
+            <span className="text-2xs text-muted-foreground">{onlineRow(row) ? "Online" : getMethodLabel(row.method)}</span>
             <Chip size="sm" variant="soft" color={statusTone(row.status)}>{statusLabel(row.status)}</Chip>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <span className="font-mono text-[11px] text-muted-foreground">{row.bookingReference ?? "—"}</span>
-            {row.bookingId && <button type="button" className="ui-press inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-lg px-2 text-[11px] font-medium text-[var(--pen-accent)] outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => onOpenBooking(row.bookingId!)}>
+            <span className="font-mono text-2xs text-muted-foreground">{row.bookingReference ?? "—"}</span>
+            {row.bookingId && <button type="button" className="ui-press inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-lg px-2 text-2xs font-medium text-[var(--pen-accent)] outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => onOpenBooking(row.bookingId!)}>
               View booking <Eye className="size-3" aria-hidden="true" />
             </button>}
           </div>

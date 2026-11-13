@@ -36,7 +36,7 @@ export default function DashboardNotFound() {
         The page you&apos;re looking for doesn&apos;t exist or has been moved.
       </p>
 
-      <div className="flex items-center gap-3 mt-5">
+      <div className="flex items-center gap-3 mt-6">
         <Link
           href="/dashboard"
           className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-lg")}

@@ -31,7 +31,7 @@ export function OccupancyDonut({
     return (
       <div
         className={cn(
-          "flex flex-col items-center justify-center rounded-2xl border px-4 py-5 text-center",
+          "flex flex-col items-center justify-center rounded-2xl border px-4 py-6 text-center",
           isError
             ? "border-amber-500/25 bg-amber-500/[0.06]"
             : "border-border/50 bg-muted/35",
@@ -49,7 +49,7 @@ export function OccupancyDonut({
         >
           {isError ? <AlertTriangle className="size-4" /> : <Ban className="size-4" />}
         </span>
-        <p className="text-[15px] font-semibold tracking-tight text-foreground">
+        <p className="text-md font-semibold tracking-tight text-foreground">
           {isError ? "Check inventory" : "Unavailable"}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -114,12 +114,12 @@ export function OccupancyDonut({
       </svg>
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-5 text-center"
+        className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-6 text-center"
       >
         <span className="text-[1.625rem] font-semibold leading-none tracking-[-0.025em] tabular-nums text-foreground lg:text-[2.125rem]">
           {display}%
         </span>
-        <span className="mt-1 text-[11px] text-muted-foreground lg:mt-2 lg:text-xs">
+        <span className="mt-1 text-2xs text-muted-foreground lg:mt-2 lg:text-xs">
           rooms sold
         </span>
       </div>

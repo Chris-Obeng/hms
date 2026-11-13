@@ -34,7 +34,7 @@
   --ob-font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --ob-font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 
-  --ob-radius: 0.625rem; /* 10px unified radius across inputs, selects & buttons */
+  --ob-radius: 0.5rem; /* 8px unified radius across inputs, selects & buttons */
   --ob-control-h: 2.5rem; /* 40px desktop, 44px coarse pointer below */
 
   --ob-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -185,7 +185,7 @@
 .ob-brand:focus-visible {
   outline: 2px solid var(--ob-ink);
   outline-offset: 3px;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .ob-brand-name {
@@ -288,7 +288,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.75rem;
+  margin-bottom: 2rem;
 }
 
 .ob-progress {
@@ -345,7 +345,7 @@ button.ob-progress-seg:focus-visible {
 /* ── Step Typography ────────────────────────────────────────────────────── */
 
 .ob-header-block {
-  margin-bottom: 1.75rem;
+  margin-bottom: 2rem;
 }
 
 .ob-title {
@@ -370,13 +370,13 @@ button.ob-progress-seg:focus-visible {
 .ob-form {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
 .ob-row-2 {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
 @media (min-width: 480px) {
@@ -598,7 +598,7 @@ button.ob-progress-seg:focus-visible {
   justify-content: center;
   width: 2rem;
   height: 2rem;
-  border-radius: 0.4375rem;
+  border-radius: 0.5rem;
   border: 1px solid var(--ob-border);
   background-color: var(--ob-subtle);
   color: var(--ob-ink-secondary);
@@ -689,7 +689,7 @@ button.ob-progress-seg:focus-visible {
   justify-content: center;
   gap: 0.5rem;
   min-height: 2.75rem; /* 44px universal tap target */
-  padding: 0 1.25rem;
+  padding: 0 1.5rem;
   border-radius: var(--ob-radius);
   font-family: var(--ob-font-sans);
   font-size: 0.875rem;
@@ -764,7 +764,7 @@ button.ob-progress-seg:focus-visible {
   align-items: flex-start;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
   border-radius: var(--ob-radius);
   border: 1px solid var(--ob-err-border);
   background-color: var(--ob-err-bg);
@@ -809,7 +809,7 @@ button.ob-progress-seg:focus-visible {
   border-radius: var(--ob-radius);
   background-color: var(--ob-ok-bg);
   color: var(--ob-ok-fg);
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
 }
 
 .ob-copy-field {
@@ -840,7 +840,7 @@ button.ob-progress-seg:focus-visible {
   gap: 0.25rem;
   height: 2.25rem;
   padding: 0 0.75rem;
-  border-radius: 0.4375rem;
+  border-radius: 0.5rem;
   border: 1px solid var(--ob-border);
   background-color: var(--ob-surface);
   color: var(--ob-ink);
@@ -865,8 +865,8 @@ button.ob-progress-seg:focus-visible {
 }
 
 .ob-secondary-links {
-  margin-top: 1.25rem;
-  padding-top: 1.25rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
   border-top: 1px solid var(--ob-hairline);
   display: flex;
   flex-wrap: wrap;

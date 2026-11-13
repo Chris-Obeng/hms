@@ -53,7 +53,7 @@ async function KpiStrip() {
 
   return (
     <section aria-label="Platform key metrics">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiTile label="Total GMV" totals={toSorted(gmvMap)} windowLabel="last 30 days" />
         <KpiTile
           label="Platform revenue"
@@ -266,7 +266,7 @@ export default async function HotelOversightPage({
 
       <Suspense
         fallback={
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" aria-hidden>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" aria-hidden>
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="card-default p-4 space-y-3">
                 <div className="h-3 w-20 rounded-md bg-muted/60 animate-pulse" />
@@ -291,10 +291,10 @@ function TableSkeleton() {
   return (
     <div className="space-y-3" aria-busy="true">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="h-9 w-full sm:w-64 rounded-lg bg-muted/50 animate-pulse" />
+        <div className="h-10 w-full sm:w-64 rounded-lg bg-muted/50 animate-pulse" />
         <div className="flex gap-2">
           {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-9 w-20 rounded-lg bg-muted/40 animate-pulse" />
+            <div key={i} className="h-10 w-20 rounded-lg bg-muted/40 animate-pulse" />
           ))}
         </div>
       </div>

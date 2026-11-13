@@ -246,7 +246,7 @@ export function RoomTypeForm({
                   set("name", e.target.value);
                   setSlugManuallyEdited(false);
                 }}
-                className={cn("h-9 w-full rounded-xl", errors.name && "border-destructive")}
+                className={cn("h-10 w-full rounded-xl", errors.name && "border-destructive")}
               />
               {errors.name && <p className="mt-1 text-xs text-destructive">{errors.name}</p>}
             </div>
@@ -262,7 +262,7 @@ export function RoomTypeForm({
                   set("slug", e.target.value);
                   setSlugManuallyEdited(true);
                 }}
-                className="h-9 w-full rounded-xl font-mono text-xs"
+                className="h-10 w-full rounded-xl font-mono text-xs"
               />
             </div>
           </div>
@@ -276,7 +276,7 @@ export function RoomTypeForm({
               placeholder="A brief description for listings..."
               value={values.shortDescription}
               onChange={(e) => set("shortDescription", e.target.value)}
-              className="h-9 w-full rounded-xl"
+              className="h-10 w-full rounded-xl"
             />
           </div>
 
@@ -306,7 +306,7 @@ export function RoomTypeForm({
               placeholder="e.g. 1 King Bed, 1 Sofa Bed"
               value={values.bedConfiguration}
               onChange={(e) => set("bedConfiguration", e.target.value)}
-              className="h-9 w-full rounded-xl"
+              className="h-10 w-full rounded-xl"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -345,7 +345,7 @@ export function RoomTypeForm({
                   placeholder="0.00"
                   value={values.basePrice}
                   onChange={(e) => set("basePrice", e.target.value)}
-                  className={cn("h-9 w-full rounded-xl pl-12", errors.basePrice && "border-destructive")}
+                  className={cn("h-10 w-full rounded-xl pl-12", errors.basePrice && "border-destructive")}
                 />
               </div>
               {errors.basePrice && (
@@ -369,7 +369,7 @@ export function RoomTypeForm({
                   placeholder="0.00"
                   value={values.weekendPrice}
                   onChange={(e) => set("weekendPrice", e.target.value)}
-                  className="h-9 w-full rounded-xl pl-12"
+                  className="h-10 w-full rounded-xl pl-12"
                 />
               </div>
             </div>
@@ -400,7 +400,7 @@ export function RoomTypeForm({
                   {isSelected ? <X className="size-3" /> : <Plus className="size-3" />}
                   {amenityLabel}
                   {isCustom && (
-                    <span className="rounded bg-muted px-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <span className="rounded bg-muted px-1 text-2xs uppercase tracking-wide text-muted-foreground">
                       custom
                     </span>
                   )}
@@ -423,13 +423,13 @@ export function RoomTypeForm({
                 }
               }}
               maxLength={60}
-              className="h-9 flex-1 rounded-xl"
+              className="h-10 flex-1 rounded-xl"
             />
             <Button
               type="button"
               variant="secondary"
               size="sm"
-              className="h-9 shrink-0 rounded-xl text-sm"
+              className="h-10 shrink-0 rounded-xl text-sm"
               onPress={addCustomAmenity}
               isDisabled={!customAmenityInput.trim()}
             >

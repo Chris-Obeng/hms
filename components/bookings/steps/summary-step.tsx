@@ -145,7 +145,7 @@ function GuestSearchField({ onSelect }: { onSelect: (g: GuestSearchResult) => vo
           >
             {(g: GuestSearchResult) => (
               <ListBox.Item id={g.id} textValue={g.fullName}>
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-2xs font-semibold text-primary">
                   {initials(g.fullName)}
                 </span>
                 <div className="flex min-w-0 flex-col">
@@ -206,9 +206,9 @@ export function SummaryStep({
   }, [estimatedArrival]);
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
       {/* Left — guest capture + options */}
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-6">
         <section className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <User className="size-4 text-primary" />
@@ -223,14 +223,14 @@ export function SummaryStep({
                 <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <UserCheck className="size-4 text-primary" /> {guestName}
                 </span>
-                <span className="truncate text-[11px] text-muted-foreground">
+                <span className="truncate text-2xs text-muted-foreground">
                   {guestEmail || guestPhone || nationality || "Existing guest profile"}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={onClearGuest}
-                className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-1 text-2xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <X className="size-3" /> Change
               </button>
@@ -238,7 +238,7 @@ export function SummaryStep({
           ) : (
             <div className="flex flex-col gap-4">
               <GuestSearchField onSelect={onSelectGuest} />
-              <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+              <div className="flex items-center gap-2 text-2xs font-medium text-muted-foreground">
                 <span className="h-px flex-1 bg-border" />
                 or enter a new guest
                 <span className="h-px flex-1 bg-border" />
@@ -292,7 +292,7 @@ export function SummaryStep({
           )}
         </section>
 
-        <section className="flex flex-col gap-4 border-t border-border/60 pt-5">
+        <section className="flex flex-col gap-4 border-t border-border/60 pt-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Select
               fullWidth
@@ -382,11 +382,11 @@ export function SummaryStep({
       <aside className="lg:sticky lg:top-0 lg:self-start">
         <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-4">
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Reservation</p>
+            <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">Reservation</p>
             <p className="text-sm font-bold text-foreground">
               {totalRooms} room{totalRooms !== 1 ? "s" : ""} · {cartLines.length} type{cartLines.length !== 1 ? "s" : ""}
             </p>
-            <p className="text-[11px] text-muted-foreground">One guest · each room is its own stay on the calendar</p>
+            <p className="text-2xs text-muted-foreground">One guest · each room is its own stay on the calendar</p>
           </div>
 
           <div className="flex items-center gap-2 rounded-lg bg-background px-3 py-2">
@@ -394,7 +394,7 @@ export function SummaryStep({
             <span className="text-xs font-medium tabular-nums text-foreground">
               {formatDate(checkIn)} → {formatDate(checkOut)}
             </span>
-            <span className="ml-auto inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-[11px] font-semibold tabular-nums text-primary">
+            <span className="ml-auto inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-2xs font-semibold tabular-nums text-primary">
               {nightsLabel(nights)}
             </span>
           </div>
@@ -413,13 +413,13 @@ export function SummaryStep({
                       <p className="truncate text-sm font-semibold text-foreground">
                         {line.quantity > 1 ? `${line.quantity}× ` : ""}{line.room.name}
                       </p>
-                      <p className="text-[11px] text-muted-foreground">{perRoomLabel}</p>
+                      <p className="text-2xs text-muted-foreground">{perRoomLabel}</p>
                     </div>
                     <span className="shrink-0 text-xs font-semibold tabular-nums text-foreground">
                       {pricing.loading ? "…" : formatCurrency(pricing.subtotal, currency)}
                     </span>
                   </div>
-                  <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">
+                  <p className="mt-1 text-2xs text-muted-foreground tabular-nums">
                     {pricing.loading ? (
                       <span className="inline-block h-3 w-24 animate-pulse rounded bg-muted" />
                     ) : (
@@ -456,7 +456,7 @@ export function SummaryStep({
                     {formatCurrency(grand.totalAmount, currency)}
                   </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">For all {totalRooms} rooms · due by payment choice</p>
+                <p className="text-2xs text-muted-foreground">For all {totalRooms} rooms · due by payment choice</p>
               </div>
             )}
           </div>

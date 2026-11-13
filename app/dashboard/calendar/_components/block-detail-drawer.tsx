@@ -76,13 +76,13 @@ export function BlockDetailDrawer({
       className="bg-black/40"
     >
       <Drawer.Content placement={isMobile ? "bottom" : "right"}>
-        <Drawer.Dialog className="flex h-auto max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[24px] bg-background p-0 shadow-2xl md:h-dvh md:max-h-dvh md:w-[min(23rem,100vw)] md:rounded-none md:border-l md:border-border/60">
+        <Drawer.Dialog className="flex h-auto max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-background p-0 shadow-2xl md:h-dvh md:max-h-dvh md:w-[min(23rem,100vw)] md:rounded-none md:border-l md:border-border/60">
           {isMobile && <Drawer.Handle className="mt-3 shrink-0" />}
           <Drawer.CloseTrigger className="ui-press absolute right-4 top-4 z-30 grid size-10 place-items-center rounded-xl bg-muted/70 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" />
 
           {block ? (
             <>
-              <div className="flex items-start gap-4 border-b border-border/50 px-5 pb-4 pr-14 pt-6">
+              <div className="flex items-start gap-4 border-b border-border/50 px-6 pb-4 pr-14 pt-6">
                 <span
                   aria-hidden="true"
                   className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-500/12 text-amber-700"
@@ -100,7 +100,7 @@ export function BlockDetailDrawer({
                 </div>
               </div>
 
-              <Drawer.Body className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4">
+              <Drawer.Body className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-6 py-4">
                 <section
                   aria-label="Blocked dates"
                   className="rounded-2xl border border-border/60 bg-card p-4"
@@ -139,14 +139,14 @@ export function BlockDetailDrawer({
                     className="rounded-2xl border border-border/60 bg-card p-4"
                   >
                     <p className="mb-2 text-xs font-medium text-muted-foreground">Notes</p>
-                    <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground">
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
                       {block.notes}
                     </p>
                   </section>
                 )}
               </Drawer.Body>
 
-              <Drawer.Footer className="shrink-0 border-t border-border/50 bg-muted/10 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <Drawer.Footer className="shrink-0 border-t border-border/50 bg-muted/10 px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                 {canEditBlocks || canUnblock ? (
                   <div className="flex w-full gap-2">
                     {canEditBlocks && (
@@ -186,13 +186,13 @@ export function BlockDetailDrawer({
                 onOpenChange={(isOpen) => setConfirming(isOpen)}
               >
                 <AlertDialog.Container placement="center" size="sm">
-                  <AlertDialog.Dialog className="rounded-[24px] border border-border/70 bg-card p-6 shadow-2xl sm:max-w-[380px]">
+                  <AlertDialog.Dialog className="rounded-3xl border border-border/70 bg-card p-6 shadow-2xl sm:max-w-[380px]">
                     <AlertDialog.Header>
                       <AlertDialog.Heading className="text-base font-semibold text-foreground">
                         Unblock {displayRoom}?
                       </AlertDialog.Heading>
                     </AlertDialog.Header>
-                    <AlertDialog.Body className="py-2 text-[13px] text-muted-foreground">
+                    <AlertDialog.Body className="py-2 text-sm text-muted-foreground">
                       <p>This room returns to sellable inventory immediately for these dates.</p>
                     </AlertDialog.Body>
                     <AlertDialog.Footer className="flex justify-end gap-2 pt-3">

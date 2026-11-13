@@ -176,15 +176,15 @@ export function RoomGallery({
     availableCount <= 2;
 
   const statusBadge = blocked ? (
-    <span className="inline-flex items-center rounded-full bg-[#EBEBEC] px-3 py-1 text-[11px] font-medium text-[#71717A]">
+    <span className="inline-flex items-center rounded-full bg-[#EBEBEC] px-3 py-1 text-2xs font-medium text-[#71717A]">
       Not available
     </span>
   ) : scarce ? (
-    <span className="inline-flex items-center rounded-full bg-[#F5A524]/15 px-3 py-1 text-[11px] font-medium text-[#F5A524]">
+    <span className="inline-flex items-center rounded-full bg-[#F5A524]/15 px-3 py-1 text-2xs font-medium text-[#F5A524]">
       Only {availableCount} left
     </span>
   ) : availableCount !== null && availableCount > 2 ? (
-    <span className="inline-flex items-center rounded-full bg-[#17C964]/15 px-3 py-1 text-[11px] font-medium text-[#17C964]">
+    <span className="inline-flex items-center rounded-full bg-[#17C964]/15 px-3 py-1 text-2xs font-medium text-[#17C964]">
       Available
     </span>
   ) : null;
@@ -197,7 +197,7 @@ export function RoomGallery({
   const photoStage = (aspectClass: string) => (
     <div className="flex flex-col gap-3 min-h-0 h-full">
       <div
-        className={`relative w-full overflow-hidden rounded-[18px] bg-[#EBEBEC] select-none ${aspectClass}`}
+        className={`relative w-full overflow-hidden rounded-2xl bg-[#EBEBEC] select-none ${aspectClass}`}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -228,7 +228,7 @@ export function RoomGallery({
         )}
 
         {images.length > 0 && (
-          <span className="absolute top-3 left-3 inline-flex items-center rounded-full bg-white/92 backdrop-blur-md px-3 py-1 text-[11px] font-semibold text-[#18181B] shadow-[0_2px_8px_rgb(0_0_0/0.1)] tabular-nums">
+          <span className="absolute top-3 left-3 inline-flex items-center rounded-full bg-white/92 backdrop-blur-md px-3 py-1 text-2xs font-semibold text-[#18181B] shadow-[0_2px_8px_rgb(0_0_0/0.1)] tabular-nums">
             {safeIndex + 1} / {images.length}
           </span>
         )}
@@ -238,7 +238,7 @@ export function RoomGallery({
             type="button"
             onClick={() => setCurrent((c) => Math.max(0, c - 1))}
             aria-label="Previous photo"
-            className="absolute left-3 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full bg-white/92 hover:bg-white text-[#18181B] shadow-[0_2px_10px_rgb(0_0_0/0.14)] active:scale-95 transition-all cursor-pointer touch-manipulation"
+            className="absolute left-3 top-1/2 -translate-y-1/2 flex size-10 items-center justify-center rounded-full bg-white/92 hover:bg-white text-[#18181B] shadow-[0_2px_10px_rgb(0_0_0/0.14)] active:scale-95 transition-all cursor-pointer touch-manipulation"
           >
             <ChevronLeft className="size-4 stroke-[2.25]" />
           </button>
@@ -251,14 +251,14 @@ export function RoomGallery({
               setCurrent((c) => Math.min(images.length - 1, c + 1))
             }
             aria-label="Next photo"
-            className="absolute right-3 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full bg-white/92 hover:bg-white text-[#18181B] shadow-[0_2px_10px_rgb(0_0_0/0.14)] active:scale-95 transition-all cursor-pointer touch-manipulation"
+            className="absolute right-3 top-1/2 -translate-y-1/2 flex size-10 items-center justify-center rounded-full bg-white/92 hover:bg-white text-[#18181B] shadow-[0_2px_10px_rgb(0_0_0/0.14)] active:scale-95 transition-all cursor-pointer touch-manipulation"
           >
             <ChevronRight className="size-4 stroke-[2.25]" />
           </button>
         )}
 
         {activeImage?.caption && (
-          <span className="absolute bottom-3 left-3 right-3 truncate rounded-full bg-white/92 backdrop-blur-md px-3 py-1 text-center text-[11px] font-medium text-[#18181B] shadow-[0_2px_8px_rgb(0_0_0/0.1)]">
+          <span className="absolute bottom-3 left-3 right-3 truncate rounded-full bg-white/92 backdrop-blur-md px-3 py-1 text-center text-2xs font-medium text-[#18181B] shadow-[0_2px_8px_rgb(0_0_0/0.1)]">
             {activeImage.caption}
           </span>
         )}
@@ -275,7 +275,7 @@ export function RoomGallery({
                 onClick={() => setCurrent(i)}
                 aria-label={`View photo ${i + 1}`}
                 aria-current={selected ? "true" : undefined}
-                className={`relative h-12 w-16 shrink-0 overflow-hidden rounded-[10px] bg-[#EBEBEC] transition-all cursor-pointer touch-manipulation ${
+                className={`relative h-12 w-16 shrink-0 overflow-hidden rounded-lg bg-[#EBEBEC] transition-all cursor-pointer touch-manipulation ${
                   selected
                     ? "ring-2 ring-[#0485F7] ring-offset-2 ring-offset-white md:ring-offset-[#F5F5F5] opacity-100"
                     : "opacity-60 hover:opacity-95"
@@ -297,29 +297,29 @@ export function RoomGallery({
   );
 
   const detailsSections = (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Specs pills */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="flex items-start gap-3 rounded-[14px] bg-[#F5F5F5] px-4 py-3">
+        <div className="flex items-start gap-3 rounded-xl bg-[#F5F5F5] px-4 py-3">
           <BedDouble
             className="size-4 shrink-0 text-[#0485F7] mt-1"
             strokeWidth={2}
           />
           <div className="min-w-0">
-            <p className="text-[10px] font-medium text-[#71717A]">Bedding</p>
-            <p className="text-[12px] font-semibold text-[#18181B] leading-snug">
+            <p className="text-2xs font-medium text-[#71717A]">Bedding</p>
+            <p className="text-xs font-semibold text-[#18181B] leading-snug">
               {bedConfiguration || "Standard bed"}
             </p>
           </div>
         </div>
-        <div className="flex items-start gap-3 rounded-[14px] bg-[#F5F5F5] px-4 py-3">
+        <div className="flex items-start gap-3 rounded-xl bg-[#F5F5F5] px-4 py-3">
           <Users
             className="size-4 shrink-0 text-[#0485F7] mt-1"
             strokeWidth={2}
           />
           <div className="min-w-0">
-            <p className="text-[10px] font-medium text-[#71717A]">Occupancy</p>
-            <p className="text-[12px] font-semibold text-[#18181B] leading-snug">
+            <p className="text-2xs font-medium text-[#71717A]">Occupancy</p>
+            <p className="text-xs font-semibold text-[#18181B] leading-snug">
               {sleepsLabel}
             </p>
           </div>
@@ -327,7 +327,7 @@ export function RoomGallery({
       </div>
 
       {restrictionReason && (
-        <div className="rounded-[12px] bg-[#F5A524]/12 px-4 py-3 text-[12px] font-medium text-[#B4690E]">
+        <div className="rounded-xl bg-[#F5A524]/12 px-4 py-3 text-xs font-medium text-[#B4690E]">
           {restrictionReason}
         </div>
       )}
@@ -335,10 +335,10 @@ export function RoomGallery({
       {/* Full room description */}
       {fullCopy && (
         <div className="space-y-2">
-          <h3 className="text-[12px] font-semibold text-[#18181B]">
+          <h3 className="text-xs font-semibold text-[#18181B]">
             About this room
           </h3>
-          <p className="text-[13px] leading-relaxed text-[#52525B] whitespace-pre-line">
+          <p className="text-sm leading-relaxed text-[#52525B] whitespace-pre-line">
             {fullCopy}
           </p>
         </div>
@@ -347,7 +347,7 @@ export function RoomGallery({
       {/* Full amenities list — never truncated */}
       {amenities.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-[12px] font-semibold text-[#18181B]">
+          <h3 className="text-xs font-semibold text-[#18181B]">
             Room amenities
           </h3>
           <div className="grid grid-cols-2 gap-2">
@@ -356,7 +356,7 @@ export function RoomGallery({
               return (
                 <div
                   key={a.label}
-                  className="flex items-center gap-2 rounded-[10px] bg-[#F5F5F5] px-3 py-2 text-[12px] font-medium text-[#18181B]"
+                  className="flex items-center gap-2 rounded-lg bg-[#F5F5F5] px-3 py-2 text-xs font-medium text-[#18181B]"
                 >
                   <Icon
                     className="size-4 shrink-0 text-[#0485F7]"
@@ -375,16 +375,16 @@ export function RoomGallery({
   const actionFooter = (
     <div className="flex items-center justify-between gap-3 w-full">
       <div className="min-w-0">
-        <p className="booking-mono text-[20px] font-semibold tracking-[-0.3px] text-[#18181B] leading-tight">
+        <p className="booking-mono text-xl font-semibold tracking-[-0.3px] text-[#18181B] leading-tight">
           {formattedPrice}
         </p>
-        <p className="text-[11px] text-[#71717A]">
+        <p className="text-2xs text-[#71717A]">
           {taxEnabled ? "per night · excl. taxes & fees" : "per night"}
         </p>
       </div>
 
       {blocked && !inCart ? (
-        <span className="inline-flex h-10 px-5 items-center justify-center rounded-full bg-[#EBEBEC] text-[13px] font-medium text-[#A1A1AA] shrink-0">
+        <span className="inline-flex h-10 px-4 items-center justify-center rounded-full bg-[#EBEBEC] text-sm font-medium text-[#A1A1AA] shrink-0">
           Not available
         </span>
       ) : (
@@ -397,7 +397,7 @@ export function RoomGallery({
               onChange={(e) =>
                 onQtyChange(Number.parseInt(e.target.value, 10))
               }
-              className="h-10 w-24 appearance-none rounded-[12px] border border-[#DEDEE0] bg-white pl-3 pr-7 text-[13px] font-medium text-[#18181B] outline-none hover:border-[#A1A1AA] focus:border-[#0485F7] cursor-pointer disabled:opacity-50"
+              className="h-10 w-24 appearance-none rounded-xl border border-[#DEDEE0] bg-white pl-3 pr-8 text-sm font-medium text-[#18181B] outline-none hover:border-[#A1A1AA] focus:border-[#0485F7] cursor-pointer disabled:opacity-50"
             >
               {inCart && <option value={0}>0 rooms</option>}
               {qtyOptions.map((q) => (
@@ -416,7 +416,7 @@ export function RoomGallery({
             <button
               type="button"
               onClick={onClose}
-              className="h-10 rounded-full border border-[#0485F7] bg-[#0485F7]/12 px-4 text-[14px] font-semibold text-[#0485F7] hover:bg-[#0485F7]/18 inline-flex items-center gap-2 cursor-pointer transition-colors touch-manipulation"
+              className="h-10 rounded-full border border-[#0485F7] bg-[#0485F7]/12 px-4 text-sm font-semibold text-[#0485F7] hover:bg-[#0485F7]/18 inline-flex items-center gap-2 cursor-pointer transition-colors touch-manipulation"
             >
               <Check className="size-4 stroke-[2.5]" />
               <span>Selected</span>
@@ -429,7 +429,7 @@ export function RoomGallery({
                 onBook();
                 onClose();
               }}
-              className="booking-btn-primary h-10 px-5 inline-flex items-center justify-center text-[15px] cursor-pointer touch-manipulation"
+              className="booking-btn-primary h-10 px-4 inline-flex items-center justify-center text-md cursor-pointer touch-manipulation"
             >
               {atLimit ? "Limit reached" : "Book"}
             </button>
@@ -487,7 +487,7 @@ export function RoomGallery({
       >
         <Modal.Dialog
           aria-label={`${roomName} details`}
-          className="w-full max-w-[940px] rounded-[24px] border border-[#E4E4E7] bg-white p-0 shadow-[0_24px_64px_rgb(0_0_0/0.16)] overflow-hidden"
+          className="w-full max-w-[940px] rounded-3xl border border-[#E4E4E7] bg-white p-0 shadow-[0_24px_64px_rgb(0_0_0/0.16)] overflow-hidden"
         >
           <div className="grid grid-cols-[1.15fr_1fr] h-[min(82dvh,600px)]">
             {/* Left light photo stage */}
@@ -497,10 +497,10 @@ export function RoomGallery({
 
             {/* Right details + sticky footer */}
             <div className="bg-white flex flex-col min-h-0 border-l border-[#E4E4E7]">
-              <div className="px-6 pt-5 pb-4 border-b border-[#E4E4E7] flex items-start justify-between gap-3 shrink-0">
+              <div className="px-6 pt-6 pb-4 border-b border-[#E4E4E7] flex items-start justify-between gap-3 shrink-0">
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-[19px] font-semibold tracking-[-0.3px] text-[#18181B] leading-snug">
+                    <h2 className="text-lg font-semibold tracking-[-0.3px] text-[#18181B] leading-snug">
                       {roomName}
                     </h2>
                     {statusBadge}
@@ -516,7 +516,7 @@ export function RoomGallery({
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-6 py-5 min-h-0">
+              <div className="flex-1 overflow-y-auto px-6 py-6 min-h-0">
                 {detailsSections}
               </div>
 

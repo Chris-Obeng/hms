@@ -87,7 +87,7 @@ export function OutstandingClient({
       </div>
 
       {/* Summary card */}
-      <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-5 py-4 flex items-center gap-3">
+      <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-6 py-4 flex items-center gap-3">
         <AlertCircle className="size-4 text-amber-600 shrink-0" />
         <div>
           <p className="text-sm font-semibold text-amber-800">Total outstanding: {fmt(totalOutstanding, currency)}</p>
@@ -133,7 +133,7 @@ export function OutstandingClient({
                     <span className={isToday ? "text-amber-600 font-medium" : "text-foreground"}>
                       {format(parseISO(r.checkIn), "MMM d")}
                     </span>
-                    {isToday && <span className="ml-2 text-[10px] bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">Today</span>}
+                    {isToday && <span className="ml-2 text-2xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">Today</span>}
                   </td>
                   <td className="px-4 py-3 tabular-nums">{fmt(r.totalAmount, currency)}</td>
                   <td className="px-4 py-3 tabular-nums text-emerald-600">{fmt(r.amountPaid, currency)}</td>

@@ -68,7 +68,7 @@ function IconChip({ tone, children }: { tone: Tone; children: React.ReactNode })
     <span
       aria-hidden="true"
       className={cn(
-        "flex size-7 shrink-0 items-center justify-center rounded-lg [&_svg]:size-4!",
+        "flex size-8 shrink-0 items-center justify-center rounded-lg [&_svg]:size-4!",
         TONES[tone]
       )}
     >
@@ -322,7 +322,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
               setStatus("loading");
               setNonce((n) => n + 1);
             }}
-            className="ui-press min-h-9 rounded-md px-3 py-1 text-xs font-medium text-foreground underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 [@media(hover:hover)_and_(pointer:fine)]:hover:underline"
+            className="ui-press min-h-10 rounded-md px-3 py-1 text-xs font-medium text-foreground underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 [@media(hover:hover)_and_(pointer:fine)]:hover:underline"
           >
             Try again
           </button>
@@ -336,7 +336,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
         <div className="p-1">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3 rounded-lg px-3 py-2">
-              <Skeleton className="size-7 shrink-0 rounded-lg" />
+              <Skeleton className="size-8 shrink-0 rounded-lg" />
               <div className="flex flex-1 flex-col gap-2">
                 <Skeleton className="h-3 w-1/3" />
                 <Skeleton className="h-3 w-2/3" />
@@ -396,7 +396,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
         >
           <div
             className={cn(
-              "flex h-9 items-center gap-2 rounded-lg border px-3 transition-colors",
+              "flex h-10 items-center gap-2 rounded-lg border px-3 transition-colors",
               open
                 ? "border-border bg-background ring-2 ring-ring/30"
                 : "border-border bg-muted/40 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
@@ -429,7 +429,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
               </button>
             ) : (
               modKey && (
-                <kbd className="pointer-events-none hidden select-none rounded border border-border bg-background px-2 font-mono text-[11px] leading-5 text-muted-foreground/70 lg:inline-block">
+                <kbd className="pointer-events-none hidden select-none rounded border border-border bg-background px-2 font-mono text-2xs leading-5 text-muted-foreground/70 lg:inline-block">
                   {modKey}
                 </kbd>
               )

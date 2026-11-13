@@ -73,14 +73,14 @@ export function BookingActionBar({
       <div
         className={cn(
           "flex flex-wrap items-center gap-2",
-          !inline && "shrink-0 border-t border-border/50 bg-muted/20 px-4 py-3 sm:px-5"
+          !inline && "shrink-0 border-t border-border/50 bg-muted/20 px-4 py-3 sm:px-6"
         )}
       >
         {canCancelRow && (
           <Button
             variant="outline"
             className={cn(
-              "ui-press h-10 rounded-xl border-border/70 bg-card px-4 text-xs font-semibold text-muted-foreground sm:h-9 [@media(hover:hover)_and_(pointer:fine)]:hover:border-destructive/30 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-destructive/[0.06] [@media(hover:hover)_and_(pointer:fine)]:hover:text-destructive",
+              "ui-press h-10 rounded-xl border-border/70 bg-card px-4 text-xs font-semibold text-muted-foreground sm:h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:border-destructive/30 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-destructive/[0.06] [@media(hover:hover)_and_(pointer:fine)]:hover:text-destructive",
               !inline && "order-2 ml-auto"
             )}
             isPending={actionLoading === "cancel"}
@@ -134,14 +134,14 @@ export function BookingActionBar({
         variant="blur"
       >
         <AlertDialog.Container placement="center" size="sm">
-          <AlertDialog.Dialog className="rounded-[24px] border border-border/70 bg-card p-6 shadow-2xl sm:max-w-[400px]">
+          <AlertDialog.Dialog className="rounded-3xl border border-border/70 bg-card p-6 shadow-2xl sm:max-w-[400px]">
             <AlertDialog.Header>
               <AlertDialog.Icon status="danger" />
               <AlertDialog.Heading className="text-base font-semibold text-foreground">
                 {isGroupMember ? `Cancel ${roomTarget ?? "this room"}?` : "Cancel this reservation?"}
               </AlertDialog.Heading>
             </AlertDialog.Header>
-            <AlertDialog.Body className="py-2 text-[13px] leading-relaxed text-muted-foreground">
+            <AlertDialog.Body className="py-2 text-sm leading-relaxed text-muted-foreground">
               {isGroupMember ? (
                 <p>
                   {roomTarget ?? booking.roomType?.name ?? "This room"} on{" "}
@@ -211,7 +211,7 @@ function ActionButton({
       isPending={isLoading}
       isDisabled={isDisabled}
       className={cn(
-        "ui-press h-10 rounded-xl px-4 text-xs font-semibold sm:h-9",
+        "ui-press h-10 rounded-xl px-4 text-xs font-semibold sm:h-10",
         variant === "neutral" &&
           "bg-foreground text-background [@media(hover:hover)_and_(pointer:fine)]:hover:bg-foreground/90",
         variant === "outline" &&

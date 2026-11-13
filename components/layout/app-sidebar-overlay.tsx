@@ -109,12 +109,12 @@ const navGroups: NavGroup[] = [
 // Resting / hover / selected states for a nav row. One filled pill marks the
 // active route; the icon takes the brand color only while selected.
 const ITEM_CLASS =
-  "flex h-9 items-center gap-3 rounded-lg px-2 text-sm font-medium text-sidebar-foreground/75 outline-hidden cursor-pointer select-none transition-[background-color,color] duration-150 ring-sidebar-ring ring-inset focus-visible:ring-2 data-[hovered=true]:bg-sidebar-foreground/[0.055] data-[hovered=true]:text-sidebar-foreground data-[selected=true]:bg-sidebar-accent data-[selected=true]:font-medium data-[selected=true]:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-sidebar-foreground/55 [&_svg]:transition-colors data-[hovered=true]:[&_svg]:text-sidebar-foreground data-[selected=true]:[&_svg]:text-sidebar-primary";
+  "flex h-10 items-center gap-3 rounded-lg px-2 text-sm font-medium text-sidebar-foreground/75 outline-hidden cursor-pointer select-none transition-[background-color,color] duration-150 ring-sidebar-ring ring-inset focus-visible:ring-2 data-[hovered=true]:bg-sidebar-foreground/[0.055] data-[hovered=true]:text-sidebar-foreground data-[selected=true]:bg-sidebar-accent data-[selected=true]:font-medium data-[selected=true]:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-sidebar-foreground/55 [&_svg]:transition-colors data-[hovered=true]:[&_svg]:text-sidebar-foreground data-[selected=true]:[&_svg]:text-sidebar-primary";
 
 // Child rows sit under their parent, quieter and smaller; the pill still marks
 // the active destination.
 const CHILD_ITEM_CLASS =
-  "flex h-8 cursor-pointer select-none items-center rounded-lg pl-9 pr-2 text-[13px] font-normal text-sidebar-foreground/60 outline-hidden ring-sidebar-ring ring-inset transition-[background-color,color] duration-150 focus-visible:ring-2 data-[hovered=true]:bg-sidebar-foreground/[0.055] data-[hovered=true]:text-sidebar-foreground data-[selected=true]:bg-sidebar-accent data-[selected=true]:font-medium data-[selected=true]:text-sidebar-accent-foreground";
+  "flex h-8 cursor-pointer select-none items-center rounded-lg pl-9 pr-2 text-sm font-normal text-sidebar-foreground/60 outline-hidden ring-sidebar-ring ring-inset transition-[background-color,color] duration-150 focus-visible:ring-2 data-[hovered=true]:bg-sidebar-foreground/[0.055] data-[hovered=true]:text-sidebar-foreground data-[selected=true]:bg-sidebar-accent data-[selected=true]:font-medium data-[selected=true]:text-sidebar-accent-foreground";
 
 const SETTINGS_CHILDREN: { title: string; url: string; match: (pathname: string) => boolean }[] = [
   {
@@ -251,7 +251,7 @@ export function AppSidebar() {
           className="group flex min-w-0 items-center gap-3 rounded-lg px-1 py-1 text-left outline-hidden ring-sidebar-ring focus-visible:ring-2"
         >
           <RoomLineMark size={32} className="shadow-sm" />
-          <span className="truncate text-[15px] font-semibold leading-tight tracking-tight text-sidebar-foreground transition-colors group-hover:text-sidebar-foreground/75">
+          <span className="truncate text-md font-semibold leading-tight tracking-tight text-sidebar-foreground transition-colors group-hover:text-sidebar-foreground/75">
             RoomLine
           </span>
         </button>
@@ -370,14 +370,14 @@ function SidebarUserCard({
     >
       <SidebarAvatar user={user} userInitials={userInitials} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-semibold leading-tight text-sidebar-foreground">
+        <p className="truncate text-sm font-semibold leading-tight text-sidebar-foreground">
           {user?.fullName ?? "Staff Member"}
         </p>
         <Chip
           size="sm"
           variant="soft"
           color={roleChipColor}
-          className="mt-1 h-[18px] px-2 text-[10px] font-medium leading-none"
+          className="mt-1 h-5 px-2 text-2xs font-medium leading-none"
         >
           {roleLabel}
         </Chip>
@@ -397,20 +397,20 @@ function SidebarAvatar({
 }) {
   if (user?.imageUrl) {
     return (
-      <Avatar size="sm" className="size-9 shrink-0 rounded-[10px]">
+      <Avatar size="sm" className="size-9 shrink-0 rounded-lg">
         <Avatar.Image
           src={user.imageUrl}
           alt={user.fullName ?? "User avatar"}
-          className="rounded-[10px]"
+          className="rounded-lg"
         />
-        <Avatar.Fallback className="rounded-[10px] bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground">
+        <Avatar.Fallback className="rounded-lg bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground">
           {userInitials ?? "U"}
         </Avatar.Fallback>
       </Avatar>
     );
   }
   return (
-    <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground ring-1 ring-sidebar-border/40">
+    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground ring-1 ring-sidebar-border/40">
       {userInitials ?? "U"}
     </div>
   );

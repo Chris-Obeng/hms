@@ -42,20 +42,20 @@ export function PaymentRow({ payment, currency }: { payment: PaymentRecord; curr
 
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="truncate text-[13px] font-medium text-foreground">
+          <span className="truncate text-sm font-medium text-foreground">
             {getMethodLabel(payment.method)}
           </span>
-          <span className="shrink-0 text-[13px] font-semibold tabular-nums text-foreground">
+          <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
             {formatCurrency(payment.amount, currency)}
           </span>
         </div>
 
         {payment.roomLabel && (
-          <p className="mt-1 truncate text-[11px] text-muted-foreground/80">{payment.roomLabel}</p>
+          <p className="mt-1 truncate text-2xs text-muted-foreground/80">{payment.roomLabel}</p>
         )}
 
         <div className="mt-1 flex items-center justify-between gap-2">
-          <p className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
+          <p className="flex min-w-0 items-center gap-2 text-2xs text-muted-foreground">
             <span className="truncate">{formatDateTime(payment.createdAt)}</span>
             {payment.recordedByName && (
               <>
@@ -67,7 +67,7 @@ export function PaymentRow({ payment, currency }: { payment: PaymentRecord; curr
           {needsAttention && (
             <span
               className={cn(
-                "shrink-0 text-[11px] font-medium capitalize",
+                "shrink-0 text-2xs font-medium capitalize",
                 PAYMENT_RECORD_TONE[payment.status as string] ?? "text-muted-foreground"
               )}
             >
@@ -77,7 +77,7 @@ export function PaymentRow({ payment, currency }: { payment: PaymentRecord; curr
         </div>
 
         {payment.notes && (
-          <p className="mt-1 truncate text-[11px] text-muted-foreground/70">{payment.notes}</p>
+          <p className="mt-1 truncate text-2xs text-muted-foreground/70">{payment.notes}</p>
         )}
       </div>
     </div>

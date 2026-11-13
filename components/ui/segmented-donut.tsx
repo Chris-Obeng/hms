@@ -96,7 +96,7 @@ export function SegmentedDonut({ label, value, delta, segments, heading, classNa
           })}
         </g>}
       </svg>
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-7 text-center">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
         {heading && <span className="text-label leading-snug text-muted-foreground">{heading}</span>}
         <span className={cn("tabular-nums font-semibold tracking-tight text-foreground", heading ? "mt-1 text-xl" : "text-xl")}>{value}</span>
         {delta && <span className="mt-1 text-caption text-muted-foreground">{delta}</span>}
@@ -104,7 +104,7 @@ export function SegmentedDonut({ label, value, delta, segments, heading, classNa
     </div>
 
     {known.length > 0 && <ul className="w-full min-w-0 space-y-3">
-      {known.map((segment, index) => <li key={segment.key} className="flex items-center gap-3 text-[13px]">
+      {known.map((segment, index) => <li key={segment.key} className="flex items-center gap-3 text-sm">
         <span className="size-2 shrink-0 rounded-full" style={{ background: segment.color }} aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate text-muted-foreground">{segment.label}</span>
         <span className="shrink-0 text-sm font-medium tabular-nums">{share(index)}%</span>

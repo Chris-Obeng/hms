@@ -138,7 +138,7 @@ export function PlatformMfaCard({
   }
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6 space-y-4">
+    <section className="rounded-2xl border border-border/60 bg-card p-4 sm:p-6 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -223,7 +223,7 @@ export function PlatformMfaCard({
               <p className="text-muted-foreground">
                 Or enter setup key manually:
               </p>
-              <code className="block break-all rounded bg-background px-3 py-2 font-mono text-[11px] text-foreground border border-border/50">
+              <code className="block break-all rounded bg-background px-3 py-2 font-mono text-2xs text-foreground border border-border/50">
                 {pendingEnrollment.secret}
               </code>
             </div>
@@ -247,7 +247,7 @@ export function PlatformMfaCard({
                 onChange={(e) =>
                   setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
                 }
-                className="h-9 w-36 rounded-lg border border-border bg-background px-3 font-mono text-sm tracking-widest text-center text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-10 w-36 rounded-lg border border-border bg-background px-3 font-mono text-sm tracking-widest text-center text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               <Button
                 type="submit"

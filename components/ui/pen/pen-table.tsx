@@ -21,7 +21,7 @@ export function PenTable({ caption, columns, footer, className, children }: {
   children: ReactNode;
 }) {
   const template = columns.map((column) => column.width).join(" ");
-  return <div className={cn("rounded-[20px] bg-secondary p-1 pt-0", className)} role="region" aria-label={caption} tabIndex={0}>
+  return <div className={cn("rounded-3xl bg-secondary p-1 pt-0", className)} role="region" aria-label={caption} tabIndex={0}>
     <div className="min-w-[520px] overflow-x-auto">
       <div className="grid border-b border-border/70" style={{ gridTemplateColumns: template }} role="row">
         {columns.map((column) => <span key={column.label} role="columnheader"

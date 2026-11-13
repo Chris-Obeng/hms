@@ -91,7 +91,7 @@ export default async function PlatformHotelDetailPage({
             Rates use {operations.rateCurrency} only — this window has bookings in multiple currencies.
           </p>
         ) : null}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           <Metric label="Bookings" value={operations?.bookings ? operations.bookings.toLocaleString() : "—"} />
           <Metric label="Nights sold" value={operations?.nightsSold ? operations.nightsSold.toLocaleString() : "—"} />
           <Metric label="Avg occupancy" value={pct(operations?.avgOccupancy)} />
@@ -114,7 +114,7 @@ export default async function PlatformHotelDetailPage({
 
       {/* Money */}
       <SectionCard title="Money" subtitle="Lifetime revenue, platform fees and outstanding balances.">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <Metric label="Collected" value={<MoneyTotals totals={money?.collected ?? []} />} />
           <Metric label="Online bookings" value={<MoneyTotals totals={money?.online ?? []} />} />
           <Metric label="Platform fees" value={<MoneyTotals totals={money?.fees ?? []} />} accent />
@@ -155,7 +155,7 @@ export default async function PlatformHotelDetailPage({
                 const after = statusOf(entry.after_state);
                 const last = i === audit!.length - 1;
                 return (
-                  <li key={entry.id} className={"relative pl-5 " + (last ? "pb-1" : "pb-5")}>
+                  <li key={entry.id} className={"relative pl-6 " + (last ? "pb-1" : "pb-6")}>
                     {!last && (
                       <span className="absolute left-[4px] top-4 bottom-0 w-px bg-border/70" aria-hidden />
                     )}

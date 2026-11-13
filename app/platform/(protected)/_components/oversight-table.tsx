@@ -154,7 +154,7 @@ export function OversightTable({
                 type="button"
                 onClick={() => setSearchDraft("")}
                 aria-label="Clear search"
-                className="absolute right-2 top-1/2 -translate-y-1/2 size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="absolute right-2 top-1/2 -translate-y-1/2 size-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <X className="size-4" />
               </button>
@@ -273,7 +273,7 @@ export function OversightTable({
                     </p>
                   </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground tabular-nums">
+                <p className="text-2xs text-muted-foreground tabular-nums">
                   Created {formatDate(row.created_at, "dd MMM yyyy")}
                 </p>
               </Link>
@@ -364,7 +364,7 @@ function RowLink({ row }: { row: HotelRow }) {
       <span className="font-medium text-foreground group-hover:text-accent transition-colors">
         {row.name}
       </span>
-      <span className="block text-[11px] text-muted-foreground mt-1">
+      <span className="block text-2xs text-muted-foreground mt-1">
         {[row.city, row.country].filter(Boolean).join(", ") || "—"}
       </span>
     </Link>
@@ -381,7 +381,7 @@ function ExternalLinkCell({ row }: { row: HotelRow }) {
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`Open ${row.name} booking page in new tab`}
-            className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex size-10 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ExternalLink className="size-4" />
           </a>

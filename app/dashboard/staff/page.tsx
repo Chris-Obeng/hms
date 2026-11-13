@@ -79,7 +79,7 @@ export default async function StaffPage() {
   }));
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4 pt-1 md:space-y-5">
+    <div className="mx-auto w-full max-w-7xl space-y-4 pt-1 md:space-y-6">
       <StaffClient
         data={enrichedStaff}
         pendingCount={pendingCount}

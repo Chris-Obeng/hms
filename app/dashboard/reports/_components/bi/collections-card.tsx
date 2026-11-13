@@ -47,7 +47,7 @@ export function CollectionsCard({ collected, byMethod, currency, className }: {
             value={`${currency} ${compactNumber(collected)}`} label="collected" size={160} valueSize={20} labelSize={12}
             ariaLabel={`${currency} ${moneyAmount(collected, currency)} collected.`} />
           <ul className="w-full min-w-0 divide-y divide-border/50">
-            {segments.map((row) => <li key={row.method} className="flex min-h-10 items-center gap-2 py-2 text-[13px] leading-5">
+            {segments.map((row) => <li key={row.method} className="flex min-h-10 items-center gap-2 py-2 text-sm leading-5">
               <span className="size-2 shrink-0 rounded-full" style={{ background: row.color }} aria-hidden="true" />
               <span className="min-w-0 flex-1 truncate text-foreground">{row.label}</span>
               <span className="shrink-0 font-medium tabular-nums text-foreground">{moneyAmount(row.amount, currency)}</span>
@@ -55,7 +55,7 @@ export function CollectionsCard({ collected, byMethod, currency, className }: {
             </li>)}
           </ul>
         </div>
-        : <p className="flex flex-1 items-center justify-center py-8 text-center text-[13px] leading-5 text-muted-foreground">No collections recorded in this period.</p>}
+        : <p className="flex flex-1 items-center justify-center py-8 text-center text-sm leading-5 text-muted-foreground">No collections recorded in this period.</p>}
     </Card.Content>
   </Card>;
 }

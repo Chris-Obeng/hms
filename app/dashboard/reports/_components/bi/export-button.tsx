@@ -71,7 +71,7 @@ export function ExportButton({ range, overview, occupancy, guests, revenue, room
   }
 
   return <Button variant="outline" isDisabled={disabled || !overview} onPress={download}
-    className="h-10 gap-2 rounded-[10px] border-border/70 px-4 text-[13px] font-medium">
+    className="h-10 gap-2 rounded-lg border-border/70 px-4 text-sm font-medium">
     <Download size={16} aria-hidden="true" /> Export
   </Button>;
 }

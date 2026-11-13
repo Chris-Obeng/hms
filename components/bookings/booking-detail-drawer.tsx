@@ -250,7 +250,7 @@ export function BookingDetailDrawer({
                   <ReferenceChip reference={booking.reference} className="min-w-0" />
                   <span className="min-w-0 flex-1" aria-hidden="true" />
                   {(booking.group?.totalRooms ?? booking.roomsCount ?? 0) > 1 && (
-                    <span className="shrink-0 rounded-lg bg-muted/70 px-2 py-1 text-[11px] font-semibold text-muted-foreground">
+                    <span className="shrink-0 rounded-lg bg-muted/70 px-2 py-1 text-2xs font-semibold text-muted-foreground">
                       {booking.group?.totalRooms ?? booking.roomsCount} rooms
                     </span>
                   )}
@@ -260,7 +260,7 @@ export function BookingDetailDrawer({
                       size="sm"
                       variant="tertiary"
                       aria-label="Reservation actions"
-                      className="ui-press size-9 min-w-9 shrink-0 rounded-xl bg-muted/70 p-0 text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+                      className="ui-press size-10 min-w-10 shrink-0 rounded-xl bg-muted/70 p-0 text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
                     >
                       <Ellipsis className="size-4" aria-hidden="true" />
                     </Button>
@@ -299,7 +299,7 @@ export function BookingDetailDrawer({
                     type="button"
                     aria-label="Close reservation drawer"
                     onClick={onClose}
-                    className="ui-press hidden size-9 shrink-0 place-items-center rounded-xl bg-muted/70 text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:grid [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+                    className="ui-press hidden size-10 shrink-0 place-items-center rounded-xl bg-muted/70 text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:grid [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
                   >
                     <X className="size-4" aria-hidden="true" />
                   </button>
@@ -404,12 +404,12 @@ export function BookingDetailDrawer({
                     canRecordPayment || paymentFormOpen ? (
                       <button type="button"
                         onClick={() => setPaymentFormOpen((prev) => !prev)}
-                        className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--pen-accent)] text-[13px] font-semibold text-white transition-transform active:scale-[0.99]">
+                        className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--pen-accent)] text-sm font-semibold text-white transition-transform active:scale-[0.99]">
                         {paymentFormOpen ? "Close form" : "Record payment"}
                       </button>
                     ) : (
                       <button type="button" disabled
-                        className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-muted text-[13px] font-semibold text-muted-foreground">
+                        className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-muted text-sm font-semibold text-muted-foreground">
                         {paymentAvail?.isFullyPaid
                           ? "Paid in full"
                           : anchorStatus === "cancelled"
@@ -423,12 +423,12 @@ export function BookingDetailDrawer({
                     <button type="button"
                       disabled={actionLoading !== null}
                       onClick={() => footerAction?.run()}
-                      className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--pen-accent)] text-[13px] font-semibold text-white transition-transform active:scale-[0.99] disabled:opacity-60">
+                      className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--pen-accent)] text-sm font-semibold text-white transition-transform active:scale-[0.99] disabled:opacity-60">
                       {actionLoading === footerAction.key ? "Working…" : footerAction.label}
                     </button>
                   ) : (
                     <button type="button" disabled
-                      className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-muted text-[13px] font-semibold text-muted-foreground">
+                      className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-muted text-sm font-semibold text-muted-foreground">
                       {anchorStatus === "checked_out" ? "Checked out" : anchorStatus === "cancelled" ? "Cancelled" : "No action needed"}
                     </button>
                   )}
@@ -485,7 +485,7 @@ function AlertDialogish({ open, mode, busy, onClose, onConfirm }: {
       }}
     >
       <div role="dialog" aria-modal="true" aria-label={cancel ? "Cancel reservation" : "Reinstate reservation"}
-        className="mx-auto mt-[35vh] w-[min(22rem,90vw)] rounded-2xl border border-border/60 bg-card p-5 shadow-2xl"
+        className="mx-auto mt-[35vh] w-[min(22rem,90vw)] rounded-2xl border border-border/60 bg-card p-6 shadow-2xl"
         onClick={(event) => event.stopPropagation()}>
         <h2 className="text-sm font-semibold text-foreground">{cancel ? "Cancel this reservation?" : "Reinstate this reservation?"}</h2>
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
@@ -495,11 +495,11 @@ function AlertDialogish({ open, mode, busy, onClose, onConfirm }: {
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" autoFocus onClick={onClose}
-            className="h-9 rounded-full px-4 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+            className="h-10 rounded-full px-4 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
             Keep reservation
           </button>
           <button type="button" disabled={busy} onClick={onConfirm}
-            className={`h-9 rounded-full px-4 text-xs font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-60 ${cancel ? "bg-[var(--danger)]" : "bg-[var(--pen-accent)]"}`}>
+            className={`h-10 rounded-full px-4 text-xs font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-60 ${cancel ? "bg-[var(--danger)]" : "bg-[var(--pen-accent)]"}`}>
             {cancel ? "Cancel reservation" : "Reinstate"}
           </button>
         </div>
@@ -516,9 +516,9 @@ function DrawerSkeleton() {
         <Skeleton className="h-6 w-24 rounded-full" />
         <Skeleton className="h-6 w-20 rounded-lg" />
       </div>
-      <Skeleton className="mt-3 h-7 w-44 rounded-lg" />
+      <Skeleton className="mt-3 h-8 w-44 rounded-lg" />
       <Skeleton className="mt-4 h-10 w-full rounded-full" />
-      <div className="mt-4 border-b border-border/60 pb-5">
+      <div className="mt-4 border-b border-border/60 pb-6">
         <Skeleton className="h-6 w-40 rounded" />
         <Skeleton className="mt-2 h-4 w-56 rounded" />
       </div>

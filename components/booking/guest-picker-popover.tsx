@@ -64,7 +64,7 @@ export function GuestPickerPopover({
       className={cn(
         "group flex w-full cursor-pointer text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#0485F7] touch-manipulation",
         // Mobile (`v24Sj`): 50px soft grey cell, stacked Who + guests
-        "h-12 flex-col justify-center gap-1 rounded-[12px] bg-[#F5F5F5] hover:bg-[#EBEBEC]/75 px-3",
+        "h-12 flex-col justify-center gap-1 rounded-xl bg-[#F5F5F5] hover:bg-[#EBEBEC]/75 px-3",
         // Desktop (`dZjQo`): 52px soft grey cell, left users icon + stacked label/guests
         "md:h-[52px] md:w-auto md:min-w-[180px] md:flex-row md:items-center md:justify-start md:gap-3 md:px-4",
         className
@@ -79,21 +79,21 @@ export function GuestPickerPopover({
       {/* Mobile top row */}
       <span className="flex md:hidden items-center gap-2">
         <Users className="size-3 shrink-0 text-[#0485F7]" strokeWidth={2} />
-        <span className="text-[10px] font-medium tracking-[0.2px] text-[#71717A]">
+        <span className="text-2xs font-medium tracking-[0.2px] text-[#71717A]">
           Who
         </span>
       </span>
 
       {/* Desktop stacked + Mobile bottom row */}
       <span className="flex flex-col min-w-0 w-full md:w-auto gap-1">
-        <span className="hidden md:block text-[10px] font-medium tracking-[0.3px] text-[#71717A]">
+        <span className="hidden md:block text-2xs font-medium tracking-[0.3px] text-[#71717A]">
           Who
         </span>
         <span className="flex items-center justify-between md:justify-start gap-2 min-w-0">
-          <span className="hidden md:inline text-[13px] font-medium text-[#18181B] truncate whitespace-nowrap">
+          <span className="hidden md:inline text-sm font-medium text-[#18181B] truncate whitespace-nowrap">
             {desktopText}
           </span>
-          <span className="inline md:hidden text-[11px] font-medium text-[#18181B] truncate whitespace-nowrap">
+          <span className="inline md:hidden text-2xs font-medium text-[#18181B] truncate whitespace-nowrap">
             {mobileText}
           </span>
           <ChevronDown
@@ -170,7 +170,7 @@ export function GuestPickerPopover({
                 <Button
                   variant="primary"
                   slot="close"
-                  className="booking-btn-primary h-11 w-full text-[15px] touch-manipulation"
+                  className="booking-btn-primary h-11 w-full text-md touch-manipulation"
                 >
                   Apply · {mobileText}
                 </Button>
@@ -188,9 +188,9 @@ export function GuestPickerPopover({
 
       <Popover.Content
         placement="bottom start"
-        className="booking-portal w-[min(21rem,calc(100vw-1.5rem))] rounded-[24px] border border-[#E4E4E7] bg-white p-0 shadow-[0_12px_32px_rgba(0,0,0,0.12)]"
+        className="booking-portal w-[min(21rem,calc(100vw-1.5rem))] rounded-3xl border border-[#E4E4E7] bg-white p-0 shadow-[0_12px_32px_rgba(0,0,0,0.12)]"
       >
-        <Popover.Dialog className="outline-none p-5 space-y-2">
+        <Popover.Dialog className="outline-none p-6 space-y-2">
           {renderSteppers("md")}
 
           <div className="pt-3 border-t border-[#E4E4E7] flex items-center justify-between gap-3">
@@ -201,7 +201,7 @@ export function GuestPickerPopover({
               variant="primary"
               size="sm"
               onPress={() => setOpen(false)}
-              className="booking-btn-primary text-xs px-4 h-9 min-w-[4.5rem] shrink-0"
+              className="booking-btn-primary text-xs px-4 h-10 min-w-[4.5rem] shrink-0"
             >
               Done
             </Button>

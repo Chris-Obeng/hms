@@ -389,7 +389,7 @@
 .rl-landing .rl-wordmark {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--rl-s2);
   min-height: 44px;
   color: var(--rl-ink);
 }
@@ -668,15 +668,15 @@
   margin-top: var(--rl-s7);
 }
 
-/* The line the steps sit on */
+/* The line the steps sit on: a 1px stripe centred in the 12px marker column */
 .rl-landing .rl-steps::before {
   content: "";
   position: absolute;
   top: 8px;
   bottom: 8px;
-  left: 6px;
-  width: 1px;
-  background: var(--rl-line-strong);
+  left: 0;
+  width: 12px;
+  background: linear-gradient(var(--rl-line-strong), var(--rl-line-strong)) center / 1px 100% no-repeat;
 }
 
 .rl-landing .rl-steps li {
@@ -691,10 +691,10 @@
 .rl-landing .rl-steps li::before {
   content: "";
   position: absolute;
-  top: 0.45em;
+  top: 8px;
   left: 0;
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: var(--rl-paper-2);
   box-shadow: inset 0 0 0 2px var(--rl-ink);
@@ -712,12 +712,13 @@
   }
 
   .rl-landing .rl-steps::before {
-    top: 6px;
+    top: 0;
     bottom: auto;
     left: 0;
     right: 0;
     width: auto;
-    height: 1px;
+    height: 12px;
+    background-size: 100% 1px;
   }
 
   .rl-landing .rl-steps li {

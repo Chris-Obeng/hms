@@ -29,13 +29,13 @@ export function OccupancyCard({
     <section
       aria-labelledby={titleId}
       aria-busy={isDateSwitching}
-      className="flex h-full flex-col justify-between gap-4 rounded-[20px] border border-border/60 bg-card p-5 shadow-[0_1px_3px_rgb(0_0_0/0.04)]"
+      className="flex h-full flex-col justify-between gap-4 rounded-3xl border border-border/60 bg-card p-6 shadow-[0_1px_3px_rgb(0_0_0/0.04)]"
     >
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2
             id={titleId}
-            className="text-[15px] font-semibold leading-snug text-foreground"
+            className="text-md font-semibold leading-snug text-foreground"
           >
             Rooms sold
           </h2>
@@ -47,7 +47,7 @@ export function OccupancyCard({
         {isDateSwitching ? (
           <span
             role="status"
-            className="shrink-0 rounded-lg bg-muted px-3 py-1 text-[11px] font-medium text-muted-foreground"
+            className="shrink-0 rounded-lg bg-muted px-3 py-1 text-2xs font-medium text-muted-foreground"
           >
             Loading selected date…
           </span>
@@ -82,7 +82,7 @@ export function OccupancyCard({
         className={cn(
           "flex flex-col gap-4",
           metric.state === "ready" &&
-            "min-[380px]:flex-row min-[380px]:items-center min-[380px]:gap-5 lg:flex-col lg:items-stretch lg:gap-4"
+            "min-[380px]:flex-row min-[380px]:items-center min-[380px]:gap-6 lg:flex-col lg:items-stretch lg:gap-4"
         )}
       >
         <OccupancyDonut
@@ -105,7 +105,7 @@ export function OccupancyCard({
               </p>
             )}
 
-            <dl className="space-y-3 text-[13px]">
+            <dl className="space-y-3 text-sm">
               <Row count={metric.soldRooms} label="Sold" marker="bg-primary" />
               <Row
                 count={metric.heldRooms}
@@ -141,7 +141,7 @@ export function OccupancyCard({
               active
             </span>
             {hasExcluded && (
-              <span className="tabular-nums text-[11px] text-muted-foreground">
+              <span className="tabular-nums text-2xs text-muted-foreground">
                 {[
                   metric.outOfService ? `${metric.outOfService} out of service` : null,
                   metric.blocked ? `${metric.blocked} blocked` : null,
@@ -178,7 +178,7 @@ function Row({
       </dt>
       <dd
         className={cn(
-          "shrink-0 font-mono text-[13px] font-semibold tabular-nums text-foreground",
+          "shrink-0 font-mono text-sm font-semibold tabular-nums text-foreground",
           valueTone
         )}
       >

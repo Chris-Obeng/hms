@@ -45,7 +45,7 @@ export function BookingStepper({ current, canReach, onStepChange, className }: B
             </span>
             {activeMeta.label}
           </p>
-          <p className="shrink-0 text-[10px] font-medium tabular-nums text-muted-foreground">
+          <p className="shrink-0 text-2xs font-medium tabular-nums text-muted-foreground">
             {Math.round((current / total) * 100)}%
           </p>
         </div>
@@ -93,7 +93,7 @@ export function BookingStepper({ current, canReach, onStepChange, className }: B
               >
                 <span
                   className={cn(
-                    "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold transition-colors",
+                    "flex size-6 shrink-0 items-center justify-center rounded-full text-2xs font-semibold transition-colors",
                     active
                       ? "bg-primary text-primary-foreground"
                       : done

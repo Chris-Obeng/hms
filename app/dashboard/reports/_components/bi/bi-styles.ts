@@ -5,5 +5,5 @@
  */
 export const BI_CARD = "h-full min-w-0 gap-4 p-4 sm:p-6";
 export const BI_CARD_HEADER = "flex-row flex-wrap items-start justify-between gap-x-6 gap-y-4";
-export const BI_CARD_TITLE = "text-[15px] font-semibold leading-5 tracking-[-0.01em]";
+export const BI_CARD_TITLE = "text-md font-semibold leading-5 tracking-[-0.01em]";
 export const BI_CARD_DESCRIPTION = "mt-1 text-xs leading-4 text-muted-foreground";

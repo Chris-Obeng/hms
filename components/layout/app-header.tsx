@@ -134,7 +134,7 @@ export function AppHeader({
                     src={user.imageUrl}
                     alt={user.fullName || "User"}
                   />
-                  <Avatar.Fallback className="rounded-md bg-foreground/10 text-[11px] font-medium">
+                  <Avatar.Fallback className="rounded-md bg-foreground/10 text-2xs font-medium">
                     {(user.firstName?.[0] ?? "U") + (user.lastName?.[0] ?? "")}
                   </Avatar.Fallback>
                 </Avatar>

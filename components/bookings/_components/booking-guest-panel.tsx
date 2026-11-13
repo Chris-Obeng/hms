@@ -39,7 +39,7 @@ export function BookingGuestPanel({ booking }: BookingGuestPanelProps) {
       {guest?.id && (
         <Link
           href={`/dashboard/customers?guestId=${guest.id}`}
-          className="mt-1 inline-flex items-center gap-1 text-[13px] font-medium text-primary transition-opacity hover:opacity-80"
+          className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-primary transition-opacity hover:opacity-80"
         >
           View full profile
           <ArrowUpRight className="size-4" />

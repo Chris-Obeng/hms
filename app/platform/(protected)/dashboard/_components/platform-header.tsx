@@ -91,7 +91,7 @@ export function PlatformHeader({ admin }: { admin: PlatformAdmin | null }) {
             }
           >
             {/* Avatar */}
-            <div className="size-6 rounded-md bg-foreground/10 flex items-center justify-center text-[10px] font-semibold text-foreground shrink-0">
+            <div className="size-6 rounded-md bg-foreground/10 flex items-center justify-center text-2xs font-semibold text-foreground shrink-0">
               {initials}
             </div>
             <span className="text-sm font-medium text-foreground hidden sm:inline max-w-[120px] truncate">
@@ -110,7 +110,7 @@ export function PlatformHeader({ admin }: { admin: PlatformAdmin | null }) {
                   {admin?.email}
                 </span>
                 {admin?.role && (
-                  <span className="text-[11px] text-muted-foreground capitalize mt-1">
+                  <span className="text-2xs text-muted-foreground capitalize mt-1">
                     {admin.role.replace(/_/g, " ")}
                   </span>
                 )}
