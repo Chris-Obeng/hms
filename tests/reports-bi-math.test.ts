@@ -6,6 +6,7 @@ import {
   allocateNightlyRevenue,
   occupancyFromAvailability,
   pctDelta,
+  pointsDelta,
   priorRange,
   revpag,
   revpar,
@@ -51,6 +52,16 @@ describe("priorRange — immediately preceding equal-length window", () => {
     const { start, end } = priorRange(d("2026-06-11"), d("2026-06-20"));
     expect(day(start)).toBe("2026-06-01");
     expect(day(end)).toBe("2026-06-10");
+  });
+});
+
+describe("pointsDelta", () => {
+  it("reports the change between two percentages in points", () => {
+    expect(pointsDelta(20, 10)).toBe(10);
+    expect(pointsDelta(11.7, 20)).toBe(-8.3);
+    expect(pointsDelta(0, 0)).toBe(0);
+    expect(pointsDelta(null, 10)).toBeNull();
+    expect(pointsDelta(10, null)).toBeNull();
   });
 });
 

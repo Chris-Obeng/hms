@@ -23,12 +23,12 @@ export function ExportButton({ range, overview, occupancy, guests, revenue, room
     const rows: string[][] = [];
     const add = (...cells: (string | number | null | undefined)[]) => rows.push(cells.map(toCell));
     if (overview) {
-      add("KPI", "Value", "Change vs prior period %");
-      add("Room revenue", overview.revenue, overview.deltas.revenue);
-      add("Occupancy %", overview.occupancy, overview.deltas.occupancy);
-      add("ADR", overview.adr, overview.deltas.adr);
-      add("RevPAR", overview.revpar, overview.deltas.revpar);
-      add("Room nights", overview.roomNights, overview.deltas.roomNights);
+      add("KPI", "Value", "Change vs prior period");
+      add("Room revenue", overview.revenue, pct(overview.deltas.revenue));
+      add("Occupancy %", overview.occupancy, pts(overview.deltas.occupancy));
+      add("ADR", overview.adr, pct(overview.deltas.adr));
+      add("RevPAR", overview.revpar, pct(overview.deltas.revpar));
+      add("Room nights", overview.roomNights, pct(overview.deltas.roomNights));
       add("Collections", overview.collected, null);
       add();
       add("Daily series", "Revenue", "Occupancy %", "ADR", "RevPAR", "Room nights");
@@ -75,6 +75,10 @@ export function ExportButton({ range, overview, occupancy, guests, revenue, room
     <Download size={16} aria-hidden="true" /> Export
   </Button>;
 }
+
+/** Changes carry their unit, since occupancy moves in points and the rest in percent. */
+function pct(value: number | null): string | null { return value === null ? null : `${value}%`; }
+function pts(value: number | null): string | null { return value === null ? null : `${value} pts`; }
 
 function toCell(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "";
