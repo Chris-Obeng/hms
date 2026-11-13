@@ -3,6 +3,9 @@
 @import "tw-animate-css";
 @import "./landing.css";
 
+/* .heroui-docs is tracked reference material for agents, not app source. */
+@source not "../.heroui-docs";
+
 @theme inline {
   /* ── 8-point system (enforced by `pnpm lint:ui`) ───────────────
    *  Spacing: Tailwind --spacing is 4px.
