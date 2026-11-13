@@ -28,22 +28,6 @@ export function deltaText(value: number | null, unit: "%" | "pts" = "%"): { text
   return { text: `${sign}${Math.abs(value).toLocaleString("en", { maximumFractionDigits: 1 })}${suffix}`, direction };
 }
 
-/** SVG polyline for a sparkline stretched over viewBox coordinates. */
-export function sparklinePath(values: (number | null)[], width: number, height: number): string | null {
-  const known = values.filter((value): value is number => value !== null && Number.isFinite(value));
-  if (known.length < 2) return null;
-  const min = Math.min(...known), max = Math.max(...known);
-  const span = max - min || 1;
-  const step = width / (values.length - 1);
-  const points: string[] = [];
-  values.forEach((value, index) => {
-    if (value === null || !Number.isFinite(value)) return;
-    const x = index * step, y = height - 3 - ((value - min) / span) * (height - 6);
-    points.push(`${points.length === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`);
-  });
-  return points.join("");
-}
-
 /** Monday-start week key for a YYYY-MM-DD date. */
 function weekKey(date: string): string {
   const monday = new Date(`${date}T00:00:00Z`);

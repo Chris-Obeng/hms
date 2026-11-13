@@ -18,11 +18,3 @@ export function PenCardHead({ title, caption, actions }: { title: string; captio
     {actions && <div className="flex shrink-0 items-center gap-4">{actions}</div>}
   </header>;
 }
-
-/** Two-column BI row: wide card left, narrow card right, stacked on mobile. */
-export function PenRow({ wide, narrow, className }: { wide: ReactNode; narrow: ReactNode; className?: string }) {
-  return <div className={cn("grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_400px]", className)}>
-    <div className="min-w-0">{wide}</div>
-    <div className="min-w-0">{narrow}</div>
-  </div>;
-}

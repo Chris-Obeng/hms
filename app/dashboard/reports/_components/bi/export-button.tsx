@@ -6,8 +6,9 @@ import type { RoomsSoldMetric } from "@/lib/metrics/dashboard-occupancy";
 import type { GuestsData, OccupancyData, OverviewData, RevenueData } from "../../actions";
 
 /**
- * Exports the loaded BI figures as CSV. Only what is on screen is exported —
- * the server actions remain the single authority over these numbers.
+ * Exports the loaded BI figures as CSV, including the room type, source, guest,
+ * receivables and rooms-sold detail that the page no longer charts. Only loaded
+ * figures are exported; the server actions remain the single authority over them.
  */
 export function ExportButton({ range, overview, occupancy, guests, revenue, roomsSold, disabled }: {
   range: { startDate: string; endDate: string };
@@ -70,7 +71,7 @@ export function ExportButton({ range, overview, occupancy, guests, revenue, room
   }
 
   return <Button variant="outline" isDisabled={disabled || !overview} onPress={download}
-    className="h-9 gap-2 rounded-full border-border px-4 text-sm font-medium">
+    className="h-10 gap-2 rounded-[10px] border-border/70 px-4 text-[13px] font-medium">
     <Download size={16} aria-hidden="true" /> Export
   </Button>;
 }
