@@ -60,7 +60,12 @@ export function OutstandingClient({
         scheduleRefresh,
       )
       .subscribe(
-        onRealtimeStatus({ label: "outstanding", hotelId, table: "bookings,payments" }),
+        onRealtimeStatus({
+          label: "outstanding",
+          hotelId,
+          table: "bookings,payments",
+          onRecovered: scheduleRefresh,
+        }),
       );
     return () => {
       refresh.cancel();

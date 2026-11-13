@@ -90,14 +90,17 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
     if (!hotelId) return;
     const supabase = createClient();
     const refresh = createCoalescer();
+    const reload = () => refresh.schedule(() => refreshRef.current());
     const channel = supabase
       .channel(`hotel:${hotelId}:bookings-list`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
-        () => refresh.schedule(() => refreshRef.current())
+        reload
       )
-      .subscribe(onRealtimeStatus({ label: "bookings-list", hotelId, table: "bookings" }));
+      .subscribe(
+        onRealtimeStatus({ label: "bookings-list", hotelId, table: "bookings", onRecovered: reload })
+      );
     return () => {
       refresh.cancel();
       supabase.removeChannel(channel);

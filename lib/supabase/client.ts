@@ -1,6 +1,6 @@
 "use client";
 
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 
 // Clerk attaches itself to window after the SDK initializes.
@@ -17,43 +17,61 @@ declare global {
 }
 
 /**
- * Browser-side Supabase client. Subject to Row Level Security.
- *
- * Always fetches a fresh Clerk JWT for every REST request so tokens
- * never go stale. The optional `token` parameter is intentionally
- * NOT used inside the fetch wrapper — passing a pinned token into the
- * closure would cause REST calls to fail once the token expires (~60s).
- *
- * Realtime auth is handled separately via `supabase.realtime.setAuth()`
- * on a 45-second refresh interval (see AppHeader).
+ * Clerk "supabase" template JWT for the signed-in staff member, or null.
+ * Clerk caches the token and refreshes it before it expires, so calling this
+ * on every request and every Realtime heartbeat is cheap.
  */
-export function createClient() {
-  return createBrowserClient<Database>(
+async function getClerkToken(): Promise<string | null> {
+  if (typeof window === "undefined" || !window.Clerk?.session) return null;
+  try {
+    return (await window.Clerk.session.getToken({ template: "supabase" })) ?? null;
+  } catch (error) {
+    console.error("[supabase/client] Clerk token request failed:", error);
+    return null;
+  }
+}
+
+function buildClient() {
+  const client = createSupabaseClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
-      global: {
-        fetch: async (url, options = {}) => {
-          const headers = new Headers(options.headers);
-
-          if (typeof window !== "undefined" && window.Clerk?.session) {
-            try {
-              // Always request a fresh token — Clerk caches and auto-refreshes
-              // internally so this is fast and never uses an expired JWT.
-              const freshToken = await window.Clerk.session.getToken({
-                template: "supabase",
-              });
-              if (freshToken) {
-                headers.set("Authorization", `Bearer ${freshToken}`);
-              }
-            } catch (e) {
-              console.error("[supabase/client] Clerk token injection failed:", e);
-            }
+      // One token source for REST, Storage and Realtime. supabase-js calls it
+      // per request, and Realtime calls it on connect and on every heartbeat
+      // (25s), so channels never run on an expired JWT. Never pass a token to
+      // `realtime.setAuth(token)`: a manual token turns this refresh off for
+      // every channel on the shared socket. Call `realtime.setAuth()` with no
+      // argument to fetch a fresh one.
+      accessToken: getClerkToken,
+      realtime: {
+        // Heartbeats from a Web Worker keep running when the tab is in the
+        // background, where browsers throttle main-thread timers and the
+        // socket would otherwise drop silently.
+        worker: true,
+        // If the socket still drops (sleep, network change), reconnect at
+        // once instead of waiting for the next backoff step.
+        heartbeatCallback: (status) => {
+          if (status === "disconnected" && client.realtime.getChannels().length > 0) {
+            client.realtime.connect();
           }
-
-          return fetch(url, { ...options, headers });
         },
       },
     }
   );
+  return client;
+}
+
+let browserClient: ReturnType<typeof buildClient> | null = null;
+
+/**
+ * Browser Supabase client for hotel staff (Clerk sessions). Subject to Row
+ * Level Security. One instance per tab, so every subscription shares a single
+ * Realtime socket. See https://supabase.com/docs/guides/troubleshooting/realtime-handling-silent-disconnections-in-backgrounded-applications-592794
+ *
+ * `supabase.auth` is not available on this client (Clerk owns auth). Platform
+ * super-admins use `createPlatformBrowserClient` from `./platform-browser`.
+ */
+export function createClient() {
+  browserClient ??= buildClient();
+  return browserClient;
 }

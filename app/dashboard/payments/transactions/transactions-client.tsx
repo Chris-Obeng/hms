@@ -51,14 +51,17 @@ export function TransactionsClient({ data, currency, hotelId }: { data: PaymentR
     const supabase = createClient();
     // A single folio settlement can write several payment rows; refresh once per burst.
     const refresh = createCoalescer();
+    const reload = () => refresh.schedule(() => refreshRef.current());
     const channel = supabase
       .channel(`hotel:${hotelId}:transactions`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payments", filter: `hotel_id=eq.${hotelId}` },
-        () => refresh.schedule(() => refreshRef.current()),
+        reload,
       )
-      .subscribe(onRealtimeStatus({ label: "transactions", hotelId, table: "payments" }));
+      .subscribe(
+        onRealtimeStatus({ label: "transactions", hotelId, table: "payments", onRecovered: reload }),
+      );
     return () => {
       refresh.cancel();
       supabase.removeChannel(channel);

@@ -39,6 +39,8 @@ import {
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
+import { onRealtimeStatus } from "@/lib/observability/realtime";
+import { createCoalescer } from "@/lib/realtime/coalesce";
 import { HeroSelectField } from "@/components/ui/hero-select";
 import { ListEmpty } from "@/components/ui/list-card";
 import { LIST_CARD } from "@/components/ui/list-styles";
@@ -294,26 +296,37 @@ export function RoomsClient({
   );
 
   React.useEffect(() => {
+    // One edit can touch rooms, room types and blocks; refresh once per burst.
+    const refresh = createCoalescer();
+    const reload = () => refresh.schedule(() => router.refresh());
     const channel = supabase
-      .channel("dashboard-rooms")
+      .channel(`hotel:${hotelId}:rooms-directory`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "rooms", filter: `hotel_id=eq.${hotelId}` },
-        () => router.refresh()
+        reload
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "room_types", filter: `hotel_id=eq.${hotelId}` },
-        () => router.refresh()
+        reload
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "availability_blocks", filter: `hotel_id=eq.${hotelId}` },
-        () => router.refresh()
+        reload
       )
-      .subscribe();
+      .subscribe(
+        onRealtimeStatus({
+          label: "rooms-directory",
+          hotelId,
+          table: "rooms,room_types,availability_blocks",
+          onRecovered: reload,
+        })
+      );
 
     return () => {
+      refresh.cancel();
       void supabase.removeChannel(channel);
     };
   }, [supabase, hotelId, router]);

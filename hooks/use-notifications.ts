@@ -77,15 +77,10 @@ export function useNotifications({
   enabled = true,
 }: UseNotificationsOptions): UseNotificationsResult {
   const auth = useAuth();
-  const getToken = auth.getToken;
   // In unit tests mocking `{ getToken }` without `isLoaded`, treat undefined as ready;
   // in browser runtime, `isLoaded === false` waits until Clerk finishes hydrating.
+  // Realtime tokens come from the shared client (lib/supabase/client).
   const authReady = auth.isLoaded !== false;
-
-  const getTokenRef = React.useRef(getToken);
-  React.useEffect(() => {
-    getTokenRef.current = getToken;
-  }, [getToken]);
 
   const [notifications, setNotifications] = React.useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = React.useState<number>(() =>
@@ -446,11 +441,13 @@ export function useNotifications({
     let channel: any = null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let supabase: any = null;
-    let authInterval: ReturnType<typeof setInterval> | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let updateDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     let resubscribeAttempts = 0;
     let isSubscribed = false;
+    // Set once the channel has joined; a later rejoin means events were missed.
+    let hasJoined = false;
+    let interrupted = false;
 
     async function maybeShowForegroundBrowserAlert(item: NotificationItem) {
       if (typeof window === "undefined" || !("Notification" in window)) return;
@@ -490,11 +487,14 @@ export function useNotifications({
       }
     }
 
+    // The shared client (lib/supabase/client) fetches a fresh Clerk token on
+    // connect and on every heartbeat. Passing a token here would pin it and
+    // turn that refresh off for every channel, so call setAuth() bare: it only
+    // makes sure the next join carries a current token.
     async function refreshRealtimeAuth() {
       try {
-        const token = await getTokenRef.current({ template: "supabase" });
-        if (!active || !token || !supabase) return;
-        supabase.realtime.setAuth(token);
+        if (!active || !supabase) return;
+        await supabase.realtime.setAuth();
       } catch (e) {
         console.error("Realtime auth refresh failed:", e);
       }
@@ -510,8 +510,16 @@ export function useNotifications({
       if (status === "SUBSCRIBED") {
         isSubscribed = true;
         resubscribeAttempts = 0;
+        // Inserts made while the channel was down are not replayed.
+        if (interrupted) {
+          if (pendingMutationsRef.current === 0) void refreshRef.current();
+          else needsResyncRef.current = true;
+        }
+        hasJoined = true;
+        interrupted = false;
         return;
       }
+      if (hasJoined) interrupted = true;
       if (status === "CLOSED") {
         isSubscribed = false;
         return;
@@ -649,7 +657,6 @@ export function useNotifications({
         await refreshRealtimeAuth();
         if (!active) return;
 
-        authInterval = setInterval(refreshRealtimeAuth, 45_000);
         openChannel();
 
         if (typeof window !== "undefined") {
@@ -673,7 +680,6 @@ export function useNotifications({
       if (typeof document !== "undefined") {
         document.removeEventListener("visibilitychange", handleVisibilityChange);
       }
-      if (authInterval) clearInterval(authInterval);
       if (retryTimer) clearTimeout(retryTimer);
       if (updateDebounceTimer) clearTimeout(updateDebounceTimer);
       if (channel && supabase) supabase.removeChannel(channel);

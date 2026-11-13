@@ -49,6 +49,11 @@ type RealtimeFailure = Extract<RealtimeStatus, "CHANNEL_ERROR" | "TIMED_OUT">;
  * (every one of these effects calls `removeChannel` in its cleanup), so neither
  * is reported — only the two states that mean "this screen has silently stopped
  * updating".
+ *
+ * Changes made while a channel is down are never replayed: the server does not
+ * buffer them. When the channel rejoins (realtime-js reports `SUBSCRIBED` again
+ * after a socket drop or an errored join), `onRecovered` runs so the screen can
+ * refetch what it missed.
  */
 export function onRealtimeStatus(options: {
   label: RealtimeLabel;
@@ -56,8 +61,20 @@ export function onRealtimeStatus(options: {
   orgId?: string | null;
   /** Table(s) the channel watches. Context only, for triage. */
   table?: string;
+  /** Refetch after the channel recovers from an interruption. */
+  onRecovered?: () => void;
 }): (status: string, err?: Error) => void {
+  let joined = false;
+  let interrupted = false;
   return (status, err) => {
+    if (status === "SUBSCRIBED") {
+      if (interrupted) options.onRecovered?.();
+      joined = true;
+      interrupted = false;
+      return;
+    }
+    if (joined) interrupted = true;
+
     // Narrowed by assignment rather than by early return: supabase-js types the
     // callback argument as `string`, and excluding literals from `string` does
     // not narrow it, so the tag below would otherwise be untyped.
