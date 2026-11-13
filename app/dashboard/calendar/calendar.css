@@ -3,21 +3,38 @@
    Tinted status bars, quiet chrome, responsive room gutter, zero global leaks.
    ============================================================================ */
 
-/* Status hues. Each bar is a light tint of its hue with dark ink of the same
-   family, so a full rack stays calm and every label keeps AA contrast. */
+/* Status palette. One solid status, in house, so the guests in the building
+   are what the eye finds first. Everything else is a soft tint with a hairline
+   and ink of the same hue. Tentative and void stays (pending, cancelled) get
+   a dashed edge, so status never rests on hue alone. Explicit OKLCH values,
+   all inside sRGB; every ink passes WCAG AA on its fill (4.85:1 to 7.2:1). */
 :root {
-  --cal-confirmed: #2563eb;
-  --cal-confirmed-ink: #1e40af;
-  --cal-inhouse: #16a34a;
-  --cal-inhouse-ink: #14532d;
-  --cal-pending: #d97706;
-  --cal-pending-ink: #92400e;
-  --cal-checkout: #64748b;
-  --cal-checkout-ink: #334155;
-  --cal-cancelled: #94a3b8;
-  --cal-cancelled-ink: #64748b;
-  --cal-noshow: #e11d48;
-  --cal-noshow-ink: #9f1239;
+  --cal-confirmed-fill: oklch(0.952 0.02 255);
+  --cal-confirmed-line: oklch(0.86 0.055 258);
+  --cal-confirmed-ink: oklch(0.43 0.14 262);
+
+  --cal-inhouse-fill: oklch(0.53 0.12 158);
+  --cal-inhouse-line: oklch(0.47 0.11 158);
+  --cal-inhouse-ink: oklch(1 0 0);
+  /* Text on light marks (the "Due" chip) inside a solid bar. */
+  --cal-inhouse-mark: oklch(0.43 0.1 158);
+
+  --cal-pending-fill: oklch(0.962 0.032 85);
+  --cal-pending-line: oklch(0.82 0.1 75);
+  --cal-pending-ink: oklch(0.47 0.11 60);
+
+  --cal-checkout-fill: oklch(0.955 0.006 255);
+  --cal-checkout-line: oklch(0.88 0.012 255);
+  --cal-checkout-ink: oklch(0.47 0.02 255);
+
+  --cal-cancelled-fill: oklch(1 0 0);
+  --cal-cancelled-line: oklch(0.82 0.012 255);
+  --cal-cancelled-ink: oklch(0.55 0.015 255);
+
+  --cal-noshow-fill: oklch(0.958 0.02 15);
+  --cal-noshow-line: oklch(0.86 0.06 15);
+  --cal-noshow-ink: oklch(0.47 0.15 18);
+
   --cal-closure: #64748b;
   --cal-closure-ink: #475569;
 }
@@ -297,37 +314,46 @@
 
 .rl-booking-bar,
 .rl-drag-overlay-bar {
-  --rl-bar: var(--cal-confirmed);
+  --rl-fill: var(--cal-confirmed-fill);
+  --rl-line: var(--cal-confirmed-line);
   --rl-ink: var(--cal-confirmed-ink);
-  --rl-fill: color-mix(in oklab, var(--rl-bar) 13%, var(--card));
-  --rl-edge: color-mix(in oklab, var(--rl-bar) 34%, var(--card));
+  --rl-mark: var(--cal-confirmed-ink);
 }
 
 .rl-booking-bar[data-cal-status="inhouse"],
 .rl-drag-overlay-bar[data-cal-status="inhouse"] {
-  --rl-bar: var(--cal-inhouse);
+  --rl-fill: var(--cal-inhouse-fill);
+  --rl-line: var(--cal-inhouse-line);
   --rl-ink: var(--cal-inhouse-ink);
+  --rl-mark: var(--cal-inhouse-mark);
 }
 .rl-booking-bar[data-cal-status="pending"],
 .rl-drag-overlay-bar[data-cal-status="pending"] {
-  --rl-bar: var(--cal-pending);
+  --rl-fill: var(--cal-pending-fill);
+  --rl-line: var(--cal-pending-line);
   --rl-ink: var(--cal-pending-ink);
+  --rl-mark: var(--cal-pending-ink);
 }
 .rl-booking-bar[data-cal-status="checkout"],
 .rl-drag-overlay-bar[data-cal-status="checkout"] {
-  --rl-bar: var(--cal-checkout);
+  --rl-fill: var(--cal-checkout-fill);
+  --rl-line: var(--cal-checkout-line);
   --rl-ink: var(--cal-checkout-ink);
+  --rl-mark: var(--cal-checkout-ink);
 }
 .rl-booking-bar[data-cal-status="cancelled"],
 .rl-drag-overlay-bar[data-cal-status="cancelled"] {
-  --rl-bar: var(--cal-cancelled);
+  --rl-fill: var(--cal-cancelled-fill);
+  --rl-line: var(--cal-cancelled-line);
   --rl-ink: var(--cal-cancelled-ink);
-  --rl-fill: color-mix(in oklab, var(--rl-bar) 8%, var(--card));
+  --rl-mark: var(--cal-cancelled-ink);
 }
 .rl-booking-bar[data-cal-status="noshow"],
 .rl-drag-overlay-bar[data-cal-status="noshow"] {
-  --rl-bar: var(--cal-noshow);
+  --rl-fill: var(--cal-noshow-fill);
+  --rl-line: var(--cal-noshow-line);
   --rl-ink: var(--cal-noshow-ink);
+  --rl-mark: var(--cal-noshow-ink);
 }
 
 .rl-booking-bar {
@@ -336,7 +362,7 @@
   height: 100%;
   display: flex;
   align-items: stretch;
-  border: 1px solid var(--rl-edge);
+  border: 1px solid var(--rl-line);
   border-radius: 8px;
   color: var(--rl-ink);
   font-size: 12px;
@@ -349,10 +375,16 @@
     box-shadow 150ms ease;
 }
 
+/* Lift on hover with a neutral shadow; colored glows read as decoration. */
 @media (hover: hover) and (pointer: fine) {
   .rl-booking-bar:hover {
-    border-color: color-mix(in oklab, var(--rl-bar) 55%, var(--card));
-    box-shadow: 0 2px 8px -2px color-mix(in oklab, var(--rl-bar) 28%, transparent);
+    border-color: color-mix(in oklab, var(--rl-line) 70%, var(--rl-ink));
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.06),
+      0 4px 12px -4px rgb(15 23 42 / 0.16);
+  }
+  .rl-booking-bar[data-cal-status="inhouse"]:hover {
+    border-color: var(--rl-line);
   }
   .rl-booking-bar:hover .rl-resize-handle {
     opacity: 1;
@@ -364,9 +396,19 @@
   outline-offset: 2px;
 }
 
-/* Cancelled stays keep their place on the rack but read as void. */
-.rl-booking-bar[data-cal-status="cancelled"] {
+/* Tentative (pending) and void (cancelled) stays get a dashed edge. */
+.rl-booking-bar[data-cal-status="pending"],
+.rl-booking-bar[data-cal-status="cancelled"],
+.rl-drag-overlay-bar[data-cal-status="pending"],
+.rl-drag-overlay-bar[data-cal-status="cancelled"] {
   border-style: dashed;
+}
+
+/* A cancelled stay keeps its place on the rack but reads as struck out. */
+.rl-booking-bar[data-cal-status="cancelled"] .rl-booking-name {
+  font-weight: 500;
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in oklab, var(--rl-ink) 55%, transparent);
 }
 
 .rl-booking-bar.is-conflict {
@@ -374,7 +416,7 @@
   background-image: repeating-linear-gradient(
     135deg,
     transparent 0 7px,
-    color-mix(in oklab, var(--destructive) 14%, transparent) 7px 11px
+    color-mix(in oklab, var(--destructive) 18%, transparent) 7px 11px
   );
 }
 
@@ -395,6 +437,7 @@
   width: 4px;
   border-radius: 999px;
   background: var(--rl-group-accent, var(--rl-ink));
+  box-shadow: 0 0 0 1px var(--card);
   z-index: 2;
   pointer-events: none;
 }
@@ -454,9 +497,9 @@
   font-size: 11px;
   font-weight: 600;
   line-height: 16px;
-  color: var(--rl-ink);
+  color: var(--rl-mark);
   background: var(--card);
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--rl-bar) 28%, var(--card));
+  box-shadow: inset 0 0 0 1px var(--rl-line);
 }
 
 .rl-booking-conflict {
@@ -464,6 +507,9 @@
   width: 16px;
   height: 16px;
   color: var(--destructive);
+}
+.rl-booking-bar[data-cal-status="inhouse"] .rl-booking-conflict {
+  color: var(--rl-ink);
 }
 
 .rl-resize-handle {
@@ -624,7 +670,7 @@
   gap: 8px;
   padding: 0 12px;
   height: 36px;
-  border: 1px solid color-mix(in oklab, var(--rl-bar) 55%, var(--card));
+  border: 1px solid var(--rl-line);
   border-radius: 8px;
   color: var(--rl-ink);
   font-size: 12px;
@@ -650,10 +696,10 @@
 }
 @keyframes rl-new-ring {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--rl-bar) 45%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--rl-line) 90%, transparent);
   }
   100% {
-    box-shadow: 0 0 0 6px color-mix(in oklab, var(--rl-bar) 0%, transparent);
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--rl-line) 0%, transparent);
   }
 }
 
@@ -786,32 +832,36 @@
 
 /* ── Legend swatches (toolbar popover and filter drawer) ────────────── */
 .rl-legend-swatch {
-  --rl-bar: var(--cal-confirmed);
   display: inline-block;
   flex: none;
   width: 16px;
   height: 12px;
   border-radius: 4px;
-  background: color-mix(in oklab, var(--rl-bar) 13%, var(--card));
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--rl-bar) 40%, var(--card));
+  border: 1px solid var(--cal-confirmed-line);
+  background: var(--cal-confirmed-fill);
 }
 .rl-legend-swatch[data-swatch="inhouse"] {
-  --rl-bar: var(--cal-inhouse);
+  border-color: var(--cal-inhouse-line);
+  background: var(--cal-inhouse-fill);
 }
 .rl-legend-swatch[data-swatch="pending"] {
-  --rl-bar: var(--cal-pending);
+  border: 1px dashed var(--cal-pending-line);
+  background: var(--cal-pending-fill);
 }
 .rl-legend-swatch[data-swatch="checkout"] {
-  --rl-bar: var(--cal-checkout);
+  border-color: var(--cal-checkout-line);
+  background: var(--cal-checkout-fill);
 }
 .rl-legend-swatch[data-swatch="cancelled"] {
-  --rl-bar: var(--cal-cancelled);
+  border: 1px dashed var(--cal-cancelled-line);
+  background: var(--cal-cancelled-fill);
 }
 .rl-legend-swatch[data-swatch="noshow"] {
-  --rl-bar: var(--cal-noshow);
+  border-color: var(--cal-noshow-line);
+  background: var(--cal-noshow-fill);
 }
 .rl-legend-swatch[data-swatch="closure"] {
-  --rl-bar: var(--cal-closure);
+  border-color: color-mix(in oklab, var(--cal-closure) 30%, var(--card));
   background:
     repeating-linear-gradient(
       135deg,
