@@ -24,7 +24,7 @@ import { captureIssue, type CaptureMeta } from "./sentry";
 export type RealtimeLabel =
   | "dashboard"
   | "calendar"
-  | "availability"
+  | "rates"
   | "bookings-list"
   | "rooms-directory"
   | "transactions"

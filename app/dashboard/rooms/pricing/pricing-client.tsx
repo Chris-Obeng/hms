@@ -13,7 +13,6 @@ import {
   Chip,
   DateField,
   DateRangePicker,
-  Description,
   Drawer,
   Dropdown,
   Input,
@@ -70,17 +69,19 @@ import {
   bulkUpsertDailyRateOverrides,
   bulkDeleteDailyRateOverrides,
   getResolvedRates,
-  getOccupancyByDate,
+  getRoomsLeft,
   ResolvedPriceCell,
-  OccupancyCell,
 } from "@/app/actions/pricing";
+import { restrictionMarkers } from "@/lib/pricing/restriction-markers";
+import { onRealtimeStatus } from "@/lib/observability/realtime";
+import { createCoalescer } from "@/lib/realtime/coalesce";
 
 const ENTER = "animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-[var(--ease-out-ui)] motion-reduce:animate-none";
 const FIELD_LABEL = "text-xs font-medium text-muted-foreground";
 
 /** Seasons list: one template for header band and rows (lg and up). */
 const SEASON_GRID =
-  "lg:grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.2fr)_5rem_7rem_6rem_10rem] lg:items-center lg:gap-4";
+  "lg:grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.2fr)_7rem_6rem_10rem] lg:items-center lg:gap-4";
 
 /** Calm, distinct fills for the season timeline bars. */
 const SEASON_BAR = [
@@ -335,22 +336,48 @@ export function PricingClient({
     return map;
   }, [resolvedRates]);
 
-  // Fetch occupancy per date for the calendar header row
-  const { data: occupancyCells = [] } = useQuery({
+  // Rooms left to sell per room type per night, and for the whole property
+  const { data: roomsLeft = null } = useQuery({
     queryKey: qk.pricingOccupancy(orgId, hotelId, effectiveStart, effectiveEnd),
     queryFn: async () => {
-      const res = await getOccupancyByDate(effectiveStart, effectiveEnd);
-      if (!res.success) return [] as OccupancyCell[];
-      return res.data;
+      const res = await getRoomsLeft(effectiveStart, effectiveEnd);
+      return res.success ? res.data : null;
     },
-    staleTime: 60_000, // 1 min — occupancy changes less frequently than rates
+    staleTime: 60_000,
   });
 
-  const occupancyMap = useMemo(() => {
-    const map = new Map<string, OccupancyCell>();
-    occupancyCells.forEach((c) => map.set(c.date, c));
+  const roomsLeftByCell = useMemo(() => {
+    const map = new Map<string, number>();
+    roomsLeft?.types.forEach((t) => t.cells.forEach((c) => map.set(`${t.roomTypeId}_${c.date}`, c.available)));
     return map;
-  }, [occupancyCells]);
+  }, [roomsLeft]);
+
+  const roomsLeftTotals = useMemo(() => {
+    const map = new Map<string, NonNullable<typeof roomsLeft>["totals"][number]>();
+    roomsLeft?.totals.forEach((c) => map.set(c.date, c));
+    return map;
+  }, [roomsLeft]);
+
+  // Realtime: bookings change rooms left; overrides made elsewhere change rates.
+  useEffect(() => {
+    const supabase = createClient();
+    const inventory = createCoalescer();
+    const rates = createCoalescer();
+    const channel = supabase
+      .channel(`hotel:${hotelId}:rates`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` }, () =>
+        inventory.schedule(() => void queryClient.invalidateQueries({ queryKey: ["pricing", "occupancy"] }))
+      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "daily_rate_overrides", filter: `hotel_id=eq.${hotelId}` }, () =>
+        rates.schedule(() => void queryClient.invalidateQueries({ queryKey: ["pricing", "resolved"] }))
+      )
+      .subscribe(onRealtimeStatus({ label: "rates", hotelId, table: "bookings,daily_rate_overrides" }));
+    return () => {
+      inventory.cancel();
+      rates.cancel();
+      void supabase.removeChannel(channel);
+    };
+  }, [hotelId, queryClient]);
 
   // "Apply to all room types" shortcut state (used in Configure Rates sheet)
   const [applyAllBase, setApplyAllBase] = useState("");
@@ -402,7 +429,6 @@ export function PricingClient({
       // The rate grid labels every night with the season covering it, so a new
       // season changes those cells even before any override is configured.
       queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), effectiveStart, effectiveEnd) });
-      void queryClient.invalidateQueries({ queryKey: ["availability-rates", hotelId] });
       setNewSeasonOpen(false);
       resetSeasonForm();
     },
@@ -427,7 +453,7 @@ export function PricingClient({
       toast.success("Season updated successfully");
       queryClient.invalidateQueries({ queryKey: qk.pricingSeasons(orgId, hotelId) });
       queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), effectiveStart, effectiveEnd) });
-      void queryClient.invalidateQueries({ queryKey: ["availability-rates", hotelId] });
+      setNewSeasonOpen(false);
       setEditSeasonId(null);
       resetSeasonForm();
     },
@@ -448,7 +474,6 @@ export function PricingClient({
       toast.success("Season deleted successfully");
       queryClient.invalidateQueries({ queryKey: qk.pricingSeasons(orgId, hotelId) });
       queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), effectiveStart, effectiveEnd) });
-      void queryClient.invalidateQueries({ queryKey: ["availability-rates", hotelId] });
     },
     onError: (err) => {
       toast.danger(err.message || "Failed to delete season");
@@ -469,7 +494,6 @@ export function PricingClient({
       queryClient.invalidateQueries({ queryKey: qk.pricingSeasons(orgId, hotelId) });
       // The copy inherits the source's override rows, so resolved rates move too.
       queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), effectiveStart, effectiveEnd) });
-      void queryClient.invalidateQueries({ queryKey: ["availability-rates", hotelId] });
     },
     onError: (err) => {
       toast.danger(err.message || "Failed to duplicate season");
@@ -520,7 +544,6 @@ export function PricingClient({
       toast.success("Seasonal room rates updated successfully");
       queryClient.invalidateQueries({ queryKey: qk.pricingSeasons(orgId, hotelId) });
       queryClient.invalidateQueries({ queryKey: qk.pricingResolved(orgId, hotelId, roomTypes.map(rt => rt.id), effectiveStart, effectiveEnd) });
-      void queryClient.invalidateQueries({ queryKey: ["availability-rates", hotelId] });
       setSeasonDetailOpen(false);
     },
     onError: (err) => {
@@ -583,7 +606,6 @@ export function PricingClient({
           effectiveEnd
         );
       void queryClient.invalidateQueries({ queryKey });
-      void queryClient.invalidateQueries({ queryKey: ["availability-rates", hotelId] });
     },
   });
 
@@ -641,7 +663,6 @@ export function PricingClient({
           effectiveEnd
         );
       void queryClient.invalidateQueries({ queryKey });
-      void queryClient.invalidateQueries({ queryKey: ["availability-rates", hotelId] });
     },
   });
 
@@ -703,7 +724,6 @@ export function PricingClient({
           effectiveEnd
         );
       void queryClient.invalidateQueries({ queryKey });
-      void queryClient.invalidateQueries({ queryKey: ["availability-rates", hotelId] });
     },
   });
 
@@ -769,7 +789,6 @@ export function PricingClient({
           effectiveEnd
         );
       void queryClient.invalidateQueries({ queryKey });
-      void queryClient.invalidateQueries({ queryKey: ["availability-rates", hotelId] });
     },
   });
 
@@ -1150,24 +1169,20 @@ export function PricingClient({
                         </tr>
                       </thead>
                       <tbody>
-                        {occupancyCells.length > 0 && (
+                        {roomsLeft && (
                           <tr className="border-b border-border/60 bg-secondary/30">
-                            <th scope="row" className="sticky left-0 z-10 border-r border-border/60 bg-card px-4 py-2 text-xs font-medium text-muted-foreground">
-                              Occupancy
+                            <th scope="row" className="sticky left-0 z-10 border-r border-border/60 bg-card px-4 py-2 align-middle font-normal">
+                              <div className="text-xs font-semibold text-foreground">All rooms</div>
+                              <div className="mt-1 text-2xs text-muted-foreground">Left · sold</div>
                             </th>
                             {dateColumns.map((dateStr) => {
-                              const occ = occupancyMap.get(dateStr);
-                              const pct = occ?.pct ?? 0;
+                              const t = roomsLeftTotals.get(dateStr);
                               return (
                                 <td key={dateStr} className={cn("border-r border-border/40 px-2 py-2 text-center align-middle", isWeekend(dateStr) && "bg-secondary/50")}>
-                                  {occ ? (
-                                    <div className="flex flex-col items-center gap-1" title={`${occ.occupied} of ${occ.total} rooms sold`}>
-                                      <span className={cn("text-2xs font-semibold tabular-nums", pct >= 90 ? "text-danger" : pct >= 70 ? "text-amber-700" : "text-muted-foreground")}>
-                                        {pct}%
-                                      </span>
-                                      <div className="h-1 w-full max-w-12 overflow-hidden rounded-full bg-border/60" aria-hidden="true">
-                                        <div className={cn("h-full rounded-full", pct >= 90 ? "bg-danger" : pct >= 70 ? "bg-amber-500" : "bg-primary/60")} style={{ width: `${pct}%` }} />
-                                      </div>
+                                  {t ? (
+                                    <div title={`${t.available} of ${t.totalRooms} rooms left`}>
+                                      <div className={cn("text-xs font-semibold tabular-nums", t.available === 0 ? "text-amber-700" : "text-foreground")}>{t.available}</div>
+                                      <div className="mt-1 text-2xs tabular-nums text-muted-foreground">{t.occupancy}%</div>
                                     </div>
                                   ) : (
                                     <span className="text-2xs text-muted-foreground">—</span>
@@ -1195,13 +1210,16 @@ export function PricingClient({
                               const isSeasonUnconfigured = cell?.source === "base" && !!cell?.seasonName;
                               const sourceLabel =
                                 cell?.source === "daily" ? "daily override" : cell?.source === "seasonal" ? `season ${cell.seasonName ?? ""}` : isSeasonUnconfigured ? `base, season ${cell?.seasonName} has no rate` : "base rate";
+                              const left = roomsLeftByCell.get(`${rt.id}_${dateStr}`);
+                              const marks = cell?.restrictions ? restrictionMarkers(cell.restrictions) : [];
 
                               return (
                                 <td
                                   key={dateStr}
                                   id={`cell-${rt.id}-${dateStr}`}
                                   tabIndex={isTabStop ? 0 : -1}
-                                  aria-label={`${rt.name}, ${format(parseISO(dateStr), "EEE d MMM")}: ${cell ? formatCurrency(cell.price, currency) : "loading"}, ${sourceLabel}`}
+                                  aria-label={`${rt.name}, ${format(parseISO(dateStr), "EEE d MMM")}: ${cell ? formatCurrency(cell.price, currency) : "loading"}, ${sourceLabel}${left !== undefined ? `, ${leftLabel(left)}` : ""}${marks.length ? `. ${marks.map((m) => m.title).join(". ")}` : ""}`}
+                                  title={marks.length ? marks.map((m) => m.title).join(" · ") : undefined}
                                   aria-selected={isSelected}
                                   onKeyDown={(e) => handleKeyDown(e, rt.id, dateStr)}
                                   onMouseDown={(e) => handleCellMouseDown(rt.id, dateStr, e)}
@@ -1218,16 +1236,20 @@ export function PricingClient({
                                   )}
                                 >
                                   {cell ? (
-                                    <span className="text-xs font-medium tabular-nums">{formatCurrency(cell.price, currency)}</span>
+                                    <span className={cn("block text-xs font-medium tabular-nums", cell.restrictions?.stopSell && "text-muted-foreground line-through")}>
+                                      {formatCurrency(cell.price, currency)}
+                                    </span>
                                   ) : (
                                     <Skeleton className="mx-auto h-4 w-12 rounded-md" />
                                   )}
+                                  <CellMeta left={left} marks={marks} />
                                   {cell?.source === "daily" && <span aria-hidden="true" className="absolute right-1 top-1 size-1 rounded-full bg-primary" />}
                                   {isSeasonUnconfigured && <span aria-hidden="true" className="absolute right-1 top-1 size-1 rounded-full bg-amber-500" />}
 
                                   {canManagePricing && isEditing && (
                                     <SingleRatePopover
                                       label={`${rt.name} · ${format(parseISO(dateStr), "EEE d MMM")}`}
+                                      notes={marks.map((m) => m.title)}
                                       currency={currency}
                                       value={singlePriceInput}
                                       onValue={setSinglePriceInput}
@@ -1267,12 +1289,15 @@ export function PricingClient({
                       {dateColumns.map((dateStr) => {
                         const cell = resolvedRateMap.get(`${rt.id}_${dateStr}`);
                         const active = selectedCells.some((c) => c.roomTypeId === rt.id && c.date === dateStr);
+                        const left = roomsLeftByCell.get(`${rt.id}_${dateStr}`);
+                        const marks = cell?.restrictions ? restrictionMarkers(cell.restrictions) : [];
                         return (
                           <button
                             type="button"
                             key={dateStr}
                             disabled={!canManagePricing}
                             aria-pressed={active}
+                            aria-label={`${format(parseISO(dateStr), "EEE d MMM")}: ${cell ? formatCurrency(cell.price, currency) : "loading"}${left !== undefined ? `, ${leftLabel(left)}` : ""}${marks.length ? `. ${marks.map((m) => m.title).join(". ")}` : ""}`}
                             onClick={(e) => handleCellClick(rt.id, dateStr, e)}
                             className={cn(
                               "relative flex min-h-14 select-none flex-col justify-between rounded-xl border border-border/60 p-3 text-left outline-none transition-transform duration-150 ease-[var(--ease-out-ui)] focus-visible:ring-2 focus-visible:ring-ring enabled:active:scale-[0.97] disabled:cursor-default motion-reduce:transition-none",
@@ -1283,9 +1308,10 @@ export function PricingClient({
                             )}
                           >
                             <span className="text-2xs font-medium text-muted-foreground">{format(parseISO(dateStr), "EEE d MMM")}</span>
-                            <span className="mt-1 text-sm font-semibold tabular-nums">
+                            <span className={cn("mt-1 text-sm font-semibold tabular-nums", cell?.restrictions?.stopSell && "text-muted-foreground line-through")}>
                               {cell ? formatCurrency(cell.price, currency) : <Skeleton className="h-4 w-12 rounded-md" />}
                             </span>
+                            <CellMeta left={left} marks={marks} align="start" />
                             {cell?.source === "daily" && <span aria-hidden="true" className="absolute right-2 top-2 size-1 rounded-full bg-primary" />}
                           </button>
                         );
@@ -1390,7 +1416,6 @@ export function PricingClient({
               <div className={cn(SEASON_GRID, LIST_HEADER)}>
                 <span>Season</span>
                 <span>Dates</span>
-                <span>Priority</span>
                 <span>Status</span>
                 <span>Rates set</span>
                 <span className="sr-only">Actions</span>
@@ -1410,7 +1435,6 @@ export function PricingClient({
                         <p className="mt-1 truncate text-xs tabular-nums text-muted-foreground lg:hidden">{dates}</p>
                       </div>
                       <span className="hidden text-sm tabular-nums text-foreground lg:block">{dates}</span>
-                      <span className="hidden text-sm tabular-nums text-muted-foreground lg:block">{season.priority}</span>
                       <span className="hidden lg:block">{getSeasonStatus(season.start_date, season.end_date)}</span>
                       <span className="flex items-center gap-2 lg:block">
                         <span className="lg:hidden">{getSeasonStatus(season.start_date, season.end_date)}</span>
@@ -1527,19 +1551,13 @@ export function PricingClient({
                 </DateRangePicker.Popover>
               </DateRangePicker>
 
-              <TextField value={seasonPriority} onChange={setSeasonPriority} type="number" className="w-full">
-                <Label className={FIELD_LABEL}>Priority</Label>
-                <Input inputMode="numeric" min={0} max={1000} step={1} className="rounded-xl tabular-nums max-md:h-11 max-md:text-base" />
-                <Description className="text-xs text-muted-foreground">Higher wins where seasons overlap</Description>
-              </TextField>
-
               {clientOverlapSeason && (
                 <Alert status="danger" className="rounded-2xl">
                   <Alert.Indicator />
                   <Alert.Content>
                     <Alert.Title>Overlaps {clientOverlapSeason.name}</Alert.Title>
                     <Alert.Description>
-                      Same priority ({clientOverlapSeason.priority}), {clientOverlapSeason.start_date} to {clientOverlapSeason.end_date}. Change the dates or the priority.
+                      It runs {format(parseISO(clientOverlapSeason.start_date), "MMM d")} – {format(parseISO(clientOverlapSeason.end_date), "MMM d, yyyy")}. Change the dates.
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>
@@ -1676,6 +1694,32 @@ export function PricingClient({
   );
 }
 
+function leftLabel(left: number) {
+  return left === 0 ? "sold out" : `${left} left`;
+}
+
+/** Second line of a rate cell: rooms left, then any restriction badges. */
+function CellMeta({ left, marks, align = "center" }: {
+  left: number | undefined;
+  marks: ReturnType<typeof restrictionMarkers>;
+  align?: "center" | "start";
+}) {
+  if (left === undefined && marks.length === 0) return null;
+  return (
+    <span aria-hidden="true" className={cn("mt-1 flex flex-wrap items-center gap-1 text-2xs font-normal tabular-nums", align === "center" ? "justify-center" : "justify-start")}>
+      {left !== undefined && (
+        <span className={left === 0 ? "font-medium text-amber-700" : "text-muted-foreground"}>{left === 0 ? "Full" : `${left} left`}</span>
+      )}
+      {marks.slice(0, 2).map((m) => (
+        <span key={m.code} className={cn("rounded px-1 font-semibold", m.code === "stop" ? "bg-danger/10 text-danger" : "bg-amber-500/15 text-amber-800")}>
+          {m.label}
+        </span>
+      ))}
+      {marks.length > 2 && <span className="text-muted-foreground">+{marks.length - 2}</span>}
+    </span>
+  );
+}
+
 /** Swatches explain the cell tints; each also carries text, so state is never colour-only. */
 function RateLegend() {
   const items = [
@@ -1746,8 +1790,10 @@ function ApplyAllField({ label, currency, value, onValue, onApply }: {
 }
 
 /** Inline editor for one night (opened with Enter on a focused cell). */
-function SingleRatePopover({ label, currency, value, onValue, onClose, onSave, saving, canClear, clearing, onClear }: {
+function SingleRatePopover({ label, notes = [], currency, value, onValue, onClose, onSave, saving, canClear, clearing, onClear }: {
   label: string;
+  /** Restriction descriptions for this night, shown above the input. */
+  notes?: string[];
   currency: string;
   value: string;
   onValue: (value: string) => void;
@@ -1767,6 +1813,13 @@ function SingleRatePopover({ label, currency, value, onValue, onClose, onSave, s
         <Popover.Content placement="top" className="w-64 rounded-2xl p-0">
           <Popover.Dialog aria-label={label} className="grid gap-3 p-4 outline-none">
             <p className="truncate text-xs font-semibold text-foreground">{label}</p>
+            {notes.length > 0 && (
+              <ul className="grid gap-1 rounded-xl bg-amber-500/[0.08] px-3 py-2 text-2xs leading-snug text-amber-900">
+                {notes.map((n) => (
+                  <li key={n}>{n}</li>
+                ))}
+              </ul>
+            )}
             <TextField aria-label={`Rate in ${currency}`} value={value} onChange={onValue} type="number" autoFocus className="w-full min-w-0">
               <InputGroup className="w-full min-w-0 rounded-xl">
                 <InputGroup.Prefix className="text-xs font-medium text-muted-foreground">{currency}</InputGroup.Prefix>
@@ -1848,7 +1901,7 @@ function SeasonTimeline({ seasons, todayStr }: { seasons: SeasonRow[]; todayStr:
           if (s > e) return null;
           const left = ((s - start.getTime()) / total) * 100;
           const width = ((e - s) / total) * 100;
-          const label = `${season.name}, ${format(parseISO(season.start_date), "MMM d")} – ${format(parseISO(season.end_date), "MMM d, yyyy")}, priority ${season.priority}`;
+          const label = `${season.name}, ${format(parseISO(season.start_date), "MMM d")} – ${format(parseISO(season.end_date), "MMM d, yyyy")}`;
           return (
             <Tooltip key={season.id} delay={200}>
               <Tooltip.Trigger aria-label={label}>
@@ -1862,7 +1915,7 @@ function SeasonTimeline({ seasons, todayStr }: { seasons: SeasonRow[]; todayStr:
               <Tooltip.Content>
                 <p className="font-semibold">{season.name}</p>
                 <p className="text-xs">
-                  {format(parseISO(season.start_date), "MMM d")} – {format(parseISO(season.end_date), "MMM d, yyyy")} · priority {season.priority}
+                  {format(parseISO(season.start_date), "MMM d")} – {format(parseISO(season.end_date), "MMM d, yyyy")}
                 </p>
               </Tooltip.Content>
             </Tooltip>

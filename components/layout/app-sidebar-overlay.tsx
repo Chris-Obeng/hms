@@ -14,7 +14,6 @@ import {
   ClipboardList,
   ChevronsUpDown,
   UserCog,
-  CalendarRange,
   CalendarDays,
   BedDouble,
 } from "lucide-react";
@@ -85,7 +84,6 @@ const navGroups: NavGroup[] = [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       { title: "Reservations", url: "/dashboard/bookings", icon: ClipboardList },
       { title: "Calendar", url: "/dashboard/calendar", icon: CalendarDays },
-      { title: "Availability", url: "/dashboard/availability", icon: CalendarRange },
       { title: "Rooms", url: "/dashboard/rooms", icon: BedDouble },
       { title: "Guests", url: "/dashboard/customers", icon: Users },
       { title: "Payments", url: "/dashboard/payments", icon: CreditCard },

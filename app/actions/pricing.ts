@@ -13,6 +13,11 @@ import {
 } from "@/lib/pricing/rate-restrictions";
 import { captureError } from "@/lib/observability/sentry";
 import {
+  computeRoomsLeft,
+  ROOMS_LEFT_BOOKING_STATUSES,
+  type RoomsLeftResult,
+} from "@/lib/availability/rooms-left";
+import {
   toDailyOverrideInsert,
   toSeasonalOverrideInsert,
 } from "@/lib/supabase/trigger-derived";
@@ -913,25 +918,18 @@ export async function getResolvedRates(
   }
 }
 
-// ── Occupancy by Date ────────────────────────────────────────────────────────
-// Returns occupied room count and total rooms per date for the rate calendar.
+// ── Rooms left by date ───────────────────────────────────────────────────────
 
-export interface OccupancyCell {
-  date: string;
-  /** Number of rooms occupied (checked_in / confirmed bookings covering this night) */
-  occupied: number;
-  /** Total active rooms in the hotel */
-  total: number;
-  /** 0–100 */
-  pct: number;
-}
-
-export async function getOccupancyByDate(
+/**
+ * Rooms left to sell per room type per night (inclusive range), plus the
+ * property total. Read-only; feeds the rates grid. The counting rules live in
+ * lib/availability/rooms-left.ts.
+ */
+export async function getRoomsLeft(
   startDate: string,
   endDate: string
-): Promise<{ success: true; data: OccupancyCell[] } | { success: false; error: string }> {
+): Promise<{ success: true; data: RoomsLeftResult } | { success: false; error: string }> {
   try {
-    // Validate date format and ordering
     const dateRe = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRe.test(startDate) || !dateRe.test(endDate)) {
       return { success: false, error: "Invalid date format — expected YYYY-MM-DD" };
@@ -939,78 +937,55 @@ export async function getOccupancyByDate(
     if (startDate > endDate) {
       return { success: false, error: "startDate must be <= endDate" };
     }
+    // Inclusive night list; capped so a bad range cannot fan out unbounded work.
+    const dates: string[] = [];
+    for (let d = startDate; d <= endDate && dates.length <= 366; d = nextDay(d)) dates.push(d);
+    if (dates.length > 366) {
+      return { success: false, error: "Date range is too long" };
+    }
+    const endExclusive = nextDay(endDate);
 
     const ctx = await requireAuth();
     const hotelId = ctx.hotelId;
     const supabase = await createClient();
 
-    // Total active rooms
-    const { count: totalRooms, error: totalErr } = await supabase
-      .from("rooms")
-      .select("id", { count: "exact", head: true })
-      .eq("hotel_id", hotelId)
-      .eq("is_active", true);
+    const [roomTypesResult, roomsResult, bookingsResult, blocksResult] = await Promise.all([
+      supabase.from("room_types").select("id").eq("hotel_id", hotelId).eq("is_active", true),
+      supabase.from("rooms").select("id, room_type_id, status").eq("hotel_id", hotelId).eq("is_active", true),
+      supabase
+        .from("bookings")
+        .select("room_id, room_type_id, check_in, check_out")
+        .eq("hotel_id", hotelId)
+        .in("status", [...ROOMS_LEFT_BOOKING_STATUSES])
+        .lt("check_in", endExclusive)
+        .gt("check_out", startDate),
+      supabase
+        .from("availability_blocks")
+        .select("room_id, start_date, end_date")
+        .eq("hotel_id", hotelId)
+        .lt("start_date", endExclusive)
+        .gt("end_date", startDate),
+    ]);
+    if (roomTypesResult.error) throw roomTypesResult.error;
+    if (roomsResult.error) throw roomsResult.error;
+    if (bookingsResult.error) throw bookingsResult.error;
+    if (blocksResult.error) throw blocksResult.error;
 
-    if (totalErr) throw totalErr;
-    const total = totalRooms ?? 0;
-
-    if (total === 0) {
-      return { success: true, data: [] };
-    }
-
-    // Fetch bookings that overlap the inclusive [startDate, endDate] range.
-    // A booking overlaps when:  check_in <= endDate  AND  check_out > startDate
-    // Using .lte for check_in so bookings whose check_in == endDate are included
-    // (the last date in the calendar grid must count those guests as occupied).
-    const { data: bookings, error: bookErr } = await supabase
-      .from("bookings")
-      .select("check_in, check_out")
-      .eq("hotel_id", hotelId)
-      .in("status", ["confirmed", "checked_in"])
-      .lte("check_in", endDate)   // starts on or before range end (inclusive)
-      .gt("check_out", startDate); // checks out after range start
-
-    if (bookErr) throw bookErr;
-
-    // Build inclusive date list: startDate … endDate
-    const dateList: string[] = [];
-    const cur = new Date(startDate + "T12:00:00");
-    const end = new Date(endDate + "T12:00:00");
-    while (cur <= end) {
-      dateList.push(cur.toISOString().split("T")[0]);
-      cur.setDate(cur.getDate() + 1);
-    }
-
-    // Count overlapping bookings per night
-    const occupancyMap = new Map<string, number>(dateList.map((d) => [d, 0]));
-
-    for (const booking of bookings ?? []) {
-      const ci = new Date(booking.check_in + "T12:00:00");
-      const co = new Date(booking.check_out + "T12:00:00");
-      const night = new Date(ci);
-      while (night < co) {
-        const dateStr = night.toISOString().split("T")[0];
-        if (occupancyMap.has(dateStr)) {
-          occupancyMap.set(dateStr, (occupancyMap.get(dateStr) ?? 0) + 1);
-        }
-        night.setDate(night.getDate() + 1);
-      }
-    }
-
-    const data: OccupancyCell[] = dateList.map((date) => {
-      const occupied = occupancyMap.get(date) ?? 0;
-      // Cap at total (overbooking edge-case in data)
-      const capped = Math.min(occupied, total);
-      return {
-        date,
-        occupied: capped,
-        total,
-        pct: total > 0 ? Math.round((capped / total) * 100) : 0,
-      };
+    const data = computeRoomsLeft({
+      roomTypeIds: (roomTypesResult.data ?? []).map((t) => t.id),
+      rooms: (roomsResult.data ?? []).map((r) => ({ id: r.id, roomTypeId: r.room_type_id, status: r.status })),
+      bookings: (bookingsResult.data ?? []).map((b) => ({
+        roomId: b.room_id,
+        roomTypeId: b.room_type_id ?? "",
+        checkIn: b.check_in,
+        checkOut: b.check_out,
+      })),
+      blocks: (blocksResult.data ?? []).map((b) => ({ roomId: b.room_id, startDate: b.start_date, endDate: b.end_date })),
+      dates,
     });
 
     return { success: true, data };
   } catch (err) {
-    return toActionError(err, { action: "pricing.getOccupancyByDate" });
+    return toActionError(err, { action: "pricing.getRoomsLeft" });
   }
 }
