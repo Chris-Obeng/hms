@@ -2,16 +2,21 @@
 
 import * as React from "react";
 import { Check, Copy } from "lucide-react";
-import { toast } from "@heroui/react";
+import { Button, Chip, toast } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
-import {
-  getStatusLabel,
-  STATUS_COLORS,
-  STATUS_DOT_FALLBACK,
-  STATUS_PILL_CLASSES,
-  STATUS_PILL_FALLBACK,
-} from "@/lib/booking-status";
+import { getStatusLabel, STATUS_COLORS, STATUS_DOT_FALLBACK } from "@/lib/booking-status";
+
+type ChipColor = "default" | "accent" | "success" | "warning" | "danger";
+
+const STATUS_CHIP_COLOR: Record<string, ChipColor> = {
+  confirmed: "accent",
+  checked_in: "success",
+  checked_out: "default",
+  pending: "warning",
+  cancelled: "danger",
+  no_show: "danger",
+};
 
 export function BookingStatusPill({
   status,
@@ -22,19 +27,15 @@ export function BookingStatusPill({
 }) {
   const key = status || "";
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-2xs font-semibold capitalize ring-1 ring-inset",
-        STATUS_PILL_CLASSES[key] ?? STATUS_PILL_FALLBACK,
-        className
-      )}
+    <Chip
+      size="sm"
+      variant="soft"
+      color={STATUS_CHIP_COLOR[key] ?? "default"}
+      className={cn("gap-1 font-medium", className)}
     >
-      <span
-        aria-hidden
-        className={cn("size-2 rounded-full", STATUS_COLORS[key] ?? STATUS_DOT_FALLBACK)}
-      />
-      {getStatusLabel(key)}
-    </span>
+      <span aria-hidden className={cn("size-2 rounded-full", STATUS_COLORS[key] ?? STATUS_DOT_FALLBACK)} />
+      <Chip.Label>{getStatusLabel(key)}</Chip.Label>
+    </Chip>
   );
 }
 
@@ -59,25 +60,22 @@ export function ReferenceChip({
   };
 
   return (
-    <button
-      type="button"
-      onClick={copy}
-      title="Copy reference"
+    <Button
+      size="sm"
+      variant="ghost"
+      onPress={copy}
       aria-label={`Copy reference ${reference}`}
       className={cn(
-        "group inline-flex h-8 min-w-0 cursor-pointer items-center gap-2 rounded-lg px-2 text-muted-foreground transition-colors",
-        "hover:bg-muted hover:text-foreground active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "group h-6 min-w-0 gap-1 rounded-md px-2 text-muted-foreground md:h-6",
         className
       )}
     >
-      <span className="truncate font-mono text-2xs font-medium tracking-tight">
-        {reference}
-      </span>
+      <span className="truncate font-mono text-2xs font-medium tracking-tight">{reference}</span>
       {copied ? (
         <Check className="size-3 shrink-0 text-emerald-600" />
       ) : (
         <Copy className="size-3 shrink-0 opacity-50 transition-opacity group-hover:opacity-100" />
       )}
-    </button>
+    </Button>
   );
 }

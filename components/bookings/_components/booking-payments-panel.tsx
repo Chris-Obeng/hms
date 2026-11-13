@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Input, toast } from "@heroui/react";
+import { Button, Chip, Input, toast } from "@heroui/react";
 import { Banknote, CircleDollarSign, CreditCard, Landmark, Plus, Smartphone, Wallet, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { HeroSelectField } from "@/components/ui/hero-select";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { getMethodLabel } from "@/lib/booking-status";
 import { type FullBookingDetail } from "./booking-detail-types";
+import { getBookingPaymentAvailability } from "./booking-payment-availability";
 import { recordPayment } from "@/app/actions/bookings-detail";
 
 interface BookingPaymentsPanelProps {
@@ -45,33 +46,7 @@ function PaymentMethodIcon({ method }: { method: string | null }) {
   }
 }
 
-export function getBookingPaymentAvailability(booking: FullBookingDetail) {
-  const group = booking.group;
-  const totalDue = group ? group.total : booking.totalAmount;
-  const amountPaid = group ? group.amountPaid : booking?.amountPaid || 0;
-  const outstandingBalance = group
-    ? Math.max(0, group.outstanding)
-    : Math.max(0, booking.outstandingBalance ?? booking.totalAmount - amountPaid);
-  const isFullyPaid = outstandingBalance <= 0 && totalDue > 0;
-  const payableLines = group
-    ? group.lines.filter(
-        (l) => l.outstanding > 0 && !["cancelled", "checked_out"].includes(l.status ?? "")
-      )
-    : [];
-  const canTakePayment = group
-    ? payableLines.length > 0
-    : !["cancelled", "checked_out"].includes(booking.status ?? "");
-
-  return {
-    group,
-    totalDue,
-    amountPaid,
-    outstandingBalance,
-    isFullyPaid,
-    payableLines,
-    canTakePayment,
-  };
-}
+export { getBookingPaymentAvailability };
 
 export function BookingPaymentsPanel({
   booking,
@@ -193,13 +168,11 @@ export function BookingPaymentsPanel({
   return (
     <div className="flex min-h-full flex-col">
       {/* Balance band */}
-      <section aria-label="Balance" className="border-b border-border/50 px-4 py-4 sm:px-6">
+      <section aria-label="Balance" className="desk-rise px-6 pb-2 pt-6">
         <div
           className={cn(
-            "flex flex-wrap items-center justify-between gap-4 rounded-2xl border px-4 py-4",
-            isFullyPaid
-              ? "border-emerald-500/20 bg-emerald-500/[0.05]"
-              : "border-border/60 bg-secondary/50"
+            "flex flex-wrap items-center justify-between gap-4 rounded-2xl p-4",
+            isFullyPaid ? "bg-emerald-500/[0.07]" : "bg-secondary/60"
           )}
         >
           <div className="min-w-0">
@@ -207,37 +180,27 @@ export function BookingPaymentsPanel({
               <p className="text-xs font-medium text-muted-foreground">
                 {isFullyPaid ? "Balance settled" : "Balance due"}
               </p>
-              {isFullyPaid ? (
-                <span className="rounded-md bg-emerald-500/12 px-2 py-1 text-2xs font-semibold text-emerald-700">
-                  Paid in full
-                </span>
-              ) : amountPaid > 0 ? (
-                <span className="rounded-md bg-amber-500/15 px-2 py-1 text-2xs font-semibold text-amber-800">
-                  Partial
-                </span>
-              ) : (
-                <span className="rounded-md bg-muted px-2 py-1 text-2xs font-medium text-muted-foreground">
-                  Unpaid
-                </span>
-              )}
+              <Chip
+                size="sm"
+                variant="soft"
+                color={isFullyPaid ? "success" : amountPaid > 0 ? "warning" : "default"}
+              >
+                {isFullyPaid ? "Paid in full" : amountPaid > 0 ? "Partial" : "Unpaid"}
+              </Chip>
             </div>
-            <p className="mt-2 font-mono text-2xl font-semibold leading-none tracking-[-0.02em] tabular-nums text-foreground">
+            <p className="mt-2 text-2xl font-semibold tracking-[-0.02em] tabular-nums text-foreground">
               {formatCurrency(isFullyPaid ? 0 : outstandingBalance, currency)}
             </p>
-            <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
+            <p className="mt-1 text-xs tabular-nums text-muted-foreground">
               Paid {formatCurrency(amountPaid, currency)} of {formatCurrency(totalDue, currency)}
             </p>
           </div>
 
           {!controlled && canTakePayment && !isFullyPaid && !showForm && (
-            <button
-              type="button"
-              onClick={openForm}
-              className="ui-press inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
-            >
+            <Button variant="primary" onPress={openForm} className="shrink-0 rounded-xl font-semibold">
               <Plus className="size-4" aria-hidden="true" />
               Record payment
-            </button>
+            </Button>
           )}
         </div>
       </section>
@@ -246,18 +209,20 @@ export function BookingPaymentsPanel({
       {showForm && (
         <form
           onSubmit={handleRecordPayment}
-          className="flex flex-col gap-3 border-b border-border/50 bg-muted/20 px-4 py-4 sm:px-6"
+          className="mx-6 mt-4 flex flex-col gap-3 rounded-2xl border border-border/60 p-4"
         >
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-foreground">Record payment</span>
-            <button
-              type="button"
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
               aria-label="Close payment form"
-              onClick={() => setShowForm(false)}
-              className="ui-press grid size-8 cursor-pointer place-items-center rounded-lg text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+              onPress={() => setShowForm(false)}
+              className="rounded-lg text-muted-foreground"
             >
               <X className="size-4" aria-hidden="true" />
-            </button>
+            </Button>
           </div>
 
           {group && (
@@ -316,31 +281,25 @@ export function BookingPaymentsPanel({
           />
 
           <div className="flex items-center justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="ui-press h-10 cursor-pointer rounded-xl border border-border/70 bg-card px-4 text-xs font-semibold text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
-            >
+            <Button variant="tertiary" onPress={() => setShowForm(false)} className="rounded-xl">
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              disabled={
-                savingPayment ||
-                !paymentAmount ||
-                Number(paymentAmount) <= 0 ||
-                (!!group && !selectedLineId)
-              }
-              className="ui-press h-10 cursor-pointer rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground disabled:opacity-55 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
+              variant="primary"
+              isPending={savingPayment}
+              isDisabled={!paymentAmount || Number(paymentAmount) <= 0 || (!!group && !selectedLineId)}
+              className="rounded-xl font-semibold"
             >
-              {savingPayment ? "Recording…" : "Save payment"}
-            </button>
+              Save payment
+            </Button>
           </div>
         </form>
       )}
 
       {/* Charges band */}
-      <section aria-label="Charges" className="border-b border-border/50 px-4 py-2 sm:px-6">
+      <section aria-label="Charges" className="px-6 pt-4">
+        <h3 className="text-xs font-medium text-muted-foreground">Charges</h3>
         {group ? (
           group.lines.map((l, index) => (
             <ChargeRow
@@ -393,7 +352,8 @@ export function BookingPaymentsPanel({
       </section>
 
       {/* Payment history band */}
-      <section aria-label="Payment history" className="px-4 py-2 sm:px-6">
+      <section aria-label="Payment history" className="px-6 pb-6 pt-4">
+        <h3 className="text-xs font-medium text-muted-foreground">Payments</h3>
         {booking.payments.length > 0 ? (
           booking.payments.map((payment, index) => (
             <div key={payment.id}>
@@ -416,7 +376,7 @@ export function BookingPaymentsPanel({
                 </div>
                 <span
                   className={cn(
-                    "shrink-0 font-mono text-xs font-semibold tabular-nums",
+                    "shrink-0 text-sm font-semibold tabular-nums",
                     payment.status === "success"
                       ? "text-emerald-600"
                       : "text-muted-foreground"
@@ -470,11 +430,11 @@ function ChargeRow({
           >
             {name}
           </p>
-          {sub && <p className="mt-1 font-mono text-2xs tabular-nums text-muted-foreground">{sub}</p>}
+          {sub && <p className="mt-1 text-xs tabular-nums text-muted-foreground">{sub}</p>}
         </div>
         <span
           className={cn(
-            "shrink-0 font-mono tabular-nums",
+            "shrink-0 tabular-nums",
             strong
               ? "text-sm font-semibold text-foreground"
               : quiet

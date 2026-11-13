@@ -1,7 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { Button, Drawer, Dropdown, Skeleton, Tabs, toast } from "@heroui/react";
+import {
+  AlertDialog,
+  Avatar,
+  Button,
+  Chip,
+  Drawer,
+  Dropdown,
+  Label,
+  Skeleton,
+  Tabs,
+  toast,
+} from "@heroui/react";
 import { ArrowUpRight, Ban, CalendarX2, Ellipsis, RotateCcw, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,7 +21,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useSnapshotPatch } from "@/hooks/use-snapshot-patch";
 import { SegmentedTab } from "@/components/ui/segmented-tab";
 import { canTransitionBooking, deriveReservationStatus } from "@/lib/booking-status";
-import { formatRoomLabel } from "@/lib/format";
+import { formatRoomLabel, getInitials } from "@/lib/format";
 import type { FullBookingDetail } from "@/app/actions/bookings-detail";
 import { updateBookingStatus } from "@/app/actions/bookings";
 import { checkInBooking, checkOutBooking } from "@/app/dashboard/actions";
@@ -217,16 +228,26 @@ export function BookingDetailDrawer({
           : null
     : null;
 
+  const guestName = booking?.guest?.fullName || "Unknown guest";
+  const totalRooms = booking?.group?.totalRooms ?? booking?.roomsCount ?? 0;
+  const idleFooterLabel =
+    anchorStatus === "checked_out"
+      ? "Checked out"
+      : anchorStatus === "cancelled"
+        ? "Cancelled"
+        : anchorStatus === "no_show"
+          ? "No-show"
+          : "No action needed";
+
   return (
-    <Drawer.Backdrop isOpen={open} onOpenChange={(isOpen) => !isOpen && onClose()} variant="opaque" className="bg-black/40">
+    <Drawer.Backdrop isOpen={open} onOpenChange={(isOpen) => !isOpen && onClose()} variant="opaque" className="bg-black/30">
       <Drawer.Content placement={isMobile ? "bottom" : "right"}>
         <Drawer.Dialog
           className={`
-            flex w-full flex-col overflow-hidden rounded-t-3xl bg-card p-0 shadow-[0_-24px_80px_rgb(0_0_0/0.35)]
+            flex w-full flex-col overflow-hidden rounded-t-3xl bg-card p-0 shadow-[0_-24px_80px_rgb(0_0_0/0.25)]
             h-[min(94dvh,56rem)] max-h-[94dvh]
-            md:h-dvh md:max-h-dvh md:w-[min(30rem,100vw)]
-            md:rounded-l-3xl md:rounded-r-none
-            md:border-l md:border-border/70 md:shadow-[-32px_0_90px_rgb(0_0_0/0.16)]
+            md:h-dvh md:max-h-dvh md:w-[min(28rem,100vw)]
+            md:rounded-none md:border-l md:border-border/60 md:shadow-[-24px_0_80px_rgb(15_23_42/0.12)]
           `}
         >
           {isMobile && <Drawer.Handle className="mt-3 shrink-0" />}
@@ -235,37 +256,49 @@ export function BookingDetailDrawer({
             <DrawerSkeleton />
           ) : isErrorEmpty || !booking ? (
             <Drawer.Body className="flex flex-1 flex-col items-center justify-center px-6 pb-16 text-center">
-              <div className="mb-4 grid size-14 place-items-center rounded-2xl bg-muted/50">
-                <CalendarX2 className="size-6 text-muted-foreground/40" />
+              <div className="mb-4 grid size-12 place-items-center rounded-2xl bg-secondary">
+                <CalendarX2 className="size-5 text-muted-foreground" />
               </div>
               <p className="text-sm font-semibold text-foreground">Reservation not found</p>
               <p className="mt-1 max-w-[15rem] text-xs text-muted-foreground">It may have been removed, or you don&apos;t have access to it.</p>
+              <Button variant="secondary" size="sm" onPress={onClose} className="mt-4 rounded-xl">
+                Close
+              </Button>
             </Drawer.Body>
           ) : (
             <>
-              {/* Header band */}
-              <Drawer.Header className="shrink-0 flex-col items-start gap-3 border-b border-border/60 bg-card px-6 pb-4 pt-[max(1.25rem,env(safe-area-inset-top))] md:pt-[max(1.25rem,4.5rem)]">
-                <div className="flex w-full min-w-0 items-center gap-2">
-                  <BookingStatusPill status={reservationStatus} className="shrink-0" />
-                  <ReferenceChip reference={booking.reference} className="min-w-0" />
-                  <span className="min-w-0 flex-1" aria-hidden="true" />
-                  {(booking.group?.totalRooms ?? booking.roomsCount ?? 0) > 1 && (
-                    <span className="shrink-0 rounded-lg bg-muted/70 px-2 py-1 text-2xs font-semibold text-muted-foreground">
-                      {booking.group?.totalRooms ?? booking.roomsCount} rooms
-                    </span>
-                  )}
+              <Drawer.Header className="shrink-0 flex-row items-start gap-3 px-6 pb-4 pt-4 md:pt-6">
+                <Avatar size="lg" className="shrink-0" aria-hidden="true">
+                  <Avatar.Fallback className="font-semibold">{getInitials(guestName)}</Avatar.Fallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <Drawer.Heading className="truncate text-lg font-semibold leading-tight tracking-[-0.01em] text-foreground">
+                    {guestName}
+                  </Drawer.Heading>
+                  <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1">
+                    <BookingStatusPill status={reservationStatus} className="shrink-0" />
+                    <ReferenceChip reference={booking.reference} className="min-w-0" />
+                    {totalRooms > 1 && (
+                      <Chip size="sm" variant="secondary" className="shrink-0 font-medium">
+                        {totalRooms} rooms
+                      </Chip>
+                    )}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
                   <Dropdown>
                     <Button
                       isIconOnly
                       size="sm"
-                      variant="tertiary"
+                      variant="ghost"
                       aria-label="Reservation actions"
-                      className="ui-press size-10 min-w-10 shrink-0 rounded-xl bg-muted/70 p-0 text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+                      className="rounded-lg text-muted-foreground"
                     >
                       <Ellipsis className="size-4" aria-hidden="true" />
                     </Button>
                     <Dropdown.Popover placement="bottom end">
                       <Dropdown.Menu
+                        aria-label="Reservation actions"
                         onAction={(key) => {
                           if (key === "open-page") {
                             onClose();
@@ -277,45 +310,44 @@ export function BookingDetailDrawer({
                           }
                         }}
                       >
-                        <Dropdown.Item id="open-page" textValue="Open full folio" className="text-foreground">
+                        <Dropdown.Item id="open-page" textValue="Open full folio">
                           <ArrowUpRight className="size-4 text-muted-foreground" />
-                          <span>Open full folio</span>
+                          <Label>Open full folio</Label>
                         </Dropdown.Item>
                         {canReinstate ? (
-                          <Dropdown.Item id="reinstate" textValue="Reinstate reservation" className="text-foreground">
+                          <Dropdown.Item id="reinstate" textValue="Reinstate reservation">
                             <RotateCcw className="size-4 text-muted-foreground" />
-                            <span>Reinstate reservation</span>
+                            <Label>Reinstate reservation</Label>
                           </Dropdown.Item>
                         ) : (
-                          <Dropdown.Item id="cancel" textValue="Cancel reservation" isDisabled={!canCancel} className="text-[var(--danger)] data-[hovered=true]:bg-[var(--danger)]/10">
-                            <Ban className="size-4 text-[var(--danger)]" />
-                            <span>Cancel reservation</span>
+                          <Dropdown.Item id="cancel" textValue="Cancel reservation" variant="danger" isDisabled={!canCancel}>
+                            <Ban className="size-4" />
+                            <Label>Cancel reservation</Label>
                           </Dropdown.Item>
                         )}
                       </Dropdown.Menu>
                     </Dropdown.Popover>
                   </Dropdown>
-                  <button
-                    type="button"
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="ghost"
                     aria-label="Close reservation drawer"
-                    onClick={onClose}
-                    className="ui-press hidden size-10 shrink-0 place-items-center rounded-xl bg-muted/70 text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:grid [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+                    onPress={onClose}
+                    className="hidden rounded-lg text-muted-foreground md:inline-flex"
                   >
                     <X className="size-4" aria-hidden="true" />
-                  </button>
+                  </Button>
                 </div>
-                <Drawer.Heading className="w-full truncate text-xl font-semibold leading-tight tracking-[-0.3px] text-foreground">
-                  {booking.guest?.fullName || "Unknown Guest"}
-                </Drawer.Heading>
               </Drawer.Header>
 
               <Tabs
                 key={`${open ? bookingId : "closed"}:${initialTab}`}
                 selectedKey={tab}
                 onSelectionChange={(key) => setTab(key as DrawerTab)}
-                className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
+                className="flex min-h-0 w-full flex-1 flex-col gap-0 overflow-hidden"
               >
-                <div className="shrink-0 border-b border-border/60 bg-card px-6 py-3">
+                <div className="shrink-0 border-b border-border/60 px-6 pb-4">
                   <Tabs.ListContainer>
                     <Tabs.List aria-label="Reservation sections" className="grid w-full grid-cols-2">
                       <SegmentedTab id="overview">Overview</SegmentedTab>
@@ -326,7 +358,7 @@ export function BookingDetailDrawer({
 
                 <ScrollArea>
                   <BookingPanelBoundary label="overview">
-                    <Tabs.Panel id="overview" className="flex min-h-full flex-col">
+                    <Tabs.Panel id="overview" className="mt-0 flex min-h-full flex-col p-0">
                       <BookingOverviewPanel booking={booking} actionLoading={actionLoading} onBulkAction={handleBulkAction}
                         onSaveNotes={async (notes) => {
                           setOptimisticPatch({ internalNotes: notes || null } as Partial<FullBookingDetail>);
@@ -340,7 +372,7 @@ export function BookingDetailDrawer({
                   </BookingPanelBoundary>
 
                   <BookingPanelBoundary label="payments">
-                    <Tabs.Panel id="payments" className="flex min-h-full flex-col">
+                    <Tabs.Panel id="payments" className="mt-0 flex min-h-full flex-col p-0">
                       <BookingPaymentsPanel
                         booking={booking}
                         currency={booking.currency ?? currency}
@@ -398,50 +430,49 @@ export function BookingDetailDrawer({
                   </BookingPanelBoundary>
                 </ScrollArea>
 
-                {/* Footer CTA: lifecycle on Overview, Record payment on Payment */}
-                <div className="shrink-0 border-t border-border/60 bg-card px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 max-md:pt-3">
+                {/* Footer: lifecycle step on Overview, record payment on Payment */}
+                <div className="shrink-0 border-t border-border/60 bg-card px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
                   {tab === "payments" ? (
                     canRecordPayment || paymentFormOpen ? (
-                      <button type="button"
-                        onClick={() => setPaymentFormOpen((prev) => !prev)}
-                        className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--pen-accent)] text-sm font-semibold text-white transition-transform active:scale-[0.99]">
+                      <Button
+                        size="lg"
+                        fullWidth
+                        variant={paymentFormOpen ? "secondary" : "primary"}
+                        onPress={() => setPaymentFormOpen((prev) => !prev)}
+                        className="rounded-xl font-semibold"
+                      >
                         {paymentFormOpen ? "Close form" : "Record payment"}
-                      </button>
+                      </Button>
                     ) : (
-                      <button type="button" disabled
-                        className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-muted text-sm font-semibold text-muted-foreground">
-                        {paymentAvail?.isFullyPaid
-                          ? "Paid in full"
-                          : anchorStatus === "cancelled"
-                            ? "Cancelled"
-                            : anchorStatus === "checked_out"
-                              ? "Checked out"
-                              : "No payment due"}
-                      </button>
+                      <Button size="lg" fullWidth variant="secondary" isDisabled className="rounded-xl font-semibold">
+                        {paymentAvail?.isFullyPaid ? "Paid in full" : idleFooterLabel === "No action needed" ? "No payment due" : idleFooterLabel}
+                      </Button>
                     )
                   ) : footerAction ? (
-                    <button type="button"
-                      disabled={actionLoading !== null}
-                      onClick={() => footerAction?.run()}
-                      className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--pen-accent)] text-sm font-semibold text-white transition-transform active:scale-[0.99] disabled:opacity-60">
-                      {actionLoading === footerAction.key ? "Working…" : footerAction.label}
-                    </button>
+                    <Button
+                      size="lg"
+                      fullWidth
+                      variant={footerAction.key === "check_out" ? "secondary" : "primary"}
+                      isPending={actionLoading === footerAction.key}
+                      isDisabled={actionLoading !== null && actionLoading !== footerAction.key}
+                      onPress={() => footerAction.run()}
+                      className="rounded-xl font-semibold"
+                    >
+                      {footerAction.label}
+                    </Button>
                   ) : (
-                    <button type="button" disabled
-                      className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-muted text-sm font-semibold text-muted-foreground">
-                      {anchorStatus === "checked_out" ? "Checked out" : anchorStatus === "cancelled" ? "Cancelled" : "No action needed"}
-                    </button>
+                    <Button size="lg" fullWidth variant="secondary" isDisabled className="rounded-xl font-semibold">
+                      {idleFooterLabel}
+                    </Button>
                   )}
                 </div>
               </Tabs>
-
-              <div aria-hidden className="h-[max(0.25rem,env(safe-area-inset-bottom))] shrink-0 md:hidden" />
             </>
           )}
 
           {/* Cancel / reinstate confirmation */}
           {booking && (
-            <AlertDialogish
+            <ConfirmLifecycleDialog
               open={confirmAction !== null}
               mode={confirmAction ?? "cancel"}
               busy={actionLoading === "cancel" || actionLoading === "reinstate"}
@@ -462,73 +493,70 @@ export function BookingDetailDrawer({
   );
 }
 
-/** Minimal confirm dialog for the overflow actions (danger styling on cancel). */
-function AlertDialogish({ open, mode, busy, onClose, onConfirm }: {
+/** Confirmation for the overflow lifecycle actions (danger styling on cancel). */
+function ConfirmLifecycleDialog({ open, mode, busy, onClose, onConfirm }: {
   open: boolean;
   mode: "cancel" | "reinstate";
   busy: boolean;
   onClose: () => void;
   onConfirm: () => void;
 }) {
-  if (!open) return null;
   const cancel = mode === "cancel";
   return (
-    <div
-      role="presentation"
-      className="absolute inset-0 z-50 bg-black/40 px-4 transition-opacity opacity-100"
-      onClick={onClose}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          event.stopPropagation();
-          onClose();
-        }
-      }}
-    >
-      <div role="dialog" aria-modal="true" aria-label={cancel ? "Cancel reservation" : "Reinstate reservation"}
-        className="mx-auto mt-[35vh] w-[min(22rem,90vw)] rounded-2xl border border-border/60 bg-card p-6 shadow-2xl"
-        onClick={(event) => event.stopPropagation()}>
-        <h2 className="text-sm font-semibold text-foreground">{cancel ? "Cancel this reservation?" : "Reinstate this reservation?"}</h2>
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          {cancel
-            ? "The rooms are released and the guest is notified by email. Other rooms in the reservation are not affected."
-            : "The reservation returns to confirmed and its rooms are held again."}
-        </p>
-        <div className="mt-4 flex justify-end gap-2">
-          <button type="button" autoFocus onClick={onClose}
-            className="h-10 rounded-full px-4 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-            Keep reservation
-          </button>
-          <button type="button" disabled={busy} onClick={onConfirm}
-            className={`h-10 rounded-full px-4 text-xs font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-60 ${cancel ? "bg-[var(--danger)]" : "bg-[var(--pen-accent)]"}`}>
-            {cancel ? "Cancel reservation" : "Reinstate"}
-          </button>
-        </div>
-      </div>
-    </div>
+    <AlertDialog.Backdrop isOpen={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <AlertDialog.Container placement="center" size="sm">
+        <AlertDialog.Dialog className="rounded-3xl sm:max-w-[400px]">
+          <AlertDialog.Header>
+            <AlertDialog.Icon status={cancel ? "danger" : "accent"} />
+            <AlertDialog.Heading className="text-base font-semibold text-foreground">
+              {cancel ? "Cancel this reservation?" : "Reinstate this reservation?"}
+            </AlertDialog.Heading>
+          </AlertDialog.Header>
+          <AlertDialog.Body>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {cancel
+                ? "The rooms are released and the guest is notified by email. Other rooms in the reservation are not affected."
+                : "The reservation returns to confirmed and its rooms are held again."}
+            </p>
+          </AlertDialog.Body>
+          <AlertDialog.Footer>
+            <Button slot="close" variant="tertiary" className="rounded-xl">
+              Keep reservation
+            </Button>
+            <Button
+              variant={cancel ? "danger" : "primary"}
+              isPending={busy}
+              onPress={onConfirm}
+              className="rounded-xl font-semibold"
+            >
+              {cancel ? "Cancel reservation" : "Reinstate"}
+            </Button>
+          </AlertDialog.Footer>
+        </AlertDialog.Dialog>
+      </AlertDialog.Container>
+    </AlertDialog.Backdrop>
   );
 }
 
-/** Hairline-band loading skeleton per the design, not a stack of cards. */
 function DrawerSkeleton() {
   return (
-    <Drawer.Body className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,4.5rem)]">
-      <div className="flex items-center gap-2">
-        <Skeleton className="h-6 w-24 rounded-full" />
-        <Skeleton className="h-6 w-20 rounded-lg" />
+    <Drawer.Body className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 md:pt-6">
+      <div className="flex items-center gap-3">
+        <Skeleton className="size-12 shrink-0 rounded-3xl" />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-6 w-44 rounded-lg" />
+          <Skeleton className="h-4 w-32 rounded-md" />
+        </div>
       </div>
-      <Skeleton className="mt-3 h-8 w-44 rounded-lg" />
-      <Skeleton className="mt-4 h-10 w-full rounded-full" />
-      <div className="mt-4 border-b border-border/60 pb-6">
-        <Skeleton className="h-6 w-40 rounded" />
-        <Skeleton className="mt-2 h-4 w-56 rounded" />
+      <Skeleton className="h-10 w-full rounded-xl" />
+      <Skeleton className="h-36 w-full rounded-2xl" />
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-24 rounded-md" />
+        <Skeleton className="h-6 w-40 rounded-md" />
       </div>
-      <div className="border-b border-border/60 py-2">
-        <Skeleton className="my-2 h-10 w-full rounded" />
-        <Skeleton className="my-2 h-10 w-full rounded" />
-      </div>
-      <div className="border-b border-border/60 py-2">
-        <Skeleton className="my-2 h-5 w-full rounded" />
-        <Skeleton className="my-2 h-5 w-3/4 rounded" />
+      <div className="space-y-3">
+        <Skeleton className="h-10 w-full rounded-lg" />
+        <Skeleton className="h-10 w-3/4 rounded-lg" />
       </div>
     </Drawer.Body>
   );

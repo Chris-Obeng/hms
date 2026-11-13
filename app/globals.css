@@ -573,6 +573,99 @@
 
 
 
+/* ── Front desk (dashboard home) ───────────────────────────────────────
+ *  HeroUI secondary (underline) tabs, re-pointed at this theme: --accent and
+ *  --muted are pale surfaces here, so the indicator and idle labels read the
+ *  brand and muted-foreground tokens instead.
+ * ──────────────────────────────────────────────────────────────────── */
+.desk-tabs > .tabs__list-container {
+  border-color: color-mix(in oklch, var(--border) 70%, transparent);
+}
+.desk-tabs .tabs__list {
+  gap: 1.5rem;
+  padding: 0 1rem;
+}
+@media (width >= 40rem) {
+  .desk-tabs .tabs__list {
+    padding: 0 1.5rem;
+  }
+}
+.desk-tabs .tabs__tab {
+  width: auto;
+  flex: none;
+  height: 3rem;
+  padding: 0;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+.desk-tabs .tabs__tab[data-selected="true"] {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.desk-tabs .tabs__indicator {
+  background: var(--primary) !important;
+  border-radius: 2px 2px 0 0;
+}
+.desk-tabs .tabs__panel {
+  margin-top: 0;
+  padding: 0;
+}
+
+/* Count beside each tab label: quiet when idle, brand-tinted when selected. */
+.desk-tab-count {
+  display: inline-flex;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 0 0.5rem;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: var(--secondary);
+  color: var(--muted-foreground);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.tabs__tab[data-selected="true"] .desk-tab-count {
+  background: var(--accent-soft);
+  color: var(--primary);
+}
+.desk-tab-count[data-tone="danger"] {
+  background: color-mix(in oklch, var(--destructive) 12%, transparent);
+  color: var(--destructive);
+}
+
+/* Booking rows and soft surfaces: hover only on real pointers. */
+.desk-row {
+  transition: background-color 150ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .desk-row:hover {
+    background: color-mix(in oklch, var(--secondary) 55%, transparent);
+  }
+}
+.desk-row:active {
+  background: color-mix(in oklch, var(--secondary) 80%, transparent);
+}
+
+/* Booking drawer: content settles in once per open (occasional, so it may move). */
+@keyframes desk-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.desk-rise {
+  animation: desk-rise 240ms var(--ease-out-ui) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .desk-rise {
+    animation: none;
+  }
+}
+
 /* Payments page tabs per the pen design: quiet text tabs over one hairline,
    a 2px accent underline on the active tab. */
 .payments-tabs { gap: 0; }

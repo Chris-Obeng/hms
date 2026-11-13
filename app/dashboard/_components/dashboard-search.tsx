@@ -16,6 +16,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
+import { Kbd } from "@heroui/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { SearchHitType, SearchResponse } from "@/lib/search";
@@ -396,10 +397,10 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
         >
           <div
             className={cn(
-              "flex h-10 items-center gap-2 rounded-lg border px-3 transition-colors",
+              "flex h-8 items-center gap-2 rounded-lg border px-3 transition-[background-color,border-color,box-shadow] duration-150",
               open
-                ? "border-border bg-background ring-2 ring-ring/30"
-                : "border-border bg-muted/40 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
+                ? "border-ring/60 bg-background ring-4 ring-ring/10"
+                : "border-transparent bg-secondary/80 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary"
             )}
           >
             <Search className="size-4 shrink-0 text-muted-foreground" />
@@ -429,9 +430,16 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
               </button>
             ) : (
               modKey && (
-                <kbd className="pointer-events-none hidden select-none rounded border border-border bg-background px-2 font-mono text-2xs leading-5 text-muted-foreground/70 lg:inline-block">
-                  {modKey}
-                </kbd>
+                <Kbd className="pointer-events-none hidden select-none text-2xs text-muted-foreground lg:inline-flex">
+                  {modKey.startsWith("⌘") ? (
+                    <>
+                      <Kbd.Abbr keyValue="command" />
+                      <Kbd.Content>K</Kbd.Content>
+                    </>
+                  ) : (
+                    <Kbd.Content>Ctrl&nbsp;K</Kbd.Content>
+                  )}
+                </Kbd>
               )
             )}
           </div>
@@ -452,7 +460,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
         type="button"
         aria-label="Search"
         onClick={() => setMobileOpen(true)}
-        className="ui-press inline-flex size-11 items-center justify-center rounded-lg text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:hidden [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+        className="ui-press inline-flex size-10 items-center justify-center rounded-lg text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:hidden [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
       >
         <Search className="size-5" />
       </button>

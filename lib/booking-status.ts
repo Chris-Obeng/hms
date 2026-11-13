@@ -73,18 +73,6 @@ export const STATUS_COLORS: Record<string, string> = {
 
 export const STATUS_DOT_FALLBACK = "bg-muted-foreground/50";
 
-/** Status pill (badge) classes: background + text + ring per booking status. */
-export const STATUS_PILL_CLASSES: Record<string, string> = {
-  confirmed: "bg-blue-500/10 text-blue-700 ring-blue-500/20",
-  checked_in: "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20",
-  checked_out: "bg-muted text-muted-foreground ring-border",
-  pending: "bg-amber-500/10 text-amber-700 ring-amber-500/20",
-  cancelled: "bg-red-500/10 text-red-700 ring-red-500/20",
-  no_show: "bg-rose-500/10 text-rose-700 ring-rose-500/20",
-};
-
-export const STATUS_PILL_FALLBACK = "bg-muted text-muted-foreground ring-border";
-
 export function getStatusLabel(status: string): string {
   return STATUS_LABELS[status] || status;
 }

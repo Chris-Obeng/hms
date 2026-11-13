@@ -31,32 +31,30 @@ export function OccupancyDonut({
     return (
       <div
         className={cn(
-          "flex flex-col items-center justify-center rounded-2xl border px-4 py-6 text-center",
-          isError
-            ? "border-amber-500/25 bg-amber-500/[0.06]"
-            : "border-border/50 bg-muted/35",
+          "flex items-center gap-3 rounded-2xl px-4 py-3",
+          isError ? "bg-amber-500/[0.08]" : "bg-secondary/70",
           className
         )}
       >
         <span
           aria-hidden="true"
           className={cn(
-            "mb-2 grid size-9 place-items-center rounded-xl",
-            isError
-              ? "bg-amber-500/15 text-amber-700"
-              : "bg-background/80 text-muted-foreground"
+            "grid size-8 shrink-0 place-items-center rounded-xl",
+            isError ? "bg-amber-500/15 text-amber-700" : "bg-card text-muted-foreground"
           )}
         >
           {isError ? <AlertTriangle className="size-4" /> : <Ban className="size-4" />}
         </span>
-        <p className="text-md font-semibold tracking-tight text-foreground">
-          {isError ? "Check inventory" : "Unavailable"}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {metric.state === "empty"
-            ? "No sellable rooms for this night"
-            : "A reliable percentage cannot be shown"}
-        </p>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground">
+            {isError ? "Check inventory" : "Unavailable"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {metric.state === "empty"
+              ? "No sellable rooms for this night"
+              : "A reliable percentage cannot be shown"}
+          </p>
+        </div>
       </div>
     );
   }
@@ -69,10 +67,7 @@ export function OccupancyDonut({
     <div
       role="img"
       aria-label={`Rooms sold for ${dateLabel}: ${metric.soldRooms} of ${metric.sellableRooms} sellable rooms, ${display} percent. ${metric.heldRooms} pending holds and ${metric.availableRooms} available to sell. Out-of-service and blocked rooms are excluded.`}
-      className={cn(
-        "relative mx-auto aspect-square w-[124px] shrink-0 sm:w-[136px] lg:w-[172px]",
-        className
-      )}
+      className={cn("relative aspect-square w-24 shrink-0", className)}
     >
       <svg viewBox="0 0 200 200" className="size-full" aria-hidden="true" focusable="false">
         <defs>
@@ -87,13 +82,13 @@ export function OccupancyDonut({
             <path d="M 0 0 V 6" stroke="var(--card)" strokeWidth="2.2" />
           </pattern>
         </defs>
-        <g transform="rotate(-90 100 100)" fill="none" strokeWidth="18">
-          <circle cx="100" cy="100" r="82" stroke="var(--muted)" />
+        <g transform="rotate(-90 100 100)" fill="none" strokeWidth="20">
+          <circle cx="100" cy="100" r="84" stroke="var(--secondary)" />
           {sold > 0 && (
             <circle
               cx="100"
               cy="100"
-              r="82"
+              r="84"
               pathLength="100"
               stroke="var(--primary)"
               strokeDasharray={`${sold} ${100 - sold}`}
@@ -103,7 +98,7 @@ export function OccupancyDonut({
             <circle
               cx="100"
               cy="100"
-              r="82"
+              r="84"
               pathLength="100"
               stroke={`url(#${patternId})`}
               strokeDasharray={`${held} ${100 - held}`}
@@ -112,17 +107,12 @@ export function OccupancyDonut({
           )}
         </g>
       </svg>
-      <div
+      <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-6 text-center"
+        className="pointer-events-none absolute inset-0 grid place-items-center text-md font-semibold tracking-tight tabular-nums text-foreground"
       >
-        <span className="text-[1.625rem] font-semibold leading-none tracking-[-0.025em] tabular-nums text-foreground lg:text-[2.125rem]">
-          {display}%
-        </span>
-        <span className="mt-1 text-2xs text-muted-foreground lg:mt-2 lg:text-xs">
-          rooms sold
-        </span>
-      </div>
+        {display}%
+      </span>
     </div>
   );
 }
