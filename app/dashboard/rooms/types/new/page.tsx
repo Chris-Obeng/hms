@@ -47,10 +47,9 @@ export default function NewRoomTypePage() {
   return (
     <RoomTypeForm
       onSubmit={handleSubmit}
-      submitLabel="Create Room Type"
-      submittingLabel="Creating..."
-      title="New Room Type"
-      subtitle="Add a new room category. You'll add photos on the next step."
+      submitLabel="Create room type"
+      submittingLabel="Creating…"
+      title="New room type"
       errors={errors}
     />
   );

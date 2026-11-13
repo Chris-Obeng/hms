@@ -9,12 +9,11 @@ import { EditRoomTypeClient } from "./edit-room-type-client";
 
 function NoHotelState() {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <Hotel className="mb-4 h-12 w-12 text-muted-foreground" />
-      <h2 className="mb-2 text-lg font-semibold">No Hotel Found</h2>
-      <p className="text-muted-foreground">
-        Please set up your hotel profile to manage rooms.
-      </p>
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center">
+      <span className="grid size-12 place-items-center rounded-2xl bg-secondary text-muted-foreground">
+        <Hotel className="size-5" aria-hidden="true" />
+      </span>
+      <h2 className="text-sm font-semibold text-foreground">No hotel on this account</h2>
     </div>
   );
 }

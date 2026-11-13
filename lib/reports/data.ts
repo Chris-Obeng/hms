@@ -3,7 +3,7 @@ import type { Database, Json } from "@/types/database.types";
 import { requireMinRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { businessDayBounds, businessToday } from "@/lib/business-date";
-import { addDays, format } from "date-fns";
+import { addDays, format, parseISO, subDays } from "date-fns";
 import { assertCurrency, moneyMinor, priorRange, type NightRow, type StayRow } from "./bi-math";
 import { resolveRange } from "./resolve-range";
 import { readAllPages, reportReadError } from "./pagination";
@@ -25,6 +25,10 @@ type ReportsDatabase = Omit<Database, "public"> & {
 export interface ReportScope { orgId: string; hotelId: string }
 export interface ReportMeta extends ReportScope {
   startDate: string; endDate: string; priorStartDate: string; priorEndDate: string;
+  /** False when the range has no completed night (today only), so no comparison exists. */
+  comparable: boolean;
+  /** Last night actually compared: yesterday when the range ends today, otherwise endDate. */
+  comparedEndDate: string;
   timeZone: string; generatedAt: string; warnings: string[];
 }
 export interface ReportStay extends StayRow { status: string | null; source: string | null; room_type_id: string | null; guest_id: string | null }
@@ -63,14 +67,22 @@ export async function resolveReportScope(expectedScope: ReportScope) {
 export async function reportContext(startDate: string, endDate: string, expectedScope: ReportScope) {
   const scope = await resolveReportScope(expectedScope);
   const { start, end } = resolveRange(startDate, endDate, scope.timeZone, scope.now);
-  const prior = priorRange(start, end);
+  // Tonight is not finished, so a range that ends today is compared on its
+  // completed nights only (start to yesterday), against the same number of
+  // nights immediately before it. A range that is only today has no completed
+  // night, so it keeps its one-day prior window and shows no comparison.
+  const comparedEnd = endDate >= scope.today ? subDays(parseISO(scope.today), 1) : end;
+  const comparable = comparedEnd >= start;
+  const prior = priorRange(start, comparable ? comparedEnd : end);
+  const comparedEndDate = format(comparable ? comparedEnd : end, "yyyy-MM-dd");
   const meta: ReportMeta = {
     orgId: scope.auth.orgId, hotelId: scope.hotelId,
     startDate, endDate, priorStartDate: format(prior.start, "yyyy-MM-dd"), priorEndDate: format(prior.end, "yyyy-MM-dd"),
+    comparable, comparedEndDate,
     timeZone: scope.timeZone, generatedAt: scope.now.toISOString(), warnings: [],
   };
   return { supabase: scope.supabase, hotelId: scope.hotelId, currency: scope.currency, timeZone: scope.timeZone,
-    today: scope.today, start, end, prior, meta,
+    today: scope.today, start, end, prior, comparable, comparedEnd: comparedEndDate, meta,
     startISO: businessDayBounds(startDate, scope.timeZone).startISO, endISO: businessDayBounds(endDate, scope.timeZone).endISO };
 }
 export type ReportContext = Awaited<ReturnType<typeof reportContext>>;

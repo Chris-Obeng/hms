@@ -2,14 +2,26 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, Plus, X } from "lucide-react";
-import { Button, Card, Input, Switch, toast } from "@heroui/react";
+import { ArrowLeft, Check, Plus } from "lucide-react";
+import {
+  Button,
+  FieldError,
+  Input,
+  InputGroup,
+  Label,
+  Switch,
+  TextArea,
+  TextField,
+  ToggleButton,
+  toast,
+} from "@heroui/react";
 
 import { cn, slugify } from "@/lib/utils";
 import { HeroSelectField } from "@/components/ui/hero-select";
 import { AMENITIES_LIST } from "@/lib/amenities";
 import { RoomImagesUpload, type RoomImage } from "@/components/ui/room-images-upload";
 import { saveRoomImages } from "@/app/actions/upload";
+import { SaveBar, SettingsGroup, SettingsRow } from "@/app/dashboard/settings/_components/settings-ui";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -36,19 +48,22 @@ export interface RoomTypeFormProps {
   roomTypeId?: string;
   /** Initial images from DB */
   initialImages?: RoomImage[];
-  /** Show photos card first (edit mode) */
+  /** Show photos first (edit mode) */
   photosFirst?: boolean;
   /** Called with form values on submit */
   onSubmit: (values: RoomTypeFormValues) => Promise<{ success: boolean; error?: string }>;
   submitLabel: string;
   submittingLabel: string;
   title: string;
+  /** Kept for callers; the redesigned header shows no subtitle. */
   subtitle?: string;
   errors: Record<string, string>;
   isModal?: boolean;
   onCancel?: () => void;
   /** ISO currency code shown as the price prefix (defaults to GHS) */
   currency?: string;
+  /** Optional notice rendered under the page title (e.g. "add photos"). */
+  notice?: React.ReactNode;
 }
 
 // ── Default Values ─────────────────────────────────────────────
@@ -67,37 +82,17 @@ const DEFAULT_VALUES: RoomTypeFormValues = {
   isActive: true,
 };
 
-// ── Section wrapper ────────────────────────────────────────────
-// Cards on the standalone page; flat, airy sections inside modals.
+const FIELD_LABEL = "text-xs font-medium text-muted-foreground";
+const FIELD_INPUT = "rounded-xl max-md:h-11 max-md:text-base";
 
-function FormSection({
-  title,
-  framed,
-  children,
-  className,
-}: {
-  title: string;
-  framed: boolean;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  if (!framed) {
-    return (
-      <section className={cn("space-y-4", className)}>
-        <h3 className="text-label font-semibold uppercase tracking-wider text-muted-foreground">
-          {title}
-        </h3>
-        {children}
-      </section>
-    );
-  }
+/** Cards with a title column on pages; flat stacked sections inside the modal. */
+function FormSection({ title, framed, children }: { title: string; framed: boolean; children: React.ReactNode }) {
+  if (framed) return <SettingsGroup title={title}>{children}</SettingsGroup>;
   return (
-    <Card className={className}>
-      <Card.Header>
-        <Card.Title className="text-sm font-medium">{title}</Card.Title>
-      </Card.Header>
-      <Card.Content className="space-y-4">{children}</Card.Content>
-    </Card>
+    <section aria-label={title} className="space-y-4">
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      {children}
+    </section>
   );
 }
 
@@ -113,13 +108,14 @@ export function RoomTypeForm({
   submitLabel,
   submittingLabel,
   title,
-  subtitle,
   errors,
   isModal = false,
   onCancel,
   currency = "GHS",
+  notice,
 }: RoomTypeFormProps) {
   const framed = !isModal;
+  const isEdit = Boolean(roomTypeId);
   const [submitting, setSubmitting] = React.useState(false);
   const [slugManuallyEdited, setSlugManuallyEdited] = React.useState(false);
   const [images, setImages] = React.useState<RoomImage[]>(initialImages);
@@ -132,22 +128,31 @@ export function RoomTypeForm({
     ...DEFAULT_VALUES,
     ...initialValues,
   });
+  // Last saved values — the edit page shows its save bar only when they differ.
+  // The slug is compared as derived (name → slug), the same value a save sends.
+  const [baseline, setBaseline] = React.useState(() => ({
+    ...values,
+    slug: values.name ? slugify(values.name) : values.slug,
+  }));
 
   // Slug derives from the name during render until manually edited — no
   // setState-in-effect cascade, same behaviour as the previous effect.
-  const effectiveSlug =
-    slugManuallyEdited || !values.name ? values.slug : slugify(values.name);
+  const effectiveSlug = slugManuallyEdited || !values.name ? values.slug : slugify(values.name);
+
+  const dirty = JSON.stringify({ ...values, slug: effectiveSlug }) !== JSON.stringify(baseline);
+  const canSubmit = Boolean(values.name && values.basePrice);
 
   function set<K extends keyof RoomTypeFormValues>(key: K, value: RoomTypeFormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit() {
     setSubmitting(true);
+    const next = { ...values, slug: effectiveSlug };
     try {
-      await onSubmit({ ...values, slug: effectiveSlug });
+      const result = await onSubmit(next);
       // Parent page handles its own success/error toasts with context-specific messages
+      if (result.success) setBaseline(next);
     } catch {
       toast.danger("An unexpected error occurred");
     } finally {
@@ -155,15 +160,22 @@ export function RoomTypeForm({
     }
   }
 
+  function discard() {
+    setValues(baseline);
+    setSlugManuallyEdited(false);
+  }
+
   // ── Amenities ────────────────────────────────────────────────
 
   const allAmenityOptions = React.useMemo(() => {
     const known = AMENITIES_LIST.map((a) => a.label);
-    const extra = customAmenities.filter(
-      (label) => !known.some((k) => k.toLowerCase() === label.toLowerCase())
+    const extra = [...customAmenities, ...values.selectedAmenities].filter(
+      (label, i, arr) =>
+        !known.some((k) => k.toLowerCase() === label.toLowerCase()) &&
+        arr.findIndex((x) => x.toLowerCase() === label.toLowerCase()) === i
     );
     return [...known, ...extra];
-  }, [customAmenities]);
+  }, [customAmenities, values.selectedAmenities]);
 
   function toggleAmenity(label: string) {
     setValues((prev) => ({
@@ -181,382 +193,278 @@ export function RoomTypeForm({
       toast.danger("Amenity name is too long (max 60 characters)");
       return;
     }
-    const exists = allAmenityOptions.some(
-      (option) => option.toLowerCase() === label.toLowerCase()
-    );
+    const exists = allAmenityOptions.some((option) => option.toLowerCase() === label.toLowerCase());
     if (exists) {
       toast.danger("That amenity already exists");
       return;
     }
     setCustomAmenities((prev) => [...prev, label]);
-    setValues((prev) => ({
-      ...prev,
-      selectedAmenities: [...prev.selectedAmenities, label],
-    }));
+    setValues((prev) => ({ ...prev, selectedAmenities: [...prev.selectedAmenities, label] }));
     setCustomAmenityInput("");
   }
+
+  const photos = hotelId && roomTypeId && (
+    <FormSection title="Photos" framed={framed}>
+      <RoomImagesUpload hotelId={hotelId} roomTypeId={roomTypeId} images={images} onChange={setImages} />
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">First photo is the cover · up to 10</p>
+        {images.length > 0 && (
+          <Button
+            size="sm"
+            variant="secondary"
+            isPending={savingImages}
+            onPress={async () => {
+              setSavingImages(true);
+              const r = await saveRoomImages(roomTypeId, images);
+              setSavingImages(false);
+              if (r.success) toast.success("Photos saved");
+              else toast.danger(r.error ?? "Failed to save photos");
+            }}
+            className="rounded-lg max-md:h-11"
+          >
+            Save photos
+          </Button>
+        )}
+      </div>
+    </FormSection>
+  );
 
   // ── Render ───────────────────────────────────────────────────
 
   return (
-    <div className={cn("space-y-6", framed ? "mx-auto max-w-2xl" : "")}>
-      {/* Header */}
-      {!isModal && (
-        <div className="flex items-center gap-4">
+    <div className={cn(framed && "mx-auto w-full max-w-5xl pt-6 md:pt-8")}>
+      {framed && (
+        <header className="mb-6 space-y-4">
           <Link
             href="/dashboard/rooms"
-            className="inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="-ml-2 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring md:min-h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
           >
-            <ArrowLeft className="size-4" />
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            Rooms
           </Link>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
-            {subtitle && (
-              <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
-            )}
-          </div>
-        </div>
+          <h1 className="truncate text-2xl font-semibold tracking-[-0.02em] text-foreground">{title}</h1>
+          {notice}
+        </header>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Photos first — shown at top in edit mode */}
-        {hotelId && roomTypeId && photosFirst && (
-          <PhotosCard
-            roomTypeId={roomTypeId}
-            hotelId={hotelId}
-            images={images}
-            setImages={setImages}
-            savingImages={savingImages}
-            setSavingImages={setSavingImages}
-          />
-        )}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (canSubmit) void submit();
+        }}
+        className={cn(framed ? "space-y-6" : "space-y-8", !isModal && isEdit && "pb-8")}
+      >
+        {photosFirst && photos}
 
-        {/* Basic Info */}
-        <FormSection title="Basic information" framed={framed}>
+        <FormSection title="Details" framed={framed}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="rt-name" className="mb-2 block text-xs font-medium text-muted-foreground">
-                Name *
-              </label>
-              <Input
-                id="rt-name"
-                placeholder="e.g. Deluxe King Room"
-                value={values.name}
-                onChange={(e) => {
-                  set("name", e.target.value);
-                  setSlugManuallyEdited(false);
-                }}
-                className={cn("h-10 w-full rounded-xl", errors.name && "border-destructive")}
-              />
-              {errors.name && <p className="mt-1 text-xs text-destructive">{errors.name}</p>}
-            </div>
-            <div>
-              <label htmlFor="rt-slug" className="mb-2 block text-xs font-medium text-muted-foreground">
-                Slug
-              </label>
-              <Input
-                id="rt-slug"
-                placeholder="auto-generated"
-                value={effectiveSlug}
-                onChange={(e) => {
-                  set("slug", e.target.value);
-                  setSlugManuallyEdited(true);
-                }}
-                className="h-10 w-full rounded-xl font-mono text-xs"
-              />
-            </div>
+            <TextField
+              value={values.name}
+              onChange={(v) => {
+                set("name", v);
+                setSlugManuallyEdited(false);
+              }}
+              isRequired
+              isInvalid={!!errors.name}
+              className="w-full"
+            >
+              <Label className={FIELD_LABEL}>Name</Label>
+              <Input placeholder="Deluxe King" className={FIELD_INPUT} />
+              <FieldError>{errors.name}</FieldError>
+            </TextField>
+            <TextField
+              value={effectiveSlug}
+              onChange={(v) => {
+                set("slug", v);
+                setSlugManuallyEdited(true);
+              }}
+              className="w-full"
+            >
+              <Label className={FIELD_LABEL}>Web address</Label>
+              <Input placeholder="deluxe-king" className={cn(FIELD_INPUT, "font-mono text-sm")} />
+            </TextField>
           </div>
-
-          <div>
-            <label htmlFor="rt-short-description" className="mb-2 block text-xs font-medium text-muted-foreground">
-              Short description
-            </label>
-            <Input
-              id="rt-short-description"
-              placeholder="A brief description for listings..."
-              value={values.shortDescription}
-              onChange={(e) => set("shortDescription", e.target.value)}
-              className="h-10 w-full rounded-xl"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="rt-description" className="mb-2 block text-xs font-medium text-muted-foreground">
-              Full description
-            </label>
-            <textarea
-              id="rt-description"
-              placeholder="Detailed description of this room type..."
-              value={values.description}
-              onChange={(e) => set("description", e.target.value)}
-              rows={4}
-              className="w-full resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            />
-          </div>
+          <TextField value={values.shortDescription} onChange={(v) => set("shortDescription", v)} className="w-full">
+            <Label className={FIELD_LABEL}>Short description</Label>
+            <Input placeholder="Shown on the booking page list" className={FIELD_INPUT} />
+          </TextField>
+          <TextField value={values.description} onChange={(v) => set("description", v)} className="w-full">
+            <Label className={FIELD_LABEL}>Full description</Label>
+            <TextArea rows={4} className="resize-none rounded-xl text-base sm:text-sm" />
+          </TextField>
         </FormSection>
 
-        {/* Configuration */}
-        <FormSection title="Configuration" framed={framed}>
-          <div>
-            <label htmlFor="rt-bed-config" className="mb-2 block text-xs font-medium text-muted-foreground">
-              Bed configuration
-            </label>
-            <Input
-              id="rt-bed-config"
-              placeholder="e.g. 1 King Bed, 1 Sofa Bed"
-              value={values.bedConfiguration}
-              onChange={(e) => set("bedConfiguration", e.target.value)}
-              className="h-10 w-full rounded-xl"
-            />
-          </div>
+        <FormSection title="Capacity" framed={framed}>
+          <TextField value={values.bedConfiguration} onChange={(v) => set("bedConfiguration", v)} className="w-full">
+            <Label className={FIELD_LABEL}>Beds</Label>
+            <Input placeholder="1 King bed, 1 Sofa bed" className={FIELD_INPUT} />
+          </TextField>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-2 block text-xs font-medium text-muted-foreground">
-                Max adults
-              </label>
-              <HeroSelectField value={String(values.maxAdults)} onValueChange={(v) => set("maxAdults", Number(v))} options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: n }))} ariaLabel="Max adults" />
-            </div>
-            <div>
-              <label className="mb-2 block text-xs font-medium text-muted-foreground">
-                Max children
-              </label>
-              <HeroSelectField value={String(values.maxChildren)} onValueChange={(v) => set("maxChildren", Number(v))} options={[0, 1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: n }))} ariaLabel="Max children" />
-            </div>
+            <HeroSelectField
+              label="Max adults"
+              value={String(values.maxAdults)}
+              onValueChange={(v) => set("maxAdults", Number(v))}
+              options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) }))}
+              ariaLabel="Max adults"
+              triggerClassName="max-md:min-h-11"
+            />
+            <HeroSelectField
+              label="Max children"
+              value={String(values.maxChildren)}
+              onValueChange={(v) => set("maxChildren", Number(v))}
+              options={[0, 1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) }))}
+              ariaLabel="Max children"
+              triggerClassName="max-md:min-h-11"
+            />
           </div>
         </FormSection>
 
-        {/* Pricing */}
         <FormSection title="Pricing" framed={framed}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="rt-base-price" className="mb-2 block text-xs font-medium text-muted-foreground">
-                Base price / night *
-              </label>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground/60">
-                  {currency}
-                </span>
-                <Input
-                  id="rt-base-price"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  value={values.basePrice}
-                  onChange={(e) => set("basePrice", e.target.value)}
-                  className={cn("h-10 w-full rounded-xl pl-12", errors.basePrice && "border-destructive")}
-                />
-              </div>
-              {errors.basePrice && (
-                <p className="mt-1 text-xs text-destructive">{errors.basePrice}</p>
-              )}
-            </div>
-            <div>
-              <label htmlFor="rt-weekend-price" className="mb-2 block text-xs font-medium text-muted-foreground">
-                Weekend price (optional)
-              </label>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground/60">
-                  {currency}
-                </span>
-                <Input
-                  id="rt-weekend-price"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  value={values.weekendPrice}
-                  onChange={(e) => set("weekendPrice", e.target.value)}
-                  className="h-10 w-full rounded-xl pl-12"
-                />
-              </div>
-            </div>
+            <PriceField
+              label="Base price per night"
+              currency={currency}
+              value={values.basePrice}
+              onChange={(v) => set("basePrice", v)}
+              error={errors.basePrice}
+              isRequired
+            />
+            <PriceField
+              label="Weekend price"
+              currency={currency}
+              value={values.weekendPrice}
+              onChange={(v) => set("weekendPrice", v)}
+              placeholder="Same as base"
+            />
           </div>
         </FormSection>
 
-        {/* Amenities */}
         <FormSection title="Amenities" framed={framed}>
-          <div className="flex flex-wrap gap-2">
-            {allAmenityOptions.map((amenityLabel) => {
-              const isSelected = values.selectedAmenities.includes(amenityLabel);
-              const isCustom = !AMENITIES_LIST.some(
-                (a) => a.label.toLowerCase() === amenityLabel.toLowerCase()
-              );
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Amenities">
+            {allAmenityOptions.map((label) => {
+              const selected = values.selectedAmenities.includes(label);
               return (
-                <button
-                  key={amenityLabel}
-                  type="button"
-                  onClick={() => toggleAmenity(amenityLabel)}
-                  aria-pressed={isSelected}
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
-                    isSelected
-                      ? "border-foreground/30 bg-foreground/5 text-foreground"
-                      : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground"
-                  )}
+                <ToggleButton
+                  key={label}
+                  size="sm"
+                  isSelected={selected}
+                  onChange={() => toggleAmenity(label)}
+                  className="gap-1 rounded-lg font-medium max-md:h-11 data-[selected=true]:bg-primary/10 data-[selected=true]:text-primary"
                 >
-                  {isSelected ? <X className="size-3" /> : <Plus className="size-3" />}
-                  {amenityLabel}
-                  {isCustom && (
-                    <span className="rounded bg-muted px-1 text-2xs uppercase tracking-wide text-muted-foreground">
-                      custom
-                    </span>
-                  )}
-                </button>
+                  {selected && <Check className="size-3" aria-hidden="true" />}
+                  {label}
+                </ToggleButton>
               );
             })}
           </div>
-
-          {/* Staff can add amenities beyond the preset list */}
-          <div className="flex gap-2">
-            <Input
-              aria-label="Add a custom amenity"
-              placeholder="Add your own (e.g. Ocean View, Airport Pickup)..."
+          <div className="flex items-center gap-2">
+            <TextField
+              aria-label="Add an amenity"
               value={customAmenityInput}
-              onChange={(e) => setCustomAmenityInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addCustomAmenity();
-                }
-              }}
-              maxLength={60}
-              className="h-10 flex-1 rounded-xl"
-            />
+              onChange={setCustomAmenityInput}
+              className="min-w-0 flex-1"
+            >
+              <Input
+                placeholder="Add an amenity"
+                maxLength={60}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addCustomAmenity();
+                  }
+                }}
+                className={FIELD_INPUT}
+              />
+            </TextField>
             <Button
-              type="button"
               variant="secondary"
-              size="sm"
-              className="h-10 shrink-0 rounded-xl text-sm"
               onPress={addCustomAmenity}
               isDisabled={!customAmenityInput.trim()}
+              className="rounded-xl max-md:h-11"
             >
-              <Plus className="size-4" />
+              <Plus className="size-4" aria-hidden="true" />
               Add
             </Button>
           </div>
-          <p className="text-caption text-muted-foreground/60">
-            Tap an amenity to include it. Type above to add amenities unique to your hotel.
-          </p>
         </FormSection>
 
-        {/* Images — only shown in edit mode (roomTypeId exists) */}
-        {hotelId && roomTypeId && !photosFirst && (
-          <PhotosCard
-            roomTypeId={roomTypeId}
-            hotelId={hotelId}
-            images={images}
-            setImages={setImages}
-            savingImages={savingImages}
-            setSavingImages={setSavingImages}
-          />
-        )}
+        {!photosFirst && photos}
 
-        {/* Settings */}
-        <FormSection title="Settings" framed={framed}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">Active</p>
-              <p className="text-xs text-muted-foreground">
-                Inactive room types are hidden from the guest booking page.
-              </p>
-            </div>
-            <Switch
-              isSelected={values.isActive}
-              onChange={(selected) => set("isActive", selected)}
-              aria-label="Room type active"
-            >
-              <Switch.Content>
+        <FormSection title="Visibility" framed={framed}>
+          <SettingsRow label="Active" hint="Hidden from the booking page when off">
+            <Switch isSelected={values.isActive} onChange={(selected) => set("isActive", selected)} aria-label="Room type active">
+              <Switch.Content className="min-h-11 items-center md:min-h-0">
                 <Switch.Control>
                   <Switch.Thumb />
                 </Switch.Control>
               </Switch.Content>
             </Switch>
-          </div>
+          </SettingsRow>
         </FormSection>
 
-        {/* Actions */}
-        <div className={cn("flex items-center justify-between gap-3", framed ? "pb-8" : "pb-2")}>
-          {isModal ? (
-            <Button variant="ghost" type="button" onPress={onCancel} className="rounded-xl text-sm">
+        {/* Create flows end with a plain footer; edit pages use the save bar below. */}
+        {isModal ? (
+          <div className="flex flex-col-reverse gap-2 pb-2 sm:flex-row sm:justify-end">
+            <Button variant="tertiary" onPress={onCancel} className="rounded-xl max-sm:w-full max-md:h-11">
               Cancel
             </Button>
-          ) : (
-            <Link href="/dashboard/rooms">
-              <Button variant="ghost" type="button" className="rounded-xl text-sm">
-                Cancel
-              </Button>
+            <Button type="submit" variant="primary" isDisabled={!canSubmit} isPending={submitting} className="rounded-xl font-semibold max-sm:w-full max-md:h-11">
+              {submitting ? submittingLabel : submitLabel}
+            </Button>
+          </div>
+        ) : !isEdit ? (
+          <div className="flex flex-col-reverse gap-2 pb-8 sm:flex-row sm:justify-end lg:ml-[14rem]">
+            <Link
+              href="/dashboard/rooms"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm font-medium text-foreground outline-none sm:w-auto focus-visible:ring-2 focus-visible:ring-ring md:min-h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary"
+            >
+              Cancel
             </Link>
-          )}
-          <Button
-            type="submit"
-            isDisabled={submitting || !values.name || !values.basePrice}
-            isPending={submitting}
-            className="min-w-[140px] rounded-xl text-sm"
-          >
-            {submitting ? submittingLabel : submitLabel}
-          </Button>
-        </div>
+            <Button type="submit" variant="primary" isDisabled={!canSubmit} isPending={submitting} className="rounded-xl font-semibold max-sm:w-full max-md:h-11">
+              {submitting ? submittingLabel : submitLabel}
+            </Button>
+          </div>
+        ) : (
+          // A direct child of the long form, so `sticky` has the whole form to travel in.
+          <SaveBar
+            visible={dirty || submitting}
+            saving={submitting}
+            canSave={canSubmit}
+            onSave={() => void submit()}
+            onDiscard={discard}
+            saveLabel={submitLabel}
+          />
+        )}
       </form>
     </div>
   );
 }
 
-// ── Photos Card ────────────────────────────────────────────────
-
-function PhotosCard({
-  roomTypeId, hotelId, images, setImages, savingImages, setSavingImages,
+function PriceField({
+  label,
+  currency,
+  value,
+  onChange,
+  error,
+  placeholder = "0.00",
+  isRequired,
 }: {
-  roomTypeId: string;
-  hotelId: string;
-  images: RoomImage[];
-  setImages: React.Dispatch<React.SetStateAction<RoomImage[]>>;
-  savingImages: boolean;
-  setSavingImages: React.Dispatch<React.SetStateAction<boolean>>;
+  label: string;
+  currency: string;
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+  placeholder?: string;
+  isRequired?: boolean;
 }) {
   return (
-    <Card className="border-2 border-dashed border-border/60 transition-colors hover:border-border">
-      <Card.Header>
-        <Card.Title className="flex items-center justify-between text-sm font-medium">
-          <div className="flex items-center gap-2">
-            <span>Photos</span>
-            {images.length === 0 && (
-              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-caption font-medium text-amber-700">
-                No photos yet
-              </span>
-            )}
-          </div>
-          {images.length > 0 && (
-            <button
-              type="button"
-              disabled={savingImages}
-              onClick={async () => {
-                setSavingImages(true);
-                const r = await saveRoomImages(roomTypeId, images);
-                setSavingImages(false);
-                if (r.success) toast.success("Photos saved");
-                else toast.danger(r.error ?? "Failed to save photos");
-              }}
-              className="-my-1 min-h-8 rounded-lg px-2 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
-            >
-              {savingImages ? "Saving…" : "Save Photos"}
-            </button>
-          )}
-        </Card.Title>
-      </Card.Header>
-      <Card.Content>
-        <RoomImagesUpload
-          hotelId={hotelId}
-          roomTypeId={roomTypeId}
-          images={images}
-          onChange={setImages}
-        />
-        <p className="text-caption text-muted-foreground/50 mt-2">
-          First photo is the listing thumbnail. Drag to reorder. Max 10.
-        </p>
-      </Card.Content>
-    </Card>
+    <TextField value={value} onChange={onChange} type="number" isRequired={isRequired} isInvalid={!!error} className="w-full">
+      <Label className={FIELD_LABEL}>{label}</Label>
+      <InputGroup className="rounded-xl max-md:h-11">
+        <InputGroup.Prefix className="text-xs font-medium text-muted-foreground">{currency}</InputGroup.Prefix>
+        <InputGroup.Input min="0" step="0.01" inputMode="decimal" placeholder={placeholder} className="min-w-0 tabular-nums max-md:text-base" />
+      </InputGroup>
+      <FieldError>{error}</FieldError>
+    </TextField>
   );
 }

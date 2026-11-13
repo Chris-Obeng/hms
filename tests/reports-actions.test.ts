@@ -82,7 +82,7 @@ describe("report actions: one reconciled room-revenue basis", () => {
     expect(overview.adr).toBe(200); expect(overview.revpar).toBe(20); expect(overview.occupancy).toBe(10);
     expect(overview.series.map(p => p.revenue)).toEqual([100, 300]);
     expect(overview.sources).toEqual([{ source: "direct", count: 1, revenue: 400, roomNights: 2, pct: 100 }]);
-    expect(overview.meta).toMatchObject({ ...scope, startDate: "2026-06-10", endDate: "2026-06-11", priorStartDate: "2026-06-08", priorEndDate: "2026-06-09", timeZone: "Africa/Accra", generatedAt: "2026-10-21T12:00:00.000Z" });
+    expect(overview.meta).toMatchObject({ ...scope, startDate: "2026-06-10", endDate: "2026-06-11", priorStartDate: "2026-06-08", priorEndDate: "2026-06-09", comparable: true, comparedEndDate: "2026-06-11", timeZone: "Africa/Accra", generatedAt: "2026-10-21T12:00:00.000Z" });
     const revenue = await getRevenueReport("2026-06-10", "2026-06-11", scope);
     expect(revenue.trend.map(p => p.revenue)).toEqual([100, 300]);
     expect(revenue.totalRevenue).toBe(overview.revenue);
@@ -138,16 +138,21 @@ describe("report actions: one reconciled room-revenue basis", () => {
 describe.each([
   { name: "overview", action: getReportsOverview,
     unavailable: { revenue: null, revpar: null, adr: null, occupancy: null, roomNights: null },
-    historical: { revenue: 200, revpar: 200, adr: 50, occupancy: 100, roomNights: 100 },
+    historical: { revenue: 200, revpar: 200, adr: 50, occupancy: 10, roomNights: 100 },
+    partial: { revenue: 125, revpar: 125.1, adr: 31.2, occupancy: 8.3, roomNights: 71.4 },
     todayValues: { revenue: 0, roomNights: 0 }, partialValues: { revenue: 1800, roomNights: 12 } },
   { name: "revenue", action: getRevenueReport,
     unavailable: { revenue: null, adr: null, revpar: null }, historical: { revenue: 200, adr: 50, revpar: 200 },
+    partial: { revenue: 125, adr: 31.2, revpar: 125.1 },
     todayValues: { totalRevenue: 0 }, partialValues: { totalRevenue: 1800 } },
   { name: "occupancy", action: getOccupancyReport,
-    unavailable: { occupancy: null, roomNights: null }, historical: { occupancy: 100, roomNights: 100 },
+    unavailable: { occupancy: null, roomNights: null }, historical: { occupancy: 10, roomNights: 100 },
+    partial: { occupancy: 8.3, roomNights: 71.4 },
     todayValues: { roomNights: 0, availableRoomNights: null }, partialValues: { roomNights: 12, availableRoomNights: 60 } },
-])("$name completed-range comparisons", ({ action, unavailable, historical, todayValues, partialValues }) => {
+])("$name completed-range comparisons", ({ action, unavailable, historical, partial, todayValues, partialValues }) => {
   const comparisonWarning = "Room KPI comparisons require a completed date range. Choose an end date before today in the property's timezone.";
+  const tonightNote = (from: string, to: string, priorFrom: string, priorTo: string) =>
+    `Tonight is still in progress, so changes compare the completed nights ${from} to ${to} with ${priorFrom} to ${priorTo}.`;
   beforeEach(() => {
     state.tables.bookings = [
       booking({ id: "prior", check_in: "2026-10-07", check_out: "2026-10-14", nights: 7, subtotal: 700 }),
@@ -159,20 +164,22 @@ describe.each([
     const result = await action("2026-10-21", "2026-10-21", scope);
     expect(result.deltas).toEqual(unavailable);
     expect(result).toMatchObject(todayValues);
-    expect(result.meta).toMatchObject({ startDate: "2026-10-21", endDate: "2026-10-21", priorStartDate: "2026-10-20", priorEndDate: "2026-10-20" });
+    expect(result.meta).toMatchObject({ startDate: "2026-10-21", endDate: "2026-10-21", priorStartDate: "2026-10-20", priorEndDate: "2026-10-20", comparable: false, comparedEndDate: "2026-10-21" });
     expect(result.meta.warnings).toContain(comparisonWarning);
   });
-  it("suppresses comparisons for seven requested dates ending today while retaining six earned nights", async () => {
+  it("compares the six completed nights of a range ending today with the six nights before them", async () => {
+    // Current Oct 15–20: 12 room nights, 1,800. Prior Oct 9–14: 7 room nights, 800. 10 rooms a night.
     const result = await action("2026-10-15", "2026-10-21", scope);
-    expect(result.deltas).toEqual(unavailable);
+    expect(result.deltas).toEqual(partial);
     expect(result).toMatchObject(partialValues);
-    expect(result.meta).toMatchObject({ startDate: "2026-10-15", endDate: "2026-10-21", priorStartDate: "2026-10-08", priorEndDate: "2026-10-14" });
-    expect(result.meta.warnings).toContain(comparisonWarning);
+    expect(result.meta).toMatchObject({ startDate: "2026-10-15", endDate: "2026-10-21", priorStartDate: "2026-10-09", priorEndDate: "2026-10-14", comparable: true, comparedEndDate: "2026-10-20" });
+    expect(result.meta.warnings).toContain(tonightNote("2026-10-15", "2026-10-20", "2026-10-09", "2026-10-14"));
+    expect(result.meta.warnings).not.toContain(comparisonWarning);
   });
   it("preserves exact KPI comparisons for a fully completed historical range", async () => {
     const result = await action("2026-10-14", "2026-10-20", scope);
     expect(result.deltas).toEqual(historical);
-    expect(result.meta).toMatchObject({ startDate: "2026-10-14", endDate: "2026-10-20", priorStartDate: "2026-10-07", priorEndDate: "2026-10-13" });
+    expect(result.meta).toMatchObject({ startDate: "2026-10-14", endDate: "2026-10-20", priorStartDate: "2026-10-07", priorEndDate: "2026-10-13", comparable: true, comparedEndDate: "2026-10-20" });
     expect(result.meta.warnings).not.toContain(comparisonWarning);
   });
   it.each([
@@ -183,9 +190,12 @@ describe.each([
     state.tables.hotels[0].timezone = timeZone;
     state.tables.reports_inventory_history[0].time_zone = timeZone;
     const result = await action("2026-10-14", "2026-10-20", scope);
-    expect(result.deltas).toEqual(completed ? historical : unavailable);
+    // In New York Oct 20 is still today, so Oct 14–19 is compared with Oct 8–13; the figures match the full week's ratios.
+    expect(result.deltas).toEqual(historical);
     expect(result.meta.timeZone).toBe(timeZone);
-    expect(result.meta.warnings.includes(comparisonWarning)).toBe(!completed);
+    expect(result.meta).toMatchObject(completed ? { priorStartDate: "2026-10-07", priorEndDate: "2026-10-13", comparedEndDate: "2026-10-20" } : { priorStartDate: "2026-10-08", priorEndDate: "2026-10-13", comparedEndDate: "2026-10-19" });
+    expect(result.meta.warnings.includes(tonightNote("2026-10-14", "2026-10-19", "2026-10-08", "2026-10-13"))).toBe(!completed);
+    expect(result.meta.warnings).not.toContain(comparisonWarning);
   });
 });
 

@@ -87,7 +87,7 @@ function useActions(
     () => [
       { id: "new-booking", label: "New Booking", group: "Bookings", icon: <CalendarPlus />, tone: "blue", action: () => { close(); onNewBooking?.(); } },
       { id: "view-bookings", label: "All Bookings", group: "Bookings", icon: <CalendarDays />, tone: "sky", url: "/dashboard/bookings" },
-      { id: "availability", label: "Room Availability", group: "Bookings", icon: <BedDouble />, tone: "indigo", url: "/dashboard/availability" },
+      { id: "rates", label: "Rates", group: "Bookings", icon: <BedDouble />, tone: "indigo", url: "/dashboard/rooms/pricing" },
       { id: "settings", label: "Hotel Settings", group: "Settings", icon: <Settings />, tone: "slate", url: "/dashboard/settings" },
     ],
     [close, onNewBooking]

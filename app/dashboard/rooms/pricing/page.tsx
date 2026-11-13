@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import { Building2 } from "lucide-react";
 
 import { businessToday } from "@/lib/business-date";
@@ -8,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PricingClient } from "./pricing-client";
 
 export const metadata = {
-  title: "Rates & Seasons | RoomLine",
+  title: "Rates | RoomLine",
 };
 
 export default async function PricingPage({
@@ -20,6 +21,9 @@ export default async function PricingPage({
     auth(),
     searchParams ?? Promise.resolve({} as { tab?: string }),
   ]);
+
+  // Seasons were removed; old ?tab=seasons links land on the rates grid.
+  if (params?.tab) redirect("/dashboard/rooms/pricing");
 
   if (!orgId || !userId) {
     return <NoHotelState />;
@@ -57,7 +61,6 @@ export default async function PricingPage({
   const canManagePricing = can(role, "pricing:manage");
   const timezone = hotel.timezone || "UTC";
   const propertyToday = businessToday(timezone);
-  const initialTab = params?.tab === "seasons" ? "seasons" : "calendar";
 
   return (
     <PricingClient
@@ -67,7 +70,6 @@ export default async function PricingPage({
       hotelTimezone={timezone}
       propertyToday={propertyToday}
       canManagePricing={canManagePricing}
-      initialTab={initialTab}
       roomTypes={roomTypes || []}
     />
   );

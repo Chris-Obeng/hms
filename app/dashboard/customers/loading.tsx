@@ -1,30 +1,29 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card, Skeleton } from "@heroui/react";
+import { LIST_CARD } from "@/components/ui/list-styles";
 
 export default function CustomersLoading() {
   return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <Skeleton className="h-8 w-36 rounded-lg" />
-        <Skeleton className="h-4 w-48 rounded-lg" />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Skeleton className="h-10 max-w-xs flex-1 rounded-xl" />
-        <Skeleton className="h-10 w-20 rounded-xl" />
-        <Skeleton className="h-10 w-24 rounded-xl" />
-      </div>
-
-      <div className="space-y-3 md:hidden">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-20 w-full rounded-xl" />
-        ))}
-      </div>
-
-      <div className="hidden md:block space-y-2">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full rounded-xl" />
-        ))}
-      </div>
+    <div className="mx-auto w-full max-w-7xl space-y-6 pt-6 md:pt-8" aria-busy="true">
+      <Skeleton className="h-8 w-32 rounded-lg" />
+      <Card className={LIST_CARD}>
+        <div className="flex gap-2 p-4 sm:px-6">
+          <Skeleton className="h-11 w-full rounded-xl md:h-10 md:w-72" />
+          <Skeleton className="hidden h-10 w-40 rounded-xl md:block" />
+          <Skeleton className="hidden h-10 w-40 rounded-xl md:block" />
+        </div>
+        <div className="divide-y divide-border/50 border-t border-border/50">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-4 py-3 sm:px-6">
+              <Skeleton className="size-8 shrink-0 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-40 rounded-md" />
+                <Skeleton className="h-3 w-56 rounded-md" />
+              </div>
+              <Skeleton className="h-4 w-20 rounded-md" />
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 }

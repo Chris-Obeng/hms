@@ -38,6 +38,21 @@ export function formatCurrencyCompact(amount: number, currency = DEFAULT_CURRENC
 }
 
 /**
+ * Money with the bare local symbol, so staff read "₵10,164" rather than
+ * "GH₵10,164". Only the cedi is shortened; other currencies keep the symbol
+ * Intl gives them. `exact` keeps the currency's decimals for records.
+ */
+export function formatCurrencySymbol(
+  amount: number,
+  currency = DEFAULT_CURRENCY,
+  options: { exact?: boolean } = {}
+): string {
+  // `signDisplay: "negative"` keeps values that round to zero (-0.4 -> "₵0") from showing as "-₵0".
+  const text = formatMajor(amount, currency, { showDecimals: options.exact ?? false, intl: { signDisplay: "negative" } });
+  return currency.toUpperCase() === "GHS" ? text.replace("GH₵", "₵") : text;
+}
+
+/**
  * "GHS 1,150" — ISO code prefix instead of the ₵ symbol, per the booking
  * funnel design (pencil-booking.pen). `showDecimals: false` renders the
  * rounded nightly rate on room cards; totals keep the currency's decimals.

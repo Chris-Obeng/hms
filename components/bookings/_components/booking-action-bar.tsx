@@ -1,8 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { RotateCcw, BadgeCheck } from "lucide-react";
-
 import { AlertDialog, Button } from "@heroui/react";
 import { cn } from "@/lib/utils";
 import { formatRoomLabel } from "@/lib/format";
@@ -78,11 +76,8 @@ export function BookingActionBar({
       >
         {canCancelRow && (
           <Button
-            variant="outline"
-            className={cn(
-              "ui-press h-10 rounded-xl border-border/70 bg-card px-4 text-xs font-semibold text-muted-foreground sm:h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:border-destructive/30 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-destructive/[0.06] [@media(hover:hover)_and_(pointer:fine)]:hover:text-destructive",
-              !inline && "order-2 ml-auto"
-            )}
+            variant="tertiary"
+            className={cn("rounded-xl font-medium max-md:h-11", !inline && "order-2 ml-auto")}
             isPending={actionLoading === "cancel"}
             onPress={() => setConfirmCancel(true)}
           >
@@ -96,7 +91,6 @@ export function BookingActionBar({
             loadingLabel="Confirming…"
             isLoading={actionLoading === "confirm"}
             onPress={handleConfirm}
-            icon={<BadgeCheck className="size-4" />}
           />
         )}
         {booking.status === "confirmed" && (
@@ -113,7 +107,7 @@ export function BookingActionBar({
             loadingLabel="Checking out…"
             isLoading={actionLoading === "check_out"}
             onPress={handleCheckOut}
-            variant="neutral"
+            variant="secondary"
           />
         )}
         {canReinstateRow && (
@@ -122,8 +116,7 @@ export function BookingActionBar({
             loadingLabel="Reinstating…"
             isLoading={actionLoading === "reinstate"}
             onPress={handleReinstate}
-            icon={<RotateCcw className="size-4" />}
-            variant="outline"
+            variant="secondary"
           />
         )}
       </div>
@@ -131,17 +124,16 @@ export function BookingActionBar({
       <AlertDialog.Backdrop
         isOpen={confirmCancel}
         onOpenChange={(isOpen) => setConfirmCancel(isOpen)}
-        variant="blur"
       >
         <AlertDialog.Container placement="center" size="sm">
-          <AlertDialog.Dialog className="rounded-3xl border border-border/70 bg-card p-6 shadow-2xl sm:max-w-[400px]">
+          <AlertDialog.Dialog className="rounded-3xl sm:max-w-[400px]">
             <AlertDialog.Header>
               <AlertDialog.Icon status="danger" />
               <AlertDialog.Heading className="text-base font-semibold text-foreground">
                 {isGroupMember ? `Cancel ${roomTarget ?? "this room"}?` : "Cancel this reservation?"}
               </AlertDialog.Heading>
             </AlertDialog.Header>
-            <AlertDialog.Body className="py-2 text-sm leading-relaxed text-muted-foreground">
+            <AlertDialog.Body className="text-sm leading-relaxed text-muted-foreground">
               {isGroupMember ? (
                 <p>
                   {roomTarget ?? booking.roomType?.name ?? "This room"} on{" "}
@@ -159,19 +151,20 @@ export function BookingActionBar({
                 </p>
               )}
             </AlertDialog.Body>
-            <AlertDialog.Footer className="flex justify-end gap-2 pt-3">
+            <AlertDialog.Footer className="flex-col-reverse gap-2 sm:flex-row">
               <Button
                 slot="close"
                 variant="tertiary"
+                autoFocus
                 isDisabled={actionLoading === "cancel"}
-                className="ui-press h-10 rounded-xl border border-border/70 bg-background px-4 text-xs font-semibold"
+                className="rounded-xl max-md:h-11"
               >
                 {isGroupMember ? "Keep room" : "Keep reservation"}
               </Button>
               <Button
                 variant="danger"
                 isPending={actionLoading === "cancel"}
-                className="ui-press h-10 rounded-xl px-4 text-xs font-semibold"
+                className="rounded-xl font-semibold max-md:h-11"
                 onPress={() => {
                   setConfirmCancel(false);
                   handleCancel();
@@ -193,7 +186,6 @@ function ActionButton({
   isLoading,
   isDisabled = false,
   onPress,
-  icon,
   variant = "primary",
 }: {
   label: string;
@@ -201,31 +193,17 @@ function ActionButton({
   isLoading: boolean;
   isDisabled?: boolean;
   onPress: () => void;
-  icon?: React.ReactNode;
-  variant?: "primary" | "neutral" | "outline";
+  variant?: "primary" | "secondary";
 }) {
   return (
     <Button
-      variant={variant === "outline" ? "outline" : "primary"}
+      variant={variant}
       onPress={onPress}
       isPending={isLoading}
       isDisabled={isDisabled}
-      className={cn(
-        "ui-press h-10 rounded-xl px-4 text-xs font-semibold sm:h-10",
-        variant === "neutral" &&
-          "bg-foreground text-background [@media(hover:hover)_and_(pointer:fine)]:hover:bg-foreground/90",
-        variant === "outline" &&
-          "border-border/70 bg-card text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
-      )}
+      className="rounded-xl font-semibold max-md:h-11"
     >
-      {isLoading ? (
-        loadingLabel
-      ) : (
-        <>
-          {icon}
-          {label}
-        </>
-      )}
+      {isLoading ? loadingLabel : label}
     </Button>
   );
 }

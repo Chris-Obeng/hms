@@ -11,10 +11,10 @@ import {
 // ── Filter options ─────────────────────────────────────────────────
 export const STATUS_OPTIONS = [
   { value: "confirmed", label: "Confirmed" },
-  { value: "checked_in", label: "Checked In" },
-  { value: "checked_out", label: "Checked Out" },
+  { value: "checked_in", label: "Checked in" },
+  { value: "checked_out", label: "Checked out" },
   { value: "cancelled", label: "Cancelled" },
-  { value: "no_show", label: "No Show" },
+  { value: "no_show", label: "No-show" },
   { value: "pending", label: "Pending" },
 ];
 
@@ -54,7 +54,7 @@ function reservationFields(roomTypes: { id: string; name: string }[] = []): Filt
     { key: "source", label: "Source", ariaLabel: "Filter by booking source", allLabel: "All sources", options: SOURCE_OPTIONS },
     {
       key: "roomType",
-      label: "Room Type",
+      label: "Room type",
       chipPrefix: "Room",
       ariaLabel: "Filter by room type",
       allLabel: "All room types",
@@ -64,7 +64,6 @@ function reservationFields(roomTypes: { id: string; name: string }[] = []): Filt
   ];
 }
 
-// PLACEHOLDER_COMPONENTS
 
 interface ReservationFiltersProps {
   filters: ReservationFilterState;

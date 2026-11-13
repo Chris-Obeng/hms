@@ -9,7 +9,6 @@ export const qk = {
   notifications: (orgId: string, hotelId: string) => ['notifications', orgId, hotelId] as const,
   payments: (orgId: string, hotelId: string) => ['payments', orgId, hotelId] as const,
   reports: (orgId: string, hotelId: string, tab: string, startDate: string, endDate: string) => ['reports', orgId, hotelId, tab, startDate, endDate] as const,
-  pricingSeasons: (orgId: string, hotelId: string) => ['pricing', 'seasons', orgId, hotelId] as const,
   pricingResolved: (orgId: string, hotelId: string, roomTypeIds: string[], startDate: string, endDate: string) => ['pricing', 'resolved', orgId, hotelId, roomTypeIds, startDate, endDate] as const,
   pricingOccupancy: (orgId: string, hotelId: string, startDate: string, endDate: string) => ['pricing', 'occupancy', orgId, hotelId, startDate, endDate] as const,
   // Detail caches — single source for drawer instant-open (SSR warm → idle → viewport → hover)

@@ -174,3 +174,7 @@ export function priorRange(start: Date, end: Date): { start: Date; end: Date } {
 export function pctDelta(current: number | null, prior: number | null): number | null {
   return current == null || prior == null || prior === 0 ? null : Math.round((current - prior) / prior * 1000) / 10;
 }
+/** Change between two percentages in percentage points: 50% to 60% is +10 pts. */
+export function pointsDelta(current: number | null, prior: number | null): number | null {
+  return current == null || prior == null ? null : Math.round((current - prior) * 10) / 10;
+}

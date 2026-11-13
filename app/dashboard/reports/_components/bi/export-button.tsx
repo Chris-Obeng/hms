@@ -23,12 +23,12 @@ export function ExportButton({ range, overview, occupancy, guests, revenue, room
     const rows: string[][] = [];
     const add = (...cells: (string | number | null | undefined)[]) => rows.push(cells.map(toCell));
     if (overview) {
-      add("KPI", "Value", "Change vs prior period %");
-      add("Room revenue", overview.revenue, overview.deltas.revenue);
-      add("Occupancy %", overview.occupancy, overview.deltas.occupancy);
-      add("ADR", overview.adr, overview.deltas.adr);
-      add("RevPAR", overview.revpar, overview.deltas.revpar);
-      add("Room nights", overview.roomNights, overview.deltas.roomNights);
+      add("KPI", "Value", "Change vs prior period");
+      add("Room revenue", overview.revenue, pct(overview.deltas.revenue));
+      add("Occupancy %", overview.occupancy, pts(overview.deltas.occupancy));
+      add("ADR", overview.adr, pct(overview.deltas.adr));
+      add("RevPAR", overview.revpar, pct(overview.deltas.revpar));
+      add("Room nights", overview.roomNights, pct(overview.deltas.roomNights));
       add("Collections", overview.collected, null);
       add();
       add("Daily series", "Revenue", "Occupancy %", "ADR", "RevPAR", "Room nights");
@@ -76,8 +76,23 @@ export function ExportButton({ range, overview, occupancy, guests, revenue, room
   </Button>;
 }
 
-function toCell(value: string | number | null | undefined): string {
+/** Changes carry their unit, since occupancy moves in points and the rest in percent. */
+function pct(value: number | null): string | null { return value === null ? null : `${value}%`; }
+function pts(value: number | null): string | null { return value === null ? null : `${value} pts`; }
+
+/** A signed figure with an optional unit ("-1.5%", "-2 pts"): spreadsheets read it as data, never as a formula. */
+const SIGNED_FIGURE = /^-?\d+(\.\d+)?(%| pts)?$/;
+/** Leading characters a spreadsheet treats as the start of a formula. */
+const FORMULA_START = /^[=+\-@\t\r]/;
+
+/**
+ * One CSV cell. Text that a spreadsheet would run as a formula (room type,
+ * source or nationality names start with =, +, -, @, tab or CR) gets a leading
+ * quote; numbers and signed figures such as "-1.5%" are written as they are.
+ */
+export function toCell(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "";
-  const text = String(value);
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  let text = String(value);
+  if (typeof value === "string" && FORMULA_START.test(text) && !SIGNED_FIGURE.test(text)) text = `'${text}`;
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }

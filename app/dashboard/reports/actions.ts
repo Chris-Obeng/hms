@@ -2,7 +2,7 @@
 
 import { differenceInCalendarDays, eachDayOfInterval, format, parseISO, startOfWeek, subDays } from "date-fns";
 import { fromMinor, sumMinor } from "@/lib/money";
-import { adr, allocateNightlyRevenue, occupancy, pctDelta, revpag, revpar, type NightFact, type NightRow } from "@/lib/reports/bi-math";
+import { adr, allocateNightlyRevenue, occupancy, pctDelta, pointsDelta, revpag, revpar, type NightFact, type NightRow } from "@/lib/reports/bi-math";
 import { historicalCapacity, type CapacityDay, type InventorySnapshot } from "@/lib/reports/inventory";
 import { BALANCE_BASIS, INVENTORY_BASIS, ROOM_BASIS, STAYED, loadInventory, loadNights, loadOutstanding, loadOutstandingSummary, loadStays, reportContext, resolveReportScope, withWarnings, type ReportContext, type ReportMeta, type ReportScope, type ReportStay } from "@/lib/reports/data";
 import { readAllPages, reportReadError } from "@/lib/reports/pagination";
@@ -60,14 +60,19 @@ async function comparison(ctx: ReportContext) {
   return { cur: foldRange(ctx, stays, nights, inventory, ctx.start, ctx.end), prev: foldRange(ctx, stays, nights, inventory, ctx.prior.start, ctx.prior.end) };
 }
 function roomDelta(ctx: ReportContext, current: number | null, previous: number | null): number | null {
-  // Today's incomplete night shortens only the current earned range, not its prior span.
-  return ctx.meta.endDate < ctx.today ? pctDelta(current, previous) : null;
+  // The prior window already matches the completed nights (see reportContext).
+  return ctx.comparable ? pctDelta(current, previous) : null;
+}
+/** Occupancy is itself a percentage, so its change is reported in points. */
+function occupancyDelta(ctx: ReportContext, current: number | null, previous: number | null): number | null {
+  return ctx.comparable ? pointsDelta(current, previous) : null;
 }
 function roomMeta(ctx: ReportContext, cur: RangeCore, prev: RangeCore, extra: string[] = []) {
   return withWarnings(ctx, ROOM_BASIS, INVENTORY_BASIS,
     "Net-zero room subtotals remain occupied room-nights with zero revenue. No separate complimentary/house-use classification is stored, so those stays cannot be separately excluded.",
     "Historical reports reflect current booking corrections and statuses; they are not immutable accounting-close snapshots.",
-    ctx.meta.endDate >= ctx.today ? ["Room KPI comparisons require a completed date range. Choose an end date before today in the property's timezone."] : [],
+    !ctx.comparable ? ["Room KPI comparisons require a completed date range. Choose an end date before today in the property's timezone."]
+      : ctx.meta.endDate >= ctx.today ? [`Tonight is still in progress, so changes compare the completed nights ${ctx.meta.startDate} to ${ctx.comparedEnd} with ${ctx.meta.priorStartDate} to ${ctx.meta.priorEndDate}.`] : [],
     cur.warnings, prev.warnings, extra);
 }
 function buildSeries(cur: RangeCore, currency: string): OverviewSeriesPoint[] {
@@ -104,7 +109,7 @@ export async function getReportsOverview(startDate: string, endDate: string, exp
   ]);
   return { currency: ctx.currency, revenue: cur.revenue, revpar: cur.revpar, adr: cur.adr, occupancy: cur.occupancy,
     roomNights: cur.roomNights, revpag: revpag(cur.revenue, cur.guests),
-    deltas: { revenue: roomDelta(ctx, cur.revenue, prev.revenue), revpar: roomDelta(ctx, cur.revpar, prev.revpar), adr: roomDelta(ctx, cur.adr, prev.adr), occupancy: roomDelta(ctx, cur.occupancy, prev.occupancy), roomNights: roomDelta(ctx, cur.roomNights, prev.roomNights) },
+    deltas: { revenue: roomDelta(ctx, cur.revenue, prev.revenue), revpar: roomDelta(ctx, cur.revpar, prev.revpar), adr: roomDelta(ctx, cur.adr, prev.adr), occupancy: occupancyDelta(ctx, cur.occupancy, prev.occupancy), roomNights: roomDelta(ctx, cur.roomNights, prev.roomNights) },
     series: buildSeries(cur, ctx.currency), priorSeries: buildSeries(prev, ctx.currency), sources: buildSources(cur, ctx.currency),
     guestVisits: cur.guests, collected: fromMinor(collections.totalMinor, ctx.currency), byMethod: collections.byMethod,
     meta: roomMeta(ctx, cur, prev, ["Collected covers successful payments by paid_at in the period, including tax and deposits; it is cash received, not room revenue."]) };
@@ -181,7 +186,7 @@ export async function getOccupancyReport(startDate: string, endDate: string, exp
   const length = cur.stays.reduce((sum, stay) => sum + differenceInCalendarDays(parseISO(stay.check_out), parseISO(stay.check_in)), 0);
   return { currency: ctx.currency, occupancy: cur.occupancy, roomNights: cur.roomNights, availableRoomNights: cur.availableRoomNights,
     avgLengthOfStay: cur.stays.length ? Math.round(length / cur.stays.length * 10) / 10 : 0, newBookings: created.count!, stayMix,
-    deltas: { occupancy: roomDelta(ctx, cur.occupancy, prev.occupancy), roomNights: roomDelta(ctx, cur.roomNights, prev.roomNights) },
+    deltas: { occupancy: occupancyDelta(ctx, cur.occupancy, prev.occupancy), roomNights: roomDelta(ctx, cur.roomNights, prev.roomNights) },
     daily: series.map(({ date, label, occupancy }) => ({ date, label, occupancy })), coverage, byRoomType,
     meta: roomMeta(ctx, cur, prev, ["New bookings counts all reservations created in the property's local date window, including subsequently cancelled bookings. Average stay length is the full booked span of participating stays, not just nights in this window."]) };
 }

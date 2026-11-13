@@ -2,17 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { toast, Skeleton } from "@heroui/react";
-import {
-  AlertCircle,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUpRight,
-  Clock,
-  Mail,
-  Pencil,
-  Phone,
-} from "lucide-react";
+import { Alert, Avatar, Button, Chip, Disclosure, Skeleton, TextArea, toast } from "@heroui/react";
+import { ArrowLeft, ArrowUpRight, CalendarX2, Mail, Pencil, Phone } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { FullBookingDetail } from "@/app/actions/bookings-detail";
@@ -20,10 +11,8 @@ import { updateBookingNotes } from "@/app/actions/bookings-detail";
 import { BookingActionBar } from "@/components/bookings/_components/booking-action-bar";
 import { BookingPaymentsPanel } from "@/components/bookings/_components/booking-payments-panel";
 import { BookingFolioPrintButton } from "@/components/bookings/_components/booking-folio-print";
-import {
-  BookingStatusPill,
-  ReferenceChip,
-} from "@/components/bookings/_components/booking-status-pill";
+import { BookingStatusPill, ReferenceChip } from "@/components/bookings/_components/booking-status-pill";
+import { PenCard, PenCardHead } from "@/components/ui/pen/pen-card";
 import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
 import { occupancyText } from "@/lib/bookings/cart";
 import {
@@ -32,14 +21,7 @@ import {
   getSourceLabel,
   getStatusLabel,
 } from "@/lib/booking-status";
-import {
-  formatCurrency,
-  formatDate,
-  formatDateTime,
-  formatRoomLabel,
-  getInitials,
-  getNights,
-} from "@/lib/format";
+import { formatCurrency, formatDate, formatDateTime, formatRoomLabel, getInitials, getNights } from "@/lib/format";
 import { useSnapshotPatch } from "@/hooks/use-snapshot-patch";
 import { cn } from "@/lib/utils";
 
@@ -52,13 +34,15 @@ interface Props {
 }
 
 const LINE_DOTS: Record<string, string> = {
-  confirmed: "bg-[var(--pen-accent)]",
+  confirmed: "bg-primary",
   checked_in: "bg-emerald-500",
-  checked_out: "bg-muted-foreground/45",
+  checked_out: "bg-muted-foreground/40",
   cancelled: "bg-destructive",
   no_show: "bg-destructive",
   pending: "bg-amber-500",
 };
+
+const ENTER = "animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-[var(--ease-out-ui)] motion-reduce:animate-none";
 
 export function BookingDeepLinkClient({
   bookingId,
@@ -256,21 +240,14 @@ export function BookingDeepLinkClient({
 
   if (!booking) {
     return (
-      <div className="mx-auto w-full max-w-6xl pt-2">
-        <Link
-          href="/dashboard/bookings"
-          className="ui-press mb-4 inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-medium text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" aria-hidden="true" />
-          Reservations
-        </Link>
-        <div className="flex flex-col items-center justify-center rounded-3xl border border-border/60 bg-card py-16 text-center">
-          <AlertCircle className="mb-3 size-8 text-muted-foreground/35" />
+      <div className="mx-auto w-full max-w-5xl space-y-6 pt-6 md:pt-8">
+        <BackLink />
+        <PenCard className="items-center gap-3 py-16 text-center">
+          <span className="grid size-12 place-items-center rounded-2xl bg-secondary text-muted-foreground">
+            <CalendarX2 className="size-5" aria-hidden="true" />
+          </span>
           <p className="text-sm font-semibold text-foreground">Reservation not found</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            It may have been removed or belongs to another property.
-          </p>
-        </div>
+        </PenCard>
       </div>
     );
   }
@@ -283,244 +260,134 @@ export function BookingDeepLinkClient({
   const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
   const guestsLabel = occupancyText(booking.adults ?? 1, booking.children ?? 0);
   const guestName = booking.guest?.fullName || "Guest";
-  const roomDisplay = booking.room?.roomNumber
-    ? `${formatRoomLabel(booking.room.roomNumber)}${
-        booking.room.floor ? ` · Floor ${booking.room.floor}` : ""
-      }`
-    : null;
+  const roomLabel = formatRoomLabel(booking.room?.roomNumber);
+  const roomDisplay = roomLabel ? `${roomLabel}${booking.room?.floor ? ` · Floor ${booking.room.floor}` : ""}` : null;
+  const totalRooms = group?.totalRooms ?? booking.roomsCount ?? 1;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 pt-1">
-      {/* ── Top Navigation & Print Bar ─────────────────────────────── */}
-      <div className="flex items-center justify-between gap-3">
-        <Link
-          href="/dashboard/bookings"
-          className="ui-press -ml-2 inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" aria-hidden="true" />
-          Reservations
-        </Link>
+    <div className="mx-auto w-full max-w-5xl space-y-6 pt-6 md:pt-8">
+      <BackLink />
 
-        <BookingFolioPrintButton
-          booking={booking}
-          currency={currency}
-          hotelName={hotelName}
-          hotelAddress={hotelAddress}
-          hotelPhone={hotelPhone}
-        />
-      </div>
-
-      {/* ── Unified Identity & Action Header (Every Fact Said Once) ── */}
-      <header className="flex flex-col gap-4 rounded-3xl border border-border/60 bg-card p-4 shadow-[0_1px_3px_rgb(0_0_0/0.04)] sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div className="flex min-w-0 items-start gap-4 sm:items-center">
-          <span
-            aria-hidden="true"
-            className="grid size-11 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary"
-          >
-            {getInitials(guestName)}
-          </span>
-
-          <div className="min-w-0 space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground sm:text-2xl">
-                {guestName}
-              </h1>
+      {/* Identity + the one lifecycle action */}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          <Avatar size="lg" className="shrink-0" aria-hidden="true">
+            <Avatar.Fallback className="font-semibold">{getInitials(guestName)}</Avatar.Fallback>
+          </Avatar>
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-semibold tracking-[-0.02em] text-foreground">{guestName}</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-1">
               <BookingStatusPill status={reservationStatus} />
               <ReferenceChip reference={booking.reference} />
+              {totalRooms > 1 && (
+                <Chip size="sm" variant="secondary" className="font-medium">
+                  {totalRooms} rooms
+                </Chip>
+              )}
             </div>
-
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-              <span className="font-medium tabular-nums text-foreground">
-                {formatDate(booking.checkIn, "EEE, MMM d")} →{" "}
-                {formatDate(booking.checkOut, "EEE, MMM d, yyyy")}
-              </span>
-              <span aria-hidden="true">·</span>
-              <span className="tabular-nums">
-                {nights} {nights === 1 ? "night" : "nights"}
-              </span>
-              <span aria-hidden="true">·</span>
-              <span>
-                {group
-                  ? `${group.totalRooms} rooms`
-                  : roomDisplay ?? booking.roomType?.name ?? "Unassigned"}
-              </span>
-            </p>
           </div>
         </div>
-
-        <div className="shrink-0">
-          <BookingActionBar
-            inline
+        <div className="flex shrink-0 items-center gap-2">
+          <BookingFolioPrintButton
             booking={booking}
-            actionLoading={actionLoading}
-            onAction={handleAction}
+            currency={currency}
+            hotelName={hotelName}
+            hotelAddress={hotelAddress}
+            hotelPhone={hotelPhone}
           />
+          <BookingActionBar inline booking={booking} actionLoading={actionLoading} onAction={handleAction} />
         </div>
       </header>
 
-      {/* ── Two-Column Folio Workspace ─────────────────────────────── */}
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        {/* Left column: Stay allocation + Folio & payments */}
+      {booking.status === "cancelled" && booking.cancelledAt && (
+        <Alert status="danger" className="rounded-2xl">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Cancelled {formatDateTime(booking.cancelledAt)}</Alert.Title>
+            {booking.cancellationReason && <Alert.Description>{booking.cancellationReason}</Alert.Description>}
+          </Alert.Content>
+        </Alert>
+      )}
+
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-6">
-          {/* 1. Stay & Room Allocation */}
-          <section
-            aria-label="Stay and room allocation"
-            className="overflow-hidden rounded-3xl border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)]"
-          >
-            <div className="flex items-center justify-between border-b border-border/50 px-4 py-4 sm:px-6">
-              <h2 className="text-md font-semibold text-foreground">
-                {group ? `Rooms (${group.totalRooms})` : "Stay details"}
-              </h2>
-              <span className="text-xs capitalize text-muted-foreground">
-                {getSourceLabel(booking.source)} booking
-              </span>
+          {/* Stay */}
+          <PenCard className={ENTER}>
+            <PenCardHead title={group ? `Rooms · ${group.totalRooms}` : "Stay"} />
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-2xl bg-secondary/60 p-4">
+              <StayDate label="Check-in" date={booking.checkIn} at={booking.checkInAt} doneLabel="In"
+                eta={!booking.checkInAt ? booking.estimatedArrival : null} />
+              <Chip size="sm" variant="secondary" className="bg-card font-medium tabular-nums">
+                {nights} {nights === 1 ? "night" : "nights"}
+              </Chip>
+              <StayDate label="Check-out" date={booking.checkOut} at={booking.checkOutAt} doneLabel="Out" align="end" />
             </div>
 
-            {/* Schedule strip */}
-            <div className="grid grid-cols-2 gap-4 border-b border-border/50 bg-muted/15 px-4 py-4 sm:grid-cols-3 sm:px-6">
-              <div>
-                <p className="text-xs text-muted-foreground">Check-in</p>
-                <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
-                  {formatDate(booking.checkIn, "MMM d, yyyy")}
-                </p>
-                {booking.checkInAt ? (
-                  <p className="mt-1 text-2xs tabular-nums text-emerald-600">
-                    Arrived {formatDateTime(booking.checkInAt)}
-                  </p>
-                ) : booking.estimatedArrival ? (
-                  <p className="mt-1 inline-flex items-center gap-1 text-2xs tabular-nums text-muted-foreground">
-                    <Clock className="size-3" aria-hidden="true" />
-                    ETA {booking.estimatedArrival.slice(0, 5)}
-                  </p>
-                ) : null}
-              </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground">Check-out</p>
-                <p className="mt-1 flex items-center gap-2 text-sm font-semibold tabular-nums text-foreground">
-                  <ArrowRight
-                    className="hidden size-4 text-muted-foreground/50 sm:inline"
-                    aria-hidden="true"
-                  />
-                  {formatDate(booking.checkOut, "MMM d, yyyy")}
-                </p>
-                {booking.checkOutAt && (
-                  <p className="mt-1 text-2xs tabular-nums text-muted-foreground">
-                    Departed {formatDateTime(booking.checkOutAt)}
-                  </p>
-                )}
-              </div>
-
-              <div className="col-span-2 border-t border-border/40 pt-3 sm:col-span-1 sm:border-t-0 sm:pt-0">
-                <p className="text-xs text-muted-foreground">Duration &amp; terms</p>
-                <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
-                  {nights} {nights === 1 ? "night" : "nights"}
-                </p>
-                <p className="mt-1 text-2xs text-muted-foreground">
-                  {booking.paymentPreference === "pay_now" ? "Pay online" : "Pay at property"}
-                </p>
-              </div>
-            </div>
-
-            {booking.status === "cancelled" && booking.cancelledAt && (
-              <div className="border-b border-border/50 bg-destructive/[0.05] px-4 py-3 text-xs text-destructive sm:px-6">
-                Cancelled {formatDateTime(booking.cancelledAt)}
-                {booking.cancellationReason ? ` — ${booking.cancellationReason}` : ""}
-              </div>
-            )}
-
-            {/* Room breakdown */}
             {group ? (
-              <ul className="divide-y divide-border/50 px-4 sm:px-6">
+              <ul className="divide-y divide-border/60 rounded-2xl border border-border/60">
                 {group.lines.map((line) => {
                   const canIn = canTransitionBooking(line.status ?? "", "checked_in");
                   const canOut = canTransitionBooking(line.status ?? "", "checked_out");
                   return (
-                    <li key={line.id} className="flex items-center justify-between gap-3 py-4">
+                    <li key={line.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
                       <div className="min-w-0 flex-1">
-                        <p className="flex items-center gap-2 truncate text-sm font-semibold text-foreground">
-                          <span
-                            className={cn(
-                              "size-2 shrink-0 rounded-full",
-                              LINE_DOTS[line.status ?? ""] ?? "bg-muted-foreground/45"
+                        <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
+                          <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", LINE_DOTS[line.status ?? ""] ?? "bg-muted-foreground/40")} />
+                          <span className="min-w-0 truncate">
+                            {line.roomTypeName ?? "Room"}
+                            {line.roomNumber ? (
+                              <span className="font-normal text-muted-foreground"> · {formatRoomLabel(line.roomNumber)}</span>
+                            ) : (
+                              <span className="font-normal text-amber-700"> · Unassigned</span>
                             )}
-                            aria-hidden="true"
-                          />
-                          <span className="truncate">{line.roomTypeName ?? "Room"}</span>
-                          {line.roomNumber ? (
-                            <span className="font-normal text-muted-foreground">
-                              · {formatRoomLabel(line.roomNumber)}
-                            </span>
-                          ) : (
-                            <span className="rounded-md bg-amber-500/12 px-2 py-1 text-2xs font-medium text-amber-800">
-                              Unassigned
-                            </span>
-                          )}
+                          </span>
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {getStatusLabel(line.status ?? "")} ·{" "}
-                          {occupancyText(line.adults ?? 1, line.children ?? 0)}
+                          {getStatusLabel(line.status ?? "")} · {occupancyText(line.adults ?? 1, line.children ?? 0)} ·{" "}
+                          <span className="tabular-nums">{formatCurrency(line.totalAmount, currency)}</span>
                         </p>
                       </div>
-
-                      <div className="flex shrink-0 items-center gap-3">
-                        <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
-                          {formatCurrency(line.totalAmount, currency)}
-                        </span>
-                        {canIn && (
-                          <button
-                            type="button"
-                            disabled={actionLoading === "bulk:check_in"}
-                            onClick={() =>
-                              void handleRoomLineAction([line.id], "checked_in", "check_in")
-                            }
-                            className="ui-press h-8 cursor-pointer rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground disabled:opacity-55 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
-                          >
-                            Check in
-                          </button>
-                        )}
-                        {canOut && (
-                          <button
-                            type="button"
-                            disabled={actionLoading === "bulk:check_out"}
-                            onClick={() =>
-                              void handleRoomLineAction([line.id], "checked_out", "check_out")
-                            }
-                            className="ui-press h-8 cursor-pointer rounded-lg border border-border/70 bg-card px-3 text-xs font-semibold text-foreground disabled:opacity-55 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
-                          >
-                            Check out
-                          </button>
-                        )}
-                      </div>
+                      {canIn && (
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          isDisabled={actionLoading === "bulk:check_in"}
+                          onPress={() => void handleRoomLineAction([line.id], "checked_in", "check_in")}
+                          className="shrink-0 rounded-lg font-semibold max-md:h-11"
+                        >
+                          Check in
+                        </Button>
+                      )}
+                      {canOut && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          isDisabled={actionLoading === "bulk:check_out"}
+                          onPress={() => void handleRoomLineAction([line.id], "checked_out", "check_out")}
+                          className="shrink-0 rounded-lg font-semibold max-md:h-11"
+                        >
+                          Check out
+                        </Button>
+                      )}
                     </li>
                   );
                 })}
               </ul>
             ) : (
-              <dl className="grid grid-cols-1 divide-y divide-border/45 px-4 sm:grid-cols-2 sm:divide-y-0 sm:gap-x-8 sm:px-6 sm:py-2">
-                <SpecRow label="Room">
-                  {roomDisplay ?? (
-                    <span className="rounded-md bg-amber-500/12 px-2 py-1 text-2xs font-medium text-amber-800">
-                      Unassigned
-                    </span>
-                  )}
-                </SpecRow>
-                <SpecRow label="Room type">{booking.roomType?.name ?? "—"}</SpecRow>
-                <SpecRow label="Occupancy">{guestsLabel}</SpecRow>
-                <SpecRow label="Rooms">
-                  {(booking.roomsCount ?? 1) > 1 ? `${booking.roomsCount} rooms` : "1 room"}
-                </SpecRow>
+              <dl className="grid grid-cols-2 gap-4">
+                <Spec label="Room">
+                  {roomDisplay ?? <span className="text-amber-700">Not assigned</span>}
+                  <span className="mt-1 block truncate text-xs font-normal text-muted-foreground">{booking.roomType?.name ?? "—"}</span>
+                </Spec>
+                <Spec label="Guests" align="end">{guestsLabel}</Spec>
               </dl>
             )}
-          </section>
+          </PenCard>
 
-          {/* 2. Folio & Payments */}
-          <section
-            aria-label="Folio and payments"
-            className="overflow-hidden rounded-3xl border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)]"
-          >
-            <div className="border-b border-border/50 px-4 py-4 sm:px-6">
-              <h2 className="text-md font-semibold text-foreground">Folio &amp; payments</h2>
+          {/* Payments: the panel owns its balance, ledger and record form */}
+          <PenCard className="gap-0 p-0 sm:p-0">
+            <div className="px-6 pt-4 sm:pt-6">
+              <PenCardHead title="Payments" />
             </div>
             <BookingPaymentsPanel
               booking={booking}
@@ -528,61 +395,36 @@ export function BookingDeepLinkClient({
               onRefresh={refresh}
               onOptimisticPayment={handleOptimisticPayment}
             />
-          </section>
+          </PenCard>
         </div>
 
-        {/* Right rail: Guest contact + Notes (flat, zero double headings) */}
+        {/* Right rail */}
         <div className="min-w-0 space-y-6">
-          {/* Guest Card */}
-          <section
-            aria-label="Guest contact"
-            className="overflow-hidden rounded-3xl border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)]"
-          >
-            <div className="flex items-center justify-between border-b border-border/50 px-6 py-4">
-              <h2 className="text-md font-semibold text-foreground">Guest</h2>
-              {booking.guest?.id && (
-                <Link
-                  href={`/dashboard/customers?guestId=${booking.guest.id}`}
-                  className="ui-press inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/[0.07]"
-                >
-                  Profile
-                  <ArrowUpRight className="size-4" aria-hidden="true" />
-                </Link>
-              )}
-            </div>
-
-            <div className="divide-y divide-border/45 px-6">
-              <div className="flex min-h-11 items-center gap-3 py-3 text-sm">
-                <Phone className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                {booking.guest?.phone ? (
-                  <a
-                    href={`tel:${booking.guest.phone}`}
-                    className="truncate font-medium tabular-nums text-foreground underline-offset-2 [@media(hover:hover)_and_(pointer:fine)]:hover:underline"
+          <PenCard>
+            <PenCardHead
+              title="Guest"
+              actions={
+                booking.guest?.id ? (
+                  <Link
+                    href={`/dashboard/customers?guestId=${booking.guest.id}`}
+                    className="-my-3 inline-flex min-h-11 items-center gap-1 rounded-lg text-xs font-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring md:-my-2 md:min-h-8"
                   >
-                    {booking.guest.phone}
-                  </a>
-                ) : (
-                  <span className="text-muted-foreground/65">No phone recorded</span>
-                )}
-              </div>
-
-              <div className="flex min-h-11 items-center gap-3 py-3 text-sm">
-                <Mail className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                {booking.guest?.email ? (
-                  <a
-                    href={`mailto:${booking.guest.email}`}
-                    className="truncate text-foreground underline-offset-2 [@media(hover:hover)_and_(pointer:fine)]:hover:underline"
-                  >
-                    {booking.guest.email}
-                  </a>
-                ) : (
-                  <span className="text-muted-foreground/65">No email recorded</span>
-                )}
-              </div>
+                    Profile
+                    <ArrowUpRight className="size-4" aria-hidden="true" />
+                  </Link>
+                ) : undefined
+              }
+            />
+            <div className="space-y-1">
+              <ContactLink href={booking.guest?.phone ? `tel:${booking.guest.phone}` : undefined} icon={<Phone className="size-4" />}>
+                {booking.guest?.phone || "No phone"}
+              </ContactLink>
+              <ContactLink href={booking.guest?.email ? `mailto:${booking.guest.email}` : undefined} icon={<Mail className="size-4" />}>
+                {booking.guest?.email || "No email"}
+              </ContactLink>
             </div>
-          </section>
+          </PenCard>
 
-          {/* Notes & Special Requests Card (optimistic save, flat layout) */}
           <FolioNotesCard
             booking={booking}
             onOptimisticNotes={(nextNotes) => {
@@ -591,19 +433,108 @@ export function BookingDeepLinkClient({
             }}
             onSaved={refresh}
           />
+
+          <PenCard className="gap-0 py-2 sm:py-2">
+            <Disclosure>
+              <Disclosure.Heading>
+                <Button
+                  slot="trigger"
+                  variant="ghost"
+                  fullWidth
+                  className="justify-between rounded-lg px-0 text-sm font-medium text-muted-foreground max-md:h-11 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-transparent [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+                >
+                  More details
+                  <Disclosure.Indicator />
+                </Button>
+              </Disclosure.Heading>
+              <Disclosure.Content>
+                <Disclosure.Body className="px-0">
+                  <dl className="divide-y divide-border/50">
+                    <Fact label="Source">{getSourceLabel(booking.source)}</Fact>
+                    <Fact label="Payment">{booking.paymentPreference === "pay_now" ? "Pay online" : "Pay at property"}</Fact>
+                    {booking.estimatedArrival && <Fact label="Expected arrival">{booking.estimatedArrival.slice(0, 5)}</Fact>}
+                    {booking.createdAt && <Fact label="Booked">{formatDateTime(booking.createdAt)}</Fact>}
+                    {booking.createdBy?.fullName && <Fact label="Booked by">{booking.createdBy.fullName}</Fact>}
+                    {booking.checkInAt && <Fact label="Checked in">{formatDateTime(booking.checkInAt)}</Fact>}
+                    {booking.checkOutAt && <Fact label="Checked out">{formatDateTime(booking.checkOutAt)}</Fact>}
+                  </dl>
+                </Disclosure.Body>
+              </Disclosure.Content>
+            </Disclosure>
+          </PenCard>
         </div>
       </div>
     </div>
   );
 }
 
-function SpecRow({ label, children }: { label: string; children: React.ReactNode }) {
+function BackLink() {
   return (
-    <div className="flex items-center justify-between gap-4 py-3 sm:border-b sm:border-border/45 sm:nth-last-[-n+2]:border-b-0">
+    <Link
+      href="/dashboard/bookings"
+      className="-ml-2 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring md:min-h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+    >
+      <ArrowLeft className="size-4" aria-hidden="true" />
+      Reservations
+    </Link>
+  );
+}
+
+function StayDate({ label, date, at, doneLabel, eta, align = "start" }: {
+  label: string;
+  date: string;
+  at: string | null;
+  doneLabel: string;
+  eta?: string | null;
+  align?: "start" | "end";
+}) {
+  return (
+    <div className={cn("min-w-0", align === "end" && "text-right")}>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate text-md font-semibold tracking-tight text-foreground">{formatDate(date, "EEE, d MMM")}</p>
+      {at ? (
+        <p className="truncate text-2xs tabular-nums text-emerald-700">{doneLabel} at {formatDate(at, "HH:mm")}</p>
+      ) : eta ? (
+        <p className="truncate text-2xs tabular-nums text-muted-foreground">Arriving {eta.slice(0, 5)}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function Spec({ label, children, align = "start" }: { label: string; children: React.ReactNode; align?: "start" | "end" }) {
+  return (
+    <div className={cn("min-w-0", align === "end" && "text-right")}>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-1 truncate text-sm font-semibold text-foreground">{children}</dd>
+    </div>
+  );
+}
+
+function ContactLink({ href, icon, children }: { href?: string; icon: React.ReactNode; children: React.ReactNode }) {
+  const inner = (
+    <>
+      <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-xl bg-secondary text-muted-foreground">
+        {icon}
+      </span>
+      <span className="min-w-0 truncate">{children}</span>
+    </>
+  );
+  if (!href) return <p className="flex min-h-11 items-center gap-3 text-sm text-muted-foreground md:min-h-10">{inner}</p>;
+  return (
+    <a
+      href={href}
+      className="flex min-h-11 items-center gap-3 rounded-lg text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:text-primary"
+    >
+      {inner}
+    </a>
+  );
+}
+
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3">
       <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 truncate text-right text-sm font-medium text-foreground">
-        {children}
-      </dd>
+      <dd className="min-w-0 truncate text-right text-xs font-medium text-foreground">{children}</dd>
     </div>
   );
 }
@@ -619,10 +550,7 @@ function FolioNotesCard({
 }) {
   const [editing, setEditing] = React.useState(false);
   const notesKey = `${booking.id}|${booking.internalNotes ?? ""}`;
-  const [draftState, setDraftState] = React.useState({
-    key: notesKey,
-    value: booking.internalNotes ?? "",
-  });
+  const [draftState, setDraftState] = React.useState({ key: notesKey, value: booking.internalNotes ?? "" });
   if (draftState.key !== notesKey && !editing) {
     setDraftState({ key: notesKey, value: booking.internalNotes ?? "" });
   }
@@ -644,110 +572,95 @@ function FolioNotesCard({
     }
   };
 
+  const cancel = () => {
+    setEditing(false);
+    setDraft(booking.internalNotes ?? "");
+  };
+
   return (
-    <section
-      aria-label="Notes and special requests"
-      className="overflow-hidden rounded-3xl border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)]"
-    >
-      <div className="flex items-center justify-between border-b border-border/50 px-6 py-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-md font-semibold text-foreground">Notes</h2>
-          {(booking.internalNotes || booking.specialRequests) && (
-            <span aria-hidden="true" className="size-2 rounded-full bg-amber-500" />
-          )}
-        </div>
-        {!editing && (
-          <button
-            type="button"
-            onClick={() => {
-              setDraft(booking.internalNotes ?? "");
-              setEditing(true);
-            }}
-            className="ui-press inline-flex h-8 cursor-pointer items-center gap-2 rounded-lg px-3 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
-          >
-            <Pencil className="size-4" aria-hidden="true" />
-            {booking.internalNotes ? "Edit" : "Add note"}
-          </button>
-        )}
-      </div>
-
-      <div className="space-y-4 p-6">
-        {booking.specialRequests && (
-          <div className="rounded-xl border border-border/60 bg-muted/25 px-4 py-3">
-            <p className="mb-1 text-2xs font-medium text-muted-foreground">Guest request</p>
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-              {booking.specialRequests}
-            </p>
-          </div>
-        )}
-
-        {editing ? (
-          <div className="space-y-3">
-            <textarea
-              rows={4}
-              autoFocus
-              maxLength={2000}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  e.preventDefault();
-                  setEditing(false);
-                  setDraft(booking.internalNotes ?? "");
-                }
+    <PenCard>
+      <PenCardHead
+        title="Notes"
+        actions={
+          !editing && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onPress={() => {
+                setDraft(booking.internalNotes ?? "");
+                setEditing(true);
               }}
-              placeholder="Housekeeping, arrival, or front-desk note…"
-              aria-label="Internal notes"
-              className="w-full resize-none rounded-xl border border-border/70 bg-background px-3 py-3 text-base leading-relaxed text-foreground outline-none focus:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 sm:text-xs"
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(false);
-                  setDraft(booking.internalNotes ?? "");
-                }}
-                className="ui-press h-10 cursor-pointer rounded-xl border border-border/70 bg-card px-4 text-xs font-semibold text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleSave()}
-                className="ui-press h-10 cursor-pointer rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
-              >
-                Save note
-              </button>
-            </div>
+              className="-my-3 h-11 gap-1 rounded-lg px-2 text-xs font-medium text-muted-foreground md:-my-2 md:h-8"
+            >
+              <Pencil className="size-3" aria-hidden="true" />
+              {booking.internalNotes ? "Edit" : "Add note"}
+            </Button>
+          )
+        }
+      />
+
+      {booking.specialRequests && (
+        <p className="rounded-xl bg-amber-500/[0.08] px-3 py-2 text-sm leading-relaxed text-foreground">
+          <span className="font-medium text-amber-800">Guest request · </span>
+          {booking.specialRequests}
+        </p>
+      )}
+
+      {editing ? (
+        <div className={cn("space-y-3", ENTER)}>
+          <TextArea
+            aria-label="Internal notes"
+            rows={4}
+            autoFocus
+            maxLength={2000}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                cancel();
+              }
+            }}
+            placeholder="Housekeeping, arrival or front desk note"
+            className="w-full resize-none rounded-xl text-base sm:text-sm"
+          />
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="tertiary" onPress={cancel} className="rounded-lg max-md:h-11">
+              Cancel
+            </Button>
+            <Button size="sm" variant="primary" onPress={() => void handleSave()} className="rounded-lg font-semibold max-md:h-11">
+              Save
+            </Button>
           </div>
-        ) : (
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-            {booking.internalNotes || (
-              <span className="text-xs text-muted-foreground/70">No internal notes recorded</span>
-            )}
-          </p>
-        )}
-      </div>
-    </section>
+        </div>
+      ) : booking.internalNotes ? (
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{booking.internalNotes}</p>
+      ) : !booking.specialRequests ? (
+        <p className="text-sm text-muted-foreground">No notes</p>
+      ) : null}
+    </PenCard>
   );
 }
 
 function FolioSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 pt-1">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-8 w-28 rounded-xl" />
-        <Skeleton className="h-10 w-28 rounded-xl" />
+    <div className="mx-auto w-full max-w-5xl space-y-6 pt-6 md:pt-8" aria-busy="true">
+      <Skeleton className="h-6 w-28 rounded-lg" />
+      <div className="flex items-center gap-4">
+        <Skeleton className="size-12 shrink-0 rounded-full" />
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48 rounded-lg" />
+          <Skeleton className="h-5 w-36 rounded-md" />
+        </div>
       </div>
-      <Skeleton className="h-24 w-full rounded-3xl" />
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-6">
-          <Skeleton className="h-56 w-full rounded-3xl" />
+          <Skeleton className="h-48 w-full rounded-3xl" />
           <Skeleton className="h-64 w-full rounded-3xl" />
         </div>
         <div className="space-y-6">
           <Skeleton className="h-36 w-full rounded-3xl" />
-          <Skeleton className="h-44 w-full rounded-3xl" />
+          <Skeleton className="h-32 w-full rounded-3xl" />
         </div>
       </div>
     </div>

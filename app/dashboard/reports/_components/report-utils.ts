@@ -1,5 +1,4 @@
-import { formatCurrency, formatDate } from "@/lib/format";
-import { PAYMENT_METHOD_LABELS } from "@/lib/booking-status";
+import { formatCurrency } from "@/lib/format";
 import { shiftReportDate, validateReportRange, reportPeriodLabel } from "@/lib/report-dates";
 import type { GuestsData, OccupancyData, OverviewData, RevenueData } from "../actions";
 
@@ -61,32 +60,6 @@ export function reportDelta(value: number | null | undefined, label = "vs prior 
   const directions = value > 0 ? "up" : value < 0 ? "down" : "flat";
   const text = `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value).toLocaleString("en", { maximumFractionDigits: 1 })}% ${label}`;
   return { text, direction: directions };
-}
-
-/** Tender colours for the composition ring. Follows the chart tokens, so it inherits the theme. */
-export const TENDER_COLORS: Record<string, string> = {
-  cash: "var(--chart-1)",
-  card: "var(--chart-2)",
-  mobile_money: "var(--chart-3)",
-  bank_transfer: "var(--chart-4)",
-  pos: "var(--chart-5)",
-  paystack_link: "var(--chart-5)",
-};
-export const OTHER_TENDER_COLOR = "var(--muted-foreground)";
-/** Distinct fallbacks for tenders the theme has no token for, so no two arcs share a hue. */
-const FALLBACK_TENDER_COLORS = ["color-mix(in oklch, var(--chart-3) 55%, var(--chart-1))", "color-mix(in oklch, var(--chart-1) 45%, var(--chart-2))"];
-
-/** Top three tenders by amount, the rest folded into one "Other" slice. */
-export function tenderSegments(rows: { method: string; amount: number }[]): { key: string; label: string; value: number; color: string }[] {
-  const sorted = [...rows].sort((a, b) => b.amount - a.amount);
-  const unresolved = sorted.filter((row) => !TENDER_COLORS[row.method]);
-  const segments = sorted.slice(0, 3).map((row) => ({
-    key: row.method, label: PAYMENT_METHOD_LABELS[row.method] ?? row.method, value: row.amount,
-    color: TENDER_COLORS[row.method] ?? FALLBACK_TENDER_COLORS[unresolved.indexOf(row) % FALLBACK_TENDER_COLORS.length],
-  }));
-  const tail = sorted.slice(3);
-  if (tail.length > 0) segments.push({ key: "other", label: "Other", value: tail.reduce((sum, row) => sum + row.amount, 0), color: OTHER_TENDER_COLOR });
-  return segments;
 }
 
 export const INVENTORY_EXPLANATION = "Historical room inventory is not available for every date. Occupancy and RevPAR are unavailable where capacity cannot be verified.";

@@ -75,12 +75,11 @@ async function CustomersWarmBoundary({ warmIds, children }: { warmIds: string[];
 
 function NoHotelState() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
-      <Building2 className="size-12 text-muted-foreground/30 mb-4" />
-      <h2 className="text-lg font-semibold text-foreground">Hotel not found</h2>
-      <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-        No hotel is associated with this account. Customers cannot be managed until your hotel is set up.
-      </p>
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center">
+      <span className="grid size-12 place-items-center rounded-2xl bg-secondary text-muted-foreground">
+        <Building2 className="size-5" aria-hidden="true" />
+      </span>
+      <h2 className="text-sm font-semibold text-foreground">No hotel on this account</h2>
     </div>
   );
 }

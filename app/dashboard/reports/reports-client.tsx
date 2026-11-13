@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
-import { Card, Chip, Skeleton } from "@heroui/react";
-import { ArrowDownRight, ArrowUpRight, Banknote, BedDouble, CalendarDays, Minus, ReceiptText, TrendingUp, type LucideIcon } from "lucide-react";
+import { Card, Skeleton } from "@heroui/react";
+import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { qk } from "@/lib/query-keys";
-import { formatDate } from "@/lib/format";
+import { formatCurrencySymbol, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   getGuestsReport, getOccupancyReport, getReportsOverview,
@@ -20,7 +20,7 @@ import { CollectionsCard } from "./_components/bi/collections-card";
 import { OccupancyTrendCard } from "./_components/bi/occupancy-trend-card";
 import { RangeControl } from "@/components/ui/pen/range-control";
 import { ExportButton } from "./_components/bi/export-button";
-import { deltaText, moneyAmount } from "./_components/bi/bi-format";
+import { deltaText } from "./_components/bi/bi-format";
 import { BI_CARD } from "./_components/bi/bi-styles";
 import type { RoomsSoldMetric } from "@/lib/metrics/dashboard-occupancy";
 
@@ -35,16 +35,18 @@ export interface ReportsClientProps {
 
 const CONTEXT_TITLE = "Business Intelligence";
 const CONTEXT_CHANGED = "The active property, settings or report dates changed. Reload this page to continue.";
-/** Large title: tight leading and negative tracking that grows with the size. */
-const TITLE_CLASS = "text-[22px] font-semibold leading-7 tracking-[-0.01em] text-foreground md:text-[28px] md:leading-8 md:tracking-[-0.02em]";
+/** Same page title as Rooms, Rates and Guests. */
+const TITLE_CLASS = "text-2xl font-semibold tracking-[-0.02em] text-foreground";
 /** One rhythm for every gap on the page: 16px on phones, 24px from `md`. */
 const GAP = "gap-4 md:gap-6";
+/** Figures fade in once when they replace the skeleton; nothing else on the page moves. */
+const REVEAL = "animate-in fade-in-0 duration-200 ease-[var(--ease-out-ui)] motion-reduce:animate-none";
 
 /** Gate before mounting observers: old property data disappears immediately on sign-out/org switch. */
 export function ReportsClient(props: ReportsClientProps) {
   const identity = useAuth();
   if (!identity.isLoaded || !identity.userId || identity.orgId !== props.orgId) {
-    return <div className="mx-auto w-full max-w-7xl space-y-2"><h1 className={TITLE_CLASS}>{CONTEXT_TITLE}</h1><p role="status" className="text-sm leading-5 text-muted-foreground">Loading the active property…</p></div>;
+    return <div className="mx-auto w-full max-w-7xl space-y-2 pt-6 md:pt-8"><h1 className={TITLE_CLASS}>{CONTEXT_TITLE}</h1><p role="status" className="text-sm leading-5 text-muted-foreground">Loading the active property…</p></div>;
   }
   return <BiSession key={`${identity.userId}:${props.orgId}:${props.hotelId}`} {...props} />;
 }
@@ -101,14 +103,13 @@ function BiSession({ orgId, hotelId, timeZone, today, initialStartDate, initialE
   const exportButton = <ExportButton range={range} overview={overviewData} occupancy={occupancyData} guests={guestsData} revenue={revenueData}
     roomsSold={roomsSold.data?.metric} disabled={overview.isPending} />;
 
-  return <div className="mx-auto w-full max-w-7xl">
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+  return <div className="mx-auto w-full max-w-7xl pt-6 md:pt-8">
+    <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div className="min-w-0 space-y-1">
         <h1 className={TITLE_CLASS}>{CONTEXT_TITLE}</h1>
         <p className="text-sm leading-5 text-muted-foreground" aria-live="polite">
           {reportPeriodLabel(range)}
-          {overviewData && overviewData.meta.priorStartDate !== overviewData.meta.startDate
-            && <span> · compared with {formatDate(overviewData.meta.priorStartDate, "MMM d")} – {formatDate(overviewData.meta.priorEndDate, "MMM d")}</span>}
+          {overviewData && <ComparisonText meta={overviewData.meta} />}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -119,24 +120,43 @@ function BiSession({ orgId, hotelId, timeZone, today, initialStartDate, initialE
 
     <div className={cn("mt-6 flex flex-col md:mt-8", GAP)}>
       {overview.isPending
-        ? <><KpiStripSkeleton /><RowSkeleton /></>
+        ? <><KpiStripSkeleton /><CardSkeleton /></>
         : overviewData
-          ? <>
+          ? <div className={cn("flex flex-col", GAP, REVEAL)}>
             <KpiStrip data={overviewData} />
-            <div className={cn("grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px]", GAP)}>
-              <RevenueCard title="Room revenue" caption={`Net room charges, excluding tax · ${overviewData.currency}`} currency={overviewData.currency}
-                current={overviewData.series} prior={overviewData.priorSeries} />
-              <CollectionsCard collected={overviewData.collected} byMethod={overviewData.byMethod} currency={overviewData.currency} />
-            </div>
-          </>
+            <RevenueCard currency={overviewData.currency} current={overviewData.series} prior={overviewData.priorSeries} today={today} />
+          </div>
           : <SectionError error={overview.error} onRetry={() => void overview.refetch()} />}
-      {occupancy.isPending
-        ? <CardSkeleton />
-        : occupancyData
-          ? <OccupancyTrendCard daily={occupancyData.daily} coverage={occupancyData.coverage} delta={occupancyData.deltas.occupancy} />
-          : <SectionError error={occupancy.error} onRetry={() => void occupancy.refetch()} />}
+      <div className={cn("grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]", GAP)}>
+        {occupancy.isPending
+          ? <CardSkeleton />
+          : occupancyData
+            ? <OccupancyTrendCard className={REVEAL} daily={occupancyData.daily} coverage={occupancyData.coverage} />
+            : <SectionError error={occupancy.error} onRetry={() => void occupancy.refetch()} />}
+        {overview.isPending
+          ? <CardSkeleton />
+          : overviewData
+            ? <CollectionsCard className={REVEAL} collected={overviewData.collected} byMethod={overviewData.byMethod} currency={overviewData.currency} />
+            : null}
+      </div>
     </div>
   </div>;
+}
+
+/**
+ * Names the windows the deltas actually compare. A range that ends today is
+ * compared on its completed nights only; a today-only range has no comparison.
+ */
+function ComparisonText({ meta }: { meta: OverviewData["meta"] }) {
+  if (!meta.comparable) return null;
+  const years = new Set([meta.startDate, meta.comparedEndDate, meta.priorStartDate, meta.priorEndDate].map((date) => date.slice(0, 4)));
+  const pattern = years.size > 1 ? "MMM d, yyyy" : "MMM d";
+  const windowLabel = (start: string, end: string) => `${formatDate(start, pattern)} – ${formatDate(end, pattern)}`;
+  const prior = windowLabel(meta.priorStartDate, meta.priorEndDate);
+  if (meta.comparedEndDate < meta.endDate) {
+    return <span> · {windowLabel(meta.startDate, meta.comparedEndDate)} compared with {prior}. Tonight is not included until it ends.</span>;
+  }
+  return <span> · compared with {prior}</span>;
 }
 
 function useBiReport<T>(tab: string, scope: { orgId: string; hotelId: string }, range: ReportRange,
@@ -162,99 +182,77 @@ function useBiReport<T>(tab: string, scope: { orgId: string; hotelId: string }, 
 
 interface KpiFigure {
   label: string;
-  icon: LucideIcon;
-  /** Formatted amount without the currency code; null when the figure cannot be computed. */
+  /** Formatted figure; null when it cannot be computed. */
   amount: string | null;
-  /** Currency code set as a quiet prefix, so the number carries the weight. */
-  currency?: string;
   delta: number | null;
   unit?: "%" | "pts";
 }
 
-/**
- * Two columns on phones (revenue spans both), 3 + 3 then 2 + 2 + 2 on tablets,
- * and one row of five from `xl`. No card is ever left alone on a row.
- */
-const KPI_SPANS = [
-  "col-span-2 md:col-span-3 xl:col-span-1",
-  "col-span-1 md:col-span-3 xl:col-span-1",
-  "col-span-1 md:col-span-2 xl:col-span-1",
-  "col-span-1 md:col-span-2 xl:col-span-1",
-  "col-span-1 md:col-span-2 xl:col-span-1",
-];
-const KPI_GRID = cn("grid grid-cols-2 md:grid-cols-6 xl:grid-cols-5", GAP);
-const DELTA_COLOR = { up: "success", down: "danger", flat: "default" } as const;
+/** Soft-foreground tokens mix in the page ink so 12px delta text clears WCAG AA (4.5:1) on the card. */
+const DELTA_TONE = { up: "text-success-soft-foreground", down: "text-danger-soft-foreground", flat: "text-muted-foreground" } as const;
 const DELTA_ICON = { up: ArrowUpRight, down: ArrowDownRight, flat: Minus } as const;
 
+/**
+ * The five headline figures in one surface, split by hairlines instead of five
+ * separate cards. Revenue spans the row on phones; the rest sit two by two.
+ */
+const KPI_CELL = "@container flex min-w-0 flex-col gap-2 border-border/60 p-4 sm:p-6";
+const KPI_LAYOUT = [
+  "col-span-2 border-b lg:col-span-1 lg:border-b-0 lg:border-r",
+  "border-b border-r lg:border-b-0",
+  "border-b lg:border-b-0 lg:border-r",
+  "border-r lg:border-r",
+  "",
+];
+
 function KpiStrip({ data }: { data: OverviewData }) {
-  const money = (value: number) => moneyAmount(value, data.currency, { maximumFractionDigits: 0 });
+  // Money carries the cedi symbol so staff can tell it from counts at a glance.
+  const money = (value: number) => formatCurrencySymbol(value, data.currency);
   const percent = (value: number | null) => value === null ? null : `${value.toLocaleString("en", { maximumFractionDigits: 1 })}%`;
   const kpis: KpiFigure[] = [
-    { label: "Room revenue", icon: Banknote, amount: money(data.revenue), currency: data.currency, delta: data.deltas.revenue },
-    { label: "Occupancy", icon: BedDouble, amount: percent(data.occupancy), delta: data.deltas.occupancy, unit: "pts" },
-    { label: "ADR", icon: ReceiptText, amount: money(data.adr), currency: data.currency, delta: data.deltas.adr },
-    { label: "RevPAR", icon: TrendingUp, amount: data.revpar === null ? null : money(data.revpar), currency: data.currency, delta: data.deltas.revpar },
-    { label: "Room nights", icon: CalendarDays, amount: data.roomNights.toLocaleString("en"), delta: data.deltas.roomNights },
+    { label: "Room revenue", amount: money(data.revenue), delta: data.deltas.revenue },
+    { label: "Occupancy", amount: percent(data.occupancy), delta: data.deltas.occupancy, unit: "pts" },
+    { label: "ADR", amount: money(data.adr), delta: data.deltas.adr },
+    { label: "RevPAR", amount: data.revpar === null ? null : money(data.revpar), delta: data.deltas.revpar },
+    { label: "Room nights", amount: data.roomNights.toLocaleString("en"), delta: data.deltas.roomNights },
   ];
-  return <div className={KPI_GRID}>
+  return <Card className={cn(BI_CARD, "grid grid-cols-2 gap-0 p-0 sm:p-0 lg:grid-cols-5")}>
     {kpis.map((kpi, index) => {
       const change = deltaText(kpi.delta, kpi.unit);
       const Arrow = change ? DELTA_ICON[change.direction] : null;
       const at = change ? change.text.indexOf(" vs ") : -1;
-      return <Card key={kpi.label} render={(props) => <article {...props} />} aria-label={kpi.label} className={cn(BI_CARD, KPI_SPANS[index])}>
-        <Card.Header className="flex-row items-center justify-between gap-2">
-          <Card.Description className="truncate text-xs font-medium leading-4 text-muted-foreground">{kpi.label}</Card.Description>
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#0485F714] text-[var(--pen-accent)]" aria-hidden="true">
-            <kpi.icon size={16} />
-          </span>
-        </Card.Header>
-        <Card.Content className="gap-4">
-          {/* Values sit on the same row in every card; cards without a comparison simply end after the value. */}
-          <p className="flex min-h-8 flex-wrap items-baseline gap-x-1 tabular-nums">
-            {kpi.amount === null
-              ? <span className="text-base font-medium leading-8 text-muted-foreground">Unavailable</span>
-              : <>
-                {kpi.currency && <span className="text-sm font-medium leading-5 text-muted-foreground">{kpi.currency}</span>}
-                <span className="text-2xl font-semibold leading-8 tracking-[-0.02em] text-foreground xl:text-[28px]">{kpi.amount}</span>
-              </>}
-          </p>
-          {change && Arrow && <p className="flex min-h-6 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-4 text-muted-foreground">
-            <Chip size="sm" variant="soft" color={DELTA_COLOR[change.direction]} className="gap-1 font-semibold tabular-nums">
+      return <article key={kpi.label} aria-label={kpi.label} className={cn(KPI_CELL, KPI_LAYOUT[index])}>
+        <p className="truncate text-xs font-medium leading-4 text-muted-foreground">{kpi.label}</p>
+        {kpi.amount === null
+          ? <p className="text-base font-medium leading-8 text-muted-foreground">Unavailable</p>
+          : <p className="text-[28px] font-medium leading-8 tracking-[-0.01em] tabular-nums text-foreground">{kpi.amount}</p>}
+        {change && Arrow
+          ? <p className="flex flex-wrap items-center gap-x-1 gap-y-1 text-xs leading-4 tabular-nums text-muted-foreground">
+            <span className={cn("flex items-center gap-1 font-medium", DELTA_TONE[change.direction])}>
               <Arrow size={12} strokeWidth={2.5} aria-hidden="true" />
-              <Chip.Label>{change.text.slice(0, at)}</Chip.Label>
-            </Chip>
-            {/* Phones always put the comparison on its own line, so every card wraps the same way. */}
-            <span className="max-md:basis-full">{change.text.slice(at + 1)}</span>
-          </p>}
-        </Card.Content>
-      </Card>;
+              {change.text.slice(0, at)}
+            </span>
+            {/* Narrow cells all move the comparison to its own line, so every figure wraps the same way. */}
+            <span className="whitespace-nowrap @max-[10rem]:basis-full">{change.text.slice(at + 1)}</span>
+          </p>
+          : <p className="text-xs leading-4 text-muted-foreground" aria-hidden="true">&nbsp;</p>}
+      </article>;
     })}
-  </div>;
+  </Card>;
 }
 
 function KpiStripSkeleton() {
-  return <div className={KPI_GRID} aria-hidden="true">
-    {KPI_SPANS.map((span, index) => <Card key={index} className={cn(BI_CARD, span)}>
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-4 w-20 rounded" />
-        <Skeleton className="size-8 rounded-lg" />
-      </div>
+  return <Card className={cn(BI_CARD, "grid grid-cols-2 gap-0 p-0 sm:p-0 lg:grid-cols-5")} aria-hidden="true">
+    {KPI_LAYOUT.map((layout, index) => <div key={index} className={cn(KPI_CELL, layout)}>
+      <Skeleton className="h-4 w-20 rounded" />
       <Skeleton className="h-8 w-28 rounded" />
-      <Skeleton className="h-6 w-32 rounded-full" />
-    </Card>)}
-  </div>;
-}
-
-/** Stands in for the revenue and collections row at its loaded proportions. */
-function RowSkeleton() {
-  return <div className={cn("grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px]", GAP)} aria-hidden="true">
-    <CardSkeleton />
-    <CardSkeleton />
-  </div>;
+      <Skeleton className="h-4 w-12 rounded" />
+    </div>)}
+  </Card>;
 }
 
 function CardSkeleton() {
-  return <Card className={cn(BI_CARD, "min-h-80")} aria-hidden="true">
+  return <Card className={cn(BI_CARD, "min-h-96")} aria-hidden="true">
     <Skeleton className="h-5 w-40 rounded" />
     <Skeleton className="h-4 w-56 max-w-full rounded" />
     <Skeleton className="w-full flex-1 rounded-xl" />

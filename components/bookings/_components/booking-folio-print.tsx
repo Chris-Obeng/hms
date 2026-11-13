@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Printer } from "lucide-react";
+import { Button, Tooltip } from "@heroui/react";
 import { formatCurrency, formatRoomLabel, getNights } from "@/lib/format";
 import { getMethodLabel } from "@/lib/booking-status";
 import { type FullBookingDetail } from "./booking-detail-types";
@@ -201,13 +202,13 @@ export function BookingFolioPrintButton({
   };
 
   return (
-    <button
-      type="button"
-      onClick={handlePrint}
-      className="ui-press inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-border/70 bg-card px-3 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
-    >
-      <Printer className="size-4 text-muted-foreground" aria-hidden="true" />
-      <span>Print folio</span>
-    </button>
+    <Tooltip delay={300}>
+      <Button isIconOnly variant="secondary" aria-label="Print folio" onPress={handlePrint} className="rounded-xl max-md:size-11">
+        <Printer className="size-4" aria-hidden="true" />
+      </Button>
+      <Tooltip.Content>
+        <p>Print folio</p>
+      </Tooltip.Content>
+    </Tooltip>
   );
 }

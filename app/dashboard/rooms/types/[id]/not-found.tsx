@@ -1,21 +1,18 @@
 import Link from "next/link";
-import { Button } from "@heroui/react";
 import { Hotel } from "lucide-react";
 
 export default function RoomTypeNotFound() {
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
-      <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-        <Hotel className="size-6" />
-      </div>
-      <h1 className="text-lg font-semibold text-foreground">Room type not found</h1>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-        It may have been deleted, or the link you followed is out of date.
-      </p>
-      <Link href="/dashboard/rooms" className="mt-6">
-        <Button variant="secondary" className="rounded-xl text-sm">
-          Back to Rooms
-        </Button>
+    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
+      <span className="grid size-12 place-items-center rounded-2xl bg-secondary text-muted-foreground">
+        <Hotel className="size-5" aria-hidden="true" />
+      </span>
+      <h1 className="text-sm font-semibold text-foreground">Room type not found</h1>
+      <Link
+        href="/dashboard/rooms"
+        className="inline-flex min-h-11 items-center rounded-xl bg-secondary px-4 text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-10"
+      >
+        Back to rooms
       </Link>
     </div>
   );
