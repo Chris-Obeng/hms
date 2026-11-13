@@ -209,7 +209,7 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
       <PenKpi label="Collected" value={money(summary.collections)} hint={`${summary.paymentCount ?? 0} ${summary.paymentCount === 1 ? "payment" : "payments"}`} />
     </div>
 
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-6">
+    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-6">
       <PenCard className="gap-2">
         <PenCardHead title="Needs attention"
           actions={blockers > 0 ? <Chip size="sm" variant="soft" color="warning" className="tabular-nums">{blockers}</Chip> : undefined} />

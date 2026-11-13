@@ -26,7 +26,7 @@ export function SettingsGroup({
     <section
       id={id}
       aria-label={title}
-      className="grid scroll-mt-20 gap-3 lg:grid-cols-[12rem_minmax(0,1fr)] lg:gap-8"
+      className="grid scroll-mt-20 grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[12rem_minmax(0,1fr)] lg:gap-8"
     >
       <div className="flex items-center justify-between gap-3 lg:block lg:pt-6">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
@@ -92,7 +92,7 @@ export function SaveBar({
       <Card className="flex-row items-center justify-between gap-3 rounded-2xl border border-border/70 px-4 py-3 shadow-[0_8px_30px_rgb(15_23_42/0.12)] animate-in fade-in-0 slide-in-from-bottom-2 duration-200 ease-[var(--ease-out-ui)] motion-reduce:animate-none">
         <p className="text-sm font-medium text-foreground">Unsaved changes</p>
         <div className="flex items-center gap-2">
-          <Button variant="tertiary" onPress={onDiscard} isDisabled={saving} className="rounded-xl">
+          <Button variant="tertiary" onPress={onDiscard} isDisabled={saving} className="rounded-xl max-md:h-11">
             Discard
           </Button>
           <Button
@@ -100,7 +100,7 @@ export function SaveBar({
             onPress={onSave}
             isPending={saving}
             isDisabled={!canSave}
-            className="rounded-xl font-semibold"
+            className="rounded-xl font-semibold max-md:h-11"
           >
             {saveLabel}
           </Button>
