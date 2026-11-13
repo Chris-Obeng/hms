@@ -1,27 +1,26 @@
 "use client";
 
 import * as React from "react";
+import { CalendarX2, Mail, Pencil, Phone, Plus, X } from "lucide-react";
 import {
-  CalendarDays,
-  CalendarX2,
-  CreditCard,
-  Globe,
-  Mail,
-  Phone,
-  Plus,
-  StickyNote,
-  X,
-} from "lucide-react";
-import { Drawer, Skeleton, Tabs, toast } from "@heroui/react";
+  Avatar,
+  Button,
+  Chip,
+  Disclosure,
+  Drawer,
+  Input,
+  Label,
+  Skeleton,
+  Tabs,
+  TextArea,
+  TextField,
+  toast,
+} from "@heroui/react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatDate, getInitials, getNights } from "@/lib/format";
-import {
-  getStatusLabel,
-  getPaymentLabel,
-  PAYMENT_STATUS_TONE,
-} from "@/lib/booking-status";
+import { getPaymentLabel, PAYMENT_STATUS_TONE } from "@/lib/booking-status";
 import {
   updateGuestNotes,
   updateGuestTags,
@@ -30,18 +29,15 @@ import {
 } from "@/app/actions/customers";
 import { guestBookingsCache } from "@/lib/cache/guest-bookings-cache";
 import { takeGuestBookings } from "@/lib/detail-prefetch";
-import type { GuestRow } from "@/components/customers/customers-table";
+import { getTagColor, tagLabel, type GuestRow } from "@/components/customers/customers-table";
+import { BookingStatusPill } from "@/components/bookings/_components/booking-status-pill";
+import { SegmentedTab } from "@/components/ui/segmented-tab";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const SUGGESTED_TAGS = ["vip", "regular", "flagged", "corporate", "new", "returning"];
 
-/** Only "flagged" carries a hue; "vip" gets the accent; every other tag stays neutral. */
-function tagClasses(tag: string) {
-  const t = tag.toLowerCase();
-  if (t === "flagged") return "bg-[var(--danger)]/10 text-[var(--danger)]";
-  if (t === "vip") return "bg-[#0485F714] text-[var(--pen-accent)]";
-  return "bg-secondary text-muted-foreground";
-}
+/** Enter motion for panels and inline editors (see emil-design-eng). */
+const ENTER = "animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-[var(--ease-out-ui)] motion-reduce:animate-none";
 
 interface GuestDetailSheetProps {
   guest: GuestRow;
@@ -280,242 +276,303 @@ export function GuestDetailSheet({
     ? bookings.reduce((sum, b) => sum + getNights(b.checkIn, b.checkOut), 0)
     : null;
 
+
+  const suggestions = SUGGESTED_TAGS.filter((t) => !guest.tags.includes(t));
+  const resetContactDraft = () =>
+    setContactDraft({ email: guest.email || "", phone: guest.phone || "", nationality: guest.nationality || "" });
+
   return (
     <Drawer.Backdrop
       isOpen={open}
       onOpenChange={(isOpen) => handleClose(isOpen)}
       variant="opaque"
-      className="bg-black/40"
+      className="bg-black/30"
     >
       <Drawer.Content placement={isMobile ? "bottom" : "right"}>
         <Drawer.Dialog
-          className="
-            flex w-full flex-col overflow-hidden rounded-t-3xl bg-card p-0 shadow-[0_-24px_80px_rgb(0_0_0/0.35)]
+          className={`
+            flex w-full flex-col overflow-hidden rounded-t-3xl bg-card p-0 shadow-[0_-24px_80px_rgb(0_0_0/0.25)]
             h-[min(94dvh,56rem)] max-h-[94dvh]
-            md:h-dvh md:max-h-dvh md:w-[min(30rem,100vw)]
-            md:rounded-l-3xl md:rounded-r-none
-            md:border-l md:border-border/70 md:shadow-[-32px_0_90px_rgb(0_0_0/0.16)]
-          "
+            md:h-dvh md:max-h-dvh md:w-[min(28rem,100vw)]
+            md:rounded-none md:border-l md:border-border/60 md:shadow-[-24px_0_80px_rgb(15_23_42/0.12)]
+          `}
         >
           {isMobile && <Drawer.Handle className="mt-3 shrink-0" />}
 
-          <Drawer.CloseTrigger
-            className="ui-press absolute right-4 top-4 z-30 grid size-11 place-items-center rounded-xl bg-muted/70 text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-10 md:top-5"
-          />
-
-          {/* ═══ Header ═══ */}
-          <Drawer.Header className="shrink-0 flex-col items-start gap-2 border-b border-border/60 bg-card px-6 pb-4 pt-[max(1.25rem,env(safe-area-inset-top))] md:pt-6">
-            <div className="flex w-full items-center gap-3 pr-10">
-              <div className="grid size-11 shrink-0 place-items-center rounded-full bg-[#0485F714]">
-                <span className="text-sm font-semibold text-[var(--pen-accent)]">
-                  {getInitials(guest.fullName)}
-                </span>
-              </div>
-              <Drawer.Heading className="min-w-0 flex-1 truncate text-xl font-semibold tracking-[-0.3px] text-foreground">
+          <Drawer.Header className="shrink-0 flex-row items-start gap-3 px-6 pb-4 pt-4 md:pt-6">
+            <Avatar size="lg" className="shrink-0" aria-hidden="true">
+              <Avatar.Fallback className="font-semibold">{getInitials(guest.fullName)}</Avatar.Fallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <Drawer.Heading className="truncate text-lg font-semibold leading-tight tracking-[-0.01em] text-foreground">
                 {guest.fullName}
               </Drawer.Heading>
+              <p className="mt-1 truncate text-xs text-muted-foreground">
+                Guest since {formatDate(guest.createdAt, "MMM yyyy")}
+                {guest.nationality ? ` · ${guest.nationality}` : ""}
+              </p>
             </div>
-            {guest.tags.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 pr-8">
-                {guest.tags.map((tag) => (
-                  <span key={tag}
-                    className={cn("inline-flex h-5 items-center rounded-md px-2 text-2xs font-semibold", tagClasses(tag))}>
-                    {tag}
-                  </span>
-                ))}
-                <button type="button" aria-label="Edit tags" onClick={() => setEditingTags((p) => !p)}
-                  className="ui-press inline-flex min-h-10 cursor-pointer items-center rounded-md px-2 text-2xs font-medium text-muted-foreground underline-offset-2 sm:min-h-6 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:underline">
-                  {editingTags ? "done" : "edit"}
-                </button>
-              </div>
-            )}
-            {guest.tags.length === 0 && (
-              <button type="button" onClick={() => setEditingTags(true)}
-                className="ui-press inline-flex min-h-10 cursor-pointer items-center rounded-md px-1 text-2xs font-medium text-muted-foreground underline-offset-2 sm:min-h-6 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:underline">
-                + add tags
-              </button>
-            )}
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              aria-label="Close guest profile"
+              onPress={() => handleClose(false)}
+              className="hidden shrink-0 rounded-lg text-muted-foreground md:inline-flex"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </Button>
           </Drawer.Header>
 
-          {/* Tag editor band */}
-          {editingTags && (
-            <div className="shrink-0 border-b border-border/60 bg-card px-6 py-3">
-              <div className="flex flex-wrap gap-2">
-                {guest.tags.map((tag) => (
-                  <span key={tag} className="inline-flex items-center gap-1 rounded-md bg-secondary pl-2 pr-1 py-1 text-2xs font-medium capitalize text-muted-foreground">
-                    {tag}
-                    <button type="button" onClick={() => handleRemoveTag(tag)} aria-label={`Remove tag ${tag}`} disabled={savingTags}
-                      className="ui-press grid size-8 cursor-pointer place-items-center rounded disabled:opacity-40 sm:size-5 [@media(hover:hover)_and_(pointer:fine)]:hover:opacity-60">
-                      <X aria-hidden className="size-3" />
-                    </button>
-                  </span>
-                ))}
-                {guest.tags.length === 0 && <span className="text-xs text-muted-foreground">No tags assigned.</span>}
-              </div>
-              {SUGGESTED_TAGS.filter((t) => !guest.tags.includes(t)).length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {SUGGESTED_TAGS.filter((t) => !guest.tags.includes(t)).map((tag) => (
-                    <button key={tag} type="button" onClick={() => handleAddTag(tag)} disabled={savingTags}
-                      className="ui-press inline-flex min-h-10 cursor-pointer items-center gap-1 rounded-lg border border-dashed border-border/70 px-3 py-1 text-2xs capitalize text-muted-foreground disabled:opacity-40 sm:min-h-8 sm:px-2 sm:py-1 [@media(hover:hover)_and_(pointer:fine)]:hover:border-foreground/30 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground">
-                      <Plus aria-hidden className="size-3" />
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <form onSubmit={(e) => { e.preventDefault(); handleAddTag(newTagInput); }} className="mt-2 flex items-center gap-2">
-                <input value={newTagInput} onChange={(e) => setNewTagInput(e.target.value)} placeholder="Add custom tag…"
-                  aria-label="Add custom tag" disabled={savingTags}
-                  className="h-11 min-w-0 flex-1 rounded-xl border border-border/70 bg-card px-3 text-base text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:h-10 sm:text-sm" />
-                <button type="submit" disabled={!newTagInput.trim() || savingTags}
-                  className="ui-press h-11 shrink-0 cursor-pointer rounded-full bg-secondary px-4 text-xs font-semibold text-foreground disabled:opacity-40 sm:h-10 sm:px-4">
-                  Add
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* ═══ Underline tabs ═══ */}
           <Tabs
             key={resetKey}
             selectedKey={tab}
             onSelectionChange={(key) => setTab(key as typeof tab)}
-            className="guest-tabs flex min-h-0 w-full flex-1 flex-col overflow-hidden"
+            className="flex min-h-0 w-full flex-1 flex-col gap-0 overflow-hidden"
           >
-            <div className="shrink-0 border-b border-border/60 bg-card px-6">
+            <div className="shrink-0 border-b border-border/60 px-6 pb-4">
               <Tabs.ListContainer>
-                <Tabs.List aria-label="Guest sections" className="flex gap-[24px]">
-                  <Tabs.Tab id="overview" className="guest-tabs-tab">
-                    Overview<Tabs.Indicator />
-                  </Tabs.Tab>
-                  <Tabs.Tab id="history" className="guest-tabs-tab">
-                    History{bookings && bookings.length > 0 ? ` (${bookings.length})` : ""}
-                    <Tabs.Indicator />
-                  </Tabs.Tab>
+                <Tabs.List aria-label="Guest sections" className="grid w-full grid-cols-2">
+                  <SegmentedTab id="overview">Overview</SegmentedTab>
+                  <SegmentedTab id="history">
+                    History{bookings && bookings.length > 0 ? ` · ${bookings.length}` : ""}
+                  </SegmentedTab>
                 </Tabs.List>
               </Tabs.ListContainer>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {/* ── Overview ── */}
-              <Tabs.Panel id="overview" className="flex min-h-full flex-col">
-                {/* Stats band */}
-                <section aria-label="Guest stats" className="flex items-center gap-[16px] border-b border-border/60 px-6 py-[16px]">
-                  <StatCell value={stayCount.toLocaleString("en")} label="stays" />
-                  <span className="h-[32px] w-px bg-border/60" aria-hidden="true" />
-                  <StatCell value={roomNights === null ? "—" : roomNights.toLocaleString("en")} label="room nights" />
-                  <span className="h-[32px] w-px bg-border/60" aria-hidden="true" />
-                  <StatCell value={formatCurrency(totalSpend, currency)} label="lifetime spend" />
+              <Tabs.Panel id="overview" className={cn("mt-0 flex min-h-full flex-col gap-6 p-6", ENTER)}>
+                <section aria-label="Guest stats" className="grid grid-cols-3 gap-3 rounded-2xl bg-secondary/60 p-4">
+                  <Stat label="Stays" value={stayCount.toLocaleString("en")} />
+                  <Stat label="Nights" value={roomNights === null ? "—" : roomNights.toLocaleString("en")} />
+                  <Stat label="Spent" value={formatCurrency(totalSpend, currency)} align="end" />
                 </section>
 
-                {/* Contact band */}
-                <section aria-label="Guest contact" className="border-b border-border/60 px-6 py-2">
+                {/* Contact */}
+                <section aria-label="Contact" className="space-y-2">
+                  <SectionHead
+                    title="Contact"
+                    action={
+                      !editingContact && (
+                        <EditButton
+                          label="Edit"
+                          onPress={() => {
+                            resetContactDraft();
+                            setEditingContact(true);
+                          }}
+                        />
+                      )
+                    }
+                  />
                   {editingContact ? (
-                    <div className="flex flex-col gap-3 py-2">
-                      <ContactField label="Email" value={contactDraft.email} type="email" autoFocus
-                        onChange={(v) => setContactDraft((p) => ({ ...p, email: v }))} placeholder="guest@example.com" />
-                      <ContactField label="Phone" value={contactDraft.phone} type="tel"
-                        onChange={(v) => setContactDraft((p) => ({ ...p, phone: v }))} placeholder="+233 XX XXX XXXX" />
-                      <ContactField label="Nationality" value={contactDraft.nationality}
-                        onChange={(v) => setContactDraft((p) => ({ ...p, nationality: v }))} placeholder="e.g. Ghanaian" />
-                      <div className="flex items-center justify-end gap-2 pb-1">
-                        <button type="button" onClick={() => { setEditingContact(false); setContactDraft({ email: guest.email || "", phone: guest.phone || "", nationality: guest.nationality || "" }); }}
-                          className="ui-press h-11 cursor-pointer rounded-full px-4 text-xs font-medium text-muted-foreground sm:h-8 sm:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground">
-                          Cancel
-                        </button>
-                        <button type="button" disabled={savingContact} onClick={() => void handleSaveContact()}
-                          className="ui-press h-11 cursor-pointer rounded-full bg-[var(--pen-accent)] px-4 text-xs font-semibold text-white disabled:opacity-60 sm:h-8">
-                          {savingContact ? "Saving…" : "Save"}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <ContactRow icon={<Phone aria-hidden className="size-4" />}>
-                        {guest.phone ? (
-                          <a href={`tel:${guest.phone}`} className="text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:underline">{guest.phone}</a>
-                        ) : <span className="text-muted-foreground/70">No phone on file</span>}
-                      </ContactRow>
-                      <ContactRow icon={<Mail aria-hidden className="size-4" />}>
-                        {guest.email ? (
-                          <a href={`mailto:${guest.email}`} className="text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:underline">{guest.email}</a>
-                        ) : <span className="text-muted-foreground/70">No email on file</span>}
-                      </ContactRow>
-                      <ContactRow icon={<Globe aria-hidden className="size-4" />}>
-                        {guest.nationality || <span className="text-muted-foreground/70">No nationality set</span>}
-                      </ContactRow>
-                      {guest.nationalId && (
-                        <ContactRow icon={<CreditCard aria-hidden className="size-4" />}>
-                          ID · {guest.nationalId}
-                        </ContactRow>
-                      )}
-                      <ContactRow icon={<CalendarDays aria-hidden className="size-4" />}>
-                        Guest since {formatDate(guest.createdAt, "MMM yyyy")}
-                      </ContactRow>
-                      <button type="button"
-                        onClick={() => {
-                          setContactDraft({ email: guest.email || "", phone: guest.phone || "", nationality: guest.nationality || "" });
-                          setEditingContact(true);
+                    <form
+                      className={cn("flex flex-col gap-3", ENTER)}
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void handleSaveContact();
+                      }}
+                    >
+                      <DrawerField label="Email" type="email" autoFocus value={contactDraft.email}
+                        onChange={(v) => setContactDraft((p) => ({ ...p, email: v }))} />
+                      <DrawerField label="Phone" type="tel" value={contactDraft.phone}
+                        onChange={(v) => setContactDraft((p) => ({ ...p, phone: v }))} />
+                      <DrawerField label="Nationality" value={contactDraft.nationality}
+                        onChange={(v) => setContactDraft((p) => ({ ...p, nationality: v }))} />
+                      <EditorActions
+                        saving={savingContact}
+                        onCancel={() => {
+                          setEditingContact(false);
+                          resetContactDraft();
                         }}
-                        className="ui-press flex min-h-11 cursor-pointer items-center gap-3 py-2 text-sm font-medium text-[var(--pen-accent)] sm:min-h-0">
-                        Edit contact
-                      </button>
-                    </>
+                      />
+                    </form>
+                  ) : (
+                    <div className="space-y-1">
+                      <ContactLink href={guest.phone ? `tel:${guest.phone}` : undefined} icon={<Phone className="size-4" />}>
+                        {guest.phone || "No phone"}
+                      </ContactLink>
+                      <ContactLink href={guest.email ? `mailto:${guest.email}` : undefined} icon={<Mail className="size-4" />}>
+                        {guest.email || "No email"}
+                      </ContactLink>
+                    </div>
                   )}
                 </section>
 
-                {/* Notes band fills the rest */}
-                <section aria-label="Guest notes" className="flex flex-1 flex-col gap-3 px-6 pb-6 pt-4">
-                  <div className="flex items-center gap-3">
-                    <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      Notes
-                      {guest.notes && <span aria-hidden className="size-2 rounded-full bg-[var(--warning)]" />}
-                    </h3>
-                    <span className="min-w-0 flex-1" aria-hidden="true" />
-                    <button type="button" aria-label={editingNotes ? "Close notes editor" : "Edit notes"}
-                      onClick={() => { setNotesDraft(guest.notes || ""); setEditingNotes((p) => !p); }}
-                      className={cn("ui-press grid size-11 cursor-pointer place-items-center rounded-lg sm:size-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",
-                        editingNotes ? "text-foreground" : "text-muted-foreground/60")}>
-                      <StickyNote className="size-4 sm:size-4" aria-hidden="true" />
-                    </button>
-                  </div>
-                  {editingNotes ? (
-                    <div className="flex flex-col gap-2">
-                      <textarea rows={5} value={notesDraft} maxLength={2000} autoFocus
-                        aria-label="Guest notes"
-                        onChange={(event) => setNotesDraft(event.target.value)}
-                        placeholder="Preferences, requests, or internal notes…"
-                        className="w-full resize-none rounded-xl border border-border/60 bg-card px-3 py-3 text-base leading-relaxed text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:text-xs" />
-                      <div className="flex justify-end gap-2">
-                        <button type="button" onClick={() => { setEditingNotes(false); setNotesDraft(guest.notes || ""); }}
-                          className="ui-press h-11 cursor-pointer rounded-full px-4 text-xs font-medium text-muted-foreground sm:h-8 sm:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground">
-                          Cancel
-                        </button>
-                        <button type="button" disabled={savingNotes} onClick={() => void handleSaveNotes()}
-                          className="ui-press h-11 cursor-pointer rounded-full bg-[var(--pen-accent)] px-4 text-xs font-semibold text-white disabled:opacity-60 sm:h-8">
-                          {savingNotes ? "Saving…" : "Save"}
-                        </button>
-                      </div>
+                {/* Tags */}
+                <section aria-label="Tags" className="space-y-2">
+                  <SectionHead
+                    title="Tags"
+                    action={
+                      <EditButton
+                        label={editingTags ? "Done" : guest.tags.length ? "Edit" : "Add"}
+                        icon={!editingTags}
+                        onPress={() => setEditingTags((p) => !p)}
+                      />
+                    }
+                  />
+                  {editingTags ? (
+                    <div className={cn("space-y-3", ENTER)}>
+                      {guest.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2" role="group" aria-label="Current tags">
+                          {guest.tags.map((tag) => (
+                            <Button
+                              key={tag}
+                              size="sm"
+                              variant="secondary"
+                              aria-label={`Remove tag ${tagLabel(tag)}`}
+                              isDisabled={savingTags}
+                              onPress={() => void handleRemoveTag(tag)}
+                              className="gap-2 rounded-lg font-medium max-md:h-11"
+                            >
+                              {tagLabel(tag)}
+                              <X className="size-3 text-muted-foreground" aria-hidden="true" />
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                      {suggestions.length > 0 && (
+                        <div className="flex flex-wrap gap-2" role="group" aria-label="Suggested tags">
+                          {suggestions.map((tag) => (
+                            <Button
+                              key={tag}
+                              size="sm"
+                              variant="tertiary"
+                              isDisabled={savingTags}
+                              onPress={() => void handleAddTag(tag)}
+                              className="gap-1 rounded-lg font-medium text-muted-foreground max-md:h-11"
+                            >
+                              <Plus className="size-3" aria-hidden="true" />
+                              {tagLabel(tag)}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                      <form
+                        className="flex items-center gap-2"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          void handleAddTag(newTagInput);
+                        }}
+                      >
+                        <TextField aria-label="New tag" value={newTagInput} onChange={setNewTagInput} isDisabled={savingTags} className="min-w-0 flex-1">
+                          <Input placeholder="New tag" className="rounded-xl max-md:h-11 max-md:text-base" />
+                        </TextField>
+                        <Button type="submit" variant="secondary" isDisabled={!newTagInput.trim() || savingTags} className="rounded-xl max-md:h-11">
+                          Add
+                        </Button>
+                      </form>
+                    </div>
+                  ) : guest.tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {guest.tags.map((tag) => (
+                        <Chip key={tag} size="sm" variant="soft" color={getTagColor(tag)}>
+                          {tagLabel(tag)}
+                        </Chip>
+                      ))}
                     </div>
                   ) : (
-                    <p className="whitespace-pre-wrap text-xs leading-relaxed text-foreground">
-                      {guest.notes || <span className="text-muted-foreground/70">No notes recorded for this guest.</span>}
-                    </p>
+                    <p className="text-sm text-muted-foreground">No tags</p>
                   )}
                 </section>
+
+                {/* Notes */}
+                <section aria-label="Notes" className="space-y-2">
+                  <SectionHead
+                    title="Notes"
+                    action={
+                      !editingNotes && (
+                        <EditButton
+                          label={guest.notes ? "Edit" : "Add note"}
+                          onPress={() => {
+                            setNotesDraft(guest.notes || "");
+                            setEditingNotes(true);
+                          }}
+                        />
+                      )
+                    }
+                  />
+                  {editingNotes ? (
+                    <form
+                      className={cn("space-y-3", ENTER)}
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void handleSaveNotes();
+                      }}
+                    >
+                      <TextArea
+                        aria-label="Guest notes"
+                        rows={5}
+                        value={notesDraft}
+                        maxLength={2000}
+                        autoFocus
+                        onChange={(event) => setNotesDraft(event.target.value)}
+                        placeholder="Preferences, requests, internal notes"
+                        className="w-full resize-none rounded-xl text-base sm:text-sm"
+                      />
+                      <EditorActions
+                        saving={savingNotes}
+                        onCancel={() => {
+                          setEditingNotes(false);
+                          setNotesDraft(guest.notes || "");
+                        }}
+                      />
+                    </form>
+                  ) : guest.notes ? (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{guest.notes}</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No notes</p>
+                  )}
+                </section>
+
+                {/* Secondary facts */}
+                <Disclosure className="mt-auto border-t border-border/60 pt-2">
+                  <Disclosure.Heading>
+                    <Button
+                      slot="trigger"
+                      variant="ghost"
+                      fullWidth
+                      className="justify-between rounded-lg px-0 text-sm font-medium text-muted-foreground max-md:h-11 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-transparent [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+                    >
+                      More details
+                      <Disclosure.Indicator />
+                    </Button>
+                  </Disclosure.Heading>
+                  <Disclosure.Content>
+                    <Disclosure.Body className="px-0">
+                      <dl className="divide-y divide-border/50">
+                        <Fact label="Nationality">{guest.nationality || "—"}</Fact>
+                        <Fact label="ID number" mono>{guest.nationalId || "—"}</Fact>
+                        <Fact label="Guest since">{formatDate(guest.createdAt, "MMM d, yyyy")}</Fact>
+                        {guest.lastStayDate && <Fact label="Last stay">{formatDate(guest.lastStayDate, "MMM d, yyyy")}</Fact>}
+                      </dl>
+                    </Disclosure.Body>
+                  </Disclosure.Content>
+                </Disclosure>
               </Tabs.Panel>
 
               {/* ── History ── */}
-              <Tabs.Panel id="history" className="px-6 py-2">
-                <BookingHistory open={open} bookings={bookings} currency={currency} />
+              <Tabs.Panel id="history" className={cn("mt-0 px-6 py-2", ENTER)}>
+                <BookingHistory
+                  open={open}
+                  bookings={bookings}
+                  currency={currency}
+                  error={bookingsQuery.isError && !bookings}
+                  onRetry={() => void bookingsQuery.refetch()}
+                />
               </Tabs.Panel>
             </div>
           </Tabs>
 
-          {/* Footer CTA */}
+          {/* Footer: the one primary action */}
           <div className="shrink-0 border-t border-border/60 bg-card px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
-            <button type="button"
-              onClick={() => {
+            <Button
+              size="lg"
+              fullWidth
+              variant="primary"
+              className="rounded-xl font-semibold"
+              onPress={() => {
                 handleClose(false);
                 window.dispatchEvent(
                   new CustomEvent("roomline:new-booking", {
@@ -531,9 +588,9 @@ export function GuestDetailSheet({
                   })
                 );
               }}
-              className="ui-press flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[var(--pen-accent)] text-sm font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-10">
+            >
               New booking
-            </button>
+            </Button>
           </div>
         </Drawer.Dialog>
       </Drawer.Content>
@@ -541,35 +598,95 @@ export function GuestDetailSheet({
   );
 }
 
-function StatCell({ value, label }: { value: string; label: string }) {
-  return <div className="flex min-w-0 flex-col gap-1">
-    <span className="font-mono text-base font-semibold tabular-nums text-foreground">{value}</span>
-    <span className="text-2xs text-muted-foreground">{label}</span>
-  </div>;
+function Stat({ label, value, align = "start" }: { label: string; value: string; align?: "start" | "end" }) {
+  return (
+    <div className={cn("min-w-0", align === "end" && "text-right")}>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate text-md font-semibold tabular-nums tracking-tight text-foreground">{value}</p>
+    </div>
+  );
 }
 
-function ContactRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
-  return <div className="flex items-center gap-3 py-2 text-sm text-foreground">
-    <span className="text-muted-foreground/60">{icon}</span>
-    <span className="min-w-0 flex-1 truncate">{children}</span>
-  </div>;
+function SectionHead({ title, action }: { title: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex min-h-8 items-center justify-between gap-3">
+      <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
+      {action}
+    </div>
+  );
 }
 
-function ContactField({ label, value, onChange, placeholder, type, autoFocus }: {
+function EditButton({ label, onPress, icon = true }: { label: string; onPress: () => void; icon?: boolean }) {
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      onPress={onPress}
+      className="h-11 gap-1 rounded-lg px-2 text-xs font-medium text-muted-foreground md:h-8"
+    >
+      {icon && <Pencil className="size-3" aria-hidden="true" />}
+      {label}
+    </Button>
+  );
+}
+
+function EditorActions({ saving, onCancel }: { saving: boolean; onCancel: () => void }) {
+  return (
+    <div className="flex justify-end gap-2">
+      <Button size="sm" variant="tertiary" onPress={onCancel} className="rounded-lg max-md:h-11">
+        Cancel
+      </Button>
+      <Button size="sm" type="submit" variant="primary" isPending={saving} className="rounded-lg font-semibold max-md:h-11">
+        Save
+      </Button>
+    </div>
+  );
+}
+
+function DrawerField({ label, value, onChange, type, autoFocus }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  placeholder?: string;
   type?: string;
   autoFocus?: boolean;
 }) {
-  const id = React.useId();
-  return <div>
-    <label htmlFor={id} className="mb-1 block text-xs font-medium text-muted-foreground">{label}</label>
-    <input id={id} type={type} value={value} placeholder={placeholder} autoFocus={autoFocus}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-11 w-full rounded-xl border border-border/70 bg-card px-3 text-base text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:h-10 sm:text-sm" />
-  </div>;
+  return (
+    <TextField value={value} onChange={onChange} type={type} autoFocus={autoFocus} className="w-full">
+      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+      <Input className="rounded-xl max-md:h-11 max-md:text-base" />
+    </TextField>
+  );
+}
+
+function ContactLink({ href, icon, children }: { href?: string; icon: React.ReactNode; children: React.ReactNode }) {
+  const inner = (
+    <>
+      <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-xl bg-secondary text-muted-foreground">
+        {icon}
+      </span>
+      <span className="min-w-0 truncate">{children}</span>
+    </>
+  );
+  if (!href) {
+    return <p className="flex min-h-11 items-center gap-3 text-sm text-muted-foreground md:min-h-10">{inner}</p>;
+  }
+  return (
+    <a
+      href={href}
+      className="flex min-h-11 items-center gap-3 rounded-lg text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:text-primary"
+    >
+      {inner}
+    </a>
+  );
+}
+
+function Fact({ label, children, mono }: { label: string; children: React.ReactNode; mono?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3">
+      <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
+      <dd className={cn("min-w-0 truncate text-right text-xs font-medium text-foreground", mono && "font-mono")}>{children}</dd>
+    </div>
+  );
 }
 
 // ── Booking history tab ────────────────────────────────────────────
@@ -626,25 +743,41 @@ function foldReservations(bookings: GuestBookingSummary[]): HistoryReservation[]
   return out;
 }
 
+
 function BookingHistory({
   open,
   bookings,
   currency,
+  error,
+  onRetry,
 }: {
   open: boolean;
   bookings: GuestBookingSummary[] | null;
   currency: string;
+  error: boolean;
+  onRetry: () => void;
 }) {
+  if (error) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-12 text-center">
+        <p className="text-sm font-semibold text-foreground">Couldn&apos;t load history</p>
+        <Button size="sm" variant="secondary" onPress={onRetry} className="rounded-xl max-md:h-11">
+          Try again
+        </Button>
+      </div>
+    );
+  }
+
   if (open && bookings === null) {
     return (
-      <div>
+      <div className="divide-y divide-border/50">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="py-3">
+          <div key={i} className="space-y-2 py-4">
             <div className="flex items-center justify-between">
-              <Skeleton className="h-4 w-24 rounded" />
-              <Skeleton className="h-4 w-16 rounded" />
+              <Skeleton className="h-4 w-24 rounded-md" />
+              <Skeleton className="h-6 w-20 rounded-full" />
             </div>
-            <Skeleton className="mt-2 h-3 w-40 rounded" />
+            <Skeleton className="h-3 w-40 rounded-md" />
           </div>
         ))}
       </div>
@@ -653,10 +786,11 @@ function BookingHistory({
 
   if (!bookings || bookings.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <CalendarX2 aria-hidden className="mb-2 size-6 text-muted-foreground/30" />
-        <p className="text-sm font-medium text-foreground">No booking history</p>
-        <p className="mt-1 text-2xs text-muted-foreground">This guest has no bookings yet.</p>
+      <div className="flex flex-col items-center gap-3 py-12 text-center">
+        <span className="grid size-12 place-items-center rounded-2xl bg-secondary text-muted-foreground">
+          <CalendarX2 aria-hidden className="size-5" />
+        </span>
+        <p className="text-sm font-semibold text-foreground">No bookings yet</p>
       </div>
     );
   }
@@ -664,62 +798,29 @@ function BookingHistory({
   const reservations = foldReservations(bookings);
 
   return (
-    <div>
-      {reservations.map((r) => (
-        <div key={r.key} className="border-b border-border/50 py-3 last:border-b-0">
-          <div className="flex items-center justify-between gap-2">
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="truncate font-mono text-sm font-medium text-foreground">
-                {r.reference}
+    <ul className="divide-y divide-border/50">
+      {reservations.map((r) => {
+        const room = r.roomsTotal > 1 ? `${r.roomsTotal} rooms` : [r.roomTypeName, r.roomNumber ? `Room ${r.roomNumber}` : null].filter(Boolean).join(" · ");
+        return (
+          <li key={r.key} className="space-y-1 py-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate font-mono text-sm font-medium text-foreground">{r.reference}</span>
+              <BookingStatusPill status={r.status} className="shrink-0" />
+            </div>
+            <p className="truncate text-xs text-muted-foreground">
+              {formatDate(r.checkIn, "MMM d")} – {formatDate(r.checkOut, "MMM d, yyyy")}
+              {r.nights ? ` · ${r.nights} ${r.nights === 1 ? "night" : "nights"}` : ""}
+              {room ? ` · ${room}` : ""}
+            </p>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-semibold tabular-nums text-foreground">{formatCurrency(r.totalAmount, currency)}</span>
+              <span className={cn("text-xs font-medium", PAYMENT_STATUS_TONE[r.paymentStatus] ?? "text-muted-foreground")}>
+                {getPaymentLabel(r.paymentStatus)}
               </span>
-              {r.roomsTotal > 1 && (
-                <span className="inline-flex shrink-0 items-center rounded-full bg-secondary px-2 py-1 text-2xs font-semibold text-muted-foreground">
-                  {r.roomsTotal} rooms
-                </span>
-              )}
-            </span>
-            <StatusChip status={r.status} />
-          </div>
-          <p className="mt-1 truncate text-xs text-muted-foreground">
-            {formatDate(r.checkIn, "MMM d")} → {formatDate(r.checkOut, "MMM d")}
-            {r.nights ? ` · ${r.nights} night${r.nights > 1 ? "s" : ""}` : ""}
-            {r.roomsTotal > 1
-              ? ""
-              : r.roomTypeName
-                ? ` · ${r.roomTypeName}`
-                : ""}
-            {r.roomsTotal > 1 ? "" : r.roomNumber ? ` · Rm ${r.roomNumber}` : ""}
-          </p>
-          <div className="mt-1 flex items-center justify-between gap-2">
-            <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
-              {formatCurrency(r.totalAmount, currency)}
-            </span>
-            <span className={cn("text-2xs font-medium", PAYMENT_STATUS_TONE[r.paymentStatus] ?? "text-muted-foreground")}>
-              {getPaymentLabel(r.paymentStatus)}
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Booking-status chip (monochrome label + status dot) ────────────
-
-const HISTORY_DOTS: Record<string, string> = {
-  confirmed: "bg-[var(--pen-accent)]",
-  checked_in: "bg-[var(--success)]",
-  checked_out: "bg-muted-foreground/40",
-  cancelled: "bg-[var(--danger)]",
-  no_show: "bg-[var(--danger)]",
-  pending: "bg-[var(--warning)]",
-};
-
-function StatusChip({ status }: { status: string }) {
-  return (
-    <span className="inline-flex shrink-0 items-center gap-2 text-2xs font-medium text-muted-foreground">
-      <span className={cn("size-2 rounded-full", HISTORY_DOTS[status] ?? "bg-muted-foreground")} />
-      {getStatusLabel(status)}
-    </span>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

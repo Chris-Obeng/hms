@@ -8,24 +8,18 @@ import {
   getSortedRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
-  flexRender,
   type ColumnDef,
   type ColumnFiltersState,
   type SortingState,
 } from "@tanstack/react-table";
 import { Users } from "lucide-react";
-import { Button, Chip, Table } from "@heroui/react";
+import { Avatar, Button, Card, Chip, SearchField } from "@heroui/react";
 
-import { formatCurrency, formatDate } from "@/lib/format";
-import { HeroTablePagination } from "@/components/ui/hero-table-pagination";
-import { EmptyStatePanel, PageHeader } from "@/components/ui/page-header";
-import { TableSearchField } from "@/components/ui/table-search-field";
-import { ViewModeToggle } from "@/components/ui/view-mode-toggle";
-import {
-  EntityFilters,
-  EntityFilterChips,
-  type FilterFieldConfig,
-} from "@/components/ui/entity-filters";
+import { cn } from "@/lib/utils";
+import { formatCurrency, formatDate, getInitials } from "@/lib/format";
+import { EntityFilters, EntityFilterChips, type FilterFieldConfig } from "@/components/ui/entity-filters";
+import { ListEmpty, ListPager, SortLabel } from "@/components/ui/list-card";
+import { LIST_CARD, LIST_HEADER, LIST_ROWS } from "@/components/ui/list-styles";
 import { GuestDetailSheet } from "@/components/customers/guest-detail-sheet";
 import { guestBookingsCache } from "@/lib/cache/guest-bookings-cache";
 import { CAPS, onIdle, isFresh } from "@/lib/cache/prefetch-helpers";
@@ -54,7 +48,9 @@ interface CustomersTableProps {
   currency: string;
 }
 
-const TAG_CHIP_COLOR: Record<string, "warning" | "accent" | "danger" | "success" | "default"> = {
+type ChipColor = "warning" | "accent" | "danger" | "success" | "default";
+
+const TAG_CHIP_COLOR: Record<string, ChipColor> = {
   vip: "warning",
   vip_plus: "warning",
   corporate: "accent",
@@ -62,20 +58,23 @@ const TAG_CHIP_COLOR: Record<string, "warning" | "accent" | "danger" | "success"
   new: "success",
 };
 
-function getTagColor(tag: string) {
+export function getTagColor(tag: string): ChipColor {
   return TAG_CHIP_COLOR[tag.toLowerCase()] || "default";
 }
 
-const ALL_TAG_OPTIONS = ["vip", "regular", "flagged", "corporate", "new", "returning"];
+/** "vip" → "VIP", "vip_plus" → "VIP plus", "returning" → "Returning". */
+export function tagLabel(tag: string) {
+  const words = tag.replace(/_/g, " ").trim();
+  if (/^vip\b/i.test(words)) return words.replace(/^vip/i, "VIP");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
 
-const TAG_OPTIONS = ALL_TAG_OPTIONS.map((t) => ({
-  value: t,
-  label: t.charAt(0).toUpperCase() + t.slice(1),
-}));
+const ALL_TAG_OPTIONS = ["vip", "regular", "flagged", "corporate", "new", "returning"];
+const TAG_OPTIONS = ALL_TAG_OPTIONS.map((t) => ({ value: t, label: tagLabel(t) }));
 
 const ACTIVITY_OPTIONS = [
   { value: "returning", label: "Returning" },
-  { value: "first_time", label: "First-time" },
+  { value: "first_time", label: "First stay" },
   { value: "no_stays", label: "No stays" },
 ];
 
@@ -83,91 +82,9 @@ function activityBucket(totalStays: number) {
   return totalStays >= 2 ? "returning" : totalStays === 1 ? "first_time" : "no_stays";
 }
 
-function GuestInitials({ fullName }: { fullName: string }) {
-  const initials =
-    fullName
-      .split(" ")
-      .map((n) => n[0])
-      .filter(Boolean)
-      .slice(0, 2)
-      .join("")
-      .toUpperCase() || "?";
-  return (
-    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
-      <span className="text-xs font-medium text-muted-foreground">{initials}</span>
-    </span>
-  );
-}
-
-// Reusable guest card — mobile list + desktop grid view share it.
-function GuestCard({
-  guest,
-  currency,
-  onSelect,
-  onHoverPrefetch,
-}: {
-  guest: GuestRow;
-  currency: string;
-  onSelect: (guest: GuestRow) => void;
-  onHoverPrefetch?: (id: string) => void;
-}) {
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => onSelect(guest)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect(guest);
-        }
-      }}
-      onPointerEnter={() => onHoverPrefetch?.(guest.id)}
-      onFocus={() => onHoverPrefetch?.(guest.id)}
-      className="ui-press flex cursor-pointer flex-col gap-3 rounded-3xl border border-border/60 bg-card p-4 text-left shadow-[0_1px_3px_rgb(0_0_0/0.04)] outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:border-border"
-    >
-      <div className="flex items-center gap-3">
-        <GuestInitials fullName={guest.fullName} />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-body font-semibold text-foreground">{guest.fullName}</p>
-          <p className="truncate text-caption text-muted-foreground">
-            {guest.phone || guest.email || "—"}
-          </p>
-        </div>
-        {guest.tags.length > 0 && (
-          <div className="flex shrink-0 items-center gap-1">
-            <Chip size="sm" variant="soft" color={getTagColor(guest.tags[0])}>
-              <span className="capitalize">{guest.tags[0].replace("_", " ")}</span>
-            </Chip>
-            {guest.tags.length > 1 && (
-              <span className="text-caption text-muted-foreground">+{guest.tags.length - 1}</span>
-            )}
-          </div>
-        )}
-      </div>
-      <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-3">
-        <div className="flex gap-4">
-          <div>
-            <p className="text-caption text-muted-foreground">Stays</p>
-            <p className="text-body font-medium tabular-nums text-foreground">{guest.totalStays}</p>
-          </div>
-          <div>
-            <p className="text-caption text-muted-foreground">Total spent</p>
-            <p className="text-body font-medium tabular-nums text-foreground">
-              {formatCurrency(guest.totalSpend, currency)}
-            </p>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-caption text-muted-foreground">Last stay</p>
-          <p className="text-caption font-medium text-foreground">
-            {formatDate(guest.lastStayDate)}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
+/** One column template for the header band and every row (lg and up; rows stack below). */
+const GUEST_GRID =
+  "lg:grid lg:grid-cols-[minmax(0,1fr)_12rem_4rem_8rem_8rem] lg:items-center lg:gap-4 xl:grid-cols-[minmax(0,1fr)_13rem_5rem_9rem_9rem]";
 
 // ── Main Component ─────────────────────────────────────────────────
 
@@ -178,7 +95,6 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
 
   // Newest guests first by default (server pre-sorts created_at desc)
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   // Seed the search box from ?search= (set by global search "See all")
   const [globalFilter, setGlobalFilter] = React.useState(() => searchParams.get("search") ?? "");
   const [tagFilter, setTagFilter] = React.useState("all");
@@ -186,15 +102,16 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
   const [nationalityFilter, setNationalityFilter] = React.useState("all");
   const [selectedGuest, setSelectedGuest] = React.useState<GuestRow | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
-  const [viewMode, setViewMode] = React.useState<"table" | "grid">("table");
 
-  // Edits saved inside the detail sheet are merged here so table rows and
-  // re-opened sheets reflect them immediately (server data refreshes on next
-  // navigation). Cleared whenever fresh server data arrives.
+  // Edits saved inside the detail sheet are merged here so rows and re-opened
+  // sheets reflect them immediately. Fresh server data clears them (render-time
+  // reset, so no stale frame).
   const [guestOverrides, setGuestOverrides] = React.useState<Record<string, Partial<GuestRow>>>({});
-  React.useEffect(() => {
+  const [overridesFor, setOverridesFor] = React.useState(data);
+  if (overridesFor !== data) {
+    setOverridesFor(data);
     setGuestOverrides({});
-  }, [data]);
+  }
 
   const handleGuestUpdated = React.useCallback(
     (guestId: string, patch: Partial<GuestRow>) => {
@@ -205,8 +122,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
   );
 
   const enrichedData = React.useMemo(
-    () =>
-      data.map((g) => (guestOverrides[g.id] ? { ...g, ...guestOverrides[g.id] } : g)),
+    () => data.map((g) => (guestOverrides[g.id] ? { ...g, ...guestOverrides[g.id] } : g)),
     [data, guestOverrides]
   );
 
@@ -218,11 +134,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
     [queryClient]
   );
 
-  // idle tier wired after table `rows` is defined below
-
-  // viewport tier wired after table `rows` is defined below
-
-  // Watch for guestId in search params to auto-open guest detail sheet
+  // ?guestId= (from a reservation's "Guest profile" link) opens that guest.
   React.useEffect(() => {
     const guestId = searchParams.get("guestId");
     if (guestId) {
@@ -249,131 +161,43 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
   );
 
   // Selections drive TanStack column filters (tags = membership, others exact).
-  React.useEffect(() => {
+  const columnFilters = React.useMemo<ColumnFiltersState>(() => {
     const filters: ColumnFiltersState = [];
     if (tagFilter !== "all") filters.push({ id: "tags", value: tagFilter });
     if (activityFilter !== "all") filters.push({ id: "activity", value: activityFilter });
     if (nationalityFilter !== "all") filters.push({ id: "nationality", value: nationalityFilter });
-    setColumnFilters(filters);
+    return filters;
   }, [tagFilter, activityFilter, nationalityFilter]);
 
-  // ── Columns ────────────────────────────────────────────────────
+  // ── Columns (data model only; layout lives in the row markup) ──
   const columns = React.useMemo<ColumnDef<GuestRow>[]>(
     () => [
-      {
-        accessorKey: "fullName",
-        header: "Guest",
-        cell: ({ row }) => (
-          <div className="flex items-center gap-3">
-            <GuestInitials fullName={row.original.fullName} />
-            <div className="flex min-w-0 flex-col">
-              <span className="max-w-[180px] truncate text-body font-medium text-foreground">
-                {row.original.fullName}
-              </span>
-              {row.original.email && (
-                <span className="max-w-[180px] truncate text-caption text-muted-foreground">
-                  {row.original.email}
-                </span>
-              )}
-            </div>
-          </div>
-        ),
-      },
-      {
-        accessorKey: "phone",
-        header: "Phone",
-        cell: ({ row }) => (
-          <span className="whitespace-nowrap text-body tabular-nums text-foreground">
-            {row.original.phone || "—"}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "nationality",
-        header: "Nationality",
-        filterFn: (row, id, value) => row.getValue(id) === value,
-        cell: ({ row }) => (
-          <span className="text-body text-muted-foreground">
-            {row.original.nationality || "—"}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "totalStays",
-        header: "Stays",
-        cell: ({ row }) => (
-          <span className="text-body font-medium tabular-nums text-foreground">
-            {row.original.totalStays}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "totalSpend",
-        header: "Total Spent",
-        cell: ({ row }) => (
-          <span className="whitespace-nowrap text-body font-medium tabular-nums text-foreground">
-            {formatCurrency(row.original.totalSpend, currency)}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "lastStayDate",
-        header: "Last Stay",
-        cell: ({ row }) => (
-          <span className="whitespace-nowrap text-caption text-muted-foreground">
-            {formatDate(row.original.lastStayDate)}
-          </span>
-        ),
-      },
+      { accessorKey: "fullName" },
+      { accessorKey: "phone", enableSorting: false },
+      { accessorKey: "nationality", enableSorting: false, filterFn: (row, id, value) => row.getValue(id) === value },
+      { accessorKey: "totalStays" },
+      { accessorKey: "totalSpend" },
+      { accessorKey: "lastStayDate" },
       {
         accessorKey: "tags",
-        header: "Tags",
         enableSorting: false,
-        filterFn: (row, id, filterValue) => {
-          const tags = row.getValue(id) as string[];
-          return tags.includes(filterValue as string);
-        },
-        cell: ({ row }) => {
-          const tags = row.original.tags;
-          if (tags.length === 0)
-            return <span className="text-caption text-muted-foreground/50">—</span>;
-          return (
-            <div className="flex flex-wrap gap-1">
-              {tags.slice(0, 2).map((tag) => (
-                <Chip key={tag} size="sm" variant="soft" color={getTagColor(tag)}>
-                  <span className="capitalize">{tag.replace("_", " ")}</span>
-                </Chip>
-              ))}
-              {tags.length > 2 && (
-                <span className="self-center text-caption text-muted-foreground">
-                  +{tags.length - 2}
-                </span>
-              )}
-            </div>
-          );
-        },
+        filterFn: (row, id, filterValue) => (row.getValue(id) as string[]).includes(filterValue as string),
       },
       {
         id: "activity",
         accessorFn: (g) => activityBucket(g.totalStays),
-        header: "Activity",
         enableSorting: false,
         filterFn: (row, id, value) => row.getValue(id) === value,
       },
     ],
-    [currency]
+    []
   );
 
   const table = useReactTable({
     data: enrichedData,
     columns,
-    state: {
-      sorting,
-      columnFilters,
-      globalFilter,
-    },
+    state: { sorting, columnFilters, globalFilter },
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -390,17 +214,13 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
         (guest.nationality || "").toLowerCase().includes(search)
       );
     },
-    initialState: {
-      columnVisibility: { activity: false },
-      pagination: {
-        pageSize: 15,
-      },
-    },
+    initialState: { pagination: { pageSize: 15 } },
   });
 
   const filteredCount = table.getFilteredRowModel().rows.length;
-  const totalCount = data.length;
   const rows = table.getRowModel().rows;
+
+  // Idle tier: warm the visible guests' history once the main thread is free.
   const visibleGuestIdsKey = React.useMemo(() => rows.slice(0, CAPS.clientIdle).map((r) => r.original.id).join(","), [rows]);
   React.useEffect(() => {
     if (!visibleGuestIdsKey) return;
@@ -412,6 +232,8 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
       }
     });
   }, [visibleGuestIdsKey, queryClient]);
+
+  // Viewport tier: rows that scroll near the screen prefetch, capped.
   const observedGuestRef = React.useRef<Set<string>>(new Set());
   const guestObserverRef = React.useRef<IntersectionObserver | null>(null);
   const getGuestObserver = React.useCallback(() => {
@@ -435,11 +257,11 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
     return guestObserverRef.current;
   }, [queryClient]);
   const attachGuestRef = React.useCallback(
-    (el: HTMLDivElement | HTMLElement | null) => {
+    (el: HTMLElement | null) => {
       if (!el) return;
-      const id = (el as HTMLElement).dataset.guestId;
+      const id = el.dataset.guestId;
       if (!id || observedGuestRef.current.has(id)) return;
-      getGuestObserver()?.observe(el as unknown as Element);
+      getGuestObserver()?.observe(el);
     },
     [getGuestObserver]
   );
@@ -456,7 +278,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
   const filterFields = React.useMemo<FilterFieldConfig[]>(
     () => [
       { key: "tag", label: "Tag", ariaLabel: "Filter by guest tag", allLabel: "All tags", options: TAG_OPTIONS },
-      { key: "activity", label: "Activity", ariaLabel: "Filter by stay activity", allLabel: "Any activity", options: ACTIVITY_OPTIONS },
+      { key: "activity", label: "Stays", ariaLabel: "Filter by stay activity", allLabel: "Any stays", options: ACTIVITY_OPTIONS },
       {
         key: "nationality",
         label: "Nationality",
@@ -484,189 +306,100 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
   }, []);
 
   const isFiltered =
-    globalFilter.trim().length > 0 ||
-    tagFilter !== "all" ||
-    activityFilter !== "all" ||
-    nationalityFilter !== "all";
+    globalFilter.trim().length > 0 || tagFilter !== "all" || activityFilter !== "all" || nationalityFilter !== "all";
 
   function handleGuestClick(guest: GuestRow) {
     setSelectedGuest(guest);
     setDetailOpen(true);
   }
 
-  const emptyState = (
-    <EmptyStatePanel
-      icon={Users}
-      title={isFiltered ? "No matching guests" : "No guest profiles yet"}
-      description={
-        isFiltered
-          ? undefined
-          : "Profiles are created automatically when reservations are made."
-      }
-      action={
-        isFiltered ? (
-          <Button
-            variant="outline"
-            size="sm"
-            className="ui-press rounded-xl text-xs font-semibold"
-            onPress={() => {
-              clearAllFilters();
-              setGlobalFilter("");
-            }}
-          >
-            Clear filters
-          </Button>
-        ) : undefined
-      }
-    />
-  );
+  const sortOf = (id: string) => table.getColumn(id)?.getIsSorted() ?? false;
+  const toggleOf = (id: string) => table.getColumn(id)?.getToggleSortingHandler();
 
   return (
     <>
-      <div className="mx-auto w-full max-w-7xl space-y-4 pt-1 md:space-y-6">
-        <PageHeader
-          title="Guests"
-          subtitle={
-            isFiltered
-              ? `${filteredCount} of ${totalCount} shown`
-              : `${totalCount} ${totalCount === 1 ? "guest" : "guests"}`
-          }
-        />
+      <div className="mx-auto w-full max-w-7xl space-y-6 pt-6 md:pt-8">
+        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">Guests</h1>
 
-        {/* Toolbar + active-filter chips */}
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <TableSearchField
-              ariaLabel="Search guests"
-              value={globalFilter}
-              onChange={setGlobalFilter}
-              placeholder="Search name, email, phone…"
-            />
-            <EntityFilters
-              fields={filterFields}
-              values={filterValues}
-              onChange={setFilter}
-              onClearAll={clearAllFilters}
-              filteredCount={filteredCount}
-              resultNoun="guest"
-            />
-            <ViewModeToggle value={viewMode} onChange={setViewMode} className="ml-auto" />
-          </div>
-          <EntityFilterChips
-            fields={filterFields}
-            values={filterValues}
-            onChange={setFilter}
-            onClearAll={clearAllFilters}
-          />
-        </div>
-
-        {/* Desktop table view */}
-        {viewMode === "table" && (
-          <div className="hidden overflow-hidden rounded-3xl border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)] md:block">
-            <Table variant="secondary">
-          <Table.ScrollContainer>
-            <Table.Content aria-label="Guests" className="min-w-[760px]">
-              <Table.Header>
-                {table.getHeaderGroups()[0]?.headers.map((header) => (
-                  <Table.Column
-                    key={header.id}
-                    allowsSorting={header.column.getCanSort()}
-                    id={header.id}
-                    isRowHeader={header.id === "fullName"}
-                  >
-                    {({ sortDirection }) =>
-                      header.id === "tags" ? (
-                        flexRender(header.column.columnDef.header, header.getContext())
-                      ) : (
-                        <Table.SortableColumnHeader sortDirection={sortDirection}>
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                        </Table.SortableColumnHeader>
-                      )
-                    }
-                  </Table.Column>
-                ))}
-              </Table.Header>
-              <Table.Body renderEmptyState={() => emptyState}>
-                {rows.map((row) => (
-                  <Table.Row
-                    key={row.id}
-                    id={row.id}
-                    className="cursor-pointer"
-                    data-guest-id={row.original.id}
-                    ref={(el: HTMLElement | null) => {
-                      if (el) attachGuestRef(el as unknown as HTMLDivElement);
-                    }}
-                    onAction={() => handleGuestClick(row.original)}
-                    onHoverStart={() => hoverPrefetch(row.original.id)}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <Table.Cell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </Table.Cell>
-                    ))}
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </Table.Content>
-          </Table.ScrollContainer>
-          <Table.Footer>
-            <HeroTablePagination
-              table={table}
-              totalRows={totalCount}
-              filteredRows={filteredCount}
-            />
-          </Table.Footer>
-            </Table>
-          </div>
-        )}
-
-        {/* Desktop grid view */}
-        {viewMode === "grid" &&
-          (rows.length > 0 ? (
-            <div className="hidden space-y-4 md:block">
-              <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
-                {rows.map(({ original: guest }) => (
-                  <div key={guest.id} ref={attachGuestRef} data-guest-id={guest.id}>
-                    <GuestCard guest={guest} currency={currency} onSelect={handleGuestClick} onHoverPrefetch={hoverPrefetch} />
-                  </div>
-                ))}
-              </div>
-              <HeroTablePagination
-                table={table}
-                totalRows={totalCount}
-                filteredRows={filteredCount}
+        <Card className={LIST_CARD}>
+          {/* Toolbar */}
+          <div className="flex flex-col gap-3 p-4 sm:px-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <SearchField
+                aria-label="Search guests"
+                value={globalFilter}
+                onChange={setGlobalFilter}
+                className="min-w-0 flex-1 md:max-w-72 md:flex-none md:basis-72"
+              >
+                <SearchField.Group className="rounded-xl max-md:h-11">
+                  <SearchField.SearchIcon />
+                  <SearchField.Input placeholder="Search guests" />
+                  <SearchField.ClearButton />
+                </SearchField.Group>
+              </SearchField>
+              <EntityFilters
+                fields={filterFields}
+                values={filterValues}
+                onChange={setFilter}
+                onClearAll={clearAllFilters}
+                filteredCount={filteredCount}
+                resultNoun="guest"
               />
             </div>
-          ) : (
-            <div className="hidden rounded-3xl border border-border/60 bg-card md:block">
-              {emptyState}
-            </div>
-          ))}
+            <EntityFilterChips fields={filterFields} values={filterValues} onChange={setFilter} onClearAll={clearAllFilters} />
+          </div>
 
-        {/* Mobile cards — always */}
-        <div className="space-y-3 md:hidden">
-          {rows.length > 0 ? (
-            <>
-              {rows.map(({ original: guest }) => (
-                <div key={guest.id} ref={attachGuestRef} data-guest-id={guest.id}>
-                  <GuestCard guest={guest} currency={currency} onSelect={handleGuestClick} onHoverPrefetch={hoverPrefetch} />
-                </div>
-              ))}
-              <HeroTablePagination
-                table={table}
-                totalRows={totalCount}
-                filteredRows={filteredCount}
-              />
-            </>
-          ) : (
-            <div className="rounded-3xl border border-border/60 bg-card">
-              {emptyState}
-            </div>
+          {/* Column header band */}
+          {rows.length > 0 && (
+          <div className={cn(GUEST_GRID, LIST_HEADER)}>
+            <SortLabel label="Guest" sorted={sortOf("fullName")} onToggle={toggleOf("fullName")} />
+            <span>Phone</span>
+            <SortLabel label="Stays" align="end" sorted={sortOf("totalStays")} onToggle={toggleOf("totalStays")} />
+            <SortLabel label="Last stay" sorted={sortOf("lastStayDate")} onToggle={toggleOf("lastStayDate")} />
+            <SortLabel label="Spent" align="end" sorted={sortOf("totalSpend")} onToggle={toggleOf("totalSpend")} />
+          </div>
           )}
-        </div>
+
+          {rows.length === 0 ? (
+            <ListEmpty
+              icon={Users}
+              title={isFiltered ? "No guests match" : "No guests yet"}
+              hint={isFiltered ? undefined : "Guests appear here after their first booking."}
+              action={
+                isFiltered ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="rounded-xl max-md:h-11"
+                    onPress={() => {
+                      clearAllFilters();
+                      setGlobalFilter("");
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                ) : undefined
+              }
+            />
+          ) : (
+            <ul className={LIST_ROWS}>
+              {rows.map(({ original: guest }) => (
+                <li key={guest.id} ref={attachGuestRef} data-guest-id={guest.id}>
+                  <GuestListRow
+                    guest={guest}
+                    currency={currency}
+                    onSelect={handleGuestClick}
+                    onPrefetch={hoverPrefetch}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <ListPager table={table} total={filteredCount} noun="guest" />
+        </Card>
       </div>
 
-      {/* Guest Detail Sheet */}
       {selectedGuest && (
         <GuestDetailSheet
           guest={selectedGuest}
@@ -677,5 +410,71 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
         />
       )}
     </>
+  );
+}
+
+/** One guest: a single button that stacks on phones and fills the grid from md. */
+function GuestListRow({
+  guest,
+  currency,
+  onSelect,
+  onPrefetch,
+}: {
+  guest: GuestRow;
+  currency: string;
+  onSelect: (guest: GuestRow) => void;
+  onPrefetch: (id: string) => void;
+}) {
+  const [firstTag, ...moreTags] = guest.tags;
+  const lastStay = guest.lastStayDate ? formatDate(guest.lastStayDate, "MMM d, yyyy") : "—";
+  const stays = `${guest.totalStays} ${guest.totalStays === 1 ? "stay" : "stays"}`;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(guest)}
+      onPointerEnter={() => onPrefetch(guest.id)}
+      onFocus={() => onPrefetch(guest.id)}
+      className={cn(
+        GUEST_GRID,
+        "flex w-full items-center gap-3 px-4 py-3 text-left outline-none transition-colors duration-150 focus-visible:bg-secondary/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-6",
+        "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary/40"
+      )}
+    >
+      {/* Guest */}
+      <span className="flex min-w-0 flex-1 items-center gap-3">
+        <Avatar size="sm" className="shrink-0" aria-hidden="true">
+          <Avatar.Fallback className="font-semibold">{getInitials(guest.fullName)}</Avatar.Fallback>
+        </Avatar>
+        <span className="min-w-0 flex-1">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-sm font-semibold text-foreground">{guest.fullName}</span>
+            {firstTag && (
+              <Chip size="sm" variant="soft" color={getTagColor(firstTag)} className="shrink-0">
+                {tagLabel(firstTag)}
+                {moreTags.length > 0 && <span className="text-muted-foreground"> +{moreTags.length}</span>}
+              </Chip>
+            )}
+          </span>
+          <span className="mt-1 block truncate text-xs text-muted-foreground">
+            <span className="lg:hidden">{guest.phone || guest.email || "No contact"}</span>
+            <span className="hidden lg:inline">{guest.email || "No email"}</span>
+          </span>
+        </span>
+      </span>
+
+      {/* Phones: spend + stays on the right */}
+      <span className="shrink-0 text-right lg:hidden">
+        <span className="block text-sm font-semibold tabular-nums text-foreground">{formatCurrency(guest.totalSpend, currency)}</span>
+        <span className="mt-1 block text-xs text-muted-foreground">{stays}</span>
+      </span>
+
+      <span className="hidden truncate text-sm tabular-nums text-foreground lg:block">{guest.phone || "—"}</span>
+      <span className="hidden text-right text-sm tabular-nums text-foreground lg:block">{guest.totalStays}</span>
+      <span className="hidden text-sm tabular-nums text-muted-foreground lg:block">{lastStay}</span>
+      <span className="hidden text-right text-sm font-semibold tabular-nums text-foreground lg:block">
+        {formatCurrency(guest.totalSpend, currency)}
+      </span>
+    </button>
   );
 }

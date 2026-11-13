@@ -2,15 +2,16 @@
 
 import * as React from "react";
 import { SlidersHorizontal, X } from "lucide-react";
-import { Button, Chip, Drawer, Popover } from "@heroui/react";
+import { Button, Drawer, ListBox, Select } from "@heroui/react";
 
 import { cn } from "@/lib/utils";
 import { HeroSelectField } from "@/components/ui/hero-select";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-// Generic, config-driven filter shell shared across tables (reservations,
-// customers, …). One "Filters" trigger + count badge opens a Popover on
-// desktop / bottom Drawer on mobile; active filters surface as removable chips.
+// Config-driven filters shared by list toolbars (reservations, guests).
+// From `md`: one HeroUI Select per field, inline in the toolbar, so the current
+// value is always visible. Phones: a single "Filters" button opens a bottom
+// drawer, and active filters surface as removable chips under the toolbar.
 
 export interface FilterOption {
   value: string;
@@ -20,7 +21,7 @@ export interface FilterOption {
 export interface FilterFieldConfig {
   /** Stable key; also the value key in the `values` record. */
   key: string;
-  /** Field label shown in the panel (e.g. "Status"). */
+  /** Field label shown in the drawer (e.g. "Status"). */
   label: string;
   ariaLabel: string;
   /** Label for the reset "all" option (e.g. "All statuses"). */
@@ -38,40 +39,10 @@ export type FilterChange = (key: string, value: string) => void;
 const valueOf = (values: FilterValues, key: string) => values[key] ?? "all";
 const labelOf = (opts: FilterOption[], v: string) =>
   opts.find((o) => o.value === v)?.label ?? v;
+const allLabelOf = (f: FilterFieldConfig) => f.allLabel ?? `All ${f.label.toLowerCase()}`;
 
 export function countActiveFilters(fields: FilterFieldConfig[], values: FilterValues) {
   return fields.filter((f) => valueOf(values, f.key) !== "all").length;
-}
-
-interface FilterFieldsProps {
-  fields: FilterFieldConfig[];
-  values: FilterValues;
-  onChange: FilterChange;
-}
-
-// Shared select grid — desktop popover + mobile drawer both render this.
-function FilterFields({ fields, values, onChange }: FilterFieldsProps) {
-  const trigger = "min-h-11 sm:min-h-10";
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      {fields.map((f) => (
-        <HeroSelectField
-          key={f.key}
-          className="w-full"
-          triggerClassName={trigger}
-          label={f.label}
-          value={valueOf(values, f.key)}
-          onValueChange={(v) => onChange(f.key, v)}
-          isDisabled={f.disabled}
-          options={[
-            { value: "all", label: f.allLabel ?? `All ${f.label.toLowerCase()}` },
-            ...f.options,
-          ]}
-          ariaLabel={f.ariaLabel}
-        />
-      ))}
-    </div>
-  );
 }
 
 interface EntityFiltersProps {
@@ -80,12 +51,11 @@ interface EntityFiltersProps {
   onChange: FilterChange;
   onClearAll: () => void;
   filteredCount: number;
-  /** Noun for the mobile "Show N results" action. */
+  /** Noun for the phone drawer's "Show N results" action. */
   resultNoun?: string;
   title?: string;
 }
 
-// Filters trigger + responsive panel (Popover on desktop, bottom Drawer on mobile).
 export function EntityFilters({
   fields,
   values,
@@ -99,102 +69,113 @@ export function EntityFilters({
   const [open, setOpen] = React.useState(false);
   const activeCount = countActiveFilters(fields, values);
 
-  const triggerClass = cn("ui-press h-11 shrink-0 rounded-xl text-sm sm:h-10", activeCount > 0 && "bg-muted");
-
-  const label = (
-    <>
-      <SlidersHorizontal className="size-4" />
-      {title}
-      {activeCount > 0 && (
-        <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-2 text-2xs font-semibold tabular-nums text-primary-foreground">
-          {activeCount}
-        </span>
-      )}
-    </>
-  );
-
-  if (isMobile) {
+  if (!isMobile) {
     return (
-      <>
-        <Button
-          variant="ghost"
-          size="sm"
-          onPress={() => setOpen(true)}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          aria-label={activeCount > 0 ? `${title}, ${activeCount} active` : title}
-          className={triggerClass}
-        >
-          {label}
-        </Button>
-        <Drawer.Backdrop isOpen={open} onOpenChange={setOpen} variant="blur">
-          <Drawer.Content placement="bottom">
-            <Drawer.Dialog className="rounded-t-2xl">
-              <Drawer.Handle />
-              <Drawer.CloseTrigger />
-              <Drawer.Header>
-                <Drawer.Heading>{title}</Drawer.Heading>
-              </Drawer.Header>
-              <Drawer.Body className="pb-2">
-                <FilterFields fields={fields} values={values} onChange={onChange} />
-              </Drawer.Body>
-              <Drawer.Footer className="flex items-center justify-between gap-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                <Button
-                  variant="ghost"
-                  onPress={onClearAll}
-                  isDisabled={activeCount === 0}
-                  className="ui-press min-h-11 rounded-xl"
-                >
-                  Clear all
-                </Button>
-                <Button variant="primary" slot="close" className="ui-press min-h-11 rounded-xl">
-                  Show {filteredCount} {resultNoun}
-                  {filteredCount !== 1 ? "s" : ""}
-                </Button>
-              </Drawer.Footer>
-            </Drawer.Dialog>
-          </Drawer.Content>
-        </Drawer.Backdrop>
-      </>
+      <div className="flex flex-wrap items-center gap-2">
+        {fields.map((f) => (
+          <InlineFilter key={f.key} field={f} value={valueOf(values, f.key)} onChange={(v) => onChange(f.key, v)} />
+        ))}
+        {activeCount > 0 && (
+          <Button variant="ghost" onPress={onClearAll} className="rounded-xl font-medium text-muted-foreground">
+            Clear
+          </Button>
+        )}
+      </div>
     );
   }
 
   return (
-    <Popover isOpen={open} onOpenChange={setOpen}>
-      <Popover.Trigger>
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label={activeCount > 0 ? `${title}, ${activeCount} active` : title}
-          className={triggerClass}
-        >
-          {label}
-        </Button>
-      </Popover.Trigger>
-      <Popover.Content
-        placement="bottom"
-        className="w-[min(26rem,calc(100vw-1.5rem))] border-border/60 p-0 shadow-xl"
+    <>
+      <Button
+        variant="secondary"
+        onPress={() => setOpen(true)}
+        aria-label={activeCount > 0 ? `${title}, ${activeCount} active` : title}
+        className="h-11 shrink-0 gap-2 rounded-xl font-medium"
       >
-        <Popover.Dialog className="p-4 outline-none" aria-label={`${title} panel`}>
-          <p className="mb-3 text-section text-foreground">{title}</p>
-          <FilterFields fields={fields} values={values} onChange={onChange} />
-          <div className="mt-4 flex items-center justify-end gap-2 border-t border-border/60 pt-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onPress={onClearAll}
-              isDisabled={activeCount === 0}
-              className="rounded-lg text-muted-foreground"
-            >
-              Clear all
-            </Button>
-            <Button variant="primary" size="sm" onPress={() => setOpen(false)} className="rounded-lg">
-              Done
-            </Button>
-          </div>
-        </Popover.Dialog>
-      </Popover.Content>
-    </Popover>
+        <SlidersHorizontal className="size-4" aria-hidden="true" />
+        {title}
+        {activeCount > 0 && (
+          <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary text-2xs font-semibold tabular-nums text-primary-foreground">
+            {activeCount}
+          </span>
+        )}
+      </Button>
+      <Drawer.Backdrop isOpen={open} onOpenChange={setOpen} variant="opaque" className="bg-black/30">
+        <Drawer.Content placement="bottom">
+          <Drawer.Dialog className="rounded-t-3xl bg-card p-0">
+            <Drawer.Handle className="mt-3" />
+            <Drawer.Header className="px-6 pb-2 pt-4">
+              <Drawer.Heading className="text-lg font-semibold text-foreground">{title}</Drawer.Heading>
+            </Drawer.Header>
+            <Drawer.Body className="flex flex-col gap-4 px-6 py-4">
+              {fields.map((f) => (
+                <HeroSelectField
+                  key={f.key}
+                  label={f.label}
+                  ariaLabel={f.ariaLabel}
+                  value={valueOf(values, f.key)}
+                  onValueChange={(v) => onChange(f.key, v || "all")}
+                  isDisabled={f.disabled}
+                  triggerClassName="min-h-11"
+                  options={[{ value: "all", label: allLabelOf(f) }, ...f.options]}
+                />
+              ))}
+            </Drawer.Body>
+            <Drawer.Footer className="m-0 flex gap-2 border-t border-border/60 px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
+              <Button variant="tertiary" onPress={onClearAll} isDisabled={activeCount === 0} className="h-11 rounded-xl">
+                Clear all
+              </Button>
+              <Button variant="primary" slot="close" className="h-11 flex-1 rounded-xl font-semibold">
+                Show {filteredCount} {resultNoun}
+                {filteredCount !== 1 ? "s" : ""}
+              </Button>
+            </Drawer.Footer>
+          </Drawer.Dialog>
+        </Drawer.Content>
+      </Drawer.Backdrop>
+    </>
+  );
+}
+
+/** Compact toolbar select; its trigger shows the active value, so no chip is needed. */
+function InlineFilter({
+  field,
+  value,
+  onChange,
+}: {
+  field: FilterFieldConfig;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const active = value !== "all";
+  return (
+    <Select
+      aria-label={field.ariaLabel}
+      value={value}
+      isDisabled={field.disabled}
+      onChange={(v) => onChange(v == null ? "all" : String(v))}
+      className="w-40 min-w-0"
+    >
+      <Select.Trigger
+        className={cn(
+          "min-h-10 rounded-xl text-sm",
+          active && "bg-primary/[0.08] font-medium text-foreground"
+        )}
+      >
+        <Select.Value />
+        <Select.Indicator />
+      </Select.Trigger>
+      <Select.Popover className="min-w-48">
+        <ListBox>
+          {[{ value: "all", label: allLabelOf(field) }, ...field.options].map((o) => (
+            <ListBox.Item key={o.value} id={o.value} textValue={o.label}>
+              {o.label}
+              <ListBox.ItemIndicator />
+            </ListBox.Item>
+          ))}
+        </ListBox>
+      </Select.Popover>
+    </Select>
   );
 }
 
@@ -203,42 +184,36 @@ interface EntityFilterChipsProps {
   values: FilterValues;
   onChange: FilterChange;
   onClearAll: () => void;
+  className?: string;
 }
 
-// Removable active-filter chips + single Clear all. Rendered only when a filter is set.
-export function EntityFilterChips({
-  fields,
-  values,
-  onChange,
-  onClearAll,
-}: EntityFilterChipsProps) {
+/** Phones only: removable chips for active filters (desktop selects already show them). */
+export function EntityFilterChips({ fields, values, onChange, onClearAll, className }: EntityFilterChipsProps) {
+  const isMobile = useIsMobile();
   const active = fields.filter((f) => valueOf(values, f.key) !== "all");
-  if (active.length === 0) return null;
+  if (!isMobile || active.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Active filters">
-      {active.map((f) => (
-        <Chip key={f.key} variant="secondary" size="sm" className="rounded-lg border-border/60 pr-1">
-          <Chip.Label className="text-xs font-medium">
-            {(f.chipPrefix ?? f.label)}: {labelOf(f.options, valueOf(values, f.key))}
-          </Chip.Label>
-          <button
-            type="button"
-            aria-label={`Remove ${(f.chipPrefix ?? f.label).toLowerCase()} filter`}
-            onClick={() => onChange(f.key, "all")}
-            className="ui-press -mr-1 ml-1 inline-flex size-8 cursor-pointer items-center justify-center rounded-full text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+    <div className={cn("flex flex-wrap items-center gap-2", className)} role="group" aria-label="Active filters">
+      {active.map((f) => {
+        const text = `${f.chipPrefix ?? f.label}: ${labelOf(f.options, valueOf(values, f.key))}`;
+        return (
+          <Button
+            key={f.key}
+            size="sm"
+            variant="secondary"
+            aria-label={`Remove filter ${text}`}
+            onPress={() => onChange(f.key, "all")}
+            className="h-11 gap-2 rounded-xl px-3 text-xs font-medium"
           >
-            <X className="size-3" />
-          </button>
-        </Chip>
-      ))}
-      <button
-        type="button"
-        onClick={onClearAll}
-        className="ui-press min-h-10 cursor-pointer rounded px-2 text-xs font-medium text-muted-foreground underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-0 sm:px-1 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:underline"
-      >
+            {text}
+            <X className="size-3 text-muted-foreground" aria-hidden="true" />
+          </Button>
+        );
+      })}
+      <Button size="sm" variant="ghost" onPress={onClearAll} className="h-11 rounded-xl px-3 text-xs font-medium text-muted-foreground">
         Clear all
-      </button>
+      </Button>
     </div>
   );
 }
