@@ -1,34 +1,47 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
-  Button as HeroButton,
-  Card as HeroCard,
+  AlertDialog,
+  Button,
+  ButtonGroup,
+  Calendar,
+  Card,
+  Chip,
   DateField,
   DateRangePicker,
-  Input as HeroInput,
+  Description,
+  Drawer,
+  Dropdown,
+  Input,
+  InputGroup,
   Label,
+  Modal,
+  Popover,
   RangeCalendar,
-  Surface,
-  Tabs as HeroTabs,
+  Skeleton,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
   toast,
 } from "@heroui/react";
+import type { CalendarDate } from "@internationalized/date";
 import { parseDate as parseCalendarDate } from "@internationalized/date";
 import {
   CalendarDays,
-  Calendar as CalendarIcon,
-  Plus,
-  Trash2,
-  Edit2,
-  Copy,
   ChevronLeft,
   ChevronRight,
+  Copy,
+  EllipsisVertical,
+  Pencil,
+  Plus,
   Tag,
-  AlertTriangle,
-  Info,
-  SlidersHorizontal,
+  Trash2,
+  X,
 } from "lucide-react";
 import { format, addDays, subDays, parseISO } from "date-fns";
 
@@ -38,19 +51,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
+import { toCalendarDate, fromCalendarDate } from "@/lib/date-convert";
 import { usePricingStore, SelectedCell } from "@/lib/store/pricing-store";
-
-// UI Components
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ListEmpty } from "@/components/ui/list-card";
+import { LIST_CARD, LIST_HEADER, LIST_ROWS } from "@/components/ui/list-styles";
+import { PenCard, PenCardHead } from "@/components/ui/pen/pen-card";
+import { RoomsTabs } from "../_components/rooms-tabs";
 
 // Server Actions
 import {
@@ -68,6 +74,23 @@ import {
   ResolvedPriceCell,
   OccupancyCell,
 } from "@/app/actions/pricing";
+
+const ENTER = "animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-[var(--ease-out-ui)] motion-reduce:animate-none";
+const FIELD_LABEL = "text-xs font-medium text-muted-foreground";
+
+/** Seasons list: one template for header band and rows (lg and up). */
+const SEASON_GRID =
+  "lg:grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.2fr)_5rem_7rem_6rem_10rem] lg:items-center lg:gap-4";
+
+/** Calm, distinct fills for the season timeline bars. */
+const SEASON_BAR = [
+  "bg-primary/80",
+  "bg-emerald-500/80",
+  "bg-violet-500/80",
+  "bg-amber-500/80",
+  "bg-rose-500/80",
+  "bg-cyan-600/80",
+];
 
 interface PricingClientProps {
   hotelId: string;
@@ -145,6 +168,9 @@ export function PricingClient({
 }: PricingClientProps) {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  // The Rates / Seasons route tabs set ?tab=; the store mirrors it for other readers.
+  const searchParams = useSearchParams();
+  const view: "calendar" | "seasons" = searchParams.get("tab") === "seasons" ? "seasons" : "calendar";
   const todayStr = propertyToday ?? businessToday(hotelTimezone);
 
   // Connect state to Zustand store
@@ -201,6 +227,10 @@ export function PricingClient({
       setDateRange(propStart, propEnd);
     }
   }, [initialTab, rangeInitialized, setActiveTab, setDateRange, todayStr]);
+
+  useEffect(() => {
+    if (activeTab !== view) setActiveTab(view);
+  }, [activeTab, view, setActiveTab]);
 
   const effectiveStart = rangeInitialized ? startDateStr : todayStr;
   const effectiveEnd = rangeInitialized
@@ -932,15 +962,11 @@ export function PricingClient({
     cellElement?.focus();
   };
 
-  // Determine current season status badge
+  // Season status: past, active or upcoming relative to the property date
   const getSeasonStatus = (startDate: string, endDate: string) => {
-    if (endDate < todayStr) {
-      return <Badge variant="secondary" className="bg-muted text-muted-foreground border-muted-foreground/20 font-medium">Past</Badge>;
-    }
-    if (startDate <= todayStr && endDate >= todayStr) {
-      return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 border-emerald-500/20 font-semibold">Active</Badge>;
-    }
-    return <Badge variant="outline" className="bg-blue-500/5 text-blue-600 border-blue-500/20 font-medium">Upcoming</Badge>;
+    if (endDate < todayStr) return <Chip size="sm" variant="soft" color="default">Past</Chip>;
+    if (startDate <= todayStr && endDate >= todayStr) return <Chip size="sm" variant="soft" color="success">Active</Chip>;
+    return <Chip size="sm" variant="soft" color="accent">Upcoming</Chip>;
   };
 
   // Inline single save action
@@ -963,1109 +989,895 @@ export function PricingClient({
     bulkSaveDailyOverridesMutation.mutate({ price, cells: selectedCells });
   };
 
+
   // ── Render ─────────────────────────────────────────────────────────
 
+  const [seasonToDelete, setSeasonToDelete] = useState<SeasonRow | null>(null);
+  const isWindowAtToday = effectiveStart === todayStr;
+  const seasonSaving = createSeasonMutation.isPending || updateSeasonMutation.isPending;
+  const canSaveSeason = !seasonSaving && !clientOverlapSeason && !!seasonName.trim() && !!seasonStart && !!seasonEnd;
+
+  const closeSeasonModal = (open: boolean) => {
+    setNewSeasonOpen(open);
+    if (!open) {
+      setEditSeasonId(null);
+      resetSeasonForm();
+    }
+  };
+
+  const applyToAll = (field: "basePrice" | "weekendPrice", value: string) => {
+    if (!value.trim()) return;
+    setSeasonalOverrides((prev) => {
+      const next = { ...prev };
+      roomTypes.forEach((rt) => {
+        next[rt.id] = { ...(next[rt.id] ?? { basePrice: "", weekendPrice: "" }), [field]: value };
+      });
+      return next;
+    });
+  };
+
   return (
-    <TooltipProvider>
-    <div className="mx-auto w-full max-w-7xl space-y-6 pt-1">
-      {/* ── Page Header ─────────────────────────────────────────── */}
-      <header className="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-2xl">Rates &amp; seasons</h1>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Daily rate overrides and seasonal pricing rules
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {canManagePricing && activeTab === "seasons" && (
-            <Dialog open={newSeasonOpen} onOpenChange={(open) => {
-              setNewSeasonOpen(open);
-              if (!open) {
-                setEditSeasonId(null);
-                resetSeasonForm();
-              }
-            }}>
-              <DialogTrigger render={
-                <HeroButton size="sm" variant="primary" className="ui-press h-11 rounded-xl sm:h-10">
-                  <Plus className="size-4 mr-2" aria-hidden="true" />
-                  New season
-                </HeroButton>
-              } />
-              <DialogContent className="sm:max-w-[424px]">
-                <DialogHeader>
-                  <DialogTitle className="text-lg font-semibold text-foreground">
-                    {editSeasonId ? "Edit season" : "New seasonal rate period"}
-                  </DialogTitle>
-                  <DialogDescription>
-                    Set a date range for custom room-type rates.
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <label htmlFor="name" className="text-xs font-medium text-muted-foreground">Season name</label>
-                    <Input
-                      id="name"
-                      placeholder="e.g. Christmas Peak 2026"
-                      value={seasonName}
-                      onChange={(e) => setSeasonName(e.target.value)}
-                      className="h-11 sm:h-10"
-                    />
-                  </div>
-
-                  <DateRangePicker
-                    value={seasonStart && seasonEnd ? {
-                      start: parseCalendarDate(format(seasonStart, "yyyy-MM-dd")),
-                      end: parseCalendarDate(format(seasonEnd, "yyyy-MM-dd")),
-                    } : null}
-                    onChange={(range) => {
-                      setSeasonStart(range ? parseISO(range.start.toString()) : undefined);
-                      setSeasonEnd(range ? parseISO(range.end.toString()) : undefined);
-                    }}
-                    className="w-full gap-2"
-                  >
-                    <Label className="text-xs font-medium text-muted-foreground">Season dates</Label>
-                    <DateField.Group fullWidth variant="secondary" className="rounded-lg border border-border/70 shadow-none">
-                      <DateField.InputContainer>
-                        <DateField.Input slot="start">
-                          {(segment) => <DateField.Segment segment={segment} />}
-                        </DateField.Input>
-                        <DateRangePicker.RangeSeparator className="px-2 text-muted-foreground" />
-                        <DateField.Input slot="end">
-                          {(segment) => <DateField.Segment segment={segment} />}
-                        </DateField.Input>
-                      </DateField.InputContainer>
-                      <DateField.Suffix>
-                        <DateRangePicker.Trigger>
-                          <DateRangePicker.TriggerIndicator />
-                        </DateRangePicker.Trigger>
-                      </DateField.Suffix>
-                    </DateField.Group>
-                    <DateRangePicker.Popover className="rounded-xl border border-border p-2 shadow-lg">
-                      <RangeCalendar
-                        aria-label="Season date range"
-                        visibleDuration={{ months: isMobile ? 1 : 2 }}
-                      >
-                        <RangeCalendar.Header>
-                          <RangeCalendar.YearPickerTrigger>
-                            <RangeCalendar.YearPickerTriggerHeading />
-                            <RangeCalendar.YearPickerTriggerIndicator />
-                          </RangeCalendar.YearPickerTrigger>
-                          <RangeCalendar.NavButton slot="previous" />
-                          <RangeCalendar.NavButton slot="next" />
-                        </RangeCalendar.Header>
-                        <div className="flex gap-4">
-                          {(isMobile ? [0] : [0, 1]).map((monthOffset) => (
-                            <RangeCalendar.Grid key={monthOffset} offset={{ months: monthOffset }}>
-                              <RangeCalendar.GridHeader>
-                                {(day) => <RangeCalendar.HeaderCell>{day}</RangeCalendar.HeaderCell>}
-                              </RangeCalendar.GridHeader>
-                              <RangeCalendar.GridBody>
-                                {(date) => <RangeCalendar.Cell date={date} />}
-                              </RangeCalendar.GridBody>
-                            </RangeCalendar.Grid>
-                          ))}
-                        </div>
-                      </RangeCalendar>
-                    </DateRangePicker.Popover>
-                  </DateRangePicker>
-
-                  <div className="space-y-2">
-                    <label htmlFor="season-priority" className="text-xs font-medium text-muted-foreground">
-                      Priority
-                    </label>
-                    <Input
-                      id="season-priority"
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      max={1000}
-                      step={1}
-                      value={seasonPriority}
-                      onChange={(e) => setSeasonPriority(e.target.value)}
-                      aria-describedby="season-priority-hint"
-                      className="h-11 sm:h-10"
-                    />
-                    <p id="season-priority-hint" className="text-2xs leading-relaxed text-muted-foreground">
-                      Higher priority wins when seasons overlap. Keep at 0 for standard seasons.
-                    </p>
-                  </div>
-
-                  {/* Overlaps warning */}
-                  {clientOverlapSeason && (
-                    <Alert status="danger" className="rounded-lg border border-danger/20 shadow-none">
-                      <Alert.Indicator />
-                      <Alert.Content>
-                        <Alert.Title>Overlaps a season on the same layer</Alert.Title>
-                        <Alert.Description>
-                          {clientOverlapSeason.name} runs {clientOverlapSeason.start_date} to {clientOverlapSeason.end_date} at priority {clientOverlapSeason.priority}. Give this season a different priority to layer them, or change the dates.
-                        </Alert.Description>
-                      </Alert.Content>
-                    </Alert>
-                  )}
-                </div>
-
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => {
-                    setNewSeasonOpen(false);
-                    resetSeasonForm();
-                  }} className="ui-press h-11 sm:h-10 border-border [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40">Cancel</Button>
-                  <Button
-                    disabled={createSeasonMutation.isPending || updateSeasonMutation.isPending || !!clientOverlapSeason || !seasonName.trim() || !seasonStart || !seasonEnd}
-                    onClick={() => {
-                      if (editSeasonId) {
-                        updateSeasonMutation.mutate();
-                      } else {
-                        createSeasonMutation.mutate();
-                      }
-                    }}
-                    className="ui-press h-11 sm:h-10 font-medium bg-primary text-primary-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/90"
-                  >
-                    {createSeasonMutation.isPending || updateSeasonMutation.isPending ? "Saving..." : "Save Season"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
+    <div className="mx-auto w-full max-w-7xl space-y-6 pt-6 md:pt-8">
+      <header className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">Rooms</h1>
+        {canManagePricing && view === "seasons" && (
+          <Button variant="primary" onPress={() => setNewSeasonOpen(true)} className="rounded-xl font-semibold max-md:h-11">
+            <Plus className="size-4" aria-hidden="true" />
+            New season
+          </Button>
+        )}
       </header>
 
-      {/* ── Main Tabs ───────────────────────────────────────────── */}
-      <HeroTabs selectedKey={activeTab} onSelectionChange={(key) => setActiveTab(String(key) as "calendar" | "seasons")} variant="secondary" className="w-full">
-        <HeroTabs.ListContainer className="w-fit max-w-full">
-          <HeroTabs.List aria-label="Pricing views" className="w-fit gap-6 *:h-10 *:w-fit *:px-0 *:text-sm *:font-medium">
-          <HeroTabs.Tab id="calendar">
-            <CalendarDays className="size-4 mr-2" />
-            Rate Calendar
-            <HeroTabs.Indicator />
-          </HeroTabs.Tab>
-          <HeroTabs.Tab id="seasons">
-            <Tag className="size-4 mr-2" />
-            Seasons
-            <HeroTabs.Indicator />
-          </HeroTabs.Tab>
-          </HeroTabs.List>
-        </HeroTabs.ListContainer>
+      <RoomsTabs />
 
-        {/* ── Tab Content: Rate Calendar ────────────────────────────── */}
-        <HeroTabs.Panel id="calendar" className="mt-4 space-y-4 px-0">
-          
-          {/* Controls Bar */}
-          <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <HeroButton variant="ghost" size="sm" isIconOnly aria-label="Previous date range" onPress={handlePrevWindow} className="ui-press size-11 min-w-11 sm:size-8 sm:min-w-8">
+      {view === "calendar" ? (
+        <div className={cn("space-y-4", ENTER)}>
+          {/* Window controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            <ButtonGroup variant="secondary" className="min-w-0">
+              <Button isIconOnly aria-label="Previous dates" onPress={handlePrevWindow} className="text-muted-foreground max-md:size-11">
                 <ChevronLeft className="size-4" />
-              </HeroButton>
-              
-              <Popover open={rangePopoverOpen} onOpenChange={setRangePopoverOpen}>
-                <PopoverTrigger render={
-                  <Button variant="outline" className="ui-press h-11 sm:h-10 font-semibold border-input/60 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40 min-w-[240px] justify-start">
-                    <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                    <span>{format(parseISO(effectiveStart), "MMM dd, yyyy")} – {format(parseISO(effectiveEnd), "MMM dd, yyyy")}</span>
-                  </Button>
-                } />
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={parseISO(effectiveStart)}
-                    onSelect={(d) => {
-                      if (d) {
-                        const start = format(d, "yyyy-MM-dd");
-                        const end = format(addDays(d, windowDays - 1), "yyyy-MM-dd");
-                        setDateRange(start, end);
+              </Button>
+              <Popover isOpen={rangePopoverOpen} onOpenChange={setRangePopoverOpen}>
+                <Button
+                  variant="secondary"
+                  aria-label={`Change start date, showing ${format(parseISO(effectiveStart), "MMM d")} to ${format(parseISO(effectiveEnd), "MMM d, yyyy")}`}
+                  className="min-w-0 gap-2 px-3 font-semibold tabular-nums max-md:h-11"
+                >
+                  <ButtonGroup.Separator />
+                  <CalendarDays className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                  <span className="truncate">
+                    {format(parseISO(effectiveStart), "MMM d")} – {format(parseISO(effectiveEnd), "MMM d, yyyy")}
+                  </span>
+                </Button>
+                <Popover.Content placement="bottom" className="w-auto rounded-2xl p-0">
+                  <Popover.Dialog aria-label="Start date" className="p-3 outline-none">
+                    <Calendar
+                      aria-label="Start date"
+                      value={toCalendarDate(parseISO(effectiveStart))}
+                      onChange={(d) => {
+                        if (!d) return;
+                        const startDate = fromCalendarDate(d as CalendarDate);
+                        setDateRange(format(startDate, "yyyy-MM-dd"), format(addDays(startDate, windowDays - 1), "yyyy-MM-dd"));
                         clearSelection();
-                        setTimeout(() => setRangePopoverOpen(false), 0);
-                      }
-                    }}
-                  />
-                </PopoverContent>
+                        setRangePopoverOpen(false);
+                      }}
+                    >
+                      <Calendar.Header>
+                        <Calendar.NavButton slot="previous" />
+                        <Calendar.Heading />
+                        <Calendar.NavButton slot="next" />
+                      </Calendar.Header>
+                      <Calendar.Grid>
+                        <Calendar.GridHeader>{(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}</Calendar.GridHeader>
+                        <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
+                      </Calendar.Grid>
+                    </Calendar>
+                  </Popover.Dialog>
+                </Popover.Content>
               </Popover>
-
-              <HeroButton variant="ghost" size="sm" isIconOnly aria-label="Next date range" onPress={handleNextWindow} className="ui-press size-11 min-w-11 sm:size-8 sm:min-w-8">
+              <Button isIconOnly aria-label="Next dates" onPress={handleNextWindow} className="text-muted-foreground max-md:size-11">
+                <ButtonGroup.Separator />
                 <ChevronRight className="size-4" />
-              </HeroButton>
+              </Button>
+            </ButtonGroup>
 
-              {/* Quick-range buttons — industry standard: 30 / 60 / 90 */}
-              <div className="flex items-center gap-1 ml-1 border-l border-border/60 pl-3">
-                {([30, 60, 90] as const).map((d) => (
-                  <HeroButton
-                    key={d}
-                    variant={windowDays === d ? "secondary" : "ghost"}
-                    size="sm"
-                    onPress={() => handleSetWindow(d)}
-                    className="ui-press h-11 min-w-11 text-xs sm:h-8 sm:min-w-10"
-                  >
-                    {d}d
-                  </HeroButton>
-                ))}
-                <HeroButton variant="ghost" size="sm" onPress={handleDateReset} className="ui-press ml-1 h-11 text-xs sm:h-8">
-                  Today
-                </HeroButton>
-              </div>
-            </div>
-
-            {/* Legend & Quick Actions */}
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground select-none">
-              <div className="flex items-center gap-2">
-                <span className="inline-block size-3 rounded bg-muted border border-border/80" />
-                <span>Base Rate</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-block size-3 rounded bg-emerald-500/15 border border-emerald-500/20" />
-                <span className="text-emerald-700 font-semibold">Seasonal Rate</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-block size-3 rounded bg-amber-500/10 border border-amber-500/20 relative">
-                  <span className="absolute top-1 right-1 size-1 rounded-full bg-amber-500" />
-                </span>
-                <span className="text-amber-700 font-semibold">Season / No Rate Set</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-block size-3 rounded bg-violet-500/20 border border-violet-500/40 relative">
-                  <span className="absolute top-1 right-1 size-1 rounded-full bg-violet-600" />
-                </span>
-                <span className="text-violet-700 font-semibold">Daily Override</span>
-              </div>
-            </div>
-          </div>
-
-          {canManagePricing && selectedCells.length > 0 && (
-            <Surface variant="secondary" className="rounded-xl border border-border/70 p-3 shadow-none">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    {selectedCells.length} {selectedCells.length === 1 ? "night selected" : "nights selected"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Applies a daily rate override across the selection
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <HeroInput
-                    type="number"
-                    inputMode="decimal"
-                    min="0.01"
-                    step="0.01"
-                    aria-label={`New price in ${currency}`}
-                    placeholder={`Price (${currency})`}
-                    value={bulkPriceInput}
-                    onChange={(event) => setBulkPriceInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") handleSaveBulkOverride();
-                    }}
-                    variant="secondary"
-                    className="h-11 w-36 text-base sm:h-10 sm:text-sm"
-                  />
-                  <HeroButton
-                    variant="primary"
-                    size="sm"
-                    isPending={bulkSaveDailyOverridesMutation.isPending}
-                    onPress={handleSaveBulkOverride}
-                    className="ui-press h-11 rounded-xl sm:h-10"
-                  >
-                    Apply price
-                  </HeroButton>
-                  <HeroButton
-                    variant="outline"
-                    size="sm"
-                    isPending={bulkClearDailyOverridesMutation.isPending}
-                    onPress={() => bulkClearDailyOverridesMutation.mutate({ cells: selectedCells })}
-                    className="ui-press h-11 rounded-xl sm:h-10"
-                  >
-                    Clear override
-                  </HeroButton>
-                  <HeroButton
-                    variant="ghost"
-                    size="sm"
-                    onPress={clearSelection}
-                    className="ui-press h-11 rounded-xl sm:h-10"
-                  >
-                    Cancel
-                  </HeroButton>
-                </div>
-              </div>
-            </Surface>
-          )}
-
-          {/* ── Mobile/Tablet View (Date Scroller & Room type List) ── */}
-          <div className="block lg:hidden">
-            <div className="space-y-4">
-              {roomTypes.map((rt) => (
-                <div key={rt.id} className="bg-card rounded-xl border border-border/50 p-4 space-y-3 shadow-sm">
-                  <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                    <span className="font-semibold text-foreground text-base">{rt.name}</span>
-                    <span className="text-xs text-muted-foreground">Default: {formatCurrency(rt.base_price, currency)} / {rt.weekend_price ? formatCurrency(rt.weekend_price, currency) : "N/A"}</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[300px] overflow-y-auto pr-1">
-                    {dateColumns.map((dateStr) => {
-                      const dateObj = parseISO(dateStr);
-                      const key = `${rt.id}_${dateStr}`;
-                      const cell = resolvedRateMap.get(key);
-                      const active = selectedCells.some((c) => c.roomTypeId === rt.id && c.date === dateStr);
-
-                      return (
-                        <button
-                          type="button"
-                          key={dateStr}
-                          disabled={!canManagePricing}
-                          onClick={(e) => handleCellClick(rt.id, dateStr, e)}
-                          className={cn(
-                            "flex min-h-14 flex-col justify-between rounded-xl border p-3 text-left transition-colors duration-150 select-none outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default",
-                            canManagePricing && "cursor-pointer [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/10",
-                            active && "ring-2 ring-primary border-primary",
-                            cell?.source === "seasonal" && "bg-emerald-500/5 border-emerald-500/15 text-emerald-800",
-                            cell?.source === "daily" && "bg-violet-500/5 border-violet-500/15 text-violet-800",
-                            cell?.source === "base" && "bg-muted/10 border-border/80"
-                          )}
-                        >
-                          <span className="text-2xs font-medium text-muted-foreground">
-                            {format(dateObj, "EEE dd MMM")}
-                          </span>
-                          <span className="mt-1 text-sm font-semibold tabular-nums">
-                            {cell ? formatCurrency(cell.price, currency) : <Skeleton className="h-4 w-12" />}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+            <ToggleButtonGroup
+              aria-label="Days shown"
+              selectionMode="single"
+              disallowEmptySelection
+              selectedKeys={[30, 60, 90].includes(windowDays) ? [String(windowDays)] : []}
+              onSelectionChange={(keys) => {
+                const next = Number([...keys][0]);
+                if (next) handleSetWindow(next);
+              }}
+            >
+              {[30, 60, 90].map((d, i) => (
+                <ToggleButton key={d} id={String(d)} aria-label={`${d} days`} className="tabular-nums max-md:h-11">
+                  {i > 0 && <ToggleButtonGroup.Separator />}
+                  {d}d
+                </ToggleButton>
               ))}
-            </div>
-          </div>
+            </ToggleButtonGroup>
 
-          {/* ── Desktop Grid Calendar View ──────────────────────── */}
-          <div className="hidden lg:block">
-            {loadingRates ? (
-              <div className="space-y-3">
-                <Skeleton className="h-10 w-full rounded-xl" />
-                <Skeleton className="h-[400px] w-full rounded-xl" />
-              </div>
-            ) : roomTypes.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 text-center bg-card rounded-2xl border border-dashed border-border">
-                <Info className="size-10 text-muted-foreground/30 mb-3" />
-                <span className="font-bold text-lg text-foreground">No room types configured</span>
-                <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                  Create room types in the Rooms Directory before setting rates.
-                </p>
-              </div>
-            ) : (
-              <div className="relative overflow-x-auto rounded-xl border border-border/50 shadow-sm bg-card max-h-[600px] native-scroll">
-                <table className="w-full border-collapse text-sm text-left">
-                  <thead className="sticky top-0 z-20 bg-muted/90 backdrop-blur-sm border-b border-border/80">
-                    <tr>
-                      <th className="sticky left-0 z-30 bg-muted/95 border-r border-border/80 px-4 py-3 min-w-[200px] max-w-[200px] font-bold text-foreground">
-                        Room Type
-                      </th>
-                      {dateColumns.map((dateStr) => {
-                        const dateObj = parseISO(dateStr);
-                        const isWe = isWeekend(dateStr);
-                        return (
-                          <th
-                            key={dateStr}
-                            className={cn(
-                              "px-3 py-2 text-center min-w-[100px] border-r border-border/80",
-                              isWe && "bg-muted-foreground/5 shadow-[inset_0_0_0_999px_rgba(0,0,0,0.03)]"
-                            )}
-                          >
-                            <div className="text-2xs font-medium text-muted-foreground">
-                              {format(dateObj, "EEE")}
-                            </div>
-                            <div className="mt-1 text-xs font-semibold tabular-nums text-foreground">
-                              {format(dateObj, "dd MMM")}
-                            </div>
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* ── Occupancy Row ── pinned above room types, industry standard */}
-                    {occupancyCells.length > 0 && (
-                      <tr className="border-b border-border/70 bg-muted/20">
-                        <td className="sticky left-0 z-10 bg-muted/30 border-r border-border/80 px-4 py-2 font-bold text-foreground align-middle">
-                          <div className="text-xs font-semibold text-foreground">Occupancy</div>
-                          <div className="mt-1 text-2xs font-normal text-muted-foreground">rooms sold / total</div>
-                        </td>
-                        {dateColumns.map((dateStr) => {
-                          const occ = occupancyMap.get(dateStr);
-                          const pct = occ?.pct ?? 0;
-                          const isWe = isWeekend(dateStr);
-                          // Color bands: <40% low (muted), 40-70% medium (blue), >70% high (amber→red)
-                          const barColor =
-                            pct >= 90 ? "bg-red-500" :
-                            pct >= 70 ? "bg-amber-500" :
-                            pct >= 40 ? "bg-blue-500" :
-                            "bg-muted-foreground/30";
-                          const textColor =
-                            pct >= 90 ? "text-red-600 font-bold" :
-                            pct >= 70 ? "text-amber-600 font-semibold" :
-                            pct >= 40 ? "text-blue-600 font-semibold" :
-                            "text-muted-foreground";
-                          return (
-                            <td
-                              key={dateStr}
-                              className={cn(
-                                "px-2 py-2 text-center align-middle border-r border-border/40",
-                                isWe && "bg-muted-foreground/[0.015]"
-                              )}
-                            >
-                              {occ ? (
-                                <div className="flex flex-col items-center gap-1">
-                                  <span className={cn("text-2xs tabular-nums", textColor)}>
-                                    {pct}%
-                                  </span>
-                                  {/* Mini bar — static, no layout animation */}
-                                  <div className="h-1 w-full overflow-hidden rounded-full bg-border/60">
-                                    <div
-                                      className={cn("h-full rounded-full", barColor)}
-                                      style={{ width: `${pct}%` }}
-                                    />
-                                  </div>
-                                  <span className="text-2xs tabular-nums text-muted-foreground/70">
-                                    {occ.occupied}/{occ.total}
-                                  </span>
-                                </div>
-                              ) : (
-                                <span className="text-2xs text-muted-foreground/40">—</span>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    )}
-                    {roomTypes.map((rt, rtIdx) => (
-                      <tr key={rt.id} className="border-b border-border/40 transition-colors [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/5">
-                        <td className="sticky left-0 z-10 bg-card border-r border-border/80 px-4 py-3 font-semibold text-foreground align-middle shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
-                          <div className="truncate text-sm">{rt.name}</div>
-                          <div className="mt-1 text-2xs font-normal text-muted-foreground">
-                            Def: {formatCurrency(rt.base_price, currency)}
-                          </div>
-                        </td>
-                        {dateColumns.map((dateStr, dateIdx) => {
-                          const key = `${rt.id}_${dateStr}`;
-                          const cell = resolvedRateMap.get(key);
-                          const isWe = isWeekend(dateStr);
-                          
-                          // Selection highlights
-                          const isSelected = selectedCells.some(
-                            (c) => c.roomTypeId === rt.id && c.date === dateStr
-                          );
-                          const isTabStop =
-                            selectedCells.length > 0
-                              ? selectedCells[0]?.roomTypeId === rt.id &&
-                                selectedCells[0]?.date === dateStr
-                              : rtIdx === 0 && dateIdx === 0;
-                          const isEditing = editingCell?.roomTypeId === rt.id && editingCell?.date === dateStr;
-                          // Season is active for this date but no rate override configured for this room type
-                          const isSeasonUnconfigured = cell?.source === "base" && !!cell?.seasonName;
-
-                          return (
-                            <td
-                              key={dateStr}
-                              id={`cell-${rt.id}-${dateStr}`}
-                              tabIndex={isTabStop ? 0 : -1}
-                              onKeyDown={(e) => handleKeyDown(e, rt.id, dateStr)}
-                              onMouseDown={(e) => handleCellMouseDown(rt.id, dateStr, e)}
-                              onMouseEnter={() => handleCellMouseEnter(rt.id, dateStr)}
-                              onMouseUp={() => handleCellMouseUp(rt.id, dateStr)}
-                              onClick={(e) => handleCellClick(rt.id, dateStr, e)}
-                              className={cn(
-                                "relative px-3 py-4 text-center align-middle border-r border-border/40 select-none transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/80",
-                                canManagePricing && "cursor-pointer",
-                                isWe && "bg-muted-foreground/[0.015] shadow-[inset_0_0_0_999px_rgba(0,0,0,0.01)]",
-                                isSelected && "ring-2 ring-primary border-primary z-10 shadow-sm",
-                                !isSelected && cell?.source === "seasonal" && "bg-emerald-500/5 text-emerald-800",
-                                !isSelected && cell?.source === "daily" && "bg-violet-500/5 text-violet-800 font-medium",
-                                !isSelected && isSeasonUnconfigured && "bg-amber-500/5"
-                              )}
-                            >
-                              {/* Price */}
-                              {cell ? (
-                                <div className="select-none text-xs font-semibold tabular-nums">
-                                  {formatCurrency(cell.price, currency)}
-                                </div>
-                              ) : (
-                                <Skeleton className="h-4 w-12 mx-auto" />
-                              )}
-
-                              {/* Overrides Indicators */}
-                              {cell?.source === "daily" && (
-                                <span className="absolute right-1 top-1 size-2 rounded-full bg-violet-500" />
-                              )}
-                              
-                              {cell?.source === "seasonal" && (
-                                <span className="absolute right-1 top-1 size-2 rounded-full bg-emerald-500" />
-                              )}
-
-                              {/* Amber dot: season active but this room type has no rate configured */}
-                              {isSeasonUnconfigured && (
-                                <Tooltip>
-                                  <TooltipTrigger render={
-                                    <span className="absolute right-1 top-1 size-2 cursor-help rounded-full bg-amber-500" />
-                                  } />
-                                  <TooltipContent side="top" className="text-xs max-w-[180px]">
-                                    Season &ldquo;{cell?.seasonName}&rdquo; is active but no rate is configured for this room type. Using base price.
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
-
-                              {/* Single Cell Edit Inline Popover */}
-                              {canManagePricing && isEditing && (
-                                <div onClick={(e) => e.stopPropagation()}>
-                                  <Popover open={isEditing} onOpenChange={(open) => !open && setEditingCell(null)}>
-                                    <PopoverTrigger render={
-                                      <button type="button" aria-label={`Edit ${rt.name} rate on ${dateStr}`} className="absolute inset-0 w-full h-full border-0 bg-transparent p-0 cursor-pointer outline-none" />
-                                    } />
-                                    <PopoverContent className="w-64 p-3 shadow-xl border-border/80" side="top" align="center" style={{ zIndex: 100 }}>
-                                      <div className="space-y-3">
-                                        <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                                          <span className="font-semibold text-xs text-foreground truncate max-w-[140px]">{rt.name}</span>
-                                          <span className="text-2xs text-muted-foreground font-medium">{format(parseISO(dateStr), "MMM dd")}</span>
-                                        </div>
-                                        <div className="space-y-1">
-                                          <label htmlFor={`inline-price-${rt.id}-${dateStr}`} className="text-2xs font-medium text-muted-foreground">Price ({currency})</label>
-                                          <Input
-                                            id={`inline-price-${rt.id}-${dateStr}`}
-                                            type="number"
-                                            inputMode="decimal"
-                                            min="0.01"
-                                            step="0.01"
-                                            value={singlePriceInput}
-                                            onChange={(e) => setSinglePriceInput(e.target.value)}
-                                            className="h-10 focus:ring-1 focus:ring-primary"
-                                            autoFocus
-                                            onFocus={(e) => e.target.select()}
-                                            onKeyDown={(e) => {
-                                              if (e.key === "Enter") {
-                                                handleSaveSingleOverride(rt.id, dateStr);
-                                              } else if (e.key === "Escape") {
-                                                setEditingCell(null);
-                                              }
-                                            }}
-                                          />
-                                        </div>
-                                        <div className="flex items-center justify-between gap-2 pt-1">
-                                          {cell?.source === "daily" && (
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              onClick={() => clearDailyOverrideMutation.mutate({ roomTypeId: rt.id, date: dateStr })}
-                                              disabled={clearDailyOverrideMutation.isPending}
-                                              className="ui-press h-8 px-3 text-xs font-medium text-destructive [@media(hover:hover)_and_(pointer:fine)]:hover:bg-destructive/10"
-                                            >
-                                              Clear
-                                            </Button>
-                                          )}
-                                          <div className="flex items-center gap-2 ml-auto">
-                                            <Button size="sm" variant="ghost" onClick={() => setEditingCell(null)} className="ui-press h-8 px-3 text-xs border border-border">Cancel</Button>
-                                            <Button
-                                              size="sm"
-                                              onClick={() => handleSaveSingleOverride(rt.id, dateStr)}
-                                              disabled={saveDailyOverrideMutation.isPending}
-                                              className="ui-press h-8 px-3 text-xs bg-primary text-primary-foreground font-medium"
-                                            >
-                                              {saveDailyOverrideMutation.isPending ? "..." : "Save"}
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </PopoverContent>
-                                  </Popover>
-                                </div>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            {!isWindowAtToday && (
+              <Button variant="ghost" onPress={handleDateReset} className="font-semibold text-primary max-md:h-11">
+                Today
+              </Button>
             )}
+
+            <RateLegend />
           </div>
-        </HeroTabs.Panel>
 
-        {/* ── Tab Content: Seasonal Rates ──────────────────────────── */}
-        <HeroTabs.Panel id="seasons" className="mt-4 px-0">
-          <div className="rounded-lg border border-border/60 bg-card p-4">
-            {loadingSeasons ? (
-              <div className="space-y-4">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-32 w-full" />
-              </div>
-            ) : seasons.length === 0 ? (
-              <HeroCard className="mx-auto max-w-xl border-border/60 bg-background p-6 text-center shadow-none sm:p-8">
-                <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-muted">
-                  <Tag className="size-5 text-muted-foreground" />
-                </div>
-                <HeroCard.Header className="items-center gap-2">
-                  <HeroCard.Title className="text-base font-semibold">No pricing seasons yet</HeroCard.Title>
-                  <HeroCard.Description className="max-w-md text-sm leading-6">
-                    Set rates for a date period, such as holidays or peak months. Daily overrides remain in control.
-                  </HeroCard.Description>
-                </HeroCard.Header>
-                <HeroCard.Footer className="justify-center">
-                  {canManagePricing && (
-                    <HeroButton variant="primary" onPress={() => setNewSeasonOpen(true)} className="ui-press">
-                      Create season
-                    </HeroButton>
-                  )}
-                </HeroCard.Footer>
-              </HeroCard>
-            ) : (
-              <div className="space-y-6">
-                {/* ── Season Timeline / Gantt View ─────────────────────────── */}
-                {(() => {
-                  // Build a 12-month window from property today for the Gantt
-                  const ganttStart = parseISO(todayStr);
-                  ganttStart.setDate(1); // first of current month
-                  const ganttEnd = new Date(ganttStart);
-                  ganttEnd.setFullYear(ganttEnd.getFullYear() + 1);
-                  ganttEnd.setDate(ganttEnd.getDate() - 1);
-                  const ganttTotalMs = ganttEnd.getTime() - ganttStart.getTime();
-
-                  // Month tick marks
-                  const months: { label: string; pct: number }[] = [];
-                  const m = new Date(ganttStart);
-                  while (m <= ganttEnd) {
-                    const pct = ((m.getTime() - ganttStart.getTime()) / ganttTotalMs) * 100;
-                    months.push({ label: format(m, "MMM yy"), pct });
-                    m.setMonth(m.getMonth() + 1);
-                  }
-
-                  // Palette of distinct colors for seasons
-                  const palette = [
-                    "bg-blue-500/80",
-                    "bg-emerald-500/80",
-                    "bg-violet-500/80",
-                    "bg-amber-500/80",
-                    "bg-rose-500/80",
-                    "bg-cyan-500/80",
-                    "bg-indigo-500/80",
-                    "bg-orange-500/80",
-                  ];
-
-                  const today = todayStr;
-                  const todayPct = Math.max(0, Math.min(100,
-                    ((parseISO(today).getTime() - ganttStart.getTime()) / ganttTotalMs) * 100
-                  ));
-
-                  return (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-foreground">Season timeline</span>
-                        <span className="text-2xs text-muted-foreground">12-month view · {format(ganttStart, "MMM yyyy")} – {format(ganttEnd, "MMM yyyy")}</span>
-                      </div>
-
-                      {/* Gantt chart */}
-                      <div className="relative bg-muted/30 rounded-lg border border-border/50 overflow-hidden" style={{ height: `${Math.max(48, seasons.length * 28 + 28)}px` }}>
-                        {/* Month grid lines */}
-                        {months.map((mo, i) => (
-                          <div
-                            key={i}
-                            className="absolute top-0 bottom-0 border-l border-border/40"
-                            style={{ left: `${mo.pct}%` }}
-                          >
-                            <span className="absolute top-1 left-1 text-2xs text-muted-foreground/60 whitespace-nowrap font-medium select-none">
-                              {mo.label}
-                            </span>
-                          </div>
-                        ))}
-
-                        {/* Today marker */}
-                        <div
-                          className="absolute top-0 bottom-0 w-px bg-primary/60 z-10"
-                          style={{ left: `${todayPct}%` }}
-                        >
-                          <span className="absolute -top-0 left-1 text-2xs text-primary font-semibold whitespace-nowrap select-none">Today</span>
-                        </div>
-
-                        {/* Season bars */}
-                        {seasons.map((season, idx) => {
-                          const startMs = Math.max(parseISO(season.start_date).getTime(), ganttStart.getTime());
-                          const endMs = Math.min(parseISO(season.end_date).getTime(), ganttEnd.getTime());
-                          if (startMs > endMs) return null; // outside window
-
-                          const leftPct = ((startMs - ganttStart.getTime()) / ganttTotalMs) * 100;
-                          const widthPct = ((endMs - startMs) / ganttTotalMs) * 100;
-                          const top = 20 + idx * 28;
-                          const color = palette[idx % palette.length];
-                          const isActive = season.start_date <= today && season.end_date >= today;
-
-                          return (
-                            <Tooltip key={season.id}>
-                              <TooltipTrigger render={
-                                <div
-                                  className={cn(
-                                    "absolute h-5 rounded-md flex items-center px-2 cursor-pointer transition-opacity [@media(hover:hover)_and_(pointer:fine)]:hover:opacity-90",
-                                    color,
-                                    isActive && "ring-2 ring-white/40 ring-offset-1"
-                                  )}
-                                  style={{ left: `${leftPct}%`, width: `max(${widthPct}%, 4px)`, top: `${top}px` }}
-                                >
-                                  <span className="text-2xs text-white font-semibold truncate select-none leading-none">
-                                    {widthPct > 4 ? season.name : ""}
-                                  </span>
-                                </div>
-                              } />
-                              <TooltipContent side="top" className="text-xs">
-                                <div className="font-semibold">{season.name}</div>
-                                <div className="text-muted-foreground">{season.start_date} &ndash; {season.end_date}</div>
-                                <div className="text-muted-foreground">Priority {season.priority}</div>
-                                {isActive && <div className="text-emerald-400 font-semibold">Active now</div>}
-                              </TooltipContent>
-                            </Tooltip>
-                          );
-                        })}
-                      </div>
-
-                      {/* Gap detection — highlight uncovered stretches */}
-                      {(() => {
-                        const covered = seasons
-                          .map((s) => ({ start: s.start_date, end: s.end_date }))
-                          .sort((a, b) => a.start.localeCompare(b.start));
-                        const gaps: { from: string; to: string }[] = [];
-                        let reach: string | null = null;
-                        for (const period of covered) {
-                          if (reach !== null && period.start > reach) {
-                            const gapStart = addDays(parseISO(reach), 1);
-                            const gapEnd = subDays(parseISO(period.start), 1);
-                            if (gapStart <= gapEnd) {
-                              gaps.push({
-                                from: format(gapStart, "yyyy-MM-dd"),
-                                to: format(gapEnd, "yyyy-MM-dd"),
-                              });
-                            }
-                          }
-                          if (reach === null || period.end > reach) reach = period.end;
-                        }
-                        if (gaps.length === 0) return null;
-                        return (
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            {gaps.map((g, i) => (
-                              <div key={i} className="flex items-center gap-2 text-2xs bg-amber-500/10 border border-amber-500/20 text-amber-700 rounded-md px-2 py-1">
-                                <AlertTriangle className="size-3 shrink-0" aria-hidden="true" />
-                                Gap: {g.from} &ndash; {g.to} &mdash; no seasonal rate
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  );
-                })()}
-
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b border-border/80 bg-muted/30">
-                      <TableHead className="normal-case tracking-normal font-medium text-muted-foreground">Season name</TableHead>
-                      <TableHead className="normal-case tracking-normal font-medium text-muted-foreground">Start date</TableHead>
-                      <TableHead className="normal-case tracking-normal font-medium text-muted-foreground">End date</TableHead>
-                      <TableHead className="normal-case tracking-normal font-medium text-muted-foreground">
-                        <Tooltip>
-                          <TooltipTrigger render={
-                            <span className="inline-flex items-center gap-1 cursor-help">
-                              Priority
-                              <Info className="size-3 text-muted-foreground" />
-                            </span>
-                          } />
-                          <TooltipContent side="top" className="max-w-[240px] text-xs">
-                            Where two seasons cover the same night, the higher priority wins. Seasons may only overlap if their priorities differ.
-                          </TooltipContent>
-                        </Tooltip>
-                      </TableHead>
-                      <TableHead className="normal-case tracking-normal font-medium text-muted-foreground">Status</TableHead>
-                      <TableHead className="text-center normal-case tracking-normal font-medium text-muted-foreground">Room rates covered</TableHead>
-                      <TableHead className="text-right normal-case tracking-normal font-medium text-muted-foreground">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {seasons.map((season) => {
-                      const coveredCount = season.overrides?.length || 0;
-                      return (
-                        <TableRow key={season.id} className="border-b border-border/40 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/5">
-                          <TableCell className="font-semibold text-foreground">{season.name}</TableCell>
-                          <TableCell className="text-muted-foreground">{season.start_date}</TableCell>
-                          <TableCell className="text-muted-foreground">{season.end_date}</TableCell>
-                          <TableCell>
-                            <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-2xs font-semibold tabular-nums text-muted-foreground">
-                              {season.priority}
-                            </span>
-                          </TableCell>
-                          <TableCell>{getSeasonStatus(season.start_date, season.end_date)}</TableCell>
-                          <TableCell className="text-center font-medium">
-                            <Badge variant={coveredCount === roomTypes.length ? "default" : "outline"} className={cn(
-                              coveredCount === roomTypes.length ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-muted text-muted-foreground"
-                            )}>
-                              {coveredCount} / {roomTypes.length} types
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {canManagePricing ? (
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleOpenOverrides(season)}
-                                  className="ui-press h-11 sm:h-10 font-semibold border-input/60 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40 text-xs"
-                                >
-                                  Configure rates
-                                </Button>
-
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  aria-label={`Edit ${season.name}`}
-                                  onClick={() => {
-                                    handleOpenEditSeason(season);
-                                    setNewSeasonOpen(true);
-                                  }}
-                                  className="ui-press size-11 sm:size-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40"
-                                >
-                                  <Edit2 className="size-4 text-muted-foreground" />
-                                </Button>
-
-                                <Tooltip>
-                                  <TooltipTrigger render={
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      aria-label={`Duplicate ${season.name}`}
-                                      onClick={() => duplicateSeasonMutation.mutate(season.id)}
-                                      disabled={duplicateSeasonMutation.isPending}
-                                      className="ui-press size-11 sm:size-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40"
-                                    >
-                                      <Copy className="size-4 text-muted-foreground" />
-                                    </Button>
-                                  } />
-                                  <TooltipContent side="top" className="text-xs">Duplicate season</TooltipContent>
-                                </Tooltip>
-
-                                <Popover>
-                                  <PopoverTrigger render={
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      aria-label={`Delete ${season.name}`}
-                                      className="ui-press size-11 sm:size-10 text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-destructive/10 [@media(hover:hover)_and_(pointer:fine)]:hover:text-destructive"
-                                    >
-                                      <Trash2 className="size-4" />
-                                    </Button>
-                                  } />
-                                  <PopoverContent className="w-56 p-3 shadow-xl border border-destructive/20" align="end">
-                                    <div className="space-y-3">
-                                      <div className="text-xs font-semibold text-foreground">Delete {season.name}?</div>
-                                      <p className="text-2xs text-muted-foreground leading-normal">
-                                        This permanently deletes &ldquo;{season.name}&rdquo; and reverts rates to default.
-                                      </p>
-                                      <div className="flex items-center gap-2 justify-end">
-                                        <Button size="sm" variant="ghost" className="ui-press h-10 sm:h-8 text-xs px-3 border border-border">Cancel</Button>
-                                        <Button
-                                          size="sm"
-                                          variant="destructive"
-                                          onClick={() => deleteSeasonMutation.mutate(season.id)}
-                                          disabled={deleteSeasonMutation.isPending}
-                                          className="ui-press h-10 sm:h-8 text-xs px-3 font-semibold"
-                                        >
-                                          {deleteSeasonMutation.isPending ? "Deleting…" : "Delete"}
-                                        </Button>
+          {roomTypes.length === 0 ? (
+            <Card className={LIST_CARD}>
+              <ListEmpty icon={Tag} title="No active room types" />
+            </Card>
+          ) : (
+            <>
+              {/* Desktop: spreadsheet grid (keyboard: arrows move, Enter edits, Esc clears) */}
+              <Card className={cn(LIST_CARD, "hidden lg:flex")}>
+                {loadingRates ? (
+                  <div className="space-y-3 p-6">
+                    {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full rounded-xl" />)}
+                  </div>
+                ) : (
+                  <div className="native-scroll relative max-h-[600px] overflow-auto">
+                    <table className="w-full border-collapse text-left text-sm">
+                      <thead className="sticky top-0 z-20 bg-card">
+                        <tr className="border-b border-border/60">
+                          <th scope="col" className="sticky left-0 z-30 min-w-48 border-r border-border/60 bg-card px-4 py-2 text-2xs font-medium text-muted-foreground">
+                            Room type
+                          </th>
+                          {dateColumns.map((dateStr) => {
+                            const d = parseISO(dateStr);
+                            const isToday = dateStr === todayStr;
+                            return (
+                              <th
+                                key={dateStr}
+                                scope="col"
+                                className={cn(
+                                  "min-w-24 border-r border-border/40 px-2 py-2 text-center font-normal",
+                                  isWeekend(dateStr) && "bg-secondary/50",
+                                  isToday && "shadow-[inset_0_2px_0_var(--primary)]"
+                                )}
+                              >
+                                <div className={cn("text-2xs text-muted-foreground", isToday && "text-primary")}>{format(d, "EEE")}</div>
+                                <div className={cn("mt-1 text-xs font-semibold tabular-nums text-foreground", isToday && "text-primary")}>{format(d, "d MMM")}</div>
+                              </th>
+                            );
+                          })}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {occupancyCells.length > 0 && (
+                          <tr className="border-b border-border/60 bg-secondary/30">
+                            <th scope="row" className="sticky left-0 z-10 border-r border-border/60 bg-card px-4 py-2 text-xs font-medium text-muted-foreground">
+                              Occupancy
+                            </th>
+                            {dateColumns.map((dateStr) => {
+                              const occ = occupancyMap.get(dateStr);
+                              const pct = occ?.pct ?? 0;
+                              return (
+                                <td key={dateStr} className={cn("border-r border-border/40 px-2 py-2 text-center align-middle", isWeekend(dateStr) && "bg-secondary/50")}>
+                                  {occ ? (
+                                    <div className="flex flex-col items-center gap-1" title={`${occ.occupied} of ${occ.total} rooms sold`}>
+                                      <span className={cn("text-2xs font-semibold tabular-nums", pct >= 90 ? "text-danger" : pct >= 70 ? "text-amber-700" : "text-muted-foreground")}>
+                                        {pct}%
+                                      </span>
+                                      <div className="h-1 w-full max-w-12 overflow-hidden rounded-full bg-border/60" aria-hidden="true">
+                                        <div className={cn("h-full rounded-full", pct >= 90 ? "bg-danger" : pct >= 70 ? "bg-amber-500" : "bg-primary/60")} style={{ width: `${pct}%` }} />
                                       </div>
                                     </div>
-                                  </PopoverContent>
-                                </Popover>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">View only</span>
+                                  ) : (
+                                    <span className="text-2xs text-muted-foreground">—</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        )}
+                        {roomTypes.map((rt, rtIdx) => (
+                          <tr key={rt.id} className="border-b border-border/40 last:border-b-0">
+                            <th scope="row" className="sticky left-0 z-10 border-r border-border/60 bg-card px-4 py-3 align-middle font-normal">
+                              <div className="truncate text-sm font-semibold text-foreground">{rt.name}</div>
+                              <div className="mt-1 text-2xs tabular-nums text-muted-foreground">Base {formatCurrency(rt.base_price, currency)}</div>
+                            </th>
+                            {dateColumns.map((dateStr, dateIdx) => {
+                              const cell = resolvedRateMap.get(`${rt.id}_${dateStr}`);
+                              const isSelected = selectedCells.some((c) => c.roomTypeId === rt.id && c.date === dateStr);
+                              const isTabStop =
+                                selectedCells.length > 0
+                                  ? selectedCells[0]?.roomTypeId === rt.id && selectedCells[0]?.date === dateStr
+                                  : rtIdx === 0 && dateIdx === 0;
+                              const isEditing = editingCell?.roomTypeId === rt.id && editingCell?.date === dateStr;
+                              // A season covers this date but sets no rate for this room type
+                              const isSeasonUnconfigured = cell?.source === "base" && !!cell?.seasonName;
+                              const sourceLabel =
+                                cell?.source === "daily" ? "daily override" : cell?.source === "seasonal" ? `season ${cell.seasonName ?? ""}` : isSeasonUnconfigured ? `base, season ${cell?.seasonName} has no rate` : "base rate";
+
+                              return (
+                                <td
+                                  key={dateStr}
+                                  id={`cell-${rt.id}-${dateStr}`}
+                                  tabIndex={isTabStop ? 0 : -1}
+                                  aria-label={`${rt.name}, ${format(parseISO(dateStr), "EEE d MMM")}: ${cell ? formatCurrency(cell.price, currency) : "loading"}, ${sourceLabel}`}
+                                  aria-selected={isSelected}
+                                  onKeyDown={(e) => handleKeyDown(e, rt.id, dateStr)}
+                                  onMouseDown={(e) => handleCellMouseDown(rt.id, dateStr, e)}
+                                  onMouseEnter={() => handleCellMouseEnter(rt.id, dateStr)}
+                                  onMouseUp={() => handleCellMouseUp(rt.id, dateStr)}
+                                  onClick={(e) => handleCellClick(rt.id, dateStr, e)}
+                                  className={cn(
+                                    "relative select-none border-r border-border/40 px-2 py-3 text-center align-middle outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
+                                    canManagePricing && "cursor-pointer [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/[0.04]",
+                                    isWeekend(dateStr) && "bg-secondary/50",
+                                    !isSelected && cell?.source === "seasonal" && "bg-emerald-500/[0.06] text-emerald-800",
+                                    !isSelected && cell?.source === "daily" && "bg-primary/[0.07] font-semibold text-primary",
+                                    isSelected && "z-10 bg-primary/10 ring-2 ring-inset ring-primary"
+                                  )}
+                                >
+                                  {cell ? (
+                                    <span className="text-xs font-medium tabular-nums">{formatCurrency(cell.price, currency)}</span>
+                                  ) : (
+                                    <Skeleton className="mx-auto h-4 w-12 rounded-md" />
+                                  )}
+                                  {cell?.source === "daily" && <span aria-hidden="true" className="absolute right-1 top-1 size-1 rounded-full bg-primary" />}
+                                  {isSeasonUnconfigured && <span aria-hidden="true" className="absolute right-1 top-1 size-1 rounded-full bg-amber-500" />}
+
+                                  {canManagePricing && isEditing && (
+                                    <SingleRatePopover
+                                      label={`${rt.name} · ${format(parseISO(dateStr), "EEE d MMM")}`}
+                                      currency={currency}
+                                      value={singlePriceInput}
+                                      onValue={setSinglePriceInput}
+                                      onClose={() => setEditingCell(null)}
+                                      onSave={() => handleSaveSingleOverride(rt.id, dateStr)}
+                                      saving={saveDailyOverrideMutation.isPending}
+                                      canClear={cell?.source === "daily"}
+                                      clearing={clearDailyOverrideMutation.isPending}
+                                      onClear={() => clearDailyOverrideMutation.mutate({ roomTypeId: rt.id, date: dateStr })}
+                                    />
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+
+              {/* Below lg: one card per room type with a scrollable day grid */}
+              <div className="space-y-4 lg:hidden">
+                {roomTypes.map((rt) => (
+                  <PenCard key={rt.id}>
+                    <PenCardHead
+                      title={rt.name}
+                      actions={
+                        <span className="text-xs tabular-nums text-muted-foreground">
+                          Base {formatCurrency(rt.base_price, currency)}
+                          {rt.weekend_price ? ` · Weekend ${formatCurrency(rt.weekend_price, currency)}` : ""}
+                        </span>
+                      }
+                    />
+                    <div className="native-scroll grid max-h-80 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-4">
+                      {dateColumns.map((dateStr) => {
+                        const cell = resolvedRateMap.get(`${rt.id}_${dateStr}`);
+                        const active = selectedCells.some((c) => c.roomTypeId === rt.id && c.date === dateStr);
+                        return (
+                          <button
+                            type="button"
+                            key={dateStr}
+                            disabled={!canManagePricing}
+                            aria-pressed={active}
+                            onClick={(e) => handleCellClick(rt.id, dateStr, e)}
+                            className={cn(
+                              "relative flex min-h-14 select-none flex-col justify-between rounded-xl border border-border/60 p-3 text-left outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default",
+                              isWeekend(dateStr) && "bg-secondary/50",
+                              cell?.source === "seasonal" && "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-800",
+                              cell?.source === "daily" && "border-primary/20 bg-primary/[0.07] text-primary",
+                              active && "border-primary ring-2 ring-primary"
                             )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                          >
+                            <span className="text-2xs font-medium text-muted-foreground">{format(parseISO(dateStr), "EEE d MMM")}</span>
+                            <span className="mt-1 text-sm font-semibold tabular-nums">
+                              {cell ? formatCurrency(cell.price, currency) : <Skeleton className="h-4 w-12 rounded-md" />}
+                            </span>
+                            {cell?.source === "daily" && <span aria-hidden="true" className="absolute right-2 top-2 size-1 rounded-full bg-primary" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </PenCard>
+                ))}
               </div>
-              </div>
-            )}
-          </div>
-        </HeroTabs.Panel>
-      </HeroTabs>
+            </>
+          )}
 
-      {/* ── Per-Season Detail pricing Slide-over Sheet ────────────── */}
-      <Sheet open={seasonDetailOpen} onOpenChange={setSeasonDetailOpen}>
-        <SheetContent className="sm:max-w-md md:max-w-lg overflow-y-auto native-scroll">
-          <SheetHeader className="border-b border-border/40 pb-4">
-            <SheetTitle className="text-xl font-bold text-foreground">Configure Season Rates</SheetTitle>
-            <SheetDescription>
-              Set base and weekend prices for &ldquo;{selectedSeasonForOverrides?.name}&rdquo;. Unconfigured room types will remain on default pricing.
-            </SheetDescription>
-          </SheetHeader>
-
-          <div className="space-y-6 py-6">
-            {/* ── Apply to All Room Types shortcut ── */}
-            {roomTypes.length > 1 && (
-              <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl space-y-3">
-                <div className="flex items-center gap-2">
-                  <SlidersHorizontal className="size-4 text-primary" aria-hidden="true" />
-                  <span className="text-xs font-semibold text-foreground">Apply to all room types</span>
-                  <span className="text-2xs text-muted-foreground ml-auto">Fills all fields below</span>
+          {/* Selection bar: appears only while nights are selected */}
+          {canManagePricing && selectedCells.length > 0 && (
+            <div className="sticky bottom-4 z-20">
+              <Card className="flex-col gap-3 rounded-2xl border border-border/70 px-4 py-3 shadow-[0_8px_30px_rgb(15_23_42/0.12)] animate-in fade-in-0 slide-in-from-bottom-2 duration-200 ease-[var(--ease-out-ui)] motion-reduce:animate-none sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium text-foreground">
+                    {selectedCells.length} {selectedCells.length === 1 ? "night" : "nights"} selected
+                  </p>
+                  <Button variant="ghost" onPress={clearSelection} className="rounded-xl max-md:h-11">
+                    Cancel
+                  </Button>
                 </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="space-y-1">
-                    <label htmlFor="apply-all-base" className="text-2xs font-medium text-muted-foreground">Base price ({currency})</label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="apply-all-base"
-                        type="number"
+                <div className="flex flex-wrap items-center gap-2">
+                  <TextField
+                    aria-label={`New rate in ${currency}`}
+                    value={bulkPriceInput}
+                    onChange={setBulkPriceInput}
+                    type="number"
+                    className="w-36"
+                  >
+                    <InputGroup className="rounded-xl max-md:h-11">
+                      <InputGroup.Prefix className="text-xs font-medium text-muted-foreground">{currency}</InputGroup.Prefix>
+                      <InputGroup.Input
+                        min="0.01"
+                        step="0.01"
                         inputMode="decimal"
-                        placeholder="e.g. 150"
-                        value={applyAllBase}
-                        onChange={(e) => setApplyAllBase(e.target.value)}
-                        className="h-11 sm:h-10 border-input/60 focus:ring-1 focus:ring-primary"
+                        placeholder="0.00"
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" && applyAllBase) {
-                            setSeasonalOverrides((prev) => {
-                              const next = { ...prev };
-                              roomTypes.forEach((rt) => {
-                                next[rt.id] = { ...next[rt.id], basePrice: applyAllBase };
-                              });
-                              return next;
-                            });
-                          }
+                          if (e.key === "Enter") handleSaveBulkOverride();
                         }}
+                        className="tabular-nums max-md:text-base"
                       />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={!applyAllBase.trim()}
-                        onClick={() => {
-                          setSeasonalOverrides((prev) => {
-                            const next = { ...prev };
-                            roomTypes.forEach((rt) => {
-                              next[rt.id] = { ...(next[rt.id] ?? { basePrice: "", weekendPrice: "" }), basePrice: applyAllBase };
-                            });
-                            return next;
-                          });
+                    </InputGroup>
+                  </TextField>
+                  <Button
+                    variant="primary"
+                    isPending={bulkSaveDailyOverridesMutation.isPending}
+                    onPress={handleSaveBulkOverride}
+                    className="rounded-xl font-semibold max-md:h-11"
+                  >
+                    Set rate
+                  </Button>
+                  <Dropdown>
+                    <Button isIconOnly variant="secondary" aria-label="More selection actions" className="rounded-xl max-md:size-11">
+                      <EllipsisVertical className="size-4" />
+                    </Button>
+                    <Dropdown.Popover placement="top end">
+                      <Dropdown.Menu
+                        aria-label="More selection actions"
+                        onAction={(key) => {
+                          if (key === "clear-override") bulkClearDailyOverridesMutation.mutate({ cells: selectedCells });
                         }}
-                        className="ui-press h-11 sm:h-10 px-3 text-xs font-semibold border-primary/30 text-primary shrink-0 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/10"
                       >
-                        Apply
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label htmlFor="apply-all-weekend" className="text-2xs font-medium text-muted-foreground">Weekend price ({currency})</label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="apply-all-weekend"
-                        type="number"
-                        inputMode="decimal"
-                        placeholder="Optional"
-                        value={applyAllWeekend}
-                        onChange={(e) => setApplyAllWeekend(e.target.value)}
-                        className="h-11 sm:h-10 border-input/60 focus:ring-1 focus:ring-primary"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && applyAllWeekend) {
-                            setSeasonalOverrides((prev) => {
-                              const next = { ...prev };
-                              roomTypes.forEach((rt) => {
-                                next[rt.id] = { ...next[rt.id], weekendPrice: applyAllWeekend };
-                              });
-                              return next;
-                            });
-                          }
-                        }}
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={!applyAllWeekend.trim()}
-                        onClick={() => {
-                          setSeasonalOverrides((prev) => {
-                            const next = { ...prev };
-                            roomTypes.forEach((rt) => {
-                              next[rt.id] = { ...(next[rt.id] ?? { basePrice: "", weekendPrice: "" }), weekendPrice: applyAllWeekend };
-                            });
-                            return next;
-                          });
-                        }}
-                        className="ui-press h-11 sm:h-10 px-3 text-xs font-semibold border-primary/30 text-primary shrink-0 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/10"
-                      >
-                        Apply
-                      </Button>
-                    </div>
-                  </div>
+                        <Dropdown.Item id="clear-override" textValue="Remove overrides">
+                          <X className="size-4 text-muted-foreground" aria-hidden="true" />
+                          <Label>Remove overrides</Label>
+                        </Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown.Popover>
+                  </Dropdown>
                 </div>
+              </Card>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ── Seasons ── */
+        <Card className={cn(LIST_CARD, ENTER)}>
+          {loadingSeasons ? (
+            <div className="space-y-3 p-6">
+              {[0, 1, 2].map((i) => <Skeleton key={i} className="h-10 w-full rounded-xl" />)}
+            </div>
+          ) : seasons.length === 0 ? (
+            <ListEmpty
+              icon={Tag}
+              title="No seasons yet"
+              hint="Set rates for holidays or peak months."
+              action={
+                canManagePricing ? (
+                  <Button variant="primary" onPress={() => setNewSeasonOpen(true)} className="rounded-xl font-semibold max-md:h-11">
+                    <Plus className="size-4" aria-hidden="true" />
+                    New season
+                  </Button>
+                ) : undefined
+              }
+            />
+          ) : (
+            <>
+              <SeasonTimeline seasons={seasons} todayStr={todayStr} />
+
+              <div className={cn(SEASON_GRID, LIST_HEADER)}>
+                <span>Season</span>
+                <span>Dates</span>
+                <span>Priority</span>
+                <span>Status</span>
+                <span>Rates set</span>
+                <span className="sr-only">Actions</span>
               </div>
-            )}
+              <ul className={LIST_ROWS}>
+                {seasons.map((season, idx) => {
+                  const covered = season.overrides?.length || 0;
+                  const complete = covered === roomTypes.length;
+                  const dates = `${format(parseISO(season.start_date), "MMM d")} – ${format(parseISO(season.end_date), "MMM d, yyyy")}`;
+                  return (
+                    <li key={season.id} className={cn(SEASON_GRID, "flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:px-6")}>
+                      <div className="min-w-0 flex-1 lg:flex-none">
+                        <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
+                          <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", SEASON_BAR[idx % SEASON_BAR.length])} />
+                          <span className="truncate">{season.name}</span>
+                        </p>
+                        <p className="mt-1 truncate text-xs tabular-nums text-muted-foreground lg:hidden">{dates}</p>
+                      </div>
+                      <span className="hidden text-sm tabular-nums text-foreground lg:block">{dates}</span>
+                      <span className="hidden text-sm tabular-nums text-muted-foreground lg:block">{season.priority}</span>
+                      <span className="hidden lg:block">{getSeasonStatus(season.start_date, season.end_date)}</span>
+                      <span className="flex items-center gap-2 lg:block">
+                        <span className="lg:hidden">{getSeasonStatus(season.start_date, season.end_date)}</span>
+                        <Chip size="sm" variant="soft" color={complete ? "success" : "warning"}>
+                          {covered} of {roomTypes.length}
+                        </Chip>
+                      </span>
+                      {canManagePricing ? (
+                        <div className="flex w-full items-center justify-end gap-1 sm:w-auto lg:w-full">
+                          <Button size="sm" variant="secondary" onPress={() => handleOpenOverrides(season)} className="rounded-lg font-medium max-md:h-11">
+                            Set rates
+                          </Button>
+                          <Dropdown>
+                            <Button isIconOnly size="sm" variant="ghost" aria-label={`Actions for ${season.name}`} className="rounded-lg text-muted-foreground max-md:size-11">
+                              <EllipsisVertical className="size-4" />
+                            </Button>
+                            <Dropdown.Popover placement="bottom end">
+                              <Dropdown.Menu
+                                aria-label={`Actions for ${season.name}`}
+                                onAction={(key) => {
+                                  if (key === "edit") {
+                                    handleOpenEditSeason(season);
+                                    setNewSeasonOpen(true);
+                                  }
+                                  if (key === "duplicate") duplicateSeasonMutation.mutate(season.id);
+                                  if (key === "delete") setSeasonToDelete(season);
+                                }}
+                              >
+                                <Dropdown.Item id="edit" textValue="Edit season">
+                                  <Pencil className="size-4 text-muted-foreground" aria-hidden="true" />
+                                  <Label>Edit season</Label>
+                                </Dropdown.Item>
+                                <Dropdown.Item id="duplicate" textValue="Duplicate" isDisabled={duplicateSeasonMutation.isPending}>
+                                  <Copy className="size-4 text-muted-foreground" aria-hidden="true" />
+                                  <Label>Duplicate</Label>
+                                </Dropdown.Item>
+                                <Dropdown.Item id="delete" textValue="Delete" variant="danger">
+                                  <Trash2 className="size-4" aria-hidden="true" />
+                                  <Label>Delete</Label>
+                                </Dropdown.Item>
+                              </Dropdown.Menu>
+                            </Dropdown.Popover>
+                          </Dropdown>
+                        </div>
+                      ) : (
+                        <span className="hidden lg:block" />
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </Card>
+      )}
 
-            {roomTypes.map((rt) => {
-              const values = seasonalOverrides[rt.id] || { basePrice: "", weekendPrice: "" };
-              
-              return (
-                <div key={rt.id} className="space-y-2 p-3 bg-muted/30 border border-border/40 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm text-foreground">{rt.name}</span>
-                    <span className="text-2xs text-muted-foreground font-medium">
-                      Default: {formatCurrency(rt.base_price, currency)} / {rt.weekend_price ? formatCurrency(rt.weekend_price, currency) : "N/A"}
-                    </span>
-                  </div>
+      {/* New / edit season */}
+      <Modal.Backdrop isOpen={newSeasonOpen} onOpenChange={closeSeasonModal}>
+        <Modal.Container placement="center" size="sm">
+          <Modal.Dialog className="rounded-3xl sm:max-w-md">
+            <Modal.CloseTrigger />
+            <Modal.Header>
+              <Modal.Heading className="text-lg font-semibold text-foreground">{editSeasonId ? "Edit season" : "New season"}</Modal.Heading>
+            </Modal.Header>
+            <Modal.Body className="flex flex-col gap-4">
+              <TextField value={seasonName} onChange={setSeasonName} isRequired className="w-full">
+                <Label className={FIELD_LABEL}>Name</Label>
+                <Input placeholder="Christmas peak" className="rounded-xl max-md:h-11 max-md:text-base" />
+              </TextField>
 
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="space-y-1">
-                      <label htmlFor={`season-base-${rt.id}`} className="text-2xs font-medium text-muted-foreground">Base price ({currency})</label>
-                      <Input
-                        id={`season-base-${rt.id}`}
-                        type="number"
-                        inputMode="decimal"
-                        placeholder="e.g. 150"
-                        value={values.basePrice}
-                        onChange={(e) => {
-                          setSeasonalOverrides((prev) => ({
-                            ...prev,
-                            [rt.id]: { ...prev[rt.id], basePrice: e.target.value },
-                          }));
-                        }}
-                        className="h-11 sm:h-10 focus:ring-1 focus:ring-primary border-input/60"
-                      />
+              <DateRangePicker
+                value={seasonStart && seasonEnd ? {
+                  start: parseCalendarDate(format(seasonStart, "yyyy-MM-dd")),
+                  end: parseCalendarDate(format(seasonEnd, "yyyy-MM-dd")),
+                } : null}
+                onChange={(range) => {
+                  setSeasonStart(range ? parseISO(range.start.toString()) : undefined);
+                  setSeasonEnd(range ? parseISO(range.end.toString()) : undefined);
+                }}
+                className="w-full gap-2"
+              >
+                <Label className={FIELD_LABEL}>Dates</Label>
+                <DateField.Group fullWidth className="date-input-group rounded-xl max-md:h-11">
+                  <DateField.InputContainer>
+                    <DateField.Input slot="start">{(segment) => <DateField.Segment segment={segment} />}</DateField.Input>
+                    <DateRangePicker.RangeSeparator className="px-2 text-muted-foreground" />
+                    <DateField.Input slot="end">{(segment) => <DateField.Segment segment={segment} />}</DateField.Input>
+                  </DateField.InputContainer>
+                  <DateField.Suffix>
+                    <DateRangePicker.Trigger>
+                      <DateRangePicker.TriggerIndicator />
+                    </DateRangePicker.Trigger>
+                  </DateField.Suffix>
+                </DateField.Group>
+                <DateRangePicker.Popover className="rounded-2xl p-2">
+                  <RangeCalendar aria-label="Season dates" visibleDuration={{ months: isMobile ? 1 : 2 }}>
+                    <RangeCalendar.Header>
+                      <RangeCalendar.YearPickerTrigger>
+                        <RangeCalendar.YearPickerTriggerHeading />
+                        <RangeCalendar.YearPickerTriggerIndicator />
+                      </RangeCalendar.YearPickerTrigger>
+                      <RangeCalendar.NavButton slot="previous" />
+                      <RangeCalendar.NavButton slot="next" />
+                    </RangeCalendar.Header>
+                    <div className="flex gap-4">
+                      {(isMobile ? [0] : [0, 1]).map((monthOffset) => (
+                        <RangeCalendar.Grid key={monthOffset} offset={{ months: monthOffset }}>
+                          <RangeCalendar.GridHeader>{(day) => <RangeCalendar.HeaderCell>{day}</RangeCalendar.HeaderCell>}</RangeCalendar.GridHeader>
+                          <RangeCalendar.GridBody>{(date) => <RangeCalendar.Cell date={date} />}</RangeCalendar.GridBody>
+                        </RangeCalendar.Grid>
+                      ))}
                     </div>
-                    <div className="space-y-1">
-                      <label htmlFor={`season-weekend-${rt.id}`} className="text-2xs font-medium text-muted-foreground">Weekend price ({currency})</label>
-                      <Input
-                        id={`season-weekend-${rt.id}`}
-                        type="number"
-                        inputMode="decimal"
-                        placeholder="Optional (e.g. 180)"
-                        value={values.weekendPrice}
-                        onChange={(e) => {
-                          setSeasonalOverrides((prev) => ({
-                            ...prev,
-                            [rt.id]: { ...prev[rt.id], weekendPrice: e.target.value },
-                          }));
-                        }}
-                        className="h-11 sm:h-10 focus:ring-1 focus:ring-primary border-input/60"
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  </RangeCalendar>
+                </DateRangePicker.Popover>
+              </DateRangePicker>
 
-          <SheetFooter className="border-t border-border/40 pt-4">
-            <Button variant="outline" onClick={() => setSeasonDetailOpen(false)} className="ui-press h-11 sm:h-10 border-border [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40">Cancel</Button>
-            <Button
-              disabled={saveSeasonalOverridesMutation.isPending}
-              onClick={() => saveSeasonalOverridesMutation.mutate()}
-              className="ui-press h-11 sm:h-10 font-semibold bg-primary text-primary-foreground shadow-sm [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/95"
-            >
-              {saveSeasonalOverridesMutation.isPending ? "Saving..." : "Save Rates"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+              <TextField value={seasonPriority} onChange={setSeasonPriority} type="number" className="w-full">
+                <Label className={FIELD_LABEL}>Priority</Label>
+                <Input inputMode="numeric" min={0} max={1000} step={1} className="rounded-xl tabular-nums max-md:h-11 max-md:text-base" />
+                <Description className="text-xs text-muted-foreground">Higher wins where seasons overlap</Description>
+              </TextField>
+
+              {clientOverlapSeason && (
+                <Alert status="danger" className="rounded-2xl">
+                  <Alert.Indicator />
+                  <Alert.Content>
+                    <Alert.Title>Overlaps {clientOverlapSeason.name}</Alert.Title>
+                    <Alert.Description>
+                      Same priority ({clientOverlapSeason.priority}), {clientOverlapSeason.start_date} to {clientOverlapSeason.end_date}. Change the dates or the priority.
+                    </Alert.Description>
+                  </Alert.Content>
+                </Alert>
+              )}
+            </Modal.Body>
+            <Modal.Footer className="m-0 flex-col-reverse gap-2 sm:flex-row">
+              <Button slot="close" variant="tertiary" className="rounded-xl max-md:h-11">
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                isPending={seasonSaving}
+                isDisabled={!canSaveSeason}
+                onPress={() => (editSeasonId ? updateSeasonMutation.mutate() : createSeasonMutation.mutate())}
+                className="rounded-xl font-semibold max-md:h-11"
+              >
+                Save season
+              </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+
+      {/* Season rates per room type */}
+      <Drawer.Backdrop isOpen={seasonDetailOpen} onOpenChange={setSeasonDetailOpen} variant="opaque" className="bg-black/30">
+        <Drawer.Content placement={isMobile ? "bottom" : "right"}>
+          <Drawer.Dialog
+            className={`
+              flex w-full flex-col overflow-hidden rounded-t-3xl bg-card p-0
+              h-[min(94dvh,56rem)] max-h-[94dvh]
+              md:h-dvh md:max-h-dvh md:w-[min(28rem,100vw)]
+              md:rounded-none md:border-l md:border-border/60 md:shadow-[-24px_0_80px_rgb(15_23_42/0.12)]
+            `}
+          >
+            {isMobile && <Drawer.Handle className="mt-3 shrink-0" />}
+            <Drawer.Header className="shrink-0 flex-row items-start gap-3 border-b border-border/60 px-6 pb-4 pt-4 md:pt-6">
+              <div className="min-w-0 flex-1">
+                <Drawer.Heading className="truncate text-lg font-semibold text-foreground">{selectedSeasonForOverrides?.name ?? "Season"} rates</Drawer.Heading>
+                {selectedSeasonForOverrides && (
+                  <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+                    {format(parseISO(selectedSeasonForOverrides.start_date), "MMM d")} – {format(parseISO(selectedSeasonForOverrides.end_date), "MMM d, yyyy")}
+                  </p>
+                )}
+              </div>
+              <Button isIconOnly size="sm" variant="ghost" aria-label="Close season rates" onPress={() => setSeasonDetailOpen(false)} className="hidden shrink-0 rounded-lg text-muted-foreground md:inline-flex">
+                <X className="size-4" aria-hidden="true" />
+              </Button>
+            </Drawer.Header>
+
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-6 py-6">
+              {roomTypes.length > 1 && (
+                <section aria-label="All room types" className="space-y-3 rounded-2xl bg-secondary/60 p-4">
+                  <h3 className="text-xs font-medium text-muted-foreground">All room types</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <ApplyAllField label="Base" currency={currency} value={applyAllBase} onValue={setApplyAllBase} onApply={() => applyToAll("basePrice", applyAllBase)} />
+                    <ApplyAllField label="Weekend" currency={currency} value={applyAllWeekend} onValue={setApplyAllWeekend} onApply={() => applyToAll("weekendPrice", applyAllWeekend)} />
+                  </div>
+                </section>
+              )}
+
+              <ul className="divide-y divide-border/60">
+                {roomTypes.map((rt) => {
+                  const values = seasonalOverrides[rt.id] || { basePrice: "", weekendPrice: "" };
+                  const setField = (field: "basePrice" | "weekendPrice") => (v: string) =>
+                    setSeasonalOverrides((prev) => ({ ...prev, [rt.id]: { ...prev[rt.id], [field]: v } }));
+                  return (
+                    <li key={rt.id} className="space-y-3 py-4 first:pt-0 last:pb-0">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="truncate text-sm font-semibold text-foreground">{rt.name}</p>
+                        <p className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                          Now {formatCurrency(rt.base_price, currency)}
+                          {rt.weekend_price ? ` · ${formatCurrency(rt.weekend_price, currency)}` : ""}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <RateField label="Base" currency={currency} value={values.basePrice} onValue={setField("basePrice")} placeholder={String(rt.base_price)} />
+                        <RateField label="Weekend" currency={currency} value={values.weekendPrice} onValue={setField("weekendPrice")} placeholder="Optional" />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+
+            <div className="flex shrink-0 gap-2 border-t border-border/60 bg-card px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
+              <Button variant="tertiary" onPress={() => setSeasonDetailOpen(false)} className="rounded-xl max-md:h-11">
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                fullWidth
+                isPending={saveSeasonalOverridesMutation.isPending}
+                onPress={() => saveSeasonalOverridesMutation.mutate()}
+                className="rounded-xl font-semibold max-md:h-11"
+              >
+                Save rates
+              </Button>
+            </div>
+          </Drawer.Dialog>
+        </Drawer.Content>
+      </Drawer.Backdrop>
+
+      {/* Delete season */}
+      <AlertDialog.Backdrop isOpen={seasonToDelete !== null} onOpenChange={(open) => !open && setSeasonToDelete(null)}>
+        <AlertDialog.Container placement="center" size="sm">
+          <AlertDialog.Dialog className="rounded-3xl sm:max-w-sm">
+            <AlertDialog.Header>
+              <AlertDialog.Icon status="danger" />
+              <AlertDialog.Heading className="text-lg font-semibold text-foreground">Delete {seasonToDelete?.name}?</AlertDialog.Heading>
+            </AlertDialog.Header>
+            <AlertDialog.Body>
+              <p className="text-sm text-muted-foreground">Its nights go back to base rates.</p>
+            </AlertDialog.Body>
+            <AlertDialog.Footer className="flex-col-reverse gap-2 sm:flex-row">
+              <Button slot="close" variant="tertiary" autoFocus className="rounded-xl max-md:h-11">
+                Keep it
+              </Button>
+              <Button
+                variant="danger"
+                isPending={deleteSeasonMutation.isPending}
+                onPress={() => {
+                  if (!seasonToDelete) return;
+                  deleteSeasonMutation.mutate(seasonToDelete.id, { onSettled: () => setSeasonToDelete(null) });
+                }}
+                className="rounded-xl font-semibold max-md:h-11"
+              >
+                Delete
+              </Button>
+            </AlertDialog.Footer>
+          </AlertDialog.Dialog>
+        </AlertDialog.Container>
+      </AlertDialog.Backdrop>
     </div>
-    </TooltipProvider>
+  );
+}
+
+/** Swatches explain the cell tints; each also carries text, so state is never colour-only. */
+function RateLegend() {
+  const items = [
+    { label: "Base", swatch: "border border-border bg-card" },
+    { label: "Season", swatch: "bg-emerald-500/30" },
+    { label: "Override", swatch: "bg-primary/40" },
+    { label: "Season, no rate", swatch: "border border-border bg-card", dot: "bg-amber-500" },
+  ];
+  return (
+    <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground lg:ml-auto" aria-label="Rate colours">
+      {items.map((i) => (
+        <li key={i.label} className="flex items-center gap-2">
+          <span aria-hidden="true" className={cn("relative size-3 rounded", i.swatch)}>
+            {i.dot && <span className={cn("absolute right-0 top-0 size-1 rounded-full", i.dot)} />}
+          </span>
+          {i.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function RateField({ label, currency, value, onValue, placeholder }: {
+  label: string;
+  currency: string;
+  value: string;
+  onValue: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <TextField value={value} onChange={onValue} type="number" className="w-full">
+      <Label className={FIELD_LABEL}>{label}</Label>
+      <InputGroup className="rounded-xl max-md:h-11">
+        <InputGroup.Prefix className="text-xs font-medium text-muted-foreground">{currency}</InputGroup.Prefix>
+        <InputGroup.Input inputMode="decimal" min="0" step="0.01" placeholder={placeholder} className="tabular-nums max-md:text-base" />
+      </InputGroup>
+    </TextField>
+  );
+}
+
+function ApplyAllField({ label, currency, value, onValue, onApply }: {
+  label: string;
+  currency: string;
+  value: string;
+  onValue: (value: string) => void;
+  onApply: () => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <TextField value={value} onChange={onValue} type="number" className="w-full">
+        <Label className={FIELD_LABEL}>{label}</Label>
+        <InputGroup className="rounded-xl max-md:h-11">
+          <InputGroup.Prefix className="text-xs font-medium text-muted-foreground">{currency}</InputGroup.Prefix>
+          <InputGroup.Input
+            inputMode="decimal"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onApply();
+            }}
+            className="tabular-nums max-md:text-base"
+          />
+        </InputGroup>
+      </TextField>
+      <Button size="sm" variant="secondary" fullWidth isDisabled={!value.trim()} onPress={onApply} className="rounded-lg max-md:h-11">
+        Apply to all
+      </Button>
+    </div>
+  );
+}
+
+/** Inline editor for one night (opened with Enter on a focused cell). */
+function SingleRatePopover({ label, currency, value, onValue, onClose, onSave, saving, canClear, clearing, onClear }: {
+  label: string;
+  currency: string;
+  value: string;
+  onValue: (value: string) => void;
+  onClose: () => void;
+  onSave: () => void;
+  saving: boolean;
+  canClear: boolean;
+  clearing: boolean;
+  onClear: () => void;
+}) {
+  return (
+    <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+      <Popover isOpen onOpenChange={(open) => !open && onClose()}>
+        <Popover.Trigger>
+          <button type="button" aria-label={`Edit ${label}`} className="absolute inset-0 size-full cursor-pointer bg-transparent outline-none" />
+        </Popover.Trigger>
+        <Popover.Content placement="top" className="w-64 rounded-2xl p-0">
+          <Popover.Dialog aria-label={label} className="grid gap-3 p-4 outline-none">
+            <p className="truncate text-xs font-semibold text-foreground">{label}</p>
+            <TextField aria-label={`Rate in ${currency}`} value={value} onChange={onValue} type="number" autoFocus>
+              <InputGroup className="rounded-xl">
+                <InputGroup.Prefix className="text-xs font-medium text-muted-foreground">{currency}</InputGroup.Prefix>
+                <InputGroup.Input
+                  inputMode="decimal"
+                  min="0.01"
+                  step="0.01"
+                  onFocus={(e) => e.target.select()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") onSave();
+                    else if (e.key === "Escape") onClose();
+                  }}
+                  className="tabular-nums"
+                />
+              </InputGroup>
+            </TextField>
+            <div className="flex items-center gap-2">
+              {canClear && (
+                <Button size="sm" variant="ghost" isPending={clearing} onPress={onClear} className="rounded-lg text-danger">
+                  Remove
+                </Button>
+              )}
+              <Button size="sm" variant="tertiary" onPress={onClose} className="ml-auto rounded-lg">
+                Cancel
+              </Button>
+              <Button size="sm" variant="primary" isPending={saving} onPress={onSave} className="rounded-lg font-semibold">
+                Save
+              </Button>
+            </div>
+          </Popover.Dialog>
+        </Popover.Content>
+      </Popover>
+    </div>
+  );
+}
+
+/** Twelve-month strip of seasons from the current month; gaps are listed below it. */
+function SeasonTimeline({ seasons, todayStr }: { seasons: SeasonRow[]; todayStr: string }) {
+  const start = parseISO(todayStr);
+  start.setDate(1);
+  const end = new Date(start);
+  end.setFullYear(end.getFullYear() + 1);
+  end.setDate(end.getDate() - 1);
+  const total = end.getTime() - start.getTime();
+
+  const months: { label: string; pct: number }[] = [];
+  const m = new Date(start);
+  while (m <= end) {
+    months.push({ label: format(m, "MMM"), pct: ((m.getTime() - start.getTime()) / total) * 100 });
+    m.setMonth(m.getMonth() + 1);
+  }
+  const todayPct = Math.max(0, Math.min(100, ((parseISO(todayStr).getTime() - start.getTime()) / total) * 100));
+
+  // Uncovered stretches between seasons (same rule as before: between covered periods only)
+  const covered = seasons.map((s) => ({ start: s.start_date, end: s.end_date })).sort((a, b) => a.start.localeCompare(b.start));
+  const gaps: { from: string; to: string }[] = [];
+  let reach: string | null = null;
+  for (const period of covered) {
+    if (reach !== null && period.start > reach) {
+      const gapStart = addDays(parseISO(reach), 1);
+      const gapEnd = subDays(parseISO(period.start), 1);
+      if (gapStart <= gapEnd) gaps.push({ from: format(gapStart, "yyyy-MM-dd"), to: format(gapEnd, "yyyy-MM-dd") });
+    }
+    if (reach === null || period.end > reach) reach = period.end;
+  }
+
+  return (
+    <div className="space-y-3 p-4 sm:px-6">
+      <div className="relative overflow-hidden rounded-2xl bg-secondary/40" style={{ height: `${Math.max(56, seasons.length * 32 + 32)}px` }}>
+        {months.map((mo, i) => (
+          <div key={i} className="absolute inset-y-0 border-l border-border/50" style={{ left: `${mo.pct}%` }}>
+            <span className="absolute left-1 top-1 select-none whitespace-nowrap text-2xs text-muted-foreground">{mo.label}</span>
+          </div>
+        ))}
+        <div className="absolute inset-y-0 z-10 w-px bg-primary" style={{ left: `${todayPct}%` }} aria-hidden="true" />
+        {seasons.map((season, idx) => {
+          const s = Math.max(parseISO(season.start_date).getTime(), start.getTime());
+          const e = Math.min(parseISO(season.end_date).getTime(), end.getTime());
+          if (s > e) return null;
+          const left = ((s - start.getTime()) / total) * 100;
+          const width = ((e - s) / total) * 100;
+          const label = `${season.name}, ${format(parseISO(season.start_date), "MMM d")} – ${format(parseISO(season.end_date), "MMM d, yyyy")}, priority ${season.priority}`;
+          return (
+            <Tooltip key={season.id} delay={200}>
+              <Tooltip.Trigger aria-label={label}>
+                <div
+                  className={cn("absolute flex h-6 items-center rounded-md px-2", SEASON_BAR[idx % SEASON_BAR.length])}
+                  style={{ left: `${left}%`, width: `max(${width}%, 4px)`, top: `${24 + idx * 32}px` }}
+                >
+                  <span className="select-none truncate text-2xs font-semibold leading-none text-white">{width > 6 ? season.name : ""}</span>
+                </div>
+              </Tooltip.Trigger>
+              <Tooltip.Content>
+                <p className="font-semibold">{season.name}</p>
+                <p className="text-xs">
+                  {format(parseISO(season.start_date), "MMM d")} – {format(parseISO(season.end_date), "MMM d, yyyy")} · priority {season.priority}
+                </p>
+              </Tooltip.Content>
+            </Tooltip>
+          );
+        })}
+      </div>
+      {gaps.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {gaps.map((g, i) => (
+            <Chip key={i} size="sm" variant="soft" color="warning">
+              No season {format(parseISO(g.from), "MMM d")} – {format(parseISO(g.to), "MMM d")}
+            </Chip>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
