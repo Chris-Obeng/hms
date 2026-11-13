@@ -1,5 +1,4 @@
-import { formatCurrency, formatDate } from "@/lib/format";
-import { PAYMENT_METHOD_LABELS } from "@/lib/booking-status";
+import { formatCurrency } from "@/lib/format";
 import { shiftReportDate, validateReportRange, reportPeriodLabel } from "@/lib/report-dates";
 import type { GuestsData, OccupancyData, OverviewData, RevenueData } from "../actions";
 
@@ -70,25 +69,10 @@ export const TENDER_COLORS: Record<string, string> = {
   mobile_money: "var(--chart-3)",
   bank_transfer: "var(--chart-4)",
   pos: "var(--chart-5)",
-  paystack_link: "var(--chart-5)",
+  // Online payments get a teal of their own; red would read as a failed payment.
+  paystack_link: "color-mix(in oklch, var(--chart-2) 55%, var(--chart-1))",
 };
 export const OTHER_TENDER_COLOR = "var(--muted-foreground)";
-/** Distinct fallbacks for tenders the theme has no token for, so no two arcs share a hue. */
-const FALLBACK_TENDER_COLORS = ["color-mix(in oklch, var(--chart-3) 55%, var(--chart-1))", "color-mix(in oklch, var(--chart-1) 45%, var(--chart-2))"];
-
-/** Top three tenders by amount, the rest folded into one "Other" slice. */
-export function tenderSegments(rows: { method: string; amount: number }[]): { key: string; label: string; value: number; color: string }[] {
-  const sorted = [...rows].sort((a, b) => b.amount - a.amount);
-  const unresolved = sorted.filter((row) => !TENDER_COLORS[row.method]);
-  const segments = sorted.slice(0, 3).map((row) => ({
-    key: row.method, label: PAYMENT_METHOD_LABELS[row.method] ?? row.method, value: row.amount,
-    color: TENDER_COLORS[row.method] ?? FALLBACK_TENDER_COLORS[unresolved.indexOf(row) % FALLBACK_TENDER_COLORS.length],
-  }));
-  const tail = sorted.slice(3);
-  if (tail.length > 0) segments.push({ key: "other", label: "Other", value: tail.reduce((sum, row) => sum + row.amount, 0), color: OTHER_TENDER_COLOR });
-  return segments;
-}
-
 export const INVENTORY_EXPLANATION = "Historical room inventory is not available for every date. Occupancy and RevPAR are unavailable where capacity cannot be verified.";
 
 export const ROOM_REVENUE_BASIS = "Net nightly room charges and reconciled adjustments, excluding tax, for completed nights of checked-in or checked-out stays. Confirmed bookings and today's incomplete night are excluded. This is not cash collected or the full booked reservation value.";

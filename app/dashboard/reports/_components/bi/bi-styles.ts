@@ -1,9 +1,12 @@
 /**
- * Class names layered on HeroUI `Card` parts so every Business Intelligence
- * surface shares one 8-point rhythm: 16px padding on phones, 24px from `sm`,
- * 16px between the header and the body, and a 15/20 title over a 12/16 caption.
+ * Shared surface and type styles for the Business Intelligence page. They match
+ * the Rooms and Rates cards: one quiet border, a hairline shadow, 16px padding
+ * on phones and 24px from `sm`, and a 16/24 title over a 12/16 caption.
  */
-export const BI_CARD = "h-full min-w-0 gap-4 p-4 sm:p-6";
-export const BI_CARD_HEADER = "flex-row flex-wrap items-start justify-between gap-x-6 gap-y-4";
-export const BI_CARD_TITLE = "text-md font-semibold leading-5 tracking-[-0.01em]";
+export const BI_CARD =
+  "min-w-0 gap-4 rounded-3xl border border-border/60 p-4 shadow-[0_1px_2px_rgb(15_23_42/0.04)] sm:p-6";
+export const BI_CARD_HEADER = "flex flex-wrap items-start justify-between gap-x-6 gap-y-2";
+export const BI_CARD_TITLE = "text-md font-semibold leading-6 text-foreground";
 export const BI_CARD_DESCRIPTION = "mt-1 text-xs leading-4 text-muted-foreground";
+/** Axis ticks: quiet, small and tabular. */
+export const BI_AXIS_TICK = { fill: "var(--muted-foreground)", fontSize: 11 } as const;
