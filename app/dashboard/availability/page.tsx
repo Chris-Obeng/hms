@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { Building2 } from "lucide-react";
 import { addDays, format, isValid, parseISO } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { businessToday } from "@/lib/business-date";
@@ -25,14 +26,11 @@ export default async function AvailabilityPage({ searchParams }: PageProps) {
 
   if (!data) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
-        <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-muted/40">
-          <span className="text-lg font-semibold text-muted-foreground">A</span>
-        </div>
-        <h1 className="text-lg font-semibold text-foreground">Hotel not found</h1>
-        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-          No active hotel is linked to this staff account.
-        </p>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center">
+        <span className="grid size-12 place-items-center rounded-2xl bg-secondary text-muted-foreground">
+          <Building2 className="size-5" aria-hidden="true" />
+        </span>
+        <h1 className="text-sm font-semibold text-foreground">No hotel on this account</h1>
       </div>
     );
   }

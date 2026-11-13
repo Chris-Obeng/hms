@@ -3,18 +3,19 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { addDays, format, parseISO, subDays } from "date-fns";
+import { CalendarDays, ChevronLeft, ChevronRight, RefreshCw, Table2 } from "lucide-react";
 import {
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  RefreshCw,
-  Search,
-  X,
-} from "lucide-react";
-import {
-  Button as HeroButton,
+  Button,
+  ButtonGroup,
   Calendar,
+  Card,
+  InputGroup,
   Popover,
+  SearchField,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
   toast,
 } from "@heroui/react";
 import type { CalendarDate } from "@internationalized/date";
@@ -31,6 +32,8 @@ import {
   type ResolvedPriceCell as ResolvedRate,
 } from "@/app/actions/pricing";
 import { restrictionMarkers } from "@/lib/pricing/restriction-markers";
+import { ListEmpty } from "@/components/ui/list-card";
+import { LIST_CARD } from "@/components/ui/list-styles";
 import "./availability.css";
 
 export type AvailabilityMatrixData = {
@@ -263,68 +266,43 @@ export function AvailabilityMatrixClient({
 
   const matrixStyle = { "--av-days": data.dates.length } as React.CSSProperties;
 
+  const atToday = data.startDate === todayKey;
+  const filtering = query.trim().length > 0;
+
   return (
-    <div className="availability-page mx-auto w-full max-w-[1600px] space-y-4 pt-1 md:space-y-6">
-      {/* Header & compact date/horizon bar */}
-      <header className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-2xl">
-            Availability &amp; rates
-          </h1>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {data.currency} nightly rates · tap any rate cell to override
-          </p>
-        </div>
+    <div className="availability-page mx-auto w-full max-w-7xl space-y-6 pt-6 md:pt-8">
+      <header className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">Availability</h1>
+        <Tooltip delay={300}>
+          <Button isIconOnly variant="secondary" aria-label="Refresh availability" onPress={() => router.refresh()} className="rounded-xl max-md:size-11">
+            <RefreshCw className="size-4" aria-hidden="true" />
+          </Button>
+          <Tooltip.Content>
+            <p>Refresh</p>
+          </Tooltip.Content>
+        </Tooltip>
+      </header>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Date stepper */}
-          <div className="inline-flex items-center rounded-xl border border-border/70 bg-card p-1">
-            <button
-              type="button"
-              aria-label={`Previous ${data.days} days`}
-              onClick={() => navigate(subDays(start, data.days))}
-              className="ui-press grid size-11 cursor-pointer place-items-center rounded-lg text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-            <div className="h-4 w-px bg-border/60" aria-hidden="true" />
-            <button
-              type="button"
-              onClick={() => navigate(parseISO(todayKey))}
-              className="ui-press h-11 cursor-pointer rounded-lg px-3 text-xs font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted"
-            >
-              Today
-            </button>
-            <div className="h-4 w-px bg-border/60" aria-hidden="true" />
-            <button
-              type="button"
-              aria-label={`Next ${data.days} days`}
-              onClick={() => navigate(addDays(start, data.days))}
-              className="ui-press grid size-11 cursor-pointer place-items-center rounded-lg text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
-            >
-              <ChevronRight className="size-4" />
-            </button>
-          </div>
-
-          {/* Calendar start-date picker */}
+      {/* Window controls */}
+      <div className="flex flex-wrap items-center gap-2">
+        <ButtonGroup variant="secondary" className="min-w-0">
+          <Button isIconOnly aria-label={`Previous ${data.days} days`} onPress={() => navigate(subDays(start, data.days))} className="text-muted-foreground max-md:size-11">
+            <ChevronLeft className="size-4" />
+          </Button>
           <Popover isOpen={datePickerOpen} onOpenChange={setDatePickerOpen}>
-            <Popover.Trigger>
-              <button
-                type="button"
-                aria-label="Pick start date"
-                className="ui-press inline-flex h-12 cursor-pointer items-center gap-2 rounded-xl border border-border/70 bg-card px-3 text-xs font-semibold tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/50"
-              >
-                <CalendarDays className="size-4 text-muted-foreground" aria-hidden="true" />
-                {rangeLabel}
-              </button>
-            </Popover.Trigger>
-            <Popover.Content
-              placement="bottom start"
-              className="w-auto rounded-2xl border border-border/60 bg-popover p-0 shadow-xl"
+            <Button
+              variant="secondary"
+              aria-label={`Change start date, showing ${rangeLabel}`}
+              className="min-w-0 gap-2 px-3 font-semibold tabular-nums max-md:h-11"
             >
-              <Popover.Dialog className="p-3 outline-none">
+              <ButtonGroup.Separator />
+              <CalendarDays className="size-4 shrink-0 text-primary" aria-hidden="true" />
+              <span className="truncate">{rangeLabel}</span>
+            </Button>
+            <Popover.Content placement="bottom" className="w-auto rounded-2xl p-0">
+              <Popover.Dialog aria-label="Start date" className="p-3 outline-none">
                 <Calendar
-                  aria-label="Matrix start date"
+                  aria-label="Start date"
                   value={toCalendarDate(start)}
                   onChange={(d) => {
                     if (d) {
@@ -339,330 +317,255 @@ export function AvailabilityMatrixClient({
                     <Calendar.NavButton slot="next" />
                   </Calendar.Header>
                   <Calendar.Grid>
-                    <Calendar.GridHeader>
-                      {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
-                    </Calendar.GridHeader>
-                    <Calendar.GridBody>
-                      {(date) => <Calendar.Cell date={date} />}
-                    </Calendar.GridBody>
+                    <Calendar.GridHeader>{(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}</Calendar.GridHeader>
+                    <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
                   </Calendar.Grid>
                 </Calendar>
               </Popover.Dialog>
             </Popover.Content>
           </Popover>
+          <Button isIconOnly aria-label={`Next ${data.days} days`} onPress={() => navigate(addDays(start, data.days))} className="text-muted-foreground max-md:size-11">
+            <ButtonGroup.Separator />
+            <ChevronRight className="size-4" />
+          </Button>
+        </ButtonGroup>
 
-          {/* Horizon pills */}
-          <div
-            role="group"
-            aria-label="Visible days"
-            className="inline-flex items-center rounded-xl border border-border/60 bg-muted/35 p-1"
-          >
-            {DAY_PRESETS.map((d) => {
-              const active = data.days === d;
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => navigate(start, d)}
-                  className={cn(
-                    "ui-press h-11 min-w-11 cursor-pointer rounded-lg px-3 text-xs font-medium tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:min-w-0 sm:px-3",
-                    active
-                      ? "bg-card font-semibold text-foreground shadow-2xs ring-1 ring-border/60"
-                      : "text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
-                  )}
-                >
-                  {d}d
-                </button>
-              );
-            })}
-          </div>
+        <ToggleButtonGroup
+          aria-label="Days shown"
+          selectionMode="single"
+          disallowEmptySelection
+          selectedKeys={(DAY_PRESETS as readonly number[]).includes(data.days) ? [String(data.days)] : []}
+          onSelectionChange={(keys) => {
+            const next = Number([...keys][0]);
+            if (next) navigate(start, next);
+          }}
+        >
+          {DAY_PRESETS.map((d, i) => (
+            <ToggleButton key={d} id={String(d)} aria-label={`${d} days`} className="tabular-nums max-md:h-11">
+              {i > 0 && <ToggleButtonGroup.Separator />}
+              {d}d
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
 
-          <button
-            type="button"
-            aria-label="Refresh inventory"
-            onClick={() => router.refresh()}
-            className="ui-press grid size-12 cursor-pointer place-items-center rounded-xl border border-border/70 bg-card text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/50 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
-          >
-            <RefreshCw className="size-4" />
-          </button>
-        </div>
-      </header>
-
-      {/* Filter input */}
-      <div className="flex items-center gap-3">
-        <div className="relative w-full sm:max-w-xs">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape" && query) {
-                e.preventDefault();
-                setQuery("");
-              }
-            }}
-            placeholder="Filter room types…"
-            aria-label="Filter room types"
-            className="h-11 w-full rounded-xl border border-border/70 bg-card pl-10 pr-10 text-base text-foreground outline-none transition-[border-color] duration-150 placeholder:text-muted-foreground/70 focus:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 sm:h-10 sm:text-sm"
-          />
-          {query && (
-            <button
-              type="button"
-              aria-label="Clear filter"
-              onClick={() => setQuery("")}
-              className="ui-press absolute right-1 top-1/2 grid size-10 -translate-y-1/2 cursor-pointer place-items-center rounded-lg text-muted-foreground sm:right-2 sm:size-8 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
-            >
-              <X className="size-4" />
-            </button>
-          )}
-        </div>
-        {query.trim() && (
-          <p className="font-mono text-xs tabular-nums text-muted-foreground" aria-live="polite">
-            {filtered.length}/{data.roomTypeRows.length}
-          </p>
+        {!atToday && (
+          <Button variant="ghost" onPress={() => navigate(parseISO(todayKey))} className="font-semibold text-primary max-md:h-11">
+            Today
+          </Button>
         )}
+
+        <SearchField aria-label="Filter room types" value={query} onChange={setQuery} className="w-full sm:ml-auto sm:w-64">
+          <SearchField.Group className="w-full rounded-xl max-md:h-11">
+            <SearchField.SearchIcon />
+            <SearchField.Input placeholder="Filter room types" />
+            <SearchField.ClearButton />
+          </SearchField.Group>
+        </SearchField>
+        <span className="sr-only" aria-live="polite">
+          {filtering ? `${filtered.length} of ${data.roomTypeRows.length} room types` : ""}
+        </span>
       </div>
 
-      {/* Matrix */}
-      <div className="availability-grid-shell" style={matrixStyle}>
-        <DateHeader dates={data.dates} todayKey={todayKey} />
+      <Card className={LIST_CARD}>
+        <div className="availability-grid-shell" style={matrixStyle}>
+          <DateHeader dates={data.dates} todayKey={todayKey} />
 
-        {/* Property-wide totals row */}
-        <div className="availability-grid-row availability-grid-total">
-          <div className="availability-sticky-cell">
-            <strong>All rooms</strong>
-            <span>Available · % sold</span>
-          </div>
-          {data.totals.map((c) => {
-            const weekend = [0, 6].includes(parseISO(c.date).getDay());
-            return (
+          {/* Property-wide: rooms left to sell and % sold */}
+          <div className="availability-grid-row availability-grid-total">
+            <div className="availability-sticky-cell">
+              <strong>All rooms</strong>
+              <span>Left · sold</span>
+            </div>
+            {data.totals.map((c) => (
               <div
                 key={c.date}
-                className={cn(
-                  "availability-total-cell",
-                  weekend && "is-weekend",
-                  c.date === todayKey && "is-today"
-                )}
+                className={cn("availability-total-cell", isWeekendDay(c.date) && "is-weekend", c.date === todayKey && "is-today")}
               >
-                <strong className={c.available === 0 ? "text-amber-600" : undefined}>
-                  {c.available}
-                </strong>
+                <strong className={c.available === 0 ? "is-full" : undefined}>{c.available}</strong>
                 <span>{c.occupancy}%</span>
               </div>
-            );
-          })}
-        </div>
-
-        {filtered.length === 0 ? (
-          <div className="px-6 py-14 text-center">
-            <p className="text-sm font-semibold text-foreground">
-              {query.trim()
-                ? `No room types match “${query.trim()}”`
-                : "No active room types"}
-            </p>
-            {query.trim() && (
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                className="ui-press mt-3 inline-flex min-h-10 cursor-pointer items-center rounded-xl border border-border bg-background px-4 text-xs font-semibold text-foreground"
-              >
-                Clear filter
-              </button>
-            )}
+            ))}
           </div>
-        ) : (
-          filtered.map((row) => (
-            <React.Fragment key={row.id}>
-              {/* Room type availability row */}
-              <div className="availability-grid-row availability-room-type-heading">
-                <div className="availability-sticky-cell">
-                  <strong>{row.name}</strong>
-                  <span>
-                    {row.roomCount} {row.roomCount === 1 ? "room" : "rooms"}
-                  </span>
-                </div>
-                {row.cells.map((c) => {
-                  const weekend = [0, 6].includes(parseISO(c.date).getDay());
-                  return (
+
+          {filtered.length === 0 ? (
+            <div className="availability-empty">
+              <ListEmpty
+                icon={Table2}
+                title={filtering ? `No room types match “${query.trim()}”` : "No active room types"}
+                action={
+                  filtering ? (
+                    <Button size="sm" variant="secondary" onPress={() => setQuery("")} className="rounded-xl max-md:h-11">
+                      Clear filter
+                    </Button>
+                  ) : undefined
+                }
+              />
+            </div>
+          ) : (
+            filtered.map((row) => (
+              <React.Fragment key={row.id}>
+                {/* Rooms left for this type */}
+                <div className="availability-grid-row availability-room-type-heading">
+                  <div className="availability-sticky-cell">
+                    <strong>{row.name}</strong>
+                    <span>
+                      {row.roomCount} {row.roomCount === 1 ? "room" : "rooms"}
+                    </span>
+                  </div>
+                  {row.cells.map((c) => (
                     <div
                       key={c.date}
-                      className={cn(
-                        "availability-total-cell",
-                        weekend && "is-weekend",
-                        c.date === todayKey && "is-today"
-                      )}
+                      className={cn("availability-total-cell", isWeekendDay(c.date) && "is-weekend", c.date === todayKey && "is-today")}
                     >
-                      <strong className={c.available === 0 ? "text-amber-600" : undefined}>
-                        {c.available}
-                      </strong>
+                      <strong className={c.available === 0 ? "is-full" : undefined}>{c.available}</strong>
                     </div>
-                  );
-                })}
-              </div>
-
-              {/* Editable nightly rate row */}
-              <div className="availability-grid-row">
-                <div className="availability-sticky-cell">
-                  <span>Rate ({data.currency})</span>
+                  ))}
                 </div>
-                {row.cells.map((c) => {
-                  const cell = rateMap.get(`${row.id}_${c.date}`);
-                  const active = editing?.roomTypeId === row.id && editing.date === c.date;
-                  const weekend = [0, 6].includes(parseISO(c.date).getDay());
-                  const marks = cell?.restrictions ? restrictionMarkers(cell.restrictions) : [];
-                  const displayPrice = cell?.price ?? row.basePrice;
 
-                  return (
-                    <Popover
-                      key={c.date}
-                      isOpen={active}
-                      onOpenChange={(open) => {
-                        if (open) openEditor(row.id, c.date, row.basePrice);
-                        else setEditing(null);
-                      }}
-                    >
-                      <Popover.Trigger>
-                        <button
-                          type="button"
-                          aria-label={`${row.name} rate on ${format(parseISO(c.date), "MMM d")}: ${data.currency} ${displayPrice}`}
-                          title={marks.length ? marks.map((m) => m.title).join(" · ") : undefined}
-                          className={cn(
-                            "availability-rate-cell",
-                            weekend && "is-weekend",
-                            c.date === todayKey && "is-today",
-                            cell?.source === "daily" && "is-daily",
-                            cell?.source === "seasonal" && "is-seasonal",
-                            cell?.restrictions?.stopSell && "is-stop-sell",
-                            marks.length > 0 && "has-restrictions",
-                            active && "z-10 ring-2 ring-inset ring-primary"
-                          )}
-                        >
-                          <strong>{ratesLoading ? "…" : displayPrice}</strong>
-                          {cell?.source === "daily" && (
-                            <span className="rate-dot" aria-hidden="true" />
-                          )}
-                          {marks.length > 0 && (
-                            <>
+                {/* Nightly rate; press a cell to override it */}
+                <div className="availability-grid-row">
+                  <div className="availability-sticky-cell">
+                    <span>Rate · {data.currency}</span>
+                  </div>
+                  {row.cells.map((c) => {
+                    const cell = rateMap.get(`${row.id}_${c.date}`);
+                    const active = editing?.roomTypeId === row.id && editing.date === c.date;
+                    const marks = cell?.restrictions ? restrictionMarkers(cell.restrictions) : [];
+                    const displayPrice = cell?.price ?? row.basePrice;
+                    const dayLabel = format(parseISO(c.date), "EEE, MMM d");
+                    const sourceLabel = cell?.source === "daily" ? "override" : cell?.source === "seasonal" ? "season rate" : "base rate";
+
+                    return (
+                      <Popover
+                        key={c.date}
+                        isOpen={active}
+                        onOpenChange={(open) => {
+                          if (open) openEditor(row.id, c.date, row.basePrice);
+                          else setEditing(null);
+                        }}
+                      >
+                        <Popover.Trigger>
+                          <button
+                            type="button"
+                            aria-label={`${row.name}, ${dayLabel}: ${data.currency} ${displayPrice}, ${sourceLabel}${marks.length ? `. ${marks.map((m) => m.title).join(". ")}` : ""}`}
+                            title={marks.length ? marks.map((m) => m.title).join(" · ") : undefined}
+                            className={cn(
+                              "availability-rate-cell",
+                              isWeekendDay(c.date) && "is-weekend",
+                              c.date === todayKey && "is-today",
+                              cell?.source === "daily" && "is-daily",
+                              cell?.source === "seasonal" && "is-seasonal",
+                              cell?.restrictions?.stopSell && "is-stop-sell",
+                              marks.length > 0 && "has-restrictions",
+                              active && "is-active"
+                            )}
+                          >
+                            <strong>{ratesLoading ? "…" : displayPrice}</strong>
+                            {cell?.source === "daily" && <span className="rate-dot" aria-hidden="true" />}
+                            {marks.length > 0 && (
                               <span className="rate-restrictions" aria-hidden="true">
                                 {marks.slice(0, 2).map((m) => (
-                                  <span
-                                    key={m.code}
-                                    className={cn("rate-restriction", `is-${m.code}`)}
-                                  >
+                                  <span key={m.code} className={cn("rate-restriction", `is-${m.code}`)}>
                                     {m.label}
                                   </span>
                                 ))}
-                                {marks.length > 2 && (
-                                  <span className="rate-restriction is-more">
-                                    +{marks.length - 2}
-                                  </span>
-                                )}
+                                {marks.length > 2 && <span className="rate-restriction is-more">+{marks.length - 2}</span>}
                               </span>
-                              <span className="sr-only">
-                                {`${row.name} ${format(parseISO(c.date), "MMM d")}: ${marks.map((m) => m.title).join(". ")}`}
-                              </span>
-                            </>
-                          )}
-                        </button>
-                      </Popover.Trigger>
-
-                      <Popover.Content
-                        placement="bottom"
-                        offset={6}
-                        className="w-[236px] rounded-2xl border border-border/70 bg-popover p-0 shadow-xl"
-                      >
-                        <Popover.Dialog className="grid gap-3 p-4 outline-none">
-                          <div className="flex items-baseline justify-between gap-2">
-                            <span className="truncate text-xs font-semibold text-foreground">
-                              {row.name}
-                            </span>
-                            <span className="shrink-0 font-mono text-2xs text-muted-foreground">
-                              {format(parseISO(c.date), "EEE, MMM d")}
-                            </span>
-                          </div>
-
-                          {marks.length > 0 && (
-                            <ul className="grid gap-1 rounded-xl border border-amber-500/25 bg-amber-500/[0.08] px-3 py-2 text-2xs leading-snug text-amber-900">
-                              {marks.map((m) => (
-                                <li key={m.code}>{m.title}</li>
-                              ))}
-                            </ul>
-                          )}
-
-                          <div className="relative">
-                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-mono text-xs text-muted-foreground">
-                              {data.currency}
-                            </span>
-                            <input
-                              type="number"
-                              inputMode="decimal"
-                              min="0.01"
-                              step="0.01"
-                              value={price}
-                              onChange={(e) => setPrice(e.target.value)}
-                              autoFocus
-                              aria-label={`Nightly rate in ${data.currency}`}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  const n = Number(price);
-                                  if (n > 0)
-                                    save.mutate({ roomTypeId: row.id, date: c.date, price: n });
-                                }
-                                if (e.key === "Escape") setEditing(null);
-                              }}
-                              className="h-10 w-full rounded-xl border border-border/70 bg-background pl-12 pr-3 font-mono text-base font-semibold tabular-nums text-foreground outline-none focus:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 sm:h-10 sm:text-sm"
-                            />
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <HeroButton
-                              size="sm"
-                              variant="primary"
-                              isPending={save.isPending}
-                              onPress={() => {
-                                const n = Number(price);
-                                if (n > 0)
-                                  save.mutate({ roomTypeId: row.id, date: c.date, price: n });
-                              }}
-                              className="ui-press h-11 flex-1 rounded-xl text-xs font-semibold sm:h-10"
-                            >
-                              Save rate
-                            </HeroButton>
-                            {cell?.source === "daily" && (
-                              <HeroButton
-                                size="sm"
-                                variant="tertiary"
-                                isPending={clear.isPending}
-                                onPress={() =>
-                                  clear.mutate({
-                                    roomTypeId: row.id,
-                                    date: c.date,
-                                    fallbackPrice: row.basePrice,
-                                  })
-                                }
-                                className="ui-press h-11 rounded-xl border border-border/70 bg-background px-3 text-xs font-semibold text-destructive sm:h-10"
-                              >
-                                Reset
-                              </HeroButton>
                             )}
-                          </div>
-                        </Popover.Dialog>
-                      </Popover.Content>
-                    </Popover>
-                  );
-                })}
-              </div>
-            </React.Fragment>
-          ))
-        )}
-      </div>
+                          </button>
+                        </Popover.Trigger>
+
+                        <Popover.Content placement="bottom" offset={8} className="w-64 rounded-2xl p-0">
+                          <Popover.Dialog aria-label={`${row.name} rate, ${dayLabel}`} className="grid gap-3 p-4 outline-none">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="truncate text-xs font-semibold text-foreground">{row.name}</span>
+                              <span className="shrink-0 text-2xs tabular-nums text-muted-foreground">{dayLabel}</span>
+                            </div>
+
+                            {marks.length > 0 && (
+                              <ul className="grid gap-1 rounded-xl bg-amber-500/[0.08] px-3 py-2 text-2xs leading-snug text-amber-900">
+                                {marks.map((m) => (
+                                  <li key={m.code}>{m.title}</li>
+                                ))}
+                              </ul>
+                            )}
+
+                            <TextField aria-label={`Nightly rate in ${data.currency}`} value={price} onChange={setPrice} type="number" autoFocus className="w-full min-w-0">
+                              <InputGroup className="w-full min-w-0 rounded-xl max-md:h-11">
+                                <InputGroup.Prefix className="text-xs font-medium text-muted-foreground">{data.currency}</InputGroup.Prefix>
+                                <InputGroup.Input
+                                  inputMode="decimal"
+                                  min="0.01"
+                                  step="0.01"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      const n = Number(price);
+                                      if (n > 0) save.mutate({ roomTypeId: row.id, date: c.date, price: n });
+                                    }
+                                    if (e.key === "Escape") setEditing(null);
+                                  }}
+                                  className="min-w-0 font-semibold tabular-nums max-md:text-base"
+                                />
+                              </InputGroup>
+                            </TextField>
+
+                            <div className="flex items-center gap-2">
+                              {cell?.source === "daily" && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  isPending={clear.isPending}
+                                  onPress={() => clear.mutate({ roomTypeId: row.id, date: c.date, fallbackPrice: row.basePrice })}
+                                  className="rounded-lg text-danger max-md:h-11"
+                                >
+                                  Reset
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                isPending={save.isPending}
+                                onPress={() => {
+                                  const n = Number(price);
+                                  if (n > 0) save.mutate({ roomTypeId: row.id, date: c.date, price: n });
+                                }}
+                                className="ml-auto rounded-lg font-semibold max-md:h-11"
+                              >
+                                Save rate
+                              </Button>
+                            </div>
+                          </Popover.Dialog>
+                        </Popover.Content>
+                      </Popover>
+                    );
+                  })}
+                </div>
+              </React.Fragment>
+            ))
+          )}
+        </div>
+      </Card>
+
+      <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground" aria-label="Rate colours">
+        <li className="flex items-center gap-2">
+          <span aria-hidden="true" className="size-3 rounded bg-emerald-500/30" />
+          Season rate
+        </li>
+        <li className="flex items-center gap-2">
+          <span aria-hidden="true" className="size-3 rounded bg-primary/40" />
+          Override
+        </li>
+        <li className="flex items-center gap-2">
+          <span aria-hidden="true" className="size-3 rounded bg-danger/20" />
+          Closed to sale
+        </li>
+      </ul>
     </div>
   );
+}
+
+function isWeekendDay(date: string) {
+  return [0, 6].includes(parseISO(date).getDay());
 }
 
 function DateHeader({ dates, todayKey }: { dates: string[]; todayKey: string }) {
@@ -673,16 +576,8 @@ function DateHeader({ dates, todayKey }: { dates: string[]; todayKey: string }) 
       </div>
       {dates.map((d) => {
         const p = parseISO(d);
-        const weekend = [0, 6].includes(p.getDay());
         return (
-          <div
-            key={d}
-            className={cn(
-              "availability-date-cell",
-              d === todayKey && "is-today",
-              weekend && "is-weekend"
-            )}
-          >
+          <div key={d} className={cn("availability-date-cell", d === todayKey && "is-today", isWeekendDay(d) && "is-weekend")}>
             <span>{format(p, "EEE")}</span>
             <strong>{format(p, "d")}</strong>
             <small>{format(p, "MMM")}</small>
