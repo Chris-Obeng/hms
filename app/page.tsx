@@ -37,8 +37,11 @@ export const metadata: Metadata = {
     description,
   },
   icons: {
-    icon: [{ url: "/images/landing/roomline-icon.svg", type: "image/svg+xml" }],
-    apple: "/images/landing/roomline-icon-180.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/icons/icon-180x180.png",
   },
 };
 

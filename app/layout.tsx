@@ -54,11 +54,14 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
+    // favicon.ico for legacy and default /favicon.ico requests, SVG for every
+    // current browser, a full-bleed PNG for iOS (which rounds corners itself).
+    // All generated from lib/brand/mark.ts by `pnpm icons`.
     icon: [
-      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/favicon.ico", sizes: "48x48" },
       { url: "/icons/icon.svg", type: "image/svg+xml" },
     ],
-    apple: "/icons/icon-180x180.png",
+    apple: { url: "/icons/icon-180x180.png", sizes: "180x180", type: "image/png" },
   },
 };
 

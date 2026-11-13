@@ -1,15 +1,11 @@
-﻿/**
- * Architectural three-bar elevation mark — matches RoomLine's /sign-in and
- * /sign-up threshold identity with brushed key-brass center column.
+import { RoomLineGlyph } from "@/components/brand/roomline-mark";
+
+/**
+ * RoomLine open-door mark (see lib/brand/mark.ts) in the landing ink, with the
+ * lit room in brass.
  */
 export function Logo() {
-  return (
-    <span className="rl-mark" aria-hidden="true">
-      <span className="rl-mark-bar rl-mark-bar--1" />
-      <span className="rl-mark-bar rl-mark-bar--2" />
-      <span className="rl-mark-bar rl-mark-bar--3" />
-    </span>
-  );
+  return <RoomLineGlyph size={22} className="rl-mark" />;
 }
 
 export function Wordmark({ period = true }: { period?: boolean }) {

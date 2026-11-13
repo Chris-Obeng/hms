@@ -33,6 +33,7 @@ import {
   ListBox,
   ScrollShadow,
 } from "@heroui/react";
+import { RoomLineMark } from "@/components/brand/roomline-mark";
 
 // ── Role helpers ───────────────────────────────────────────────
 
@@ -249,9 +250,7 @@ export function AppSidebar() {
           aria-label="Hotel settings"
           className="group flex min-w-0 items-center gap-3 rounded-lg px-1 py-1 text-left outline-hidden ring-sidebar-ring focus-visible:ring-2"
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm ring-1 ring-black/5">
-            <span className="text-sm font-bold leading-none">R</span>
-          </span>
+          <RoomLineMark size={32} className="shadow-sm" />
           <span className="truncate text-md font-semibold leading-tight tracking-tight text-sidebar-foreground transition-colors group-hover:text-sidebar-foreground/75">
             RoomLine
           </span>

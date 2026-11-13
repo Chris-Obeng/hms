@@ -18,6 +18,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { PlatformSignOutButton } from "../_sign-out";
+import { RoomLineMark } from "@/components/brand/roomline-mark";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -91,11 +92,7 @@ export function PlatformSidebar({ admin }: { admin: PlatformAdmin | null }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
             {/* Logo mark */}
-            <div className="size-8 rounded-lg bg-foreground flex items-center justify-center shrink-0 ring-1 ring-foreground/20">
-              <span className="text-sm font-bold text-background leading-none">
-                H
-              </span>
-            </div>
+            <RoomLineMark size={32} />
             {/* Brand name — hidden when icon-collapsed */}
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
               <p className="text-sm font-semibold text-sidebar-foreground truncate leading-tight">

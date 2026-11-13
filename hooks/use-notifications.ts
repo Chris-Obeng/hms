@@ -452,6 +452,7 @@ export function useNotifications({
         const n = new Notification(presented.title, {
           body: presented.message,
           icon: "/icons/icon-192x192.png",
+          badge: "/icons/badge-96x96.png",
           tag: `roomline-notif-${item.id}`,
         });
         if (presented.href) {

@@ -188,18 +188,6 @@
   border-radius: 4px;
 }
 
-.ob-brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.625rem;
-  height: 1.625rem;
-  border-radius: 0.4375rem;
-  background-color: var(--ob-primary);
-  color: var(--ob-primary-fg);
-  flex-shrink: 0;
-}
-
 .ob-brand-name {
   font-size: 0.9375rem;
   font-weight: 700;
