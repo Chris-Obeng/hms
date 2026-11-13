@@ -1327,7 +1327,7 @@ export function PricingClient({
                         onKeyDown={(e) => {
                           if (e.key === "Enter") handleSaveBulkOverride();
                         }}
-                        className="tabular-nums max-md:text-base"
+                        className="min-w-0 tabular-nums max-md:text-base"
                       />
                     </InputGroup>
                   </TextField>
@@ -1710,7 +1710,7 @@ function RateField({ label, currency, value, onValue, placeholder }: {
       <Label className={FIELD_LABEL}>{label}</Label>
       <InputGroup className="rounded-xl max-md:h-11">
         <InputGroup.Prefix className="text-xs font-medium text-muted-foreground">{currency}</InputGroup.Prefix>
-        <InputGroup.Input inputMode="decimal" min="0" step="0.01" placeholder={placeholder} className="tabular-nums max-md:text-base" />
+        <InputGroup.Input inputMode="decimal" min="0" step="0.01" placeholder={placeholder} className="min-w-0 tabular-nums max-md:text-base" />
       </InputGroup>
     </TextField>
   );
@@ -1734,7 +1734,7 @@ function ApplyAllField({ label, currency, value, onValue, onApply }: {
             onKeyDown={(e) => {
               if (e.key === "Enter") onApply();
             }}
-            className="tabular-nums max-md:text-base"
+            className="min-w-0 tabular-nums max-md:text-base"
           />
         </InputGroup>
       </TextField>
@@ -1767,8 +1767,8 @@ function SingleRatePopover({ label, currency, value, onValue, onClose, onSave, s
         <Popover.Content placement="top" className="w-64 rounded-2xl p-0">
           <Popover.Dialog aria-label={label} className="grid gap-3 p-4 outline-none">
             <p className="truncate text-xs font-semibold text-foreground">{label}</p>
-            <TextField aria-label={`Rate in ${currency}`} value={value} onChange={onValue} type="number" autoFocus>
-              <InputGroup className="rounded-xl">
+            <TextField aria-label={`Rate in ${currency}`} value={value} onChange={onValue} type="number" autoFocus className="w-full min-w-0">
+              <InputGroup className="w-full min-w-0 rounded-xl">
                 <InputGroup.Prefix className="text-xs font-medium text-muted-foreground">{currency}</InputGroup.Prefix>
                 <InputGroup.Input
                   inputMode="decimal"
@@ -1779,7 +1779,7 @@ function SingleRatePopover({ label, currency, value, onValue, onClose, onSave, s
                     if (e.key === "Enter") onSave();
                     else if (e.key === "Escape") onClose();
                   }}
-                  className="tabular-nums"
+                  className="min-w-0 tabular-nums"
                 />
               </InputGroup>
             </TextField>

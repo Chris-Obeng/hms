@@ -463,7 +463,7 @@ function PriceField({
       <Label className={FIELD_LABEL}>{label}</Label>
       <InputGroup className="rounded-xl max-md:h-11">
         <InputGroup.Prefix className="text-xs font-medium text-muted-foreground">{currency}</InputGroup.Prefix>
-        <InputGroup.Input min="0" step="0.01" inputMode="decimal" placeholder={placeholder} className="tabular-nums max-md:text-base" />
+        <InputGroup.Input min="0" step="0.01" inputMode="decimal" placeholder={placeholder} className="min-w-0 tabular-nums max-md:text-base" />
       </InputGroup>
       <FieldError>{error}</FieldError>
     </TextField>

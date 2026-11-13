@@ -678,7 +678,7 @@ export function RoomsClient({
         {hasTypes && (
           <div className="flex flex-wrap items-center gap-3 p-4 sm:px-6">
             <SearchField value={query} onChange={setQuery} aria-label="Search rooms" className="w-full min-w-0 sm:w-72">
-              <SearchField.Group className="rounded-xl max-md:h-11">
+              <SearchField.Group className="w-full rounded-xl max-md:h-11">
                 <SearchField.SearchIcon />
                 <SearchField.Input placeholder="Room number or type" />
                 <SearchField.ClearButton />

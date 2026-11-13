@@ -262,7 +262,7 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
               onChange={setGlobalFilter}
               className="min-w-0 flex-1 md:max-w-72 md:flex-none md:basis-72"
             >
-              <SearchField.Group className="rounded-xl max-md:h-11">
+              <SearchField.Group className="w-full rounded-xl max-md:h-11">
                 <SearchField.SearchIcon />
                 <SearchField.Input placeholder="Search reservations" />
                 <SearchField.ClearButton />
