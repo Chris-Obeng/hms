@@ -29,6 +29,7 @@ import {
 import { NotificationBell } from "@/components/ui/notification-bell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNotifications } from "@/hooks/use-notifications";
+import { useAppBadge } from "@/hooks/use-app-badge";
 import {
   presentStaffNotification,
   type StaffNotificationCategory,
@@ -494,6 +495,9 @@ export function NotificationCenter({
     initialUnreadCount,
     enabled: Boolean(hotelId),
   });
+
+  // Show the unread count on the installed app icon (dock / home screen).
+  useAppBadge(unreadCount);
 
   // Track breakpoint via capability/viewport media query so desktop renders an
   // origin-anchored Popover and mobile renders a bottom Drawer sheet.

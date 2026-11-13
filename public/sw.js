@@ -3,7 +3,13 @@
  * static caching. Served from the root scope by definition.
  */
 
-const VERSION = "v7";
+// Bump on any change to cached public assets: /icons is served cache-first, so
+// a new version is what retires the previous brand icons from installed apps.
+const VERSION = "v8";
+const NOTIFICATION_ICON = "/icons/icon-192x192.png";
+// Android masks the badge to a silhouette from its alpha channel (MDN ›
+// showNotification › badge), so it must be a transparent, single-colour image.
+const NOTIFICATION_BADGE = "/icons/badge-96x96.png";
 const CACHE_STATIC = `rl-static-${VERSION}`;
 const CACHE_IMAGES = `rl-images-${VERSION}`;
 const CACHE_AVAILABILITY = `rl-availability-${VERSION}`;
@@ -266,8 +272,8 @@ self.addEventListener("push", (event) => {
     const tag = data.tag || (notifId ? `roomline-notif-${notifId}` : "roomline-notification");
     await self.registration.showNotification(data.title || "RoomLine update", {
       body: data.body || data.message || "Tap to view details in RoomLine.",
-      icon: data.icon || "/icons/icon-192x192.png",
-      badge: "/icons/icon-192x192.png",
+      icon: data.icon || NOTIFICATION_ICON,
+      badge: NOTIFICATION_BADGE,
       tag,
       renotify: true,
       data: {
@@ -275,6 +281,11 @@ self.addEventListener("push", (event) => {
         notificationId: notifId,
       },
     });
+    // Flag the installed app icon; the open app replaces it with the exact
+    // unread count (hooks/use-app-badge.ts). Unsupported platforms skip it.
+    if (typeof self.navigator?.setAppBadge === "function") {
+      await self.navigator.setAppBadge().catch(() => {});
+    }
   })());
 });
 

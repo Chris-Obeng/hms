@@ -311,28 +311,8 @@
 }
 
 .rl-landing .rl-mark {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 2.5px;
-}
-
-.rl-landing .rl-mark-bar {
   display: block;
-  width: 4.5px;
-  background-color: var(--rl-ink);
-}
-
-.rl-landing .rl-mark-bar--1 {
-  height: 12px;
-}
-
-.rl-landing .rl-mark-bar--2 {
-  height: 19px;
-  background-color: var(--rl-brass);
-}
-
-.rl-landing .rl-mark-bar--3 {
-  height: 15px;
+  color: var(--rl-ink);
 }
 
 .rl-landing .rl-wordmark-text {

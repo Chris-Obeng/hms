@@ -178,7 +178,7 @@ export function registerPwaTests(test) {
     });
     await app.install().settle();
     assert.equal(app.skipped(), true);
-    assert.equal(await (await app.cache("rl-navigation-v7").match("/offline")).text(), offlineDocument);
+    assert.equal(await (await app.cache("rl-navigation-v8").match("/offline")).text(), offlineDocument);
   });
 
   for (const [label, response] of [
@@ -201,22 +201,22 @@ export function registerPwaTests(test) {
 
   test("activation removes only obsolete RoomLine cache namespaces", async () => {
     const app = worker();
-    for (const name of ["rl-navigation-v5", "rl-static-v5", "rl-navigation-v6", "rl-navigation-v7", "other-app-v4", "rl-custom-v1"]) app.cache(name);
+    for (const name of ["rl-navigation-v5", "rl-static-v5", "rl-navigation-v6", "rl-navigation-v7", "rl-navigation-v8", "other-app-v4", "rl-custom-v1"]) app.cache(name);
     await app.activate().settle();
-    assert.deepEqual([...app.stores.keys()], ["rl-navigation-v7", "other-app-v4", "rl-custom-v1"]);
+    assert.deepEqual([...app.stores.keys()], ["rl-navigation-v8", "other-app-v4", "rl-custom-v1"]);
     assert.equal(app.claimed(), true);
   });
 
   test("failed navigation uses only the dedicated public offline cache", async () => {
     const app = worker(async () => { throw new Error("offline"); });
     await app.cache("other-app").put("/dashboard", new Response("private stale HTML"));
-    await app.cache("rl-navigation-v7").put("/offline", offlineResponse());
+    await app.cache("rl-navigation-v8").put("/offline", offlineResponse());
     assert.equal(await (await app.fetch().response).text(), offlineDocument);
   });
 
   test("slow navigation times out to cached fallback", async () => {
     const app = worker(() => new Promise(() => {}));
-    await app.cache("rl-navigation-v7").put("/offline", offlineResponse());
+    await app.cache("rl-navigation-v8").put("/offline", offlineResponse());
     const event = app.fetch();
     app.clock.expire();
     assert.equal(await (await event.response).text(), offlineDocument);
@@ -241,7 +241,7 @@ export function registerPwaTests(test) {
 
   test("missing/invalid fallback returns a network error, not another app's HTML", async () => {
     const app = worker(async () => { throw new Error("offline"); });
-    await app.cache("rl-navigation-v7").put("/offline", new Response("unverified"));
+    await app.cache("rl-navigation-v8").put("/offline", new Response("unverified"));
     assert.equal((await app.fetch().response).type, "error");
   });
 
@@ -269,7 +269,7 @@ export function registerPwaTests(test) {
     const event = app.fetch("/_next/static/chunk.js", {}, false);
     assert.equal(await (await event.response).text(), "asset bytes");
     await event.settle();
-    assert.equal(await (await app.cache("rl-static-v7").match("/_next/static/chunk.js")).text(), "asset bytes");
+    assert.equal(await (await app.cache("rl-static-v8").match("/_next/static/chunk.js")).text(), "asset bytes");
   });
 
   test("storage quota failures do not lose successful network responses", async () => {
@@ -282,26 +282,26 @@ export function registerPwaTests(test) {
   test("background revalidation updates static cache after cached response is returned", async () => {
     let finish;
     const app = worker(() => new Promise((resolve) => { finish = resolve; }));
-    await app.cache("rl-static-v7").put("/_next/static/chunk.js", new Response("old"));
+    await app.cache("rl-static-v8").put("/_next/static/chunk.js", new Response("old"));
     const event = app.fetch("/_next/static/chunk.js", {}, false);
     assert.equal(await (await event.response).text(), "old");
     finish(new Response("new"));
     await event.settle();
-    assert.equal(await (await app.cache("rl-static-v7").match("/_next/static/chunk.js")).text(), "new");
+    assert.equal(await (await app.cache("rl-static-v8").match("/_next/static/chunk.js")).text(), "new");
   });
 
   test("parallel static cache writes respect entry limit", async () => {
     const app = worker(async () => new Response("asset"));
     const events = Array.from({ length: 70 }, (_, index) => app.fetch(`/_next/static/${index}.js`, {}, false));
     await Promise.all(events.map((event) => event.settle()));
-    assert.equal((await app.cache("rl-static-v7").keys()).length, 64);
+    assert.equal((await app.cache("rl-static-v8").keys()).length, 64);
   });
 
   test("availability expires at 120s and rejects unknown or invalid freshness", async () => {
     for (const timestamp of [undefined, "invalid", String(Date.now() - 120001), String(Date.now() + 60000)]) {
       const app = worker(async () => { throw new Error("offline"); });
       const headers = timestamp === undefined ? {} : { "x-roomline-cached-at": timestamp };
-      await app.cache("rl-availability-v7").put("/api/booking/demo/availability", new Response("stale", { headers }));
+      await app.cache("rl-availability-v8").put("/api/booking/demo/availability", new Response("stale", { headers }));
       const event = app.fetch("/api/booking/demo/availability", { credentials: "omit" }, false);
       assert.equal((await event.response).type, "error");
       await event.settle();
@@ -310,7 +310,7 @@ export function registerPwaTests(test) {
 
   test("recent public availability is available on network failure", async () => {
     const app = worker(async () => { throw new Error("offline"); });
-    await app.cache("rl-availability-v7").put("/api/booking/demo/availability", new Response("fresh", {
+    await app.cache("rl-availability-v8").put("/api/booking/demo/availability", new Response("fresh", {
       headers: { "x-roomline-cached-at": String(Date.now()) },
     }));
     const event = app.fetch("/api/booking/demo/availability", { credentials: "omit" }, false);
@@ -323,7 +323,7 @@ export function registerPwaTests(test) {
       const app = worker(async () => new Response("not public", { headers }));
       const event = app.fetch("/_next/static/chunk.js", {}, false);
       await event.settle();
-      assert.equal(await app.cache("rl-static-v7").match("/_next/static/chunk.js"), undefined);
+      assert.equal(await app.cache("rl-static-v8").match("/_next/static/chunk.js"), undefined);
     }
   });
 

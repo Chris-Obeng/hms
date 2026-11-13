@@ -36,6 +36,7 @@ import { OnboardingInput as OBInput } from "./_components/onboarding-input";
 import { OnboardingSelect as OBSelect } from "./_components/onboarding-select";
 import { RoomStepper } from "./_components/room-stepper";
 import "./onboarding.css";
+import { RoomLineMark } from "@/components/brand/roomline-mark";
 
 // ─── Draft persistence ─────────────────────────────────────────────────────────
 
@@ -270,13 +271,7 @@ const STEP_LABELS = ["Property", "Location & contact"];
 function BrandLink() {
   return (
     <Link href="/" className="ob-brand" aria-label="RoomLine home">
-      <span className="ob-brand-mark" aria-hidden="true">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-          <rect x="2" y="7" width="5" height="7.5" rx="1" fill="currentColor" fillOpacity="0.92" />
-          <rect x="9" y="3.5" width="5" height="11" rx="1" fill="currentColor" fillOpacity="0.65" />
-          <rect x="1.5" y="14" width="13" height="1.2" rx="0.6" fill="currentColor" />
-        </svg>
-      </span>
+      <RoomLineMark size={26} />
       <span className="ob-brand-name">RoomLine</span>
     </Link>
   );

@@ -11,6 +11,7 @@ import { DashboardSearch } from "@/app/dashboard/_components/dashboard-search";
 import type { GuestSearchResult } from "@/app/actions/customers";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
+import { RoomLineMark } from "@/components/brand/roomline-mark";
 
 const NewBookingModal = dynamic(
   () => import("@/components/bookings/new-booking-modal").then((mod) => mod.NewBookingModal),
@@ -89,6 +90,7 @@ export function AppHeader({
             title="Hotel settings"
             className="group flex min-h-11 min-w-0 cursor-pointer items-center gap-2 rounded-lg px-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-0 sm:p-1"
           >
+            <RoomLineMark size={24} />
             <span className="truncate text-lg font-bold tracking-tight text-foreground transition-colors [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-foreground/80">
               RoomLine
             </span>
