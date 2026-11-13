@@ -47,7 +47,8 @@ export function formatCurrencySymbol(
   currency = DEFAULT_CURRENCY,
   options: { exact?: boolean } = {}
 ): string {
-  const text = formatMajor(amount, currency, { showDecimals: options.exact ?? false });
+  // `signDisplay: "negative"` keeps values that round to zero (-0.4 -> "₵0") from showing as "-₵0".
+  const text = formatMajor(amount, currency, { showDecimals: options.exact ?? false, intl: { signDisplay: "negative" } });
   return currency.toUpperCase() === "GHS" ? text.replace("GH₵", "₵") : text;
 }
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { cn } from "@/lib/utils";
 import { qk } from "@/lib/query-keys";
 import { AMENITIES_LIST } from "@/lib/amenities";
+import { formatCurrencySymbol } from "@/lib/format";
 
 describe("cn", () => {
   it("joins class names", () => {
@@ -59,5 +60,29 @@ describe("amenities", () => {
       expect(amenity.icon).toBeTruthy();
       expect(amenity.label).toBeTruthy();
     }
+  });
+});
+
+describe("formatCurrencySymbol", () => {
+  it("shows the bare cedi symbol with whole units by default", () => {
+    expect(formatCurrencySymbol(10164.4, "GHS")).toBe("₵10,164");
+    expect(formatCurrencySymbol(10164.5, "ghs")).toBe("₵10,165");
+  });
+  it("puts the minus before the symbol for negatives", () => {
+    expect(formatCurrencySymbol(-250.5, "GHS")).toBe("-₵251");
+  });
+  it("never shows a negative zero", () => {
+    expect(formatCurrencySymbol(0, "GHS")).toBe("₵0");
+    expect(formatCurrencySymbol(-0, "GHS")).toBe("₵0");
+    expect(formatCurrencySymbol(-0.4, "GHS")).toBe("₵0");
+    expect(formatCurrencySymbol(-0.001, "GHS", { exact: true })).toBe("₵0.00");
+  });
+  it("keeps the decimals when exact", () => {
+    expect(formatCurrencySymbol(10164.4, "GHS", { exact: true })).toBe("₵10,164.40");
+    expect(formatCurrencySymbol(-0.4, "GHS", { exact: true })).toBe("-₵0.40");
+  });
+  it("leaves other currencies with the symbol Intl gives them", () => {
+    expect(formatCurrencySymbol(10164.4, "USD")).toBe("US$10,164");
+    expect(formatCurrencySymbol(-250.5, "USD")).toBe("-US$251");
   });
 });
