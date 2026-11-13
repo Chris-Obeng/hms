@@ -1,4 +1,12 @@
 import { ImageResponse } from "next/og";
+import {
+  BRAND,
+  GLYPH_VIEWBOX,
+  MARK_FRAME_PATH,
+  MARK_LEAF_PATH,
+  MARK_LIGHT_PATH,
+  MARK_STROKE_WIDTH,
+} from "@/lib/brand/mark";
 
 export const alt =
   "RoomLine — Hotel software for independent properties in Ghana";
@@ -20,29 +28,19 @@ export default function OpengraphImage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 5 }}>
-            <div
-              style={{
-                width: 9,
-                height: 22,
-                backgroundColor: "#F4F4F0",
-              }}
+          {/* Open-door mark (lib/brand/mark.ts) on the ink background. */}
+          <svg viewBox={GLYPH_VIEWBOX} width={41} height={40}>
+            <path d={MARK_LIGHT_PATH} fill={BRAND.brass} />
+            <path d={MARK_LEAF_PATH} fill={BRAND.ink} />
+            <path
+              d={MARK_FRAME_PATH}
+              fill="none"
+              stroke={BRAND.paper}
+              strokeWidth={MARK_STROKE_WIDTH}
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
-            <div
-              style={{
-                width: 9,
-                height: 35,
-                backgroundColor: "#D8B25C",
-              }}
-            />
-            <div
-              style={{
-                width: 9,
-                height: 27,
-                backgroundColor: "#F4F4F0",
-              }}
-            />
-          </div>
+          </svg>
           <span
             style={{
               color: "#F4F4F0",

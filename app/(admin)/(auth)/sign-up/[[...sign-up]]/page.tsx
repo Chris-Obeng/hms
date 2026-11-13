@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SignUp } from "@clerk/nextjs";
+import { RoomLineGlyph } from "@/components/brand/roomline-mark";
 
 export default function Page() {
   return (
@@ -7,7 +8,7 @@ export default function Page() {
       <header className="border-b border-[#E9E2D6] bg-[#FDFCFA]/80 backdrop-blur">
         <div className="mx-auto w-full max-w-[80rem] px-6 lg:px-8 flex h-18 items-center justify-between">
           <Link href="/" className="inline-flex items-center gap-2 text-[#0F1D1A]" style={{ fontFamily: "var(--font-fraunces)" }}>
-            <span className="flex items-end gap-[3px] skew-y-[-10deg]"><span className="block w-[6px] h-4 bg-[#0F1D1A] rounded-[1px]" /><span className="block w-[6px] h-6 bg-[#C8A96A] rounded-[1px]" /><span className="block w-[6px] h-5 bg-[#0F1D1A] rounded-[1px]" /></span>
+            <RoomLineGlyph size={22} className="text-[#0F1D1A]" />
             <span className="text-[1.25rem] font-bold tracking-[-0.04em]">RoomLine<span className="text-[#C8A96A]">.</span></span>
           </Link>
           <Link href="/sign-in" className="text-sm font-medium text-[#6B7571] hover:text-[#0F1D1A]">Sign in</Link>

@@ -6,7 +6,7 @@ export const offlineDocument = `<!doctype html>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="color-scheme" content="light">
     <meta name="robots" content="noindex">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f172a'/%3E%3Crect x='8' y='15' width='4' height='10' rx='1' fill='%23f8fafc'/%3E%3Crect x='14' y='8' width='4' height='17' rx='1' fill='%23c8a96a'/%3E%3Crect x='20' y='12' width='4' height='13' rx='1' fill='%23f8fafc'/%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%2310241E'/%3E%3Cpath d='M140 368V232a92 92 0 0 1 184 0v136z' fill='%23D8B25C'/%3E%3Cpath d='M140 368V226l82 24v104z' fill='%2310241E'/%3E%3Cpath d='M140 368V232a92 92 0 0 1 184 0v136M140 368h236' fill='none' stroke='%23F6F6F3' stroke-width='36' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
     <title>Connection unavailable · RoomLine</title>
     <style>
       *, *::before, *::after {
@@ -97,22 +97,12 @@ export const offlineDocument = `<!doctype html>
       }
 
       .brand-mark {
-        display: inline-flex;
-        align-items: flex-end;
-        gap: 2.5px;
-        flex-shrink: 0;
-      }
-
-      .brand-mark .bar {
         display: block;
-        width: 4px;
-        border-radius: 1px;
-        background-color: var(--ink);
+        flex-shrink: 0;
+        color: var(--ink);
       }
 
-      .brand-mark .bar-1 { height: 11px; }
-      .brand-mark .bar-2 { height: 18px; background-color: var(--brass); }
-      .brand-mark .bar-3 { height: 14px; }
+      .brand-mark .light { fill: var(--brass); }
 
       .brand-name {
         font-size: 1.0625rem;
@@ -454,7 +444,14 @@ export const offlineDocument = `<!doctype html>
           color: CanvasText;
         }
 
-        .brand-mark .bar,
+        .brand-mark {
+          color: CanvasText;
+        }
+
+        .brand-mark .light {
+          fill: Canvas;
+        }
+
         .signal-dot,
         .emblem-dot {
           background: CanvasText;
@@ -477,11 +474,12 @@ export const offlineDocument = `<!doctype html>
   <body>
     <header class="topbar">
       <div class="brand">
-        <span class="brand-mark" aria-hidden="true">
-          <span class="bar bar-1"></span>
-          <span class="bar bar-2"></span>
-          <span class="bar bar-3"></span>
-        </span>
+        <!-- Open-door mark: geometry mirrors lib/brand/mark.ts (this document stays import-free). -->
+        <svg class="brand-mark" aria-hidden="true" focusable="false" viewBox="122 122 272 264" width="19" height="18">
+          <path class="light" d="M140 368V232a92 92 0 0 1 184 0v136z"/>
+          <path d="M140 368V226l82 24v104z" fill="currentColor"/>
+          <path d="M140 368V232a92 92 0 0 1 184 0v136M140 368h236" fill="none" stroke="currentColor" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
         <span class="brand-name">RoomLine</span>
       </div>
       <div class="signal-pill">
