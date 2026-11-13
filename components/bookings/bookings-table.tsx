@@ -53,6 +53,22 @@ const PAYMENT_CHIP: Record<string, "success" | "warning" | "danger" | "default">
 
 const exact = (row: { getValue: (id: string) => unknown }, id: string, value: unknown) => row.getValue(id) === value;
 
+/** Lifecycle order, so sorting by status or payment follows the stay instead of the alphabet. */
+const STATUS_RANK: Record<string, number> = { pending: 0, confirmed: 1, checked_in: 2, checked_out: 3, no_show: 4, cancelled: 5 };
+const PAYMENT_RANK: Record<string, number> = { unpaid: 0, partial: 1, paid: 2, refunded: 3 };
+const byRank = (rank: Record<string, number>) =>
+  (a: { getValue: (id: string) => unknown }, b: { getValue: (id: string) => unknown }, id: string) =>
+    (rank[a.getValue(id) as string] ?? 99) - (rank[b.getValue(id) as string] ?? 99);
+
+/** "May 3 – May 6" this year; the year appears whenever a date falls in another one. */
+function stayDates(checkIn: string, checkOut: string): string {
+  const thisYear = String(new Date().getFullYear());
+  const inYear = checkIn.slice(0, 4), outYear = checkOut.slice(0, 4);
+  if (inYear === outYear && inYear === thisYear) return `${formatDate(checkIn, "MMM d")} – ${formatDate(checkOut, "MMM d")}`;
+  if (inYear === outYear) return `${formatDate(checkIn, "MMM d")} – ${formatDate(checkOut, "MMM d, yyyy")}`;
+  return `${formatDate(checkIn, "MMM d, yyyy")} – ${formatDate(checkOut, "MMM d, yyyy")}`;
+}
+
 /** One column template for the header band and every row (lg and up; rows stack below). */
 const RES_GRID =
   "lg:grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.2fr)_8rem_6rem_8rem] lg:items-center lg:gap-4";
@@ -146,13 +162,14 @@ export function BookingsTable({ data, roomTypes, currency, hotelId }: BookingsTa
   // Data model only; layout lives in the row markup.
   const columns = React.useMemo<ColumnDef<BookingRow>[]>(
     () => [
-      { accessorKey: "guestName" },
-      { accessorKey: "checkIn" },
+      // Explicit sorting fns: TanStack's auto pick depends on the row count.
+      { accessorKey: "guestName", sortingFn: "text" },
+      { accessorKey: "checkIn", sortingFn: "basic" },
       { accessorKey: "source", enableSorting: false, filterFn: exact },
       { accessorKey: "roomType", enableSorting: false, filterFn: exact },
-      { accessorKey: "status", filterFn: exact },
-      { accessorKey: "paymentStatus", filterFn: exact },
-      { accessorKey: "totalAmount" },
+      { accessorKey: "status", filterFn: exact, sortingFn: byRank(STATUS_RANK) },
+      { accessorKey: "paymentStatus", filterFn: exact, sortingFn: byRank(PAYMENT_RANK) },
+      { accessorKey: "totalAmount", sortingFn: "basic" },
     ],
     []
   );
@@ -349,14 +366,15 @@ function ReservationRow({
   onOpen: (id: string) => void;
   onPrefetch: (id: string) => void;
 }) {
-  const nights = row.nights ?? 0;
+  const nights = row.nights;
   const outstanding = row.outstandingBalance ?? 0;
   const room =
     row.roomsCount > 1
       ? `${row.roomsCount} rooms`
       : formatRoomLabel(row.roomNumber) ?? row.roomType ?? "Unassigned";
-  const dates = `${formatDate(row.checkIn, "MMM d")} – ${formatDate(row.checkOut, "MMM d")}`;
-  const stayMeta = `${nights} ${nights === 1 ? "night" : "nights"} · ${room}`;
+  const dates = stayDates(row.checkIn, row.checkOut);
+  const nightsText = nights === null ? "—" : `${nights} ${nights === 1 ? "night" : "nights"}`;
+  const stayMeta = `${nightsText} · ${room}`;
   const total = formatCurrency(row.totalAmount, currency);
   const due = outstanding > 0 ? `${formatCurrency(outstanding, currency, { minimumFractionDigits: 0 })} due` : null;
   const payment = (
@@ -390,7 +408,7 @@ function ReservationRow({
             <span className="hidden lg:inline">{getSourceLabel(row.source)}</span>
           </span>
           <span className="mt-1 block truncate text-xs text-muted-foreground lg:hidden">
-            <span className="tabular-nums text-foreground">{dates}</span> · {nights} {nights === 1 ? "night" : "nights"}
+            <span className="tabular-nums text-foreground">{dates}</span> · {nightsText}
           </span>
         </span>
         <span className="flex shrink-0 flex-col items-end gap-1 lg:hidden">

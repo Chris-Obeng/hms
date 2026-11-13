@@ -172,12 +172,19 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
   // ── Columns (data model only; layout lives in the row markup) ──
   const columns = React.useMemo<ColumnDef<GuestRow>[]>(
     () => [
-      { accessorKey: "fullName" },
+      // Explicit sorting fns: TanStack's auto pick samples rows 11+, so it changes with the row count.
+      { accessorKey: "fullName", sortingFn: "text" },
       { accessorKey: "phone", enableSorting: false },
       { accessorKey: "nationality", enableSorting: false, filterFn: (row, id, value) => row.getValue(id) === value },
-      { accessorKey: "totalStays" },
-      { accessorKey: "totalSpend" },
-      { accessorKey: "lastStayDate" },
+      { accessorKey: "totalStays", sortingFn: "basic" },
+      { accessorKey: "totalSpend", sortingFn: "basic" },
+      {
+        // Guests who never stayed go last in either direction. ISO dates sort as strings.
+        id: "lastStayDate",
+        accessorFn: (g) => g.lastStayDate ?? undefined,
+        sortingFn: "basic",
+        sortUndefined: "last",
+      },
       {
         accessorKey: "tags",
         enableSorting: false,
