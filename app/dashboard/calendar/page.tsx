@@ -32,20 +32,29 @@ export default async function CalendarPage() {
   // plus the past lead), so switching Week / 2 weeks / Month needs no request.
   const today = businessToday(hotel.timezone || "UTC");
   const seedStart = format(addDays(parseISO(today), -PAST_LEAD_MAX_DAYS), "yyyy-MM-dd");
+  const seedDays = 30 + PAST_LEAD_MAX_DAYS;
 
   // Independent reads run together: the rack, the staff role and the RLS token.
-  const [initialData, { canEdit, canBlock, canUnblock }, rlsToken] = await Promise.all([
-    getCalendarData(seedStart, 30 + PAST_LEAD_MAX_DAYS).catch((error: unknown) => {
-      console.error("[calendar] initial data load failed:", error);
-      return null;
-    }),
+  // The rack read is retried once: a large property's paged read fails when a
+  // booking changes between pages, and a second read almost always succeeds.
+  const readSeed = () =>
+    getCalendarData(seedStart, seedDays).then((data) => ({ data, fetchedAt: Date.now() }));
+  const [seedRead, { canEdit, canBlock, canUnblock }, rlsToken] = await Promise.all([
+    readSeed()
+      .catch(readSeed)
+      .catch((error: unknown) => {
+        console.error("[calendar] initial data load failed:", error);
+        return null;
+      }),
     getCurrentStaffRole(),
     getToken ? getToken({ template: "supabase" }).catch(() => null) : Promise.resolve(null),
   ]);
 
-  if (!initialData) {
+  if (!seedRead) {
     return <CalendarLoadErrorState />;
   }
+  const initialData = seedRead.data;
+  const seed = { startDate: seedStart, days: seedDays, fetchedAt: seedRead.fetchedAt };
 
   if (rlsToken && initialData.bookings.length > 0) {
     // Operational priority: confirmed/checked_in first, then by checkIn
@@ -60,6 +69,7 @@ export default async function CalendarPage() {
         <div className="-mx-4 -mb-4 md:-mx-6 md:-mb-6 lg:-mx-8 lg:-mb-8 overflow-hidden">
           <CalendarClient
             initialData={initialData}
+            seed={seed}
             hotelId={hotel.id}
             hotelName={hotel.name}
             currency={hotel.currency || "GHS"}
@@ -77,6 +87,7 @@ export default async function CalendarPage() {
     <div className="-mx-4 -mb-4 md:-mx-6 md:-mb-6 lg:-mx-8 lg:-mb-8 overflow-hidden">
       <CalendarClient
         initialData={initialData}
+        seed={seed}
         hotelId={hotel.id}
         hotelName={hotel.name}
         currency={hotel.currency || "GHS"}

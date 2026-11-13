@@ -34,7 +34,6 @@ import {
 } from "./_components/timeline/timeline-calendar";
 import { pickBestRoom } from "./_components/timeline/auto-assign";
 import {
-  PAST_LEAD_MAX_DAYS,
   VIEW_PRESETS,
   pastLeadDays,
   type ViewPreset,
@@ -44,6 +43,8 @@ import {
   applyBookingPatches,
   buildBookingPatch,
   pruneSettled,
+  withEntry,
+  withoutEntry,
   type BookingPatch,
   type PendingEntry,
 } from "./_components/calendar-overlay";
@@ -76,8 +77,18 @@ const BlockRoomSheet = dynamic(
   { ssr: false }
 );
 
+/** The window the server read `initialData` for, and when. */
+export interface CalendarSeed {
+  /** yyyy-MM-dd */
+  startDate: string;
+  days: number;
+  /** Server Date.now() just after the read. */
+  fetchedAt: number;
+}
+
 interface CalendarClientProps {
   initialData: CalendarData;
+  seed: CalendarSeed;
   hotelId: string;
   hotelName: string;
   currency: string;
@@ -128,6 +139,7 @@ export function CalendarClient(props: CalendarClientProps) {
 
 function CalendarClientContent({
   initialData,
+  seed,
   hotelId,
   currency,
   hotelTimezone,
@@ -143,7 +155,11 @@ function CalendarClientContent({
   // The server-rendered seed may stand in for any view inside its range until
   // the first change: after that it is stale and views load fresh data.
   const [seedValid, setSeedValid] = React.useState(true);
-  const [seedUpdatedAt] = React.useState(() => Date.now());
+  // When the seed was read. The server's clock may run ahead of this one, so
+  // never stamp it later than now: a seed stamped in the future would count as
+  // newer than an edit confirmed a moment later. A seed restored from the
+  // router cache keeps its real age and refetches.
+  const [seedUpdatedAt] = React.useState(() => Math.min(seed.fetchedAt, Date.now()));
 
   const invalidateCalendarData = React.useCallback(() => {
     setSeedValid(false);
@@ -163,10 +179,9 @@ function CalendarClientContent({
 
   const businessDateKey = businessToday(hotelTimezone);
 
-  const [seededRange] = React.useState(() => ({
-    start: addDays(parseISO(businessDateKey), -PAST_LEAD_MAX_DAYS),
-    days: 30 + PAST_LEAD_MAX_DAYS,
-  }));
+  // The range the server actually read, not one recomputed here: the two
+  // "today"s differ when render and hydration straddle midnight.
+  const [seededRange] = React.useState(() => ({ start: parseISO(seed.startDate), days: seed.days }));
   const [viewPreset, setViewPreset] = React.useState<ViewPreset>("2 weeks");
   const days = VIEW_PRESETS.find((preset) => preset.label === viewPreset)?.days ?? 14;
   const [startDate, setStartDate] = React.useState(() =>
@@ -198,11 +213,31 @@ function CalendarClientContent({
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
   });
-  // Read by write handlers to prune settled overlay entries.
-  const dataUpdatedAtRef = React.useRef(dataUpdatedAt);
-  React.useLayoutEffect(() => {
-    dataUpdatedAtRef.current = dataUpdatedAt;
-  }, [dataUpdatedAt]);
+
+  // Timestamp of the data on screen. During a range switch TanStack shows the
+  // previous range as placeholder data but reports the new range's
+  // dataUpdatedAt (0); overlay entries are compared with the placeholder's own
+  // timestamp, so an edit the placeholder already contains is not re-applied
+  // (a saved block would otherwise be drawn twice).
+  const shownUpdatedAt = React.useMemo(() => {
+    if (!isPlaceholderData) return dataUpdatedAt;
+    const source = queryClient
+      .getQueryCache()
+      .findAll({ queryKey: calendarScope })
+      .find((query) => query.state.data === calendarData);
+    return source?.state.dataUpdatedAt ?? 0;
+  }, [calendarData, calendarScope, dataUpdatedAt, isPlaceholderData, queryClient]);
+
+  /** Oldest timestamp among cached ranges. A settled entry is pruned only once
+   *  every cached range has caught up, so switching back to an older cached
+   *  range never shows a saved bar in its old place. */
+  const oldestCachedUpdatedAt = React.useCallback(() => {
+    let oldest = Number.POSITIVE_INFINITY;
+    for (const query of queryClient.getQueryCache().findAll({ queryKey: calendarScope })) {
+      if (query.state.data !== undefined) oldest = Math.min(oldest, query.state.dataUpdatedAt);
+    }
+    return oldest;
+  }, [calendarScope, queryClient]);
 
   // ── Optimistic overlay (see calendar-overlay.ts) ─────────────────────
   const [bookingPatches, setBookingPatches] = React.useState<PendingMap<BookingPatch>>(
@@ -222,13 +257,10 @@ function CalendarClientContent({
       key: string,
       entry: PendingEntry<T>
     ) => {
-      setter((previous) => {
-        const next = new Map(pruneSettled(previous, dataUpdatedAtRef.current));
-        next.set(key, entry);
-        return next;
-      });
+      const pruneBefore = oldestCachedUpdatedAt();
+      setter((previous) => withEntry(pruneSettled(previous, pruneBefore), key, entry));
     },
-    []
+    [oldestCachedUpdatedAt]
   );
   const settleEntry = React.useCallback(
     <T,>(setter: React.Dispatch<React.SetStateAction<PendingMap<T>>>, key: string, token: number) => {
@@ -245,13 +277,7 @@ function CalendarClientContent({
   );
   const dropEntry = React.useCallback(
     <T,>(setter: React.Dispatch<React.SetStateAction<PendingMap<T>>>, key: string, token?: number) => {
-      setter((previous) => {
-        const entry = previous.get(key);
-        if (!entry || (token !== undefined && entry.token !== token)) return previous;
-        const next = new Map(previous);
-        next.delete(key);
-        return next;
-      });
+      setter((previous) => withoutEntry(previous, key, token));
     },
     []
   );
@@ -259,8 +285,8 @@ function CalendarClientContent({
   const rooms = React.useMemo(() => calendarData?.rooms ?? [], [calendarData]);
   const serverBookings = React.useMemo(() => calendarData?.bookings ?? [], [calendarData]);
   const bookings = React.useMemo(
-    () => applyBookingPatches(serverBookings, bookingPatches, dataUpdatedAt),
-    [bookingPatches, dataUpdatedAt, serverBookings]
+    () => applyBookingPatches(serverBookings, bookingPatches, shownUpdatedAt),
+    [bookingPatches, serverBookings, shownUpdatedAt]
   );
   const availabilityBlocks = React.useMemo(
     () =>
@@ -268,9 +294,9 @@ function CalendarClientContent({
         calendarData?.availabilityBlocks ?? [],
         hiddenBlocks,
         blockUpserts,
-        dataUpdatedAt
+        shownUpdatedAt
       ),
-    [blockUpserts, calendarData, dataUpdatedAt, hiddenBlocks]
+    [blockUpserts, calendarData, hiddenBlocks, shownUpdatedAt]
   );
 
   const [savingIds, setSavingIds] = React.useState<Set<string>>(() => new Set());

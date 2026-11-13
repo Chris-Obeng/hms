@@ -14,7 +14,13 @@ import type { CalendarAvailabilityBlock, CalendarBooking, CalendarRoom } from ".
  *   2. On success, `settledAt` is stamped and the calendar is refetched. The
  *      entry stays applied until the query holds data fetched after that
  *      moment (`dataUpdatedAt >= settledAt`), then the server copy takes over.
- *   3. On failure the entry is removed at once, which is the rollback.
+ *   3. On failure the entry is removed at once, which is the rollback. If it
+ *      replaced a settled edit the data has not caught up with, that edit is
+ *      restored instead.
+ *
+ * `dataUpdatedAt` must belong to the data on screen. While TanStack shows
+ * placeholder data (keepPreviousData) it reports the new key's timestamp, 0,
+ * so the caller passes the timestamp of the query the placeholder came from.
  */
 export interface PendingEntry<T> {
   value: T;
@@ -22,6 +28,9 @@ export interface PendingEntry<T> {
   settledAt: number | null;
   /** Identifies one edit, so a late response never clears a newer edit. */
   token: number;
+  /** The settled entry this edit replaced. A failed edit restores it, so the
+   *  bar goes back to the last saved position instead of the stale server copy. */
+  previous?: PendingEntry<T>;
 }
 
 export type BookingPatch = Pick<
@@ -33,7 +42,12 @@ export function isEntryActive(entry: PendingEntry<unknown>, dataUpdatedAt: numbe
   return entry.settledAt === null || dataUpdatedAt < entry.settledAt;
 }
 
-/** Drops entries the server data has caught up with. Returns the same map when nothing changed. */
+/**
+ * Drops entries the server data has caught up with. Pass the oldest
+ * `dataUpdatedAt` among the cached calendar queries, so an entry survives
+ * while any cached range could still be shown without it. Returns the same
+ * map when nothing changed.
+ */
 export function pruneSettled<T>(
   entries: ReadonlyMap<string, PendingEntry<T>>,
   dataUpdatedAt: number
@@ -45,6 +59,40 @@ export function pruneSettled<T>(
     else changed = true;
   }
   return changed ? next : (entries as Map<string, PendingEntry<T>>);
+}
+
+/** Starts an edit. A settled entry it replaces is kept (one level deep) for rollback. */
+export function withEntry<T>(
+  entries: ReadonlyMap<string, PendingEntry<T>>,
+  key: string,
+  entry: PendingEntry<T>
+): Map<string, PendingEntry<T>> {
+  const next = new Map(entries);
+  const before = entries.get(key);
+  next.set(
+    key,
+    before && before.settledAt !== null
+      ? { ...entry, previous: { ...before, previous: undefined } }
+      : entry
+  );
+  return next;
+}
+
+/** Rolls back the edit identified by `token` (any edit when omitted), restoring
+ *  the settled entry it replaced. Returns the same map when nothing matched. */
+export function withoutEntry<T>(
+  entries: ReadonlyMap<string, PendingEntry<T>>,
+  key: string,
+  token?: number
+): Map<string, PendingEntry<T>> {
+  const entry = entries.get(key);
+  if (!entry || (token !== undefined && entry.token !== token)) {
+    return entries as Map<string, PendingEntry<T>>;
+  }
+  const next = new Map(entries);
+  if (entry.previous) next.set(key, entry.previous);
+  else next.delete(key);
+  return next;
 }
 
 export function buildBookingPatch(

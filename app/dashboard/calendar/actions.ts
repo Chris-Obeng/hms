@@ -164,8 +164,8 @@ export interface CalendarAvailabilityBlock {
 }
 
 export interface CalendarData {
+  /** Active rooms; each carries its own type's name and order, so no separate type list is needed. */
   rooms: CalendarRoom[];
-  roomTypes: { id: string; name: string; slug: string; basePrice: number; sortOrder: number | null }[];
   bookings: CalendarBooking[];
   availabilityBlocks: CalendarAvailabilityBlock[];
 }
@@ -206,7 +206,7 @@ export async function getCalendarData(
   };
 
   // Every read is independent, so they run in parallel (one round trip, not
-  // four). Rooms, bookings and blocks are read in id-keyset pages: PostgREST
+  // three). Rooms, bookings and blocks are read in id-keyset pages: PostgREST
   // caps a response at max_rows (1000), and a silently truncated rack would
   // show booked rooms as free. Order is restored in memory after the read.
   const readAll = <T extends { id: string }>(
@@ -217,16 +217,8 @@ export async function getCalendarData(
       failLoad(step, { message: error instanceof Error ? error.message : String(error) })
     );
 
-  const [roomTypesResult, rooms, bookings, blocks] = await Promise.all([
-    // 1. Active room types, in the hotel's display order
-    supabase
-      .from("room_types")
-      .select("id, name, slug, base_price, sort_order")
-      .eq("hotel_id", hotelId)
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true })
-      .order("name", { ascending: true }),
-    // 2. Active rooms with their type (sorted below)
+  const [rooms, bookings, blocks] = await Promise.all([
+    // 1. Active rooms with their type (sorted below)
     readAll("rooms", (after, size) => {
       let q = supabase
         .from("rooms")
@@ -244,7 +236,7 @@ export async function getCalendarData(
       if (after) q = q.gt("id", after);
       return q;
     }),
-    // 3. Bookings overlapping the visible window (assigned + unassigned).
+    // 2. Bookings overlapping the visible window (assigned + unassigned).
     //    ALL statuses are returned so scrolling into history still shows
     //    past stays (checked_out / cancelled / no_show render muted and are
     //    not draggable). Window bounds keep the payload proportional to what
@@ -275,7 +267,7 @@ export async function getCalendarData(
       if (after) q = q.gt("id", after);
       return q;
     }),
-    // 4. Availability blocks overlapping the visible window
+    // 3. Availability blocks overlapping the visible window
     readAll("availability_blocks", (after, size) => {
       let q = supabase
         .from("availability_blocks")
@@ -291,9 +283,6 @@ export async function getCalendarData(
       return q;
     }),
   ]);
-
-  const { data: roomTypes, error: roomTypesError } = roomTypesResult;
-  if (roomTypesError) failLoad("room_types", roomTypesError);
 
   // Deterministic order for the stay list and blocks (pages arrive by id).
   bookings.sort(
@@ -325,14 +314,6 @@ export async function getCalendarData(
   }
 
   // ── Map to client shapes ────────────────────────────────────────────
-
-  const mappedRoomTypes = (roomTypes || []).map((rt) => ({
-    id: rt.id,
-    name: rt.name,
-    slug: rt.slug,
-    basePrice: rt.base_price,
-    sortOrder: rt.sort_order,
-  }));
 
   const mappedRooms = (rooms as Record<string, unknown>[]).map((r) => ({
     id: r.id as string,
@@ -500,7 +481,6 @@ export async function getCalendarData(
 
   return {
     rooms: mappedRooms,
-    roomTypes: mappedRoomTypes,
     bookings: expandedBookings,
     availabilityBlocks: mappedBlocks,
   };

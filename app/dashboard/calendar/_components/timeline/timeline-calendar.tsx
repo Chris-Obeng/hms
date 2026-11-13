@@ -285,6 +285,9 @@ function BookingBar({
         aria-busy={isBusy || undefined}
         onClick={onOpen}
         onKeyDown={(e) => {
+          // dnd-kit's keyboard sensor starts a drag from this handler (Space),
+          // so it must run first; overriding it disabled keyboard moves.
+          drag.listeners?.onKeyDown?.(e);
           if (e.key === "Enter") onOpen();
         }}
         className="rl-booking-move"
@@ -553,6 +556,9 @@ export function TimelineCalendar({
   const activeRef = React.useRef<DragState | null>(null);
   const quantKeyRef = React.useRef("");
   const suppressClickRef = React.useRef(false);
+  // What a drop did, for screen readers. dnd-kit's own drop announcement
+  // cannot know whether the drop was saved, refused or a no-op.
+  const [dropMessage, setDropMessage] = React.useState("");
 
   // Day columns stretch to fill the scroller, so a week never leaves an empty
   // strip on the right. Measured before paint; DAY_WIDTH is the floor.
@@ -779,6 +785,7 @@ export function TimelineCalendar({
   const handleDragStart = React.useCallback(
     (event: DragStartEvent) => {
       suppressClickRef.current = true;
+      setDropMessage("");
       const data = event.active.data.current as DragData | undefined;
       if (!data) return;
       setDragWidth(event.active.rect.current.initial?.width ?? null);
@@ -820,20 +827,31 @@ export function TimelineCalendar({
       if (!current || !canEdit) return;
       const booking = bookingById.get(current.bookingId);
       if (!booking) return;
+      const name = booking.guestName ?? booking.reference;
+      const notMoved = `${name} was not moved.`;
 
       const { target, overTray } = resolvePointerCell(event);
       const finalTarget = target ?? current.target;
 
       if (overTray) {
         if (current.kind === "booking" && booking.roomId) {
+          setDropMessage(`Unassigning ${name}.`);
           await onChange(booking, null, booking.checkIn, booking.checkOut);
+        } else {
+          setDropMessage(notMoved);
         }
         return;
       }
-      if (!finalTarget) return;
+      if (!finalTarget) {
+        setDropMessage(notMoved);
+        return;
+      }
 
       const room = rooms[finalTarget.roomIndex];
-      if (!room) return;
+      if (!room) {
+        setDropMessage(notMoved);
+        return;
+      }
       const { checkIn, checkOut } = resolveDragDates(
         current.kind,
         booking,
@@ -841,8 +859,10 @@ export function TimelineCalendar({
         start
       );
       // Dropped where it started: nothing to save.
-      if (room.id === booking.roomId && checkIn === booking.checkIn && checkOut === booking.checkOut)
+      if (room.id === booking.roomId && checkIn === booking.checkIn && checkOut === booking.checkOut) {
+        setDropMessage(notMoved);
         return;
+      }
       const typeChanged = !!booking.roomTypeId && room.roomTypeId !== booking.roomTypeId;
       const error = validateTimelineDrop({
         booking,
@@ -855,10 +875,12 @@ export function TimelineCalendar({
         allowRoomTypeChange: true,
       });
       if (error) {
+        setDropMessage(`${notMoved} ${error}.`);
         window.dispatchEvent(new CustomEvent("roomline-calendar-error", { detail: error }));
         return;
       }
       if (typeChanged) {
+        setDropMessage(`Moving ${name} to room ${room.roomNumber} changes the room type. Choose a rate to continue.`);
         onRequestTypeChange({
           bookingId: booking.id,
           roomId: room.id,
@@ -869,6 +891,9 @@ export function TimelineCalendar({
         });
         return;
       }
+      setDropMessage(
+        `Saving ${name} in room ${room.roomNumber}, ${format(parseISO(checkIn), "MMM d")} to ${format(parseISO(checkOut), "MMM d")}.`
+      );
       await onChange(booking, room.id, checkIn, checkOut);
     },
     [
@@ -936,8 +961,9 @@ export function TimelineCalendar({
           `Picked up ${describe(active.id)}.`,
         onDragMove: () => undefined,
         onDragOver: () => undefined,
-        onDragEnd: ({ active }: { active: { id: string | number } }) =>
-          `Dropped ${describe(active.id)}.`,
+        // The drop's outcome (saving, refused, unchanged) is announced from
+        // commitDrag through the live region below.
+        onDragEnd: () => undefined,
         onDragCancel: ({ active }: { active: { id: string | number } }) =>
           `Cancelled. ${describe(active.id)} was not moved.`,
       },
@@ -1126,7 +1152,7 @@ export function TimelineCalendar({
       </div>
 
       <span aria-live="polite" className="sr-only">
-        {activeDrag?.error ?? ""}
+        {activeDrag?.error ?? dropMessage}
       </span>
 
       <DragOverlay

@@ -482,11 +482,11 @@
   opacity: 0.7;
 }
 
+/* Full ink: at 80% opacity this 11px label fell under AA on pending and cancelled bars. */
 .rl-booking-rooms {
   flex: none;
   font-size: 11px;
   font-weight: 600;
-  opacity: 0.8;
 }
 
 /* Balance owed. Paid stays carry no marker, so "Due" is the only thing to scan for. */
