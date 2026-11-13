@@ -287,19 +287,22 @@
       "source": "heroui-inc/heroui",
       "sourceType": "github",
       "skillPath": "skills/heroui-migration/SKILL.md",
-      "computedHash": "1a55aad318178c063c663dd724842567560d9b8e6b967559968ebfe03ac98e3b"
+      "computedHash": "1a55aad318178c063c663dd724842567560d9b8e6b967559968ebfe03ac98e3b",
+      "installMode": "copy"
     },
     "heroui-native": {
       "source": "heroui-inc/heroui",
       "sourceType": "github",
       "skillPath": "skills/heroui-native/SKILL.md",
-      "computedHash": "f1769079a8b741a65bcc2a0b052e2d26c3fc5959b43df0a39cdaacffff59558d"
+      "computedHash": "f1769079a8b741a65bcc2a0b052e2d26c3fc5959b43df0a39cdaacffff59558d",
+      "installMode": "copy"
     },
     "heroui-react": {
       "source": "heroui-inc/heroui",
       "sourceType": "github",
       "skillPath": "skills/heroui-react/SKILL.md",
-      "computedHash": "30701672e3efefe0e1fbeaadd118010d18b697db674d87ac24103e0a470064a9"
+      "computedHash": "30701672e3efefe0e1fbeaadd118010d18b697db674d87ac24103e0a470064a9",
+      "installMode": "copy"
     },
     "high-end-visual-design": {
       "source": "Leonxlnx/taste-skill",
