@@ -50,11 +50,11 @@ export function BookingOverviewPanel({ booking, actionLoading, onBulkAction, onS
   return (
     <div className="flex min-h-full flex-col">
       {/* Stay band */}
-      <section aria-label="Stay" className="border-b border-border/60 px-6 py-5">
+      <section aria-label="Stay" className="border-b border-border/60 px-6 py-6">
         <div className="flex items-center gap-3">
-          <span className="text-[17px] font-semibold tracking-[-0.3px] text-foreground">{formatDate(booking.checkIn, "MMM d")}</span>
+          <span className="text-lg font-semibold tracking-[-0.3px] text-foreground">{formatDate(booking.checkIn, "MMM d")}</span>
           <ArrowRight className="size-4 text-muted-foreground/60" aria-hidden="true" />
-          <span className="text-[17px] font-semibold tracking-[-0.3px] text-foreground">{formatDate(booking.checkOut, "MMM d")}</span>
+          <span className="text-lg font-semibold tracking-[-0.3px] text-foreground">{formatDate(booking.checkOut, "MMM d")}</span>
         </div>
         <p className="mt-1 max-md:text-xs text-xs text-muted-foreground">
           {nights} {nights === 1 ? "night" : "nights"}
@@ -76,7 +76,7 @@ export function BookingOverviewPanel({ booking, actionLoading, onBulkAction, onS
               {index > 0 && <div className="h-px bg-border/50" aria-hidden="true" />}
               <div className="flex items-center gap-3 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-2 truncate text-[13px] font-semibold text-foreground">
+                  <p className="flex items-center gap-2 truncate text-sm font-semibold text-foreground">
                     <span className={cn("size-[8px] shrink-0 rounded-full", LINE_DOTS[l.status ?? ""] ?? "bg-muted-foreground/40")} aria-hidden="true" />
                     {l.roomTypeName ?? "Room"}
                     {l.roomNumber ? <span className="font-normal text-muted-foreground"> · {formatRoomLabel(l.roomNumber)}</span> : <span className="font-normal text-[var(--warning)]"> · Unassigned</span>}
@@ -90,14 +90,14 @@ export function BookingOverviewPanel({ booking, actionLoading, onBulkAction, onS
                   {canIn && onBulkAction && (
                     <button type="button" disabled={actionLoading === "bulk:check_in"}
                       onClick={() => onBulkAction([l.id], "checked_in", "check_in")}
-                      className="mt-2 h-[28px] rounded-lg bg-[var(--pen-accent)] px-3 text-[11px] font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-60">
+                      className="mt-2 h-[28px] rounded-lg bg-[var(--pen-accent)] px-3 text-2xs font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-60">
                       Check in
                     </button>
                   )}
                   {canOut && onBulkAction && (
                     <button type="button" disabled={actionLoading === "bulk:check_out"}
                       onClick={() => onBulkAction([l.id], "checked_out", "check_out")}
-                      className="mt-2 block h-[28px] rounded-lg border border-border/70 bg-card px-3 text-[11px] font-semibold text-foreground transition-transform active:scale-[0.98] disabled:opacity-60">
+                      className="mt-2 block h-[28px] rounded-lg border border-border/70 bg-card px-3 text-2xs font-semibold text-foreground transition-transform active:scale-[0.98] disabled:opacity-60">
                       Check out
                     </button>
                   )}
@@ -107,7 +107,7 @@ export function BookingOverviewPanel({ booking, actionLoading, onBulkAction, onS
           })
         ) : (
           <div className="py-2">
-            <p className="flex items-center gap-2 text-[13px] font-semibold text-foreground">
+            <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <span className={cn("size-[8px] shrink-0 rounded-full", LINE_DOTS[booking.status ?? ""] ?? "bg-muted-foreground/40")} aria-hidden="true" />
               {booking.roomType?.name ?? "Room"}
               {roomValue ? <span className="font-normal text-muted-foreground"> · {roomValue}</span> : <span className="font-normal text-[var(--warning)]"> · Not assigned</span>}
@@ -132,18 +132,18 @@ export function BookingOverviewPanel({ booking, actionLoading, onBulkAction, onS
       {/* Guest band */}
       <section aria-label="Guest contact" className="border-b border-border/60 px-6 py-2">
         {booking.guest?.phone && (
-          <a href={`tel:${booking.guest.phone}`} className="flex items-center gap-3 py-2 text-[13px] text-foreground">
+          <a href={`tel:${booking.guest.phone}`} className="flex items-center gap-3 py-2 text-sm text-foreground">
             <Phone className="size-4 text-muted-foreground/60" aria-hidden="true" /> {booking.guest.phone}
           </a>
         )}
         {booking.guest?.email && (
-          <a href={`mailto:${booking.guest.email}`} className="flex items-center gap-3 py-2 text-[13px] text-foreground">
+          <a href={`mailto:${booking.guest.email}`} className="flex items-center gap-3 py-2 text-sm text-foreground">
             <Mail className="size-4 text-muted-foreground/60" aria-hidden="true" /> {booking.guest.email}
           </a>
         )}
         {booking.guest?.id && (
           <Link href={`/dashboard/customers?guestId=${booking.guest.id}`}
-            className="flex items-center gap-3 py-2 text-[13px] font-medium text-[var(--pen-accent)]">
+            className="flex items-center gap-3 py-2 text-sm font-medium text-[var(--pen-accent)]">
             View full profile
             <span className="min-w-0 flex-1" aria-hidden="true" />
             <ArrowUpRight className="size-3 text-muted-foreground/60" aria-hidden="true" />
@@ -195,9 +195,9 @@ function NotesBand({ booking, onSaveNotes }: { booking: FullBookingDetail; onSav
   const canEdit = typeof onSaveNotes === "function";
 
   return (
-    <section aria-label="Notes" className="flex flex-1 flex-col gap-3 px-6 pb-5 pt-4">
+    <section aria-label="Notes" className="flex flex-1 flex-col gap-3 px-6 pb-6 pt-4">
       <div className="flex items-center gap-3">
-        <h3 className="text-[13px] font-semibold text-foreground">Notes</h3>
+        <h3 className="text-sm font-semibold text-foreground">Notes</h3>
         <span className="min-w-0 flex-1" aria-hidden="true" />
         {canEdit && <button type="button" aria-label={editing ? "Close notes editor" : "Edit notes"}
           onClick={() => setEditing((prev) => !prev)}

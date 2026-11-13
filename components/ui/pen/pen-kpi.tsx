@@ -38,26 +38,26 @@ export function PenKpi({ label, value, icon: Icon, chipTone = "accent", hint, de
   const change = delta === undefined ? null : deltaText(delta, unit);
   return <div className={cn(
     "flex shrink-0 snap-start flex-col bg-card shadow-[0_2px_4px_rgb(0_0_0/0.04)]",
-    mobile ? "w-40 gap-[5px] rounded-2xl p-3" : "min-w-0 flex-1 gap-2 rounded-3xl p-4",
+    mobile ? "w-40 gap-1 rounded-2xl p-3" : "min-w-0 flex-1 gap-2 rounded-3xl p-4",
     className,
   )}>
     <div className="flex w-full items-center justify-between gap-2">
-      <span className={cn("text-muted-foreground", mobile ? "text-[11px]" : "text-[13px]")}>{label}</span>
+      <span className={cn("text-muted-foreground", mobile ? "text-2xs" : "text-sm")}>{label}</span>
       <span className={cn(
         "flex items-center justify-center",
-        mobile ? "size-5 rounded-md" : "size-[26px] rounded-lg",
+        mobile ? "size-5 rounded-md" : "size-6 rounded-lg",
         CHIP_TONES[chipTone],
       )}>
         <Icon size={mobile ? 12 : 15} aria-hidden="true" />
       </span>
     </div>
-    <span className={cn("font-semibold tracking-[-0.3px] text-foreground tabular-nums", mobile ? "text-[17px] tracking-[-0.2px]" : "text-2xl")}>{value}</span>
+    <span className={cn("font-semibold tracking-[-0.3px] text-foreground tabular-nums", mobile ? "text-lg tracking-[-0.2px]" : "text-2xl")}>{value}</span>
     {!mobile && children}
-    {change && <span className={cn("font-medium tabular-nums", mobile ? "text-[10px]" : "text-xs",
+    {change && <span className={cn("font-medium tabular-nums", mobile ? "text-2xs" : "text-xs",
       change.direction === "up" ? "text-[var(--success)]" : change.direction === "down" ? "text-[var(--danger)]" : "text-muted-foreground")}>
       {change.text}
     </span>}
-    {!change && hint && <span className={cn("text-muted-foreground", mobile ? "text-[10px]" : "text-xs")}>{hint}</span>}
+    {!change && hint && <span className={cn("text-muted-foreground", mobile ? "text-2xs" : "text-xs")}>{hint}</span>}
   </div>;
 }
 
@@ -65,7 +65,7 @@ export function KpiSkeleton({ mobile = false }: { mobile?: boolean }) {
   return <div className={cn("flex flex-col gap-2 bg-card p-4 shadow-[0_2px_4px_rgb(0_0_0/0.04)]",
     mobile ? "h-[104px] w-40 shrink-0 snap-start rounded-2xl" : "h-[128px] flex-1 rounded-3xl")} aria-hidden="true">
     <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-    <div className="h-7 w-32 animate-pulse rounded bg-muted" />
+    <div className="h-8 w-32 animate-pulse rounded bg-muted" />
     <div className="mt-auto h-3 w-20 animate-pulse rounded bg-muted" />
   </div>;
 }

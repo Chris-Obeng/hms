@@ -1,0 +1,10 @@
+[
+  {"file": "app/dashboard/calendar/calendar.css", "token": "7px", "reason": "Resize handles nest inside the 8px booking bar with a 1px border, so the inner radius is 7px"},
+  {"file": "app/[slug]/confirmation/page.tsx", "token": "h-9", "reason": "Room photo thumbnail (h-9 w-12), not a control"},
+  {"file": "app/dashboard/payments/payments-client.tsx", "token": "pl-9", "reason": "Input text starts after the left-3 + size-4 search icon"},
+  {"file": "app/platform/(protected)/_components/oversight-table.tsx", "token": "pl-9", "reason": "Input text starts after the left-3 + size-4 search icon"},
+  {"file": "components/layout/app-sidebar-overlay.tsx", "token": "pl-9", "reason": "Child nav labels line up with the parent label (px-2 + icon + gap-3)"},
+  {"file": "components/ui/notes-disclosure.tsx", "token": "pl-9", "reason": "List text lines up with the summary text after the chevron"},
+  {"file": "components/layout/app-header.tsx", "token": "sm:size-3.5", "reason": "Plus glyph size kept after design review (PR #28)"},
+  {"file": "components/ui/notification-bell.tsx", "token": "max-md:after:-inset-0.5", "reason": "Hit-area overhang kept after design review (PR #28)"}
+]

@@ -17,7 +17,7 @@ export function PageHeader({ title, subtitle, actions, className }: PageHeaderPr
   return (
     <header className={cn("flex flex-wrap items-center justify-between gap-3", className)}>
       <div className="min-w-0">
-        <h1 className="truncate text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-[24px]">
+        <h1 className="truncate text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-2xl">
           {title}
         </h1>
         {subtitle && (

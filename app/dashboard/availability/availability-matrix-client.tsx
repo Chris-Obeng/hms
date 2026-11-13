@@ -264,11 +264,11 @@ export function AvailabilityMatrixClient({
   const matrixStyle = { "--av-days": data.dates.length } as React.CSSProperties;
 
   return (
-    <div className="availability-page mx-auto w-full max-w-[1600px] space-y-4 pt-1 md:space-y-5">
+    <div className="availability-page mx-auto w-full max-w-[1600px] space-y-4 pt-1 md:space-y-6">
       {/* Header & compact date/horizon bar */}
       <header className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-[24px]">
+          <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-2xl">
             Availability &amp; rates
           </h1>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -283,7 +283,7 @@ export function AvailabilityMatrixClient({
               type="button"
               aria-label={`Previous ${data.days} days`}
               onClick={() => navigate(subDays(start, data.days))}
-              className="ui-press grid size-11 cursor-pointer place-items-center rounded-[9px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+              className="ui-press grid size-11 cursor-pointer place-items-center rounded-lg text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
             >
               <ChevronLeft className="size-4" />
             </button>
@@ -291,7 +291,7 @@ export function AvailabilityMatrixClient({
             <button
               type="button"
               onClick={() => navigate(parseISO(todayKey))}
-              className="ui-press h-11 cursor-pointer rounded-[9px] px-3 text-xs font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 sm:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted"
+              className="ui-press h-11 cursor-pointer rounded-lg px-3 text-xs font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted"
             >
               Today
             </button>
@@ -300,7 +300,7 @@ export function AvailabilityMatrixClient({
               type="button"
               aria-label={`Next ${data.days} days`}
               onClick={() => navigate(addDays(start, data.days))}
-              className="ui-press grid size-11 cursor-pointer place-items-center rounded-[9px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+              className="ui-press grid size-11 cursor-pointer place-items-center rounded-lg text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
             >
               <ChevronRight className="size-4" />
             </button>
@@ -366,7 +366,7 @@ export function AvailabilityMatrixClient({
                   aria-pressed={active}
                   onClick={() => navigate(start, d)}
                   className={cn(
-                    "ui-press h-11 min-w-11 cursor-pointer rounded-[9px] px-3 text-xs font-medium tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 sm:min-w-0 sm:px-3",
+                    "ui-press h-11 min-w-11 cursor-pointer rounded-lg px-3 text-xs font-medium tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:min-w-0 sm:px-3",
                     active
                       ? "bg-card font-semibold text-foreground shadow-2xs ring-1 ring-border/60"
                       : "text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
@@ -408,14 +408,14 @@ export function AvailabilityMatrixClient({
             }}
             placeholder="Filter room types…"
             aria-label="Filter room types"
-            className="h-11 w-full rounded-xl border border-border/70 bg-card pl-10 pr-10 text-base text-foreground outline-none transition-[border-color] duration-150 placeholder:text-muted-foreground/70 focus:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 sm:h-9 sm:text-[13px]"
+            className="h-11 w-full rounded-xl border border-border/70 bg-card pl-10 pr-10 text-base text-foreground outline-none transition-[border-color] duration-150 placeholder:text-muted-foreground/70 focus:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 sm:h-10 sm:text-sm"
           />
           {query && (
             <button
               type="button"
               aria-label="Clear filter"
               onClick={() => setQuery("")}
-              className="ui-press absolute right-1 top-1/2 grid size-9 -translate-y-1/2 cursor-pointer place-items-center rounded-lg text-muted-foreground sm:right-2 sm:size-7 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+              className="ui-press absolute right-1 top-1/2 grid size-10 -translate-y-1/2 cursor-pointer place-items-center rounded-lg text-muted-foreground sm:right-2 sm:size-8 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
             >
               <X className="size-4" />
             </button>
@@ -469,7 +469,7 @@ export function AvailabilityMatrixClient({
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                className="ui-press mt-3 inline-flex min-h-9 cursor-pointer items-center rounded-xl border border-border bg-background px-4 text-xs font-semibold text-foreground"
+                className="ui-press mt-3 inline-flex min-h-10 cursor-pointer items-center rounded-xl border border-border bg-background px-4 text-xs font-semibold text-foreground"
               >
                 Clear filter
               </button>
@@ -581,13 +581,13 @@ export function AvailabilityMatrixClient({
                             <span className="truncate text-xs font-semibold text-foreground">
                               {row.name}
                             </span>
-                            <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                            <span className="shrink-0 font-mono text-2xs text-muted-foreground">
                               {format(parseISO(c.date), "EEE, MMM d")}
                             </span>
                           </div>
 
                           {marks.length > 0 && (
-                            <ul className="grid gap-1 rounded-xl border border-amber-500/25 bg-amber-500/[0.08] px-3 py-2 text-[11px] leading-snug text-amber-900">
+                            <ul className="grid gap-1 rounded-xl border border-amber-500/25 bg-amber-500/[0.08] px-3 py-2 text-2xs leading-snug text-amber-900">
                               {marks.map((m) => (
                                 <li key={m.code}>{m.title}</li>
                               ))}
@@ -615,7 +615,7 @@ export function AvailabilityMatrixClient({
                                 }
                                 if (e.key === "Escape") setEditing(null);
                               }}
-                              className="h-10 w-full rounded-xl border border-border/70 bg-background pl-12 pr-3 font-mono text-base font-semibold tabular-nums text-foreground outline-none focus:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 sm:h-9 sm:text-sm"
+                              className="h-10 w-full rounded-xl border border-border/70 bg-background pl-12 pr-3 font-mono text-base font-semibold tabular-nums text-foreground outline-none focus:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 sm:h-10 sm:text-sm"
                             />
                           </div>
 
@@ -629,7 +629,7 @@ export function AvailabilityMatrixClient({
                                 if (n > 0)
                                   save.mutate({ roomTypeId: row.id, date: c.date, price: n });
                               }}
-                              className="ui-press h-11 flex-1 rounded-xl text-xs font-semibold sm:h-9"
+                              className="ui-press h-11 flex-1 rounded-xl text-xs font-semibold sm:h-10"
                             >
                               Save rate
                             </HeroButton>
@@ -645,7 +645,7 @@ export function AvailabilityMatrixClient({
                                     fallbackPrice: row.basePrice,
                                   })
                                 }
-                                className="ui-press h-11 rounded-xl border border-border/70 bg-background px-3 text-xs font-semibold text-destructive sm:h-9"
+                                className="ui-press h-11 rounded-xl border border-border/70 bg-background px-3 text-xs font-semibold text-destructive sm:h-10"
                               >
                                 Reset
                               </HeroButton>

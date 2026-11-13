@@ -41,7 +41,7 @@ function roomStockState(room: StaffAvailabilityRoom) {
 function AvailabilityChip({ count }: { count: number }) {
   if (count <= 0) {
     return (
-      <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-1 text-[11px] font-semibold text-destructive">
+      <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-1 text-2xs font-semibold text-destructive">
         Sold out
       </span>
     );
@@ -50,7 +50,7 @@ function AvailabilityChip({ count }: { count: number }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2 py-1 text-[11px] font-semibold tabular-nums",
+        "inline-flex items-center rounded-full px-2 py-1 text-2xs font-semibold tabular-nums",
         low ? "bg-amber-500/10 text-amber-700" : "bg-emerald-500/10 text-emerald-700"
       )}
     >
@@ -83,7 +83,7 @@ function Stepper({
           aria-label={`Decrease ${label}`}
           disabled={!canDec}
           onClick={() => canDec && onChange(value - 1)}
-          className="inline-flex size-7 items-center justify-center rounded-full bg-background text-foreground shadow-sm transition disabled:opacity-40"
+          className="inline-flex size-8 items-center justify-center rounded-full bg-background text-foreground shadow-sm transition disabled:opacity-40"
         >
           <Minus className="size-4" />
         </button>
@@ -93,7 +93,7 @@ function Stepper({
           aria-label={`Increase ${label}`}
           disabled={!canInc}
           onClick={() => canInc && onChange(value + 1)}
-          className="inline-flex size-7 items-center justify-center rounded-full bg-background text-foreground shadow-sm transition disabled:opacity-40"
+          className="inline-flex size-8 items-center justify-center rounded-full bg-background text-foreground shadow-sm transition disabled:opacity-40"
         >
           <Plus className="size-4" />
         </button>
@@ -216,9 +216,9 @@ export function AvailabilityStep({
             <p className="text-sm font-semibold text-foreground">
               {totalRooms} room{totalRooms !== 1 ? "s" : ""} · {cartLines.length} type{cartLines.length !== 1 ? "s" : ""}
             </p>
-            <p className="text-[11px] text-muted-foreground">One reservation — each room gets its own stay on the calendar</p>
+            <p className="text-2xs text-muted-foreground">One reservation — each room gets its own stay on the calendar</p>
           </div>
-          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-background px-3 py-1 text-[11px] font-medium text-muted-foreground shadow-sm">
+          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-background px-3 py-1 text-2xs font-medium text-muted-foreground shadow-sm">
             {cartLines.length}/{MAX_ROOM_TYPES} types · max {MAX_QTY_PER_LINE} each
           </span>
         </div>
@@ -254,22 +254,22 @@ export function AvailabilityStep({
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-foreground">{room.name}</span>
                     {selected && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-1 text-[11px] font-semibold text-primary-foreground">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-1 text-2xs font-semibold text-primary-foreground">
                         <Check className="size-3" /> Added
                       </span>
                     )}
                   </div>
                   {blocked ? (
-                    <span className="mt-1 block text-[11px] font-medium text-destructive">{st.reason}</span>
+                    <span className="mt-1 block text-2xs font-medium text-destructive">{st.reason}</span>
                   ) : room.shortDescription ? (
-                    <span className="mt-1 block truncate text-[11px] text-muted-foreground">{room.shortDescription}</span>
+                    <span className="mt-1 block truncate text-2xs text-muted-foreground">{room.shortDescription}</span>
                   ) : null}
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span className="tabular-nums">
                       {formatCurrency(room.subtotal, currency)} total · {formatCurrency(room.avgNightly, currency)}/night · {nightsLabel(nights)}
                     </span>
                   </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
+                  <div className="mt-1 text-2xs text-muted-foreground">
                     Sleeps {room.maxAdults}
                     {room.maxChildren > 0 ? ` + ${room.maxChildren} children` : ""} · per room
                   </div>
@@ -294,7 +294,7 @@ export function AvailabilityStep({
                     <button
                       type="button"
                       onClick={() => onRemoveLine(room.roomTypeId)}
-                      className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-3 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
+                      className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-3 py-1 text-2xs font-medium text-muted-foreground hover:bg-muted"
                     >
                       <Trash2 className="size-3" /> Remove
                     </button>
@@ -326,7 +326,7 @@ export function AvailabilityStep({
                     max={room.maxChildren > 0 ? room.maxChildren : 6}
                     onChange={(n) => onUpdateLine(room.roomTypeId, { children: n })}
                   />
-                  <p className="pt-1 text-[11px] text-muted-foreground">
+                  <p className="pt-1 text-2xs text-muted-foreground">
                     {line.adults} adult{line.adults !== 1 ? "s" : ""}
                     {line.children ? ` · ${line.children} child${line.children !== 1 ? "ren" : ""}` : ""} · per room
                   </p>
@@ -337,7 +337,7 @@ export function AvailabilityStep({
         })}
       </div>
 
-      {isFetching && <p className="text-center text-[11px] text-muted-foreground">Refreshing availability…</p>}
+      {isFetching && <p className="text-center text-2xs text-muted-foreground">Refreshing availability…</p>}
     </div>
   );
 }

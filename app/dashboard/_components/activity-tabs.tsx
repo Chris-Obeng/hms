@@ -92,7 +92,7 @@ export function ActivityTabs({ tabs, activeTab, onTabChange }: ActivityTabsProps
                 aria-controls={`activity-panel-${tab.key}`}
                 onClick={() => onTabChange(tab.key)}
                 className={cn(
-                  "ui-press inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-semibold whitespace-nowrap outline-none sm:min-h-9 sm:px-3",
+                  "ui-press inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap outline-none sm:min-h-10 sm:px-3",
                   "focus-visible:ring-2 focus-visible:ring-ring",
                   isActive
                     ? "bg-card text-foreground shadow-[0_1px_3px_rgb(0_0_0/0.06)] ring-1 ring-border/70"
@@ -105,7 +105,7 @@ export function ActivityTabs({ tabs, activeTab, onTabChange }: ActivityTabsProps
 
                 <span
                   className={cn(
-                    "inline-flex min-w-[1.25rem] items-center justify-center rounded-md px-2 py-1 font-mono text-[11px] font-medium leading-none tabular-nums",
+                    "inline-flex min-w-[1.25rem] items-center justify-center rounded-md px-2 py-1 font-mono text-2xs font-medium leading-none tabular-nums",
                     isAlert
                       ? "bg-destructive/15 text-destructive"
                       : isActive
@@ -121,7 +121,7 @@ export function ActivityTabs({ tabs, activeTab, onTabChange }: ActivityTabsProps
                 {showDue && (
                   <span
                     aria-label={`${tab.remaining} pending`}
-                    className="inline-flex items-center rounded-md bg-amber-500/15 px-2 py-1 font-mono text-[11px] font-semibold leading-none tabular-nums text-amber-700"
+                    className="inline-flex items-center rounded-md bg-amber-500/15 px-2 py-1 font-mono text-2xs font-semibold leading-none tabular-nums text-amber-700"
                   >
                     {tab.remaining} due
                   </span>

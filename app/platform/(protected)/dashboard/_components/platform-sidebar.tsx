@@ -98,7 +98,7 @@ export function PlatformSidebar({ admin }: { admin: PlatformAdmin | null }) {
               <p className="text-sm font-semibold text-sidebar-foreground truncate leading-tight">
                 RoomLine
               </p>
-              <p className="text-[11px] text-sidebar-foreground/50 truncate mt-1">
+              <p className="text-2xs text-sidebar-foreground/50 truncate mt-1">
                 Platform Admin
               </p>
             </div>
@@ -173,7 +173,7 @@ export function PlatformSidebar({ admin }: { admin: PlatformAdmin | null }) {
               color={admin?.role === "super_admin" ? "accent" : "default"}
               className="mt-1"
             >
-              <span className="text-[10px] font-medium">{roleLabel}</span>
+              <span className="text-2xs font-medium">{roleLabel}</span>
             </Chip>
           </div>
         </div>

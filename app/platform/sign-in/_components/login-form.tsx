@@ -153,7 +153,7 @@ export function PlatformLoginForm({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleMfaVerify} className="flex flex-col gap-5">
+            <form onSubmit={handleMfaVerify} className="flex flex-col gap-6">
               <div className="grid gap-2">
                 <label
                   htmlFor="totp-code"
@@ -224,7 +224,7 @@ export function PlatformLoginForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="flex flex-col gap-5">
+          <form onSubmit={handleLogin} className="flex flex-col gap-6">
             <div className="grid gap-2">
               <label htmlFor="email" className="text-xs font-medium text-foreground/70">
                 Email address

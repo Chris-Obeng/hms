@@ -178,7 +178,7 @@ export function PendingStaffClient({ data }: PendingStaffClientProps) {
           return (
             <div
               key={staff.id}
-              className="space-y-4 rounded-[20px] border border-border/60 bg-card p-5 shadow-[0_1px_3px_rgb(0_0_0/0.04)]"
+              className="space-y-4 rounded-3xl border border-border/60 bg-card p-6 shadow-[0_1px_3px_rgb(0_0_0/0.04)]"
             >
               {/* Header */}
               <div className="flex items-start gap-3">
@@ -199,7 +199,7 @@ export function PendingStaffClient({ data }: PendingStaffClientProps) {
                 </div>
                 <Badge
                   variant="outline"
-                  className="shrink-0 border-amber-300 bg-amber-50 text-[11px] text-amber-700"
+                  className="shrink-0 border-amber-300 bg-amber-50 text-2xs text-amber-700"
                 >
                   <Clock className="mr-1 size-3" aria-hidden="true" />
                   Pending
@@ -215,7 +215,7 @@ export function PendingStaffClient({ data }: PendingStaffClientProps) {
               <div className="flex items-center gap-2 pt-1">
                 <Button
                   size="sm"
-                  className="ui-press h-11 flex-1 rounded-xl bg-emerald-600 text-xs font-semibold text-white sm:h-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-emerald-700"
+                  className="ui-press h-11 flex-1 rounded-xl bg-emerald-600 text-xs font-semibold text-white sm:h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-emerald-700"
                   onClick={() => {
                     setApproveTarget(staff);
                     setApproveRole("front_desk");
@@ -229,7 +229,7 @@ export function PendingStaffClient({ data }: PendingStaffClientProps) {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="ui-press h-11 flex-1 rounded-xl border-destructive/30 text-xs font-semibold text-destructive sm:h-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-destructive/5"
+                  className="ui-press h-11 flex-1 rounded-xl border-destructive/30 text-xs font-semibold text-destructive sm:h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-destructive/5"
                   onClick={() => {
                     setRejectTarget(staff);
                     setRejectDialogOpen(true);

@@ -123,7 +123,7 @@ export function ImageUpload({
         )}
       </div>
 
-      {hint && <p className="text-[10px] text-muted-foreground/50">{hint}</p>}
+      {hint && <p className="text-2xs text-muted-foreground/50">{hint}</p>}
 
       <input
         ref={inputRef}

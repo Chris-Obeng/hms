@@ -967,11 +967,11 @@ export function PricingClient({
 
   return (
     <TooltipProvider>
-    <div className="mx-auto w-full max-w-7xl space-y-5 pt-1">
+    <div className="mx-auto w-full max-w-7xl space-y-6 pt-1">
       {/* ── Page Header ─────────────────────────────────────────── */}
       <header className="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-[24px]">Rates &amp; seasons</h1>
+          <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-2xl">Rates &amp; seasons</h1>
           <p className="mt-1 text-xs text-muted-foreground">
             Daily rate overrides and seasonal pricing rules
           </p>
@@ -986,7 +986,7 @@ export function PricingClient({
               }
             }}>
               <DialogTrigger render={
-                <HeroButton size="sm" variant="primary" className="ui-press h-11 rounded-xl sm:h-9">
+                <HeroButton size="sm" variant="primary" className="ui-press h-11 rounded-xl sm:h-10">
                   <Plus className="size-4 mr-2" aria-hidden="true" />
                   New season
                 </HeroButton>
@@ -1009,7 +1009,7 @@ export function PricingClient({
                       placeholder="e.g. Christmas Peak 2026"
                       value={seasonName}
                       onChange={(e) => setSeasonName(e.target.value)}
-                      className="h-11 sm:h-9"
+                      className="h-11 sm:h-10"
                     />
                   </div>
 
@@ -1084,9 +1084,9 @@ export function PricingClient({
                       value={seasonPriority}
                       onChange={(e) => setSeasonPriority(e.target.value)}
                       aria-describedby="season-priority-hint"
-                      className="h-11 sm:h-9"
+                      className="h-11 sm:h-10"
                     />
-                    <p id="season-priority-hint" className="text-[11px] leading-relaxed text-muted-foreground">
+                    <p id="season-priority-hint" className="text-2xs leading-relaxed text-muted-foreground">
                       Higher priority wins when seasons overlap. Keep at 0 for standard seasons.
                     </p>
                   </div>
@@ -1109,7 +1109,7 @@ export function PricingClient({
                   <Button variant="outline" onClick={() => {
                     setNewSeasonOpen(false);
                     resetSeasonForm();
-                  }} className="ui-press h-11 sm:h-9 border-border [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40">Cancel</Button>
+                  }} className="ui-press h-11 sm:h-10 border-border [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40">Cancel</Button>
                   <Button
                     disabled={createSeasonMutation.isPending || updateSeasonMutation.isPending || !!clientOverlapSeason || !seasonName.trim() || !seasonStart || !seasonEnd}
                     onClick={() => {
@@ -1119,7 +1119,7 @@ export function PricingClient({
                         createSeasonMutation.mutate();
                       }
                     }}
-                    className="ui-press h-11 sm:h-9 font-medium bg-primary text-primary-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/90"
+                    className="ui-press h-11 sm:h-10 font-medium bg-primary text-primary-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/90"
                   >
                     {createSeasonMutation.isPending || updateSeasonMutation.isPending ? "Saving..." : "Save Season"}
                   </Button>
@@ -1133,7 +1133,7 @@ export function PricingClient({
       {/* ── Main Tabs ───────────────────────────────────────────── */}
       <HeroTabs selectedKey={activeTab} onSelectionChange={(key) => setActiveTab(String(key) as "calendar" | "seasons")} variant="secondary" className="w-full">
         <HeroTabs.ListContainer className="w-fit max-w-full">
-          <HeroTabs.List aria-label="Pricing views" className="w-fit gap-6 *:h-9 *:w-fit *:px-0 *:text-sm *:font-medium">
+          <HeroTabs.List aria-label="Pricing views" className="w-fit gap-6 *:h-10 *:w-fit *:px-0 *:text-sm *:font-medium">
           <HeroTabs.Tab id="calendar">
             <CalendarDays className="size-4 mr-2" />
             Rate Calendar
@@ -1159,7 +1159,7 @@ export function PricingClient({
               
               <Popover open={rangePopoverOpen} onOpenChange={setRangePopoverOpen}>
                 <PopoverTrigger render={
-                  <Button variant="outline" className="ui-press h-11 sm:h-9 font-semibold border-input/60 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40 min-w-[240px] justify-start">
+                  <Button variant="outline" className="ui-press h-11 sm:h-10 font-semibold border-input/60 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40 min-w-[240px] justify-start">
                     <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
                     <span>{format(parseISO(effectiveStart), "MMM dd, yyyy")} – {format(parseISO(effectiveEnd), "MMM dd, yyyy")}</span>
                   </Button>
@@ -1254,14 +1254,14 @@ export function PricingClient({
                       if (event.key === "Enter") handleSaveBulkOverride();
                     }}
                     variant="secondary"
-                    className="h-11 w-36 text-base sm:h-9 sm:text-sm"
+                    className="h-11 w-36 text-base sm:h-10 sm:text-sm"
                   />
                   <HeroButton
                     variant="primary"
                     size="sm"
                     isPending={bulkSaveDailyOverridesMutation.isPending}
                     onPress={handleSaveBulkOverride}
-                    className="ui-press h-11 rounded-xl sm:h-9"
+                    className="ui-press h-11 rounded-xl sm:h-10"
                   >
                     Apply price
                   </HeroButton>
@@ -1270,7 +1270,7 @@ export function PricingClient({
                     size="sm"
                     isPending={bulkClearDailyOverridesMutation.isPending}
                     onPress={() => bulkClearDailyOverridesMutation.mutate({ cells: selectedCells })}
-                    className="ui-press h-11 rounded-xl sm:h-9"
+                    className="ui-press h-11 rounded-xl sm:h-10"
                   >
                     Clear override
                   </HeroButton>
@@ -1278,7 +1278,7 @@ export function PricingClient({
                     variant="ghost"
                     size="sm"
                     onPress={clearSelection}
-                    className="ui-press h-11 rounded-xl sm:h-9"
+                    className="ui-press h-11 rounded-xl sm:h-10"
                   >
                     Cancel
                   </HeroButton>
@@ -1319,7 +1319,7 @@ export function PricingClient({
                             cell?.source === "base" && "bg-muted/10 border-border/80"
                           )}
                         >
-                          <span className="text-[11px] font-medium text-muted-foreground">
+                          <span className="text-2xs font-medium text-muted-foreground">
                             {format(dateObj, "EEE dd MMM")}
                           </span>
                           <span className="mt-1 text-sm font-semibold tabular-nums">
@@ -1368,7 +1368,7 @@ export function PricingClient({
                               isWe && "bg-muted-foreground/5 shadow-[inset_0_0_0_999px_rgba(0,0,0,0.03)]"
                             )}
                           >
-                            <div className="text-[11px] font-medium text-muted-foreground">
+                            <div className="text-2xs font-medium text-muted-foreground">
                               {format(dateObj, "EEE")}
                             </div>
                             <div className="mt-1 text-xs font-semibold tabular-nums text-foreground">
@@ -1385,7 +1385,7 @@ export function PricingClient({
                       <tr className="border-b border-border/70 bg-muted/20">
                         <td className="sticky left-0 z-10 bg-muted/30 border-r border-border/80 px-4 py-2 font-bold text-foreground align-middle">
                           <div className="text-xs font-semibold text-foreground">Occupancy</div>
-                          <div className="mt-1 text-[11px] font-normal text-muted-foreground">rooms sold / total</div>
+                          <div className="mt-1 text-2xs font-normal text-muted-foreground">rooms sold / total</div>
                         </td>
                         {dateColumns.map((dateStr) => {
                           const occ = occupancyMap.get(dateStr);
@@ -1412,7 +1412,7 @@ export function PricingClient({
                             >
                               {occ ? (
                                 <div className="flex flex-col items-center gap-1">
-                                  <span className={cn("text-[11px] tabular-nums", textColor)}>
+                                  <span className={cn("text-2xs tabular-nums", textColor)}>
                                     {pct}%
                                   </span>
                                   {/* Mini bar — static, no layout animation */}
@@ -1422,12 +1422,12 @@ export function PricingClient({
                                       style={{ width: `${pct}%` }}
                                     />
                                   </div>
-                                  <span className="text-[11px] tabular-nums text-muted-foreground/70">
+                                  <span className="text-2xs tabular-nums text-muted-foreground/70">
                                     {occ.occupied}/{occ.total}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-[11px] text-muted-foreground/40">—</span>
+                                <span className="text-2xs text-muted-foreground/40">—</span>
                               )}
                             </td>
                           );
@@ -1438,7 +1438,7 @@ export function PricingClient({
                       <tr key={rt.id} className="border-b border-border/40 transition-colors [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/5">
                         <td className="sticky left-0 z-10 bg-card border-r border-border/80 px-4 py-3 font-semibold text-foreground align-middle shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
                           <div className="truncate text-sm">{rt.name}</div>
-                          <div className="mt-1 text-[11px] font-normal text-muted-foreground">
+                          <div className="mt-1 text-2xs font-normal text-muted-foreground">
                             Def: {formatCurrency(rt.base_price, currency)}
                           </div>
                         </td>
@@ -1521,10 +1521,10 @@ export function PricingClient({
                                       <div className="space-y-3">
                                         <div className="flex items-center justify-between border-b border-border/40 pb-2">
                                           <span className="font-semibold text-xs text-foreground truncate max-w-[140px]">{rt.name}</span>
-                                          <span className="text-[11px] text-muted-foreground font-medium">{format(parseISO(dateStr), "MMM dd")}</span>
+                                          <span className="text-2xs text-muted-foreground font-medium">{format(parseISO(dateStr), "MMM dd")}</span>
                                         </div>
                                         <div className="space-y-1">
-                                          <label htmlFor={`inline-price-${rt.id}-${dateStr}`} className="text-[11px] font-medium text-muted-foreground">Price ({currency})</label>
+                                          <label htmlFor={`inline-price-${rt.id}-${dateStr}`} className="text-2xs font-medium text-muted-foreground">Price ({currency})</label>
                                           <Input
                                             id={`inline-price-${rt.id}-${dateStr}`}
                                             type="number"
@@ -1533,7 +1533,7 @@ export function PricingClient({
                                             step="0.01"
                                             value={singlePriceInput}
                                             onChange={(e) => setSinglePriceInput(e.target.value)}
-                                            className="h-9 focus:ring-1 focus:ring-primary"
+                                            className="h-10 focus:ring-1 focus:ring-primary"
                                             autoFocus
                                             onFocus={(e) => e.target.select()}
                                             onKeyDown={(e) => {
@@ -1614,7 +1614,7 @@ export function PricingClient({
                 </HeroCard.Footer>
               </HeroCard>
             ) : (
-              <div className="space-y-5">
+              <div className="space-y-6">
                 {/* ── Season Timeline / Gantt View ─────────────────────────── */}
                 {(() => {
                   // Build a 12-month window from property today for the Gantt
@@ -1655,7 +1655,7 @@ export function PricingClient({
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold text-foreground">Season timeline</span>
-                        <span className="text-[11px] text-muted-foreground">12-month view · {format(ganttStart, "MMM yyyy")} – {format(ganttEnd, "MMM yyyy")}</span>
+                        <span className="text-2xs text-muted-foreground">12-month view · {format(ganttStart, "MMM yyyy")} – {format(ganttEnd, "MMM yyyy")}</span>
                       </div>
 
                       {/* Gantt chart */}
@@ -1667,7 +1667,7 @@ export function PricingClient({
                             className="absolute top-0 bottom-0 border-l border-border/40"
                             style={{ left: `${mo.pct}%` }}
                           >
-                            <span className="absolute top-1 left-1 text-[11px] text-muted-foreground/60 whitespace-nowrap font-medium select-none">
+                            <span className="absolute top-1 left-1 text-2xs text-muted-foreground/60 whitespace-nowrap font-medium select-none">
                               {mo.label}
                             </span>
                           </div>
@@ -1678,7 +1678,7 @@ export function PricingClient({
                           className="absolute top-0 bottom-0 w-px bg-primary/60 z-10"
                           style={{ left: `${todayPct}%` }}
                         >
-                          <span className="absolute -top-0 left-1 text-[11px] text-primary font-semibold whitespace-nowrap select-none">Today</span>
+                          <span className="absolute -top-0 left-1 text-2xs text-primary font-semibold whitespace-nowrap select-none">Today</span>
                         </div>
 
                         {/* Season bars */}
@@ -1704,7 +1704,7 @@ export function PricingClient({
                                   )}
                                   style={{ left: `${leftPct}%`, width: `max(${widthPct}%, 4px)`, top: `${top}px` }}
                                 >
-                                  <span className="text-[11px] text-white font-semibold truncate select-none leading-none">
+                                  <span className="text-2xs text-white font-semibold truncate select-none leading-none">
                                     {widthPct > 4 ? season.name : ""}
                                   </span>
                                 </div>
@@ -1744,7 +1744,7 @@ export function PricingClient({
                         return (
                           <div className="flex flex-wrap gap-2 mt-1">
                             {gaps.map((g, i) => (
-                              <div key={i} className="flex items-center gap-2 text-[11px] bg-amber-500/10 border border-amber-500/20 text-amber-700 rounded-md px-2 py-1">
+                              <div key={i} className="flex items-center gap-2 text-2xs bg-amber-500/10 border border-amber-500/20 text-amber-700 rounded-md px-2 py-1">
                                 <AlertTriangle className="size-3 shrink-0" aria-hidden="true" />
                                 Gap: {g.from} &ndash; {g.to} &mdash; no seasonal rate
                               </div>
@@ -1790,7 +1790,7 @@ export function PricingClient({
                           <TableCell className="text-muted-foreground">{season.start_date}</TableCell>
                           <TableCell className="text-muted-foreground">{season.end_date}</TableCell>
                           <TableCell>
-                            <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-[11px] font-semibold tabular-nums text-muted-foreground">
+                            <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-2xs font-semibold tabular-nums text-muted-foreground">
                               {season.priority}
                             </span>
                           </TableCell>
@@ -1809,7 +1809,7 @@ export function PricingClient({
                                   size="sm"
                                   variant="outline"
                                   onClick={() => handleOpenOverrides(season)}
-                                  className="ui-press h-11 sm:h-9 font-semibold border-input/60 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40 text-xs"
+                                  className="ui-press h-11 sm:h-10 font-semibold border-input/60 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40 text-xs"
                                 >
                                   Configure rates
                                 </Button>
@@ -1822,7 +1822,7 @@ export function PricingClient({
                                     handleOpenEditSeason(season);
                                     setNewSeasonOpen(true);
                                   }}
-                                  className="ui-press size-11 sm:size-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40"
+                                  className="ui-press size-11 sm:size-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40"
                                 >
                                   <Edit2 className="size-4 text-muted-foreground" />
                                 </Button>
@@ -1835,7 +1835,7 @@ export function PricingClient({
                                       aria-label={`Duplicate ${season.name}`}
                                       onClick={() => duplicateSeasonMutation.mutate(season.id)}
                                       disabled={duplicateSeasonMutation.isPending}
-                                      className="ui-press size-11 sm:size-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40"
+                                      className="ui-press size-11 sm:size-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40"
                                     >
                                       <Copy className="size-4 text-muted-foreground" />
                                     </Button>
@@ -1849,7 +1849,7 @@ export function PricingClient({
                                       size="icon"
                                       variant="ghost"
                                       aria-label={`Delete ${season.name}`}
-                                      className="ui-press size-11 sm:size-9 text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-destructive/10 [@media(hover:hover)_and_(pointer:fine)]:hover:text-destructive"
+                                      className="ui-press size-11 sm:size-10 text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-destructive/10 [@media(hover:hover)_and_(pointer:fine)]:hover:text-destructive"
                                     >
                                       <Trash2 className="size-4" />
                                     </Button>
@@ -1857,7 +1857,7 @@ export function PricingClient({
                                   <PopoverContent className="w-56 p-3 shadow-xl border border-destructive/20" align="end">
                                     <div className="space-y-3">
                                       <div className="text-xs font-semibold text-foreground">Delete {season.name}?</div>
-                                      <p className="text-[11px] text-muted-foreground leading-normal">
+                                      <p className="text-2xs text-muted-foreground leading-normal">
                                         This permanently deletes &ldquo;{season.name}&rdquo; and reverts rates to default.
                                       </p>
                                       <div className="flex items-center gap-2 justify-end">
@@ -1902,18 +1902,18 @@ export function PricingClient({
             </SheetDescription>
           </SheetHeader>
 
-          <div className="space-y-5 py-6">
+          <div className="space-y-6 py-6">
             {/* ── Apply to All Room Types shortcut ── */}
             {roomTypes.length > 1 && (
               <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl space-y-3">
                 <div className="flex items-center gap-2">
                   <SlidersHorizontal className="size-4 text-primary" aria-hidden="true" />
                   <span className="text-xs font-semibold text-foreground">Apply to all room types</span>
-                  <span className="text-[11px] text-muted-foreground ml-auto">Fills all fields below</span>
+                  <span className="text-2xs text-muted-foreground ml-auto">Fills all fields below</span>
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
-                    <label htmlFor="apply-all-base" className="text-[11px] font-medium text-muted-foreground">Base price ({currency})</label>
+                    <label htmlFor="apply-all-base" className="text-2xs font-medium text-muted-foreground">Base price ({currency})</label>
                     <div className="flex gap-2">
                       <Input
                         id="apply-all-base"
@@ -1922,7 +1922,7 @@ export function PricingClient({
                         placeholder="e.g. 150"
                         value={applyAllBase}
                         onChange={(e) => setApplyAllBase(e.target.value)}
-                        className="h-11 sm:h-9 border-input/60 focus:ring-1 focus:ring-primary"
+                        className="h-11 sm:h-10 border-input/60 focus:ring-1 focus:ring-primary"
                         onKeyDown={(e) => {
                           if (e.key === "Enter" && applyAllBase) {
                             setSeasonalOverrides((prev) => {
@@ -1948,14 +1948,14 @@ export function PricingClient({
                             return next;
                           });
                         }}
-                        className="ui-press h-11 sm:h-9 px-3 text-xs font-semibold border-primary/30 text-primary shrink-0 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/10"
+                        className="ui-press h-11 sm:h-10 px-3 text-xs font-semibold border-primary/30 text-primary shrink-0 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/10"
                       >
                         Apply
                       </Button>
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label htmlFor="apply-all-weekend" className="text-[11px] font-medium text-muted-foreground">Weekend price ({currency})</label>
+                    <label htmlFor="apply-all-weekend" className="text-2xs font-medium text-muted-foreground">Weekend price ({currency})</label>
                     <div className="flex gap-2">
                       <Input
                         id="apply-all-weekend"
@@ -1964,7 +1964,7 @@ export function PricingClient({
                         placeholder="Optional"
                         value={applyAllWeekend}
                         onChange={(e) => setApplyAllWeekend(e.target.value)}
-                        className="h-11 sm:h-9 border-input/60 focus:ring-1 focus:ring-primary"
+                        className="h-11 sm:h-10 border-input/60 focus:ring-1 focus:ring-primary"
                         onKeyDown={(e) => {
                           if (e.key === "Enter" && applyAllWeekend) {
                             setSeasonalOverrides((prev) => {
@@ -1990,7 +1990,7 @@ export function PricingClient({
                             return next;
                           });
                         }}
-                        className="ui-press h-11 sm:h-9 px-3 text-xs font-semibold border-primary/30 text-primary shrink-0 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/10"
+                        className="ui-press h-11 sm:h-10 px-3 text-xs font-semibold border-primary/30 text-primary shrink-0 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/10"
                       >
                         Apply
                       </Button>
@@ -2007,14 +2007,14 @@ export function PricingClient({
                 <div key={rt.id} className="space-y-2 p-3 bg-muted/30 border border-border/40 rounded-xl">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-sm text-foreground">{rt.name}</span>
-                    <span className="text-[11px] text-muted-foreground font-medium">
+                    <span className="text-2xs text-muted-foreground font-medium">
                       Default: {formatCurrency(rt.base_price, currency)} / {rt.weekend_price ? formatCurrency(rt.weekend_price, currency) : "N/A"}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="space-y-1">
-                      <label htmlFor={`season-base-${rt.id}`} className="text-[11px] font-medium text-muted-foreground">Base price ({currency})</label>
+                      <label htmlFor={`season-base-${rt.id}`} className="text-2xs font-medium text-muted-foreground">Base price ({currency})</label>
                       <Input
                         id={`season-base-${rt.id}`}
                         type="number"
@@ -2027,11 +2027,11 @@ export function PricingClient({
                             [rt.id]: { ...prev[rt.id], basePrice: e.target.value },
                           }));
                         }}
-                        className="h-11 sm:h-9 focus:ring-1 focus:ring-primary border-input/60"
+                        className="h-11 sm:h-10 focus:ring-1 focus:ring-primary border-input/60"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label htmlFor={`season-weekend-${rt.id}`} className="text-[11px] font-medium text-muted-foreground">Weekend price ({currency})</label>
+                      <label htmlFor={`season-weekend-${rt.id}`} className="text-2xs font-medium text-muted-foreground">Weekend price ({currency})</label>
                       <Input
                         id={`season-weekend-${rt.id}`}
                         type="number"
@@ -2044,7 +2044,7 @@ export function PricingClient({
                             [rt.id]: { ...prev[rt.id], weekendPrice: e.target.value },
                           }));
                         }}
-                        className="h-11 sm:h-9 focus:ring-1 focus:ring-primary border-input/60"
+                        className="h-11 sm:h-10 focus:ring-1 focus:ring-primary border-input/60"
                       />
                     </div>
                   </div>
@@ -2054,11 +2054,11 @@ export function PricingClient({
           </div>
 
           <SheetFooter className="border-t border-border/40 pt-4">
-            <Button variant="outline" onClick={() => setSeasonDetailOpen(false)} className="ui-press h-11 sm:h-9 border-border [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40">Cancel</Button>
+            <Button variant="outline" onClick={() => setSeasonDetailOpen(false)} className="ui-press h-11 sm:h-10 border-border [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent/40">Cancel</Button>
             <Button
               disabled={saveSeasonalOverridesMutation.isPending}
               onClick={() => saveSeasonalOverridesMutation.mutate()}
-              className="ui-press h-11 sm:h-9 font-semibold bg-primary text-primary-foreground shadow-sm [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/95"
+              className="ui-press h-11 sm:h-10 font-semibold bg-primary text-primary-foreground shadow-sm [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/95"
             >
               {saveSeasonalOverridesMutation.isPending ? "Saving..." : "Save Rates"}
             </Button>

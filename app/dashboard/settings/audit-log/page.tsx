@@ -54,19 +54,19 @@ export default async function AuditLogPage() {
         <div className="flex items-center justify-between">
           <Link
             href="/dashboard/settings"
-            className="tap-target -m-2 rounded-xl text-[13px] font-medium text-foreground"
+            className="tap-target -m-2 rounded-xl text-sm font-medium text-foreground"
           >
             <ChevronLeft className="size-[16px]" aria-hidden />
             Settings
           </Link>
-          <span className="font-mono text-[11px] font-medium text-muted-foreground">
+          <span className="font-mono text-2xs font-medium text-muted-foreground">
             {total} entries
           </span>
         </div>
         <h1 className="mt-4 text-xl font-semibold tracking-[-0.012em] text-foreground">
           Audit log
         </h1>
-        <div className="mt-1 text-[11px] leading-[1.45] text-muted-foreground">
+        <div className="mt-1 text-2xs leading-[1.45] text-muted-foreground">
           <p>Append-only record of staff actions.</p>
           <p>Entries cannot be edited or removed.</p>
         </div>
@@ -82,7 +82,7 @@ export default async function AuditLogPage() {
             Append-only record of staff actions. Entries cannot be edited or removed.
           </p>
         </div>
-        <span className="font-mono text-[13px] font-medium text-muted-foreground">
+        <span className="font-mono text-sm font-medium text-muted-foreground">
           {total} entries
         </span>
       </div>

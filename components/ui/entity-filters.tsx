@@ -51,7 +51,7 @@ interface FilterFieldsProps {
 
 // Shared select grid — desktop popover + mobile drawer both render this.
 function FilterFields({ fields, values, onChange }: FilterFieldsProps) {
-  const trigger = "min-h-11 sm:min-h-9";
+  const trigger = "min-h-11 sm:min-h-10";
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {fields.map((f) => (
@@ -99,14 +99,14 @@ export function EntityFilters({
   const [open, setOpen] = React.useState(false);
   const activeCount = countActiveFilters(fields, values);
 
-  const triggerClass = cn("ui-press h-11 shrink-0 rounded-xl text-sm sm:h-9", activeCount > 0 && "bg-muted");
+  const triggerClass = cn("ui-press h-11 shrink-0 rounded-xl text-sm sm:h-10", activeCount > 0 && "bg-muted");
 
   const label = (
     <>
       <SlidersHorizontal className="size-4" />
       {title}
       {activeCount > 0 && (
-        <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-2 text-[11px] font-semibold tabular-nums text-primary-foreground">
+        <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-2 text-2xs font-semibold tabular-nums text-primary-foreground">
           {activeCount}
         </span>
       )}
@@ -226,7 +226,7 @@ export function EntityFilterChips({
             type="button"
             aria-label={`Remove ${(f.chipPrefix ?? f.label).toLowerCase()} filter`}
             onClick={() => onChange(f.key, "all")}
-            className="ui-press -mr-1 ml-1 inline-flex size-7 cursor-pointer items-center justify-center rounded-full text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+            className="ui-press -mr-1 ml-1 inline-flex size-8 cursor-pointer items-center justify-center rounded-full text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
           >
             <X className="size-3" />
           </button>
@@ -235,7 +235,7 @@ export function EntityFilterChips({
       <button
         type="button"
         onClick={onClearAll}
-        className="ui-press min-h-9 cursor-pointer rounded px-2 text-xs font-medium text-muted-foreground underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-0 sm:px-1 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:underline"
+        className="ui-press min-h-10 cursor-pointer rounded px-2 text-xs font-medium text-muted-foreground underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-0 sm:px-1 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:underline"
       >
         Clear all
       </button>

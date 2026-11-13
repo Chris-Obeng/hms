@@ -204,7 +204,7 @@ export function BookingFolioPrintButton({
     <button
       type="button"
       onClick={handlePrint}
-      className="ui-press inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-border/70 bg-card px-3 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
+      className="ui-press inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-border/70 bg-card px-3 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
     >
       <Printer className="size-4 text-muted-foreground" aria-hidden="true" />
       <span>Print folio</span>

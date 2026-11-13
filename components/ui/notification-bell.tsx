@@ -153,7 +153,7 @@ export function NotificationBell({
           ref={iconRef}
           aria-hidden="true"
           strokeWidth={2}
-          className="size-[19px] origin-[50%_12%] md:size-[18px]"
+          className="size-5 origin-[50%_12%]"
         />
       </Button>
 
@@ -168,7 +168,7 @@ export function NotificationBell({
             "notification-badge pointer-events-none select-none font-semibold tabular-nums shadow-xs",
             variant === "dot"
               ? "size-3 min-h-3 min-w-3 rounded-full p-0"
-              : "min-h-[18px] min-w-[18px] rounded-full px-1 text-[11px] leading-none tracking-tight"
+              : "min-h-5 min-w-5 rounded-full px-1 text-2xs leading-none tracking-tight"
           )}
         >
           {variant === "dot" ? undefined : displayValue}

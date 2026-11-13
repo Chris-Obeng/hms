@@ -1,5 +1,43 @@
 # UI 8-point grid report
 
+## Follow-up: 8-point system (branch `ui/8pt-system`)
+
+This pass settles NEEDS DECISION items 1, 2, 3 (partly), 5 and 6 below, and adds enforcement. The rules are documented at the top of `app/globals.css` and checked by `pnpm lint:ui` (also run in CI).
+
+**Rules**
+- Layout spacing (page padding, gaps between sections and cards, card padding): 16 / 24 / 32 / 48 / 64. Inside components: 4 / 8 / 12 / 16. No half steps, no 20 or 28px padding, margin or gap.
+- Control heights: 32 / 40 / 48, with 44 as the mobile touch target. No 28 or 36.
+- Radius: sm 4, md 8, lg 8, xl 12, 2xl 16, 3xl 24, 4xl 24, full.
+- Type: `text-2xs` 11/16, `text-xs` 12/16, `text-sm` 14/20, `text-md` 15/24, `text-base` 16/24, `text-lg` 18/28, `text-xl` 20/28, `text-2xl` 24/32. Arbitrary `text-[Npx]` only for 22px+ display type.
+
+**What changed**
+- Tokens (`app/globals.css`): `--radius` 10 -> 8px (HeroUI's default, so HeroUI's own radii land on 4/8/12/16/24). Tailwind radius tokens set to fixed values (was 6/8/10/14/18/22/26). Added `text-2xs` and `text-md`. Custom size names stay t-shirt sizes because tailwind-merge (used by `cn()` and HeroUI's `tv()`) treats other `text-*` names as colours and drops them.
+- HeroUI control heights re-based in a `@layer components` block: buttons and toggle buttons md 36 -> 40 on desktop, sm 36 -> 40 on mobile (32 on desktop unchanged), lg -> 48; search, number, date and colour fields, input groups, selects and autocomplete 36 -> 40; standalone inputs pinned to 44 (mobile) / 40.
+- Class changes in 111 TSX files (codemod, then hand fixes for multi-line strings):
+  - 533 arbitrary font sizes folded into the scale. 9/10/11px -> `text-2xs` (11px floor), 12/12.5px -> `text-xs`, 13/13.5/14px -> `text-sm`, 15 -> `text-md`, 16 -> `text-base`, 17-19 -> `text-lg`, 20 -> `text-xl`, 24 -> `text-2xl`. 23 display sizes (22px+) kept.
+  - 132 arbitrary radii mapped to tokens (3/5/6 -> sm, 7/9/10 -> lg, 12/14 -> xl, 16/18 -> 2xl, 20-28 -> 3xl).
+  - 198 control sizes: `h-7`/`h-9`, `min-h-*`, `size-*` and matching `min-w`/`w` on interactive elements moved up one step to 32/40 (for example `h-11 sm:h-9` -> `h-11 sm:h-10`). Non-interactive 28/36px tiles, avatars and thumbnails were left alone.
+  - 162 spacing classes at 20/28px: steps 5 -> 6 (24px), except horizontal padding on buttons -> 4 (16px) and `p-5 sm:p-6` style pairs -> `p-4 sm:p-6`; step 7 -> 8.
+  - Page layout: dashboard page sections `space-y-4 md:space-y-5` -> `md:space-y-6`, card grids `md:gap-5` -> `md:gap-6`, platform stat-card grids `gap-3` -> `gap-4`.
+- CSS files: calendar, availability, booking, onboarding and landing radii snapped (6/5 -> 4, 10 -> 8, 14 -> 12, 20 -> 24, `--ob-radius` 10 -> 8); 20/28/36px gaps and margins in onboarding and landing -> 24/32. Fluid `clamp()` values were left alone.
+- Small fixes: tab list `p-[3px]` -> `p-1`, KPI chip 26 -> 24px, notification bell icon 19/18 -> 20px and badge 18 -> 20px, sidebar role chip 18 -> 20px, ledger column widths 190/150/70/130 -> 192/152/72/128px.
+
+**Enforcement.** `pnpm lint:ui` runs `scripts/ui-8pt-audit.mjs --check`. It fails on half steps, 20/28/36/44px padding, margin or gap, `h-7`/`h-9`, arbitrary font sizes under 22px, arbitrary radii over 2px, arbitrary values not on 4px, and CSS spacing, size or radius values off the scale. Exceptions need an entry with a reason in `ui-audit/8pt-allowlist.json` (currently logo artwork, nested 7px calendar radii, icon-aligned `pl-9` indents, one photo thumbnail and the two items kept after the PR #28 review). The CI workflow now also triggers on `components/**` and `ui-audit/**`.
+
+**Not changed**
+- `body` line-height (14px / 1.6). Text without a size class still inherits it.
+- HeroUI menu and list-box rows (36px min height), badges and anything HeroUI computes internally (a few 2/6/20px radii from its `--radius` multipliers).
+- Calendar geometry constants in `timeline-geometry.ts` (52px rows, 62px header, 92px days). They drive drag-and-drop maths.
+- `clamp()` fluid spacing on the landing and onboarding pages.
+
+**Verification.** `pnpm typecheck`, `pnpm lint` (0 errors, the same 8 warnings), `pnpm test` (52 files, 667 tests), `pnpm test:tooling`, `pnpm lint:ui` and `pnpm build` pass. The compiled CSS was checked for the new radius values, the type utilities with their line-heights, and the control-height overrides sitting after HeroUI's rules in the same layer. **No page was rendered in a browser** (the sandbox has no Clerk or Supabase credentials). Check these first at 390 and 1440px:
+- Dense rows where 13px text became 14px and 10px became 11px: bookings table, calendar toolbar and chips, activity list, audit log, notification centre, booking wizard summary.
+- Toolbars and filter rows where 36px controls became 40px: calendar toolbar, rooms and pricing headers, entity filters, view-mode toggle.
+- Cards whose padding went from 20 to 24px in fixed-width columns (dashboard 312px column, booking detail 340px side column).
+- Sidebar navigation rows (36 -> 40px).
+
+---
+
 Branch: `ui/8pt-grid`. Scope: visual-only (spacing, sizes, radii, line-heights). No logic, copy, routes, server actions, auth, DB or payment code was changed. Inventory: `UI_8PT_INVENTORY.md`. Audit data: `ui-audit/baseline.json`. Regenerate the after data with `node scripts/ui-8pt-audit.mjs --json <file>` (not tracked).
 
 **Verification status, read first:** the build, typecheck, lint and tests pass. **No visual verification of any page except `/offline` was possible.** With placeholder env values (no Clerk, Supabase, Sentry or Paystack credentials) every route except `/offline` returns HTTP 500, and dashboard and platform pages also need authentication. All visual results below are therefore UNVERIFIED (see section 7). The numbers in this report come from static analysis of source, not from computed styles in a browser.

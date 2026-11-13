@@ -4,7 +4,7 @@ export default function SettingsLoading() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <Skeleton className="h-7 w-40 rounded-lg" />
+        <Skeleton className="h-8 w-40 rounded-lg" />
         <Skeleton className="h-4 w-64 rounded-lg" />
       </div>
 

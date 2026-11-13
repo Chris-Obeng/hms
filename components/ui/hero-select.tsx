@@ -64,7 +64,7 @@ export function HeroSelectField({
       {label ? <Label className="mb-2 text-xs font-medium text-muted-foreground">{label}</Label> : null}
       <Select.Trigger
         className={cn(
-          "min-h-9 rounded-xl border border-border/60 bg-background px-3 text-sm shadow-none",
+          "min-h-10 rounded-xl border border-border/60 bg-background px-3 text-sm shadow-none",
           "transition-colors hover:border-border data-[focus-visible=true]:border-ring",
           triggerClassName,
         )}

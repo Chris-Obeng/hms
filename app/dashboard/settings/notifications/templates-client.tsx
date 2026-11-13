@@ -100,7 +100,7 @@ function EventEditor({
                   onFocus={(event) => { focusedRef.current = event.currentTarget; }}
                   variant="secondary"
                   fullWidth
-                  className="h-11 text-base sm:h-9 sm:text-sm"
+                  className="h-11 text-base sm:h-10 sm:text-sm"
                 />
               </div>
               <div className="space-y-2">
@@ -123,7 +123,7 @@ function EventEditor({
                       key={variable}
                       type="button"
                       onClick={() => insertVariable(variable)}
-                      className="ui-press min-h-9 cursor-pointer rounded-md border border-border bg-background px-3 py-1 font-mono text-[11px] text-muted-foreground sm:min-h-7 sm:px-2 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+                      className="ui-press min-h-10 cursor-pointer rounded-md border border-border bg-background px-3 py-1 font-mono text-2xs text-muted-foreground sm:min-h-8 sm:px-2 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
                     >
                       {variable}
                     </button>
@@ -174,7 +174,7 @@ export function NotificationTemplatesClient({ initialTemplates }: { initialTempl
         <span className="text-caption text-muted-foreground">
           {hasChanges ? "Unsaved changes" : undefined}
         </span>
-        <Button variant="primary" className="ui-press min-h-11 rounded-xl sm:min-h-9" isPending={saving} onPress={save} isDisabled={!hasChanges}>
+        <Button variant="primary" className="ui-press min-h-11 rounded-xl sm:min-h-10" isPending={saving} onPress={save} isDisabled={!hasChanges}>
           Save email templates
         </Button>
       </div>

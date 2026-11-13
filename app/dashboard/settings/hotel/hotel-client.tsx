@@ -61,7 +61,7 @@ interface HotelSettingsClientProps {
   staffName?: string;
 }
 
-const inputClass = "h-11 w-full rounded-xl border border-border/70 bg-card px-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60 sm:h-10 sm:text-[13px] [@media(hover:hover)_and_(pointer:fine)]:hover:border-border";
+const inputClass = "h-11 w-full rounded-xl border border-border/70 bg-card px-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60 sm:h-10 sm:text-sm [@media(hover:hover)_and_(pointer:fine)]:hover:border-border";
 const labelClass = "text-xs font-medium text-muted-foreground";
 
 function Field({
@@ -148,10 +148,10 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {bookingUrl && (
-        <PenCard className="gap-3 sm:p-5">
+        <PenCard className="gap-3 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
-              <h2 className="text-[15px] font-semibold text-foreground">Direct booking page</h2>
+              <h2 className="text-md font-semibold text-foreground">Direct booking page</h2>
               <p className="text-xs text-muted-foreground">Share this link so guests can book {values.name || "your property"} directly.</p>
             </div>
             <a
@@ -164,8 +164,8 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
               Open
             </a>
           </div>
-          <div className="flex h-11 items-center gap-2 rounded-[10px] border border-border/70 bg-secondary/50 px-3 sm:h-10">
-            <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-foreground select-all">
+          <div className="flex h-11 items-center gap-2 rounded-lg border border-border/70 bg-secondary/50 px-3 sm:h-10">
+            <span className="min-w-0 flex-1 truncate font-mono text-sm text-foreground select-all">
               {bookingUrl.replace(/^https?:\/\//, "")}
             </span>
             <button
@@ -189,9 +189,9 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
         </PenCard>
       )}
 
-      <PenCard className="gap-4 sm:p-5">
+      <PenCard className="gap-4 sm:p-6">
         <header className="space-y-1">
-          <h2 className="text-[15px] font-semibold text-foreground">Hotel profile</h2>
+          <h2 className="text-md font-semibold text-foreground">Hotel profile</h2>
           <p className="text-xs text-muted-foreground">Guests see these details on your booking page and emails.</p>
         </header>
 
@@ -250,7 +250,7 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
             />
           </Field>
           <Field label="Currency">
-            <div className="flex h-11 items-center rounded-[10px] border border-border/70 bg-secondary/50 px-3 text-[13px] text-foreground sm:h-10">
+            <div className="flex h-11 items-center rounded-lg border border-border/70 bg-secondary/50 px-3 text-sm text-foreground sm:h-10">
               GHS <span className="ml-2 text-muted-foreground">· Ghana Cedi</span>
             </div>
           </Field>
@@ -265,7 +265,7 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
         <div className="space-y-3 rounded-2xl border border-border/60 bg-secondary/30 p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="space-y-1">
-              <p className="text-[13px] font-medium text-foreground">Tax / VAT</p>
+              <p className="text-sm font-medium text-foreground">Tax / VAT</p>
               <p className="text-xs text-muted-foreground">Applied as a line item on new bookings and guest invoices.</p>
             </div>
             <Switch
@@ -294,7 +294,7 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
                   <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
                 </div>
               </div>
-              <p className="mt-5 text-xs text-muted-foreground">
+              <p className="mt-6 text-xs text-muted-foreground">
                 Adds {values.taxPercentage}% to the room subtotal on guest invoices.
               </p>
             </div>
@@ -355,13 +355,13 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
         </div>
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-4">
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             {canEdit
               ? saving ? "Saving changes…" : hasChanges ? "You have unsaved changes." : staffName ? `Changes apply immediately · ${staffName}` : "Changes apply across the property immediately."
               : "View only — a super admin manages this profile."}
           </p>
           {canEdit && <HeroButton type="submit" variant="primary" isPending={saving} isDisabled={!values.name || (!hasChanges && !saving)}
-            className="ui-press h-11 rounded-full px-5 text-sm font-medium sm:h-9">
+            className="ui-press h-11 rounded-full px-4 text-sm font-medium sm:h-10">
             Save changes
           </HeroButton>}
         </footer>

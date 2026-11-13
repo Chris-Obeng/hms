@@ -391,7 +391,7 @@
   }
 
   .rl-landing .rl-nav-actions {
-    gap: 1.25rem;
+    gap: 1.5rem;
   }
 }
 
@@ -472,7 +472,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1.25rem;
+  gap: 1.5rem;
   margin-top: 1.5rem;
 }
 
@@ -558,7 +558,7 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    gap: 2.25rem;
+    gap: 2rem;
   }
 }
 
@@ -580,7 +580,7 @@
 
 .rl-landing .rl-photo--suite {
   aspect-ratio: 16 / 10;
-  margin-top: 1.25rem;
+  margin-top: 1.5rem;
 }
 
 @media (min-width: 900px) {
@@ -601,7 +601,7 @@
 }
 
 .rl-landing .rl-ghana-copy {
-  margin-top: 1.75rem;
+  margin-top: 2rem;
 }
 
 @media (min-width: 900px) {
@@ -631,7 +631,7 @@
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 1.25rem 2rem;
+  gap: 1.5rem 2rem;
 }
 
 .rl-landing .rl-how-steps {
@@ -644,7 +644,7 @@
 @media (min-width: 820px) {
   .rl-landing .rl-how-steps {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1.25rem;
+    gap: 1.5rem;
   }
 }
 
@@ -718,7 +718,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0 1.25rem;
+  gap: 0 1.5rem;
 }
 
 .rl-landing .rl-footer-links a,

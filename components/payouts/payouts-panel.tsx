@@ -56,10 +56,10 @@ type ViewState =
 const PAYOUT_COLUMNS = [
   { label: "Reservation", width: "1fr" },
   { label: "Paid", width: "120px" },
-  { label: "Rooms", width: "70px", align: "right" as const },
+  { label: "Rooms", width: "72px", align: "right" as const },
   { label: "Amount", width: "140px", align: "right" as const },
   { label: "Settles", width: "120px" },
-  { label: "Status", width: "130px" },
+  { label: "Status", width: "128px" },
 ];
 
 export function PayoutsPanel({
@@ -142,7 +142,7 @@ export function PayoutsPanel({
         <PenKpi label="Failed" value={formatMoney(summary.failedMinor, summary.currency)} icon={XCircle} chipTone="danger" hint="Needs review" />
       </div>
       {data.error ? (
-        <p className="text-[11px] text-amber-600">Payout status may be delayed</p>
+        <p className="text-2xs text-amber-600">Payout status may be delayed</p>
       ) : null}
 
       {/* Reservations */}
@@ -152,7 +152,7 @@ export function PayoutsPanel({
         <section className="flex flex-col gap-3 rounded-3xl bg-card p-4 shadow-[0_2px_4px_rgb(0_0_0/0.04)]" aria-label="Payout reservations">
           <header className="flex items-start justify-between gap-4">
             <div className="min-w-0 space-y-1">
-              <h2 className="text-[15px] font-semibold text-foreground">Payout reservations</h2>
+              <h2 className="text-md font-semibold text-foreground">Payout reservations</h2>
               <p className="text-xs text-muted-foreground">Charges in the window and where each settles.</p>
             </div>
             <p className="shrink-0 font-mono text-xs text-muted-foreground">{reservations.length.toLocaleString("en")} reservations</p>
@@ -166,7 +166,7 @@ export function PayoutsPanel({
 
 function PayoutsSkeleton() {
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Skeleton className="h-[104px] rounded-3xl" />
         <Skeleton className="h-[104px] rounded-3xl" />
@@ -201,7 +201,7 @@ function ErrorState({
       <p className="mt-1 max-w-[320px] text-caption text-muted-foreground/70">
         Paystack didn&rsquo;t respond. Your payouts are unaffected — this is only the view.
       </p>
-      <p className="mt-1 max-w-[320px] truncate text-[11px] text-muted-foreground/50">{message}</p>
+      <p className="mt-1 max-w-[320px] truncate text-2xs text-muted-foreground/50">{message}</p>
       <Button size="sm" variant="outline" className="mt-4 rounded-xl" isPending={pending} onPress={onRetry}>
         <RotateCw className="size-4" />
         Retry
@@ -251,8 +251,8 @@ function ReservationList({ reservations, timeZone }: { reservations: PayoutReser
   return (
     <>
       {/* Desktop table */}
-      <div className="hidden rounded-[20px] bg-secondary p-1 pt-0 md:block">
-        <table className="w-full min-w-[720px] border-collapse text-[13px]">
+      <div className="hidden rounded-3xl bg-secondary p-1 pt-0 md:block">
+        <table className="w-full min-w-[720px] border-collapse text-sm">
           <caption className="sr-only">Payout reservations</caption>
           <thead><tr>
             {PAYOUT_COLUMNS.map((column, index) => <th key={column.label + index} scope="col"
@@ -265,7 +265,7 @@ function ReservationList({ reservations, timeZone }: { reservations: PayoutReser
               <td className="px-4 py-3 align-top">
                 <div className="flex min-w-0 flex-col gap-1">
                   <span className="truncate font-medium text-foreground">{r.guestName ?? "Guest"}</span>
-                  <span className="font-mono text-[11px] text-muted-foreground">{r.reference}</span>
+                  <span className="font-mono text-2xs text-muted-foreground">{r.reference}</span>
                 </div>
               </td>
               <td className="whitespace-nowrap px-4 py-3 align-top">{r.paidAt ? formatDateInTimeZone(r.paidAt, timeZone, { month: "short", day: "numeric" }) : "—"}</td>
@@ -376,7 +376,7 @@ function ReservationCardMobile({ r, timeZone }: { r: PayoutReservation; timeZone
           </span>
         </div>
         {r.settledAt ? (
-          <span className="text-[11px] text-muted-foreground/60">
+          <span className="text-2xs text-muted-foreground/60">
             Settles {formatDateInTimeZone(r.settledAt, timeZone)}
           </span>
         ) : null}

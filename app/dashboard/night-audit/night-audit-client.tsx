@@ -148,26 +148,26 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
     .map((method) => ({ key: method.method, amount: method.amount, color: TENDER_COLORS[method.method] ?? "var(--muted-foreground)" }));
   const tenderTotal = tenderSegments.reduce((sum, segment) => sum + segment.amount, 0);
 
-  return <div className="daily-close-page mx-auto w-full max-w-7xl space-y-5" aria-busy={busy}>
+  return <div className="daily-close-page mx-auto w-full max-w-7xl space-y-6" aria-busy={busy}>
     <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.3px] text-foreground max-md:text-xl">Night audit</h1>
         <p className="mt-1 max-md:text-xs text-sm text-muted-foreground">Review {formatDate(summary.auditDate, "EEEE, MMM d, yyyy")} and record it.</p>
       </div>
       <div className="flex items-center gap-2">
-        <Button variant="outline" isIconOnly className="size-9 rounded-[10px]" aria-label="Previous day" isDisabled={busy || summary.auditDate <= MIN_AUDIT_DATE}
+        <Button variant="outline" isIconOnly className="size-10 rounded-lg" aria-label="Previous day" isDisabled={busy || summary.auditDate <= MIN_AUDIT_DATE}
           onPress={() => navigate(shiftDay(summary.auditDate, -1))}><ChevronLeft className="size-4" /></Button>
         <PaymentDateField label="Business date" value={summary.auditDate} min={MIN_AUDIT_DATE} max={summary.propertyToday} onSelect={navigate} />
-        <Button variant="outline" isIconOnly className="size-9 rounded-[10px]" aria-label="Next day" isDisabled={busy || summary.auditDate >= summary.propertyToday}
+        <Button variant="outline" isIconOnly className="size-10 rounded-lg" aria-label="Next day" isDisabled={busy || summary.auditDate >= summary.propertyToday}
           onPress={() => navigate(shiftDay(summary.auditDate, 1))}><ChevronRight className="size-4" /></Button>
       </div>
     </header>
 
-    {busy && <p role="status" className="text-[13px] text-muted-foreground">{isExecuting ? "Recording the close…" : "Loading this day…"}</p>}
-    {error && !confirmOpen && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive">{error}</p>}
+    {busy && <p role="status" className="text-sm text-muted-foreground">{isExecuting ? "Recording the close…" : "Loading this day…"}</p>}
+    {error && !confirmOpen && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</p>}
 
     {/* Close status band */}
-    <section className="space-y-2 border-b border-border/60 pb-5" aria-labelledby="close-status">
+    <section className="space-y-2 border-b border-border/60 pb-6" aria-labelledby="close-status">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
@@ -179,14 +179,14 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
           <p className="sr-only" aria-live="polite" aria-atomic="true">
             {summary.isClosed ? "This day is closed." : waitingForMidnight ? "This day is still in progress." : blockers > 0 ? `${blockers} items still need resolving before this day can close.` : "This day is ready to close."}
           </p>
-          <p className="max-md:text-xs text-[13px] text-muted-foreground">{statusDetail}</p>
-          {!canRunAudit && !summary.isClosed && <p className="max-md:text-xs text-[13px] text-muted-foreground">A manager or super admin can close the day.</p>}
-          {summary.lastAudit?.notes && <p className="mt-1 whitespace-pre-wrap break-words rounded-lg bg-muted/50 px-3 py-2 max-md:text-xs text-[13px]">{summary.lastAudit.notes}</p>}
+          <p className="max-md:text-xs text-sm text-muted-foreground">{statusDetail}</p>
+          {!canRunAudit && !summary.isClosed && <p className="max-md:text-xs text-sm text-muted-foreground">A manager or super admin can close the day.</p>}
+          {summary.lastAudit?.notes && <p className="mt-1 whitespace-pre-wrap break-words rounded-lg bg-muted/50 px-3 py-2 max-md:text-xs text-sm">{summary.lastAudit.notes}</p>}
         </div>
         {summary.isClosed
-          ? <a className="inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-[13px] font-medium text-foreground underline-offset-4 hover:underline"
+          ? <a className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium text-foreground underline-offset-4 hover:underline"
             href={`/dashboard/reports?startDate=${summary.auditDate}&endDate=${summary.auditDate}`}>View in reports <ArrowRight className="size-4" aria-hidden="true" /></a>
-          : <Button className="min-h-9 rounded-full px-5 text-sm font-medium" isDisabled={waitingForMidnight || !canClose || busy} onPress={() => setDialogOpen(true)}>
+          : <Button className="min-h-10 rounded-full px-4 text-sm font-medium" isDisabled={waitingForMidnight || !canClose || busy} onPress={() => setDialogOpen(true)}>
             Close {formatDate(summary.auditDate, "MMM d")}
           </Button>}
       </div>
@@ -204,9 +204,9 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_432px]">
       <PenCard>
         <PenCardHead title="Needs attention" caption={blockers > 0 ? "Resolve these before closing." : undefined}
-          actions={blockers > 0 ? <span className="rounded-full bg-[#F5A5241F] px-2 py-1 font-mono text-[11px] font-semibold tabular-nums text-[var(--warning)]">{blockers}</span> : undefined} />
+          actions={blockers > 0 ? <span className="rounded-full bg-[#F5A5241F] px-2 py-1 font-mono text-2xs font-semibold tabular-nums text-[var(--warning)]">{blockers}</span> : undefined} />
         {attention.length === 0
-          ? <div className="flex items-center gap-3 pt-2 text-[13px] text-muted-foreground">
+          ? <div className="flex items-center gap-3 pt-2 text-sm text-muted-foreground">
             <CheckCircle2 className="size-4 shrink-0 text-[var(--success)]" aria-hidden="true" /> Nothing outstanding.
           </div>
           : <ul>
@@ -215,8 +215,8 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
               <a href={item.href} className="group flex items-center gap-3 py-3">
                 <span className={`size-[8px] shrink-0 rounded-full ${item.kind === "charge" ? "bg-[var(--danger)]" : "bg-[var(--warning)]"}`} aria-hidden="true" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-medium text-foreground">{item.title}</span>
-                  <span className="block truncate text-[11px] text-muted-foreground">{item.detail}</span>
+                  <span className="block truncate text-sm font-medium text-foreground">{item.title}</span>
+                  <span className="block truncate text-2xs text-muted-foreground">{item.detail}</span>
                 </span>
                 <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-[var(--pen-accent)]">
                   {item.kind === "charge" ? "Review" : "Manage"}
@@ -232,9 +232,9 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
         <PenCardHead title="Taken this day" caption={summary.currency ? `Successful payments · ${summary.currency}` : undefined}
           actions={<a className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
             href={`/dashboard/payments?tab=activity&startDate=${summary.auditDate}&endDate=${summary.auditDate}`}>Payments <ArrowRight className="size-3" aria-hidden="true" /></a>} />
-        {summary.paymentIssues ? <p className="py-6 text-[13px] text-muted-foreground">Collections are unavailable until payments in other currencies are reconciled.</p>
-          : tenderTotal === 0 ? <p className="py-6 text-[13px] text-muted-foreground">No payments recorded for this day.</p>
-            : <div className="flex items-center gap-5">
+        {summary.paymentIssues ? <p className="py-6 text-sm text-muted-foreground">Collections are unavailable until payments in other currencies are reconciled.</p>
+          : tenderTotal === 0 ? <p className="py-6 text-sm text-muted-foreground">No payments recorded for this day.</p>
+            : <div className="flex items-center gap-6">
               <DonutRing size={150} valueSize={15} labelSize={10}
                 segments={tenderSegments} total={tenderTotal}
                 value={money(summary.collections)}
@@ -246,12 +246,12 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
                   return <li key={segment.key} className="flex items-center gap-2 text-xs">
                     <span className="size-2 shrink-0 rounded-full" style={{ background: segment.color }} aria-hidden="true" />
                     <span className="min-w-0 flex-1 truncate text-foreground">{TENDER_SHORT_LABELS[segment.key] ?? segment.key.replaceAll("_", " ")}</span>
-                    <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{moneyWhole(source?.amount ?? segment.amount)}</span>
+                    <span className="shrink-0 font-mono text-2xs text-muted-foreground">{moneyWhole(source?.amount ?? segment.amount)}</span>
                   </li>;
                 })}
               </ul>
             </div>}
-        <p className="text-[11px] text-muted-foreground">Money received today — includes deposits for future stays, so it differs from room revenue.</p>
+        <p className="text-2xs text-muted-foreground">Money received today — includes deposits for future stays, so it differs from room revenue.</p>
       </PenCard>
     </div>
 
@@ -261,22 +261,22 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
       <AlertDialog.Container><AlertDialog.Dialog className="max-w-lg">
         <AlertDialog.Header><AlertDialog.Heading>Close {formatDate(summary.auditDate, "EEEE, MMM d")}?</AlertDialog.Heading></AlertDialog.Header>
         <AlertDialog.Body className="space-y-4">
-          <p className="text-[13px] text-muted-foreground">These figures are recorded permanently and cannot be changed later. The server re-checks every booking first; asking twice returns the original record.</p>
+          <p className="text-sm text-muted-foreground">These figures are recorded permanently and cannot be changed later. The server re-checks every booking first; asking twice returns the original record.</p>
           <dl className="divide-y divide-border/50 rounded-lg border border-border/50">
-            <div className="flex justify-between gap-3 px-3 py-2 text-[13px]"><dt className="text-muted-foreground">Room revenue (incl. taxes)</dt><dd className="tabular-nums">{money(roomRevenueInclTax)}</dd></div>
-            <div className="flex justify-between gap-3 px-3 py-2 text-[13px]"><dt className="text-muted-foreground">Room nights</dt><dd className="tabular-nums">{summary.roomNights?.toLocaleString() ?? "Unavailable"}</dd></div>
-            <div className="flex justify-between gap-3 px-3 py-2 text-[13px]"><dt className="text-muted-foreground">Collected</dt><dd className="tabular-nums">{money(summary.collections)}</dd></div>
+            <div className="flex justify-between gap-3 px-3 py-2 text-sm"><dt className="text-muted-foreground">Room revenue (incl. taxes)</dt><dd className="tabular-nums">{money(roomRevenueInclTax)}</dd></div>
+            <div className="flex justify-between gap-3 px-3 py-2 text-sm"><dt className="text-muted-foreground">Room nights</dt><dd className="tabular-nums">{summary.roomNights?.toLocaleString() ?? "Unavailable"}</dd></div>
+            <div className="flex justify-between gap-3 px-3 py-2 text-sm"><dt className="text-muted-foreground">Collected</dt><dd className="tabular-nums">{money(summary.collections)}</dd></div>
           </dl>
           <div className="space-y-2">
             <label htmlFor="handover-notes" className="text-label text-muted-foreground">Handover note <span className="font-normal">(optional)</span></label>
             <Textarea id="handover-notes" rows={3} maxLength={1000} value={notes} disabled={isExecuting} onChange={(event) => setNotes(event.target.value)}
-              placeholder="Anything the next shift should know" className="min-h-20 resize-none text-[13px]" />
+              placeholder="Anything the next shift should know" className="min-h-20 resize-none text-sm" />
           </div>
-          {error && <p role="alert" className="text-[13px] text-destructive">{error}</p>}
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         </AlertDialog.Body>
         <AlertDialog.Footer>
-          <Button slot="close" className="min-h-9" variant="tertiary" isDisabled={isExecuting}>Cancel</Button>
-          <Button className="min-h-9" isPending={isExecuting} isDisabled={!canClose || busy} onPress={closeDate}>Close {formatDate(summary.auditDate, "MMM d")}</Button>
+          <Button slot="close" className="min-h-10" variant="tertiary" isDisabled={isExecuting}>Cancel</Button>
+          <Button className="min-h-10" isPending={isExecuting} isDisabled={!canClose || busy} onPress={closeDate}>Close {formatDate(summary.auditDate, "MMM d")}</Button>
         </AlertDialog.Footer>
       </AlertDialog.Dialog></AlertDialog.Container>
     </AlertDialog.Backdrop>

@@ -62,12 +62,12 @@ export function DateCard({ selectedDate, onDateChange, todayDateStr }: DateContr
   );
 
   return (
-    <div className="group relative flex h-full flex-col justify-between rounded-[20px] border border-border/60 bg-card p-5 shadow-[0_1px_3px_rgb(0_0_0/0.04)] transition-[border-color,box-shadow] duration-150 [@media(hover:hover)_and_(pointer:fine)]:hover:border-border">
+    <div className="group relative flex h-full flex-col justify-between rounded-3xl border border-border/60 bg-card p-6 shadow-[0_1px_3px_rgb(0_0_0/0.04)] transition-[border-color,box-shadow] duration-150 [@media(hover:hover)_and_(pointer:fine)]:hover:border-border">
       <Popover isOpen={calendarOpen} onOpenChange={setCalendarOpen}>
         <Button
           variant="ghost"
           aria-label={`Change date, currently ${format(selectedDate, "EEEE, MMMM d, yyyy")}`}
-          className="absolute inset-0 h-full w-full min-w-0 cursor-pointer rounded-[20px] bg-transparent p-0 shadow-none outline-none hover:bg-transparent focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute inset-0 h-full w-full min-w-0 cursor-pointer rounded-3xl bg-transparent p-0 shadow-none outline-none hover:bg-transparent focus-visible:ring-2 focus-visible:ring-ring"
         />
         <Popover.Content
           placement="bottom start"
@@ -117,12 +117,12 @@ export function DateCard({ selectedDate, onDateChange, todayDateStr }: DateContr
       {/* Non-interactive display layer so clicks pass through to Popover.Trigger */}
       <div className="pointer-events-none relative z-10 flex flex-1 flex-col justify-between gap-4">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[13px] font-medium text-muted-foreground">
+          <span className="text-sm font-medium text-muted-foreground">
             {format(selectedDate, "EEEE")}
           </span>
 
           {isTodayDate ? (
-            <span className="inline-flex items-center gap-2 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary">
+            <span className="inline-flex items-center gap-2 rounded-md bg-primary/10 px-2 py-1 text-2xs font-medium text-primary">
               <span aria-hidden="true" className="size-2 rounded-full bg-primary" />
               Today
             </span>
@@ -130,7 +130,7 @@ export function DateCard({ selectedDate, onDateChange, todayDateStr }: DateContr
             <button
               type="button"
               onClick={goToToday}
-              className="ui-press pointer-events-auto inline-flex min-h-7 cursor-pointer items-center gap-1 rounded-md border border-border/70 bg-secondary/70 px-2 py-1 text-[11px] font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary"
+              className="ui-press pointer-events-auto inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-md border border-border/70 bg-secondary/70 px-2 py-1 text-2xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary"
             >
               <RotateCcw className="size-3 text-muted-foreground" aria-hidden="true" />
               {relative ?? "Today"}
@@ -143,7 +143,7 @@ export function DateCard({ selectedDate, onDateChange, todayDateStr }: DateContr
             {format(selectedDate, "d")}
           </span>
           <span className="flex flex-col leading-tight">
-            <span className="text-[15px] font-semibold text-foreground">
+            <span className="text-md font-semibold text-foreground">
               {format(selectedDate, "MMMM")}
             </span>
             <span className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
@@ -164,7 +164,7 @@ export function DateCard({ selectedDate, onDateChange, todayDateStr }: DateContr
               type="button"
               aria-label="Previous day"
               onClick={goToPrevDay}
-              className="ui-press grid size-10 cursor-pointer place-items-center rounded-[9px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+              className="ui-press grid size-10 cursor-pointer place-items-center rounded-lg text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
             >
               <ChevronLeft className="size-4" />
             </button>
@@ -173,7 +173,7 @@ export function DateCard({ selectedDate, onDateChange, todayDateStr }: DateContr
               type="button"
               aria-label="Next day"
               onClick={goToNextDay}
-              className="ui-press grid size-10 cursor-pointer place-items-center rounded-[9px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+              className="ui-press grid size-10 cursor-pointer place-items-center rounded-lg text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
             >
               <ChevronRight className="size-4" />
             </button>
@@ -233,7 +233,7 @@ export function MobileWeekCalendar({
   return (
     <section
       aria-label="Date navigation"
-      className="rounded-[20px] border border-border/60 bg-card p-2 shadow-[0_1px_3px_rgb(0_0_0/0.04)] md:hidden"
+      className="rounded-3xl border border-border/60 bg-card p-2 shadow-[0_1px_3px_rgb(0_0_0/0.04)] md:hidden"
     >
       <div className="flex items-center justify-between gap-1 px-1 pb-1">
         <button
@@ -250,7 +250,7 @@ export function MobileWeekCalendar({
             <Button
               variant="ghost"
               aria-label="Open calendar"
-              className="ui-press inline-flex min-h-11 min-w-0 cursor-pointer items-center gap-2 rounded-xl bg-transparent px-3 text-[13px] font-semibold text-foreground shadow-none outline-none focus-visible:ring-2 focus-visible:ring-ring active:bg-muted/60"
+              className="ui-press inline-flex min-h-11 min-w-0 cursor-pointer items-center gap-2 rounded-xl bg-transparent px-3 text-sm font-semibold text-foreground shadow-none outline-none focus-visible:ring-2 focus-visible:ring-ring active:bg-muted/60"
             >
               <CalendarDays className="size-4 shrink-0 text-primary" aria-hidden="true" />
               <span className="truncate tabular-nums">{rangeLabel}</span>
@@ -267,7 +267,7 @@ export function MobileWeekCalendar({
                       variant="ghost"
                       size="sm"
                       onPress={goToToday}
-                      className="h-9 rounded-lg px-3 text-xs font-semibold text-primary"
+                      className="h-10 rounded-lg px-3 text-xs font-semibold text-primary"
                     >
                       Jump to today
                     </Button>
@@ -346,7 +346,7 @@ export function MobileWeekCalendar({
             >
               <span
                 className={cn(
-                  "text-[11px] font-medium",
+                  "text-2xs font-medium",
                   isSel
                     ? "text-primary-foreground/80"
                     : isTod
@@ -358,7 +358,7 @@ export function MobileWeekCalendar({
               </span>
               <span
                 className={cn(
-                  "text-[15px] font-semibold leading-none tabular-nums",
+                  "text-md font-semibold leading-none tabular-nums",
                   isSel
                     ? "text-primary-foreground"
                     : isTod

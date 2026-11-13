@@ -144,19 +144,19 @@ export function BlockRoomSheet({
       <Drawer.Content placement={isMobile ? "bottom" : "right"}>
         <Drawer.Dialog
           aria-labelledby="block-room-title"
-          className="flex h-[88dvh] max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[24px] bg-background shadow-2xl md:h-dvh md:max-h-dvh md:w-[min(25rem,100vw)] md:rounded-none md:border-l md:border-border/70"
+          className="flex h-[88dvh] max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-background shadow-2xl md:h-dvh md:max-h-dvh md:w-[min(25rem,100vw)] md:rounded-none md:border-l md:border-border/70"
         >
           {isMobile && <Drawer.Handle className="mt-3 shrink-0" />}
           <Drawer.CloseTrigger className="ui-press absolute right-4 top-4 z-10 inline-flex size-10 items-center justify-center rounded-xl bg-muted/70 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" />
 
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-            <Drawer.Header className="shrink-0 flex-row items-center justify-between border-b border-border/50 px-5 pb-4 pr-14 pt-5">
-              <Drawer.Heading id="block-room-title" className="text-[15px] font-semibold text-foreground">
+            <Drawer.Header className="shrink-0 flex-row items-center justify-between border-b border-border/50 px-6 pb-4 pr-14 pt-6">
+              <Drawer.Heading id="block-room-title" className="text-md font-semibold text-foreground">
                 {isEditing ? "Edit room block" : "Block room dates"}
               </Drawer.Heading>
             </Drawer.Header>
 
-            <Drawer.Body className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4">
+            <Drawer.Body className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-6 py-4">
               <div>
                 <p className="mb-2 text-xs font-medium text-muted-foreground">Room</p>
                 {isEditing ? (
@@ -260,7 +260,7 @@ export function BlockRoomSheet({
               </div>
             </Drawer.Body>
 
-            <Drawer.Footer className="flex shrink-0 items-center justify-end gap-2 border-t border-border/50 bg-muted/10 px-5 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3">
+            <Drawer.Footer className="flex shrink-0 items-center justify-end gap-2 border-t border-border/50 bg-muted/10 px-6 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3">
               <Button
                 type="button"
                 variant="outline"
@@ -275,7 +275,7 @@ export function BlockRoomSheet({
                 type="submit"
                 isPending={loading}
                 isDisabled={loading}
-                className="ui-press h-10 rounded-xl px-5 text-xs font-semibold"
+                className="ui-press h-10 rounded-xl px-4 text-xs font-semibold"
               >
                 {loading ? "Saving…" : isEditing ? "Save changes" : "Block dates"}
               </Button>

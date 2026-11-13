@@ -48,7 +48,7 @@ export function NumericStepper({
   }, [canIncrement, max, value, step, onChange]);
 
   const buttonSizeClass =
-    size === "sm" ? "size-7" : size === "lg" ? "size-9" : "size-8";
+    size === "sm" ? "size-8" : size === "lg" ? "size-10" : "size-8";
   const iconSizeClass =
     size === "sm" ? "size-3" : size === "lg" ? "size-4" : "size-4";
 
@@ -65,7 +65,7 @@ export function NumericStepper({
           <span
             className={cn(
               "font-semibold text-[var(--bk-ink)] select-none leading-snug",
-              size === "lg" ? "text-[15px]" : "text-sm"
+              size === "lg" ? "text-md" : "text-sm"
             )}
           >
             {label}
@@ -102,7 +102,7 @@ export function NumericStepper({
         <span
           className={cn(
             "text-center font-semibold text-[var(--bk-ink)] tabular-nums select-none",
-            size === "lg" ? "w-8 text-[15px]" : "w-7 text-sm"
+            size === "lg" ? "w-8 text-md" : "w-7 text-sm"
           )}
         >
           {value}

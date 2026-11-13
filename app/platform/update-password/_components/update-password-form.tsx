@@ -49,7 +49,7 @@ export function UpdatePasswordForm() {
         <CardDescription className="text-foreground/50">Choose a strong password</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <div className="grid gap-2">
             <label htmlFor="password" className="text-xs font-medium text-foreground/70">
               New password

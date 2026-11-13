@@ -29,7 +29,7 @@ export function ProcessingInvite({ hotelName, role, orgId }: { hotelName: string
 
   return (
     <div className="min-h-screen bg-[#FDFCFA] flex items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-[16px] border border-[#E9E2D6] bg-white p-6 text-center shadow-sm">
+      <div className="w-full max-w-md rounded-2xl border border-[#E9E2D6] bg-white p-6 text-center shadow-sm">
         <div className="mx-auto size-12 rounded-xl bg-[#0F1D1A] flex items-center justify-center animate-pulse">
           <span className="text-lg font-bold text-white">R</span>
         </div>

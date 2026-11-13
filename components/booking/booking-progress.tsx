@@ -57,12 +57,12 @@ export function BookingHeader({
       alt=""
       width={32}
       height={32}
-      className="size-8 md:size-7 shrink-0 rounded-[12px] object-cover ring-1 ring-black/5"
+      className="size-8 md:size-7 shrink-0 rounded-xl object-cover ring-1 ring-black/5"
     />
   ) : (
     <span
       aria-hidden
-      className="flex size-8 md:size-7 shrink-0 items-center justify-center rounded-[12px] bg-[#0485F7] text-[#FCFCFC] text-xs font-semibold"
+      className="flex size-8 md:size-7 shrink-0 items-center justify-center rounded-xl bg-[#0485F7] text-[#FCFCFC] text-xs font-semibold"
     >
       {monogram}
     </span>
@@ -71,7 +71,7 @@ export function BookingHeader({
   const brandContent = (
     <span className="inline-flex items-center gap-2 min-w-0">
       {logoElement}
-      <span className="hidden md:inline truncate text-[14px] font-semibold tracking-[-0.2px] text-[#18181B]">
+      <span className="hidden md:inline truncate text-sm font-semibold tracking-[-0.2px] text-[#18181B]">
         {hotelName}
       </span>
     </span>
@@ -121,7 +121,7 @@ export function BookingHeader({
             const badge = (
               <span
                 className={cn(
-                  "flex size-6 md:size-6 shrink-0 items-center justify-center rounded-full text-[10px] md:text-[11px] font-semibold transition-colors",
+                  "flex size-6 md:size-6 shrink-0 items-center justify-center rounded-full text-2xs font-semibold transition-colors",
                   isCompleted || isActive
                     ? "bg-[#0485F7] text-[#FCFCFC]"
                     : "bg-[#EBEBEC] text-[#71717A]"
@@ -140,8 +140,8 @@ export function BookingHeader({
                 className={cn(
                   "truncate",
                   isActive
-                    ? "inline text-[11px] md:text-[13px] font-semibold text-[#18181B]"
-                    : "hidden md:inline text-[13px] font-medium text-[#71717A]"
+                    ? "inline text-2xs md:text-sm font-semibold text-[#18181B]"
+                    : "hidden md:inline text-sm font-medium text-[#71717A]"
                 )}
               >
                 {step.label}
