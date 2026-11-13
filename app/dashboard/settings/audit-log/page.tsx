@@ -2,8 +2,6 @@ import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { can } from "@/lib/roles";
 import { redirect } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
-import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 
 import { fetchAuditLogPage } from "@/lib/audit-feed";
@@ -32,12 +30,11 @@ export default async function AuditLogPage() {
 
   if (!can(staff?.role, "audit:read")) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
-        <ShieldCheck className="size-10 text-muted-foreground/30 mb-3" />
-        <h2 className="text-sm font-semibold">Super Admin Only</h2>
-        <p className="text-xs text-muted-foreground mt-1">
-          Only the hotel Super Admin can view the audit log.
-        </p>
+      <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+        <span className="mb-3 grid size-12 place-items-center rounded-2xl bg-secondary text-muted-foreground">
+          <ShieldCheck className="size-5" />
+        </span>
+        <h2 className="text-sm font-semibold text-foreground">Super admins only</h2>
       </div>
     );
   }
@@ -47,49 +44,5 @@ export default async function AuditLogPage() {
   const initialPage = await fetchAuditLogPage(hotel.id, { page: 1 });
   const total = initialPage.total;
 
-  return (
-    <div className="mx-auto w-full max-w-5xl">
-      {/* Mobile header — back row, title, two-line caption (per design) */}
-      <div className="mb-4 lg:hidden">
-        <div className="flex items-center justify-between">
-          <Link
-            href="/dashboard/settings"
-            className="tap-target -m-2 rounded-xl text-sm font-medium text-foreground"
-          >
-            <ChevronLeft className="size-[16px]" aria-hidden />
-            Settings
-          </Link>
-          <span className="font-mono text-2xs font-medium text-muted-foreground">
-            {total} entries
-          </span>
-        </div>
-        <h1 className="mt-4 text-xl font-semibold tracking-[-0.012em] text-foreground">
-          Audit log
-        </h1>
-        <div className="mt-1 text-2xs leading-[1.45] text-muted-foreground">
-          <p>Append-only record of staff actions.</p>
-          <p>Entries cannot be edited or removed.</p>
-        </div>
-      </div>
-
-      {/* Desktop header — title block + mono count on the right (per design) */}
-      <div className="hidden items-center justify-between lg:flex">
-        <div>
-          <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.012em] text-foreground">
-            Audit log
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Append-only record of staff actions. Entries cannot be edited or removed.
-          </p>
-        </div>
-        <span className="font-mono text-sm font-medium text-muted-foreground">
-          {total} entries
-        </span>
-      </div>
-
-      <div className="mt-6">
-        <AuditLogClient initialRows={initialPage.rows} initialTotal={total} />
-      </div>
-    </div>
-  );
+  return <AuditLogClient initialRows={initialPage.rows} initialTotal={total} />;
 }

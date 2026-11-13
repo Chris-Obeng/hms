@@ -33,6 +33,11 @@ interface DateNavigatorProps {
   onDateChange: (date: Date) => void;
   /** Property-timezone business today (YYYY-MM-DD). */
   todayDateStr?: string;
+  /** Inclusive bounds (YYYY-MM-DD); stepping and the calendar stop here. */
+  minDateStr?: string;
+  maxDateStr?: string;
+  /** Disables every control (e.g. while a navigation is in flight). */
+  isDisabled?: boolean;
   className?: string;
 }
 
@@ -45,12 +50,19 @@ export function DateNavigator({
   selectedDate,
   onDateChange,
   todayDateStr,
+  minDateStr,
+  maxDateStr,
+  isDisabled = false,
   className,
 }: DateNavigatorProps) {
   const [calendarOpen, setCalendarOpen] = React.useState(false);
   const todayDate = React.useMemo(() => parseLocalDate(todayDateStr), [todayDateStr]);
   const isToday = startOfDay(selectedDate).getTime() === startOfDay(todayDate).getTime();
   const relative = relativeLabel(selectedDate, todayDate);
+  const selectedStr = format(selectedDate, "yyyy-MM-dd");
+  const atMin = Boolean(minDateStr && selectedStr <= minDateStr);
+  const atMax = Boolean(maxDateStr && selectedStr >= maxDateStr);
+  const toCd = (value: string) => toCalendarDate(parseLocalDate(value));
 
   const goToToday = React.useCallback(() => {
     onDateChange(todayDate);
@@ -63,6 +75,7 @@ export function DateNavigator({
         <Button
           isIconOnly
           aria-label="Previous day"
+          isDisabled={isDisabled || atMin}
           onPress={() => onDateChange(subDays(selectedDate, 1))}
           className="text-muted-foreground"
         >
@@ -72,6 +85,7 @@ export function DateNavigator({
         <Popover isOpen={calendarOpen} onOpenChange={setCalendarOpen}>
           <Button
             variant="secondary"
+            isDisabled={isDisabled}
             aria-label={`Change date, currently ${format(selectedDate, "EEEE, MMMM d, yyyy")}`}
             className="min-w-0 flex-1 gap-2 px-3 font-semibold tabular-nums sm:min-w-48"
           >
@@ -96,6 +110,8 @@ export function DateNavigator({
               <Calendar
                 aria-label="Select business date"
                 value={toCalendarDate(selectedDate)}
+                minValue={minDateStr ? toCd(minDateStr) : undefined}
+                maxValue={maxDateStr ? toCd(maxDateStr) : undefined}
                 onChange={(date) => {
                   if (date) {
                     onDateChange(fromCalendarDate(date as CalendarDate));
@@ -133,6 +149,7 @@ export function DateNavigator({
         <Button
           isIconOnly
           aria-label="Next day"
+          isDisabled={isDisabled || atMax}
           onPress={() => onDateChange(addDays(selectedDate, 1))}
           className="text-muted-foreground"
         >
@@ -142,7 +159,7 @@ export function DateNavigator({
       </ButtonGroup>
 
       {!isToday && (
-        <Button variant="ghost" onPress={goToToday} className="shrink-0 font-semibold text-primary">
+        <Button variant="ghost" onPress={goToToday} isDisabled={isDisabled} className="shrink-0 font-semibold text-primary">
           Today
         </Button>
       )}

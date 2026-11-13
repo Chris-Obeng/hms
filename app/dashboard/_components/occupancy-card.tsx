@@ -22,6 +22,9 @@ export function OccupancyCard({
   }).format(new Date(`${metric.date}T00:00:00Z`));
 
   const isDeficit = metric.availableRooms !== null && metric.availableRooms < 0;
+  // Past nights: inventory history is not stored, so say so once, quietly,
+  // instead of stacking a warning note on top of an "Unavailable" panel.
+  const isHistorical = metric.basis === "historical-unavailable";
   const excluded = [
     metric.outOfService ? `${metric.outOfService} out of service` : null,
     metric.blocked ? `${metric.blocked} blocked` : null,
@@ -55,7 +58,14 @@ export function OccupancyCard({
         )}
       </header>
 
-      {metric.issues.length > 0 && (
+      {isHistorical && (
+        <p role="note" className="text-sm leading-relaxed text-muted-foreground">
+          Historical room inventory isn&apos;t recorded, so rooms sold can&apos;t be shown for past
+          nights.
+        </p>
+      )}
+
+      {!isHistorical && metric.issues.length > 0 && (
         <div
           role={metric.state === "inconsistent" ? "alert" : "note"}
           className={cn(
@@ -71,7 +81,7 @@ export function OccupancyCard({
         </div>
       )}
 
-      <div
+      {!isHistorical && <div
         className={cn(
           "flex gap-4",
           metric.state === "ready" ? "items-center sm:gap-6 xl:gap-4" : "flex-col"
@@ -113,7 +123,7 @@ export function OccupancyCard({
             </dl>
           </div>
         )}
-      </div>
+      </div>}
 
       {metric.totalRooms !== null && (
         <footer className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border/50 pt-3 text-xs text-muted-foreground">

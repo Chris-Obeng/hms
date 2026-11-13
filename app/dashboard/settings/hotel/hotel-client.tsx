@@ -2,17 +2,28 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button as HeroButton, toast } from "@heroui/react";
+import {
+  Alert,
+  Button,
+  Input,
+  Label,
+  ListBox,
+  NumberField,
+  Select,
+  Switch,
+  TextArea,
+  TextField,
+  TimeField,
+  toast,
+} from "@heroui/react";
+import { parseTime } from "@internationalized/date";
 import { Check, Copy, ExternalLink } from "lucide-react";
 
 import { updateHotelProfile } from "@/app/actions/settings";
 import { saveHotelImageUrl } from "@/app/actions/upload";
-import { HeroSelectField } from "@/components/ui/hero-select";
 import { ImageUpload } from "@/components/ui/image-upload";
-import { PenCard } from "@/components/ui/pen/pen-card";
-import { Switch } from "@/components/ui/switch";
-import { cn } from "@/lib/utils";
 import { type HotelCurrency } from "@/lib/money";
+import { SaveBar, SettingsGroup, SettingsRow } from "../_components/settings-ui";
 
 const TIMEZONE_OPTIONS = [
   "Africa/Accra",
@@ -61,36 +72,26 @@ interface HotelSettingsClientProps {
   staffName?: string;
 }
 
-const inputClass = "h-11 w-full rounded-xl border border-border/70 bg-card px-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60 sm:h-10 sm:text-sm [@media(hover:hover)_and_(pointer:fine)]:hover:border-border";
-const labelClass = "text-xs font-medium text-muted-foreground";
+/** Field heights: 44px touch targets on phones, 40px from `sm`. */
+const FIELD_H = "min-h-11 sm:min-h-10";
 
-function Field({
-  label,
-  htmlFor,
-  children,
-  className,
-}: {
-  label: string;
-  htmlFor?: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex flex-col gap-2", className)}>
-      {htmlFor ? (
-        <label htmlFor={htmlFor} className={labelClass}>
-          {label}
-        </label>
-      ) : (
-        <span className={labelClass}>{label}</span>
-      )}
-      {children}
-    </div>
-  );
+function toTime(value: string) {
+  if (!value) return null;
+  try {
+    return parseTime(value.length === 5 ? value : value.slice(0, 5));
+  } catch {
+    return null;
+  }
 }
 
-/** Hotel profile panel per the design: one card, paired fields, branding tiles, footer save. */
-export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData, logoUrl, coverImageUrl, staffName }: HotelSettingsClientProps) {
+export function HotelSettingsClient({
+  canEdit,
+  hotelId,
+  bookingUrl,
+  initialData,
+  logoUrl,
+  coverImageUrl,
+}: HotelSettingsClientProps) {
   const router = useRouter();
   const [values, setValues] = React.useState(initialData);
   const [saving, setSaving] = React.useState(false);
@@ -98,41 +99,37 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
   const [currentLogoUrl, setCurrentLogoUrl] = React.useState(logoUrl);
   const [currentCoverUrl, setCurrentCoverUrl] = React.useState(coverImageUrl);
 
-  const timezoneOptions = React.useMemo(() => {
+  const timezones = React.useMemo(() => {
     const active = values.timezone || "Africa/Accra";
-    const list = TIMEZONE_OPTIONS.includes(active)
-      ? TIMEZONE_OPTIONS
-      : [active, ...TIMEZONE_OPTIONS];
-    return list.map((tz) => ({ value: tz, label: tz }));
+    return TIMEZONE_OPTIONS.includes(active) ? TIMEZONE_OPTIONS : [active, ...TIMEZONE_OPTIONS];
   }, [values.timezone]);
 
   function set<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
+  const hasChanges = JSON.stringify(values) !== JSON.stringify(initialData);
 
+  async function save() {
+    if (!values.name.trim()) {
+      toast.danger("Hotel name is required");
+      return;
+    }
+    setSaving(true);
     const result = await updateHotelProfile(values);
     setSaving(false);
-
     if (result.success) {
-      toast.success("Hotel profile updated");
+      toast.success("Hotel profile saved");
       router.refresh();
     } else {
       toast.danger(result.error || "Failed to update hotel profile");
     }
-  };
-
-  const hasChanges = JSON.stringify(values) !== JSON.stringify(initialData);
+  }
 
   // Warn before leaving with unsaved edits
   React.useEffect(() => {
     if (!canEdit || !hasChanges) return;
-    const warn = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [canEdit, hasChanges]);
@@ -145,169 +142,68 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
     });
   }
 
+  const disabled = !canEdit;
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {bookingUrl && (
-        <PenCard className="gap-3 sm:p-6">
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1">
-              <h2 className="text-md font-semibold text-foreground">Direct booking page</h2>
-              <p className="text-xs text-muted-foreground">Share this link so guests can book {values.name || "your property"} directly.</p>
-            </div>
-            <a
-              href={bookingUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ui-press inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-medium text-muted-foreground sm:min-h-0 sm:px-0 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
-            >
-              <ExternalLink className="size-4" aria-hidden="true" />
-              Open
-            </a>
-          </div>
-          <div className="flex h-11 items-center gap-2 rounded-lg border border-border/70 bg-secondary/50 px-3 sm:h-10">
-            <span className="min-w-0 flex-1 truncate font-mono text-sm text-foreground select-all">
-              {bookingUrl.replace(/^https?:\/\//, "")}
-            </span>
-            <button
-              type="button"
-              onClick={copyBookingLink}
-              className="ui-press inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-lg px-1 text-xs font-medium text-muted-foreground sm:min-h-0 sm:px-0 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
-            >
-              {copiedUrl ? (
-                <>
-                  <Check className="size-4 text-emerald-700" aria-hidden="true" />
-                  <span className="text-emerald-700">Copied</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="size-4" aria-hidden="true" />
-                  <span>Copy</span>
-                </>
-              )}
-            </button>
-          </div>
-        </PenCard>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        void save();
+      }}
+      className="flex flex-col gap-8"
+    >
+      {!canEdit && (
+        <Alert status="default" className="rounded-2xl">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>View only</Alert.Title>
+            <Alert.Description>A super admin manages the hotel profile.</Alert.Description>
+          </Alert.Content>
+        </Alert>
       )}
 
-      <PenCard className="gap-4 sm:p-6">
-        <header className="space-y-1">
-          <h2 className="text-md font-semibold text-foreground">Hotel profile</h2>
-          <p className="text-xs text-muted-foreground">Guests see these details on your booking page and emails.</p>
-        </header>
-
-        <Field label="Hotel name" htmlFor="hotel-name">
-          <input id="hotel-name" className={inputClass} placeholder="Your hotel name" value={values.name} required
-            disabled={!canEdit} onChange={(e) => set("name", e.target.value)} />
-        </Field>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="City" htmlFor="hotel-city">
-            <input id="hotel-city" className={inputClass} placeholder="e.g. Accra" value={values.city} disabled={!canEdit} onChange={(e) => set("city", e.target.value)} />
-          </Field>
-          <Field label="Country" htmlFor="hotel-country">
-            <input id="hotel-country" className={inputClass} placeholder="e.g. Ghana" value={values.country} disabled={!canEdit} onChange={(e) => set("country", e.target.value)} />
-          </Field>
-        </div>
-
-        <Field label="Address" htmlFor="hotel-address">
-          <input id="hotel-address" className={inputClass} placeholder="Street address" value={values.address} disabled={!canEdit} onChange={(e) => set("address", e.target.value)} />
-        </Field>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Phone" htmlFor="hotel-phone">
-            <input id="hotel-phone" type="tel" className={inputClass} placeholder="+233 XX XXX XXXX" value={values.phone} disabled={!canEdit} onChange={(e) => set("phone", e.target.value)} />
-          </Field>
-          <Field label="Email" htmlFor="hotel-email">
-            <input id="hotel-email" type="email" className={inputClass} placeholder="hotel@example.com" value={values.email} disabled={!canEdit} onChange={(e) => set("email", e.target.value)} />
-          </Field>
-        </div>
-
-        <Field label="Hotel description" htmlFor="hotel-description">
-          <textarea id="hotel-description" rows={3} maxLength={2000} className={cn(inputClass, "h-auto resize-none py-3 leading-relaxed")}
-            placeholder="Describe your hotel, its location, amenities, and atmosphere…" value={values.description}
-            disabled={!canEdit} onChange={(e) => set("description", e.target.value)} />
-        </Field>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Check-in time" htmlFor="hotel-checkin-time">
-            <input id="hotel-checkin-time" type="time" className={inputClass} value={values.checkInTime} disabled={!canEdit} onChange={(e) => set("checkInTime", e.target.value)} />
-          </Field>
-          <Field label="Check-out time" htmlFor="hotel-checkout-time">
-            <input id="hotel-checkout-time" type="time" className={inputClass} value={values.checkOutTime} disabled={!canEdit} onChange={(e) => set("checkOutTime", e.target.value)} />
-          </Field>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Timezone">
-            <HeroSelectField
-              value={values.timezone || "Africa/Accra"}
-              onValueChange={(next) => set("timezone", next)}
-              options={timezoneOptions}
-              triggerClassName="min-h-11 sm:min-h-10"
-              label={null}
-              ariaLabel="Timezone"
-              isDisabled={!canEdit}
-            />
-          </Field>
-          <Field label="Currency">
-            <div className="flex h-11 items-center rounded-lg border border-border/70 bg-secondary/50 px-3 text-sm text-foreground sm:h-10">
-              GHS <span className="ml-2 text-muted-foreground">· Ghana Cedi</span>
+      {bookingUrl && (
+        <SettingsGroup title="Booking page">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex min-h-11 min-w-0 flex-1 items-center rounded-xl bg-secondary/70 px-3 sm:min-h-10">
+              <span className="truncate font-mono text-sm text-foreground select-all">
+                {bookingUrl.replace(/^https?:\/\//, "")}
+              </span>
             </div>
-          </Field>
-        </div>
-
-        <Field label="Cancellation policy" htmlFor="hotel-cancellation-policy">
-          <textarea id="hotel-cancellation-policy" rows={2} maxLength={500} className={cn(inputClass, "h-auto resize-none py-3 leading-relaxed")}
-            placeholder="e.g. Free cancellation up to 24 hours before check-in." value={values.cancellationPolicy}
-            disabled={!canEdit} onChange={(e) => set("cancellationPolicy", e.target.value)} />
-        </Field>
-
-        <div className="space-y-3 rounded-2xl border border-border/60 bg-secondary/30 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground">Tax / VAT</p>
-              <p className="text-xs text-muted-foreground">Applied as a line item on new bookings and guest invoices.</p>
+            <div className="flex gap-2">
+              <Button variant="secondary" onPress={copyBookingLink} className="flex-1 rounded-xl sm:flex-initial">
+                {copiedUrl ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}
+                {copiedUrl ? "Copied" : "Copy"}
+              </Button>
+              <Button
+                variant="tertiary"
+                onPress={() => window.open(bookingUrl, "_blank", "noopener,noreferrer")}
+                className="flex-1 rounded-xl sm:flex-initial"
+              >
+                <ExternalLink className="size-4" />
+                Open
+              </Button>
             </div>
-            <Switch
-              aria-label="Enable Tax / VAT"
-              checked={values.taxEnabled}
-              isDisabled={!canEdit}
-              onCheckedChange={(checked) => set("taxEnabled", checked)}
-            />
           </div>
-          {values.taxEnabled && (
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <div className="w-36">
-                <label htmlFor="hotel-tax-rate" className={cn(labelClass, "mb-2 block")}>Tax rate (%)</label>
-                <div className="relative">
-                  <input
-                    id="hotel-tax-rate"
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.1}
-                    disabled={!canEdit}
-                    value={values.taxPercentage}
-                    onChange={(e) => set("taxPercentage", parseFloat(e.target.value) || 0)}
-                    className={cn(inputClass, "pr-8 tabular-nums")}
-                  />
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-                </div>
-              </div>
-              <p className="mt-6 text-xs text-muted-foreground">
-                Adds {values.taxPercentage}% to the room subtotal on guest invoices.
-              </p>
-            </div>
-          )}
-        </div>
+        </SettingsGroup>
+      )}
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[120px_1fr]">
+      <SettingsGroup title="Profile">
+        <TextField fullWidth isRequired isDisabled={disabled} value={values.name} onChange={(v) => set("name", v)}>
+          <Label>Hotel name</Label>
+          <Input placeholder="Your hotel name" />
+        </TextField>
+        <TextField fullWidth isDisabled={disabled} value={values.description} onChange={(v) => set("description", v)}>
+          <Label>Description</Label>
+          <TextArea rows={3} maxLength={2000} placeholder="What makes your hotel special" className="resize-none" />
+        </TextField>
+        <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-3 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4">
           <ImageUpload
             label="Logo"
-            disabled={!canEdit}
+            disabled={disabled}
             currentUrl={currentLogoUrl}
             storagePath={`hotels/${hotelId}/branding`}
-            aspect="h-[84px]"
+            aspect="h-24"
             onUpload={async (url) => {
               const res = await saveHotelImageUrl("logo", url);
               if (!res.success) {
@@ -329,10 +225,10 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
           />
           <ImageUpload
             label="Cover image"
-            disabled={!canEdit}
+            disabled={disabled}
             currentUrl={currentCoverUrl}
             storagePath={`hotels/${hotelId}/branding`}
-            aspect="h-[84px]"
+            aspect="h-24"
             onUpload={async (url) => {
               const res = await saveHotelImageUrl("cover", url);
               if (!res.success) {
@@ -353,19 +249,140 @@ export function HotelSettingsClient({ canEdit, hotelId, bookingUrl, initialData,
             }}
           />
         </div>
+      </SettingsGroup>
 
-        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-4">
-          <p className="text-2xs text-muted-foreground">
-            {canEdit
-              ? saving ? "Saving changes…" : hasChanges ? "You have unsaved changes." : staffName ? `Changes apply immediately · ${staffName}` : "Changes apply across the property immediately."
-              : "View only — a super admin manages this profile."}
-          </p>
-          {canEdit && <HeroButton type="submit" variant="primary" isPending={saving} isDisabled={!values.name || (!hasChanges && !saving)}
-            className="ui-press h-11 rounded-full px-4 text-sm font-medium sm:h-10">
-            Save changes
-          </HeroButton>}
-        </footer>
-      </PenCard>
+      <SettingsGroup title="Contact">
+        <TextField fullWidth isDisabled={disabled} value={values.address} onChange={(v) => set("address", v)}>
+          <Label>Address</Label>
+          <Input placeholder="Street address" autoComplete="street-address" />
+        </TextField>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <TextField fullWidth isDisabled={disabled} value={values.city} onChange={(v) => set("city", v)}>
+            <Label>City</Label>
+            <Input placeholder="Accra" />
+          </TextField>
+          <TextField fullWidth isDisabled={disabled} value={values.country} onChange={(v) => set("country", v)}>
+            <Label>Country</Label>
+            <Input placeholder="Ghana" />
+          </TextField>
+          <TextField fullWidth isDisabled={disabled} type="tel" value={values.phone} onChange={(v) => set("phone", v)}>
+            <Label>Phone</Label>
+            <Input placeholder="+233 30 000 0000" inputMode="tel" />
+          </TextField>
+          <TextField fullWidth isDisabled={disabled} type="email" value={values.email} onChange={(v) => set("email", v)}>
+            <Label>Email</Label>
+            <Input placeholder="hello@yourhotel.com" />
+          </TextField>
+        </div>
+      </SettingsGroup>
+
+      <SettingsGroup title="Stays">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <TimeField
+            granularity="minute"
+            isDisabled={disabled}
+            value={toTime(values.checkInTime)}
+            onChange={(v) => set("checkInTime", v ? v.toString().slice(0, 5) : "")}
+          >
+            <Label>Check-in</Label>
+            <TimeField.Group className="h-11 sm:h-10">
+              <TimeField.Input>{(segment) => <TimeField.Segment segment={segment} />}</TimeField.Input>
+            </TimeField.Group>
+          </TimeField>
+          <TimeField
+            granularity="minute"
+            isDisabled={disabled}
+            value={toTime(values.checkOutTime)}
+            onChange={(v) => set("checkOutTime", v ? v.toString().slice(0, 5) : "")}
+          >
+            <Label>Check-out</Label>
+            <TimeField.Group className="h-11 sm:h-10">
+              <TimeField.Input>{(segment) => <TimeField.Segment segment={segment} />}</TimeField.Input>
+            </TimeField.Group>
+          </TimeField>
+
+          <Select
+            fullWidth
+            isDisabled={disabled}
+            value={values.timezone || "Africa/Accra"}
+            onChange={(v) => v && set("timezone", String(v))}
+          >
+            <Label>Timezone</Label>
+            <Select.Trigger className={FIELD_H}>
+              <Select.Value />
+              <Select.Indicator />
+            </Select.Trigger>
+            <Select.Popover className="max-h-72">
+              <ListBox>
+                {timezones.map((tz) => (
+                  <ListBox.Item key={tz} id={tz} textValue={tz}>
+                    {tz.replace("_", " ")}
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                ))}
+              </ListBox>
+            </Select.Popover>
+          </Select>
+
+          <TextField fullWidth isReadOnly value="GHS · Ghana Cedi">
+            <Label>Currency</Label>
+            <Input className="bg-secondary/60 text-muted-foreground" />
+          </TextField>
+        </div>
+        <TextField
+          fullWidth
+          isDisabled={disabled}
+          value={values.cancellationPolicy}
+          onChange={(v) => set("cancellationPolicy", v)}
+        >
+          <Label>Cancellation policy</Label>
+          <TextArea rows={2} maxLength={500} placeholder="Free cancellation up to 24 hours before check-in" className="resize-none" />
+        </TextField>
+      </SettingsGroup>
+
+      <SettingsGroup title="Tax">
+        <SettingsRow label="Charge tax / VAT">
+          <Switch
+            aria-label="Charge tax / VAT"
+            isSelected={values.taxEnabled}
+            isDisabled={disabled}
+            onChange={(v) => set("taxEnabled", v)}
+          >
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch>
+        </SettingsRow>
+        {values.taxEnabled && (
+          <NumberField
+            value={values.taxPercentage}
+            minValue={0}
+            maxValue={100}
+            step={0.5}
+            isDisabled={disabled}
+            onChange={(v) => set("taxPercentage", typeof v === "number" && !Number.isNaN(v) ? v : 0)}
+            formatOptions={{ maximumFractionDigits: 2 }}
+            className="max-w-48"
+          >
+            <Label>Rate (%)</Label>
+            <NumberField.Group>
+              <NumberField.DecrementButton />
+              <NumberField.Input className="min-w-0 text-center tabular-nums" />
+              <NumberField.IncrementButton />
+            </NumberField.Group>
+          </NumberField>
+        )}
+      </SettingsGroup>
+
+      {canEdit && (
+        <SaveBar
+          visible={hasChanges || saving}
+          saving={saving}
+          canSave={Boolean(values.name.trim())}
+          onSave={() => void save()}
+          onDiscard={() => setValues(initialData)}
+        />
+      )}
     </form>
   );
 }

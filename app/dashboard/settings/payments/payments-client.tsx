@@ -1,10 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { AlertDialog, Button as HeroButton, toast } from "@heroui/react";
-import { CheckCircle2, Loader2, RefreshCw } from "lucide-react";
+import { Alert, AlertDialog, Button, Chip, Input, Label, ListBox, Radio, RadioGroup, Select, TextField, toast } from "@heroui/react";
+import { CheckCircle2, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { HeroSelectField } from "@/components/ui/hero-select";
 import { cn } from "@/lib/utils";
 import { PenCard, PenCardHead } from "@/components/ui/pen/pen-card";
 import {
@@ -16,9 +15,9 @@ import {
 } from "@/app/actions/paystack";
 
 const POLICY_OPTIONS: { value: PaymentPolicy; label: string; desc: string }[] = [
-  { value: "choice", label: "Guest's Choice", desc: "Online or at check-in." },
-  { value: "pay_now_only", label: "Pay Online", desc: "Payment is required to confirm." },
-  { value: "pay_later_only", label: "Pay at Check-In", desc: "Collect payment on arrival." },
+  { value: "choice", label: "Guest's choice", desc: "Online or at check-in" },
+  { value: "pay_now_only", label: "Online", desc: "Required to confirm" },
+  { value: "pay_later_only", label: "At check-in", desc: "Collect on arrival" },
 ];
 
 interface Props {
@@ -167,113 +166,137 @@ export function PaymentsSettingsClient({ initialData }: Props) {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
       {initialData.modeMismatch && (
-        <div
-          role="alert"
-          className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-800 dark:text-amber-200"
-        >
-          <p className="font-semibold">
-            Reconnect your {initialData.activeMode === "live" ? "live" : "test"} payout account
-          </p>
-          <p className="mt-1 opacity-90">
-            Your previously saved Paystack subaccount belongs to{" "}
-            {initialData.activeMode === "live" ? "test" : "live"} mode. Online guest
-            payments are paused (Pay at Check-In remains active) until you verify and
-            save your {initialData.activeMode === "live" ? "live" : "test"} settlement
-            account below.
-          </p>
-        </div>
+        <Alert status="warning" className="rounded-2xl">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Reconnect your {initialData.activeMode === "live" ? "live" : "test"} payout account</Alert.Title>
+            <Alert.Description>
+              Online payments are paused until you verify and save a {initialData.activeMode === "live" ? "live" : "test"} account below.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
       )}
-      <PenCard className="gap-4">
-        <PenCardHead title="Payment policy" caption="When guests are asked to pay." />
-        <div className="flex flex-col gap-3 sm:flex-row" role="radiogroup" aria-label="Payment policy">
-          {POLICY_OPTIONS.map((opt) => {
-            const selected = policy === opt.value;
-            return <button key={opt.value} type="button" role="radio" aria-checked={selected}
-              disabled={savingPolicy} onClick={() => setPolicy(opt.value)}
-              className={cn(
-                "flex min-w-0 flex-1 items-start gap-3 rounded-xl p-4 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring",
-                selected ? "bg-[#0485F70A] ring-[1.5px] ring-inset ring-[var(--pen-accent)]" : "bg-card ring-1 ring-inset ring-border hover:ring-border",
-              )}>
-              <span aria-hidden className={cn(
-                "mt-1 flex size-4 shrink-0 items-center justify-center rounded-full border-[1.5px] bg-card",
-                selected ? "border-[var(--pen-accent)]" : "border-border",
-              )}>
-                {selected && <span className="size-2 rounded-full bg-[var(--pen-accent)]" />}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-foreground">{opt.label}</span>
-                <span className="mt-1 block text-2xs text-muted-foreground">{opt.desc}</span>
-              </span>
-            </button>;
-          })}
-        </div>
-        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3">
-          <p className="text-2xs text-muted-foreground">
-            Policy applies to new bookings immediately.
-            {savingPolicy && <Loader2 className="ml-2 inline size-4 animate-spin text-muted-foreground" aria-label="Saving" />}
-          </p>
-          <HeroButton variant="primary" isPending={savingPolicy} isDisabled={!policyDirty} onPress={savePolicy}
-            className="h-10 rounded-full px-4 text-sm font-medium">
-            Save
-          </HeroButton>
-        </footer>
+
+      <PenCard>
+        <PenCardHead title="When guests pay" />
+        <RadioGroup
+          aria-label="Payment policy"
+          value={policy}
+          onChange={(v) => setPolicy(v as PaymentPolicy)}
+          isDisabled={savingPolicy}
+          className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+        >
+          {POLICY_OPTIONS.map((opt) => (
+            <Radio key={opt.value} value={opt.value} className="mt-0">
+              <Radio.Content className="group flex h-full w-full items-start gap-3 rounded-2xl border border-border/70 p-4 transition-colors duration-150 data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-ring data-[hovered=true]:border-border data-[selected=true]:border-primary/50 data-[selected=true]:bg-primary/[0.04]">
+                <Radio.Control className="mt-px size-5 shrink-0 rounded-full border border-border bg-card shadow-none group-data-[selected=true]:border-transparent group-data-[selected=true]:bg-primary">
+                  <Radio.Indicator className="before:rounded-full before:bg-card group-data-[selected=true]:before:scale-[0.4]" />
+                </Radio.Control>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-foreground">{opt.label}</span>
+                  <span className="mt-1 block text-xs text-muted-foreground">{opt.desc}</span>
+                </span>
+              </Radio.Content>
+            </Radio>
+          ))}
+        </RadioGroup>
+        {policyDirty && (
+          <div className="flex justify-end gap-2">
+            <Button variant="tertiary" onPress={() => setPolicy(savedPolicy)} isDisabled={savingPolicy} className="rounded-xl">
+              Discard
+            </Button>
+            <Button variant="primary" isPending={savingPolicy} onPress={savePolicy} className="rounded-xl font-semibold">
+              Save
+            </Button>
+          </div>
+        )}
       </PenCard>
 
-      <PenCard className="gap-4">
-        <PenCardHead title="Settlement account" caption="Where your payouts are sent." />
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="flex w-full flex-col gap-2 sm:w-60">
-            <label className="text-xs font-medium text-muted-foreground">Bank / mobile money</label>
-            {banksError ? (
-              <div className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
-                <span className="text-2xs text-muted-foreground">Could not load banks.</span>
-                <HeroButton variant="outline" size="sm" className="h-8 shrink-0 rounded-full px-3 text-xs" onPress={loadBanks} isDisabled={banksLoading}>
-                  <RefreshCw className={cn("size-3", banksLoading && "animate-spin")} /> Retry
-                </HeroButton>
+      <PenCard>
+        <PenCardHead
+          title="Payout account"
+          actions={connectedNote ? (
+            <Chip size="sm" variant="soft" color="success" className="gap-1">
+              <CheckCircle2 className="size-3" aria-hidden="true" />
+              <Chip.Label>{verified ? "Verified" : "Connected"}</Chip.Label>
+            </Chip>
+          ) : undefined}
+        />
+        {connectedNote && <p className="-mt-2 text-sm text-muted-foreground">{connectedNote.replace(/^(Account verified|Connected) — /, "")}</p>}
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+          {banksError ? (
+            <div className="flex flex-col gap-1">
+              <Label>Bank or mobile money</Label>
+              <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl bg-secondary/70 px-3 sm:min-h-10">
+                <span className="text-sm text-muted-foreground">Couldn&apos;t load banks</span>
+                <Button size="sm" variant="ghost" onPress={loadBanks} isDisabled={banksLoading} className="h-8 rounded-lg">
+                  <RefreshCw className={cn("size-4", banksLoading && "animate-spin")} /> Retry
+                </Button>
               </div>
-            ) : (
-              <HeroSelectField
-                value={bankCode}
-                onValueChange={changeBank}
-                isDisabled={banksLoading || verifying || saving}
-                options={banks.map((b) => ({ value: b.code, label: b.name }))}
-                placeholder={banksLoading ? "Loading banks…" : "Select bank"}
-                ariaLabel="Bank"
-              />
-            )}
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <label className="text-xs font-medium text-muted-foreground">Account number</label>
-            <input value={accountNumber}
-              disabled={verifying || saving}
-              onChange={(e) => changeAccountNumber(e.target.value.replace(/\D/g, ""))}
+            </div>
+          ) : (
+            <Select
+              fullWidth
+              value={bankCode || null}
+              onChange={(v) => v && changeBank(String(v))}
+              isDisabled={banksLoading || verifying || saving}
+              placeholder={banksLoading ? "Loading banks…" : "Select bank"}
+            >
+              <Label>Bank or mobile money</Label>
+              <Select.Trigger className="min-h-11 sm:min-h-10">
+                <Select.Value />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover className="max-h-72">
+                <ListBox>
+                  {banks.map((b) => (
+                    <ListBox.Item key={b.code} id={b.code} textValue={b.name}>
+                      {b.name}
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
+            </Select>
+          )}
+
+          <TextField
+            fullWidth
+            value={accountNumber}
+            onChange={(v) => changeAccountNumber(v.replace(/\D/g, ""))}
+            isDisabled={verifying || saving}
+          >
+            <Label>{isMobileMoney ? "Wallet number" : "Account number"}</Label>
+            <Input
               placeholder={isMobileMoney ? "0244000000" : "Account number"}
-              className="h-10 w-full rounded-lg border border-border/70 bg-card px-3 font-mono text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-border focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60"
-              inputMode="numeric" autoComplete="off" maxLength={maxAccountLength}
-              aria-describedby="account-number-hint" />
-          </div>
-          <HeroButton variant="outline" className="h-10 shrink-0 rounded-full px-4 text-sm font-medium sm:w-[120px]"
-            onPress={handleVerify} isPending={verifying}
-            isDisabled={verifying || saving || !bankCode || !accountValid}>
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={maxAccountLength}
+              className="font-mono"
+            />
+          </TextField>
+
+          <Button
+            variant="secondary"
+            onPress={handleVerify}
+            isPending={verifying}
+            isDisabled={verifying || saving || !bankCode || !accountValid}
+            className="rounded-xl font-semibold"
+          >
             Verify
-          </HeroButton>
+          </Button>
         </div>
-        <p id="account-number-hint" className="text-2xs text-muted-foreground">
-          {isMobileMoney ? "Enter the 10-digit wallet number." : "Enter the full account number. We verify the name before saving."}
-        </p>
-        {connectedNote && <p className="flex items-center gap-2 rounded-lg bg-[#17C9640F] px-3 py-3 text-xs font-medium text-[var(--success)]">
-          <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" /> {connectedNote}
-        </p>}
-        <footer className="border-t border-border/50 pt-3">
-          <HeroButton variant="primary" onPress={handleSave}
-            isPending={saving}
-            isDisabled={saving || !verified || !verificationConfirmed || !bankCode || !accountNumber}
-            className="h-10 rounded-full px-4 text-sm font-medium">
-            {isActive ? "Save changes" : "Connect payout account"}
-          </HeroButton>
-        </footer>
+
+        {verified && verificationConfirmed && (
+          <div className="flex justify-end">
+            <Button variant="primary" onPress={handleSave} isPending={saving} isDisabled={saving || !bankCode || !accountNumber} className="rounded-xl font-semibold">
+              {isActive ? "Save account" : "Connect account"}
+            </Button>
+          </div>
+        )}
       </PenCard>
 
       <AlertDialog.Backdrop
@@ -289,21 +312,20 @@ export function PaymentsSettingsClient({ initialData }: Props) {
         isDismissable
       >
         <AlertDialog.Container placement="center" size="sm">
-          <AlertDialog.Dialog className="w-full max-w-md rounded-3xl border border-border/60 bg-card p-6 shadow-2xl">
+          <AlertDialog.Dialog className="rounded-3xl sm:max-w-md">
             <AlertDialog.Header>
               <AlertDialog.Icon status="success" />
-              <AlertDialog.Heading>Confirm payout account</AlertDialog.Heading>
+              <AlertDialog.Heading className="text-lg font-semibold">Is this the right account?</AlertDialog.Heading>
             </AlertDialog.Header>
-            <AlertDialog.Body className="space-y-4">
-              <p className="text-sm text-muted-foreground">Paystack found this registered account. Confirm that the details are correct before saving.</p>
-              <dl className="divide-y divide-border/60 rounded-2xl bg-muted/35 px-4">
+            <AlertDialog.Body>
+              <dl className="divide-y divide-border/60 rounded-2xl bg-secondary/60 px-4">
                 <div className="flex flex-col gap-1 py-3"><dt className="text-xs text-muted-foreground">Account name</dt><dd className="text-sm font-semibold text-foreground">{verified}</dd></div>
                 <div className="flex flex-col gap-1 py-3"><dt className="text-xs text-muted-foreground">Account number</dt><dd className="font-mono text-sm font-semibold tracking-wide text-foreground">{accountNumber}</dd></div>
               </dl>
             </AlertDialog.Body>
-            <AlertDialog.Footer>
-              <HeroButton slot="close" variant="tertiary" onPress={() => { verificationCloseReason.current = "cancel"; setVerified(null); setVerificationConfirmed(false); }}>No, re-enter</HeroButton>
-              <HeroButton slot="close" variant="primary" onPress={() => { verificationCloseReason.current = "confirm"; setVerificationConfirmed(true); setVerificationOpen(false); }}>Yes, this is correct</HeroButton>
+            <AlertDialog.Footer className="flex-col-reverse gap-2 sm:flex-row">
+              <Button slot="close" variant="tertiary" className="rounded-xl" onPress={() => { verificationCloseReason.current = "cancel"; setVerified(null); setVerificationConfirmed(false); }}>No, re-enter</Button>
+              <Button slot="close" variant="primary" className="rounded-xl font-semibold" onPress={() => { verificationCloseReason.current = "confirm"; setVerificationConfirmed(true); setVerificationOpen(false); }}>Yes, it&apos;s correct</Button>
             </AlertDialog.Footer>
           </AlertDialog.Dialog>
         </AlertDialog.Container>

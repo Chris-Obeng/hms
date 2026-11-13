@@ -1,34 +1,14 @@
 "use client";
 
 /**
- * audit-log-client.tsx
- *
- * Audit trail as a day-grouped legal record, matching the design in
- * pencil-audit-log.pen:
- *
- * - A toolbar (search + category filter) that lives inside the panel card on
- *   desktop and floats above it on phones — one DOM tree, the card chrome
- *   swaps via responsive classes.
- * - Entries grouped under sticky-free day bands ("Sunday, 8 November 2026"),
- *   each row an append-only record: actor, verb, booking reference, and a
- *   mono meta line (see lib/audit-format.ts).
- * - Numbered pagination with an exact page count from the server action.
- * - The three designed states: loading skeletons, empty search, load failed.
+ * Audit trail as a day-grouped, append-only record: a search + filter toolbar,
+ * entries grouped by day, and numbered pagination with an exact page count.
  */
 
 import * as React from "react";
 import type { Selection } from "@heroui/react";
-import { Dropdown, Separator, Skeleton, Spinner } from "@heroui/react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  CircleAlert,
-  CircleX,
-  FileClock,
-  Funnel,
-  Search,
-  SearchX,
-} from "lucide-react";
+import { Alert, Button, Card, Dropdown, Label, SearchField, Separator, Skeleton } from "@heroui/react";
+import { ChevronLeft, ChevronRight, FileClock, ListFilter, SearchX } from "lucide-react";
 
 import { fetchAuditLogEntries } from "@/app/actions/audit-log";
 import {
@@ -47,52 +27,20 @@ import { cn } from "@/lib/utils";
 
 // ── Entry row ──────────────────────────────────────────────────────────
 
-function AuditEntryRow({ row, isLast }: { row: AuditLogRow; isLast: boolean }) {
+function AuditEntryRow({ row }: { row: AuditLogRow }) {
   const { actor, verb, ref } = auditSummary(row);
   const meta = auditMeta(row);
   const time = auditTime(row.created_at);
 
   return (
-    <li
-      className={cn(
-        "flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-[12px]",
-        !isLast && "border-b border-border"
-      )}
-    >
-      <time className="hidden w-11 shrink-0 pt-[2px] text-right font-mono text-xs font-medium tabular-nums text-foreground sm:block">
-        {time}
-      </time>
+    <li className="flex items-start gap-4 px-4 py-3 sm:px-6">
+      <time className="w-12 shrink-0 pt-px text-xs tabular-nums text-muted-foreground">{time}</time>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-[4px]">
-          <span className="shrink-0 text-xs font-semibold text-foreground sm:text-sm">
-            {actor}
-          </span>
-          <span className="min-w-0 truncate text-xs text-foreground sm:text-sm">
-            {verb}
-          </span>
-          {ref && (
-            <span className="hidden shrink-0 font-mono text-xs font-medium text-foreground sm:inline">
-              {ref}
-            </span>
-          )}
-          <span className="flex-1" />
-          <time className="shrink-0 font-mono text-2xs font-medium tabular-nums text-foreground sm:hidden">
-            {time}
-          </time>
-        </div>
-        {(ref || meta) && (
-          <p className="mt-[4px] truncate font-mono text-2xs text-muted-foreground sm:mt-1 sm:text-xs">
-            {/* Phones move the reference here — on a 390px row the long
-                numeric codes would crowd the verb off the first line. */}
-            {ref && (
-              <span className="font-medium text-foreground sm:hidden">
-                {ref}
-                {meta ? " · " : ""}
-              </span>
-            )}
-            {meta}
-          </p>
-        )}
+        <p className="truncate text-sm text-foreground">
+          <span className="font-semibold">{actor}</span> {verb}
+          {ref && <span className="ml-1 font-mono text-xs text-muted-foreground">{ref}</span>}
+        </p>
+        {meta && <p className="mt-1 truncate font-mono text-xs text-muted-foreground">{meta}</p>}
       </div>
     </li>
   );
@@ -100,29 +48,15 @@ function AuditEntryRow({ row, isLast }: { row: AuditLogRow; isLast: boolean }) {
 
 // ── Day group ──────────────────────────────────────────────────────────
 
-function DayGroup({
-  date,
-  entries,
-  isLastGroup,
-}: {
-  date: string;
-  entries: AuditLogRow[];
-  isLastGroup: boolean;
-}) {
+function DayGroup({ date, entries }: { date: string; entries: AuditLogRow[] }) {
   return (
     <section>
-      <div className="flex h-[36px] items-center gap-2 bg-muted px-4 sm:h-10 sm:px-4">
-        <span className="text-xs font-semibold text-foreground sm:text-sm">
-          {formatDate(date, "EEEE, d MMMM yyyy", date)}
-        </span>
-        <span className="flex-1" />
-        <span className="font-mono text-2xs font-medium text-foreground/60 sm:text-2xs">
-          {entries.length} {entries.length === 1 ? "entry" : "entries"}
-        </span>
-      </div>
-      <ul>
-        {entries.map((row, i) => (
-          <AuditEntryRow key={row.id} row={row} isLast={isLastGroup && i === entries.length - 1} />
+      <h3 className="sticky top-14 z-10 border-y border-border/50 bg-secondary/80 px-4 py-2 text-xs font-medium text-muted-foreground backdrop-blur sm:px-6">
+        {formatDate(date, "EEEE, d MMMM yyyy", date)}
+      </h3>
+      <ul className="divide-y divide-border/50">
+        {entries.map((row) => (
+          <AuditEntryRow key={row.id} row={row} />
         ))}
       </ul>
     </section>
@@ -131,70 +65,27 @@ function DayGroup({
 
 // ── States ─────────────────────────────────────────────────────────────
 
-/** Shimmer placeholders for the whole page, per the "Loading" state design. */
-function LoadingState({ page }: { page: number }) {
+function LoadingState() {
   return (
-    <div aria-live="polite" aria-busy="true">
-      <div className="flex h-[36px] items-center justify-between gap-2 bg-muted px-4 sm:h-10 sm:px-4">
-        <Skeleton className="h-[12px] w-40 rounded-md bg-foreground/15" />
-        <Skeleton className="h-3 w-24 rounded bg-foreground/15" />
-      </div>
-      {[0, 1, 2].map((i) => (
-        <div
-          key={i}
-          className="flex items-center gap-3 border-b border-border px-4 py-3 sm:px-6 sm:py-[12px]"
-        >
-          <Skeleton className="hidden h-3 w-9 rounded sm:block" />
+    <div aria-busy="true" className="divide-y divide-border/50">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="flex items-center gap-4 px-4 py-4 sm:px-6">
+          <Skeleton className="h-3 w-10 rounded" />
           <div className="flex-1 space-y-2">
-            <Skeleton className="h-3 w-[252px] max-w-full rounded-md" />
-            <Skeleton className="h-3 w-[332px] max-w-full rounded" />
+            <Skeleton className="h-3 w-64 max-w-full rounded" />
+            <Skeleton className="h-3 w-40 max-w-full rounded" />
           </div>
         </div>
       ))}
-      <div className="flex items-center justify-center gap-2 px-6 py-3">
-        <Spinner size="sm" className="text-primary" />
-        <span className="text-xs text-muted-foreground">Loading page {page}…</span>
-      </div>
     </div>
   );
 }
 
-function EmptyState({
-  title,
-  caption,
-  icon,
-}: {
-  title: React.ReactNode;
-  caption: React.ReactNode;
-  icon: React.ReactNode;
-}) {
+function EmptyState({ title, icon }: { title: React.ReactNode; icon: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-3 px-6 py-14 sm:py-16">
-      <div className="flex size-11 items-center justify-center rounded-2xl bg-secondary">
-        {icon}
-      </div>
+    <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
+      <span className="grid size-12 place-items-center rounded-2xl bg-secondary text-muted-foreground">{icon}</span>
       <p className="text-sm font-semibold text-foreground">{title}</p>
-      <p className="text-xs text-muted-foreground">{caption}</p>
-    </div>
-  );
-}
-
-function ErrorBand({ page, onRetry }: { page: number; onRetry: () => void }) {
-  return (
-    <div className="flex flex-col items-center gap-3 border-t border-border px-6 pb-6 pt-6">
-      <div className="flex items-center gap-2">
-        <CircleAlert className="size-[16px] shrink-0 text-destructive" aria-hidden />
-        <p className="text-xs font-medium text-destructive">
-          Couldn&apos;t load page {page}. Check your connection and try again.
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="flex h-8 items-center rounded-full bg-secondary px-4 text-sm font-medium text-primary transition-colors hover:bg-secondary/70"
-      >
-        Try again
-      </button>
     </div>
   );
 }
@@ -204,9 +95,7 @@ function ErrorBand({ page, onRetry }: { page: number; onRetry: () => void }) {
 /** 1…count when short; otherwise first/last + current±1 with gaps. */
 function pagerItems(current: number, count: number): (number | "gap")[] {
   if (count <= 7) return Array.from({ length: count }, (_, i) => i + 1);
-  const wanted = new Set(
-    [1, count, current - 1, current, current + 1].filter((p) => p >= 1 && p <= count)
-  );
+  const wanted = new Set([1, count, current - 1, current, current + 1].filter((p) => p >= 1 && p <= count));
   const items: (number | "gap")[] = [];
   let prev = 0;
   for (const p of [...wanted].sort((a, b) => a - b)) {
@@ -217,65 +106,35 @@ function pagerItems(current: number, count: number): (number | "gap")[] {
   return items;
 }
 
-function Pagination({
-  page,
-  pageCount,
-  onChange,
-}: {
-  page: number;
-  pageCount: number;
-  onChange: (page: number) => void;
-}) {
+function Pagination({ page, pageCount, onChange }: { page: number; pageCount: number; onChange: (page: number) => void }) {
+  if (pageCount <= 1) return null;
   return (
-    <nav
-      aria-label="Audit log pages"
-      className="flex items-center justify-center gap-2 border-t border-border px-4 pb-4 pt-4 sm:gap-2 sm:px-6 sm:pb-[16px] sm:pt-4"
-    >
-      <button
-        type="button"
-        aria-label="Previous page"
-        disabled={page <= 1}
-        onClick={() => onChange(page - 1)}
-        className="flex h-8 w-8 items-center justify-center gap-2 rounded-full text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:text-muted-foreground/50 sm:h-10 sm:w-auto sm:px-3 sm:text-sm"
-      >
-        <ChevronLeft className="size-4" aria-hidden />
-        <span className="hidden lg:inline">Previous</span>
-      </button>
-
+    <nav aria-label="Audit log pages" className="flex items-center justify-center gap-1 border-t border-border/50 px-4 py-3">
+      <Button isIconOnly variant="ghost" aria-label="Previous page" isDisabled={page <= 1} onPress={() => onChange(page - 1)} className="rounded-lg">
+        <ChevronLeft className="size-4" />
+      </Button>
       {pagerItems(page, pageCount).map((item, i) =>
         item === "gap" ? (
-          <span key={`gap-${i}`} aria-hidden className="px-1 text-sm text-muted-foreground">
+          <span key={`gap-${i}`} aria-hidden className="w-8 text-center text-sm text-muted-foreground">
             …
           </span>
         ) : (
-          <button
+          <Button
             key={item}
-            type="button"
+            isIconOnly
+            variant={item === page ? "secondary" : "ghost"}
             aria-current={item === page ? "page" : undefined}
             aria-label={`Page ${item}`}
-            onClick={() => onChange(item)}
-            className={cn(
-              "flex size-8 items-center justify-center rounded-full text-sm font-medium transition-colors sm:size-10 sm:text-sm",
-              item === page
-                ? "bg-secondary text-secondary-foreground"
-                : "text-foreground hover:bg-muted"
-            )}
+            onPress={() => onChange(item)}
+            className={cn("rounded-lg tabular-nums", item === page && "font-semibold")}
           >
             {item}
-          </button>
+          </Button>
         )
       )}
-
-      <button
-        type="button"
-        aria-label="Next page"
-        disabled={page >= pageCount}
-        onClick={() => onChange(page + 1)}
-        className="flex h-8 w-8 items-center justify-center gap-2 rounded-full text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:text-muted-foreground/50 sm:h-10 sm:w-auto sm:px-3 sm:text-sm"
-      >
-        <span className="hidden lg:inline">Next</span>
-        <ChevronRight className="size-4" aria-hidden />
-      </button>
+      <Button isIconOnly variant="ghost" aria-label="Next page" isDisabled={page >= pageCount} onPress={() => onChange(page + 1)} className="rounded-lg">
+        <ChevronRight className="size-4" />
+      </Button>
     </nav>
   );
 }
@@ -285,90 +144,66 @@ function Pagination({
 function Toolbar({
   input,
   onInputChange,
-  onClear,
   category,
   onCategoryChange,
   counts,
+  total,
 }: {
   input: string;
   onInputChange: (value: string) => void;
-  onClear: () => void;
   category: AuditCategoryId;
   onCategoryChange: (id: AuditCategoryId) => void;
   counts: Record<AuditCategoryId, number | null>;
+  total: number;
 }) {
   function handleSelection(keys: Selection) {
     const key = keys === "all" ? null : [...keys][0];
     if (!key) return; // ignore deselect of the active filter
     onCategoryChange(String(key) as AuditCategoryId);
   }
+  const activeLabel = AUDIT_CATEGORIES.find((c) => c.id === category)?.label ?? "All actions";
 
   return (
-    <div className="mb-4 flex items-center gap-2 lg:mb-0 lg:border-b lg:border-border lg:px-6 lg:py-4">
-      <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-xl bg-card px-3 shadow-sm lg:w-[360px] lg:flex-none">
-        <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => onInputChange(e.target.value)}
-          placeholder="Search actions, staff, or references"
-          aria-label="Search audit log"
-          className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-        />
-        {input && (
-          <button
-            type="button"
-            aria-label="Clear search"
-            onClick={onClear}
-            className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <CircleX className="size-4" aria-hidden />
-          </button>
-        )}
-      </div>
+    <div className="flex items-center gap-2 px-4 py-4 sm:px-6">
+      <SearchField aria-label="Search audit log" value={input} onChange={onInputChange} className="min-w-0 flex-1 sm:max-w-80">
+        <SearchField.Group className="rounded-xl">
+          <SearchField.SearchIcon />
+          <SearchField.Input placeholder="Search staff, actions or references" />
+          <SearchField.ClearButton />
+        </SearchField.Group>
+      </SearchField>
 
       <Dropdown>
-        <Dropdown.Trigger
-          className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card shadow-sm transition-colors hover:bg-muted/50 lg:w-auto lg:gap-2 lg:border lg:border-border lg:bg-transparent lg:px-4 lg:shadow-none"
-          aria-label="Filter by action"
-        >
-          <Funnel className="size-4 text-foreground" aria-hidden />
-          <span className="hidden text-sm font-medium text-foreground lg:inline">Filters</span>
-        </Dropdown.Trigger>
-        <Dropdown.Popover placement="bottom end" className="w-[260px] rounded-3xl p-1 shadow-lg">
+        <Button variant="secondary" aria-label={`Filter: ${activeLabel}`} className="shrink-0 rounded-xl max-sm:w-10 max-sm:px-0">
+          <ListFilter className="size-4" />
+          <span className="hidden sm:inline">{activeLabel}</span>
+        </Button>
+        <Dropdown.Popover placement="bottom end" className="min-w-56">
           <Dropdown.Menu
             aria-label="Filter by action"
             selectionMode="single"
             selectedKeys={new Set([category])}
             onSelectionChange={handleSelection}
           >
-            <Dropdown.Item id="all" textValue="All actions" className="h-10 rounded-2xl px-3">
-              <Dropdown.ItemIndicator />
-              <span className="text-sm text-foreground">All actions</span>
-              <span className="flex-1" />
-              {counts.all !== null && (
-                <span className="font-mono text-xs text-foreground/60">{counts.all}</span>
-              )}
-            </Dropdown.Item>
-            <Separator className="mx-2 my-1" />
-            {AUDIT_CATEGORIES.filter((c) => c.id !== "all").map((c) => (
-              <Dropdown.Item
-                key={c.id}
-                id={c.id}
-                textValue={c.label}
-                className="h-10 rounded-2xl px-3"
-              >
-                <Dropdown.ItemIndicator />
-                <span className="text-sm text-foreground">{c.label}</span>
-                <span className="flex-1" />
-                {counts[c.id] !== null && (
-                  <span className="font-mono text-xs text-muted-foreground">{counts[c.id]}</span>
-                )}
-              </Dropdown.Item>
+            {AUDIT_CATEGORIES.map((c, i) => (
+              <React.Fragment key={c.id}>
+                {i === 1 && <Separator className="my-1" />}
+                <Dropdown.Item id={c.id} textValue={c.label}>
+                  <Dropdown.ItemIndicator />
+                  <Label>{c.label}</Label>
+                  {counts[c.id] !== null && (
+                    <span className="ml-auto text-xs tabular-nums text-muted-foreground">{counts[c.id]}</span>
+                  )}
+                </Dropdown.Item>
+              </React.Fragment>
             ))}
           </Dropdown.Menu>
         </Dropdown.Popover>
       </Dropdown>
+
+      <span className="ml-auto hidden shrink-0 text-xs tabular-nums text-muted-foreground sm:inline">
+        {total.toLocaleString("en")} {total === 1 ? "entry" : "entries"}
+      </span>
     </div>
   );
 }
@@ -488,55 +323,50 @@ export function AuditLogClient({
   const showEmptySearch = !isLoading && rows.length === 0 && query !== "";
 
   return (
-    <section
-      ref={panelRef}
-      className="scroll-mt-6 lg:overflow-hidden lg:rounded-3xl lg:bg-card lg:shadow-sm"
-    >
-      <Toolbar
-        input={input}
-        onInputChange={setInput}
-        onClear={() => setInput("")}
-        category={category}
-        onCategoryChange={changeCategory}
-        counts={counts}
-      />
+    <section ref={panelRef} className="scroll-mt-20">
+      <Card className="gap-0 overflow-hidden rounded-3xl border border-border/60 p-0 shadow-[0_1px_2px_rgb(15_23_42/0.04)]">
+        <Toolbar
+          input={input}
+          onInputChange={setInput}
+          category={category}
+          onCategoryChange={changeCategory}
+          counts={counts}
+          total={total}
+        />
 
-      {/* Card chrome: a full card on phones (the toolbar floats above it); on
-          desktop the toolbar is the panel's first row instead. */}
-      <div className="overflow-hidden rounded-3xl bg-card shadow-sm lg:rounded-none lg:bg-transparent lg:shadow-none">
         {isLoading ? (
-          <LoadingState page={request?.page ?? 1} />
+          <LoadingState />
         ) : showEmptySearch ? (
           <EmptyState
-            icon={<SearchX className="size-5 text-muted-foreground/70" aria-hidden />}
+            icon={<SearchX className="size-5" aria-hidden />}
             title={<>No entries match &ldquo;{query}&rdquo;</>}
-            caption={`No matches on page ${request?.page ?? 1} — try a different search term.`}
           />
         ) : rows.length === 0 ? (
-          <EmptyState
-            icon={<FileClock className="size-5 text-muted-foreground/70" aria-hidden />}
-            title="No activity yet"
-            caption="Staff actions — bookings, payments, rate changes — will appear here, grouped by day."
-          />
+          <EmptyState icon={<FileClock className="size-5" aria-hidden />} title="No activity yet" />
         ) : (
           <div>
-            {days.map((day, i) => (
-              <DayGroup
-                key={day.date}
-                date={day.date}
-                entries={day.entries}
-                isLastGroup={i === days.length - 1}
-              />
+            {days.map((day) => (
+              <DayGroup key={day.date} date={day.date} entries={day.entries} />
             ))}
           </div>
         )}
 
         {errorPage !== null && !isLoading && (
-          <ErrorBand page={errorPage} onRetry={() => goToPage(errorPage)} />
+          <div className="border-t border-border/50 p-4">
+            <Alert status="danger" className="rounded-2xl">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Title>Couldn&apos;t load page {errorPage}</Alert.Title>
+              </Alert.Content>
+              <Button size="sm" variant="secondary" className="rounded-lg" onPress={() => goToPage(errorPage)}>
+                Try again
+              </Button>
+            </Alert>
+          </div>
         )}
 
         <Pagination page={page} pageCount={pageCount} onChange={goToPage} />
-      </div>
+      </Card>
     </section>
   );
 }

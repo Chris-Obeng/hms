@@ -1,24 +1,19 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertDialog, Button, toast } from "@heroui/react";
-import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, CheckCircle2, Globe, ReceiptText, Wallet } from "lucide-react";
+import { format } from "date-fns";
+import { Alert, AlertDialog, Button, Chip, Disclosure, Label, TextArea, TextField, toast } from "@heroui/react";
+import { ArrowRight, CheckCircle2, ChevronRight, CircleCheckBig, Clock, TriangleAlert } from "lucide-react";
 import { executeNightAudit } from "./actions";
-import { PaymentDateField } from "@/components/ui/payment-date-field";
+import { DateNavigator } from "@/app/dashboard/_components/date-card";
 import { PenKpi } from "@/components/ui/pen/pen-kpi";
 import { PenCard, PenCardHead } from "@/components/ui/pen/pen-card";
 import { DonutRing } from "@/components/ui/pen/donut-ring";
-import { NotesDisclosure } from "@/components/ui/notes-disclosure";
-import { Textarea } from "@/components/ui/textarea";
 import { MIN_AUDIT_DATE, type NightAuditSummary } from "@/lib/night-audit/summary";
 import { formatCurrency, formatDate } from "@/lib/format";
-
-function shiftDay(value: string, days: number): string {
-  const date = new Date(`${value}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
+import { cn } from "@/lib/utils";
 
 function timestamp(value: string | null, timeZone: string | null): string {
   if (!value) return "Timestamp not recorded";
@@ -140,7 +135,6 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
       : blockers > 0
         ? `${summary.pendingArrivals ?? 0} arrival${summary.pendingArrivals === 1 ? "" : "s"}, ${summary.pendingDepartures ?? 0} departure${summary.pendingDepartures === 1 ? "" : "s"} and ${(summary.rateIssues ?? 0) + (summary.paymentIssues ?? 0)} charge issue${(summary.rateIssues ?? 0) + (summary.paymentIssues ?? 0) === 1 ? "" : "s"} open. Resolve them to close the day.`
         : "All close checks passed.";
-  const statusDot = summary.isClosed ? "bg-[var(--success)]" : blockers > 0 || waitingForMidnight ? "bg-[var(--warning)]" : "bg-muted-foreground";
 
   const tenderSegments = [...summary.paymentsByMethod]
     .filter((method) => method.amount > 0)
@@ -148,135 +142,168 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
     .map((method) => ({ key: method.method, amount: method.amount, color: TENDER_COLORS[method.method] ?? "var(--muted-foreground)" }));
   const tenderTotal = tenderSegments.reduce((sum, segment) => sum + segment.amount, 0);
 
-  return <div className="daily-close-page mx-auto w-full max-w-7xl space-y-6" aria-busy={busy}>
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0">
-        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.3px] text-foreground max-md:text-xl">Night audit</h1>
-        <p className="mt-1 max-md:text-xs text-sm text-muted-foreground">Review {formatDate(summary.auditDate, "EEEE, MMM d, yyyy")} and record it.</p>
-      </div>
-      <div className="flex items-center gap-2">
-        <Button variant="outline" isIconOnly className="size-10 rounded-lg" aria-label="Previous day" isDisabled={busy || summary.auditDate <= MIN_AUDIT_DATE}
-          onPress={() => navigate(shiftDay(summary.auditDate, -1))}><ChevronLeft className="size-4" /></Button>
-        <PaymentDateField label="Business date" value={summary.auditDate} min={MIN_AUDIT_DATE} max={summary.propertyToday} onSelect={navigate} />
-        <Button variant="outline" isIconOnly className="size-10 rounded-lg" aria-label="Next day" isDisabled={busy || summary.auditDate >= summary.propertyToday}
-          onPress={() => navigate(shiftDay(summary.auditDate, 1))}><ChevronRight className="size-4" /></Button>
-      </div>
+  const StatusIcon = summary.isClosed ? CheckCircle2 : blockers > 0 ? TriangleAlert : waitingForMidnight ? Clock : CircleCheckBig;
+  const statusTone = summary.isClosed
+    ? "bg-emerald-500/10 text-emerald-600"
+    : blockers > 0 || waitingForMidnight
+      ? "bg-amber-500/12 text-amber-700"
+      : "bg-primary/10 text-primary";
+  const staffTotal = staff.reduce((sum, method) => sum + method.amount, 0);
+
+  return <div className="mx-auto w-full max-w-7xl space-y-6 pt-6 md:pt-8" aria-busy={busy}>
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">Night audit</h1>
+      <DateNavigator
+        selectedDate={new Date(`${summary.auditDate}T00:00:00`)}
+        onDateChange={(date) => navigate(format(date, "yyyy-MM-dd"))}
+        todayDateStr={summary.propertyToday}
+        minDateStr={MIN_AUDIT_DATE}
+        maxDateStr={summary.propertyToday}
+        isDisabled={busy}
+      />
     </header>
 
-    {busy && <p role="status" className="text-sm text-muted-foreground">{isExecuting ? "Recording the close…" : "Loading this day…"}</p>}
-    {error && !confirmOpen && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</p>}
+    {error && !confirmOpen && (
+      <Alert status="danger" className="rounded-2xl">
+        <Alert.Indicator />
+        <Alert.Content><Alert.Description>{error}</Alert.Description></Alert.Content>
+      </Alert>
+    )}
 
-    {/* Close status band */}
-    <section className="space-y-2 border-b border-border/60 pb-6" aria-labelledby="close-status">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <div className="flex items-center gap-2">
-            <span className={`size-2 rounded-full ${statusDot}`} aria-hidden="true" />
-            <h2 id="close-status" className="text-base font-semibold text-foreground">{statusHeading}</h2>
-            {summary.source === "legacy_audit_log" && <span className="text-caption text-muted-foreground">Imported</span>}
+    {/* Close status */}
+    <PenCard className={cn("transition-opacity duration-150", busy && "opacity-60")}>
+      <section aria-labelledby="close-status" className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <span aria-hidden="true" className={cn("grid size-12 shrink-0 place-items-center rounded-2xl", statusTone)}>
+          <StatusIcon className="size-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 id="close-status" className="text-lg font-semibold tracking-tight text-foreground">{statusHeading}</h2>
+            {summary.source === "legacy_audit_log" && <Chip size="sm" variant="soft">Imported</Chip>}
           </div>
           {/* The heading itself is not a live region; announce the new state after a close. */}
           <p className="sr-only" aria-live="polite" aria-atomic="true">
             {summary.isClosed ? "This day is closed." : waitingForMidnight ? "This day is still in progress." : blockers > 0 ? `${blockers} items still need resolving before this day can close.` : "This day is ready to close."}
           </p>
-          <p className="max-md:text-xs text-sm text-muted-foreground">{statusDetail}</p>
-          {!canRunAudit && !summary.isClosed && <p className="max-md:text-xs text-sm text-muted-foreground">A manager or super admin can close the day.</p>}
-          {summary.lastAudit?.notes && <p className="mt-1 whitespace-pre-wrap break-words rounded-lg bg-muted/50 px-3 py-2 max-md:text-xs text-sm">{summary.lastAudit.notes}</p>}
+          <p className="mt-1 text-sm text-muted-foreground">{busy ? (isExecuting ? "Recording the close…" : "Loading this day…") : statusDetail}</p>
+          {!canRunAudit && !summary.isClosed && <p className="mt-1 text-sm text-muted-foreground">A manager or super admin can close the day.</p>}
+          {summary.lastAudit?.notes && <p className="mt-3 whitespace-pre-wrap break-words rounded-xl bg-secondary/70 px-3 py-2 text-sm text-foreground">{summary.lastAudit.notes}</p>}
         </div>
         {summary.isClosed
-          ? <a className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium text-foreground underline-offset-4 hover:underline"
-            href={`/dashboard/reports?startDate=${summary.auditDate}&endDate=${summary.auditDate}`}>View in reports <ArrowRight className="size-4" aria-hidden="true" /></a>
-          : <Button className="min-h-10 rounded-full px-4 text-sm font-medium" isDisabled={waitingForMidnight || !canClose || busy} onPress={() => setDialogOpen(true)}>
+          ? <Button variant="secondary" className="w-full shrink-0 rounded-xl sm:w-auto"
+            onPress={() => router.push(`/dashboard/reports?startDate=${summary.auditDate}&endDate=${summary.auditDate}`)}>
+            View report <ArrowRight className="size-4" aria-hidden="true" />
+          </Button>
+          : <Button variant="primary" className="w-full shrink-0 rounded-xl font-semibold sm:w-auto" isDisabled={waitingForMidnight || !canClose || busy} onPress={() => setDialogOpen(true)}>
             Close {formatDate(summary.auditDate, "MMM d")}
           </Button>}
-      </div>
-    </section>
+      </section>
+    </PenCard>
 
-    {/* Day stats */}
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-      <PenKpi label="Room revenue" value={money(roomRevenueInclTax)} icon={Wallet} hint="incl. taxes" className="max-sm:col-span-2" />
-      <PenKpi label="Room nights" value={summary.roomNights?.toLocaleString() ?? "Unavailable"} icon={CalendarDays} hint="stayed" />
-      <PenKpi label="ADR" value={money(summary.adr)} icon={ReceiptText} hint="revenue ÷ room nights" />
-      <PenKpi label="Collected by staff" value={money(staff.reduce((sum, method) => sum + method.amount, 0))} icon={Wallet} hint={staff.length > 0 ? `${staff.reduce((sum, method) => sum + method.count, 0)} payments` : "none"} />
-      <PenKpi label="Online payments" value={money(online?.amount ?? 0)} icon={Globe} hint={online ? `${online.count} payments` : "none"} />
+    {/* Day figures */}
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <PenKpi label="Room revenue" value={money(roomRevenueInclTax)} hint="Incl. taxes" />
+      <PenKpi label="Room nights" value={summary.roomNights?.toLocaleString() ?? "Unavailable"} hint="Stayed" />
+      <PenKpi label="ADR" value={money(summary.adr)} hint="Per room night" />
+      <PenKpi label="Collected" value={money(summary.collections)} hint={`${summary.paymentCount ?? 0} ${summary.paymentCount === 1 ? "payment" : "payments"}`} />
     </div>
 
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_432px]">
-      <PenCard>
-        <PenCardHead title="Needs attention" caption={blockers > 0 ? "Resolve these before closing." : undefined}
-          actions={blockers > 0 ? <span className="rounded-full bg-[#F5A5241F] px-2 py-1 font-mono text-2xs font-semibold tabular-nums text-[var(--warning)]">{blockers}</span> : undefined} />
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-6">
+      <PenCard className="gap-2">
+        <PenCardHead title="Needs attention"
+          actions={blockers > 0 ? <Chip size="sm" variant="soft" color="warning" className="tabular-nums">{blockers}</Chip> : undefined} />
         {attention.length === 0
-          ? <div className="flex items-center gap-3 pt-2 text-sm text-muted-foreground">
-            <CheckCircle2 className="size-4 shrink-0 text-[var(--success)]" aria-hidden="true" /> Nothing outstanding.
+          ? <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+            <CheckCircle2 className="size-4 shrink-0 text-emerald-600" aria-hidden="true" /> Nothing outstanding.
           </div>
-          : <ul>
-            {attention.map((item, index) => <li key={item.id}>
-              {index > 0 && <div className="h-px bg-border/50" aria-hidden="true" />}
-              <a href={item.href} className="group flex items-center gap-3 py-3">
-                <span className={`size-[8px] shrink-0 rounded-full ${item.kind === "charge" ? "bg-[var(--danger)]" : "bg-[var(--warning)]"}`} aria-hidden="true" />
+          : <ul className="-mx-2 divide-y divide-border/50">
+            {attention.map((item) => <li key={item.id}>
+              <Link href={item.href}
+                className="group flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary/60">
+                <span className={cn("size-2 shrink-0 rounded-full", item.kind === "charge" ? "bg-destructive" : "bg-amber-500")} aria-hidden="true" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-foreground">{item.title}</span>
-                  <span className="block truncate text-2xs text-muted-foreground">{item.detail}</span>
+                  <span className="mt-1 block truncate text-xs text-muted-foreground">{item.detail}</span>
                 </span>
-                <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-[var(--pen-accent)]">
-                  {item.kind === "charge" ? "Review" : "Manage"}
-                  <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-                </span>
-              </a>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground/60 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden="true" />
+              </Link>
             </li>)}
-            {attentionHidden > 0 && <li className="pt-1 text-caption text-muted-foreground">{attentionHidden} more not shown; the close checks every booking.</li>}
+            {attentionHidden > 0 && <li className="px-2 pt-3 text-xs text-muted-foreground">{attentionHidden} more not shown</li>}
           </ul>}
       </PenCard>
 
-      <PenCard className="gap-4">
-        <PenCardHead title="Taken this day" caption={summary.currency ? `Successful payments · ${summary.currency}` : undefined}
-          actions={<a className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            href={`/dashboard/payments?tab=activity&startDate=${summary.auditDate}&endDate=${summary.auditDate}`}>Payments <ArrowRight className="size-3" aria-hidden="true" /></a>} />
-        {summary.paymentIssues ? <p className="py-6 text-sm text-muted-foreground">Collections are unavailable until payments in other currencies are reconciled.</p>
-          : tenderTotal === 0 ? <p className="py-6 text-sm text-muted-foreground">No payments recorded for this day.</p>
+      <PenCard>
+        <PenCardHead title="Payments taken"
+          actions={<Button size="sm" variant="ghost" className="rounded-lg text-muted-foreground"
+            onPress={() => router.push(`/dashboard/payments?tab=activity&startDate=${summary.auditDate}&endDate=${summary.auditDate}`)}>
+            View all <ArrowRight className="size-4" aria-hidden="true" />
+          </Button>} />
+        {summary.paymentIssues ? <p className="py-6 text-sm text-muted-foreground">Unavailable until payments in other currencies are reconciled.</p>
+          : tenderTotal === 0 ? <p className="py-6 text-sm text-muted-foreground">No payments this day.</p>
             : <div className="flex items-center gap-6">
-              <DonutRing size={150} valueSize={15} labelSize={10}
+              <DonutRing size={136} valueSize={14} labelSize={10}
                 segments={tenderSegments} total={tenderTotal}
                 value={money(summary.collections)}
-                label={`collected · ${summary.paymentCount ?? 0}`}
+                label={`${summary.paymentCount ?? 0} ${summary.paymentCount === 1 ? "payment" : "payments"}`}
                 ariaLabel={`Payments taken this day: ${money(summary.collections)} across ${summary.paymentCount ?? 0} payments.`} />
-              <ul className="min-w-0 flex-1 space-y-2">
+              <ul className="min-w-0 flex-1 space-y-3">
                 {tenderSegments.map((segment) => {
                   const source = summary.paymentsByMethod.find((method) => method.method === segment.key);
-                  return <li key={segment.key} className="flex items-center gap-2 text-xs">
+                  return <li key={segment.key} className="flex items-center gap-2 text-sm">
                     <span className="size-2 shrink-0 rounded-full" style={{ background: segment.color }} aria-hidden="true" />
-                    <span className="min-w-0 flex-1 truncate text-foreground">{TENDER_SHORT_LABELS[segment.key] ?? segment.key.replaceAll("_", " ")}</span>
-                    <span className="shrink-0 font-mono text-2xs text-muted-foreground">{moneyWhole(source?.amount ?? segment.amount)}</span>
+                    <span className="min-w-0 flex-1 truncate text-muted-foreground">{TENDER_SHORT_LABELS[segment.key] ?? segment.key.replaceAll("_", " ")}</span>
+                    <span className="shrink-0 font-medium tabular-nums text-foreground">{moneyWhole(source?.amount ?? segment.amount)}</span>
                   </li>;
                 })}
               </ul>
             </div>}
-        <p className="text-2xs text-muted-foreground">Money received today — includes deposits for future stays, so it differs from room revenue.</p>
+        {tenderTotal > 0 && !summary.paymentIssues && (
+          <div className="flex justify-between gap-3 border-t border-border/50 pt-3 text-xs text-muted-foreground">
+            <span>Online <span className="font-medium tabular-nums text-foreground">{money(online?.amount ?? 0)}</span></span>
+            <span>By staff <span className="font-medium tabular-nums text-foreground">{money(staffTotal)}</span></span>
+          </div>
+        )}
       </PenCard>
     </div>
 
-    <NotesDisclosure title="About this close" items={summary.warnings} />
+    {summary.warnings.length > 0 && (
+      <Disclosure className="rounded-2xl border border-border/60 bg-card px-4">
+        <Disclosure.Heading>
+          <Button slot="trigger" variant="ghost" fullWidth
+            className="h-12 justify-between rounded-xl px-0 text-sm font-medium text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-transparent [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground">
+            About these figures
+            <Disclosure.Indicator />
+          </Button>
+        </Disclosure.Heading>
+        <Disclosure.Content>
+          <Disclosure.Body className="px-0 pb-4 pt-0">
+            <ul className="list-disc space-y-2 pl-4 text-xs leading-relaxed text-muted-foreground">
+              {summary.warnings.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          </Disclosure.Body>
+        </Disclosure.Content>
+      </Disclosure>
+    )}
 
     <AlertDialog.Backdrop isOpen={confirmOpen} onOpenChange={setDialogOpen} isDismissable={!isExecuting}>
-      <AlertDialog.Container><AlertDialog.Dialog className="max-w-lg">
-        <AlertDialog.Header><AlertDialog.Heading>Close {formatDate(summary.auditDate, "EEEE, MMM d")}?</AlertDialog.Heading></AlertDialog.Header>
+      <AlertDialog.Container placement="center" size="md"><AlertDialog.Dialog className="rounded-3xl sm:max-w-lg">
+        <AlertDialog.Header><AlertDialog.Heading className="text-lg font-semibold">Close {formatDate(summary.auditDate, "EEEE, MMM d")}?</AlertDialog.Heading></AlertDialog.Header>
         <AlertDialog.Body className="space-y-4">
-          <p className="text-sm text-muted-foreground">These figures are recorded permanently and cannot be changed later. The server re-checks every booking first; asking twice returns the original record.</p>
-          <dl className="divide-y divide-border/50 rounded-lg border border-border/50">
-            <div className="flex justify-between gap-3 px-3 py-2 text-sm"><dt className="text-muted-foreground">Room revenue (incl. taxes)</dt><dd className="tabular-nums">{money(roomRevenueInclTax)}</dd></div>
-            <div className="flex justify-between gap-3 px-3 py-2 text-sm"><dt className="text-muted-foreground">Room nights</dt><dd className="tabular-nums">{summary.roomNights?.toLocaleString() ?? "Unavailable"}</dd></div>
-            <div className="flex justify-between gap-3 px-3 py-2 text-sm"><dt className="text-muted-foreground">Collected</dt><dd className="tabular-nums">{money(summary.collections)}</dd></div>
+          <p className="text-sm text-muted-foreground">These figures are recorded permanently and cannot be changed later.</p>
+          <dl className="divide-y divide-border/50 rounded-2xl bg-secondary/60 px-4">
+            <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-muted-foreground">Room revenue</dt><dd className="font-medium tabular-nums">{money(roomRevenueInclTax)}</dd></div>
+            <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-muted-foreground">Room nights</dt><dd className="font-medium tabular-nums">{summary.roomNights?.toLocaleString() ?? "Unavailable"}</dd></div>
+            <div className="flex justify-between gap-3 py-3 text-sm"><dt className="text-muted-foreground">Collected</dt><dd className="font-medium tabular-nums">{money(summary.collections)}</dd></div>
           </dl>
-          <div className="space-y-2">
-            <label htmlFor="handover-notes" className="text-label text-muted-foreground">Handover note <span className="font-normal">(optional)</span></label>
-            <Textarea id="handover-notes" rows={3} maxLength={1000} value={notes} disabled={isExecuting} onChange={(event) => setNotes(event.target.value)}
-              placeholder="Anything the next shift should know" className="min-h-20 resize-none text-sm" />
-          </div>
+          <TextField fullWidth value={notes} onChange={setNotes} isDisabled={isExecuting}>
+            <Label>Handover note</Label>
+            <TextArea rows={3} maxLength={1000} placeholder="Anything the next shift should know" className="resize-none" />
+          </TextField>
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         </AlertDialog.Body>
-        <AlertDialog.Footer>
-          <Button slot="close" className="min-h-10" variant="tertiary" isDisabled={isExecuting}>Cancel</Button>
-          <Button className="min-h-10" isPending={isExecuting} isDisabled={!canClose || busy} onPress={closeDate}>Close {formatDate(summary.auditDate, "MMM d")}</Button>
+        <AlertDialog.Footer className="flex-col-reverse gap-2 sm:flex-row">
+          <Button slot="close" variant="tertiary" isDisabled={isExecuting} className="rounded-xl">Cancel</Button>
+          <Button variant="primary" isPending={isExecuting} isDisabled={!canClose || busy} onPress={closeDate} className="rounded-xl font-semibold">Close {formatDate(summary.auditDate, "MMM d")}</Button>
         </AlertDialog.Footer>
       </AlertDialog.Dialog></AlertDialog.Container>
     </AlertDialog.Backdrop>

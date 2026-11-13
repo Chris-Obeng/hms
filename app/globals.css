@@ -484,6 +484,12 @@
   color: color-mix(in oklch, var(--foreground) 80%, transparent) !important;
 }
 
+/* HeroUI paints date/time separators (":" and "/") with --muted, a surface
+ * colour in this theme. Keep them readable. */
+.date-input-group [data-type="literal"] {
+  color: var(--muted-foreground);
+}
+
 /* Reservation wizard: HeroUI's default modal spacing adds mt-2 after the header
  * and mt-5 before the footer (sibling-combinator rules a plain utility class
  * can't override). Zero them so the body owns that vertical space and the
@@ -573,49 +579,6 @@
 
 
 
-/* Payments page tabs per the pen design: quiet text tabs over one hairline,
-   a 2px accent underline on the active tab. */
-.payments-tabs { gap: 0; }
-.payments-tabs > .tabs__list-container {
-  background: transparent;
-  border-radius: 0;
-  border-bottom: 1px solid var(--separator, var(--border));
-}
-.payments-tabs .tabs__list { display: inline-flex; flex-wrap: nowrap; gap: 1.5rem; padding: 0; width: max-content; min-width: 0; }
-.payments-tabs .tabs__tab {
-  position: relative;
-  flex: none;
-  width: auto;
-  justify-content: flex-start;
-  min-width: 0;
-  height: auto;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  padding: 8px 2px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--muted-foreground);
-}
-@media (hover: hover) and (pointer: fine) {
-  .payments-tabs .tabs__tab:hover { color: var(--foreground); }
-}
-.payments-tabs .tabs__tab[data-selected="true"] {
-  color: var(--foreground);
-  font-weight: 600;
-  box-shadow: none;
-}
-.payments-tabs .tabs__indicator {
-  top: auto;
-  left: 0;
-  bottom: -1px;
-  width: 100%;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--pen-accent);
-  box-shadow: none;
-}
-
 /* Guest profile tabs per the pen design: small underline tabs (12px labels,
    2px accent indicator under the active one, transparent slot on inactive). */
 .guest-tabs { gap: 0; }
@@ -658,18 +621,26 @@
   background: var(--pen-accent);
 }
 
-/* ── HeroUI Switch — default blue when on (app-wide standard) ────────
- *  HeroUI v3 exposes BEM hooks (.switch__control) with data attributes.
- *  Blue = Tailwind default palette blue-600.
+/* ── HeroUI Switch — brand colour when on (app-wide standard) ────────
+ *  HeroUI fills a checked track with --accent and paints the thumb with
+ *  --accent-foreground; both are repurposed in this theme (pale surface /
+ *  dark ink), so re-point them at the brand for switches only.
  * ──────────────────────────────────────────────────────────────────── */
-.switch__control[data-selected="true"] {
-  background-color: oklch(0.546 0.245 262.881); /* blue-600 */
-  border-color: oklch(0.546 0.245 262.881);
+.switch {
+  --accent: var(--primary);
+  --accent-foreground: var(--primary-foreground);
+  --accent-hover: color-mix(in oklch, var(--primary) 90%, black);
+}
+.switch[data-selected="true"] .switch__control {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+.switch[data-selected="true"] .switch__thumb {
+  background-color: #fff;
 }
 @media (hover: hover) and (pointer: fine) {
-  .switch__control[data-selected="true"][data-hovered="true"],
-  .switch__control[data-selected="true"]:hover {
-    background-color: oklch(0.488 0.243 264.376); /* blue-700 */
+  .switch[data-selected="true"]:hover .switch__control {
+    background-color: color-mix(in oklch, var(--primary) 90%, black);
   }
 }
 

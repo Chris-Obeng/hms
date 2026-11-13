@@ -129,8 +129,8 @@ const SETTINGS_CHILDREN: { title: string; url: string; match: (pathname: string)
   },
   {
     title: "Guest emails",
-    url: "/dashboard/settings/notifications#message-templates",
-    match: () => false, // shares the Notifications path; the hash decides in-page
+    url: "/dashboard/settings/emails",
+    match: (p) => p.startsWith("/dashboard/settings/emails"),
   },
   { title: "Payments", url: "/dashboard/payments?tab=setup", match: () => false },
   { title: "Staff", url: "/dashboard/staff", match: (p) => p.startsWith("/dashboard/staff") },
