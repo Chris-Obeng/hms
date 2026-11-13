@@ -199,6 +199,12 @@ export function AvailabilityStep({
   }
 
   return (
+    <>
+    {atTypeLimit && (
+      <p role="note" className="mb-3 rounded-xl bg-amber-500/[0.08] px-3 py-2 text-xs text-amber-800">
+        Up to {MAX_ROOM_TYPES} room types per booking. Remove one to add another.
+      </p>
+    )}
     <ul className={cn("flex flex-col gap-3 transition-opacity duration-150", isFetching && "opacity-70")}>
       {rooms.map((room) => {
         const line = cartById.get(room.roomTypeId) ?? null;
@@ -296,5 +302,6 @@ export function AvailabilityStep({
         );
       })}
     </ul>
+    </>
   );
 }
