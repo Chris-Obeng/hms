@@ -505,10 +505,12 @@
   border-radius: 0;
   border-bottom: 1px solid var(--separator, var(--border));
 }
-.payments-tabs .tabs__list { display: inline-flex; flex-wrap: nowrap; gap: 1.5rem; padding: 0; }
+.payments-tabs .tabs__list { display: inline-flex; flex-wrap: nowrap; gap: 1.5rem; padding: 0; width: max-content; min-width: 0; }
 .payments-tabs .tabs__tab {
   position: relative;
   flex: none;
+  width: auto;
+  justify-content: flex-start;
   min-width: 0;
   height: auto;
   border-radius: 0;
@@ -542,10 +544,12 @@
    2px accent indicator under the active one, transparent slot on inactive). */
 .guest-tabs { gap: 0; }
 .guest-tabs > .tabs__list-container { background: transparent; border-radius: 0; border: none; padding: 0; }
-.guest-tabs .tabs__list { display: inline-flex; gap: 22px; padding: 6px 0 0; }
+.guest-tabs .tabs__list { display: inline-flex; gap: 24px; padding: 8px 0 0; width: max-content; min-width: 0; }
 .guest-tabs .guest-tabs-tab {
   position: relative;
   flex: none;
+  width: auto;
+  justify-content: flex-start;
   min-width: 0;
   height: auto;
   border-radius: 0;
@@ -565,6 +569,7 @@
 }
 .guest-tabs .guest-tabs-tab .tabs__indicator {
   position: absolute;
+  top: auto;
   left: 0;
   bottom: 0;
   width: 100%;
