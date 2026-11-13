@@ -49,7 +49,10 @@ export function DonutRing({ segments, total, value, label, size = 160, valueSize
       },
       { start: 0, arcs: [] }
     );
-  return <div role="img" aria-label={ariaLabel ?? `${value ?? ""} ${label ?? ""}.`} className="relative shrink-0" style={{ width: size, height: size }}>
+  // Never an empty name: without ariaLabel, value or label, list each segment's share.
+  const fallbackName = [value, label].filter(Boolean).join(" ") ||
+    (arcs.length ? arcs.map((arc) => `${arc.key} ${Math.round((arc.amount / total) * 100)}%`).join(", ") : "No data");
+  return <div role="img" aria-label={ariaLabel || `${fallbackName}.`} className="relative shrink-0" style={{ width: size, height: size }}>
     <svg viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden="true">
       <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--border)" strokeWidth={stroke} />
       {arcs.map((arc) => <circle key={arc.key} cx={size / 2} cy={size / 2} r={radius} fill="none"
