@@ -343,9 +343,11 @@ function ToggleSwitch({
 }) {
   return (
     <Switch aria-label={label} isSelected={isSelected} isDisabled={isDisabled} onChange={onChange}>
-      <Switch.Control>
-        <Switch.Thumb />
-      </Switch.Control>
+      <Switch.Content>
+        <Switch.Control>
+          <Switch.Thumb />
+        </Switch.Control>
+      </Switch.Content>
     </Switch>
   );
 }

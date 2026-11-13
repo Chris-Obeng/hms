@@ -348,9 +348,11 @@ export function HotelSettingsClient({
             isDisabled={disabled}
             onChange={(v) => set("taxEnabled", v)}
           >
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
+            <Switch.Content>
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
+            </Switch.Content>
           </Switch>
         </SettingsRow>
         {values.taxEnabled && (

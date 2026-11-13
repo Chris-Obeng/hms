@@ -66,9 +66,11 @@ function EventEditor({
               isSelected={template.email_enabled}
               onChange={(value) => onChange({ email_enabled: value })}
             >
-              <Switch.Control>
-                <Switch.Thumb />
-              </Switch.Control>
+              <Switch.Content>
+                <Switch.Control>
+                  <Switch.Thumb />
+                </Switch.Control>
+              </Switch.Content>
             </Switch>
           </div>
 
