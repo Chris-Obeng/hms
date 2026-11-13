@@ -252,7 +252,7 @@ export function RoomTypeForm({
           e.preventDefault();
           if (canSubmit) void submit();
         }}
-        className={framed ? "space-y-6" : "space-y-8"}
+        className={cn(framed ? "space-y-6" : "space-y-8", !isModal && isEdit && "pb-8")}
       >
         {photosFirst && photos}
 
@@ -425,16 +425,15 @@ export function RoomTypeForm({
             </Button>
           </div>
         ) : (
-          <div className="pb-8">
-            <SaveBar
-              visible={dirty || submitting}
-              saving={submitting}
-              canSave={canSubmit}
-              onSave={() => void submit()}
-              onDiscard={discard}
-              saveLabel={submitLabel}
-            />
-          </div>
+          // A direct child of the long form, so `sticky` has the whole form to travel in.
+          <SaveBar
+            visible={dirty || submitting}
+            saving={submitting}
+            canSave={canSubmit}
+            onSave={() => void submit()}
+            onDiscard={discard}
+            saveLabel={submitLabel}
+          />
         )}
       </form>
     </div>
