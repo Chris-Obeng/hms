@@ -382,45 +382,6 @@ export async function createRoom(input: RoomInput) {
   return { success: true as const };
 }
 
-export async function updateRoomStatus(id: string, status: string) {
-  let ctx;
-  try {
-    ctx = await requireMinRole("front_desk", "update room status");
-  } catch (err) {
-    return toActionError(err, { action: "rooms.updateRoomStatus" });
-  }
-
-  const supabase = await createClient();
-  const { data: before } = await supabase
-    .from("rooms")
-    .select("status, room_number")
-    .eq("id", id)
-    .eq("hotel_id", ctx.hotelId)
-    .maybeSingle();
-
-  const { error } = await supabase
-    .from("rooms")
-    .update({ status })
-    .eq("id", id)
-    .eq("hotel_id", ctx.hotelId);
-
-  if (error) return { success: false as const, error: error.message };
-
-  await writeAuditLog(supabase, {
-    hotelId: ctx.hotelId,
-    staffId: ctx.staffId,
-    staffName: ctx.staffName,
-    action: "room.status_changed",
-    entityType: "room",
-    entityId: id,
-    beforeState: { status: before?.status ?? null, room_number: before?.room_number ?? null },
-    afterState: { status },
-  });
-
-  revalidatePath("/dashboard/rooms");
-  return { success: true as const };
-}
-
 export async function updateRoom(id: string, input: Partial<RoomInput>) {
   let ctx;
   try {

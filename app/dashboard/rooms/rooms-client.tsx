@@ -48,30 +48,32 @@ import {
   reorderRoomTypes,
   toggleRoomTypeActive,
   updateRoom,
-  updateRoomStatus,
 } from "@/app/actions/rooms";
 import { toAmenityObjects } from "@/lib/amenities";
+import { countAvailableRooms, roomState, type RoomState } from "@/lib/rooms/room-state";
 
 import { RoomTypeForm, type RoomTypeFormValues } from "./_components/room-type-form";
 import { RoomsTabs } from "./_components/rooms-tabs";
 import { BlockRoomSheet } from "../calendar/_components/block-room-sheet";
-
-type RoomStatus = "available" | "occupied" | "maintenance" | "out_of_service";
+import { BLOCK_REASON_LABELS } from "../calendar/_components/calendar-helpers";
 
 /** Status pill: a dot plus the label, so state never rests on colour alone. */
-const STATUS_CONFIG: Record<RoomStatus, { label: string; dot: string; tint: string }> = {
+const STATE_CONFIG: Record<RoomState, { label: string; dot: string; tint: string }> = {
   available: { label: "Available", dot: "bg-emerald-500", tint: "bg-emerald-500/10 text-emerald-800" },
   occupied: { label: "Occupied", dot: "bg-primary", tint: "bg-primary/10 text-primary" },
+  blocked: { label: "Blocked", dot: "bg-amber-500", tint: "bg-amber-500/15 text-amber-900" },
   maintenance: { label: "Maintenance", dot: "bg-amber-500", tint: "bg-amber-500/15 text-amber-900" },
   out_of_service: { label: "Out of service", dot: "bg-destructive", tint: "bg-danger/10 text-danger" },
+  inactive: { label: "Inactive", dot: "bg-muted-foreground", tint: "bg-secondary text-muted-foreground" },
 };
 
-const STATUS_TRANSITIONS: Record<RoomStatus, RoomStatus[]> = {
-  available: ["occupied", "maintenance", "out_of_service"],
-  occupied: ["available", "maintenance"],
-  maintenance: ["available", "out_of_service"],
-  out_of_service: ["available", "maintenance"],
-};
+function shortDate(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
 
 export interface RoomItem {
   id: string;
@@ -81,6 +83,8 @@ export interface RoomItem {
   isActive: boolean | null;
   notes: string | null;
   stay: { guestName: string; checkOut: string } | null;
+  /** The availability block covering today; `endDate` is the day it frees up. */
+  block: { reason: string | null; endDate: string } | null;
 }
 
 export interface RoomTypeGroup {
@@ -105,7 +109,6 @@ interface RoomsClientProps {
   currency: string;
   hotelId: string;
   propertyToday?: string;
-  canEditStatus?: boolean;
   canBlockRooms?: boolean;
   canManageRooms?: boolean;
   canDeleteRoomTypes?: boolean;
@@ -113,7 +116,6 @@ interface RoomsClientProps {
 }
 
 type OptimisticRoomsAction =
-  | { kind: "room_status"; roomId: string; status: RoomStatus }
   | { kind: "room_notes"; roomId: string; notes: string | null }
   | {
       kind: "room_details";
@@ -127,24 +129,11 @@ type OptimisticRoomsAction =
   | { kind: "type_delete"; typeId: string }
   | { kind: "reorder"; ids: string[] };
 
-function recountAvailable(rooms: RoomItem[]): number {
-  return rooms.filter((r) => r.isActive !== false && (r.status ?? "available") === "available")
-    .length;
-}
-
 function applyOptimisticRooms(
   state: RoomTypeGroup[],
   action: OptimisticRoomsAction
 ): RoomTypeGroup[] {
   switch (action.kind) {
-    case "room_status":
-      return state.map((group) => {
-        if (!group.rooms.some((r) => r.id === action.roomId)) return group;
-        const rooms = group.rooms.map((r) =>
-          r.id === action.roomId ? { ...r, status: action.status } : r
-        );
-        return { ...group, rooms, availableRooms: recountAvailable(rooms) };
-      });
     case "room_notes":
       return state.map((group) =>
         group.rooms.some((r) => r.id === action.roomId)
@@ -169,10 +158,10 @@ function applyOptimisticRooms(
         };
         if (group.id === action.toTypeId) {
           const rooms = group.rooms.map((r) => (r.id === action.roomId ? movedRoom! : r));
-          return { ...group, rooms, availableRooms: recountAvailable(rooms) };
+          return { ...group, rooms, availableRooms: countAvailableRooms(rooms) };
         }
         const rooms = group.rooms.filter((r) => r.id !== action.roomId);
-        return { ...group, rooms, availableRooms: recountAvailable(rooms) };
+        return { ...group, rooms, availableRooms: countAvailableRooms(rooms) };
       });
       if (!movedRoom) return state;
       return stripped.map((group) => {
@@ -180,7 +169,7 @@ function applyOptimisticRooms(
           return group;
         }
         const rooms = [...group.rooms, movedRoom!];
-        return { ...group, rooms, availableRooms: recountAvailable(rooms) };
+        return { ...group, rooms, availableRooms: countAvailableRooms(rooms) };
       });
     }
     case "type_active":
@@ -204,7 +193,6 @@ export function RoomsClient({
   currency,
   hotelId,
   propertyToday,
-  canEditStatus = true,
   canBlockRooms = true,
   canManageRooms = true,
   canDeleteRoomTypes = true,
@@ -312,6 +300,11 @@ export function RoomsClient({
         { event: "*", schema: "public", table: "room_types", filter: `hotel_id=eq.${hotelId}` },
         () => router.refresh()
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "availability_blocks", filter: `hotel_id=eq.${hotelId}` },
+        () => router.refresh()
+      )
       .subscribe();
 
     return () => {
@@ -344,20 +337,6 @@ export function RoomsClient({
   }, []);
 
   // --- Optimistic Mutations -------------------------------------------------
-
-  const handleStatusChange = (room: RoomItem, newStatus: RoomStatus) => {
-    if (!canEditStatus || room.status === newStatus) return;
-    startTransition(async () => {
-      dispatchOptimistic({ kind: "room_status", roomId: room.id, status: newStatus });
-      const result = await updateRoomStatus(room.id, newStatus);
-      if (!result.success) {
-        toast.danger("Couldn't update room status", { description: result.error });
-        router.refresh();
-        return;
-      }
-      router.refresh();
-    });
-  };
 
   const openNotesEditor = (room: RoomItem) => {
     setNotesRoom(room);
@@ -727,7 +706,6 @@ export function RoomsClient({
               rooms={rooms}
               isFiltering={isFiltering}
               currency={currency}
-              canEditStatus={canEditStatus}
               canBlockRooms={canBlockRooms}
               canManageRooms={canManageRooms}
               canDeleteRoomTypes={canDeleteRoomTypes}
@@ -736,7 +714,6 @@ export function RoomsClient({
               onTypeToggleActive={() => handleToggleTypeActive(type)}
               onTypeDelete={() => setTypeToDelete(type)}
               onAddRoom={() => openAddRoom(type.id)}
-              onStatusChange={handleStatusChange}
               onBlockDates={(id) => setBlockRoomId(id)}
               onEditNotes={openNotesEditor}
               onEditDetails={openEditRoom}
@@ -1085,48 +1062,37 @@ function RoomFormModal({
 interface RoomRowProps {
   room: RoomItem;
   isHighlighted: boolean;
-  canEditStatus: boolean;
   canBlockRooms: boolean;
   canManageRooms: boolean;
   registerRef: (element: HTMLLIElement | null) => void;
-  onStatusChange: (status: RoomStatus) => void;
   onBlockDates: () => void;
   onEditNotes: () => void;
   onEditDetails: () => void;
 }
 
-/** One room as a tile: number and actions on top, who or what is in it, then its status. */
+/**
+ * One room as a tile: number and actions on top, who or what is in it, then
+ * its state. The state is read-only; check-in, check-out and blocks drive it.
+ */
 function RoomRow({
   room,
   isHighlighted,
-  canEditStatus,
   canBlockRooms,
   canManageRooms,
   registerRef,
-  onStatusChange,
   onBlockDates,
   onEditNotes,
   onEditDetails,
 }: RoomRowProps) {
-  const status = (room.status ?? "available") as RoomStatus;
-  const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.available;
-  const transitions = STATUS_TRANSITIONS[status] ?? [];
+  const state = roomState(room);
+  const config = STATE_CONFIG[state];
   const hasRowActions = canManageRooms || canBlockRooms;
-  const checkout = room.stay?.checkOut
-    ? new Date(`${room.stay.checkOut}T00:00:00Z`).toLocaleDateString("en", {
-        month: "short",
-        day: "numeric",
-        timeZone: "UTC",
-      })
+  const inactive = state === "inactive";
+  const checkout = room.stay?.checkOut ? shortDate(room.stay.checkOut) : null;
+  const blockReason = room.block?.reason
+    ? BLOCK_REASON_LABELS[room.block.reason] ?? room.block.reason.replaceAll("_", " ")
     : null;
-  const inactive = room.isActive === false;
-  const meta = [room.floor ? `Floor ${room.floor}` : null, inactive ? "Inactive" : null].filter(Boolean).join(" · ");
-  const pill = (
-    <>
-      <span className={cn("size-2 shrink-0 rounded-full", config.dot)} aria-hidden="true" />
-      <span className="min-w-0 truncate text-left text-xs font-medium sm:flex-1">{config.label}</span>
-    </>
-  );
+  const meta = room.floor ? `Floor ${room.floor}` : null;
 
   return (
     <li
@@ -1145,6 +1111,8 @@ function RoomRow({
                 <span className="font-medium text-foreground">{room.stay.guestName}</span>
                 {checkout ? ` · out ${checkout}` : null}
               </>
+            ) : state === "blocked" && room.block ? (
+              [blockReason, `back ${shortDate(room.block.endDate)}`].filter(Boolean).join(" · ")
             ) : (
               [meta, room.notes].filter(Boolean).join(" · ") || "\u00a0"
             )}
@@ -1195,40 +1163,16 @@ function RoomRow({
           </div>
         )}
 
-      {canEditStatus ? (
-        <div className={cn("order-2 sm:order-3 sm:col-span-2", !hasRowActions && "col-span-2 justify-self-end sm:justify-self-stretch")}>
-        <Dropdown>
-          <Button
-            variant="ghost"
-            aria-label={`Status of room ${room.roomNumber}: ${config.label}. Change status`}
-            className={cn("h-11 justify-start gap-2 rounded-xl px-3 sm:w-full md:h-8", config.tint)}
-          >
-            {pill}
-            <ChevronDown className="size-3 shrink-0 opacity-70" aria-hidden="true" />
-          </Button>
-          <Dropdown.Popover placement="bottom start">
-            <Dropdown.Menu aria-label={`Change status of room ${room.roomNumber}`} onAction={(key) => onStatusChange(key as RoomStatus)}>
-              {transitions.map((nextStatus) => (
-                <Dropdown.Item key={nextStatus} id={nextStatus} textValue={STATUS_CONFIG[nextStatus].label}>
-                  <span className={cn("size-2 rounded-full", STATUS_CONFIG[nextStatus].dot)} aria-hidden="true" />
-                  <Label>{STATUS_CONFIG[nextStatus].label}</Label>
-                </Dropdown.Item>
-              ))}
-            </Dropdown.Menu>
-          </Dropdown.Popover>
-        </Dropdown>
-        </div>
-      ) : (
-        <span
-          className={cn(
-            "order-2 flex h-8 items-center gap-2 rounded-xl px-3 sm:order-3 sm:col-span-2",
-            !hasRowActions && "col-span-2 justify-self-end sm:justify-self-stretch",
-            config.tint
-          )}
-        >
-          {pill}
-        </span>
-      )}
+      <span
+        className={cn(
+          "order-2 flex h-8 items-center gap-2 rounded-xl px-3 sm:order-3 sm:col-span-2",
+          !hasRowActions && "col-span-2 justify-self-end sm:justify-self-stretch",
+          config.tint
+        )}
+      >
+        <span className={cn("size-2 shrink-0 rounded-full", config.dot)} aria-hidden="true" />
+        <span className="min-w-0 truncate text-xs font-medium">{config.label}</span>
+      </span>
     </li>
   );
 }
@@ -1238,7 +1182,6 @@ interface TypeSectionProps {
   rooms: RoomItem[];
   isFiltering: boolean;
   currency: string;
-  canEditStatus: boolean;
   canBlockRooms: boolean;
   canManageRooms: boolean;
   canDeleteRoomTypes: boolean;
@@ -1247,7 +1190,6 @@ interface TypeSectionProps {
   onTypeToggleActive: () => void;
   onTypeDelete: () => void;
   onAddRoom: () => void;
-  onStatusChange: (room: RoomItem, status: RoomStatus) => void;
   onBlockDates: (id: string) => void;
   onEditNotes: (room: RoomItem) => void;
   onEditDetails: (room: RoomItem, typeId: string) => void;
@@ -1259,7 +1201,6 @@ function TypeSection({
   rooms,
   isFiltering,
   currency,
-  canEditStatus,
   canBlockRooms,
   canManageRooms,
   canDeleteRoomTypes,
@@ -1268,7 +1209,6 @@ function TypeSection({
   onTypeToggleActive,
   onTypeDelete,
   onAddRoom,
-  onStatusChange,
   onBlockDates,
   onEditNotes,
   onEditDetails,
@@ -1334,14 +1274,12 @@ function TypeSection({
                 key={room.id}
                 room={room}
                 isHighlighted={isHighlighted(room)}
-                canEditStatus={canEditStatus}
                 canBlockRooms={canBlockRooms}
                 canManageRooms={canManageRooms}
                 registerRef={(element) => {
                   if (element) registerRef.current.set(room.id, element);
                   else registerRef.current.delete(room.id);
                 }}
-                onStatusChange={(status) => onStatusChange(room, status)}
                 onBlockDates={() => onBlockDates(room.id)}
                 onEditNotes={() => onEditNotes(room)}
                 onEditDetails={() => onEditDetails(room, type.id)}
