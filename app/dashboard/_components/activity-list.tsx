@@ -374,7 +374,7 @@ function BookingRow({
       onClick={() => onViewDetails?.(booking)}
       onMouseEnter={() => onHoverPrefetch?.(booking.id)}
       onFocusCapture={() => onHoverPrefetch?.(booking.id)}
-      className={cn(ROW_GRID, "desk-row cursor-pointer px-4 py-3 sm:px-6")}
+      className={cn(ROW_GRID, "cursor-pointer px-4 py-3 transition-colors duration-150 active:bg-secondary/80 sm:px-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary/50")}
     >
       <Avatar
         size="sm"

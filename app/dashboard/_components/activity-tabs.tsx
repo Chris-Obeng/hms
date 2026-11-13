@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Tabs } from "@heroui/react";
+import { cn } from "@/lib/utils";
 
 export type ActivityTab =
   | "arrivals"
@@ -36,27 +37,41 @@ export function ActivityTabs({ tabs, activeTab, onTabChange, children }: Activit
       variant="secondary"
       selectedKey={activeTab}
       onSelectionChange={(key) => onTabChange(String(key) as ActivityTab)}
-      className="desk-tabs gap-0"
+      className="gap-0"
     >
-      <Tabs.ListContainer>
-        <Tabs.List aria-label="Front-desk activity views">
-          {tabs.map((tab) => (
-            <Tabs.Tab key={tab.key} id={tab.key}>
-              {tab.label}
-              <span
-                className="desk-tab-count"
-                data-tone={tab.key === "overbookings" && tab.count > 0 ? "danger" : undefined}
+      {/* Styling lives in utilities (not global CSS) so it always wins over HeroUI's
+          component layer. This theme maps HeroUI's --accent and --muted to pale
+          surfaces, so labels and the indicator read brand / muted-foreground tokens. */}
+      <Tabs.ListContainer className="border-border/70">
+        <Tabs.List aria-label="Front-desk activity views" className="gap-6 px-4 sm:px-6">
+          {tabs.map((tab) => {
+            const isAlert = tab.key === "overbookings" && tab.count > 0;
+            return (
+              <Tabs.Tab
+                key={tab.key}
+                id={tab.key}
+                className="group h-12 w-auto flex-none gap-2 px-0 text-sm font-medium text-muted-foreground data-[selected=true]:font-semibold data-[selected=true]:text-foreground"
               >
-                {tab.count}
-              </span>
-              <Tabs.Indicator />
-            </Tabs.Tab>
-          ))}
+                {tab.label}
+                <span
+                  className={cn(
+                    "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-2 text-2xs font-semibold tabular-nums transition-colors duration-150",
+                    isAlert
+                      ? "bg-destructive/10 text-destructive"
+                      : "bg-secondary text-muted-foreground group-data-[selected=true]:bg-primary/10 group-data-[selected=true]:text-primary"
+                  )}
+                >
+                  {tab.count}
+                </span>
+                <Tabs.Indicator className="rounded-t-sm bg-primary" />
+              </Tabs.Tab>
+            );
+          })}
         </Tabs.List>
       </Tabs.ListContainer>
 
       {tabs.map((tab) => (
-        <Tabs.Panel key={tab.key} id={tab.key}>
+        <Tabs.Panel key={tab.key} id={tab.key} className="mt-0 p-0">
           {tab.key === activeTab ? children : null}
         </Tabs.Panel>
       ))}
