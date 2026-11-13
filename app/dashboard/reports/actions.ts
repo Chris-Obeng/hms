@@ -23,7 +23,13 @@ export interface RevenueTrendPoint { key: string; label: string; revenue: number
 export interface RevenueData { currency: string; totalRevenue: number; adr: number; revpar: number | null; outstanding: number; outstandingCount: number; granularity: "day" | "week"; deltas: { revenue: number | null; adr: number | null; revpar: number | null }; trend: RevenueTrendPoint[]; bySource: SourceSlice[]; meta: ReportMeta }
 export interface RoomTypeOcc { name: string; booked: number; capacity: number | null; occupancy: number | null; revenue: number; adr: number | null; revpar: number | null }
 export type { StayMix } from "@/lib/reports/arrivals";
-export interface OccupancyData { currency: string; occupancy: number | null; roomNights: number; availableRoomNights: number | null; avgLengthOfStay: number; newBookings: number; stayMix: StayMix; deltas: { occupancy: number | null; roomNights: number | null }; daily: { date: string; label: string; occupancy: number | null }[]; byRoomType: RoomTypeOcc[]; meta: ReportMeta }
+/**
+ * Occupancy over only the completed days that have a recorded room count. Equals
+ * the period occupancy when every completed day is recorded; otherwise it lets the
+ * chart show the recorded days instead of nothing.
+ */
+export interface OccupancyCoverage { occupancy: number | null; recordedDays: number; completedDays: number; firstRecordedDate: string | null }
+export interface OccupancyData { currency: string; occupancy: number | null; roomNights: number; availableRoomNights: number | null; avgLengthOfStay: number; newBookings: number; stayMix: StayMix; deltas: { occupancy: number | null; roomNights: number | null }; daily: { date: string; label: string; occupancy: number | null }[]; coverage: OccupancyCoverage; byRoomType: RoomTypeOcc[]; meta: ReportMeta }
 export interface MethodSlice { method: string; count: number; amount: number }
 export interface OriginSlice { nationality: string; count: number }
 export interface GuestsData { currency: string; totalCollected: number; outstanding: number; newGuests: number; repeatGuests: number; totalGuests: number; byMethod: MethodSlice[]; origins: OriginSlice[]; meta: ReportMeta }
@@ -162,11 +168,21 @@ export async function getOccupancyReport(startDate: string, endDate: string, exp
     return { name: names.get(id) ?? "Unknown / retired room type", booked, capacity, occupancy: occupancy(booked, capacity),
       revenue, adr: adr(revenue, booked), revpar: revpar(revenue, capacity) };
   }).sort((a, b) => b.booked - a.booked || a.name.localeCompare(b.name));
+  const series = buildSeries(cur, ctx.currency);
+  // buildSeries maps cur.capacity one-to-one, so the indexes line up.
+  const recorded = series.flatMap((point, index) => {
+    const day = cur.capacity[index];
+    return day.date < ctx.today && day.capacity != null ? [{ date: point.date, roomNights: point.roomNights, capacity: day.capacity }] : [];
+  });
+  const coverage: OccupancyCoverage = {
+    occupancy: recorded.length ? occupancy(recorded.reduce((sum, day) => sum + day.roomNights, 0), recorded.reduce((sum, day) => sum + day.capacity, 0)) : null,
+    recordedDays: recorded.length, completedDays: completed.length, firstRecordedDate: recorded[0]?.date ?? null,
+  };
   const length = cur.stays.reduce((sum, stay) => sum + differenceInCalendarDays(parseISO(stay.check_out), parseISO(stay.check_in)), 0);
   return { currency: ctx.currency, occupancy: cur.occupancy, roomNights: cur.roomNights, availableRoomNights: cur.availableRoomNights,
     avgLengthOfStay: cur.stays.length ? Math.round(length / cur.stays.length * 10) / 10 : 0, newBookings: created.count!, stayMix,
     deltas: { occupancy: roomDelta(ctx, cur.occupancy, prev.occupancy), roomNights: roomDelta(ctx, cur.roomNights, prev.roomNights) },
-    daily: buildSeries(cur, ctx.currency).map(({ date, label, occupancy }) => ({ date, label, occupancy })), byRoomType,
+    daily: series.map(({ date, label, occupancy }) => ({ date, label, occupancy })), coverage, byRoomType,
     meta: roomMeta(ctx, cur, prev, ["New bookings counts all reservations created in the property's local date window, including subsequently cancelled bookings. Average stay length is the full booked span of participating stays, not just nights in this window."]) };
 }
 export async function getGuestsReport(startDate: string, endDate: string, expectedScope: ReportScope): Promise<GuestsData> {

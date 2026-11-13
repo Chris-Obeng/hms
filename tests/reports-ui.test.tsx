@@ -46,6 +46,7 @@ function occupancy(overrides: Partial<OccupancyData> = {}): OccupancyData {
     deltas: { occupancy: null, roomNights: 10 },
     stayMix: { stayed: 2, inHouse: 1, arriving: 3, cancelled: 1, noShow: 0 },
     daily: [{ date: "2026-10-01", label: "Oct 1", occupancy: null }],
+    coverage: { occupancy: null, recordedDays: 0, completedDays: 1, firstRecordedDate: null },
     byRoomType: [{ name: "Garden suite", booked: 6, capacity: null, occupancy: null, revenue: 0, adr: null, revpar: null }], meta, ...overrides };
 }
 function guests(): GuestsData {
@@ -152,7 +153,9 @@ describe("business intelligence page semantics", () => {
     expect(revenueKpi.textContent).toContain("+6.4%");
     expect(revenueKpi.textContent).toContain("vs prior period");
     expect(screen.getByRole("article", { name: "ADR" }).textContent).toContain("−1.5%");
-    expect(screen.getByRole("article", { name: "Room nights" }).textContent).toContain("No comparison");
+    const roomNights = screen.getByRole("article", { name: "Room nights" }).textContent;
+    expect(roomNights).not.toContain("comparison");
+    expect(roomNights).not.toContain("vs prior period");
   });
   it("renders the KPI cards without sparklines", async () => {
     renderClient();
@@ -170,6 +173,21 @@ describe("business intelligence page semantics", () => {
     expect(screen.queryByText(/Unpaid balances/)).toBeNull();
     expect(screen.queryByText(/View receivables/)).toBeNull();
     expect(screen.queryByText(/Night audit/)).toBeNull();
+  });
+  it("charts the days that have a recorded room count and says how many are missing", async () => {
+    mocks.occupancy.mockResolvedValueOnce(occupancy({
+      daily: [{ date: "2026-10-01", label: "Oct 1", occupancy: null }, { date: "2026-10-02", label: "Oct 2", occupancy: 50 }],
+      coverage: { occupancy: 50, recordedDays: 1, completedDays: 2, firstRecordedDate: "2026-10-02" },
+    }));
+    renderClient();
+    expect(await screen.findByText(/Shown for 1 of 2 completed days/)).toBeDefined();
+    expect(screen.getByText(/counts start on Oct 2, 2026/)).toBeDefined();
+    expect(screen.getByRole("figure", { name: /Average of recorded days 50%/ })).toBeDefined();
+    expect(screen.queryByText(/No room count is recorded/)).toBeNull();
+  });
+  it("explains an occupancy chart with no recorded room counts", async () => {
+    renderClient();
+    expect(await screen.findByText(/No room count is recorded for these dates yet/)).toBeDefined();
   });
   it("offers the CSV export of the loaded figures", async () => {
     renderClient();

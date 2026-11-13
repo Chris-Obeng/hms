@@ -133,7 +133,7 @@ function BiSession({ orgId, hotelId, timeZone, today, initialStartDate, initialE
       {occupancy.isPending
         ? <CardSkeleton />
         : occupancyData
-          ? <OccupancyTrendCard daily={occupancyData.daily} average={overviewData?.occupancy ?? null} delta={occupancyData.deltas.occupancy} />
+          ? <OccupancyTrendCard daily={occupancyData.daily} coverage={occupancyData.coverage} delta={occupancyData.deltas.occupancy} />
           : <SectionError error={occupancy.error} onRetry={() => void occupancy.refetch()} />}
     </div>
   </div>;
@@ -209,7 +209,7 @@ function KpiStrip({ data }: { data: OverviewData }) {
           </span>
         </Card.Header>
         <Card.Content className="gap-4">
-          {/* Every card keeps the same value and change rows, so figures line up across the strip. */}
+          {/* Values sit on the same row in every card; cards without a comparison simply end after the value. */}
           <p className="flex min-h-8 flex-wrap items-baseline gap-x-1 tabular-nums">
             {kpi.amount === null
               ? <span className="text-base font-medium leading-8 text-muted-foreground">Unavailable</span>
@@ -218,18 +218,14 @@ function KpiStrip({ data }: { data: OverviewData }) {
                 <span className="text-2xl font-semibold leading-8 tracking-[-0.02em] text-foreground xl:text-[28px]">{kpi.amount}</span>
               </>}
           </p>
-          <p className="flex min-h-6 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-4 text-muted-foreground">
-            {change && Arrow
-              ? <>
-                <Chip size="sm" variant="soft" color={DELTA_COLOR[change.direction]} className="gap-1 font-semibold tabular-nums">
-                  <Arrow size={12} strokeWidth={2.5} aria-hidden="true" />
-                  <Chip.Label>{change.text.slice(0, at)}</Chip.Label>
-                </Chip>
-                {/* Phones always put the comparison on its own line, so every card wraps the same way. */}
-                <span className="max-md:basis-full">{change.text.slice(at + 1)}</span>
-              </>
-              : "No comparison"}
-          </p>
+          {change && Arrow && <p className="flex min-h-6 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-4 text-muted-foreground">
+            <Chip size="sm" variant="soft" color={DELTA_COLOR[change.direction]} className="gap-1 font-semibold tabular-nums">
+              <Arrow size={12} strokeWidth={2.5} aria-hidden="true" />
+              <Chip.Label>{change.text.slice(0, at)}</Chip.Label>
+            </Chip>
+            {/* Phones always put the comparison on its own line, so every card wraps the same way. */}
+            <span className="max-md:basis-full">{change.text.slice(at + 1)}</span>
+          </p>}
         </Card.Content>
       </Card>;
     })}
