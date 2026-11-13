@@ -437,7 +437,7 @@ function GuestListRow({
       onFocus={() => onPrefetch(guest.id)}
       className={cn(
         GUEST_GRID,
-        "flex w-full items-center gap-3 px-4 py-3 text-left outline-none transition-colors duration-150 focus-visible:bg-secondary/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-6",
+        "flex w-full items-center gap-3 px-4 py-3 text-left outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:bg-secondary/60 sm:px-6",
         "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary/40"
       )}
     >

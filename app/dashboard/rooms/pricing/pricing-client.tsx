@@ -1209,7 +1209,7 @@ export function PricingClient({
                                   onMouseUp={() => handleCellMouseUp(rt.id, dateStr)}
                                   onClick={(e) => handleCellClick(rt.id, dateStr, e)}
                                   className={cn(
-                                    "relative select-none border-r border-border/40 px-2 py-3 text-center align-middle outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
+                                    "relative select-none border-r border-border/40 px-2 py-3 text-center align-middle outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
                                     canManagePricing && "cursor-pointer [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/[0.04]",
                                     isWeekend(dateStr) && "bg-secondary/50",
                                     !isSelected && cell?.source === "seasonal" && "bg-emerald-500/[0.06] text-emerald-800",
@@ -1275,7 +1275,7 @@ export function PricingClient({
                             aria-pressed={active}
                             onClick={(e) => handleCellClick(rt.id, dateStr, e)}
                             className={cn(
-                              "relative flex min-h-14 select-none flex-col justify-between rounded-xl border border-border/60 p-3 text-left outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default",
+                              "relative flex min-h-14 select-none flex-col justify-between rounded-xl border border-border/60 p-3 text-left outline-none transition-transform duration-150 ease-[var(--ease-out-ui)] focus-visible:ring-2 focus-visible:ring-ring enabled:active:scale-[0.97] disabled:cursor-default motion-reduce:transition-none",
                               isWeekend(dateStr) && "bg-secondary/50",
                               cell?.source === "seasonal" && "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-800",
                               cell?.source === "daily" && "border-primary/20 bg-primary/[0.07] text-primary",
