@@ -325,7 +325,9 @@ export function PaymentsSettingsClient({ initialData }: Props) {
             </AlertDialog.Body>
             <AlertDialog.Footer className="flex-col-reverse gap-2 sm:flex-row">
               <Button slot="close" variant="tertiary" className="rounded-xl" onPress={() => { verificationCloseReason.current = "cancel"; setVerified(null); setVerificationConfirmed(false); }}>No, re-enter</Button>
-              <Button slot="close" variant="primary" className="rounded-xl font-semibold" onPress={() => { verificationCloseReason.current = "confirm"; setVerificationConfirmed(true); setVerificationOpen(false); }}>Yes, it&apos;s correct</Button>
+              {/* Not slot="close": the slot's close runs before this handler, so onOpenChange
+                  saw no "confirm" reason and cleared the verification on the first try. */}
+              <Button variant="primary" className="rounded-xl font-semibold" onPress={() => { setVerificationConfirmed(true); setVerificationOpen(false); }}>Yes, it&apos;s correct</Button>
             </AlertDialog.Footer>
           </AlertDialog.Dialog>
         </AlertDialog.Container>
