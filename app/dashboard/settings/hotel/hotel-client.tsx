@@ -348,7 +348,7 @@ export function HotelSettingsClient({
             isDisabled={disabled}
             onChange={(v) => set("taxEnabled", v)}
           >
-            <Switch.Content>
+            <Switch.Content className="min-h-11 items-center md:min-h-0">
               <Switch.Control>
                 <Switch.Thumb />
               </Switch.Control>

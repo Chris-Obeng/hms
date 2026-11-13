@@ -460,7 +460,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
         type="button"
         aria-label="Search"
         onClick={() => setMobileOpen(true)}
-        className="ui-press inline-flex size-10 items-center justify-center rounded-lg text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:hidden [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+        className="ui-press inline-flex size-11 items-center justify-center rounded-lg text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:hidden [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
       >
         <Search className="size-5" />
       </button>

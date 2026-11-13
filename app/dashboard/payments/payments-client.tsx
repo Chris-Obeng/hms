@@ -221,7 +221,7 @@ function LedgerCard({ activity, loading, timeZone, status, method, search, page,
     {/* Toolbar */}
     <div className="grid grid-cols-2 gap-2 p-4 sm:flex sm:items-center sm:px-6">
       <SearchField aria-label="Search payments" value={search} onChange={onSearch} onSubmit={onApply} className="col-span-2 min-w-0 sm:mr-auto sm:w-72">
-        <SearchField.Group className="rounded-xl">
+        <SearchField.Group className="rounded-xl max-sm:h-11">
           <SearchField.SearchIcon />
           <SearchField.Input placeholder="Search guest or reference" />
           <SearchField.ClearButton />
@@ -299,8 +299,8 @@ function LedgerCard({ activity, loading, timeZone, status, method, search, page,
     {activity && (page > 1 || activity.hasNextPage) && <div className="flex items-center justify-between gap-3 border-t border-border/50 px-4 py-3 sm:px-6">
       <span className="text-xs tabular-nums text-muted-foreground">Page {page}</span>
       <div className="flex gap-2">
-        <Button isIconOnly variant="secondary" aria-label="Previous page" className="rounded-xl" isDisabled={page <= 1 || loading} onPress={() => onPage(page - 1)}><ChevronLeft className="size-4" /></Button>
-        <Button isIconOnly variant="secondary" aria-label="Next page" className="rounded-xl" isDisabled={!activity.hasNextPage || loading} onPress={() => onPage(page + 1)}><ChevronRight className="size-4" /></Button>
+        <Button isIconOnly variant="secondary" aria-label="Previous page" className="rounded-xl max-md:size-11" isDisabled={page <= 1 || loading} onPress={() => onPage(page - 1)}><ChevronLeft className="size-4" /></Button>
+        <Button isIconOnly variant="secondary" aria-label="Next page" className="rounded-xl max-md:size-11" isDisabled={!activity.hasNextPage || loading} onPress={() => onPage(page + 1)}><ChevronRight className="size-4" /></Button>
       </div>
     </div>}
   </Card>;

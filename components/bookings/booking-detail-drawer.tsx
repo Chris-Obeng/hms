@@ -292,7 +292,7 @@ export function BookingDetailDrawer({
                       size="sm"
                       variant="ghost"
                       aria-label="Reservation actions"
-                      className="rounded-lg text-muted-foreground"
+                      className="rounded-lg text-muted-foreground max-md:size-11"
                     >
                       <Ellipsis className="size-4" aria-hidden="true" />
                     </Button>

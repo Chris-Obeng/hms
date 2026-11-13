@@ -66,7 +66,7 @@ function EventEditor({
               isSelected={template.email_enabled}
               onChange={(value) => onChange({ email_enabled: value })}
             >
-              <Switch.Content>
+              <Switch.Content className="min-h-11 items-center md:min-h-0">
                 <Switch.Control>
                   <Switch.Thumb />
                 </Switch.Control>
@@ -96,7 +96,7 @@ function EventEditor({
                     size="sm"
                     variant="secondary"
                     onPress={() => insertVariable(variable)}
-                    className="h-8 rounded-lg px-2 font-mono text-2xs text-muted-foreground md:h-8"
+                    className="h-10 rounded-lg px-2 font-mono text-2xs text-muted-foreground md:h-8"
                   >
                     {variable}
                   </Button>

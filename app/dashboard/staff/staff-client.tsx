@@ -367,7 +367,7 @@ export function StaffClient({
         isDisabled={mutatingIds.has(row.id)}
         onChange={() => handleStatusClick(row)}
       >
-        <Switch.Content>
+        <Switch.Content className="min-h-11 items-center md:min-h-0">
           <Switch.Control>
             <Switch.Thumb />
           </Switch.Control>
@@ -393,14 +393,14 @@ export function StaffClient({
           {pendingCount > 0 && (
             <Link
               href="/dashboard/staff/pending"
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-amber-500/10 px-3 text-sm font-semibold text-amber-800 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-amber-500/15"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-amber-500/10 px-3 sm:min-h-10 text-sm font-semibold text-amber-800 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-amber-500/15"
             >
               <span className="size-2 rounded-full bg-amber-500" aria-hidden="true" />
               {pendingCount} to approve
             </Link>
           )}
           {canInvite && (
-            <Button variant="primary" onPress={() => setIsInviteOpen(true)} className="rounded-xl font-semibold">
+            <Button variant="primary" onPress={() => setIsInviteOpen(true)} className="rounded-xl font-semibold max-sm:h-11">
               <Plus className="size-4" aria-hidden="true" />
               Invite
             </Button>
@@ -495,10 +495,10 @@ export function StaffClient({
               Page {currentPage} of {pageCount}
             </span>
             <div className="flex gap-2">
-              <Button isIconOnly variant="secondary" aria-label="Previous page" className="rounded-xl" isDisabled={currentPage <= 1} onPress={() => setPage(currentPage - 1)}>
+              <Button isIconOnly variant="secondary" aria-label="Previous page" className="rounded-xl max-md:size-11" isDisabled={currentPage <= 1} onPress={() => setPage(currentPage - 1)}>
                 <ChevronLeft className="size-4" />
               </Button>
-              <Button isIconOnly variant="secondary" aria-label="Next page" className="rounded-xl" isDisabled={currentPage >= pageCount} onPress={() => setPage(currentPage + 1)}>
+              <Button isIconOnly variant="secondary" aria-label="Next page" className="rounded-xl max-md:size-11" isDisabled={currentPage >= pageCount} onPress={() => setPage(currentPage + 1)}>
                 <ChevronRight className="size-4" />
               </Button>
             </div>

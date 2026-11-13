@@ -28,7 +28,7 @@ export interface AppHeaderProps {
 }
 
 const ICON_BUTTON =
-  "size-10 min-w-10 shrink-0 rounded-lg text-muted-foreground md:size-8 md:min-w-8 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground";
+  "size-11 min-w-11 shrink-0 rounded-lg text-muted-foreground md:size-8 md:min-w-8 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground";
 
 export function AppHeader({
   hotelId,
@@ -90,7 +90,7 @@ export function AppHeader({
           <Link
             href="/dashboard"
             aria-label="RoomLine front desk"
-            className="ui-press flex min-h-10 min-w-0 items-center gap-2 rounded-lg px-1 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            className="ui-press flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-1 md:min-h-10 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             <RoomLineMark size={24} />
             <span className="truncate text-md font-bold tracking-tight text-foreground">
@@ -111,7 +111,7 @@ export function AppHeader({
             size="sm"
             onPress={openNewBooking}
             aria-label="New booking"
-            className="min-w-10 gap-2 rounded-lg px-0 text-sm font-semibold max-sm:w-10 sm:px-3"
+            className="min-w-10 gap-2 rounded-lg px-0 text-sm font-semibold max-sm:size-11 sm:px-3"
           >
             <Plus className="size-4" aria-hidden="true" />
             <span className="hidden sm:inline">New booking</span>

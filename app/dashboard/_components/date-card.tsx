@@ -77,7 +77,7 @@ export function DateNavigator({
           aria-label="Previous day"
           isDisabled={isDisabled || atMin}
           onPress={() => onDateChange(subDays(selectedDate, 1))}
-          className="text-muted-foreground"
+          className="text-muted-foreground max-md:size-11"
         >
           <ChevronLeft className="size-4" />
         </Button>
@@ -87,7 +87,7 @@ export function DateNavigator({
             variant="secondary"
             isDisabled={isDisabled}
             aria-label={`Change date, currently ${format(selectedDate, "EEEE, MMMM d, yyyy")}`}
-            className="min-w-0 flex-1 gap-2 px-3 font-semibold tabular-nums sm:min-w-48"
+            className="min-w-0 flex-1 gap-2 px-3 font-semibold tabular-nums max-md:h-11 sm:min-w-48"
           >
             <ButtonGroup.Separator />
             <CalendarDays className="size-4 shrink-0 text-primary" aria-hidden="true" />
@@ -151,7 +151,7 @@ export function DateNavigator({
           aria-label="Next day"
           isDisabled={isDisabled || atMax}
           onPress={() => onDateChange(addDays(selectedDate, 1))}
-          className="text-muted-foreground"
+          className="text-muted-foreground max-md:size-11"
         >
           <ButtonGroup.Separator />
           <ChevronRight className="size-4" />
@@ -159,7 +159,7 @@ export function DateNavigator({
       </ButtonGroup>
 
       {!isToday && (
-        <Button variant="ghost" onPress={goToToday} isDisabled={isDisabled} className="shrink-0 font-semibold text-primary">
+        <Button variant="ghost" onPress={goToToday} isDisabled={isDisabled} className="shrink-0 font-semibold text-primary max-md:h-11">
           Today
         </Button>
       )}

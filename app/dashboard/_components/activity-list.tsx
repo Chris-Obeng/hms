@@ -264,7 +264,7 @@ export function ActivityList({
               variant="ghost"
               aria-label="Refresh activity"
               onPress={onRefresh}
-              className="shrink-0 rounded-xl text-muted-foreground"
+              className="shrink-0 rounded-xl text-muted-foreground max-md:size-11"
             >
               <RotateCw className="size-4" />
             </Button>
@@ -507,18 +507,18 @@ function SplitAction({
 }) {
   if (items.length === 0) {
     return (
-      <Button size="sm" variant={variant} onPress={onMain} className="rounded-xl px-4 font-semibold">
+      <Button size="sm" variant={variant} onPress={onMain} className="rounded-xl px-4 font-semibold max-md:h-11">
         {label}
       </Button>
     );
   }
   return (
     <ButtonGroup size="sm" variant={variant} className="rounded-xl">
-      <Button onPress={onMain} className="px-4 font-semibold">
+      <Button onPress={onMain} className="px-4 font-semibold max-md:h-11">
         {label}
       </Button>
       <Dropdown>
-        <Button isIconOnly size="sm" variant={variant} aria-label={menuLabel}>
+        <Button isIconOnly size="sm" variant={variant} aria-label={menuLabel} className="max-md:size-11">
           <ButtonGroup.Separator />
           <ChevronDown className="size-4" />
         </Button>

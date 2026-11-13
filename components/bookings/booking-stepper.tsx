@@ -50,7 +50,7 @@ export function BookingStepper({ current, canReach, onStepChange, className }: B
               onPress={() => reachable && onStepChange(s.num)}
               aria-current={active ? "step" : undefined}
               className={cn(
-                "h-8 shrink-0 gap-2 rounded-full px-2 text-sm font-medium md:h-8",
+                "h-11 shrink-0 gap-2 rounded-full px-2 text-sm font-medium md:h-8",
                 active ? "pointer-events-none text-foreground" : "text-muted-foreground",
                 "data-[disabled=true]:opacity-100"
               )}

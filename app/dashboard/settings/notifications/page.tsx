@@ -284,7 +284,7 @@ function ToggleSwitch({
 }) {
   return (
     <Switch aria-label={label} isSelected={isSelected} isDisabled={isDisabled} onChange={onChange}>
-      <Switch.Content>
+      <Switch.Content className="min-h-11 items-center md:min-h-0">
         <Switch.Control>
           <Switch.Thumb />
         </Switch.Control>

@@ -150,7 +150,7 @@ export function BookingOverviewPanel({
                       variant="primary"
                       isDisabled={actionLoading === "bulk:check_in"}
                       onPress={() => onBulkAction([l.id], "checked_in", "check_in")}
-                      className="shrink-0 rounded-lg font-semibold"
+                      className="shrink-0 rounded-lg font-semibold max-md:h-11"
                     >
                       Check in
                     </Button>
@@ -161,7 +161,7 @@ export function BookingOverviewPanel({
                       variant="secondary"
                       isDisabled={actionLoading === "bulk:check_out"}
                       onPress={() => onBulkAction([l.id], "checked_out", "check_out")}
-                      className="shrink-0 rounded-lg font-semibold"
+                      className="shrink-0 rounded-lg font-semibold max-md:h-11"
                     >
                       Check out
                     </Button>
@@ -385,7 +385,7 @@ function NotesSection({
             size="sm"
             variant="ghost"
             onPress={() => setEditing(true)}
-            className="h-8 gap-1 rounded-lg px-2 text-xs font-medium text-muted-foreground"
+            className="h-11 gap-1 rounded-lg px-2 text-xs font-medium text-muted-foreground md:h-8"
           >
             <Pencil className="size-3" aria-hidden="true" />
             {booking.internalNotes ? "Edit" : "Add note"}
