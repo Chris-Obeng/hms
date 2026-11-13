@@ -1,5 +1,5 @@
 /**
- * Shared surface and type styles for the Business Intelligence page. They match
+ * Shared surface and type styles for the Reports page. They match
  * the Rooms and Rates cards: one quiet border, a hairline shadow, 16px padding
  * on phones and 24px from `sm`, and a 16/24 title over a 12/16 caption.
  */

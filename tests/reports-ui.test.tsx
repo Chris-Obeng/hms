@@ -144,7 +144,7 @@ describe("report response scope guard", () => {
   });
 });
 
-describe("business intelligence page semantics", () => {
+describe("reports page semantics", () => {
   it("renders the KPI strip with the period comparison subtitle", async () => {
     renderClient();
     expect(await screen.findByText(/12,345/)).toBeDefined();
@@ -239,7 +239,7 @@ describe("business intelligence page semantics", () => {
 describe("report client fetch boundaries", () => {
   it("requests the figures behind the page and the export for the applied range and passes the tenant scope", async () => {
     renderClient();
-    await screen.findByRole("heading", { name: "Business Intelligence" });
+    await screen.findByRole("heading", { name: "Reports" });
     await act(async () => {});
     expect(mocks.overview).toHaveBeenCalledExactlyOnceWith(meta.startDate, meta.endDate, scope);
     expect(mocks.occupancy).toHaveBeenCalledExactlyOnceWith(meta.startDate, meta.endDate, scope);
@@ -251,7 +251,7 @@ describe("report client fetch boundaries", () => {
     window.history.replaceState(null, "", "/dashboard/reports?tab=nope&startDate=9999-01-01&endDate=9999-01-02");
     try {
       renderClient();
-      await screen.findByRole("heading", { name: "Business Intelligence" });
+      await screen.findByRole("heading", { name: "Reports" });
       expect(replaceMock).toHaveBeenCalledWith("/dashboard/reports?startDate=2026-10-01&endDate=2026-10-20", { scroll: false });
       expect(mocks.overview).toHaveBeenCalledExactlyOnceWith(meta.startDate, meta.endDate, scope);
     } finally { window.history.replaceState(null, "", "/"); }
