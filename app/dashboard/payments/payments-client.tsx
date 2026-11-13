@@ -186,7 +186,7 @@ function ActivityView({ activity, error, loading, currency, timeZone, status, me
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
       <PenKpi label="Collected" value={formatCurrency(totals?.successfulAmount ?? 0, currency)}
         hint={paymentsLabel(totals?.successfulCount ?? 0)} className="col-span-2 sm:col-span-1" />
-      <PenKpi label="Online" value={formatCurrency(totals?.onlineAmount ?? 0, currency)} hint={paymentsLabel(totals?.onlineCount ?? 0)} />
+      <PenKpi label="Online payments" value={formatCurrency(totals?.onlineAmount ?? 0, currency)} hint={paymentsLabel(totals?.onlineCount ?? 0)} />
       <PenKpi label="By staff" value={formatCurrency(totals?.staffAmount ?? 0, currency)} hint={paymentsLabel(totals?.staffCount ?? 0)} />
     </div>
 
@@ -252,7 +252,7 @@ function LedgerCard({ activity, loading, timeZone, status, method, search, page,
                 <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{formatCurrency(row.amount, row.currency)}</span>
               </span>
               <span className="flex items-center justify-between gap-3">
-                <span className="truncate text-xs text-muted-foreground">{time} · {online ? "Online" : getMethodLabel(row.method)}</span>
+                <span className="truncate text-xs text-muted-foreground">{time} · {getMethodLabel(row.method)}</span>
                 <Chip size="sm" variant="soft" color={statusTone(row.status)}>{statusLabel(row.status)}</Chip>
               </span>
             </>;
@@ -270,7 +270,7 @@ function LedgerCard({ activity, loading, timeZone, status, method, search, page,
 
               <div className="hidden min-w-0 md:block">
                 <p className="text-sm tabular-nums text-foreground">{time}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{online ? "Online" : getMethodLabel(row.method)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{getMethodLabel(row.method)}</p>
               </div>
               <div className="hidden min-w-0 md:block">
                 {open ? (
@@ -326,7 +326,7 @@ function paymentsLabel(count: number): string {
   return `${count.toLocaleString("en")} ${count === 1 ? "payment" : "payments"}`;
 }
 
-/** Online payments stay aggregated as "Online" (never split by rail type); staff-collected rows name the tender. */
+/** Online payments are not recorded by staff, so the "recorded by" column says "Online" for them. */
 function onlineRow(row: { method: string | null }): boolean {
   return row.method === "paystack_link";
 }

@@ -56,7 +56,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   ussd: "USSD",
   online: "Online payment",
   paystack: "Online payment",
-  paystack_link: "Payment link",
+  paystack_link: "Online payment",
   other: "Other payment",
 };
 

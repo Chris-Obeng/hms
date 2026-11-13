@@ -170,6 +170,7 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   bank_transfer: "Bank Transfer",
   mobile_money: "Mobile Money",
   paystack_link: "Online payment",
+  ussd: "USSD",
   refund: "Refund",
   other: "Other",
 };

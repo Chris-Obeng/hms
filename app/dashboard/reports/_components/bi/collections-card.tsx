@@ -7,26 +7,28 @@ import { cn } from "@/lib/utils";
 import { BI_CARD, BI_CARD_DESCRIPTION, BI_CARD_TITLE } from "./bi-styles";
 import { share } from "./bi-format";
 import { formatCurrencySymbol } from "@/lib/format";
-import { OTHER_PAYMENT_METHOD_COLOR, PAYMENT_METHOD_COLORS } from "@/lib/payment-method-colors";
+import { FALLBACK_PAYMENT_METHOD_COLORS, OTHER_PAYMENT_METHOD_COLOR, PAYMENT_METHOD_COLORS } from "@/lib/payment-method-colors";
 import type { MethodSlice } from "../../actions";
 
 /** Methods shown by name; anything past this folds into one "Other" row. */
 const NAMED_METHODS = 4;
-/** Distinct fallbacks for methods the theme has no token for, so no two arcs share a hue. */
-const FALLBACK_COLORS = ["var(--chart-4)", "var(--chart-5)"];
+/** Key for the folded row; never a real method name, so it cannot collide with one. */
+const FOLDED_KEY = "__folded";
 
 interface Segment { key: string; label: string; value: number; color: string }
 
 function toSegments(rows: MethodSlice[]): Segment[] {
   const sorted = rows.filter((row) => row.amount > 0).sort((a, b) => b.amount - a.amount);
-  const named = sorted.length > NAMED_METHODS + 1 ? sorted.slice(0, NAMED_METHODS) : sorted;
+  // When the tail folds, a real "other" method joins the fold so the card never shows two "Other" rows.
+  const folds = sorted.length > NAMED_METHODS + 1;
+  const named = folds ? sorted.filter((row) => row.method !== "other").slice(0, NAMED_METHODS) : sorted;
   let fallback = 0;
   const segments = named.map((row) => ({
     key: row.method, label: PAYMENT_METHOD_LABELS[row.method] ?? row.method, value: row.amount,
-    color: PAYMENT_METHOD_COLORS[row.method] ?? FALLBACK_COLORS[fallback++ % FALLBACK_COLORS.length],
+    color: PAYMENT_METHOD_COLORS[row.method] ?? FALLBACK_PAYMENT_METHOD_COLORS[fallback++ % FALLBACK_PAYMENT_METHOD_COLORS.length],
   }));
-  const rest = sorted.slice(named.length);
-  if (rest.length) segments.push({ key: "other", label: "Other", value: rest.reduce((sum, row) => sum + row.amount, 0), color: OTHER_PAYMENT_METHOD_COLOR });
+  const rest = sorted.filter((row) => !named.includes(row));
+  if (rest.length) segments.push({ key: FOLDED_KEY, label: "Other", value: rest.reduce((sum, row) => sum + row.amount, 0), color: OTHER_PAYMENT_METHOD_COLOR });
   return segments;
 }
 
