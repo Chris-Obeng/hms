@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import { Button, Card, Disclosure, Table } from "@heroui/react";
 import { BI_AXIS_TICK, BI_CARD, BI_CARD_DESCRIPTION, BI_CARD_HEADER, BI_CARD_TITLE } from "./bi-styles";
 import { formatDate } from "@/lib/format";
@@ -61,33 +61,32 @@ export function RevenueCard({ currency, current, prior, className }: {
       <Legend />
     </div>
     <figure aria-label={`Room revenue ${weekly ? "by week" : "by day"}. Exact values are in the data table below.`} className="h-56 w-full md:h-72">
-      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-        <AreaChart data={rows} accessibilityLayer={false} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.16} />
-              <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.6} />
-          <XAxis dataKey="label" tick={BI_AXIS_TICK} tickLine={false} axisLine={false} tickMargin={8} minTickGap={40} />
-          <YAxis width={40} axisLine={false} tickLine={false} tickCount={4} allowDecimals={false}
-            domain={[0, (max: number) => Math.ceil(max / 5000) * 5000 || 5000]}
-            tick={BI_AXIS_TICK} tickFormatter={(value: number) => compactNumber(value)} />
-          <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
-            labelFormatter={(label, payload) => {
-              const iso = (payload?.[0]?.payload as { date?: string } | undefined)?.date;
-              if (typeof iso !== "string") return String(label ?? "");
-              return weekly ? `Week of ${formatDate(iso, "MMM d, yyyy")}` : formatDate(iso, "EEE, MMM d, yyyy");
-            }}
-            formatter={(value, name) => [`${moneyAmount(Number(value), currency, { maximumFractionDigits: 0 })} ${currency}`, name === "prior" ? "Prior period" : "This period"]} />
-          <Area type="monotone" dataKey="prior" stroke="var(--muted-foreground)" strokeOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 4"
-            fill="transparent" connectNulls isAnimationActive={false} dot={false} activeDot={false} />
-          <Area type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={2} fill={`url(#${gradientId})`}
-            connectNulls isAnimationActive={false} dot={false}
-            activeDot={{ r: 4, stroke: "var(--card)", strokeWidth: 2 }} />
-        </AreaChart>
-      </ResponsiveContainer>
+      {/* `responsive` sizes the chart from the figure with plain CSS, so it never renders unmeasured. */}
+      <AreaChart responsive style={{ width: "100%", height: "100%" }} data={rows} accessibilityLayer={false} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.16} />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.6} />
+        <XAxis dataKey="label" tick={BI_AXIS_TICK} tickLine={false} axisLine={false} tickMargin={8} minTickGap={40} />
+        <YAxis width={40} axisLine={false} tickLine={false} tickCount={4} allowDecimals={false}
+          domain={[0, (max: number) => Math.ceil(max / 5000) * 5000 || 5000]}
+          tick={BI_AXIS_TICK} tickFormatter={(value: number) => compactNumber(value)} />
+        <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+          labelFormatter={(label, payload) => {
+            const iso = (payload?.[0]?.payload as { date?: string } | undefined)?.date;
+            if (typeof iso !== "string") return String(label ?? "");
+            return weekly ? `Week of ${formatDate(iso, "MMM d, yyyy")}` : formatDate(iso, "EEE, MMM d, yyyy");
+          }}
+          formatter={(value, name) => [`${moneyAmount(Number(value), currency, { maximumFractionDigits: 0 })} ${currency}`, name === "prior" ? "Prior period" : "This period"]} />
+        <Area type="monotone" dataKey="prior" stroke="var(--muted-foreground)" strokeOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 4"
+          fill="transparent" connectNulls isAnimationActive={false} dot={false} activeDot={false} />
+        <Area type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={2} fill={`url(#${gradientId})`}
+          connectNulls isAnimationActive={false} dot={false}
+          activeDot={{ r: 4, stroke: "var(--card)", strokeWidth: 2 }} />
+      </AreaChart>
     </figure>
     <DataTable rows={rows} currency={currency} weekly={weekly} />
   </Card>;

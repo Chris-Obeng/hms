@@ -1,6 +1,6 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { Card } from "@heroui/react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -43,23 +43,21 @@ export function OccupancyTrendCard({ daily, coverage, className }: {
     {!chartable
       ? <p className="py-8 text-center text-sm leading-5 text-muted-foreground">No room count is recorded for these dates yet, so occupancy can’t be shown. Room counts are saved from the day rooms are added or changed.</p>
       : <figure aria-label={`Nightly occupancy bar chart. ${averageLabel} ${averageText}.`} className="h-56 w-full md:h-64 lg:h-[23rem]">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <BarChart data={daily} accessibilityLayer={false} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barCategoryGap="24%">
-            <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.6} />
-            <XAxis dataKey="label" tick={BI_AXIS_TICK} tickLine={false} axisLine={false} tickMargin={8} minTickGap={40} />
-            <YAxis width={40} axisLine={false} tickLine={false} domain={[0, 100]} ticks={[0, 50, 100]}
-              tick={BI_AXIS_TICK} tickFormatter={(value: number) => `${value}%`} />
-            <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--muted)", fillOpacity: 0.4 }}
-              labelFormatter={(label, payload) => {
-                const iso = (payload?.[0]?.payload as { date?: string } | undefined)?.date;
-                return typeof iso === "string" ? formatDate(iso, "EEE, MMM d, yyyy") : String(label ?? "");
-              }}
-              formatter={(value) => [`${Number(value).toLocaleString("en", { maximumFractionDigits: 1 })}%`, "Occupancy"]} />
-            {/* Nights stay neutral; the accent marks the one figure that matters here, the average. */}
-            <Bar dataKey="occupancy" fill="var(--muted-foreground)" fillOpacity={0.28} radius={[4, 4, 0, 0]} maxBarSize={isMobile ? 8 : 20} isAnimationActive={false} />
-            <ReferenceLine y={average} stroke="var(--primary)" strokeWidth={1.5} strokeDasharray="4 4" />
-          </BarChart>
-        </ResponsiveContainer>
+        <BarChart responsive style={{ width: "100%", height: "100%" }} data={daily} accessibilityLayer={false} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barCategoryGap="24%">
+          <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.6} />
+          <XAxis dataKey="label" tick={BI_AXIS_TICK} tickLine={false} axisLine={false} tickMargin={8} minTickGap={40} />
+          <YAxis width={40} axisLine={false} tickLine={false} domain={[0, 100]} ticks={[0, 50, 100]}
+            tick={BI_AXIS_TICK} tickFormatter={(value: number) => `${value}%`} />
+          <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--muted)", fillOpacity: 0.4 }}
+            labelFormatter={(label, payload) => {
+              const iso = (payload?.[0]?.payload as { date?: string } | undefined)?.date;
+              return typeof iso === "string" ? formatDate(iso, "EEE, MMM d, yyyy") : String(label ?? "");
+            }}
+            formatter={(value) => [`${Number(value).toLocaleString("en", { maximumFractionDigits: 1 })}%`, "Occupancy"]} />
+          {/* Nights stay neutral; the accent marks the one figure that matters here, the average. */}
+          <Bar dataKey="occupancy" fill="var(--muted-foreground)" fillOpacity={0.28} radius={[4, 4, 0, 0]} maxBarSize={isMobile ? 8 : 20} isAnimationActive={false} />
+          <ReferenceLine y={average} stroke="var(--primary)" strokeWidth={1.5} strokeDasharray="4 4" />
+        </BarChart>
       </figure>}
     {chartable && partial && <p className="text-xs leading-4 text-muted-foreground">
       Shown for {coverage.recordedDays} of {coverage.completedDays} completed days. The other days have no recorded room count{startsLate ? `; counts start on ${formatDate(coverage.firstRecordedDate!, "MMM d, yyyy")}` : ""}.
