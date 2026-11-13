@@ -456,13 +456,14 @@
   color: var(--muted-foreground) !important;
 }
 
-/* HeroUI paints Alert descriptions and modal / alert-dialog body text with
- * --muted, a surface colour in this theme, so that text was near-invisible. Same layer as HeroUI and later
+/* HeroUI paints Alert descriptions, modal / alert-dialog body text and the
+ * default CloseButton (e.g. SearchField's clear x) with --muted, a surface colour in this theme, so that text was near-invisible. Same layer as HeroUI and later
  * in source order, so this wins while utilities on an element still can. */
 @layer components {
   .alert__description,
   .modal__body,
-  .alert-dialog__body {
+  .alert-dialog__body,
+  .close-button--default {
     color: var(--muted-foreground);
   }
 }
