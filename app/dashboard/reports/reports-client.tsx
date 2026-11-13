@@ -109,8 +109,7 @@ function BiSession({ orgId, hotelId, timeZone, today, initialStartDate, initialE
         <h1 className={TITLE_CLASS}>{CONTEXT_TITLE}</h1>
         <p className="text-sm leading-5 text-muted-foreground" aria-live="polite">
           {reportPeriodLabel(range)}
-          {overviewData && overviewData.meta.priorStartDate !== overviewData.meta.startDate
-            && <span> · compared with {formatDate(overviewData.meta.priorStartDate, "MMM d")} – {formatDate(overviewData.meta.priorEndDate, "MMM d")}</span>}
+          {overviewData && <ComparisonText meta={overviewData.meta} />}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -125,7 +124,7 @@ function BiSession({ orgId, hotelId, timeZone, today, initialStartDate, initialE
         : overviewData
           ? <div className={cn("flex flex-col", GAP, REVEAL)}>
             <KpiStrip data={overviewData} />
-            <RevenueCard currency={overviewData.currency} current={overviewData.series} prior={overviewData.priorSeries} />
+            <RevenueCard currency={overviewData.currency} current={overviewData.series} prior={overviewData.priorSeries} today={today} />
           </div>
           : <SectionError error={overview.error} onRetry={() => void overview.refetch()} />}
       <div className={cn("grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]", GAP)}>
@@ -142,6 +141,22 @@ function BiSession({ orgId, hotelId, timeZone, today, initialStartDate, initialE
       </div>
     </div>
   </div>;
+}
+
+/**
+ * Names the windows the deltas actually compare. A range that ends today is
+ * compared on its completed nights only; a today-only range has no comparison.
+ */
+function ComparisonText({ meta }: { meta: OverviewData["meta"] }) {
+  if (!meta.comparable) return null;
+  const years = new Set([meta.startDate, meta.comparedEndDate, meta.priorStartDate, meta.priorEndDate].map((date) => date.slice(0, 4)));
+  const pattern = years.size > 1 ? "MMM d, yyyy" : "MMM d";
+  const windowLabel = (start: string, end: string) => `${formatDate(start, pattern)} – ${formatDate(end, pattern)}`;
+  const prior = windowLabel(meta.priorStartDate, meta.priorEndDate);
+  if (meta.comparedEndDate < meta.endDate) {
+    return <span> · {windowLabel(meta.startDate, meta.comparedEndDate)} compared with {prior}. Tonight is not included until it ends.</span>;
+  }
+  return <span> · compared with {prior}</span>;
 }
 
 function useBiReport<T>(tab: string, scope: { orgId: string; hotelId: string }, range: ReportRange,
@@ -173,7 +188,8 @@ interface KpiFigure {
   unit?: "%" | "pts";
 }
 
-const DELTA_TONE = { up: "text-success", down: "text-danger", flat: "text-muted-foreground" } as const;
+/** Soft-foreground tokens mix in the page ink so 12px delta text clears WCAG AA (4.5:1) on the card. */
+const DELTA_TONE = { up: "text-success-soft-foreground", down: "text-danger-soft-foreground", flat: "text-muted-foreground" } as const;
 const DELTA_ICON = { up: ArrowUpRight, down: ArrowDownRight, flat: Minus } as const;
 
 /**

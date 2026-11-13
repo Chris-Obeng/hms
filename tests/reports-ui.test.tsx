@@ -32,7 +32,7 @@ vi.mock("recharts", async (original) => ({
 }));
 
 const scope = { orgId: "org-a", hotelId: "hotel-a" };
-const meta = { ...scope, startDate: "2026-10-01", endDate: "2026-10-20", priorStartDate: "2026-09-11", priorEndDate: "2026-09-30", timeZone: "Africa/Accra", generatedAt: "2026-10-21T09:00:00Z", warnings: [] };
+const meta = { ...scope, startDate: "2026-10-01", endDate: "2026-10-20", priorStartDate: "2026-09-11", priorEndDate: "2026-09-30", comparable: true, comparedEndDate: "2026-10-20", timeZone: "Africa/Accra", generatedAt: "2026-10-21T09:00:00Z", warnings: [] };
 function overview(overrides: Partial<OverviewData> = {}): OverviewData {
   return { currency: "GHS", revenue: 12345.67, occupancy: 62.5, revpar: 123.45, adr: 197.53, roomNights: 63, revpag: 160.33,
     deltas: { revenue: 6.4, occupancy: 2.5, revpar: 3.2, adr: -1.5, roomNights: null },
@@ -156,6 +156,27 @@ describe("business intelligence page semantics", () => {
     const roomNights = screen.getByRole("article", { name: "Room nights" }).textContent;
     expect(roomNights).not.toContain("comparison");
     expect(roomNights).not.toContain("vs prior period");
+  });
+  it("names the completed nights a range ending today is compared on and says tonight is excluded", async () => {
+    mocks.overview.mockResolvedValue(overview({ meta: { ...meta, startDate: "2026-10-15", endDate: "2026-10-21",
+      priorStartDate: "2026-10-09", priorEndDate: "2026-10-14", comparable: true, comparedEndDate: "2026-10-20" } }));
+    renderClient({ ...props, initialStartDate: "2026-10-15", initialEndDate: "2026-10-21" });
+    const header = (await screen.findByText(/compared with/)).closest("p");
+    expect(header?.textContent).toContain("Oct 15 – Oct 20 compared with Oct 9 – Oct 14");
+    expect(header?.textContent).toContain("Tonight is not included");
+  });
+  it("shows no comparison for a today-only range", async () => {
+    mocks.overview.mockResolvedValue(overview({ meta: { ...meta, startDate: "2026-10-21", endDate: "2026-10-21",
+      priorStartDate: "2026-10-20", priorEndDate: "2026-10-20", comparable: false, comparedEndDate: "2026-10-21" } }));
+    renderClient({ ...props, initialStartDate: "2026-10-21", initialEndDate: "2026-10-21" });
+    expect(await screen.findByText(/12,345/)).toBeDefined();
+    expect(screen.queryByText(/compared with/)).toBeNull();
+  });
+  it("adds the year when the compared windows fall in different years", async () => {
+    mocks.overview.mockResolvedValue(overview({ meta: { ...meta, startDate: "2026-01-01", endDate: "2026-01-10",
+      priorStartDate: "2025-12-22", priorEndDate: "2025-12-31", comparable: true, comparedEndDate: "2026-01-10" } }));
+    renderClient({ ...props, initialStartDate: "2026-01-01", initialEndDate: "2026-01-10" });
+    expect(await screen.findByText(/compared with Dec 22, 2025 – Dec 31, 2025/)).toBeDefined();
   });
   it("renders the KPI cards without sparklines", async () => {
     renderClient();

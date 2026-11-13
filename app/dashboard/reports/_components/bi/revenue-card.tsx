@@ -13,43 +13,47 @@ import type { OverviewSeriesPoint } from "../../actions";
 /** Longer ranges read better as weekly totals than as a comb of daily points. */
 const WEEKLY_AFTER_DAYS = 45;
 
-interface TrendRow { date: string; label: string; value: number; prior: number | null }
+/** `value` is null for tonight: its revenue is not earned yet, so it must not chart as ₵0. */
+interface TrendRow { date: string; label: string; value: number | null; prior: number | null }
 
 /** Zips the current and prior daily series onto one axis, by point index. */
-function toRows(current: OverviewSeriesPoint[], prior: OverviewSeriesPoint[]): TrendRow[] {
+function toRows(current: OverviewSeriesPoint[], prior: OverviewSeriesPoint[], today: string): TrendRow[] {
   return current.map((point, index) => ({
     date: point.date, label: point.label,
-    value: point.revenue, prior: prior[index]?.revenue ?? null,
+    value: point.date >= today ? null : point.revenue, prior: prior[index]?.revenue ?? null,
   }));
 }
 
 function toWeekly(rows: TrendRow[]): TrendRow[] {
-  const weeks = new Map<string, { value: number; prior: number[] }>();
+  const weeks = new Map<string, { value: number[]; prior: number[] }>();
   for (const row of rows) {
     const monday = new Date(`${row.date}T00:00:00Z`);
     monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
     const key = monday.toISOString().slice(0, 10);
-    const week = weeks.get(key) ?? { value: 0, prior: [] };
-    week.value += row.value;
+    const week = weeks.get(key) ?? { value: [], prior: [] };
+    if (row.value !== null) week.value.push(row.value);
     if (row.prior !== null) week.prior.push(row.prior);
     weeks.set(key, week);
   }
   return [...weeks].map(([key, week]) => ({
     date: key, label: formatDate(key, "MMM d"),
-    value: week.value, prior: week.prior.length ? week.prior.reduce((sum, value) => sum + value, 0) : null,
+    value: week.value.length ? week.value.reduce((sum, value) => sum + value, 0) : null,
+    prior: week.prior.length ? week.prior.reduce((sum, value) => sum + value, 0) : null,
   }));
 }
 
 /** Room revenue over the period, with the prior period as a quiet dashed line. */
-export function RevenueCard({ currency, current, prior, className }: {
+export function RevenueCard({ currency, current, prior, today, className }: {
   currency: string;
+  /** Property date; tonight and later have no earned revenue yet. */
+  today: string;
   current: OverviewSeriesPoint[];
   prior: OverviewSeriesPoint[];
   className?: string;
 }) {
   const gradientId = useId().replace(/:/g, "");
   const weekly = current.length > WEEKLY_AFTER_DAYS;
-  const daily = toRows(current, prior);
+  const daily = toRows(current, prior, today);
   const rows = weekly ? toWeekly(daily) : daily;
 
   return <Card render={(props) => <section {...props} />} className={cn(BI_CARD, className)}>
@@ -80,7 +84,7 @@ export function RevenueCard({ currency, current, prior, className }: {
             if (typeof iso !== "string") return String(label ?? "");
             return weekly ? `Week of ${formatDate(iso, "MMM d, yyyy")}` : formatDate(iso, "EEE, MMM d, yyyy");
           }}
-          formatter={(value, name) => [formatCurrencySymbol(Number(value), currency), name === "prior" ? "Prior period" : "This period"]} />
+          formatter={(value, name) => [value == null ? "—" : formatCurrencySymbol(Number(value), currency), name === "prior" ? "Prior period" : "This period"]} />
         <Area type="monotone" dataKey="prior" stroke="var(--muted-foreground)" strokeOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 4"
           fill="transparent" connectNulls isAnimationActive={false} dot={false} activeDot={false} />
         <Area type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={2} fill={`url(#${gradientId})`}
@@ -103,7 +107,7 @@ function Legend() {
 function DataTable({ rows, currency, weekly }: { rows: TrendRow[]; currency: string; weekly: boolean }) {
   return <Disclosure className="-mb-2">
     <Disclosure.Heading>
-      <Button slot="trigger" variant="ghost" size="sm" className="-ml-3 gap-2 text-xs font-medium text-muted-foreground">
+      <Button slot="trigger" variant="ghost" size="sm" className="-ml-3 gap-2 text-xs font-medium text-muted-foreground max-md:h-11">
         View as table
         <Disclosure.Indicator />
       </Button>
@@ -121,7 +125,7 @@ function DataTable({ rows, currency, weekly }: { rows: TrendRow[]; currency: str
               <Table.Body>
                 {rows.map((row) => <Table.Row key={row.date} id={row.date}>
                   <Table.Cell className="font-medium">{formatDate(row.date, "MMM d, yyyy")}</Table.Cell>
-                  <Table.Cell className="text-right">{formatCurrencySymbol(row.value, currency, { exact: true })}</Table.Cell>
+                  <Table.Cell className="text-right">{row.value === null ? "—" : formatCurrencySymbol(row.value, currency, { exact: true })}</Table.Cell>
                   <Table.Cell className="text-right text-muted-foreground">{row.prior === null ? "—" : formatCurrencySymbol(row.prior, currency, { exact: true })}</Table.Cell>
                 </Table.Row>)}
               </Table.Body>

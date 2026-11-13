@@ -82,7 +82,7 @@ describe("report actions: one reconciled room-revenue basis", () => {
     expect(overview.adr).toBe(200); expect(overview.revpar).toBe(20); expect(overview.occupancy).toBe(10);
     expect(overview.series.map(p => p.revenue)).toEqual([100, 300]);
     expect(overview.sources).toEqual([{ source: "direct", count: 1, revenue: 400, roomNights: 2, pct: 100 }]);
-    expect(overview.meta).toMatchObject({ ...scope, startDate: "2026-06-10", endDate: "2026-06-11", priorStartDate: "2026-06-08", priorEndDate: "2026-06-09", timeZone: "Africa/Accra", generatedAt: "2026-10-21T12:00:00.000Z" });
+    expect(overview.meta).toMatchObject({ ...scope, startDate: "2026-06-10", endDate: "2026-06-11", priorStartDate: "2026-06-08", priorEndDate: "2026-06-09", comparable: true, comparedEndDate: "2026-06-11", timeZone: "Africa/Accra", generatedAt: "2026-10-21T12:00:00.000Z" });
     const revenue = await getRevenueReport("2026-06-10", "2026-06-11", scope);
     expect(revenue.trend.map(p => p.revenue)).toEqual([100, 300]);
     expect(revenue.totalRevenue).toBe(overview.revenue);
@@ -164,7 +164,7 @@ describe.each([
     const result = await action("2026-10-21", "2026-10-21", scope);
     expect(result.deltas).toEqual(unavailable);
     expect(result).toMatchObject(todayValues);
-    expect(result.meta).toMatchObject({ startDate: "2026-10-21", endDate: "2026-10-21", priorStartDate: "2026-10-20", priorEndDate: "2026-10-20" });
+    expect(result.meta).toMatchObject({ startDate: "2026-10-21", endDate: "2026-10-21", priorStartDate: "2026-10-20", priorEndDate: "2026-10-20", comparable: false, comparedEndDate: "2026-10-21" });
     expect(result.meta.warnings).toContain(comparisonWarning);
   });
   it("compares the six completed nights of a range ending today with the six nights before them", async () => {
@@ -172,14 +172,14 @@ describe.each([
     const result = await action("2026-10-15", "2026-10-21", scope);
     expect(result.deltas).toEqual(partial);
     expect(result).toMatchObject(partialValues);
-    expect(result.meta).toMatchObject({ startDate: "2026-10-15", endDate: "2026-10-21", priorStartDate: "2026-10-09", priorEndDate: "2026-10-14" });
+    expect(result.meta).toMatchObject({ startDate: "2026-10-15", endDate: "2026-10-21", priorStartDate: "2026-10-09", priorEndDate: "2026-10-14", comparable: true, comparedEndDate: "2026-10-20" });
     expect(result.meta.warnings).toContain(tonightNote("2026-10-15", "2026-10-20", "2026-10-09", "2026-10-14"));
     expect(result.meta.warnings).not.toContain(comparisonWarning);
   });
   it("preserves exact KPI comparisons for a fully completed historical range", async () => {
     const result = await action("2026-10-14", "2026-10-20", scope);
     expect(result.deltas).toEqual(historical);
-    expect(result.meta).toMatchObject({ startDate: "2026-10-14", endDate: "2026-10-20", priorStartDate: "2026-10-07", priorEndDate: "2026-10-13" });
+    expect(result.meta).toMatchObject({ startDate: "2026-10-14", endDate: "2026-10-20", priorStartDate: "2026-10-07", priorEndDate: "2026-10-13", comparable: true, comparedEndDate: "2026-10-20" });
     expect(result.meta.warnings).not.toContain(comparisonWarning);
   });
   it.each([
@@ -193,7 +193,7 @@ describe.each([
     // In New York Oct 20 is still today, so Oct 14–19 is compared with Oct 8–13; the figures match the full week's ratios.
     expect(result.deltas).toEqual(historical);
     expect(result.meta.timeZone).toBe(timeZone);
-    expect(result.meta).toMatchObject(completed ? { priorStartDate: "2026-10-07", priorEndDate: "2026-10-13" } : { priorStartDate: "2026-10-08", priorEndDate: "2026-10-13" });
+    expect(result.meta).toMatchObject(completed ? { priorStartDate: "2026-10-07", priorEndDate: "2026-10-13", comparedEndDate: "2026-10-20" } : { priorStartDate: "2026-10-08", priorEndDate: "2026-10-13", comparedEndDate: "2026-10-19" });
     expect(result.meta.warnings.includes(tonightNote("2026-10-14", "2026-10-19", "2026-10-08", "2026-10-13"))).toBe(!completed);
     expect(result.meta.warnings).not.toContain(comparisonWarning);
   });

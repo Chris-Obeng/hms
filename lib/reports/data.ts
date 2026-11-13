@@ -25,6 +25,10 @@ type ReportsDatabase = Omit<Database, "public"> & {
 export interface ReportScope { orgId: string; hotelId: string }
 export interface ReportMeta extends ReportScope {
   startDate: string; endDate: string; priorStartDate: string; priorEndDate: string;
+  /** False when the range has no completed night (today only), so no comparison exists. */
+  comparable: boolean;
+  /** Last night actually compared: yesterday when the range ends today, otherwise endDate. */
+  comparedEndDate: string;
   timeZone: string; generatedAt: string; warnings: string[];
 }
 export interface ReportStay extends StayRow { status: string | null; source: string | null; room_type_id: string | null; guest_id: string | null }
@@ -70,13 +74,15 @@ export async function reportContext(startDate: string, endDate: string, expected
   const comparedEnd = endDate >= scope.today ? subDays(parseISO(scope.today), 1) : end;
   const comparable = comparedEnd >= start;
   const prior = priorRange(start, comparable ? comparedEnd : end);
+  const comparedEndDate = format(comparable ? comparedEnd : end, "yyyy-MM-dd");
   const meta: ReportMeta = {
     orgId: scope.auth.orgId, hotelId: scope.hotelId,
     startDate, endDate, priorStartDate: format(prior.start, "yyyy-MM-dd"), priorEndDate: format(prior.end, "yyyy-MM-dd"),
+    comparable, comparedEndDate,
     timeZone: scope.timeZone, generatedAt: scope.now.toISOString(), warnings: [],
   };
   return { supabase: scope.supabase, hotelId: scope.hotelId, currency: scope.currency, timeZone: scope.timeZone,
-    today: scope.today, start, end, prior, comparable, comparedEnd: format(comparable ? comparedEnd : end, "yyyy-MM-dd"), meta,
+    today: scope.today, start, end, prior, comparable, comparedEnd: comparedEndDate, meta,
     startISO: businessDayBounds(startDate, scope.timeZone).startISO, endISO: businessDayBounds(endDate, scope.timeZone).endISO };
 }
 export type ReportContext = Awaited<ReturnType<typeof reportContext>>;
