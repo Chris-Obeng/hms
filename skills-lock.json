@@ -574,6 +574,12 @@
       "skillPath": "skills/engineering/triage/SKILL.md",
       "computedHash": ""
     },
+    "unslop": {
+      "source": "heydamir/unslop",
+      "sourceType": "github",
+      "skillPath": "skills/unslop/SKILL.md",
+      "computedHash": ""
+    },
     "upstash-ratelimit-js": {
       "source": "upstash/skills",
       "sourceType": "github",
