@@ -64,28 +64,28 @@ export function GuestPickerPopover({
       className={cn(
         "group flex w-full cursor-pointer text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#0485F7] touch-manipulation",
         // Mobile (`v24Sj`): 50px soft grey cell, stacked Who + guests
-        "h-[50px] flex-col justify-center gap-0.5 rounded-[12px] bg-[#F5F5F5] hover:bg-[#EBEBEC]/75 px-3",
+        "h-12 flex-col justify-center gap-1 rounded-[12px] bg-[#F5F5F5] hover:bg-[#EBEBEC]/75 px-3",
         // Desktop (`dZjQo`): 52px soft grey cell, left users icon + stacked label/guests
-        "md:h-[52px] md:w-auto md:min-w-[180px] md:flex-row md:items-center md:justify-start md:gap-2.5 md:px-[18px]",
+        "md:h-[52px] md:w-auto md:min-w-[180px] md:flex-row md:items-center md:justify-start md:gap-3 md:px-4",
         className
       )}
       aria-label="Select number of guests and rooms"
     >
       <Users
-        className="hidden md:block size-[17px] shrink-0 text-[#0485F7]"
+        className="hidden md:block size-4 shrink-0 text-[#0485F7]"
         strokeWidth={2}
       />
 
       {/* Mobile top row */}
-      <span className="flex md:hidden items-center gap-1.5">
-        <Users className="size-[11px] shrink-0 text-[#0485F7]" strokeWidth={2} />
+      <span className="flex md:hidden items-center gap-2">
+        <Users className="size-3 shrink-0 text-[#0485F7]" strokeWidth={2} />
         <span className="text-[10px] font-medium tracking-[0.2px] text-[#71717A]">
           Who
         </span>
       </span>
 
       {/* Desktop stacked + Mobile bottom row */}
-      <span className="flex flex-col min-w-0 w-full md:w-auto gap-0.5">
+      <span className="flex flex-col min-w-0 w-full md:w-auto gap-1">
         <span className="hidden md:block text-[10px] font-medium tracking-[0.3px] text-[#71717A]">
           Who
         </span>
@@ -98,7 +98,7 @@ export function GuestPickerPopover({
           </span>
           <ChevronDown
             className={cn(
-              "size-3 md:size-3.5 shrink-0 text-[#71717A] transition-transform duration-150",
+              "size-3 md:size-4 shrink-0 text-[#71717A] transition-transform duration-150",
               open && "rotate-180"
             )}
             strokeWidth={2}

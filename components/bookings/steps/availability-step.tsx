@@ -41,7 +41,7 @@ function roomStockState(room: StaffAvailabilityRoom) {
 function AvailabilityChip({ count }: { count: number }) {
   if (count <= 0) {
     return (
-      <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
+      <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-1 text-[11px] font-semibold text-destructive">
         Sold out
       </span>
     );
@@ -50,7 +50,7 @@ function AvailabilityChip({ count }: { count: number }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums",
+        "inline-flex items-center rounded-full px-2 py-1 text-[11px] font-semibold tabular-nums",
         low ? "bg-amber-500/10 text-amber-700" : "bg-emerald-500/10 text-emerald-700"
       )}
     >
@@ -75,9 +75,9 @@ function Stepper({
   const canDec = value > min;
   const canInc = value < max;
   return (
-    <div className="flex items-center justify-between gap-3 py-1.5">
+    <div className="flex items-center justify-between gap-3 py-2">
       <span className="text-xs font-medium text-foreground">{label}</span>
-      <div className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 p-0.5">
+      <div className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 p-1">
         <button
           type="button"
           aria-label={`Decrease ${label}`}
@@ -85,7 +85,7 @@ function Stepper({
           onClick={() => canDec && onChange(value - 1)}
           className="inline-flex size-7 items-center justify-center rounded-full bg-background text-foreground shadow-sm transition disabled:opacity-40"
         >
-          <Minus className="size-3.5" />
+          <Minus className="size-4" />
         </button>
         <span className="min-w-6 text-center text-sm font-semibold tabular-nums text-foreground">{value}</span>
         <button
@@ -95,7 +95,7 @@ function Stepper({
           onClick={() => canInc && onChange(value + 1)}
           className="inline-flex size-7 items-center justify-center rounded-full bg-background text-foreground shadow-sm transition disabled:opacity-40"
         >
-          <Plus className="size-3.5" />
+          <Plus className="size-4" />
         </button>
       </div>
     </div>
@@ -179,9 +179,9 @@ export function AvailabilityStep({
         <button
           type="button"
           onClick={() => refetch()}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+          className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground hover:bg-muted"
         >
-          <RefreshCw className="size-3.5" /> Try again
+          <RefreshCw className="size-4" /> Try again
         </button>
       </div>
     );
@@ -211,14 +211,14 @@ export function AvailabilityStep({
     <div className="flex flex-col gap-4">
       {/* Cart summary — compact, always visible when something is added */}
       {cartLines.length > 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[0.04] px-3.5 py-2.5">
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[0.04] px-4 py-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">
               {totalRooms} room{totalRooms !== 1 ? "s" : ""} · {cartLines.length} type{cartLines.length !== 1 ? "s" : ""}
             </p>
             <p className="text-[11px] text-muted-foreground">One reservation — each room gets its own stay on the calendar</p>
           </div>
-          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground shadow-sm">
+          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-background px-3 py-1 text-[11px] font-medium text-muted-foreground shadow-sm">
             {cartLines.length}/{MAX_ROOM_TYPES} types · max {MAX_QTY_PER_LINE} each
           </span>
         </div>
@@ -244,7 +244,7 @@ export function AvailabilityStep({
             <div
               key={room.roomTypeId}
               className={cn(
-                "rounded-xl border bg-background p-3.5 transition",
+                "rounded-xl border bg-background p-4 transition",
                 selected ? "border-primary/30 bg-primary/[0.03] shadow-sm" : "border-border hover:border-border/80",
                 blocked && !selected && "opacity-60"
               )}
@@ -254,7 +254,7 @@ export function AvailabilityStep({
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-foreground">{room.name}</span>
                     {selected && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-1 text-[11px] font-semibold text-primary-foreground">
                         <Check className="size-3" /> Added
                       </span>
                     )}
@@ -264,7 +264,7 @@ export function AvailabilityStep({
                   ) : room.shortDescription ? (
                     <span className="mt-1 block truncate text-[11px] text-muted-foreground">{room.shortDescription}</span>
                   ) : null}
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span className="tabular-nums">
                       {formatCurrency(room.subtotal, currency)} total · {formatCurrency(room.avgNightly, currency)}/night · {nightsLabel(nights)}
                     </span>
@@ -282,19 +282,19 @@ export function AvailabilityStep({
                       disabled={blocked || atTypeLimit}
                       onClick={() => onAddLine(room)}
                       className={cn(
-                        "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition",
+                        "inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition",
                         blocked || atTypeLimit
                           ? "cursor-not-allowed bg-muted text-muted-foreground"
                           : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
                       )}
                     >
-                      <Plus className="size-3.5" /> Add
+                      <Plus className="size-4" /> Add
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={() => onRemoveLine(room.roomTypeId)}
-                      className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
+                      className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-3 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
                     >
                       <Trash2 className="size-3" /> Remove
                     </button>

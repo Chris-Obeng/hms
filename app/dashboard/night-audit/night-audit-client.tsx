@@ -167,7 +167,7 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
     {error && !confirmOpen && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive">{error}</p>}
 
     {/* Close status band */}
-    <section className="space-y-1.5 border-b border-border/60 pb-5" aria-labelledby="close-status">
+    <section className="space-y-2 border-b border-border/60 pb-5" aria-labelledby="close-status">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
@@ -184,8 +184,8 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
           {summary.lastAudit?.notes && <p className="mt-1 whitespace-pre-wrap break-words rounded-lg bg-muted/50 px-3 py-2 max-md:text-xs text-[13px]">{summary.lastAudit.notes}</p>}
         </div>
         {summary.isClosed
-          ? <a className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium text-foreground underline-offset-4 hover:underline"
-            href={`/dashboard/reports?startDate=${summary.auditDate}&endDate=${summary.auditDate}`}>View in reports <ArrowRight className="size-3.5" aria-hidden="true" /></a>
+          ? <a className="inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-[13px] font-medium text-foreground underline-offset-4 hover:underline"
+            href={`/dashboard/reports?startDate=${summary.auditDate}&endDate=${summary.auditDate}`}>View in reports <ArrowRight className="size-4" aria-hidden="true" /></a>
           : <Button className="min-h-9 rounded-full px-5 text-sm font-medium" isDisabled={waitingForMidnight || !canClose || busy} onPress={() => setDialogOpen(true)}>
             Close {formatDate(summary.auditDate, "MMM d")}
           </Button>}
@@ -204,16 +204,16 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_432px]">
       <PenCard>
         <PenCardHead title="Needs attention" caption={blockers > 0 ? "Resolve these before closing." : undefined}
-          actions={blockers > 0 ? <span className="rounded-full bg-[#F5A5241F] px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-[var(--warning)]">{blockers}</span> : undefined} />
+          actions={blockers > 0 ? <span className="rounded-full bg-[#F5A5241F] px-2 py-1 font-mono text-[11px] font-semibold tabular-nums text-[var(--warning)]">{blockers}</span> : undefined} />
         {attention.length === 0
-          ? <div className="flex items-center gap-2.5 pt-2 text-[13px] text-muted-foreground">
+          ? <div className="flex items-center gap-3 pt-2 text-[13px] text-muted-foreground">
             <CheckCircle2 className="size-4 shrink-0 text-[var(--success)]" aria-hidden="true" /> Nothing outstanding.
           </div>
           : <ul>
             {attention.map((item, index) => <li key={item.id}>
               {index > 0 && <div className="h-px bg-border/50" aria-hidden="true" />}
               <a href={item.href} className="group flex items-center gap-3 py-3">
-                <span className={`size-[7px] shrink-0 rounded-full ${item.kind === "charge" ? "bg-[var(--danger)]" : "bg-[var(--warning)]"}`} aria-hidden="true" />
+                <span className={`size-[8px] shrink-0 rounded-full ${item.kind === "charge" ? "bg-[var(--danger)]" : "bg-[var(--warning)]"}`} aria-hidden="true" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-medium text-foreground">{item.title}</span>
                   <span className="block truncate text-[11px] text-muted-foreground">{item.detail}</span>
@@ -228,7 +228,7 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
           </ul>}
       </PenCard>
 
-      <PenCard className="gap-3.5">
+      <PenCard className="gap-4">
         <PenCardHead title="Taken this day" caption={summary.currency ? `Successful payments · ${summary.currency}` : undefined}
           actions={<a className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
             href={`/dashboard/payments?tab=activity&startDate=${summary.auditDate}&endDate=${summary.auditDate}`}>Payments <ArrowRight className="size-3" aria-hidden="true" /></a>} />
@@ -267,7 +267,7 @@ export function NightAuditClient({ initialSummary, roomRevenueInclTax, canRunAud
             <div className="flex justify-between gap-3 px-3 py-2 text-[13px]"><dt className="text-muted-foreground">Room nights</dt><dd className="tabular-nums">{summary.roomNights?.toLocaleString() ?? "Unavailable"}</dd></div>
             <div className="flex justify-between gap-3 px-3 py-2 text-[13px]"><dt className="text-muted-foreground">Collected</dt><dd className="tabular-nums">{money(summary.collections)}</dd></div>
           </dl>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <label htmlFor="handover-notes" className="text-label text-muted-foreground">Handover note <span className="font-normal">(optional)</span></label>
             <Textarea id="handover-notes" rows={3} maxLength={1000} value={notes} disabled={isExecuting} onChange={(event) => setNotes(event.target.value)}
               placeholder="Anything the next shift should know" className="min-h-20 resize-none text-[13px]" />

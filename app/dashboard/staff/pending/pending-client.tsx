@@ -192,7 +192,7 @@ export function PendingStaffClient({ data }: PendingStaffClientProps) {
                   <p className="truncate text-sm font-semibold text-foreground">
                     {staff.fullName || "Unnamed"}
                   </p>
-                  <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                     <Mail className="size-3 shrink-0" aria-hidden="true" />
                     <span className="truncate">{staff.email}</span>
                   </div>
@@ -223,7 +223,7 @@ export function PendingStaffClient({ data }: PendingStaffClientProps) {
                   }}
                   disabled={busy}
                 >
-                  <Check className="mr-1 size-3.5" aria-hidden="true" />
+                  <Check className="mr-1 size-4" aria-hidden="true" />
                   Approve
                 </Button>
                 <Button
@@ -236,7 +236,7 @@ export function PendingStaffClient({ data }: PendingStaffClientProps) {
                   }}
                   disabled={busy}
                 >
-                  <X className="mr-1 size-3.5" aria-hidden="true" />
+                  <X className="mr-1 size-4" aria-hidden="true" />
                   Reject
                 </Button>
               </div>
@@ -284,7 +284,7 @@ export function PendingStaffClient({ data }: PendingStaffClientProps) {
                   <div
                     aria-hidden="true"
                     className={cn(
-                      "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border-2",
+                      "mt-1 flex size-4 shrink-0 items-center justify-center rounded-full border-2",
                       selected ? "border-primary" : "border-muted-foreground/30"
                     )}
                   >
@@ -292,7 +292,7 @@ export function PendingStaffClient({ data }: PendingStaffClientProps) {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-foreground">{opt.label}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{opt.desc}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{opt.desc}</p>
                   </div>
                 </button>
               );

@@ -68,7 +68,7 @@ export function ForgotPasswordForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <div className="grid gap-1.5">
+          <div className="grid gap-2">
             <label htmlFor="email" className="text-xs font-medium text-foreground/70">
               Email address
             </label>

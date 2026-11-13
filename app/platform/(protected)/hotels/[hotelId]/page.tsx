@@ -44,16 +44,16 @@ export default async function PlatformHotelDetailPage({
       {/* Back */}
       <Link
         href="/platform"
-        className="inline-flex items-center gap-1.5 text-caption text-muted-foreground hover:text-foreground transition-colors rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex items-center gap-2 text-caption text-muted-foreground hover:text-foreground transition-colors rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <ArrowLeft className="size-3.5" />
+        <ArrowLeft className="size-4" />
         Hotels
       </Link>
 
       {/* Header */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-2">
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-xl font-semibold text-foreground truncate">{profile.name}</h1>
             <StatusChip status={profile.status} />
           </div>
@@ -91,7 +91,7 @@ export default async function PlatformHotelDetailPage({
             Rates use {operations.rateCurrency} only — this window has bookings in multiple currencies.
           </p>
         ) : null}
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <Metric label="Bookings" value={operations?.bookings ? operations.bookings.toLocaleString() : "—"} />
           <Metric label="Nights sold" value={operations?.nightsSold ? operations.nightsSold.toLocaleString() : "—"} />
           <Metric label="Avg occupancy" value={pct(operations?.avgOccupancy)} />
@@ -114,7 +114,7 @@ export default async function PlatformHotelDetailPage({
 
       {/* Money */}
       <SectionCard title="Money" subtitle="Lifetime revenue, platform fees and outstanding balances.">
-        <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Metric label="Collected" value={<MoneyTotals totals={money?.collected ?? []} />} />
           <Metric label="Online bookings" value={<MoneyTotals totals={money?.online ?? []} />} />
           <Metric label="Platform fees" value={<MoneyTotals totals={money?.fees ?? []} />} accent />
@@ -134,7 +134,7 @@ export default async function PlatformHotelDetailPage({
           ) : (
             <ul className="card-default divide-y divide-border/40 overflow-hidden">
               {staff!.map((s) => (
-                <li key={s.role} className="flex items-center justify-between px-3.5 py-2.5">
+                <li key={s.role} className="flex items-center justify-between px-4 py-3">
                   <span className="text-sm capitalize">{s.role.replace(/_/g, " ")}</span>
                   <span className="text-sm font-semibold tabular-nums">{s.count}</span>
                 </li>
@@ -157,9 +157,9 @@ export default async function PlatformHotelDetailPage({
                 return (
                   <li key={entry.id} className={"relative pl-5 " + (last ? "pb-1" : "pb-5")}>
                     {!last && (
-                      <span className="absolute left-[5px] top-4 bottom-0 w-px bg-border/70" aria-hidden />
+                      <span className="absolute left-[4px] top-4 bottom-0 w-px bg-border/70" aria-hidden />
                     )}
-                    <span className="absolute left-0 top-1.5 size-2.5 rounded-full border-2 border-background bg-foreground/50" aria-hidden />
+                    <span className="absolute left-0 top-2 size-3 rounded-full border-2 border-background bg-foreground/50" aria-hidden />
                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                       <p className="text-sm font-medium">{AUDIT_LABELS[entry.action] ?? entry.action}</p>
                       {before !== after && (
@@ -168,7 +168,7 @@ export default async function PlatformHotelDetailPage({
                         </span>
                       )}
                     </div>
-                    <p className="text-caption text-muted-foreground mt-0.5">
+                    <p className="text-caption text-muted-foreground mt-1">
                       {entry.admin_email} · {formatDateTime(entry.created_at)}
                     </p>
                   </li>
@@ -199,7 +199,7 @@ function SectionCard({
     <section className="space-y-3">
       <div>
         <h2 className="text-section text-foreground">{title}</h2>
-        {subtitle ? <p className="text-caption text-muted-foreground mt-0.5">{subtitle}</p> : null}
+        {subtitle ? <p className="text-caption text-muted-foreground mt-1">{subtitle}</p> : null}
       </div>
       {children}
     </section>

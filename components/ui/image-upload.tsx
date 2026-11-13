@@ -67,7 +67,7 @@ export function ImageUpload({
   }
 
   return (
-    <div className={cn("space-y-1.5", className)}>
+    <div className={cn("space-y-2", className)}>
       {label && <p className="text-xs font-medium text-muted-foreground">{label}</p>}
 
       <div
@@ -87,7 +87,7 @@ export function ImageUpload({
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
-                  className="flex items-center gap-1.5 bg-white/90 text-foreground text-xs font-medium px-2.5 py-1.5 rounded-lg"
+                  className="flex items-center gap-2 bg-white/90 text-foreground text-xs font-medium px-3 py-2 rounded-lg"
                 >
                   <Upload className="size-3" /> Replace
                 </button>
@@ -95,7 +95,7 @@ export function ImageUpload({
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onRemove(); }}
-                    className="flex items-center gap-1.5 bg-destructive text-destructive-foreground text-xs font-medium px-2.5 py-1.5 rounded-lg"
+                    className="flex items-center gap-2 bg-destructive text-destructive-foreground text-xs font-medium px-3 py-2 rounded-lg"
                   >
                     <X className="size-3" /> Remove
                   </button>

@@ -56,7 +56,7 @@ export default async function AuditLogPage() {
             href="/dashboard/settings"
             className="tap-target -m-2 rounded-xl text-[13px] font-medium text-foreground"
           >
-            <ChevronLeft className="size-[18px]" aria-hidden />
+            <ChevronLeft className="size-[16px]" aria-hidden />
             Settings
           </Link>
           <span className="font-mono text-[11px] font-medium text-muted-foreground">
@@ -78,7 +78,7 @@ export default async function AuditLogPage() {
           <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.012em] text-foreground">
             Audit log
           </h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
+          <p className="mt-2 text-sm text-muted-foreground">
             Append-only record of staff actions. Entries cannot be edited or removed.
           </p>
         </div>

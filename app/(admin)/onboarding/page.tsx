@@ -295,13 +295,13 @@ function LoadingSkeleton() {
       </header>
       <main className="ob-main">
         <div className="ob-column">
-          <div className="ob-skel" style={{ width: "5.875rem", height: "0.25rem", marginBottom: "1.75rem" }} />
+          <div className="ob-skel" style={{ width: "6rem", height: "0.25rem", marginBottom: "1.75rem" }} />
           <div className="ob-skel" style={{ width: "13rem", height: "1.75rem" }} />
           <div className="ob-skel" style={{ width: "18rem", height: "1rem", marginTop: "0.5rem", marginBottom: "1.75rem" }} />
-          <div style={{ display: "grid", gap: "1.125rem" }}>
-            <div className="ob-skel" style={{ width: "100%", height: "2.625rem" }} />
-            <div className="ob-skel" style={{ width: "100%", height: "2.625rem" }} />
-            <div className="ob-skel" style={{ width: "100%", height: "2.625rem" }} />
+          <div style={{ display: "grid", gap: "1.25rem" }}>
+            <div className="ob-skel" style={{ width: "100%", height: "var(--ob-control-h)" }} />
+            <div className="ob-skel" style={{ width: "100%", height: "var(--ob-control-h)" }} />
+            <div className="ob-skel" style={{ width: "100%", height: "var(--ob-control-h)" }} />
           </div>
         </div>
       </main>
@@ -798,7 +798,7 @@ function OnboardingWizard({
                       onChange={(e) => updateField({ name: e.target.value })}
                     />
                     {slugPreview && !errFor("name") && (
-                      <p className="ob-slug-preview" style={{ marginTop: "0.375rem" }}>
+                      <p className="ob-slug-preview" style={{ marginTop: "0.5rem" }}>
                         Booking link: <strong>/{slugPreview}</strong>
                       </p>
                     )}

@@ -158,7 +158,7 @@ export function PlatformMfaCard({
         </div>
 
         <span
-          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+          className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${
             isProtected && aal === "aal2"
               ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
               : "bg-amber-500/10 text-amber-700 dark:text-amber-300"
@@ -166,7 +166,7 @@ export function PlatformMfaCard({
         >
           {isProtected ? (
             <>
-              <CheckCircle2 className="size-3.5" aria-hidden />
+              <CheckCircle2 className="size-4" aria-hidden />
               Enforced ({aal.toUpperCase()})
             </>
           ) : (
@@ -180,7 +180,7 @@ export function PlatformMfaCard({
           {verifiedFactors.map((factor) => (
             <li
               key={factor.id}
-              className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-xs"
+              className="flex items-center justify-between gap-3 px-4 py-3 text-xs"
             >
               <div>
                 <p className="font-medium text-foreground">
@@ -219,24 +219,24 @@ export function PlatformMfaCard({
               alt="TOTP QR code"
               className="size-36 rounded-lg bg-white p-2 border border-border/60"
             />
-            <div className="space-y-1.5 text-xs">
+            <div className="space-y-2 text-xs">
               <p className="text-muted-foreground">
                 Or enter setup key manually:
               </p>
-              <code className="block break-all rounded bg-background px-2.5 py-1.5 font-mono text-[11px] text-foreground border border-border/50">
+              <code className="block break-all rounded bg-background px-3 py-2 font-mono text-[11px] text-foreground border border-border/50">
                 {pendingEnrollment.secret}
               </code>
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <label
               htmlFor="enroll-totp-code"
               className="block text-xs font-medium text-foreground"
             >
               2. Enter 6-digit code to activate:
             </label>
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-3">
               <input
                 id="enroll-totp-code"
                 type="text"

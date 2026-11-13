@@ -88,7 +88,7 @@ function KpiTile({
       <p className="text-kpi text-foreground mt-1 tabular-nums truncate">
         {primary ? fmtMoney(primary.amount, primary.currency) : "—"}
       </p>
-      <p className="text-caption text-muted-foreground mt-0.5 truncate">
+      <p className="text-caption text-muted-foreground mt-1 truncate">
         {windowLabel}
         {rest.length > 0 &&
           ` · +${fmtMoney(rest.reduce((s, t) => s + t.amount, 0), rest[0].currency)} other ccy`}
@@ -110,7 +110,7 @@ function CountTile({
     <div className="card-default p-4 min-w-0">
       <p className="text-label text-muted-foreground truncate">{label}</p>
       <p className="text-kpi text-foreground mt-1 tabular-nums">{value.toLocaleString()}</p>
-      <p className="text-caption text-muted-foreground mt-0.5">{windowLabel}</p>
+      <p className="text-caption text-muted-foreground mt-1">{windowLabel}</p>
     </div>
   );
 }
@@ -268,7 +268,7 @@ export default async function HotelOversightPage({
         fallback={
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" aria-hidden>
             {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="card-default p-4 space-y-2.5">
+              <div key={i} className="card-default p-4 space-y-3">
                 <div className="h-3 w-20 rounded-md bg-muted/60 animate-pulse" />
                 <div className="h-8 w-28 rounded-md bg-muted/40 animate-pulse" />
                 <div className="h-3 w-24 rounded-md bg-muted/40 animate-pulse" />
@@ -301,8 +301,8 @@ function TableSkeleton() {
       <div className="card-default overflow-hidden">
         <div className="divide-y divide-border/40">
           {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex items-center gap-6 px-4 py-3.5">
-              <div className="space-y-1.5 min-w-0 flex-1">
+            <div key={i} className="flex items-center gap-6 px-4 py-4">
+              <div className="space-y-2 min-w-0 flex-1">
                 <div className="h-4 w-40 max-w-full rounded-md bg-muted/60 animate-pulse" />
                 <div className="h-3 w-24 rounded-md bg-muted/40 animate-pulse" />
               </div>

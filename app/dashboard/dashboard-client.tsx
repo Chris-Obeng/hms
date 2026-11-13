@@ -620,7 +620,7 @@ export function DashboardClient({
             <h1 className="truncate text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-[24px]">
               Front desk
             </h1>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground sm:text-[13px]">
+            <p className="mt-1 truncate text-xs text-muted-foreground sm:text-[13px]">
               {hotelName}
               {dateParamStr !== propertyTodayStr && (
                 <span> · Viewing {formatDate(dateParamStr, "EEE, MMM d, yyyy")}</span>
@@ -632,9 +632,9 @@ export function DashboardClient({
             variant="primary"
             size="sm"
             onPress={openNewBookingModal}
-            className="ui-press inline-flex h-11 shrink-0 gap-1.5 rounded-xl px-3.5 text-xs font-semibold shadow-2xs sm:h-9"
+            className="ui-press inline-flex h-11 shrink-0 gap-2 rounded-xl px-4 text-xs font-semibold shadow-2xs sm:h-9"
           >
-            <Plus className="size-3.5" aria-hidden="true" />
+            <Plus className="size-4" aria-hidden="true" />
             New booking
           </Button>
         </header>
@@ -757,7 +757,7 @@ export function DashboardClient({
                   )}
                   aria-hidden
                 >
-                  <CalendarClock className="size-[22px]" />
+                  <CalendarClock className="size-[24px]" />
                 </span>
                 <AlertDialog.Heading className="text-balance text-center text-[17px] font-semibold leading-tight tracking-tight text-foreground">
                   {earlyCheckinBooking ? "Check in early?" : "Check out early?"}
@@ -780,7 +780,7 @@ export function DashboardClient({
                     : "This releases the room before the scheduled departure."}
                 </p>
               </AlertDialog.Body>
-              <AlertDialog.Footer className="flex w-full flex-col gap-2.5 pt-6">
+              <AlertDialog.Footer className="flex w-full flex-col gap-3 pt-6">
                 <Button
                   autoFocus={!!earlyCheckinBooking}
                   onPress={earlyCheckinBooking ? confirmEarlyCheckin : confirmEarlyCheckout}
@@ -814,7 +814,7 @@ export function DashboardSkeleton() {
   return (
     <div className="mx-auto w-full max-w-[1440px] space-y-4 pt-1 md:space-y-5">
       <div className="flex items-center justify-between gap-3">
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Skeleton className="h-7 w-36 rounded-lg" />
           <Skeleton className="h-4 w-48 rounded-md" />
         </div>
@@ -828,12 +828,12 @@ export function DashboardSkeleton() {
         <div className="order-2 flex flex-col gap-4 md:order-1 md:grid md:grid-cols-[260px_minmax(0,1fr)] md:gap-5 lg:flex lg:flex-col lg:gap-5">
           <Skeleton className="hidden h-[176px] w-full rounded-[20px] md:block" />
           <div className="space-y-4 rounded-[20px] border border-border/60 bg-card p-5">
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Skeleton className="h-4 w-24 rounded-md" />
-              <Skeleton className="h-3.5 w-36 rounded-md" />
+              <Skeleton className="h-4 w-36 rounded-md" />
             </div>
             <Skeleton className="mx-auto aspect-square w-[124px] rounded-full lg:w-[172px]" />
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               <Skeleton className="h-4 w-full rounded-md" />
               <Skeleton className="h-4 w-full rounded-md" />
               <Skeleton className="h-4 w-full rounded-md" />
@@ -842,7 +842,7 @@ export function DashboardSkeleton() {
         </div>
 
         <div className="order-1 overflow-hidden rounded-[20px] border border-border/60 bg-card md:order-2">
-          <div className="flex gap-2 border-b border-border/50 bg-muted/20 p-2.5">
+          <div className="flex gap-2 border-b border-border/50 bg-muted/20 p-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-9 w-24 shrink-0 rounded-xl" />
             ))}

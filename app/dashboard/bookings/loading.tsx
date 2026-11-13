@@ -4,9 +4,9 @@ export default function BookingsLoading() {
   return (
     <div className="mx-auto w-full max-w-7xl space-y-4 pt-1 md:space-y-5">
       <div className="flex items-center justify-between gap-3">
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Skeleton className="h-7 w-40 rounded-lg" />
-          <Skeleton className="h-3.5 w-28 rounded-md" />
+          <Skeleton className="h-4 w-28 rounded-md" />
         </div>
         <Skeleton className="h-11 w-32 rounded-xl sm:h-9" />
       </div>

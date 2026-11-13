@@ -35,12 +35,12 @@ export function BookingStepper({ current, canReach, onStepChange, className }: B
     <div className={cn("w-full", className)}>
       {/* Mobile: compact step counter + track */}
       <div className="sm:hidden">
-        <div className="mb-1.5 flex items-center justify-between gap-3">
+        <div className="mb-2 flex items-center justify-between gap-3">
           <p className="truncate text-xs font-semibold text-foreground">
             <span className="font-medium text-muted-foreground">
               Step {current} of {total}
             </span>
-            <span className="mx-1.5 text-border" aria-hidden>
+            <span className="mx-2 text-border" aria-hidden>
               ·
             </span>
             {activeMeta.label}
@@ -101,7 +101,7 @@ export function BookingStepper({ current, canReach, onStepChange, className }: B
                         : "border border-border bg-muted text-muted-foreground"
                   )}
                 >
-                  {done ? <Check className="size-3.5" strokeWidth={2.5} aria-hidden /> : s.num}
+                  {done ? <Check className="size-4" strokeWidth={2.5} aria-hidden /> : s.num}
                 </span>
                 <span
                   className={cn(

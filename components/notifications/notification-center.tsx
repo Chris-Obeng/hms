@@ -89,11 +89,11 @@ function CategoryIconChip({ category }: { category: StaffNotificationCategory })
     <span
       aria-hidden="true"
       className={cn(
-        "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset",
+        "mt-1 flex size-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset",
         tone
       )}
     >
-      <Icon className="size-[17px]" strokeWidth={1.9} />
+      <Icon className="size-[16px]" strokeWidth={1.9} />
     </span>
   );
 }
@@ -102,11 +102,11 @@ function NotificationSkeletonList() {
   return (
     <div className="divide-y divide-border/45" aria-busy="true" aria-label="Loading notifications">
       {Array.from({ length: 4 }).map((_, idx) => (
-        <div key={idx} className="flex items-start gap-3 px-4 py-3.5">
+        <div key={idx} className="flex items-start gap-3 px-4 py-4">
           <Skeleton className="size-9 shrink-0 rounded-xl" />
-          <div className="min-w-0 flex-1 space-y-2 pt-0.5">
+          <div className="min-w-0 flex-1 space-y-2 pt-1">
             <div className="flex items-center justify-between gap-3">
-              <Skeleton className="h-3.5 w-2/5 rounded-md" />
+              <Skeleton className="h-4 w-2/5 rounded-md" />
               <Skeleton className="h-3 w-11 rounded-md" />
             </div>
             <Skeleton className="h-3 w-4/5 rounded-md" />
@@ -185,7 +185,7 @@ const NotificationRow = React.memo(function NotificationRow({
         type="button"
         onClick={() => onActivate(item, presented.href)}
         className={cn(
-          "flex w-full min-w-0 flex-1 cursor-pointer items-start gap-3 px-4 py-3.5 pr-12 text-left outline-none",
+          "flex w-full min-w-0 flex-1 cursor-pointer items-start gap-3 px-4 py-4 pr-12 text-left outline-none",
           "touch-manipulation select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50",
           "active:opacity-85"
         )}
@@ -194,7 +194,7 @@ const NotificationRow = React.memo(function NotificationRow({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-1.5">
+            <div className="flex min-w-0 items-center gap-2">
               {!item.is_read && (
                 <>
                   <span
@@ -224,15 +224,15 @@ const NotificationRow = React.memo(function NotificationRow({
           </div>
 
           {presented.message && (
-            <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-[1.45] text-muted-foreground">
+            <p className="mt-1 line-clamp-2 text-[12.5px] leading-[1.45] text-muted-foreground">
               {presented.message}
             </p>
           )}
 
           {(presented.actionLabel || presented.reference) && (
-            <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
+            <div className="mt-2 flex flex-wrap items-center gap-3">
               {presented.actionLabel && (
-                <span className="inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-primary">
+                <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-primary">
                   {presented.actionLabel}
                   <ArrowUpRight className="size-3" />
                 </span>
@@ -257,13 +257,13 @@ const NotificationRow = React.memo(function NotificationRow({
         }}
         className={cn(
           "ui-press absolute top-3 right-3 inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground/65 outline-none",
-          "max-md:size-11 max-md:top-1.5 max-md:right-1 max-md:opacity-100",
+          "max-md:size-11 max-md:top-2 max-md:right-1 max-md:opacity-100",
           "md:opacity-0 md:group-hover/notif:opacity-100 md:focus-visible:opacity-100",
           "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",
           "focus-visible:ring-2 focus-visible:ring-ring/50"
         )}
       >
-        <X className="size-3.5 max-md:size-4" />
+        <X className="size-4 max-md:size-4" />
       </button>
     </div>
   );
@@ -316,7 +316,7 @@ export function NotificationPanel({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {/* Tier 1: Title & Preferences chrome — isolated from dynamic list actions */}
-      <div className="flex shrink-0 items-center justify-between gap-2 px-4 pt-3.5 pb-2.5 max-md:pt-2">
+      <div className="flex shrink-0 items-center justify-between gap-2 px-4 pt-4 pb-3 max-md:pt-2">
         <div className="flex min-w-0 items-center gap-2">
           <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-foreground">
             Notifications
@@ -333,7 +333,7 @@ export function NotificationPanel({
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-1">
           <Button
             variant="ghost"
             size="sm"
@@ -342,7 +342,7 @@ export function NotificationPanel({
             aria-label="Notification settings"
             className="size-8 rounded-lg text-muted-foreground max-md:size-11 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/70 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
           >
-            <Settings2 className="size-4 max-md:size-[18px]" />
+            <Settings2 className="size-4 max-md:size-[16px]" />
           </Button>
           {!isDesktop && (
             <CloseButton
@@ -355,11 +355,11 @@ export function NotificationPanel({
       </div>
 
       {/* Tier 2: Fixed-height filter + stable action bar (never mounts/unmounts or shifts) */}
-      <div className="flex h-10 max-md:h-11 shrink-0 items-center justify-between gap-2 border-y border-border/60 bg-muted/30 px-3.5 max-md:px-3">
+      <div className="flex h-10 max-md:h-11 shrink-0 items-center justify-between gap-2 border-y border-border/60 bg-muted/30 px-4 max-md:px-3">
         <div
           role="tablist"
           aria-label="Filter notifications"
-          className="inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-muted/70 p-0.5"
+          className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-muted/70 p-1"
         >
           <button
             type="button"
@@ -367,7 +367,7 @@ export function NotificationPanel({
             aria-selected={filter === "all"}
             onClick={() => onFilterChange("all")}
             className={cn(
-              "ui-press inline-flex h-6.5 max-md:h-8 cursor-pointer items-center whitespace-nowrap rounded-md px-2.5 text-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+              "ui-press inline-flex h-7 max-md:h-8 cursor-pointer items-center whitespace-nowrap rounded-md px-3 text-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
               filter === "all"
                 ? "bg-card font-semibold text-foreground shadow-2xs ring-1 ring-border/60"
                 : "font-medium text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
@@ -381,7 +381,7 @@ export function NotificationPanel({
             aria-selected={filter === "unread"}
             onClick={() => onFilterChange("unread")}
             className={cn(
-              "ui-press inline-flex h-6.5 max-md:h-8 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md px-2.5 text-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+              "ui-press inline-flex h-7 max-md:h-8 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md px-3 text-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
               filter === "unread"
                 ? "bg-card font-semibold text-foreground shadow-2xs ring-1 ring-border/60"
                 : "font-medium text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
@@ -411,14 +411,14 @@ export function NotificationPanel({
                 : "pointer-events-none text-muted-foreground opacity-40"
             )}
           >
-            <CheckCheck className="size-3.5 shrink-0" />
+            <CheckCheck className="size-4 shrink-0" />
             <span className="max-[360px]:hidden">Mark all read</span>
             <span className="min-[361px]:hidden" aria-hidden="true">
               Read all
             </span>
           </button>
 
-          <span aria-hidden="true" className="h-3.5 w-px shrink-0 bg-border/70" />
+          <span aria-hidden="true" className="h-4 w-px shrink-0 bg-border/70" />
 
           <button
             type="button"
@@ -610,7 +610,7 @@ export function NotificationCenter({
             aria-label="Notifications"
             className="flex max-h-[86dvh] flex-col overflow-hidden rounded-t-3xl border-t border-border/70 bg-popover p-0 pb-[env(safe-area-inset-bottom)]"
           >
-            <Drawer.Handle className="pt-2.5 pb-0.5" />
+            <Drawer.Handle className="pt-3 pb-1" />
             {panelContent}
           </Drawer.Dialog>
         </Drawer.Content>

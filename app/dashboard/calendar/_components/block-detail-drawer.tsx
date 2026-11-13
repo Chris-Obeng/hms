@@ -77,12 +77,12 @@ export function BlockDetailDrawer({
     >
       <Drawer.Content placement={isMobile ? "bottom" : "right"}>
         <Drawer.Dialog className="flex h-auto max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[24px] bg-background p-0 shadow-2xl md:h-dvh md:max-h-dvh md:w-[min(23rem,100vw)] md:rounded-none md:border-l md:border-border/60">
-          {isMobile && <Drawer.Handle className="mt-2.5 shrink-0" />}
-          <Drawer.CloseTrigger className="ui-press absolute right-3.5 top-3.5 z-30 grid size-10 place-items-center rounded-xl bg-muted/70 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+          {isMobile && <Drawer.Handle className="mt-3 shrink-0" />}
+          <Drawer.CloseTrigger className="ui-press absolute right-4 top-4 z-30 grid size-10 place-items-center rounded-xl bg-muted/70 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" />
 
           {block ? (
             <>
-              <div className="flex items-start gap-3.5 border-b border-border/50 px-5 pb-4 pr-14 pt-6">
+              <div className="flex items-start gap-4 border-b border-border/50 px-5 pb-4 pr-14 pt-6">
                 <span
                   aria-hidden="true"
                   className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-500/12 text-amber-700"
@@ -93,19 +93,19 @@ export function BlockDetailDrawer({
                   <Drawer.Heading className="text-lg font-semibold leading-tight text-foreground">
                     {displayRoom}
                   </Drawer.Heading>
-                  <p className="mt-0.5 text-xs capitalize text-muted-foreground">
+                  <p className="mt-1 text-xs capitalize text-muted-foreground">
                     {reasonLabel}
                     {roomTypeName ? ` · ${roomTypeName}` : ""}
                   </p>
                 </div>
               </div>
 
-              <Drawer.Body className="min-h-0 flex-1 space-y-3.5 overflow-y-auto overscroll-contain px-5 py-4">
+              <Drawer.Body className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4">
                 <section
                   aria-label="Blocked dates"
                   className="rounded-2xl border border-border/60 bg-card p-4"
                 >
-                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">Blocked dates</p>
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">Blocked dates</p>
                   <p className="text-sm font-semibold tabular-nums text-foreground">
                     {formatDateFull(block.startDate)}
                     <span className="mx-2 text-muted-foreground/50">→</span>
@@ -138,7 +138,7 @@ export function BlockDetailDrawer({
                     aria-label="Notes"
                     className="rounded-2xl border border-border/60 bg-card p-4"
                   >
-                    <p className="mb-1.5 text-xs font-medium text-muted-foreground">Notes</p>
+                    <p className="mb-2 text-xs font-medium text-muted-foreground">Notes</p>
                     <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground">
                       {block.notes}
                     </p>
@@ -158,7 +158,7 @@ export function BlockDetailDrawer({
                         }}
                         className="ui-press h-11 flex-1 rounded-xl text-xs font-semibold"
                       >
-                        <Pencil className="size-3.5" aria-hidden="true" />
+                        <Pencil className="size-4" aria-hidden="true" />
                         Edit
                       </Button>
                     )}
@@ -168,7 +168,7 @@ export function BlockDetailDrawer({
                         onPress={() => setConfirming(true)}
                         className="ui-press h-11 flex-1 rounded-xl text-xs font-semibold"
                       >
-                        <LockOpen className="size-3.5" aria-hidden="true" />
+                        <LockOpen className="size-4" aria-hidden="true" />
                         Unblock
                       </Button>
                     )}

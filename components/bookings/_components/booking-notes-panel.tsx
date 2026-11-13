@@ -46,14 +46,14 @@ export function BookingNotesPanel({ booking, onRefresh }: BookingNotesPanelProps
       id="notes"
       icon={<StickyNote className="size-4 shrink-0 text-muted-foreground" />}
       title={
-        <span className="flex items-center gap-1.5">
+        <span className="flex items-center gap-2">
           {"Notes & requests"}
           {/* amber = staff/internal note, neutral = guest request */}
           {booking.internalNotes ? (
-            <span aria-hidden className="size-1.5 rounded-full bg-amber-600" />
+            <span aria-hidden className="size-2 rounded-full bg-amber-600" />
           ) : null}
           {booking.specialRequests ? (
-            <span aria-hidden className="size-1.5 rounded-full bg-muted-foreground/50" />
+            <span aria-hidden className="size-2 rounded-full bg-muted-foreground/50" />
           ) : null}
         </span>
       }
@@ -61,7 +61,7 @@ export function BookingNotesPanel({ booking, onRefresh }: BookingNotesPanelProps
     >
       {/* Guest requests — read-only */}
       <div>
-        <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">Guest requests</p>
+        <p className="mb-2 text-[11px] font-medium text-muted-foreground">Guest requests</p>
         {booking.specialRequests ? (
           <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/90">
             {booking.specialRequests}
@@ -80,8 +80,8 @@ export function BookingNotesPanel({ booking, onRefresh }: BookingNotesPanelProps
       </div>
 
       {/* Internal notes — editable */}
-      <div className="border-t border-border/50 pt-3.5">
-        <div className="mb-1.5 flex items-center justify-between gap-2">
+      <div className="border-t border-border/50 pt-4">
+        <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-[11px] font-medium text-muted-foreground">Internal notes</p>
           {!editingNotes && (
             <Button

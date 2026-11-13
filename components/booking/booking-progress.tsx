@@ -107,7 +107,7 @@ export function BookingHeader({
         {/* Center 3-step stepper */}
         <nav
           aria-label="Checkout progress"
-          className="flex flex-1 items-center justify-center gap-2 md:gap-2.5 min-w-0"
+          className="flex flex-1 items-center justify-center gap-2 md:gap-3 min-w-0"
         >
           {BOOKING_STEPS.map((step, index) => {
             const isCompleted = currentStep > step.num;
@@ -121,7 +121,7 @@ export function BookingHeader({
             const badge = (
               <span
                 className={cn(
-                  "flex size-[22px] md:size-6 shrink-0 items-center justify-center rounded-full text-[10px] md:text-[11px] font-semibold transition-colors",
+                  "flex size-6 md:size-6 shrink-0 items-center justify-center rounded-full text-[10px] md:text-[11px] font-semibold transition-colors",
                   isCompleted || isActive
                     ? "bg-[#0485F7] text-[#FCFCFC]"
                     : "bg-[#EBEBEC] text-[#71717A]"
@@ -161,7 +161,7 @@ export function BookingHeader({
                     type="button"
                     onClick={() => onStepChange(step.num)}
                     aria-current={isActive ? "step" : undefined}
-                    className="inline-flex items-center gap-2 md:gap-2.5 rounded-full py-1 cursor-pointer hover:opacity-80 transition-opacity touch-manipulation"
+                    className="inline-flex items-center gap-2 md:gap-3 rounded-full py-1 cursor-pointer hover:opacity-80 transition-opacity touch-manipulation"
                   >
                     {badge}
                     {label}
@@ -169,7 +169,7 @@ export function BookingHeader({
                 ) : (
                   <span
                     aria-current={isActive ? "step" : undefined}
-                    className="inline-flex items-center gap-2 md:gap-2.5 py-1"
+                    className="inline-flex items-center gap-2 md:gap-3 py-1"
                   >
                     {badge}
                     {label}

@@ -35,7 +35,7 @@ export function ProcessingInvite({ hotelName, role, orgId }: { hotelName: string
         </div>
         <h2 className="mt-4 text-lg font-semibold tracking-tight text-[#0F1D1A]" style={{ fontFamily: "var(--font-fraunces)" }}>Adding you to {hotelName}</h2>
         <p className="mt-1 text-sm text-[#6B7571]">Joining as <span className="capitalize font-medium text-[#0F1D1A]">{role.replace("_", " ")}</span>. This takes a moment.</p>
-        <div className="mt-4 h-1.5 rounded-full bg-[#F3F0EB] overflow-hidden">
+        <div className="mt-4 h-2 rounded-full bg-[#F3F0EB] overflow-hidden">
           <div className="h-full w-1/2 rounded-full bg-[#0F1D1A] animate-[shimmer_1.2s_ease-in-out_infinite]" style={{ animation: "lp-shimmer 1.2s ease-in-out infinite" }} />
         </div>
       </div>

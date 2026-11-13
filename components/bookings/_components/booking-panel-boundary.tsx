@@ -34,7 +34,7 @@ export class BookingPanelBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex items-center gap-2.5 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3">
+        <div className="flex items-center gap-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3">
           <AlertTriangle className="size-4 shrink-0 text-amber-600" />
           <p className="text-xs text-muted-foreground">
             This section couldn&apos;t be displayed. Other details are still available.

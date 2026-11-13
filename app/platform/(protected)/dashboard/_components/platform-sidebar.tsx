@@ -87,9 +87,9 @@ export function PlatformSidebar({ admin }: { admin: PlatformAdmin | null }) {
   return (
     <>
       {/* ── Header ──────────────────────────────────────────── */}
-      <SidebarHeader className="px-3 py-3.5 border-b border-sidebar-border/50">
+      <SidebarHeader className="px-3 py-4 border-b border-sidebar-border/50">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
             {/* Logo mark */}
             <div className="size-8 rounded-lg bg-foreground flex items-center justify-center shrink-0 ring-1 ring-foreground/20">
               <span className="text-sm font-bold text-background leading-none">
@@ -101,7 +101,7 @@ export function PlatformSidebar({ admin }: { admin: PlatformAdmin | null }) {
               <p className="text-sm font-semibold text-sidebar-foreground truncate leading-tight">
                 RoomLine
               </p>
-              <p className="text-[11px] text-sidebar-foreground/50 truncate mt-0.5">
+              <p className="text-[11px] text-sidebar-foreground/50 truncate mt-1">
                 Platform Admin
               </p>
             </div>
@@ -159,7 +159,7 @@ export function PlatformSidebar({ admin }: { admin: PlatformAdmin | null }) {
         <SidebarSeparator className="mb-2" />
 
         {/* Admin identity */}
-        <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg group-data-[collapsible=icon]:justify-center">
+        <div className="flex items-center gap-3 px-2 py-2 rounded-lg group-data-[collapsible=icon]:justify-center">
           {/* Avatar using HeroUI */}
           <Avatar size="sm" className="shrink-0" color="default">
             <Avatar.Fallback>{initials}</Avatar.Fallback>
@@ -174,7 +174,7 @@ export function PlatformSidebar({ admin }: { admin: PlatformAdmin | null }) {
               size="sm"
               variant="soft"
               color={admin?.role === "super_admin" ? "accent" : "default"}
-              className="mt-0.5"
+              className="mt-1"
             >
               <span className="text-[10px] font-medium">{roleLabel}</span>
             </Chip>

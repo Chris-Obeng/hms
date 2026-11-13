@@ -29,7 +29,7 @@ interface BookingPaymentsPanelProps {
 }
 
 function PaymentMethodIcon({ method }: { method: string | null }) {
-  const className = "size-3.5 text-muted-foreground";
+  const className = "size-4 text-muted-foreground";
   switch (method) {
     case "cash":
       return <Banknote className={className} />;
@@ -196,7 +196,7 @@ export function BookingPaymentsPanel({
       <section aria-label="Balance" className="border-b border-border/50 px-5 py-4 sm:px-6">
         <div
           className={cn(
-            "flex flex-wrap items-center justify-between gap-4 rounded-2xl border px-4 py-3.5",
+            "flex flex-wrap items-center justify-between gap-4 rounded-2xl border px-4 py-4",
             isFullyPaid
               ? "border-emerald-500/20 bg-emerald-500/[0.05]"
               : "border-border/60 bg-secondary/50"
@@ -208,20 +208,20 @@ export function BookingPaymentsPanel({
                 {isFullyPaid ? "Balance settled" : "Balance due"}
               </p>
               {isFullyPaid ? (
-                <span className="rounded-md bg-emerald-500/12 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                <span className="rounded-md bg-emerald-500/12 px-2 py-1 text-[10px] font-semibold text-emerald-700">
                   Paid in full
                 </span>
               ) : amountPaid > 0 ? (
-                <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                <span className="rounded-md bg-amber-500/15 px-2 py-1 text-[10px] font-semibold text-amber-800">
                   Partial
                 </span>
               ) : (
-                <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                <span className="rounded-md bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
                   Unpaid
                 </span>
               )}
             </div>
-            <p className="mt-1.5 font-mono text-2xl font-semibold leading-none tracking-[-0.02em] tabular-nums text-foreground">
+            <p className="mt-2 font-mono text-2xl font-semibold leading-none tracking-[-0.02em] tabular-nums text-foreground">
               {formatCurrency(isFullyPaid ? 0 : outstandingBalance, currency)}
             </p>
             <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
@@ -233,9 +233,9 @@ export function BookingPaymentsPanel({
             <button
               type="button"
               onClick={openForm}
-              className="ui-press inline-flex h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
+              className="ui-press inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
             >
-              <Plus className="size-3.5" aria-hidden="true" />
+              <Plus className="size-4" aria-hidden="true" />
               Record payment
             </button>
           )}
@@ -315,11 +315,11 @@ export function BookingPaymentsPanel({
             className="h-11 rounded-xl border-border/70 bg-card text-base sm:h-10 sm:text-sm"
           />
 
-          <div className="flex items-center justify-end gap-2 pt-0.5">
+          <div className="flex items-center justify-end gap-2 pt-1">
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="ui-press h-9 cursor-pointer rounded-xl border border-border/70 bg-card px-3.5 text-xs font-semibold text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
+              className="ui-press h-9 cursor-pointer rounded-xl border border-border/70 bg-card px-4 text-xs font-semibold text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
             >
               Cancel
             </button>
@@ -409,7 +409,7 @@ export function BookingPaymentsPanel({
                   <p className="truncate text-[13px] font-medium text-foreground">
                     {getMethodLabel(payment.method)}
                   </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
                     {formatDateTime(payment.paidAt ?? payment.createdAt)}
                     {payment.notes ? ` · ${payment.notes}` : ""}
                   </p>
@@ -428,7 +428,7 @@ export function BookingPaymentsPanel({
             </div>
           ))
         ) : (
-          <div className="flex items-center gap-2.5 py-4 text-xs text-muted-foreground">
+          <div className="flex items-center gap-3 py-4 text-xs text-muted-foreground">
             <Wallet className="size-4 text-muted-foreground/50" aria-hidden="true" />
             <span>No payments recorded yet</span>
           </div>
@@ -456,7 +456,7 @@ function ChargeRow({
   return (
     <div>
       {!first && <div className="h-px bg-border/45" aria-hidden="true" />}
-      <div className="flex items-center justify-between gap-3 py-2.5">
+      <div className="flex items-center justify-between gap-3 py-3">
         <div className="min-w-0">
           <p
             className={cn(
@@ -470,7 +470,7 @@ function ChargeRow({
           >
             {name}
           </p>
-          {sub && <p className="mt-0.5 font-mono text-[11px] tabular-nums text-muted-foreground">{sub}</p>}
+          {sub && <p className="mt-1 font-mono text-[11px] tabular-nums text-muted-foreground">{sub}</p>}
         </div>
         <span
           className={cn(

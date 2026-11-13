@@ -21,7 +21,7 @@ export function PageHeader({ title, subtitle, actions, className }: PageHeaderPr
           {title}
         </h1>
         {subtitle && (
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">{subtitle}</p>
         )}
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
@@ -66,7 +66,7 @@ export function EmptyStatePanel({
           {description}
         </p>
       )}
-      {action && <div className="mt-3.5">{action}</div>}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }

@@ -534,7 +534,7 @@ export function CustomersTable({ data, currency }: CustomersTableProps) {
         />
 
         {/* Toolbar + active-filter chips */}
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <TableSearchField
               ariaLabel="Search guests"

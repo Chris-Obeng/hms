@@ -151,7 +151,7 @@ export function PayoutsPanel({
       ) : (
         <section className="flex flex-col gap-3 rounded-3xl bg-card p-4 shadow-[0_2px_4px_rgb(0_0_0/0.04)]" aria-label="Payout reservations">
           <header className="flex items-start justify-between gap-4">
-            <div className="min-w-0 space-y-0.5">
+            <div className="min-w-0 space-y-1">
               <h2 className="text-[15px] font-semibold text-foreground">Payout reservations</h2>
               <p className="text-xs text-muted-foreground">Charges in the window and where each settles.</p>
             </div>
@@ -203,7 +203,7 @@ function ErrorState({
       </p>
       <p className="mt-1 max-w-[320px] truncate text-[11px] text-muted-foreground/50">{message}</p>
       <Button size="sm" variant="outline" className="mt-4 rounded-xl" isPending={pending} onPress={onRetry}>
-        <RotateCw className="size-3.5" />
+        <RotateCw className="size-4" />
         Retry
       </Button>
     </StateShell>
@@ -256,14 +256,14 @@ function ReservationList({ reservations, timeZone }: { reservations: PayoutReser
           <caption className="sr-only">Payout reservations</caption>
           <thead><tr>
             {PAYOUT_COLUMNS.map((column, index) => <th key={column.label + index} scope="col"
-              className={`border-b border-border/70 px-4 py-2.5 text-left text-xs font-medium text-muted-foreground ${column.align === "right" ? "text-right" : ""}`}>
+              className={`border-b border-border/70 px-4 py-3 text-left text-xs font-medium text-muted-foreground ${column.align === "right" ? "text-right" : ""}`}>
               {column.label}
             </th>)}
           </tr></thead>
           <tbody>
             {pageRows.map((r) => <tr key={r.key} className="border-b border-border/50 bg-card last:border-b-0">
               <td className="px-4 py-3 align-top">
-                <div className="flex min-w-0 flex-col gap-0.5">
+                <div className="flex min-w-0 flex-col gap-1">
                   <span className="truncate font-medium text-foreground">{r.guestName ?? "Guest"}</span>
                   <span className="font-mono text-[11px] text-muted-foreground">{r.reference}</span>
                 </div>

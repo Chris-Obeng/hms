@@ -29,7 +29,7 @@ export function RoomTypeCard({ data, className }: { data: OccupancyData; classNa
           <PenTableCell column={COLUMNS[0]} className="text-sm text-foreground">{row.name}</PenTableCell>
           <PenTableCell column={COLUMNS[1]} className="text-sm tabular-nums">{row.booked.toLocaleString("en")}</PenTableCell>
           <PenTableCell column={COLUMNS[2]}>
-            <span className="flex w-full items-center gap-2.5">
+            <span className="flex w-full items-center gap-3">
               <span className="h-1 w-[60px] overflow-hidden rounded-full bg-border" aria-hidden="true">
                 <span className="block h-full rounded-full bg-violet-500" style={{ width: `${Math.min(100, row.occupancy ?? 0)}%` }} />
               </span>

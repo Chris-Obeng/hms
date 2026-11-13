@@ -25,9 +25,9 @@ export function OccupancyTrendCard({ daily, average, delta, className }: {
 
   return <PenCard className={className}>
     <PenCardHead title="Occupancy" caption="Occupied room nights as a share of verified capacity" actions={<>
-      <span className="hidden items-center gap-1.5 text-[11px] text-muted-foreground md:flex" aria-hidden="true">
-        <span className="size-2.5 rounded-[3px] bg-violet-500" /> Daily occupancy
-        <span className="ml-3 h-[3px] w-3.5 rounded-full bg-[#64748b]" /> Period average
+      <span className="hidden items-center gap-2 text-[11px] text-muted-foreground md:flex" aria-hidden="true">
+        <span className="size-3 rounded-[3px] bg-violet-500" /> Daily occupancy
+        <span className="ml-3 h-[4px] w-4 rounded-full bg-[#64748b]" /> Period average
       </span>
       {chipText && <Chip size="sm" variant="soft" color={chipColor} className="font-medium tabular-nums">{chipText}</Chip>}
     </>} />

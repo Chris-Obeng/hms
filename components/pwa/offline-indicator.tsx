@@ -13,7 +13,7 @@ export function OfflineIndicator() {
       role="status"
       className={cn(
         "fixed left-0 right-0 z-50 flex items-center justify-center",
-        "bg-amber-500 text-amber-950 text-xs font-medium py-1.5 px-4",
+        "bg-amber-500 text-amber-950 text-xs font-medium py-2 px-4",
         "top-[calc(env(safe-area-inset-top)+3rem)]",
         "animate-in fade-in slide-in-from-top-1 duration-200",
       )}

@@ -139,7 +139,7 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <Radio
               value="percentage"
-              className="rounded-xl border border-border/60 p-3.5"
+              className="rounded-xl border border-border/60 p-4"
             >
               <Radio.Content>
                 <Radio.Control>
@@ -151,7 +151,7 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
             </Radio>
             <Radio
               value="flat"
-              className="rounded-xl border border-border/60 p-3.5"
+              className="rounded-xl border border-border/60 p-4"
             >
               <Radio.Content>
                 <Radio.Control>
@@ -175,7 +175,7 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
               formatOptions={{ minimumFractionDigits: 0, maximumFractionDigits: 2 }}
             >
               <Label>Percentage per transaction</Label>
-              <NumberField.Group className="mt-1.5 max-w-[220px]">
+              <NumberField.Group className="mt-2 max-w-[220px]">
                 <NumberField.DecrementButton />
                 <NumberField.Input />
                 <NumberField.IncrementButton />
@@ -195,7 +195,7 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
                 formatOptions={{ style: "currency", currency: values.feeFlatCurrency }}
               >
                 <Label>Flat fee per transaction</Label>
-                <NumberField.Group className="mt-1.5 max-w-[220px]">
+                <NumberField.Group className="mt-2 max-w-[220px]">
                   <NumberField.DecrementButton />
                   <NumberField.Input />
                   <NumberField.IncrementButton />
@@ -209,7 +209,7 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
                 onChange={(v) => v && set("feeFlatCurrency", String(v))}
               >
                 <Label>Flat-fee currency</Label>
-                <Select.Trigger className="mt-1.5">
+                <Select.Trigger className="mt-2">
                   <Select.Value />
                   <Select.Indicator />
                 </Select.Trigger>
@@ -232,8 +232,8 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
       {/* How it works */}
       <section className="rounded-2xl border border-border/60 bg-muted/40 p-5">
         <div className="flex gap-3">
-          <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-          <div className="space-y-1.5 text-sm text-muted-foreground">
+          <Info className="mt-1 size-4 shrink-0 text-muted-foreground" />
+          <div className="space-y-2 text-sm text-muted-foreground">
             <p className="font-medium text-foreground">How the fee is applied</p>
               <p>
                 The guest is charged the full booking total. When a platform fee is

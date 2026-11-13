@@ -259,9 +259,9 @@ export function BookingDeepLinkClient({
       <div className="mx-auto w-full max-w-6xl pt-2">
         <Link
           href="/dashboard/bookings"
-          className="ui-press mb-4 inline-flex min-h-9 items-center gap-1.5 rounded-xl px-2.5 text-xs font-medium text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+          className="ui-press mb-4 inline-flex min-h-9 items-center gap-2 rounded-xl px-3 text-xs font-medium text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
         >
-          <ArrowLeft className="size-3.5" aria-hidden="true" />
+          <ArrowLeft className="size-4" aria-hidden="true" />
           Reservations
         </Link>
         <div className="flex flex-col items-center justify-center rounded-[20px] border border-border/60 bg-card py-16 text-center">
@@ -295,9 +295,9 @@ export function BookingDeepLinkClient({
       <div className="flex items-center justify-between gap-3">
         <Link
           href="/dashboard/bookings"
-          className="ui-press -ml-2 inline-flex min-h-9 items-center gap-1.5 rounded-xl px-2.5 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+          className="ui-press -ml-2 inline-flex min-h-9 items-center gap-2 rounded-xl px-3 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
         >
-          <ArrowLeft className="size-3.5" aria-hidden="true" />
+          <ArrowLeft className="size-4" aria-hidden="true" />
           Reservations
         </Link>
 
@@ -312,7 +312,7 @@ export function BookingDeepLinkClient({
 
       {/* ── Unified Identity & Action Header (Every Fact Said Once) ── */}
       <header className="flex flex-col gap-4 rounded-[20px] border border-border/60 bg-card p-5 shadow-[0_1px_3px_rgb(0_0_0/0.04)] sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div className="flex min-w-0 items-start gap-3.5 sm:items-center">
+        <div className="flex min-w-0 items-start gap-4 sm:items-center">
           <span
             aria-hidden="true"
             className="grid size-11 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary"
@@ -329,7 +329,7 @@ export function BookingDeepLinkClient({
               <ReferenceChip reference={booking.reference} />
             </div>
 
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
               <span className="font-medium tabular-nums text-foreground">
                 {formatDate(booking.checkIn, "EEE, MMM d")} →{" "}
                 {formatDate(booking.checkOut, "EEE, MMM d, yyyy")}
@@ -367,7 +367,7 @@ export function BookingDeepLinkClient({
             aria-label="Stay and room allocation"
             className="overflow-hidden rounded-[20px] border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)]"
           >
-            <div className="flex items-center justify-between border-b border-border/50 px-5 py-3.5 sm:px-6">
+            <div className="flex items-center justify-between border-b border-border/50 px-5 py-4 sm:px-6">
               <h2 className="text-[15px] font-semibold text-foreground">
                 {group ? `Rooms (${group.totalRooms})` : "Stay details"}
               </h2>
@@ -380,15 +380,15 @@ export function BookingDeepLinkClient({
             <div className="grid grid-cols-2 gap-4 border-b border-border/50 bg-muted/15 px-5 py-4 sm:grid-cols-3 sm:px-6">
               <div>
                 <p className="text-xs text-muted-foreground">Check-in</p>
-                <p className="mt-0.5 text-sm font-semibold tabular-nums text-foreground">
+                <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
                   {formatDate(booking.checkIn, "MMM d, yyyy")}
                 </p>
                 {booking.checkInAt ? (
-                  <p className="mt-0.5 text-[11px] tabular-nums text-emerald-600">
+                  <p className="mt-1 text-[11px] tabular-nums text-emerald-600">
                     Arrived {formatDateTime(booking.checkInAt)}
                   </p>
                 ) : booking.estimatedArrival ? (
-                  <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] tabular-nums text-muted-foreground">
+                  <p className="mt-1 inline-flex items-center gap-1 text-[11px] tabular-nums text-muted-foreground">
                     <Clock className="size-3" aria-hidden="true" />
                     ETA {booking.estimatedArrival.slice(0, 5)}
                   </p>
@@ -397,15 +397,15 @@ export function BookingDeepLinkClient({
 
               <div>
                 <p className="text-xs text-muted-foreground">Check-out</p>
-                <p className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold tabular-nums text-foreground">
+                <p className="mt-1 flex items-center gap-2 text-sm font-semibold tabular-nums text-foreground">
                   <ArrowRight
-                    className="hidden size-3.5 text-muted-foreground/50 sm:inline"
+                    className="hidden size-4 text-muted-foreground/50 sm:inline"
                     aria-hidden="true"
                   />
                   {formatDate(booking.checkOut, "MMM d, yyyy")}
                 </p>
                 {booking.checkOutAt && (
-                  <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
+                  <p className="mt-1 text-[11px] tabular-nums text-muted-foreground">
                     Departed {formatDateTime(booking.checkOutAt)}
                   </p>
                 )}
@@ -413,10 +413,10 @@ export function BookingDeepLinkClient({
 
               <div className="col-span-2 border-t border-border/40 pt-3 sm:col-span-1 sm:border-t-0 sm:pt-0">
                 <p className="text-xs text-muted-foreground">Duration &amp; terms</p>
-                <p className="mt-0.5 text-sm font-semibold tabular-nums text-foreground">
+                <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
                   {nights} {nights === 1 ? "night" : "nights"}
                 </p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-1 text-[11px] text-muted-foreground">
                   {booking.paymentPreference === "pay_now" ? "Pay online" : "Pay at property"}
                 </p>
               </div>
@@ -436,7 +436,7 @@ export function BookingDeepLinkClient({
                   const canIn = canTransitionBooking(line.status ?? "", "checked_in");
                   const canOut = canTransitionBooking(line.status ?? "", "checked_out");
                   return (
-                    <li key={line.id} className="flex items-center justify-between gap-3 py-3.5">
+                    <li key={line.id} className="flex items-center justify-between gap-3 py-4">
                       <div className="min-w-0 flex-1">
                         <p className="flex items-center gap-2 truncate text-[13px] font-semibold text-foreground">
                           <span
@@ -452,12 +452,12 @@ export function BookingDeepLinkClient({
                               · {formatRoomLabel(line.roomNumber)}
                             </span>
                           ) : (
-                            <span className="rounded-md bg-amber-500/12 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
+                            <span className="rounded-md bg-amber-500/12 px-2 py-1 text-[11px] font-medium text-amber-800">
                               Unassigned
                             </span>
                           )}
                         </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {getStatusLabel(line.status ?? "")} ·{" "}
                           {occupancyText(line.adults ?? 1, line.children ?? 0)}
                         </p>
@@ -500,7 +500,7 @@ export function BookingDeepLinkClient({
               <dl className="grid grid-cols-1 divide-y divide-border/45 px-5 sm:grid-cols-2 sm:divide-y-0 sm:gap-x-8 sm:px-6 sm:py-2">
                 <SpecRow label="Room">
                   {roomDisplay ?? (
-                    <span className="rounded-md bg-amber-500/12 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
+                    <span className="rounded-md bg-amber-500/12 px-2 py-1 text-[11px] font-medium text-amber-800">
                       Unassigned
                     </span>
                   )}
@@ -519,7 +519,7 @@ export function BookingDeepLinkClient({
             aria-label="Folio and payments"
             className="overflow-hidden rounded-[20px] border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)]"
           >
-            <div className="border-b border-border/50 px-5 py-3.5 sm:px-6">
+            <div className="border-b border-border/50 px-5 py-4 sm:px-6">
               <h2 className="text-[15px] font-semibold text-foreground">Folio &amp; payments</h2>
             </div>
             <BookingPaymentsPanel
@@ -538,7 +538,7 @@ export function BookingDeepLinkClient({
             aria-label="Guest contact"
             className="overflow-hidden rounded-[20px] border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)]"
           >
-            <div className="flex items-center justify-between border-b border-border/50 px-5 py-3.5">
+            <div className="flex items-center justify-between border-b border-border/50 px-5 py-4">
               <h2 className="text-[15px] font-semibold text-foreground">Guest</h2>
               {booking.guest?.id && (
                 <Link
@@ -546,13 +546,13 @@ export function BookingDeepLinkClient({
                   className="ui-press inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/[0.07]"
                 >
                   Profile
-                  <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                  <ArrowUpRight className="size-4" aria-hidden="true" />
                 </Link>
               )}
             </div>
 
             <div className="divide-y divide-border/45 px-5">
-              <div className="flex min-h-11 items-center gap-3 py-2.5 text-[13px]">
+              <div className="flex min-h-11 items-center gap-3 py-3 text-[13px]">
                 <Phone className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 {booking.guest?.phone ? (
                   <a
@@ -566,7 +566,7 @@ export function BookingDeepLinkClient({
                 )}
               </div>
 
-              <div className="flex min-h-11 items-center gap-3 py-2.5 text-[13px]">
+              <div className="flex min-h-11 items-center gap-3 py-3 text-[13px]">
                 <Mail className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 {booking.guest?.email ? (
                   <a
@@ -599,7 +599,7 @@ export function BookingDeepLinkClient({
 
 function SpecRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-2.5 sm:border-b sm:border-border/45 sm:nth-last-[-n+2]:border-b-0">
+    <div className="flex items-center justify-between gap-4 py-3 sm:border-b sm:border-border/45 sm:nth-last-[-n+2]:border-b-0">
       <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
       <dd className="min-w-0 truncate text-right text-[13px] font-medium text-foreground">
         {children}
@@ -649,11 +649,11 @@ function FolioNotesCard({
       aria-label="Notes and special requests"
       className="overflow-hidden rounded-[20px] border border-border/60 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.04)]"
     >
-      <div className="flex items-center justify-between border-b border-border/50 px-5 py-3.5">
+      <div className="flex items-center justify-between border-b border-border/50 px-5 py-4">
         <div className="flex items-center gap-2">
           <h2 className="text-[15px] font-semibold text-foreground">Notes</h2>
           {(booking.internalNotes || booking.specialRequests) && (
-            <span aria-hidden="true" className="size-1.5 rounded-full bg-amber-500" />
+            <span aria-hidden="true" className="size-2 rounded-full bg-amber-500" />
           )}
         </div>
         {!editing && (
@@ -663,9 +663,9 @@ function FolioNotesCard({
               setDraft(booking.internalNotes ?? "");
               setEditing(true);
             }}
-            className="ui-press inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+            className="ui-press inline-flex h-8 cursor-pointer items-center gap-2 rounded-lg px-3 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
           >
-            <Pencil className="size-3.5" aria-hidden="true" />
+            <Pencil className="size-4" aria-hidden="true" />
             {booking.internalNotes ? "Edit" : "Add note"}
           </button>
         )}
@@ -673,7 +673,7 @@ function FolioNotesCard({
 
       <div className="space-y-4 p-5">
         {booking.specialRequests && (
-          <div className="rounded-xl border border-border/60 bg-muted/25 px-3.5 py-3">
+          <div className="rounded-xl border border-border/60 bg-muted/25 px-4 py-3">
             <p className="mb-1 text-[11px] font-medium text-muted-foreground">Guest request</p>
             <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground">
               {booking.specialRequests}
@@ -682,7 +682,7 @@ function FolioNotesCard({
         )}
 
         {editing ? (
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             <textarea
               rows={4}
               autoFocus
@@ -698,7 +698,7 @@ function FolioNotesCard({
               }}
               placeholder="Housekeeping, arrival, or front-desk note…"
               aria-label="Internal notes"
-              className="w-full resize-none rounded-xl border border-border/70 bg-background px-3 py-2.5 text-base leading-relaxed text-foreground outline-none focus:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 sm:text-xs"
+              className="w-full resize-none rounded-xl border border-border/70 bg-background px-3 py-3 text-base leading-relaxed text-foreground outline-none focus:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 sm:text-xs"
             />
             <div className="flex justify-end gap-2">
               <button
@@ -707,7 +707,7 @@ function FolioNotesCard({
                   setEditing(false);
                   setDraft(booking.internalNotes ?? "");
                 }}
-                className="ui-press h-9 cursor-pointer rounded-xl border border-border/70 bg-card px-3.5 text-xs font-semibold text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
+                className="ui-press h-9 cursor-pointer rounded-xl border border-border/70 bg-card px-4 text-xs font-semibold text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
               >
                 Cancel
               </button>

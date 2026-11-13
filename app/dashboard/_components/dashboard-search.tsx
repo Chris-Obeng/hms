@@ -68,7 +68,7 @@ function IconChip({ tone, children }: { tone: Tone; children: React.ReactNode })
     <span
       aria-hidden="true"
       className={cn(
-        "flex size-7 shrink-0 items-center justify-center rounded-lg [&_svg]:size-3.5!",
+        "flex size-7 shrink-0 items-center justify-center rounded-lg [&_svg]:size-4!",
         TONES[tone]
       )}
     >
@@ -97,9 +97,9 @@ function useActions(
 const LIST_CLASSES =
   "no-scrollbar max-h-[min(60dvh,26rem)] scroll-py-2 overflow-x-hidden overflow-y-auto overscroll-contain p-1 outline-none";
 const GROUP_CLASSES =
-  "overflow-hidden p-1 text-foreground **:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1.5 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-muted-foreground";
+  "overflow-hidden p-1 text-foreground **:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-2 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-muted-foreground";
 const ITEM_CLASSES =
-  "group/item relative flex cursor-default select-none items-center gap-3 rounded-lg px-2.5 py-2 text-sm outline-none transition-colors data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-muted [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
+  "group/item relative flex cursor-default select-none items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none transition-colors data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-muted [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
 
 type Status = "idle" | "loading" | "done" | "error";
 
@@ -302,7 +302,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
                 <IconChip tone={a.tone}>{a.icon}</IconChip>
                 <span className="flex-1 truncate">{a.label}</span>
                 {a.url && (
-                  <ArrowUpRight className="size-3.5 text-muted-foreground/40 opacity-0 transition-opacity group-data-[selected=true]/item:opacity-100" />
+                  <ArrowUpRight className="size-4 text-muted-foreground/40 opacity-0 transition-opacity group-data-[selected=true]/item:opacity-100" />
                 )}
               </Command.Item>
             ))}
@@ -335,11 +335,11 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
       return (
         <div className="p-1">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 rounded-lg px-2.5 py-2">
+            <div key={i} className="flex items-center gap-3 rounded-lg px-3 py-2">
               <Skeleton className="size-7 shrink-0 rounded-lg" />
-              <div className="flex flex-1 flex-col gap-1.5">
+              <div className="flex flex-1 flex-col gap-2">
                 <Skeleton className="h-3 w-1/3" />
-                <Skeleton className="h-2.5 w-2/3" />
+                <Skeleton className="h-3 w-2/3" />
               </div>
             </div>
           ))}
@@ -372,7 +372,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
               <span className="truncate font-medium text-foreground">{hit.label}</span>
               <span className="truncate text-xs text-muted-foreground">{hit.subLabel}</span>
             </span>
-            <ArrowUpRight className="size-3.5 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-data-[selected=true]/item:opacity-100" />
+            <ArrowUpRight className="size-4 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-data-[selected=true]/item:opacity-100" />
           </Command.Item>
         ))}
       </Command.Group>
@@ -425,11 +425,11 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
                 }}
                 className="ui-press inline-flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
               >
-                <X className="size-3.5" />
+                <X className="size-4" />
               </button>
             ) : (
               modKey && (
-                <kbd className="pointer-events-none hidden select-none rounded border border-border bg-background px-1.5 font-mono text-[11px] leading-5 text-muted-foreground/70 lg:inline-block">
+                <kbd className="pointer-events-none hidden select-none rounded border border-border bg-background px-2 font-mono text-[11px] leading-5 text-muted-foreground/70 lg:inline-block">
                   {modKey}
                 </kbd>
               )
@@ -471,7 +471,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
                 }
               }}
             >
-              <div className="flex h-14 shrink-0 items-center gap-1.5 border-b border-border px-2">
+              <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-2">
                 <button
                   type="button"
                   aria-label="Close search"

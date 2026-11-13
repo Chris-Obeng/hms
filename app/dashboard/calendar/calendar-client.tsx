@@ -874,7 +874,7 @@ function CalendarClientContent({
 
       {/* Active filter strip */}
       {hasAnyActiveFilter && (
-        <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-border/60 bg-muted/20 px-3 py-1.5 md:px-4">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border/60 bg-muted/20 px-3 py-2 md:px-4">
           {roomTypeFilters
             .filter((f) => !f.visible)
             .map((f) => (
@@ -904,7 +904,7 @@ function CalendarClientContent({
           <button
             type="button"
             onClick={clearFilters}
-            className="ui-press ml-1 inline-flex min-h-9 cursor-pointer items-center rounded-md px-2.5 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-7 [@media(hover:hover)_and_(pointer:fine)]:hover:text-primary"
+            className="ui-press ml-1 inline-flex min-h-9 cursor-pointer items-center rounded-md px-3 text-xs font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-7 [@media(hover:hover)_and_(pointer:fine)]:hover:text-primary"
           >
             Clear all
           </button>
@@ -914,7 +914,7 @@ function CalendarClientContent({
       {/* Scheduler */}
       <div className="relative min-h-0 flex-1 overflow-hidden">
         {isFetching && (
-          <div className="absolute left-0 right-0 top-0 z-30 h-0.5 overflow-hidden bg-primary/10">
+          <div className="absolute left-0 right-0 top-0 z-30 h-1 overflow-hidden bg-primary/10">
             <div
               className="h-full w-1/3 bg-primary/60 motion-reduce:w-full motion-reduce:animate-none!"
               style={{ animation: "shimmer 1.5s ease-in-out infinite" }}
@@ -942,7 +942,7 @@ function CalendarClientContent({
               className="ui-press mt-4 rounded-xl"
               onPress={() => void refetch()}
             >
-              <RefreshCw className="size-3.5" aria-hidden="true" />
+              <RefreshCw className="size-4" aria-hidden="true" />
               Retry
             </Button>
           </div>
@@ -996,7 +996,7 @@ function CalendarClientContent({
             <p className="mt-1 max-w-xs text-xs text-muted-foreground">
               Add your room types and room numbers to manage stays on the timeline.
             </p>
-            <div className="mt-4 flex items-center gap-2.5">
+            <div className="mt-4 flex items-center gap-3">
               <Button
                 variant="outline"
                 size="sm"
@@ -1041,7 +1041,7 @@ function CalendarClientContent({
                 <AlertDialog.Heading className="text-base font-semibold text-foreground">
                   Change room type?
                 </AlertDialog.Heading>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                <p className="mt-1 truncate text-xs text-muted-foreground">
                   {pendingTypeChange?.guestName} ·{" "}
                   {pendingTypeChange?.fromTypeName ?? "Current"} → {pendingTypeChange?.toTypeName} (
                   {pendingTypeChange ? format(parseISO(pendingTypeChange.checkIn), "MMM d") : ""} –{" "}
@@ -1050,7 +1050,7 @@ function CalendarClientContent({
               </div>
             </AlertDialog.Header>
 
-            <AlertDialog.Body className="space-y-2.5 py-3 text-sm">
+            <AlertDialog.Body className="space-y-3 py-3 text-sm">
               <div
                 role="radiogroup"
                 aria-label="Rate for the moved stay"
@@ -1083,7 +1083,7 @@ function CalendarClientContent({
                   tabIndex={typeChangeRateChoice === "keep" ? 0 : -1}
                   onClick={() => setTypeChangeRateChoice("keep")}
                   className={cn(
-                    "ui-press flex w-full cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "ui-press flex w-full cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     typeChangeRateChoice === "keep"
                       ? "border-primary bg-primary/[0.06] ring-1 ring-primary/20"
                       : "border-border bg-background [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/35"
@@ -1103,7 +1103,7 @@ function CalendarClientContent({
                         </span>
                       )}
                     </span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                    <span className="mt-1 block text-xs text-muted-foreground">
                       Keep existing nightly prices
                     </span>
                   </span>
@@ -1120,7 +1120,7 @@ function CalendarClientContent({
                   disabled={repriceUnavailable}
                   onClick={() => setTypeChangeRateChoice("reprice")}
                   className={cn(
-                    "ui-press flex w-full cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-55",
+                    "ui-press flex w-full cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-55",
                     typeChangeRateChoice === "reprice"
                       ? "border-primary bg-primary/[0.06] ring-1 ring-primary/20"
                       : "border-border bg-background [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/35"
@@ -1140,7 +1140,7 @@ function CalendarClientContent({
                         </span>
                       )}
                     </span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                    <span className="mt-1 block text-xs text-muted-foreground">
                       {typeChangePreviewBusy
                         ? "Checking target rates…"
                         : typeChangePreviewQuery.isError
@@ -1159,7 +1159,7 @@ function CalendarClientContent({
 
               {typeChangeBlocked && (
                 <p className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
-                  <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                  <TriangleAlert className="mt-1 size-4 shrink-0" aria-hidden />
                   Set up an active rate plan on {pendingTypeChange?.toTypeName} first.
                 </p>
               )}
@@ -1273,7 +1273,7 @@ function FilterChip({ label, onClick }: { label: string; onClick: () => void }) 
       type="button"
       onClick={onClick}
       aria-label={`Remove filter ${label}`}
-      className="ui-press inline-flex min-h-9 max-w-[210px] cursor-pointer items-center gap-1.5 rounded-lg border border-border/70 bg-card px-2.5 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-7 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
+      className="ui-press inline-flex min-h-9 max-w-[212px] cursor-pointer items-center gap-2 rounded-lg border border-border/70 bg-card px-3 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-7 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60"
     >
       <span className="truncate capitalize">{label}</span>
       <X className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -1324,10 +1324,10 @@ function FilterDrawer({
           aria-labelledby="calendar-filters-title"
           className="flex h-[84dvh] max-h-[84dvh] w-full flex-col overflow-hidden rounded-t-[24px] bg-background shadow-2xl md:h-dvh md:max-h-dvh md:w-[min(21rem,100vw)] md:rounded-none md:border-l md:border-border/70"
         >
-          {isMobile && <Drawer.Handle className="mt-2.5 shrink-0" />}
-          <Drawer.CloseTrigger className="ui-press absolute right-3.5 top-3.5 z-10 inline-flex size-10 items-center justify-center rounded-xl bg-muted/70 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+          {isMobile && <Drawer.Handle className="mt-3 shrink-0" />}
+          <Drawer.CloseTrigger className="ui-press absolute right-4 top-4 z-10 inline-flex size-10 items-center justify-center rounded-xl bg-muted/70 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" />
 
-          <Drawer.Header className="shrink-0 flex-row items-center justify-between border-b border-border/50 px-5 pb-3.5 pr-14 pt-5">
+          <Drawer.Header className="shrink-0 flex-row items-center justify-between border-b border-border/50 px-5 pb-4 pr-14 pt-5">
             <Drawer.Heading id="calendar-filters-title" className="text-[15px] font-semibold text-foreground">
               View &amp; filters
             </Drawer.Heading>
@@ -1337,7 +1337,7 @@ function FilterDrawer({
             {/* Mobile-only view horizon, block room & color legend */}
             <div className="space-y-4 md:hidden">
               <FilterGroup title="Horizon">
-                <div className="grid grid-cols-3 gap-1.5 rounded-xl bg-muted/40 p-1">
+                <div className="grid grid-cols-3 gap-2 rounded-xl bg-muted/40 p-1">
                   {VIEW_PRESETS.map((preset) => {
                     const active = viewPreset === preset.label;
                     return (
@@ -1410,7 +1410,7 @@ function FilterDrawer({
                 {CALENDAR_LEGEND.map((item) => (
                   <li key={item.label} className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span
-                      className="size-2.5 shrink-0 rounded-sm"
+                      className="size-3 shrink-0 rounded-sm"
                       style={
                         item.type === "block"
                           ? {
@@ -1453,9 +1453,9 @@ function FilterDrawer({
 
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-1.5">
+    <section className="space-y-2">
       <p className="px-1 text-xs font-semibold text-muted-foreground">{title}</p>
-      <div className="space-y-0.5">{children}</div>
+      <div className="space-y-1">{children}</div>
     </section>
   );
 }

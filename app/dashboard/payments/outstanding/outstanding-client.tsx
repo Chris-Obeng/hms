@@ -82,7 +82,7 @@ export function OutstandingClient({
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-page-title text-foreground">Outstanding Balances</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{filtered.length} bookings with unpaid balances</p>
+          <p className="text-sm text-muted-foreground mt-1">{filtered.length} bookings with unpaid balances</p>
         </div>
       </div>
 
@@ -91,7 +91,7 @@ export function OutstandingClient({
         <AlertCircle className="size-4 text-amber-600 shrink-0" />
         <div>
           <p className="text-sm font-semibold text-amber-800">Total outstanding: {fmt(totalOutstanding, currency)}</p>
-          <p className="text-xs text-amber-600 mt-0.5">Across {data.length} confirmed booking{data.length !== 1 ? "s" : ""}</p>
+          <p className="text-xs text-amber-600 mt-1">Across {data.length} confirmed booking{data.length !== 1 ? "s" : ""}</p>
         </div>
       </div>
 
@@ -110,7 +110,7 @@ export function OutstandingClient({
           <thead>
             <tr className="border-b border-border/50 bg-muted/30">
               {["Guest", "Booking", "Room", "Check-In", "Total", "Paid", "Outstanding", ""].map((h) => (
-                <th key={h} className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                <th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
               ))}
             </tr>
           </thead>
@@ -133,7 +133,7 @@ export function OutstandingClient({
                     <span className={isToday ? "text-amber-600 font-medium" : "text-foreground"}>
                       {format(parseISO(r.checkIn), "MMM d")}
                     </span>
-                    {isToday && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">Today</span>}
+                    {isToday && <span className="ml-2 text-[10px] bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">Today</span>}
                   </td>
                   <td className="px-4 py-3 tabular-nums">{fmt(r.totalAmount, currency)}</td>
                   <td className="px-4 py-3 tabular-nums text-emerald-600">{fmt(r.amountPaid, currency)}</td>
@@ -144,7 +144,7 @@ export function OutstandingClient({
                       className="text-muted-foreground hover:text-foreground transition-colors"
                       title="View booking"
                     >
-                      <Eye className="size-3.5" />
+                      <Eye className="size-4" />
                     </button>
                   </td>
                 </tr>

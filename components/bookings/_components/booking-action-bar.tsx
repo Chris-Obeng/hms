@@ -80,7 +80,7 @@ export function BookingActionBar({
           <Button
             variant="outline"
             className={cn(
-              "ui-press h-10 rounded-xl border-border/70 bg-card px-3.5 text-xs font-semibold text-muted-foreground sm:h-9 [@media(hover:hover)_and_(pointer:fine)]:hover:border-destructive/30 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-destructive/[0.06] [@media(hover:hover)_and_(pointer:fine)]:hover:text-destructive",
+              "ui-press h-10 rounded-xl border-border/70 bg-card px-4 text-xs font-semibold text-muted-foreground sm:h-9 [@media(hover:hover)_and_(pointer:fine)]:hover:border-destructive/30 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-destructive/[0.06] [@media(hover:hover)_and_(pointer:fine)]:hover:text-destructive",
               !inline && "order-2 ml-auto"
             )}
             isPending={actionLoading === "cancel"}
@@ -122,7 +122,7 @@ export function BookingActionBar({
             loadingLabel="Reinstating…"
             isLoading={actionLoading === "reinstate"}
             onPress={handleReinstate}
-            icon={<RotateCcw className="size-3.5" />}
+            icon={<RotateCcw className="size-4" />}
             variant="outline"
           />
         )}

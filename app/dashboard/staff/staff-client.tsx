@@ -354,7 +354,7 @@ export function StaffClient({
                     {s.fullName || "Unnamed"}
                   </span>
                   {isSelf && (
-                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-caption text-muted-foreground">
+                    <span className="rounded-full bg-muted px-2 py-1 text-caption text-muted-foreground">
                       You
                     </span>
                   )}
@@ -452,7 +452,7 @@ export function StaffClient({
             <p className="flex items-center gap-2 truncate text-sm font-semibold text-foreground">
               {row.fullName || "Unnamed"}
               {isSelf && (
-                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                <span className="rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
                   You
                 </span>
               )}
@@ -464,7 +464,7 @@ export function StaffClient({
           {renderRoleControl(row)}
           {renderStatusControl(row)}
         </div>
-        <div className="flex items-center justify-between border-t border-border/50 pt-2.5 text-[11px] text-muted-foreground">
+        <div className="flex items-center justify-between border-t border-border/50 pt-3 text-[11px] text-muted-foreground">
           <span>Granted {formatDate(row.grantedAt, "MMM d, yyyy")}</span>
           <span>
             Last login {row.lastLoginAt ? formatDate(row.lastLoginAt, "MMM d, yyyy") : "Never"}
@@ -488,9 +488,9 @@ export function StaffClient({
             {pendingCount > 0 && (
               <Link
                 href="/dashboard/staff/pending"
-                className="ui-press inline-flex h-11 items-center gap-1.5 rounded-xl border border-amber-500/35 bg-amber-500/[0.08] px-3 text-xs font-semibold text-amber-800 sm:h-9"
+                className="ui-press inline-flex h-11 items-center gap-2 rounded-xl border border-amber-500/35 bg-amber-500/[0.08] px-3 text-xs font-semibold text-amber-800 sm:h-9"
               >
-                <span className="size-1.5 rounded-full bg-amber-500" aria-hidden="true" />
+                <span className="size-2 rounded-full bg-amber-500" aria-hidden="true" />
                 {pendingCount} pending
               </Link>
             )}
@@ -498,10 +498,10 @@ export function StaffClient({
               <Button
                 variant="primary"
                 size="sm"
-                className="ui-press h-11 shrink-0 gap-1.5 rounded-xl px-3.5 text-xs font-semibold shadow-2xs sm:h-9"
+                className="ui-press h-11 shrink-0 gap-2 rounded-xl px-4 text-xs font-semibold shadow-2xs sm:h-9"
                 onPress={() => setIsInviteOpen(true)}
               >
-                <Plus className="size-3.5" aria-hidden="true" />
+                <Plus className="size-4" aria-hidden="true" />
                 Invite staff
               </Button>
             )}
@@ -570,7 +570,7 @@ export function StaffClient({
       <Modal.Backdrop isOpen={isInviteOpen} onOpenChange={handleInviteOpenChange} variant="opaque">
         <Modal.Container placement="center" size="md" className="p-4">
           <Modal.Dialog className="w-full max-w-md rounded-2xl">
-            <Modal.CloseTrigger className="ui-press absolute right-3.5 top-3.5 inline-flex size-11 items-center justify-center rounded-full border border-border/60 bg-muted/80 text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted" />
+            <Modal.CloseTrigger className="ui-press absolute right-4 top-4 inline-flex size-11 items-center justify-center rounded-full border border-border/60 bg-muted/80 text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-9 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted" />
             <Modal.Header className="flex flex-col gap-1 px-6 pt-6 pr-14">
               <Modal.Heading className="text-base font-semibold text-foreground">Invite staff member</Modal.Heading>
               <p className="text-caption text-muted-foreground">

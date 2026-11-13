@@ -167,7 +167,7 @@ export function NotificationBell({
           className={cn(
             "notification-badge pointer-events-none select-none font-semibold tabular-nums shadow-xs",
             variant === "dot"
-              ? "size-2.5 min-h-2.5 min-w-2.5 rounded-full p-0"
+              ? "size-3 min-h-3 min-w-3 rounded-full p-0"
               : "min-h-[18px] min-w-[18px] rounded-full px-1 text-[11px] leading-none tracking-tight"
           )}
         >

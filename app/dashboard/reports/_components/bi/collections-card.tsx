@@ -34,7 +34,7 @@ export function CollectionsCard({ collected, byMethod, className }: {
     <PenCardHead title="Collections" caption="By payment method · includes tax and deposits" />
     {total > 0 ? <div className="flex items-center gap-5">
       <DonutRing segments={segments.map(({ method, amount, color }) => ({ key: method, amount, color }))} total={total} value={`GHS ${compactNumber(collected)}`} label="collected" />
-      <ul className="min-w-0 flex-1 space-y-[7px]">
+      <ul className="min-w-0 flex-1 space-y-[8px]">
         {segments.map((row) => <li key={row.method} className="flex items-center gap-2 text-xs">
           <span className="size-2 shrink-0 rounded-full" style={{ background: row.color }} aria-hidden="true" />
           <span className="min-w-0 flex-1 truncate text-foreground">{row.label}</span>

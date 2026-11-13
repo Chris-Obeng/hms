@@ -58,10 +58,10 @@ export function RangeControl({ range, today, onChange }: {
     range.startDate === shiftReportDate(today, 1 - days) && range.endDate === today,
   );
 
-  return <div className="flex flex-col items-start gap-1.5" role="group" aria-label="Report date range">
+  return <div className="flex flex-col items-start gap-2" role="group" aria-label="Report date range">
     <Popover isOpen={open !== null} onOpenChange={(next) => setOpen(next ? "range" : null)}>
       <Button variant="outline" aria-label={`Date range: ${reportPeriodLabel(range)}`}
-        className="h-10 gap-2 border-border/70 rounded-[10px] px-3.5 text-[13px] font-medium tabular-nums">
+        className="h-10 gap-2 border-border/70 rounded-[10px] px-4 text-[13px] font-medium tabular-nums">
         <CalendarDays size={16} aria-hidden="true" className="text-muted-foreground" />
         {reportPeriodLabel(range)}
         <ChevronDown size={16} aria-hidden="true" className="text-muted-foreground/70" />
@@ -71,19 +71,19 @@ export function RangeControl({ range, today, onChange }: {
           <p className={error ? "text-[13px] text-destructive" : "sr-only"} role={error ? "alert" : undefined}>
             {error ?? "Inclusive dates, up to 366 days."}
           </p>
-          <div className="inline-flex items-center rounded-lg bg-muted p-0.5" role="group" aria-label="Quick date ranges">
+          <div className="inline-flex items-center rounded-lg bg-muted p-1" role="group" aria-label="Quick date ranges">
             {PRESETS.map((days) => <ToggleButton key={days} variant="ghost" size="sm"
-              className="h-8 min-w-0 rounded-[7px] px-2.5 text-[13px] font-medium text-muted-foreground data-[selected=true]:bg-card data-[selected=true]:text-foreground data-[selected=true]:shadow-sm"
+              className="h-8 min-w-0 rounded-[7px] px-3 text-[13px] font-medium text-muted-foreground data-[selected=true]:bg-card data-[selected=true]:text-foreground data-[selected=true]:shadow-sm"
               isSelected={activePreset === days}
               onChange={() => { setOpen(null); commit({ startDate: shiftReportDate(today, 1 - days), endDate: today }); }}>
               {days} days
             </ToggleButton>)}
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <DateField label="Start date" value={range.startDate} max={range.endDate > today ? today : range.endDate}
               isOpen={open === "start"} onOpenChange={(next) => setOpen(next ? "start" : null)}
               onSelect={(value) => { commit({ startDate: value, endDate: range.endDate }); setOpen(null); }} />
-            <span className="px-0.5 text-caption text-muted-foreground" aria-hidden="true">–</span>
+            <span className="px-1 text-caption text-muted-foreground" aria-hidden="true">–</span>
             <DateField label="End date" value={range.endDate} min={range.startDate} max={today}
               isOpen={open === "end"} onOpenChange={(next) => setOpen(next ? "end" : null)}
               onSelect={(value) => { commit({ startDate: range.startDate, endDate: value }); setOpen(null); }} />
@@ -106,7 +106,7 @@ function DateField({ label, value, min, max, isOpen, onOpenChange, onSelect }: {
   return <Popover isOpen={isOpen} onOpenChange={onOpenChange}>
     {/* HeroUI makes its direct child the pressable trigger (as its own Popover example does).
      * Wrapping a Button in Popover.Trigger would nest two pressables. */}
-    <Button variant="outline" size="sm" className="h-8 gap-1.5 border-border/70 px-2.5 text-[13px] font-medium tabular-nums"
+    <Button variant="outline" size="sm" className="h-8 gap-2 border-border/70 px-3 text-[13px] font-medium tabular-nums"
       aria-label={`${label}: ${formatDate(value, "MMM d, yyyy")}`}>
       <CalendarDays size={15} aria-hidden="true" />
       {formatDate(value, "MMM d, yyyy")}

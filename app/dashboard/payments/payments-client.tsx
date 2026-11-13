@@ -192,7 +192,7 @@ function ActivityView({ activity, error, loading, startDate, endDate, today, cur
       </div>
     </div>
 
-    {error ? <div className="flex items-start gap-3 rounded-xl border border-danger/30 bg-danger/5 p-4 text-sm text-danger" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" /><span>{error}</span></div> : null}
+    {error ? <div className="flex items-start gap-3 rounded-xl border border-danger/30 bg-danger/5 p-4 text-sm text-danger" role="alert"><CircleAlert className="mt-1 size-4 shrink-0" aria-hidden="true" /><span>{error}</span></div> : null}
 
     <LedgerCard
       activity={activity} loading={loading} timeZone={timeZone}
@@ -253,7 +253,7 @@ function LedgerCard({ activity, loading, timeZone, startDate, endDate, today, st
         <caption className="sr-only">Payment ledger records</caption>
         <thead><tr>
           {LEDGER_COLUMNS.map((column, index) => <th key={column.label + index} scope="col"
-            className={cn("border-b border-border/70 px-4 py-2.5 text-left text-xs font-medium text-muted-foreground", column.align === "right" && "text-right")}>
+            className={cn("border-b border-border/70 px-4 py-3 text-left text-xs font-medium text-muted-foreground", column.align === "right" && "text-right")}>
             {column.label}
           </th>)}
         </tr></thead>
@@ -282,7 +282,7 @@ function LedgerCard({ activity, loading, timeZone, startDate, endDate, today, st
     {activity && <div className="md:hidden">
       {activity.rows.length ? activity.rows.map((row, index) => <div key={row.id}>
         {index > 0 && <div className="h-px bg-border/50" aria-hidden="true" />}
-        <div className="flex flex-col gap-1.5 py-3">
+        <div className="flex flex-col gap-2 py-3">
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-[13px] font-medium text-foreground">{row.guestName ?? "Guest"}</span>
             <span className="font-mono text-[13px] font-semibold tabular-nums text-foreground">{formatCurrency(row.amount, row.currency)}</span>
@@ -304,8 +304,8 @@ function LedgerCard({ activity, loading, timeZone, startDate, endDate, today, st
     {activity && <div className="flex flex-col gap-3 border-t border-border/50 px-1 pt-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
       <span>Page {page} · {activity.totalCount.toLocaleString("en")} records</span>
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" className="ui-press min-h-11 rounded-xl sm:min-h-8" isDisabled={page <= 1 || loading} onPress={() => onPage(page - 1)}><ChevronLeft className="size-3.5" />Previous</Button>
-        <Button variant="outline" size="sm" className="ui-press min-h-11 rounded-xl sm:min-h-8" isDisabled={!activity.hasNextPage || loading} onPress={() => onPage(page + 1)}>Next<ChevronRight className="size-3.5" /></Button>
+        <Button variant="outline" size="sm" className="ui-press min-h-11 rounded-xl sm:min-h-8" isDisabled={page <= 1 || loading} onPress={() => onPage(page - 1)}><ChevronLeft className="size-4" />Previous</Button>
+        <Button variant="outline" size="sm" className="ui-press min-h-11 rounded-xl sm:min-h-8" isDisabled={!activity.hasNextPage || loading} onPress={() => onPage(page + 1)}>Next<ChevronRight className="size-4" /></Button>
       </div>
     </div>}
   </section>;

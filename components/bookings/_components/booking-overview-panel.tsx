@@ -51,9 +51,9 @@ export function BookingOverviewPanel({ booking, actionLoading, onBulkAction, onS
     <div className="flex min-h-full flex-col">
       {/* Stay band */}
       <section aria-label="Stay" className="border-b border-border/60 px-6 py-5">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           <span className="text-[17px] font-semibold tracking-[-0.3px] text-foreground">{formatDate(booking.checkIn, "MMM d")}</span>
-          <ArrowRight className="size-3.5 text-muted-foreground/60" aria-hidden="true" />
+          <ArrowRight className="size-4 text-muted-foreground/60" aria-hidden="true" />
           <span className="text-[17px] font-semibold tracking-[-0.3px] text-foreground">{formatDate(booking.checkOut, "MMM d")}</span>
         </div>
         <p className="mt-1 max-md:text-xs text-xs text-muted-foreground">
@@ -77,11 +77,11 @@ export function BookingOverviewPanel({ booking, actionLoading, onBulkAction, onS
               <div className="flex items-center gap-3 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 truncate text-[13px] font-semibold text-foreground">
-                    <span className={cn("size-[7px] shrink-0 rounded-full", LINE_DOTS[l.status ?? ""] ?? "bg-muted-foreground/40")} aria-hidden="true" />
+                    <span className={cn("size-[8px] shrink-0 rounded-full", LINE_DOTS[l.status ?? ""] ?? "bg-muted-foreground/40")} aria-hidden="true" />
                     {l.roomTypeName ?? "Room"}
                     {l.roomNumber ? <span className="font-normal text-muted-foreground"> · {formatRoomLabel(l.roomNumber)}</span> : <span className="font-normal text-[var(--warning)]"> · Unassigned</span>}
                   </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
                     {getStatusLabel(l.status ?? "")} · {occupancyText(l.adults ?? 1, l.children ?? 0)}
                   </p>
                 </div>
@@ -90,14 +90,14 @@ export function BookingOverviewPanel({ booking, actionLoading, onBulkAction, onS
                   {canIn && onBulkAction && (
                     <button type="button" disabled={actionLoading === "bulk:check_in"}
                       onClick={() => onBulkAction([l.id], "checked_in", "check_in")}
-                      className="mt-1.5 h-[26px] rounded-lg bg-[var(--pen-accent)] px-3 text-[11px] font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-60">
+                      className="mt-2 h-[28px] rounded-lg bg-[var(--pen-accent)] px-3 text-[11px] font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-60">
                       Check in
                     </button>
                   )}
                   {canOut && onBulkAction && (
                     <button type="button" disabled={actionLoading === "bulk:check_out"}
                       onClick={() => onBulkAction([l.id], "checked_out", "check_out")}
-                      className="mt-1.5 block h-[26px] rounded-lg border border-border/70 bg-card px-3 text-[11px] font-semibold text-foreground transition-transform active:scale-[0.98] disabled:opacity-60">
+                      className="mt-2 block h-[28px] rounded-lg border border-border/70 bg-card px-3 text-[11px] font-semibold text-foreground transition-transform active:scale-[0.98] disabled:opacity-60">
                       Check out
                     </button>
                   )}
@@ -106,19 +106,19 @@ export function BookingOverviewPanel({ booking, actionLoading, onBulkAction, onS
             </div>;
           })
         ) : (
-          <div className="py-1.5">
+          <div className="py-2">
             <p className="flex items-center gap-2 text-[13px] font-semibold text-foreground">
-              <span className={cn("size-[7px] shrink-0 rounded-full", LINE_DOTS[booking.status ?? ""] ?? "bg-muted-foreground/40")} aria-hidden="true" />
+              <span className={cn("size-[8px] shrink-0 rounded-full", LINE_DOTS[booking.status ?? ""] ?? "bg-muted-foreground/40")} aria-hidden="true" />
               {booking.roomType?.name ?? "Room"}
               {roomValue ? <span className="font-normal text-muted-foreground"> · {roomValue}</span> : <span className="font-normal text-[var(--warning)]"> · Not assigned</span>}
             </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{getStatusLabel(booking.status ?? "")} · {guestsLabel}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{getStatusLabel(booking.status ?? "")} · {guestsLabel}</p>
           </div>
         )}
       </section>
 
       {/* Details band */}
-      <section aria-label="Reservation details" className="border-b border-border/60 px-6 py-1.5">
+      <section aria-label="Reservation details" className="border-b border-border/60 px-6 py-2">
         <dl>
           {!group && <Fact label="Room">{roomValue ?? <span className="text-[var(--warning)]">Not assigned</span>}</Fact>}
           {!group && <Fact label="Room type">{booking.roomType?.name ?? "—"}</Fact>}
@@ -130,20 +130,20 @@ export function BookingOverviewPanel({ booking, actionLoading, onBulkAction, onS
       </section>
 
       {/* Guest band */}
-      <section aria-label="Guest contact" className="border-b border-border/60 px-6 py-1.5">
+      <section aria-label="Guest contact" className="border-b border-border/60 px-6 py-2">
         {booking.guest?.phone && (
-          <a href={`tel:${booking.guest.phone}`} className="flex items-center gap-2.5 py-2 text-[13px] text-foreground">
-            <Phone className="size-3.5 text-muted-foreground/60" aria-hidden="true" /> {booking.guest.phone}
+          <a href={`tel:${booking.guest.phone}`} className="flex items-center gap-3 py-2 text-[13px] text-foreground">
+            <Phone className="size-4 text-muted-foreground/60" aria-hidden="true" /> {booking.guest.phone}
           </a>
         )}
         {booking.guest?.email && (
-          <a href={`mailto:${booking.guest.email}`} className="flex items-center gap-2.5 py-2 text-[13px] text-foreground">
-            <Mail className="size-3.5 text-muted-foreground/60" aria-hidden="true" /> {booking.guest.email}
+          <a href={`mailto:${booking.guest.email}`} className="flex items-center gap-3 py-2 text-[13px] text-foreground">
+            <Mail className="size-4 text-muted-foreground/60" aria-hidden="true" /> {booking.guest.email}
           </a>
         )}
         {booking.guest?.id && (
           <Link href={`/dashboard/customers?guestId=${booking.guest.id}`}
-            className="flex items-center gap-2.5 py-2 text-[13px] font-medium text-[var(--pen-accent)]">
+            className="flex items-center gap-3 py-2 text-[13px] font-medium text-[var(--pen-accent)]">
             View full profile
             <span className="min-w-0 flex-1" aria-hidden="true" />
             <ArrowUpRight className="size-3 text-muted-foreground/60" aria-hidden="true" />
@@ -159,7 +159,7 @@ export function BookingOverviewPanel({ booking, actionLoading, onBulkAction, onS
 
 function Fact({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-2.5">
+    <div className="flex items-center justify-between gap-4 py-3">
       <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
       <dd className={cn("min-w-0 truncate text-right text-xs font-medium text-foreground", className)}>
         {children}
@@ -195,14 +195,14 @@ function NotesBand({ booking, onSaveNotes }: { booking: FullBookingDetail; onSav
   const canEdit = typeof onSaveNotes === "function";
 
   return (
-    <section aria-label="Notes" className="flex flex-1 flex-col gap-2.5 px-6 pb-5 pt-4">
-      <div className="flex items-center gap-2.5">
+    <section aria-label="Notes" className="flex flex-1 flex-col gap-3 px-6 pb-5 pt-4">
+      <div className="flex items-center gap-3">
         <h3 className="text-[13px] font-semibold text-foreground">Notes</h3>
         <span className="min-w-0 flex-1" aria-hidden="true" />
         {canEdit && <button type="button" aria-label={editing ? "Close notes editor" : "Edit notes"}
           onClick={() => setEditing((prev) => !prev)}
           className="grid size-6 place-items-center rounded-md text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground">
-          <Pencil className="size-3.5" aria-hidden="true" />
+          <Pencil className="size-4" aria-hidden="true" />
         </button>}
       </div>
       {editing ? (
@@ -210,7 +210,7 @@ function NotesBand({ booking, onSaveNotes }: { booking: FullBookingDetail; onSav
           <textarea rows={4} value={draft} maxLength={2000} autoFocus
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Housekeeping requests, arrival notes…"
-            className="w-full resize-none rounded-xl border border-border/60 bg-card px-3 py-2.5 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:text-xs" />
+            className="w-full resize-none rounded-xl border border-border/60 bg-card px-3 py-3 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 sm:text-xs" />
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => { setEditing(false); setDraft(booking.internalNotes ?? ""); }}
               className="h-8 rounded-full px-3 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">

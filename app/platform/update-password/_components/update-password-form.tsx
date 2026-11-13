@@ -50,7 +50,7 @@ export function UpdatePasswordForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <div className="grid gap-1.5">
+          <div className="grid gap-2">
             <label htmlFor="password" className="text-xs font-medium text-foreground/70">
               New password
             </label>
@@ -64,7 +64,7 @@ export function UpdatePasswordForm() {
               className="bg-secondary border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-ring h-10"
             />
           </div>
-          <div className="grid gap-1.5">
+          <div className="grid gap-2">
             <label htmlFor="confirm" className="text-xs font-medium text-foreground/70">
               Confirm password
             </label>

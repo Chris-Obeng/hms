@@ -215,13 +215,13 @@ export function SummaryStep({
             <h3 className="text-sm font-semibold text-foreground">Guest</h3>
           </div>
           {guestId ? (
-            <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3.5 py-3">
+            <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
                 {initials(guestName)}
               </span>
               <div className="flex min-w-0 flex-col">
-                <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                  <UserCheck className="size-3.5 text-primary" /> {guestName}
+                <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <UserCheck className="size-4 text-primary" /> {guestName}
                 </span>
                 <span className="truncate text-[11px] text-muted-foreground">
                   {guestEmail || guestPhone || nationality || "Existing guest profile"}
@@ -230,7 +230,7 @@ export function SummaryStep({
               <button
                 type="button"
                 onClick={onClearGuest}
-                className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <X className="size-3" /> Change
               </button>
@@ -284,7 +284,7 @@ export function SummaryStep({
                 </TextField>
               </div>
 
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-2">
                 <span className="text-sm font-medium text-foreground">Nationality</span>
                 <CountrySelect value={nationality} onChange={onNationalityChange} placeholder="Search country" />
               </div>
@@ -394,7 +394,7 @@ export function SummaryStep({
             <span className="text-xs font-medium tabular-nums text-foreground">
               {formatDate(checkIn)} → {formatDate(checkOut)}
             </span>
-            <span className="ml-auto inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-primary">
+            <span className="ml-auto inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-[11px] font-semibold tabular-nums text-primary">
               {nightsLabel(nights)}
             </span>
           </div>
@@ -407,7 +407,7 @@ export function SummaryStep({
                 (line.children ? ` · ${line.children} child${line.children !== 1 ? "ren" : ""}` : "") +
                 " · per room";
               return (
-                <div key={line.roomTypeId} className="rounded-xl border border-border/70 bg-background px-3 py-2.5">
+                <div key={line.roomTypeId} className="rounded-xl border border-border/70 bg-background px-3 py-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-foreground">
@@ -439,7 +439,7 @@ export function SummaryStep({
                 <div className="h-5 w-3/4 animate-pulse rounded bg-muted" />
               </div>
             ) : (
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>Subtotal</span>
                   <span className="tabular-nums">{formatCurrency(grand.subtotal, currency)}</span>

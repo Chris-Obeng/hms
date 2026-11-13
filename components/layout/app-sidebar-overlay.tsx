@@ -247,7 +247,7 @@ export function AppSidebar() {
           onClick={() => navigateTo("/dashboard/settings/hotel")}
           title="Hotel settings"
           aria-label="Hotel settings"
-          className="group flex min-w-0 items-center gap-2.5 rounded-lg px-1 py-1 text-left outline-hidden ring-sidebar-ring focus-visible:ring-2"
+          className="group flex min-w-0 items-center gap-3 rounded-lg px-1 py-1 text-left outline-hidden ring-sidebar-ring focus-visible:ring-2"
         >
           <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-sidebar-primary text-sidebar-primary-foreground shadow-sm ring-1 ring-black/5">
             <span className="text-sm font-bold leading-none">R</span>
@@ -303,7 +303,7 @@ export function AppSidebar() {
                       <ChevronDown
                         aria-hidden
                         className={cn(
-                          "size-3.5! shrink-0 text-sidebar-foreground/40 transition-transform duration-150",
+                          "size-4! shrink-0 text-sidebar-foreground/40 transition-transform duration-150",
                           settingsOpen && "rotate-180"
                         )}
                       />
@@ -363,7 +363,7 @@ function SidebarUserCard({
       aria-label="Open user profile"
       onClick={openUserProfile}
       className={cn(
-        "flex min-h-12 w-full items-center gap-3 rounded-lg border-0 bg-transparent px-2 py-1.5 text-left",
+        "flex min-h-12 w-full items-center gap-3 rounded-lg border-0 bg-transparent px-2 py-2 text-left",
         "cursor-pointer outline-hidden ring-sidebar-ring focus-visible:ring-2",
         "transition-[background-color] duration-150",
         "hover:bg-sidebar-foreground/[0.055] active:bg-sidebar-foreground/10"
@@ -378,7 +378,7 @@ function SidebarUserCard({
           size="sm"
           variant="soft"
           color={roleChipColor}
-          className="mt-1 h-[18px] px-1.5 text-[10px] font-medium leading-none"
+          className="mt-1 h-[18px] px-2 text-[10px] font-medium leading-none"
         >
           {roleLabel}
         </Chip>

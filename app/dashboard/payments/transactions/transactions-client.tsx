@@ -88,7 +88,7 @@ export function TransactionsClient({ data, currency, hotelId }: { data: PaymentR
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-page-title text-foreground">Transactions</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-sm text-muted-foreground mt-1">
             {filtered.length} records · {formatCurrency(totalSuccess, currency)} collected
           </p>
         </div>
@@ -113,7 +113,7 @@ export function TransactionsClient({ data, currency, hotelId }: { data: PaymentR
           <thead>
             <tr className="border-b border-border/50 bg-muted/30">
               {["Date", "Guest", "Booking", "Amount", "Method", "Status", ""].map((h) => (
-                <th key={h} className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                <th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
               ))}
             </tr>
           </thead>
@@ -130,7 +130,7 @@ export function TransactionsClient({ data, currency, hotelId }: { data: PaymentR
                 <td className="px-4 py-3 font-semibold tabular-nums whitespace-nowrap">{formatCurrency(r.amount, r.currency)}</td>
                 <td className="px-4 py-3 text-muted-foreground">{getMethodLabel(r.method)}</td>
                 <td className="px-4 py-3">
-                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", STATUS_COLORS[r.status ?? ""] ?? "text-muted-foreground bg-muted")}>
+                  <span className={cn("text-xs font-medium px-2 py-1 rounded-full", STATUS_COLORS[r.status ?? ""] ?? "text-muted-foreground bg-muted")}>
                     {r.status ?? "—"}
                   </span>
                 </td>
@@ -141,7 +141,7 @@ export function TransactionsClient({ data, currency, hotelId }: { data: PaymentR
                       className="text-muted-foreground hover:text-foreground transition-colors"
                       title="View booking"
                     >
-                      <Eye className="size-3.5" />
+                      <Eye className="size-4" />
                     </button>
                   )}
                 </td>

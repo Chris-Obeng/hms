@@ -60,7 +60,7 @@ export function CompletePaymentPanel({
           <p className="text-sm font-semibold text-[var(--bk-ink)]">
             Payment required to confirm
           </p>
-          <p className="text-xs text-[var(--bk-muted)] mt-0.5 leading-relaxed">
+          <p className="text-xs text-[var(--bk-muted)] mt-1 leading-relaxed">
             Your room is held for 30 minutes. Complete the secure payment of{" "}
             <span className="booking-price font-semibold text-[var(--bk-ink)]">
               {amountLabel}

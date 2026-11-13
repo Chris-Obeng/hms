@@ -61,7 +61,7 @@ export function HeroSelectField({
       value={value || null}
       variant={variant}
     >
-      {label ? <Label className="mb-1.5 text-xs font-medium text-muted-foreground">{label}</Label> : null}
+      {label ? <Label className="mb-2 text-xs font-medium text-muted-foreground">{label}</Label> : null}
       <Select.Trigger
         className={cn(
           "min-h-9 rounded-xl border border-border/60 bg-background px-3 text-sm shadow-none",
@@ -85,7 +85,7 @@ export function HeroSelectField({
               id={option.value}
               key={option.value}
               textValue={option.textValue ?? (typeof option.label === "string" ? option.label : option.value)}
-              className="rounded-lg px-2.5 py-2 text-sm"
+              className="rounded-lg px-3 py-2 text-sm"
             >
               <Label>{option.label}</Label>
               <ListBox.ItemIndicator />

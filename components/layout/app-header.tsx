@@ -87,7 +87,7 @@ export function AppHeader({
             type="button"
             onClick={() => router.push("/dashboard/settings/hotel")}
             title="Hotel settings"
-            className="group flex min-h-11 min-w-0 cursor-pointer items-center gap-2 rounded-lg px-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-0 sm:p-0.5"
+            className="group flex min-h-11 min-w-0 cursor-pointer items-center gap-2 rounded-lg px-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-0 sm:p-1"
           >
             <span className="truncate text-lg font-bold tracking-tight text-foreground transition-colors [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-foreground/80">
               RoomLine
@@ -101,13 +101,13 @@ export function AppHeader({
         </div>
 
         {/* Right: actions */}
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-2">
           <Button
             variant="primary"
             size="sm"
             onPress={openNewBooking}
             aria-label="New booking"
-            className="ui-press inline-flex size-11 min-w-11 gap-1.5 rounded-lg text-xs sm:h-8 sm:w-auto sm:min-w-8"
+            className="ui-press inline-flex size-11 min-w-11 gap-2 rounded-lg text-xs sm:h-8 sm:w-auto sm:min-w-8"
           >
             <Plus className="size-4 sm:size-3.5" />
           </Button>

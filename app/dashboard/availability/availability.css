@@ -56,7 +56,7 @@
   gap: 2px;
   border-right: 1px solid var(--av-border);
   background: var(--av-surface);
-  padding: 8px 14px;
+  padding: 8px 16px;
   box-shadow: 6px 0 14px -14px rgb(0 0 0 / 0.14);
 }
 
@@ -102,7 +102,7 @@
   min-height: 60px;
   border-right: 1px solid var(--av-grid);
   background: var(--av-header-bg);
-  padding: 6px 4px;
+  padding: 8px 4px;
   text-align: center;
   gap: 1px;
 }
@@ -164,7 +164,7 @@
   min-height: 48px;
   border-right: 1px solid var(--av-grid);
   background: var(--av-surface);
-  padding: 6px;
+  padding: 8px;
   gap: 1px;
 }
 
@@ -200,12 +200,12 @@
 .availability-room-type-heading .availability-sticky-cell,
 .availability-room-type-heading .availability-total-cell {
   background: var(--av-group-bg);
-  min-height: 46px;
+  min-height: 48px;
 }
 
 .availability-rate-cell {
   position: relative;
-  min-height: 50px;
+  min-height: 48px;
   width: 100%;
   display: flex;
   align-items: center;
@@ -248,21 +248,21 @@
 
 .rate-dot {
   position: absolute;
-  right: 6px;
-  top: 6px;
-  width: 5px;
-  height: 5px;
+  right: 8px;
+  top: 8px;
+  width: 4px;
+  height: 4px;
   border-radius: 99px;
   background: var(--primary);
 }
 
 .availability-rate-cell.has-restrictions {
-  padding-bottom: 14px;
+  padding-bottom: 16px;
 }
 
 .rate-restrictions {
   position: absolute;
-  bottom: 3px;
+  bottom: 4px;
   left: 0;
   right: 0;
   display: flex;
@@ -308,7 +308,7 @@
 
 @media (max-width: 639px) {
   .availability-sticky-cell {
-    padding: 8px 10px;
+    padding: 8px 12px;
   }
   .availability-sticky-cell strong {
     font-size: 12px;

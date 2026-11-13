@@ -134,9 +134,9 @@ function CancelConfirmContent({
         )}
       >
         {isNoShow ? (
-          <MoonStar className="size-[22px]" aria-hidden />
+          <MoonStar className="size-[24px]" aria-hidden />
         ) : (
-          <CalendarX className="size-[22px]" aria-hidden />
+          <CalendarX className="size-[24px]" aria-hidden />
         )}
       </div>
 
@@ -144,14 +144,14 @@ function CancelConfirmContent({
         <AlertDialog.Heading className="text-balance text-[17px] font-semibold leading-tight tracking-tight text-foreground">
           {isNoShow ? "Mark as No-Show" : "Cancel Reservation"}
         </AlertDialog.Heading>
-        <p className="mt-1.5 text-balance text-[13.5px] leading-relaxed text-muted-foreground">
+        <p className="mt-2 text-balance text-[13.5px] leading-relaxed text-muted-foreground">
           {isNoShow
             ? "The room returns to inventory and this stay counts toward tonight's no-shows."
             : "The room is released and can be rebooked immediately."}
         </p>
       </div>
 
-      <dl className="mt-5 space-y-2.5 text-left">
+      <dl className="mt-5 space-y-3 text-left">
         <div className="flex items-baseline justify-between gap-4">
           <dt className="shrink-0 text-[12px] font-medium text-muted-foreground">Guest</dt>
           <dd className="truncate text-[13px] font-semibold text-foreground">{booking.guestName}</dd>
@@ -170,7 +170,7 @@ function CancelConfirmContent({
         </div>
       </dl>
 
-      <div className="mt-6 flex flex-col gap-2.5">
+      <div className="mt-6 flex flex-col gap-3">
         <Button
           variant={isNoShow ? undefined : "danger"}
           onPress={onConfirm}
@@ -351,7 +351,7 @@ export function ActivityList({
   return (
     <div>
       {/* Header & filter toolbar */}
-      <div className="border-b border-border/50 px-4 py-3 sm:px-5 sm:py-3.5 xl:px-6">
+      <div className="border-b border-border/50 px-4 py-3 sm:px-5 sm:py-4 xl:px-6">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -365,18 +365,18 @@ export function ActivityList({
               )}
             </div>
             {subtitle && (
-              <p className="mt-0.5 text-xs tabular-nums text-muted-foreground sm:hidden">
+              <p className="mt-1 text-xs tabular-nums text-muted-foreground sm:hidden">
                 {subtitle}
               </p>
             )}
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-2">
             {/* Persistent inline filter on sm+ (static width, no layout reflow) */}
             <div className="relative hidden sm:block">
               <Search
                 aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
               />
               <input
                 type="search"
@@ -397,9 +397,9 @@ export function ActivityList({
                   type="button"
                   aria-label="Clear filter"
                   onClick={() => setSearchQuery("")}
-                  className="ui-press absolute right-1.5 top-1/2 grid size-6 -translate-y-1/2 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+                  className="ui-press absolute right-2 top-1/2 grid size-6 -translate-y-1/2 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
                 >
-                  <X className="size-3.5" />
+                  <X className="size-4" />
                 </button>
               )}
             </div>
@@ -436,7 +436,7 @@ export function ActivityList({
                 aria-label="Refresh activity"
                 className="ui-press size-11 min-w-11 rounded-xl text-muted-foreground sm:size-9 sm:min-w-9 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
               >
-                <RotateCw className="size-4 sm:size-3.5" />
+                <RotateCw className="size-4 sm:size-4" />
               </Button>
             )}
           </div>
@@ -444,10 +444,10 @@ export function ActivityList({
 
         {/* Mobile inline filter bar — 16px text-base prevents iOS Safari zoom */}
         {(mobileSearchOpen || searchQuery) && (
-          <div className="relative mt-2.5 sm:hidden">
+          <div className="relative mt-3 sm:hidden">
             <Search
               aria-hidden="true"
-              className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
             />
             <input
               ref={mobileInputRef}
@@ -525,9 +525,9 @@ export function ActivityList({
               <button
                 type="button"
                 onClick={onNewBooking}
-                className="ui-press mt-4 inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
+                className="ui-press mt-4 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-hover)]"
               >
-                <CalendarPlus className="size-3.5" aria-hidden="true" />
+                <CalendarPlus className="size-4" aria-hidden="true" />
                 New booking
               </button>
             )
@@ -538,7 +538,7 @@ export function ActivityList({
           {/* Wide desktop column header band (xl+) — sentence case per PenTable */}
           <div
             aria-hidden="true"
-            className="hidden border-b border-border/50 bg-muted/20 px-6 py-2.5 text-xs font-medium text-muted-foreground xl:grid xl:grid-cols-[minmax(210px,1.35fr)_minmax(150px,1fr)_minmax(150px,0.95fr)_minmax(215px,auto)] xl:items-center xl:gap-4"
+            className="hidden border-b border-border/50 bg-muted/20 px-6 py-3 text-xs font-medium text-muted-foreground xl:grid xl:grid-cols-[minmax(210px,1.35fr)_minmax(150px,1fr)_minmax(150px,0.95fr)_minmax(215px,auto)] xl:items-center xl:gap-4"
           >
             <span>Guest</span>
             <span>Accommodation</span>
@@ -607,20 +607,20 @@ function BookingActivityRow({
       onMouseEnter={() => onHoverPrefetch?.(booking.id)}
       onFocusCapture={() => onHoverPrefetch?.(booking.id)}
       className={cn(
-        "group cursor-pointer px-4 py-4 transition-colors duration-150 active:bg-muted/35 sm:px-5 sm:py-3.5 xl:px-6",
+        "group cursor-pointer px-4 py-4 transition-colors duration-150 active:bg-muted/35 sm:px-5 sm:py-4 xl:px-6",
         "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/25",
         "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4",
         "xl:grid xl:grid-cols-[minmax(210px,1.35fr)_minmax(150px,1fr)_minmax(150px,0.95fr)_minmax(215px,auto)] xl:items-center xl:gap-4"
       )}
     >
       {/* Zone 1 (sm–lg combined info wrapper; xl unwraps into grid columns via xl:contents) */}
-      <div className="min-w-0 flex-1 space-y-2.5 sm:space-y-1.5 xl:contents">
+      <div className="min-w-0 flex-1 space-y-3 sm:space-y-2 xl:contents">
         {/* Col 1: Guest + reference */}
         <div className="flex items-start justify-between gap-3 sm:items-center">
           <div className="flex min-w-0 items-center gap-3">
             <GuestAvatar name={booking.guestName} hasConflict={booking.hasConflict} />
             <div className="min-w-0 flex-1">
-              <div className="flex min-w-0 items-center gap-1.5">
+              <div className="flex min-w-0 items-center gap-2">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -633,19 +633,19 @@ function BookingActivityRow({
                 </button>
                 {booking.hasNotes && (
                   <MessageSquareText
-                    className="size-3.5 shrink-0 text-amber-500"
+                    className="size-4 shrink-0 text-amber-500"
                     aria-label="Booking has notes or special requests"
                   />
                 )}
                 {booking.hasConflict && (
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-destructive/12 px-2 py-0.5 text-[11px] font-semibold text-destructive">
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-destructive/12 px-2 py-1 text-[11px] font-semibold text-destructive">
                     <AlertTriangle className="size-3" aria-hidden="true" />
                     Conflict
                   </span>
                 )}
               </div>
 
-              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] tabular-nums text-muted-foreground">
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] tabular-nums text-muted-foreground">
                 <span className="font-mono">{booking.reference}</span>
                 {booking.paymentStatus === "paid" && booking.status !== "cancelled" && (
                   <span className="font-medium text-emerald-600">· Paid</span>
@@ -662,9 +662,9 @@ function BookingActivityRow({
         </div>
 
         {/* Metadata strip on mobile/tablet; splits into Col 2 (Accommodation) & Col 3 (Stay) on xl */}
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-0 text-xs text-muted-foreground sm:pl-12 xl:contents">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-0 text-xs text-muted-foreground sm:pl-12 xl:contents">
           {/* Col 2: Accommodation */}
-          <div className="flex min-w-0 items-center gap-1.5 xl:pl-0">
+          <div className="flex min-w-0 items-center gap-2 xl:pl-0">
             {assignedRoom ? (
               <span className="inline-flex items-center gap-1 font-medium text-foreground">
                 <span className="truncate">{assignedRoom}</span>
@@ -675,8 +675,8 @@ function BookingActivityRow({
                 )}
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5">
-                <span className="rounded-md bg-amber-500/12 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">
+              <span className="inline-flex items-center gap-2">
+                <span className="rounded-md bg-amber-500/12 px-2 py-1 text-[11px] font-semibold text-amber-800">
                   Unassigned
                 </span>
                 {booking.roomType && (
@@ -686,14 +686,14 @@ function BookingActivityRow({
             )}
 
             {booking.roomsCount > 1 && (
-              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+              <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-semibold tabular-nums text-muted-foreground">
                 ×{booking.roomsCount}
               </span>
             )}
 
             <ChevronRight
               aria-hidden="true"
-              className="hidden size-3.5 shrink-0 text-muted-foreground/35 transition-transform duration-150 xl:inline [@media(hover:hover)_and_(pointer:fine)]:group-hover:translate-x-0.5 [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-muted-foreground/70"
+              className="hidden size-4 shrink-0 text-muted-foreground/35 transition-transform duration-150 xl:inline [@media(hover:hover)_and_(pointer:fine)]:group-hover:translate-x-0.5 [@media(hover:hover)_and_(pointer:fine)]:group-hover:text-muted-foreground/70"
             />
           </div>
 
@@ -702,7 +702,7 @@ function BookingActivityRow({
           </span>
 
           {/* Col 3: Stay dates & guest count */}
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 font-mono text-xs tabular-nums xl:flex-col xl:items-start xl:gap-0.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs tabular-nums xl:flex-col xl:items-start xl:gap-1">
             <span className="font-medium text-foreground">
               {formatDate(booking.checkIn, "dd MMM")} – {formatDate(booking.checkOut, "dd MMM")}
             </span>
@@ -714,7 +714,7 @@ function BookingActivityRow({
       </div>
 
       {/* Col 4: Status & primary actions (44px height on mobile, crisp 36px on sm+) */}
-      <div className="flex items-center justify-end gap-2 pt-0.5 sm:shrink-0 sm:pt-0">
+      <div className="flex items-center justify-end gap-2 pt-1 sm:shrink-0 sm:pt-0">
         {isUnpaid && (
           <button
             type="button"
@@ -722,7 +722,7 @@ function BookingActivityRow({
               e.stopPropagation();
               onTakePayment?.(booking);
             }}
-            className="ui-press inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-xl border border-amber-500/40 bg-amber-500/[0.06] px-3.5 text-xs font-semibold whitespace-nowrap text-amber-800 outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 sm:min-h-9 sm:flex-initial sm:rounded-lg sm:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-amber-500/12"
+            className="ui-press inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-xl border border-amber-500/40 bg-amber-500/[0.06] px-4 text-xs font-semibold whitespace-nowrap text-amber-800 outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 sm:min-h-9 sm:flex-initial sm:rounded-lg sm:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-amber-500/12"
           >
             {booking.paymentStatus === "partial" ? "Collect balance" : "Take payment"}
           </button>
@@ -823,7 +823,7 @@ function SplitAction({
       <button
         type="button"
         onClick={onMain}
-        className="ui-press flex-1 cursor-pointer px-3.5 py-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/80 sm:flex-initial sm:px-3 sm:py-1.5"
+        className="ui-press flex-1 cursor-pointer px-4 py-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/80 sm:flex-initial sm:px-3 sm:py-2"
       >
         {mainLabel}
       </button>
@@ -833,7 +833,7 @@ function SplitAction({
             aria-label={`${mainLabel} options`}
             className="ui-press grid w-11 shrink-0 cursor-pointer place-items-center outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/80 sm:w-8"
           >
-            <ChevronDown className="size-4 sm:size-3.5" />
+            <ChevronDown className="size-4 sm:size-4" />
           </Dropdown.Trigger>
           <Dropdown.Popover placement="bottom end">
             <Dropdown.Menu
@@ -860,7 +860,7 @@ export function StatusChip({ status, className }: { status: string; className?: 
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ring-1 ring-inset",
+        "inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold capitalize ring-1 ring-inset",
         chipTone(status),
         className
       )}

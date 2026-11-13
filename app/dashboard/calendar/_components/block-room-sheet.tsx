@@ -146,11 +146,11 @@ export function BlockRoomSheet({
           aria-labelledby="block-room-title"
           className="flex h-[88dvh] max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[24px] bg-background shadow-2xl md:h-dvh md:max-h-dvh md:w-[min(25rem,100vw)] md:rounded-none md:border-l md:border-border/70"
         >
-          {isMobile && <Drawer.Handle className="mt-2.5 shrink-0" />}
-          <Drawer.CloseTrigger className="ui-press absolute right-3.5 top-3.5 z-10 inline-flex size-10 items-center justify-center rounded-xl bg-muted/70 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+          {isMobile && <Drawer.Handle className="mt-3 shrink-0" />}
+          <Drawer.CloseTrigger className="ui-press absolute right-4 top-4 z-10 inline-flex size-10 items-center justify-center rounded-xl bg-muted/70 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" />
 
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-            <Drawer.Header className="shrink-0 flex-row items-center justify-between border-b border-border/50 px-5 pb-3.5 pr-14 pt-5">
+            <Drawer.Header className="shrink-0 flex-row items-center justify-between border-b border-border/50 px-5 pb-4 pr-14 pt-5">
               <Drawer.Heading id="block-room-title" className="text-[15px] font-semibold text-foreground">
                 {isEditing ? "Edit room block" : "Block room dates"}
               </Drawer.Heading>
@@ -158,9 +158,9 @@ export function BlockRoomSheet({
 
             <Drawer.Body className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4">
               <div>
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Room</p>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Room</p>
                 {isEditing ? (
-                  <p className="rounded-xl border border-border/60 bg-muted/30 px-3.5 py-2.5 text-sm font-medium text-foreground">
+                  <p className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-sm font-medium text-foreground">
                     {formatRoomLabel(editingRoom?.roomNumber) ?? "Room"}
                     {editingRoom?.roomTypeName ? ` · ${editingRoom.roomTypeName}` : ""}
                   </p>
@@ -185,7 +185,7 @@ export function BlockRoomSheet({
               </div>
 
               <div>
-                <div className="mb-1.5 flex items-center justify-between gap-2">
+                <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-xs font-medium text-muted-foreground">Dates</p>
                   {dateRange?.from && dateRange?.to && (
                     <span className="inline-flex items-center gap-1 font-mono text-xs font-medium tabular-nums text-foreground">
@@ -230,7 +230,7 @@ export function BlockRoomSheet({
               </div>
 
               <div>
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Reason</p>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Reason</p>
                 <HeroSelectField
                   value={reason}
                   onValueChange={setReason}
@@ -245,7 +245,7 @@ export function BlockRoomSheet({
               <div>
                 <label
                   htmlFor="block-room-notes"
-                  className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                  className="mb-2 block text-xs font-medium text-muted-foreground"
                 >
                   Notes <span className="font-normal text-muted-foreground/70">(optional)</span>
                 </label>

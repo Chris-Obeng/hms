@@ -271,14 +271,14 @@ export function AvailabilityMatrixClient({
           <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-[24px]">
             Availability &amp; rates
           </h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             {data.currency} nightly rates · tap any rate cell to override
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Date stepper */}
-          <div className="inline-flex items-center rounded-xl border border-border/70 bg-card p-0.5">
+          <div className="inline-flex items-center rounded-xl border border-border/70 bg-card p-1">
             <button
               type="button"
               aria-label={`Previous ${data.days} days`}
@@ -291,7 +291,7 @@ export function AvailabilityMatrixClient({
             <button
               type="button"
               onClick={() => navigate(parseISO(todayKey))}
-              className="ui-press h-11 cursor-pointer rounded-[9px] px-3 text-xs font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 sm:px-2.5 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted"
+              className="ui-press h-11 cursor-pointer rounded-[9px] px-3 text-xs font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 sm:px-3 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted"
             >
               Today
             </button>
@@ -314,7 +314,7 @@ export function AvailabilityMatrixClient({
                 aria-label="Pick start date"
                 className="ui-press inline-flex h-12 cursor-pointer items-center gap-2 rounded-xl border border-border/70 bg-card px-3 text-xs font-semibold tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/50"
               >
-                <CalendarDays className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                <CalendarDays className="size-4 text-muted-foreground" aria-hidden="true" />
                 {rangeLabel}
               </button>
             </Popover.Trigger>
@@ -355,7 +355,7 @@ export function AvailabilityMatrixClient({
           <div
             role="group"
             aria-label="Visible days"
-            className="inline-flex items-center rounded-xl border border-border/60 bg-muted/35 p-0.5"
+            className="inline-flex items-center rounded-xl border border-border/60 bg-muted/35 p-1"
           >
             {DAY_PRESETS.map((d) => {
               const active = data.days === d;
@@ -366,7 +366,7 @@ export function AvailabilityMatrixClient({
                   aria-pressed={active}
                   onClick={() => navigate(start, d)}
                   className={cn(
-                    "ui-press h-11 min-w-11 cursor-pointer rounded-[9px] px-3 text-xs font-medium tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 sm:min-w-0 sm:px-2.5",
+                    "ui-press h-11 min-w-11 cursor-pointer rounded-[9px] px-3 text-xs font-medium tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 sm:min-w-0 sm:px-3",
                     active
                       ? "bg-card font-semibold text-foreground shadow-2xs ring-1 ring-border/60"
                       : "text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
@@ -384,7 +384,7 @@ export function AvailabilityMatrixClient({
             onClick={() => router.refresh()}
             className="ui-press grid size-12 cursor-pointer place-items-center rounded-xl border border-border/70 bg-card text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/50 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
           >
-            <RefreshCw className="size-3.5" />
+            <RefreshCw className="size-4" />
           </button>
         </div>
       </header>
@@ -394,7 +394,7 @@ export function AvailabilityMatrixClient({
         <div className="relative w-full sm:max-w-xs">
           <Search
             aria-hidden="true"
-            className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           />
           <input
             type="search"
@@ -415,9 +415,9 @@ export function AvailabilityMatrixClient({
               type="button"
               aria-label="Clear filter"
               onClick={() => setQuery("")}
-              className="ui-press absolute right-1 top-1/2 grid size-9 -translate-y-1/2 cursor-pointer place-items-center rounded-lg text-muted-foreground sm:right-1.5 sm:size-7 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+              className="ui-press absolute right-1 top-1/2 grid size-9 -translate-y-1/2 cursor-pointer place-items-center rounded-lg text-muted-foreground sm:right-2 sm:size-7 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
             >
-              <X className="size-3.5" />
+              <X className="size-4" />
             </button>
           )}
         </div>
@@ -469,7 +469,7 @@ export function AvailabilityMatrixClient({
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                className="ui-press mt-3 inline-flex min-h-9 cursor-pointer items-center rounded-xl border border-border bg-background px-3.5 text-xs font-semibold text-foreground"
+                className="ui-press mt-3 inline-flex min-h-9 cursor-pointer items-center rounded-xl border border-border bg-background px-4 text-xs font-semibold text-foreground"
               >
                 Clear filter
               </button>
@@ -576,7 +576,7 @@ export function AvailabilityMatrixClient({
                         offset={6}
                         className="w-[236px] rounded-2xl border border-border/70 bg-popover p-0 shadow-xl"
                       >
-                        <Popover.Dialog className="grid gap-3 p-3.5 outline-none">
+                        <Popover.Dialog className="grid gap-3 p-4 outline-none">
                           <div className="flex items-baseline justify-between gap-2">
                             <span className="truncate text-xs font-semibold text-foreground">
                               {row.name}
@@ -587,7 +587,7 @@ export function AvailabilityMatrixClient({
                           </div>
 
                           {marks.length > 0 && (
-                            <ul className="grid gap-1 rounded-xl border border-amber-500/25 bg-amber-500/[0.08] px-2.5 py-2 text-[11px] leading-snug text-amber-900">
+                            <ul className="grid gap-1 rounded-xl border border-amber-500/25 bg-amber-500/[0.08] px-3 py-2 text-[11px] leading-snug text-amber-900">
                               {marks.map((m) => (
                                 <li key={m.code}>{m.title}</li>
                               ))}
@@ -619,7 +619,7 @@ export function AvailabilityMatrixClient({
                             />
                           </div>
 
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-2">
                             <HeroButton
                               size="sm"
                               variant="primary"
