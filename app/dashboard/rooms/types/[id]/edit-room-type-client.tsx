@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "@heroui/react";
-import { Camera, X } from "lucide-react";
+import { Alert, CloseButton, toast } from "@heroui/react";
+import { Camera } from "lucide-react";
 
 import { updateRoomType } from "@/app/actions/rooms";
 import { toAmenityObjects } from "@/lib/amenities";
@@ -75,48 +75,31 @@ export function EditRoomTypeClient({
   }
 
   return (
-    <>
-      {/* "Just created" banner — shown when redirected from the new page */}
-      {showBanner && (
-        <div className="mx-auto mb-4 max-w-2xl">
-          <div
-            role="status"
-            className="flex items-start gap-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3"
-          >
-            <Camera className="mt-1 size-4 shrink-0 text-amber-600" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-amber-900">
-                Room created — now add photos
-              </p>
-              <p className="mt-1 text-xs text-amber-700">
-                Rooms with photos get significantly more bookings. Add at least 3 photos below.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowBanner(false)}
-              aria-label="Dismiss"
-              className="-mr-1 -mt-1 inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-amber-600/70 transition-colors hover:bg-amber-500/10 hover:text-amber-800"
-            >
-              <X className="size-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      <RoomTypeForm
-        initialValues={initialValues}
-        hotelId={hotelId}
-        roomTypeId={roomTypeId}
-        initialImages={initialImages}
-        photosFirst
-        currency={currency}
-        onSubmit={handleSubmit}
-        submitLabel="Save Changes"
-        submittingLabel="Saving..."
-        title={name}
-        errors={errors}
-      />
-    </>
+    <RoomTypeForm
+      initialValues={initialValues}
+      hotelId={hotelId}
+      roomTypeId={roomTypeId}
+      initialImages={initialImages}
+      photosFirst
+      currency={currency}
+      onSubmit={handleSubmit}
+      submitLabel="Save changes"
+      submittingLabel="Saving…"
+      title={name}
+      errors={errors}
+      notice={
+        showBanner ? (
+          <Alert status="accent" className="rounded-2xl animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-[var(--ease-out-ui)] motion-reduce:animate-none">
+            <Alert.Indicator>
+              <Camera className="size-4" aria-hidden="true" />
+            </Alert.Indicator>
+            <Alert.Content>
+              <Alert.Title>Room type created. Add photos next.</Alert.Title>
+            </Alert.Content>
+            <CloseButton aria-label="Dismiss" onPress={() => setShowBanner(false)} />
+          </Alert>
+        ) : undefined
+      }
+    />
   );
 }
