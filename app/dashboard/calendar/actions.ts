@@ -11,6 +11,7 @@ import { businessToday } from "@/lib/business-date";
 import { writeAuditLog } from "@/lib/audit";
 import { captureIssue } from "@/lib/observability/sentry";
 import { isoDateParam } from "@/lib/validation/params";
+import { readAllPages } from "@/lib/reports/pagination";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { fetchNightlyRates } from "@/lib/pricing/nightly-rates";
 import { applyBps, percentToBps, toMinor } from "@/lib/money";
@@ -27,6 +28,8 @@ import {
 const uuidParam = z.uuid();
 /** Visible calendar window. VIEW_PRESETS top out at 30; 45 leaves headroom. */
 const calendarDaysParam = z.number().int().min(1).max(45);
+/** Upper bound on rows per calendar read; a larger window fails loudly instead of truncating. */
+const CALENDAR_MAX_ROWS = 20_000;
 const blockReasonParam = z.string().trim().min(1).max(50);
 const blockNotesParam = z.string().trim().max(2000).nullable();
 
@@ -202,72 +205,105 @@ export async function getCalendarData(
     throw new Error("Failed to load calendar data");
   };
 
-  // 1. Room types for this hotel
-  // Parallel queries ──────────────────────────────────────────────────
+  // Every read is independent, so they run in parallel (one round trip, not
+  // four). Rooms, bookings and blocks are read in id-keyset pages: PostgREST
+  // caps a response at max_rows (1000), and a silently truncated rack would
+  // show booked rooms as free. Order is restored in memory after the read.
+  const readAll = <T extends { id: string }>(
+    step: string,
+    page: Parameters<typeof readAllPages<T>>[1]
+  ): Promise<T[]> =>
+    readAllPages(step, page, CALENDAR_MAX_ROWS).catch((error: unknown) =>
+      failLoad(step, { message: error instanceof Error ? error.message : String(error) })
+    );
 
-  // 1. Room types for this hotel
-  const { data: roomTypes, error: roomTypesError } = await supabase
-    .from("room_types")
-    .select("id, name, slug, base_price, sort_order")
-    .eq("hotel_id", hotelId)
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true });
+  const [roomTypesResult, rooms, bookings, blocks] = await Promise.all([
+    // 1. Active room types, in the hotel's display order
+    supabase
+      .from("room_types")
+      .select("id, name, slug, base_price, sort_order")
+      .eq("hotel_id", hotelId)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
+    // 2. Active rooms with their type (sorted below)
+    readAll("rooms", (after, size) => {
+      let q = supabase
+        .from("rooms")
+        .select(
+          `
+          id, room_number, floor, status,
+          room_types!inner(id, name, slug, base_price, sort_order)
+        `,
+          { count: "exact" }
+        )
+        .eq("hotel_id", hotelId)
+        .eq("is_active", true)
+        .order("id", { ascending: true })
+        .limit(size);
+      if (after) q = q.gt("id", after);
+      return q;
+    }),
+    // 3. Bookings overlapping the visible window (assigned + unassigned).
+    //    ALL statuses are returned so scrolling into history still shows
+    //    past stays (checked_out / cancelled / no_show render muted and are
+    //    not draggable). Window bounds keep the payload proportional to what
+    //    is actually on screen.
+    readAll("bookings", (after, size) => {
+      let q = supabase
+        .from("bookings")
+        .select(
+          `
+          id, reference,
+          check_in, check_out, nights,
+          status, payment_status, source,
+          total_amount, adults, children,
+          estimated_arrival, special_requests, internal_notes,
+          room_id,
+          room_type_id,
+          group_id, rooms_count,
+          guests(full_name, email, phone),
+          rooms(room_number, room_types!inner(name))
+        `,
+          { count: "exact" }
+        )
+        .eq("hotel_id", hotelId)
+        .lt("check_in", endDate)
+        .gt("check_out", startDate)
+        .order("id", { ascending: true })
+        .limit(size);
+      if (after) q = q.gt("id", after);
+      return q;
+    }),
+    // 4. Availability blocks overlapping the visible window
+    readAll("availability_blocks", (after, size) => {
+      let q = supabase
+        .from("availability_blocks")
+        .select("id, room_id, start_date, end_date, reason, notes, created_by, created_at", {
+          count: "exact",
+        })
+        .eq("hotel_id", hotelId)
+        .lt("start_date", endDate)
+        .gt("end_date", startDate)
+        .order("id", { ascending: true })
+        .limit(size);
+      if (after) q = q.gt("id", after);
+      return q;
+    }),
+  ]);
 
+  const { data: roomTypes, error: roomTypesError } = roomTypesResult;
   if (roomTypesError) failLoad("room_types", roomTypesError);
 
-  // 2. Rooms ordered by type then number
-  const { data: rooms, error: roomsError } = await supabase
-    .from("rooms")
-    .select(`
-      id, room_number, floor, status,
-      room_types!inner(id, name, slug, base_price, sort_order)
-    `)
-    .eq("hotel_id", hotelId)
-    .eq("is_active", true)
-    .order("room_number", { ascending: true });
-
-  if (roomsError) failLoad("rooms", roomsError);
-
-  // 3. Bookings overlapping the visible window (assigned + unassigned).
-  //    ALL statuses are returned so scrolling into history still shows
-  //    past stays (checked_out / cancelled / no_show render muted and are
-  //    not draggable). Window bounds keep the payload proportional to what
-  //    is actually on screen.
-  const { data: bookings, error: bookingsError } = await supabase
-    .from("bookings")
-    .select(`
-      id, reference,
-      check_in, check_out, nights,
-      status, payment_status, source,
-      total_amount, adults, children,
-      estimated_arrival, special_requests, internal_notes,
-      room_id,
-      room_type_id,
-      group_id, rooms_count,
-      guests(full_name, email, phone),
-      rooms(room_number, room_types!inner(name))
-    `)
-    .eq("hotel_id", hotelId)
-    .lt("check_in", endDate)
-    .gt("check_out", startDate)
-    .order("check_in", { ascending: true });
-
-  if (bookingsError) failLoad("bookings", bookingsError);
-
-  // 4. Availability blocks overlapping the visible window
-  const { data: blocks, error: blocksError } = await supabase
-    .from("availability_blocks")
-    .select("id, room_id, start_date, end_date, reason, notes, created_by, created_at")
-    .eq("hotel_id", hotelId)
-    .lt("start_date", endDate)
-    .gt("end_date", startDate)
-    .order("start_date", { ascending: true });
-
-  if (blocksError) failLoad("availability_blocks", blocksError);
+  // Deterministic order for the stay list and blocks (pages arrive by id).
+  bookings.sort(
+    (a, b) =>
+      String(a.check_in).localeCompare(String(b.check_in)) || a.id.localeCompare(b.id)
+  );
+  blocks.sort((a, b) => a.start_date.localeCompare(b.start_date) || a.id.localeCompare(b.id));
 
   // Resolve blocker names in one query
-  const blockCreatorIds = [...new Set((blocks || []).map((b) => b.created_by).filter(Boolean))] as string[];
+  const blockCreatorIds = [...new Set(blocks.map((b) => b.created_by).filter(Boolean))] as string[];
   const blockStaffMap = new Map<string, string>();
   if (blockCreatorIds.length > 0) {
     const { data: blockStaff, error: blockStaffError } = await supabase
@@ -298,10 +334,7 @@ export async function getCalendarData(
     sortOrder: rt.sort_order,
   }));
 
-  // Build a lookup for room type info
-  const roomTypeLookup = new Map(mappedRoomTypes.map((rt) => [rt.id, rt]));
-
-  const mappedRooms = (rooms || []).map((r: Record<string, unknown>) => ({
+  const mappedRooms = (rooms as Record<string, unknown>[]).map((r) => ({
     id: r.id as string,
     roomNumber: r.room_number as string,
     floor: (r.floor as string | null) ?? null,
@@ -313,18 +346,18 @@ export async function getCalendarData(
     roomTypeBasePrice: (r.room_types as Record<string, unknown>).base_price as number,
   }));
 
-  // Sort rooms by room_type.sort_order, room_type.name, room_number
-  mappedRooms.sort((a, b) => {
-    const aType = roomTypeLookup.get(a.roomTypeId);
-    const bType = roomTypeLookup.get(b.roomTypeId);
-    const typeOrder =
-      (aType?.sortOrder ?? 0) - (bType?.sortOrder ?? 0) ||
-      (aType?.name ?? "").localeCompare(bType?.name ?? "");
-    if (typeOrder !== 0) return typeOrder;
-    return a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true });
-  });
+  // Sort rooms by room_type.sort_order, room_type.name, room_number. Each room
+  // carries its own type's order, so a room whose type was deactivated still
+  // sorts with its type instead of jumping to the top.
+  mappedRooms.sort(
+    (a, b) =>
+      a.roomTypeSortOrder - b.roomTypeSortOrder ||
+      a.roomTypeName.localeCompare(b.roomTypeName) ||
+      a.roomTypeId.localeCompare(b.roomTypeId) ||
+      a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true })
+  );
 
-  const mappedBookings: CalendarBooking[] = (bookings || []).map((row: Record<string, unknown>) => ({
+  const mappedBookings: CalendarBooking[] = (bookings as Record<string, unknown>[]).map((row) => ({
     id: row.id as string,
     reference: row.reference as string,
     guestName: ((row.guests as Record<string, unknown> | null)?.full_name as string | null) ?? null,
@@ -350,7 +383,7 @@ export async function getCalendarData(
     internalNotes: (row.internal_notes as string | null) ?? null,
   }));
 
-  const mappedBlocks: CalendarAvailabilityBlock[] = (blocks || []).map((blk) => ({
+  const mappedBlocks: CalendarAvailabilityBlock[] = blocks.map((blk) => ({
     id: blk.id,
     roomId: blk.room_id,
     startDate: blk.start_date,
