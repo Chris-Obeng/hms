@@ -646,8 +646,9 @@
   --accent-foreground: var(--primary-foreground);
   --accent-hover: color-mix(in oklch, var(--primary) 90%, black);
   /* Off track: HeroUI uses --default (= --secondary here), which nearly
-   * matches a white card. Give it enough ink to read as a control. */
-  --switch-control-bg: color-mix(in oklch, var(--foreground) 16%, var(--card));
+   * matches a white card. 44% ink gives ~3.4:1 against the card and the white
+   * thumb (WCAG 1.4.11 asks 3:1 for controls). */
+  --switch-control-bg: color-mix(in oklch, var(--foreground) 44%, var(--card));
 }
 .switch[data-selected="true"] .switch__control {
   background-color: var(--primary);
