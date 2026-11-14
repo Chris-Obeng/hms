@@ -67,7 +67,9 @@ describe("occupancy card", () => {
         metric={calculateRoomsSold(context, { ...counts, soldRooms: 9, heldRooms: 0 })}
       />
     );
-    expect(screen.getByText("Check inventory")).toBeTruthy();
+    // One notice, not a notice plus a second "Check inventory" panel.
+    expect(screen.getByText("Check these counts")).toBeTruthy();
+    expect(screen.queryByText("Check inventory")).toBeNull();
     expect(screen.getByRole("alert").textContent).toContain("exceed sellable inventory by 3 rooms");
     expect(screen.getByText(/sellable rooms \(150%\)/)).toBeTruthy();
     expect(screen.queryByRole("img")).toBeNull();
@@ -81,6 +83,18 @@ describe("occupancy card", () => {
     expect(screen.getByText("33.3%")).toBeTruthy();
     expect(screen.queryByRole("note")).toBeNull();
     expect(screen.queryByText(/Tonight/)).toBeNull();
+  });
+
+  it("labels a past night's rooms as occupied, in past-tense copy", () => {
+    render(
+      <OccupancyCard
+        metric={calculateRoomsSold({ ...context, date: "2026-10-20" }, { ...counts, soldRooms: 9, heldRooms: 0 })}
+      />
+    );
+    expect(screen.getByRole("alert").textContent).toContain("Occupied rooms exceed the rooms you could sell by 3 rooms");
+    expect(screen.getByRole("alert").textContent).not.toContain("holds");
+    expect(screen.getByText("Occupied")).toBeTruthy();
+    expect(screen.queryByText("Booked")).toBeNull();
   });
 
   it("explains a past night with no room records", () => {

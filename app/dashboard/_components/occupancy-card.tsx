@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import { Button, Popover } from "@heroui/react";
-import { Info } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 import { formatSoldPercent, type RoomsSoldMetric } from "@/lib/metrics/dashboard-occupancy";
 import { cn } from "@/lib/utils";
 import { OccupancyDonut } from "./occupancy-donut";
@@ -13,7 +13,7 @@ import { OccupancyDonut } from "./occupancy-donut";
  * control says which night. Screen readers get both in the heading.
  *
  * Layout follows the space it gets:
- * - phones: ring left, list right
+ * - phones: ring left, list right (below 360 px, ring above the list)
  * - tablets: ring left, counts as a row of columns
  * - from 1280 px (side column): ring centred above the list
  */
@@ -38,6 +38,9 @@ export function OccupancyCard({
   // or history not set up): say why once, quietly.
   const isUnrecorded = metric.basis === "historical-unavailable";
   const isPast = metric.basis === "historical" || isUnrecorded;
+  const isInconsistent = metric.state === "inconsistent";
+  // A past night counts guests who were in house; later nights count bookings.
+  const soldLabel = isPast ? "Occupied" : "Booked";
 
   return (
     <section
@@ -64,14 +67,21 @@ export function OccupancyCard({
 
       {!isUnrecorded && metric.issues.length > 0 && (
         <div
-          role={metric.state === "inconsistent" ? "alert" : "note"}
+          role={isInconsistent ? "alert" : "note"}
           className={cn(
             "mb-4 space-y-1 rounded-2xl px-4 py-3 pr-10 text-xs leading-relaxed",
-            metric.state === "inconsistent"
+            isInconsistent
               ? "bg-amber-500/[0.08] text-foreground"
               : "bg-secondary/70 text-muted-foreground"
           )}
         >
+          {/* One notice for an inconsistent night: what to check, then why. */}
+          {isInconsistent && (
+            <p className="flex items-center gap-2 text-sm font-semibold">
+              <AlertTriangle aria-hidden="true" className="size-4 shrink-0 text-amber-700" />
+              Check these counts
+            </p>
+          )}
           {metric.issues.map((issue) => (
             <p key={issue}>{issue}</p>
           ))}
@@ -82,23 +92,30 @@ export function OccupancyCard({
         <div
           className={cn(
             "flex gap-6",
-            isReady ? "items-center xl:flex-col xl:items-stretch" : "flex-col gap-4"
+            // Below 360 px the ring sits above the counts, so labels keep
+            // their width and stay clear of the info button.
+            isReady
+              ? "items-center max-[22.5rem]:flex-col max-[22.5rem]:items-stretch xl:flex-col xl:items-stretch"
+              : "flex-col gap-4"
           )}
         >
-          <OccupancyDonut
-            metric={metric}
-            dateLabel={dateLabel}
-            className={isReady ? "w-28 xl:mx-auto xl:mt-2 xl:w-44" : "w-full pr-10"}
-          />
+          {/* The notice above already explains an inconsistent night. */}
+          {!isInconsistent && (
+            <OccupancyDonut
+              metric={metric}
+              dateLabel={dateLabel}
+              className={isReady ? "w-28 max-[22.5rem]:mx-auto xl:mx-auto xl:mt-2 xl:w-44" : "w-full pr-10"}
+            />
+          )}
 
           {metric.totalRooms !== null && (
             <div className="min-w-0 flex-1">
-              {metric.state === "inconsistent" &&
+              {isInconsistent &&
                 metric.sellableRooms !== null &&
                 metric.soldRooms !== null && (
                   <p className="mb-3 text-xs text-muted-foreground">
                     <span className="font-semibold tabular-nums text-foreground">
-                      {metric.soldRooms} booked
+                      {metric.soldRooms} {soldLabel.toLowerCase()}
                     </span>{" "}
                     of <span className="tabular-nums">{metric.sellableRooms}</span> sellable rooms
                     {metric.soldPercent !== null && ` (${formatSoldPercent(metric.soldPercent)}%)`}
@@ -118,7 +135,7 @@ export function OccupancyCard({
                   dot={isDeficit ? "bg-destructive" : "bg-secondary ring-1 ring-inset ring-border"}
                   tone={isDeficit ? "text-destructive" : undefined}
                 />
-                <Stat label="Booked" value={metric.soldRooms} dot="bg-primary" />
+                <Stat label={soldLabel} value={metric.soldRooms} dot="bg-primary" />
                 {(metric.heldRooms ?? 0) > 0 && (
                   <Stat label="On hold" value={metric.heldRooms} dot="bg-[var(--sun)]" />
                 )}
@@ -192,7 +209,7 @@ function AboutOccupancy({ past, className }: { past: boolean; className?: string
       <Popover.Content placement="bottom end" className="max-w-64 rounded-2xl">
         <Popover.Dialog aria-label="About occupancy" className="p-4 text-sm leading-relaxed text-muted-foreground outline-none">
           {past
-            ? "Rooms checked in that night as a share of the rooms you could sell, as they stood at the end of the day. Out-of-service and blocked rooms are left out."
+            ? "Rooms occupied that night as a share of the rooms you could sell, as they stood at the end of the day. A guest who checked out early stops counting from the day they left. Out-of-service and blocked rooms are left out."
             : "Booked rooms as a share of the rooms you can sell that night. Out-of-service and blocked rooms are left out."}
         </Popover.Dialog>
       </Popover.Content>

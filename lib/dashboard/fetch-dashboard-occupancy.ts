@@ -112,7 +112,7 @@ async function fetchHistoricalOccupancy(
         .eq("hotel_id", hotelId).lte("start_date", date).gt("end_date", date)
         .lt("valid_from", dayEnd).or(coversDayEnd).order("id").range(from, to)),
       readInventoryRows((from, to) => supabase.from("bookings")
-        .select("id, rooms_count", { count: "exact" })
+        .select("id, rooms_count, room_id, status, check_out_at", { count: "exact" })
         .eq("hotel_id", hotelId).in("status", ["checked_in", "checked_out"])
         .lte("check_in", date).gt("check_out", date).order("id").range(from, to)),
     ]);

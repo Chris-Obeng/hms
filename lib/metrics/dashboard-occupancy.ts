@@ -4,7 +4,7 @@
  * Today and later nights come from live inventory (buildRoomsSoldMetric).
  * Past nights come from recorded history (buildHistoricalRoomsSold): the
  * physical rooms on record for that date, the rooms out of service or
- * blocked at the end of that business day, and the stays checked in that
+ * blocked at the end of that business day, and the stays in house that
  * night. Live room status is never used for a past night.
  *
  * When valid: total = outOfService + blocked + sold + held + available.
@@ -14,6 +14,8 @@
  * Live inventory semantics mirror 20260830170000's availability primitive;
  * its public batch RPC verifies availability, but cannot establish past truth.
  */
+import { businessDate } from "@/lib/business-date";
+
 export interface OccupancyContext {
   date: string;
   businessToday: string;
@@ -92,7 +94,12 @@ export function calculateRoomsSold(
   }
   if (sellableRooms < 0) base.issues.push("Excluded rooms exceed the total room inventory.");
   if (availableRooms < 0) {
-    base.issues.push(`Reservations and holds exceed sellable inventory by ${-availableRooms} ${availableRooms === -1 ? "room" : "rooms"}.`);
+    const rooms = `${-availableRooms} ${availableRooms === -1 ? "room" : "rooms"}`;
+    base.issues.push(
+      base.basis === "historical"
+        ? `Occupied rooms exceed the rooms you could sell by ${rooms}.`
+        : `Reservations and holds exceed sellable inventory by ${rooms}.`,
+    );
   }
   return {
     ...base,
@@ -216,12 +223,41 @@ export interface InventoryRecord {
   time_zone: string;
 }
 
+export interface HistoricalStay {
+  id: string;
+  rooms_count: number;
+  room_id?: string | null;
+  status?: string | null;
+  /** When the guest actually checked out; null while still checked in. */
+  check_out_at?: string | null;
+}
+
+/**
+ * Whether a checked-in or checked-out stay booked over `date` was really in
+ * house that night. A guest who checks out early stops counting from the
+ * business day they left, so a room resold that day is not counted twice.
+ * Leaving at 07:00 on the 1st means the night of the 31st was the last one;
+ * a same-day check-in and check-out uses no night at all. Stays with no
+ * recorded check-out time keep their booked dates.
+ */
+export function wasInHouseOnNight(stay: HistoricalStay, date: string, timeZone: string): boolean {
+  if (stay.status !== "checked_out" || !stay.check_out_at) return true;
+  const left = new Date(stay.check_out_at);
+  if (!Number.isFinite(left.getTime())) return true;
+  return businessDate(timeZone, left) > date;
+}
+
 /**
  * A past night from recorded history. Inputs are already scoped to the night:
  * `inventory` is the latest physical-capacity record on or before it, the room
  * ids are those out of service / blocked at the end of that business day, and
- * `stays` are checked-in or checked-out bookings covering it (the same rule
- * Night Audit uses for room nights). Holds have resolved by then, so none.
+ * `stays` are checked-in or checked-out bookings booked over it. A stay that
+ * checked out before the night is dropped (see wasInHouseOnNight). Holds have
+ * resolved by then, so none.
+ *
+ * Night Audit still counts room nights by booked dates, because its revenue
+ * comes from the booked nightly rates. The two differ only on nights after an
+ * early check-out.
  */
 export function buildHistoricalRoomsSold({
   context, timeZone, inventory, outOfServiceRoomIds, blockedRoomIds, stays,
@@ -231,7 +267,7 @@ export function buildHistoricalRoomsSold({
   inventory: InventoryRecord | null;
   outOfServiceRoomIds: readonly string[];
   blockedRoomIds: readonly string[];
-  stays: readonly { id: string; rooms_count: number }[];
+  stays: readonly HistoricalStay[];
 }): RoomsSoldMetric {
   if (!inventory) return unavailableRoomsSold(context);
   // Same rule as Reports: a timezone change starts a new baseline, so a record
@@ -252,11 +288,22 @@ export function buildHistoricalRoomsSold({
   const blocked = new Set(blockedRoomIds.filter((id) => !outOfService.has(id)));
   const issues: string[] = [];
   const seen = new Set<string>();
+  const roomsInUse = new Set<string>();
   let soldRooms = 0;
   for (const stay of stays) {
-    if (seen.has(stay.id)) issues.push("Duplicate stays prevent a reliable rooms-sold total.");
+    if (!wasInHouseOnNight(stay, context.date, timeZone)) continue;
+    if (seen.has(stay.id)) issues.push("Duplicate stays prevent a reliable occupied-rooms total.");
     seen.add(stay.id);
     soldRooms += Number.isSafeInteger(stay.rooms_count) && stay.rooms_count >= 1 ? stay.rooms_count : NaN;
+    // The same checks as live: a stay in a room that was out of service or
+    // blocked would otherwise be subtracted twice without any warning.
+    if (stay.room_id) {
+      if (outOfService.has(stay.room_id) || blocked.has(stay.room_id)) {
+        issues.push("A stay was in a room recorded as out of service or blocked that night.");
+      }
+      if (roomsInUse.has(stay.room_id)) issues.push("Two stays were in the same room that night.");
+      roomsInUse.add(stay.room_id);
+    }
   }
   return calculateRoomsSold(
     context,

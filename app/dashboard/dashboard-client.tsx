@@ -31,7 +31,6 @@ interface DashboardClientProps {
   hotelId: string;
   /** Clerk org id from the server — seeds the query key so hydrated data matches on first paint. */
   orgId: string;
-  hotelName: string;
   currency: string;
   /** Property timezone — day boundaries follow the hotel's calendar, not the device clock. */
   hotelTimezone: string;
@@ -439,7 +438,11 @@ export function DashboardClient({
           }
           if (booking.checkIn <= targetDateStr && booking.checkOut > targetDateStr) {
             const units = Math.max(1, booking.roomsCount ?? 1);
-            if (booking.status === "confirmed" || booking.status === "checked_in") {
+            if (targetDateStr < propertyTodayStr) {
+              // A past night counts only guests who were in house; a
+              // confirmed or pending booking was never in its totals.
+              if (booking.status === "checked_in") soldRoomsDelta -= units;
+            } else if (booking.status === "confirmed" || booking.status === "checked_in") {
               soldRoomsDelta -= units;
             } else if (booking.status === "pending") {
               heldRoomsDelta -= units;

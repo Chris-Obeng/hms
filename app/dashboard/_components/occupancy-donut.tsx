@@ -69,7 +69,7 @@ export function OccupancyDonut({
   return (
     <div
       role="img"
-      aria-label={`Occupancy for ${dateLabel}: ${metric.soldRooms} of ${metric.sellableRooms} sellable rooms booked, ${display} percent. ${metric.heldRooms} on hold, ${metric.availableRooms} available. Out-of-service and blocked rooms are left out.`}
+      aria-label={`Occupancy for ${dateLabel}: ${metric.soldRooms} of ${metric.sellableRooms} sellable rooms ${metric.basis === "historical" ? "occupied" : "booked"}, ${display} percent. ${metric.heldRooms} on hold, ${metric.availableRooms} available. Out-of-service and blocked rooms are left out.`}
       className={cn("relative aspect-square shrink-0", className)}
     >
       <svg viewBox="0 0 200 200" className="size-full" aria-hidden="true" focusable="false">

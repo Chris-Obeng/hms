@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildHistoricalRoomsSold, buildRoomsSoldMetric, calculateRoomsSold, formatSoldPercent,
+  buildHistoricalRoomsSold, buildRoomsSoldMetric, calculateRoomsSold, formatSoldPercent, wasInHouseOnNight,
   type OccupancyContext, type OccupancyCounts, type OccupancyReservation, type OccupancyRoom,
 } from "@/lib/metrics/dashboard-occupancy";
 
@@ -145,6 +145,44 @@ describe("past nights from recorded history", () => {
   it("shows a double-booked night instead of capping it", () => {
     const metric = history({ outOfServiceRoomIds: [], blockedRoomIds: [], stays: Array.from({ length: 9 }, (_, i) => ({ id: `s${i}`, rooms_count: 1 })) });
     expect(metric).toMatchObject({ state: "inconsistent", soldRooms: 9, availableRooms: -1 });
+  });
+  it("stops counting a guest from the day they checked out early", () => {
+    // Room 8 on 2026-10-01 in production: booked 09-30 → 10-02, checked out
+    // 10-01 07:10, and the room resold that day. One room, not two.
+    const metric = history({
+      context: { ...past, date: "2026-10-01" },
+      outOfServiceRoomIds: [], blockedRoomIds: [],
+      stays: [
+        { id: "early", rooms_count: 1, room_id: "r8", status: "checked_out", check_out_at: "2026-10-01T07:10:00Z" },
+        { id: "next", rooms_count: 1, room_id: "r8", status: "checked_out", check_out_at: "2026-10-16T13:51:00Z" },
+      ],
+    });
+    expect(metric).toMatchObject({ state: "ready", soldRooms: 1 });
+  });
+  it("still counts the night before an early check-out, and keeps booked dates without a check-out time", () => {
+    const stay = { id: "s", rooms_count: 1, status: "checked_out", check_out_at: "2026-10-01T07:10:00Z" };
+    expect(wasInHouseOnNight(stay, "2026-09-30", "UTC")).toBe(true);
+    expect(wasInHouseOnNight(stay, "2026-10-01", "UTC")).toBe(false);
+    expect(wasInHouseOnNight({ ...stay, check_out_at: null }, "2026-10-01", "UTC")).toBe(true);
+    expect(wasInHouseOnNight({ ...stay, status: "checked_in" }, "2026-10-01", "UTC")).toBe(true);
+    // The business day follows the property's time zone, not UTC.
+    expect(wasInHouseOnNight({ ...stay, check_out_at: "2026-10-01T03:00:00Z" }, "2026-09-30", "America/New_York")).toBe(false);
+  });
+  it("flags a stay in a room recorded as out of service or blocked", () => {
+    const metric = history({ stays: [{ id: "s1", rooms_count: 1, room_id: "r2", status: "checked_in" }] });
+    expect(metric.state).toBe("inconsistent");
+    expect(metric.issues.join(" ")).toContain("out of service or blocked");
+  });
+  it("flags two stays in the same room on one night", () => {
+    const metric = history({
+      outOfServiceRoomIds: [], blockedRoomIds: [],
+      stays: [
+        { id: "a", rooms_count: 1, room_id: "r5", status: "checked_in" },
+        { id: "b", rooms_count: 1, room_id: "r5", status: "checked_in" },
+      ],
+    });
+    expect(metric.state).toBe("inconsistent");
+    expect(metric.issues.join(" ")).toContain("same room");
   });
   it("rejects invalid recorded capacity", () => {
     expect(history({ inventory: { ...inventory, capacity_by_type: { standard: -1 } } }).state).toBe("inconsistent");
