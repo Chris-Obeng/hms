@@ -97,7 +97,7 @@ export function BlockDetailDrawer({
                   <Drawer.Heading className="text-lg font-semibold leading-tight text-foreground">
                     {displayRoom}
                   </Drawer.Heading>
-                  <p className="mt-1 text-xs capitalize text-muted-foreground">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {reasonLabel}
                     {roomTypeName ? ` · ${roomTypeName}` : ""}
                   </p>
