@@ -15,6 +15,8 @@ import type { FullBookingDetail, GroupLineItem } from "@/app/actions/bookings-de
 vi.mock("@/app/dashboard/actions", () => ({
   checkInBooking: vi.fn(async () => ({ success: true })),
   checkOutBooking: vi.fn(async () => ({ success: true })),
+  // Not leaving early: the check-out goes straight through.
+  previewEarlyCheckout: vi.fn(async () => ({ success: true, preview: null })),
 }));
 vi.mock("@/app/actions/bookings", () => ({
   updateBookingStatus: vi.fn(async () => ({ success: true })),
@@ -39,6 +41,7 @@ function line(overrides: Partial<GroupLineItem>): GroupLineItem {
     roomRate: 2099.99,
     subtotal: 4199.98,
     taxAmount: 0,
+    earlyDepartureFee: 0,
     totalAmount: 4199.98,
     amountPaid: 0,
     outstanding: 4199.98,
@@ -80,6 +83,7 @@ function booking(overrides: Partial<FullBookingDetail> = {}): FullBookingDetail 
     roomRate: 2099.99,
     subtotal: 10499.98,
     taxAmount: 0,
+    earlyDepartureFee: 0,
     currency: "GHS",
     estimatedArrival: null,
     specialRequests: null,
@@ -103,6 +107,7 @@ function booking(overrides: Partial<FullBookingDetail> = {}): FullBookingDetail 
       outstanding: 4199.98,
       subtotal: 10499.98,
       taxAmount: 0,
+      earlyDepartureFee: 0,
       totalRooms: 2,
       lines: [anchorLine, siblingLine],
     },
@@ -145,12 +150,13 @@ describe("BookingActionBar — a grouped reservation acts on the opened row only
     const { onAction } = setup({ status: "checked_in" });
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Check out Room 8" }));
+    await vi.waitFor(() => expect(onAction).toHaveBeenCalled());
 
     const [action, , run] = onAction.mock.calls[0];
     expect(action).toBe("check_out");
     await run();
     expect(vi.mocked(checkOutBooking)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(checkOutBooking)).toHaveBeenCalledWith(ANCHOR_ID);
+    expect(vi.mocked(checkOutBooking)).toHaveBeenCalledWith(ANCHOR_ID, {});
   });
 
   it("keeps a checked-out row from moving its siblings", () => {
@@ -197,10 +203,11 @@ describe("BookingActionBar — single-room actions keep their copy", () => {
     const { onAction } = setup({ status: "checked_in", group: null, groupId: null });
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Check out guest" }));
+    await vi.waitFor(() => expect(onAction).toHaveBeenCalled());
 
     const [, , run] = onAction.mock.calls[0];
     await run();
-    expect(vi.mocked(checkOutBooking)).toHaveBeenCalledWith(ANCHOR_ID);
+    expect(vi.mocked(checkOutBooking)).toHaveBeenCalledWith(ANCHOR_ID, {});
   });
 
   it("keeps the reservation wording when the booking is not part of a group", async () => {
@@ -228,5 +235,102 @@ describe("BookingActionBar — button content", () => {
     const checkOut = screen.getByRole("button", { name: "Check out Room 8" });
     expect(checkOut.textContent).toBe("Check out Room 8");
     expect(checkOut.querySelector("svg")).toBeNull();
+  });
+});
+
+describe("BookingActionBar — leaving before the booked date", () => {
+  const outcome = {
+    currency: "GHS",
+    checkOutBefore: "2026-11-18",
+    checkOutAfter: "2026-11-14",
+    nightsReleased: 4,
+    releasedAmount: 400,
+    earlyDepartureFee: 400,
+    totalBefore: 500,
+    totalAfter: 500,
+    amountPaid: 500,
+    overpaid: 0,
+    paymentStatus: "paid",
+  };
+
+  it("asks first and passes the staff member's choice to the check-out", async () => {
+    const { previewEarlyCheckout } = await import("@/app/dashboard/actions");
+    vi.mocked(previewEarlyCheckout).mockResolvedValue({
+      success: true,
+      preview: {
+        policy: "charge",
+        departureDate: "2026-11-14",
+        sameDay: false,
+        heldNight: null,
+        canHoldRoom: false,
+        charge: outcome,
+        release: { ...outcome, earlyDepartureFee: 0, totalAfter: 100, overpaid: 400 },
+      },
+    });
+    vi.mocked(checkOutBooking).mockClear();
+    const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
+    const onAction = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <BookingActionBar
+          booking={booking({ status: "checked_in", group: null, groupId: null })}
+          actionLoading={null}
+          onAction={onAction}
+        />
+      </QueryClientProvider>
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Check out guest" }));
+
+    expect(await screen.findByRole("heading", { name: "Check out early?" })).toBeDefined();
+    expect(await screen.findByText(/Refund GH₵400\.00 to the guest/)).toBeDefined();
+    expect(onAction).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("radio", { name: /Take them off the bill/ }));
+    await user.click(screen.getByRole("button", { name: "Check out early" }));
+    await vi.waitFor(() => expect(onAction).toHaveBeenCalled());
+    await onAction.mock.calls[0][2]();
+    expect(vi.mocked(checkOutBooking)).toHaveBeenCalledWith(ANCHOR_ID, { unusedNights: "release" });
+  });
+
+  it("asks what happens to the room tonight when the guest leaves on arrival day", async () => {
+    const { previewEarlyCheckout } = await import("@/app/dashboard/actions");
+    vi.mocked(previewEarlyCheckout).mockResolvedValue({
+      success: true,
+      preview: {
+        policy: "charge",
+        departureDate: "2026-11-14",
+        sameDay: true,
+        heldNight: "2026-11-14",
+        canHoldRoom: true,
+        charge: { ...outcome, checkOutAfter: "2026-11-15", nightsReleased: 3 },
+        release: { ...outcome, checkOutAfter: "2026-11-15", nightsReleased: 3, earlyDepartureFee: 0, totalAfter: 100 },
+      },
+    });
+    vi.mocked(checkOutBooking).mockClear();
+    const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
+    const onAction = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <BookingActionBar
+          booking={booking({ status: "checked_in", group: null, groupId: null })}
+          actionLoading={null}
+          onAction={onAction}
+        />
+      </QueryClientProvider>
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Check out guest" }));
+
+    expect(await screen.findByText(/The guest keeps one night on the bill/)).toBeDefined();
+    const confirm = screen.getByRole("button", { name: "Check out early" });
+    // No default: staff must choose what happens to the room tonight.
+    expect(confirm.hasAttribute("disabled") || confirm.getAttribute("aria-disabled") === "true" || confirm.hasAttribute("data-disabled")).toBe(true);
+
+    await user.click(screen.getByRole("radio", { name: /Keep the room off sale tonight/ }));
+    await user.click(screen.getByRole("button", { name: "Check out early" }));
+    await vi.waitFor(() => expect(onAction).toHaveBeenCalled());
+    await onAction.mock.calls[0][2]();
+    expect(vi.mocked(checkOutBooking)).toHaveBeenCalledWith(ANCHOR_ID, { unusedNights: "charge", holdRoom: true });
   });
 });

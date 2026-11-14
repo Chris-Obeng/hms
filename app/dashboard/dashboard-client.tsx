@@ -23,6 +23,8 @@ import { isCancelledOnDate, isInHouseOnDate } from "@/lib/calendar-domain";
 import { businessDate, businessToday } from "@/lib/business-date";
 import { updateBookingStatus } from "@/app/actions/bookings";
 import { checkInBooking, checkOutBooking } from "./actions";
+import { useEarlyCheckoutGate } from "./_components/early-checkout-dialog";
+import { earlyCheckoutToast, type CheckOutOptions } from "@/lib/bookings/early-departure";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -49,6 +51,11 @@ const defaultEmptyStats = {
   cancellations: 0,
   overbookings: 0,
 };
+
+interface CheckOutVars {
+  bookingId: string;
+  options?: CheckOutOptions;
+}
 
 interface MutationCtx {
   previousData?: DashboardQueryData;
@@ -100,9 +107,7 @@ export function DashboardClient({
   const [detailInitialTab, setDetailInitialTab] = React.useState<"overview" | "payments">(
     "overview"
   );
-  const [earlyCheckoutBooking, setEarlyCheckoutBooking] = React.useState<ActivityBooking | null>(
-    null
-  );
+  const { confirm: confirmEarlyCheckout, dialog: earlyCheckoutDialog } = useEarlyCheckoutGate();
   const [earlyCheckinBooking, setEarlyCheckinBooking] = React.useState<ActivityBooking | null>(
     null
   );
@@ -283,12 +288,12 @@ export function DashboardClient({
   });
 
   const checkOutMutation = useMutation({
-    mutationFn: async (bookingId: string) => {
-      const result = await checkOutBooking(bookingId);
+    mutationFn: async ({ bookingId, options }: CheckOutVars) => {
+      const result = await checkOutBooking(bookingId, options ?? {});
       if (!result.success) throw new Error(result.error || "Check-out failed");
-      return { bookingId };
+      return { bookingId, early: result.early };
     },
-    onMutate: async (bookingId) => {
+    onMutate: async ({ bookingId }) => {
       setCheckingOut((prev) => new Set(prev).add(bookingId));
       const targetDateStr = dateParamStr;
       const queryKey = qk.dashboard(orgId || "", hotelId, targetDateStr);
@@ -325,10 +330,16 @@ export function DashboardClient({
       }
       toast.danger(err instanceof Error ? err.message : "Check-out failed");
     },
-    onSuccess: () => {
-      toast.success("Guest checked out successfully");
+    onSuccess: ({ early }) => {
+      if (!early) {
+        toast.success("Guest checked out successfully");
+        return;
+      }
+      const message = earlyCheckoutToast(early);
+      if (message.tone === "warning") toast.warning(message.text);
+      else toast.success(message.text);
     },
-    onSettled: (_data, _error, bookingId) => {
+    onSettled: (_data, _error, { bookingId }) => {
       setCheckingOut((prev) => {
         const next = new Set(prev);
         next.delete(bookingId);
@@ -353,20 +364,22 @@ export function DashboardClient({
   const handleCheckOut = React.useCallback(
     (bookingId: string) => {
       const booking = data?.bookings.find((item: ActivityBooking) => item.id === bookingId);
+      // Any departure before the booked date asks first. The dialog shows the
+      // bill change when the stay is shortened (see EarlyCheckoutDialog).
       if (booking && booking.checkOut > propertyTodayStr) {
-        setEarlyCheckoutBooking(booking);
+        void confirmEarlyCheckout(
+            { bookingIds: [booking.id], guestName: booking.guestName, checkOut: booking.checkOut },
+            { alwaysConfirm: true }
+          )
+          .then((gate) => {
+            if (gate.ok) checkOutMutation.mutate({ bookingId, options: gate.optionsFor(bookingId) });
+          });
         return;
       }
-      checkOutMutation.mutate(bookingId);
+      checkOutMutation.mutate({ bookingId });
     },
-    [checkOutMutation, data?.bookings, propertyTodayStr]
+    [checkOutMutation, data?.bookings, confirmEarlyCheckout, propertyTodayStr]
   );
-
-  const confirmEarlyCheckout = React.useCallback(() => {
-    if (!earlyCheckoutBooking) return;
-    checkOutMutation.mutate(earlyCheckoutBooking.id);
-    setEarlyCheckoutBooking(null);
-  }, [checkOutMutation, earlyCheckoutBooking]);
 
   const confirmEarlyCheckin = React.useCallback(() => {
     if (!earlyCheckinBooking) return;
@@ -375,7 +388,6 @@ export function DashboardClient({
   }, [checkInMutation, earlyCheckinBooking]);
 
   const closeEarlyConfirmation = React.useCallback(() => {
-    setEarlyCheckoutBooking(null);
     setEarlyCheckinBooking(null);
   }, []);
 
@@ -600,8 +612,6 @@ export function DashboardClient({
 
   if (!data) return null;
 
-  const earlyBooking = earlyCheckinBooking ?? earlyCheckoutBooking;
-  const isEarlyCheckin = earlyCheckinBooking !== null;
 
   return (
     <PullToRefresh
@@ -753,9 +763,11 @@ export function DashboardClient({
           onBookingChanged={handleBookingChanged}
         />
 
-        {/* Early check-in / early check-out confirmation */}
+        {earlyCheckoutDialog}
+
+        {/* Early check-in confirmation */}
         <AlertDialog.Backdrop
-          isOpen={earlyBooking !== null}
+          isOpen={earlyCheckinBooking !== null}
           onOpenChange={(isOpen) => {
             if (!isOpen) closeEarlyConfirmation();
           }}
@@ -765,32 +777,21 @@ export function DashboardClient({
               <AlertDialog.Header className="items-center text-center">
                 <span
                   aria-hidden="true"
-                  className={cn(
-                    "grid size-12 place-items-center rounded-2xl",
-                    isEarlyCheckin ? "bg-primary/10 text-primary" : "bg-amber-500/12 text-amber-700"
-                  )}
+                  className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary"
                 >
                   <CalendarClock className="size-5" />
                 </span>
                 <AlertDialog.Heading className="text-lg font-semibold text-foreground">
-                  {isEarlyCheckin ? "Check in early?" : "Check out early?"}
+                  Check in early?
                 </AlertDialog.Heading>
               </AlertDialog.Header>
               <AlertDialog.Body className="text-center">
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  {earlyBooking?.guestName} is due {isEarlyCheckin ? "to arrive" : "to leave"} on{" "}
+                  {earlyCheckinBooking?.guestName} is due to arrive on{" "}
                   <span className="font-semibold tabular-nums text-foreground">
-                    {earlyBooking
-                      ? formatDate(
-                          isEarlyCheckin ? earlyBooking.checkIn : earlyBooking.checkOut,
-                          "EEE, d MMM"
-                        )
-                      : ""}
+                    {earlyCheckinBooking ? formatDate(earlyCheckinBooking.checkIn, "EEE, d MMM") : ""}
                   </span>
-                  .{" "}
-                  {isEarlyCheckin
-                    ? "The room is assigned before the scheduled arrival."
-                    : "The room is released before the scheduled departure."}
+                  . The room is assigned before the scheduled arrival.
                 </p>
               </AlertDialog.Body>
               <AlertDialog.Footer className="flex-col-reverse gap-2 sm:flex-row">
@@ -804,13 +805,13 @@ export function DashboardClient({
                   Cancel
                 </Button>
                 <Button
-                  autoFocus={isEarlyCheckin}
+                  autoFocus
                   fullWidth
                   variant="primary"
-                  onPress={isEarlyCheckin ? confirmEarlyCheckin : confirmEarlyCheckout}
+                  onPress={confirmEarlyCheckin}
                   className="rounded-xl font-semibold"
                 >
-                  {isEarlyCheckin ? "Check in early" : "Check out early"}
+                  Check in early
                 </Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>

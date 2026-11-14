@@ -10,7 +10,7 @@ import { formatCurrency, formatDateTime } from "@/lib/format";
 import { getMethodLabel } from "@/lib/booking-status";
 import { type FullBookingDetail } from "./booking-detail-types";
 import { getBookingPaymentAvailability } from "./booking-payment-availability";
-import { recordPayment } from "@/app/actions/bookings-detail";
+import { recordPayment, recordRefund } from "@/app/actions/bookings-detail";
 
 interface BookingPaymentsPanelProps {
   booking: FullBookingDetail;
@@ -81,7 +81,56 @@ export function BookingPaymentsPanel({
     isFullyPaid,
     payableLines,
     canTakePayment,
+    credit,
+    refundableLines,
+    lineCredit,
   } = getBookingPaymentAvailability(booking);
+
+  // Refund given in person (never a Paystack refund): manager only, enforced on the server.
+  const [refundOpen, setRefundOpen] = React.useState(false);
+  const [refundLineId, setRefundLineId] = React.useState("");
+  const [refundAmount, setRefundAmount] = React.useState("");
+  const [refundMethod, setRefundMethod] = React.useState<
+    "cash" | "mobile_money" | "bank_transfer" | "pos" | "other"
+  >("cash");
+  const [refundNotes, setRefundNotes] = React.useState("");
+  const [savingRefund, setSavingRefund] = React.useState(false);
+
+  const openRefund = () => {
+    if (group) {
+      const first = refundableLines[0];
+      setRefundLineId(first?.id ?? "");
+      setRefundAmount(first ? String(lineCredit(first.amountPaid, first.totalAmount)) : "");
+    } else {
+      setRefundLineId(booking.id);
+      setRefundAmount(String(credit));
+    }
+    setRefundMethod("cash");
+    setRefundNotes("");
+    setRefundOpen(true);
+  };
+
+  const handleRecordRefund = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseFloat(refundAmount);
+    if (!refundLineId || !amount || amount <= 0) return;
+    setSavingRefund(true);
+    const result = await recordRefund({
+      bookingId: refundLineId,
+      amount,
+      method: refundMethod,
+      notes: refundNotes.trim(),
+    });
+    setSavingRefund(false);
+    if (result.success) {
+      toast.success("Refund recorded");
+      setRefundOpen(false);
+      onRefresh();
+      onBookingChanged?.();
+    } else {
+      toast.danger(result.error);
+    }
+  };
 
   const prefillFormFields = () => {
     if (group) {
@@ -172,29 +221,53 @@ export function BookingPaymentsPanel({
         <div
           className={cn(
             "flex flex-wrap items-center justify-between gap-4 rounded-2xl p-4",
-            isFullyPaid ? "bg-emerald-500/[0.07]" : "bg-secondary/60"
+            credit > 0 ? "bg-amber-500/10" : isFullyPaid ? "bg-emerald-500/[0.07]" : "bg-secondary/60"
           )}
         >
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-medium text-muted-foreground">
-                {isFullyPaid ? "Balance settled" : "Balance due"}
+          {credit > 0 ? (
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-medium text-muted-foreground">Refund due</p>
+                <Chip size="sm" variant="soft" color="warning">
+                  Overpaid
+                </Chip>
+              </div>
+              <p className="mt-2 text-2xl font-semibold tracking-[-0.02em] tabular-nums text-foreground">
+                {formatCurrency(credit, currency)}
               </p>
-              <Chip
-                size="sm"
-                variant="soft"
-                color={isFullyPaid ? "success" : amountPaid > 0 ? "warning" : "default"}
-              >
-                {isFullyPaid ? "Paid in full" : amountPaid > 0 ? "Partial" : "Unpaid"}
-              </Chip>
+              <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+                Paid {formatCurrency(amountPaid, currency)} of {formatCurrency(totalDue, currency)}. Give the
+                difference back to the guest, then record it here.
+              </p>
             </div>
-            <p className="mt-2 text-2xl font-semibold tracking-[-0.02em] tabular-nums text-foreground">
-              {formatCurrency(isFullyPaid ? 0 : outstandingBalance, currency)}
-            </p>
-            <p className="mt-1 text-xs tabular-nums text-muted-foreground">
-              Paid {formatCurrency(amountPaid, currency)} of {formatCurrency(totalDue, currency)}
-            </p>
-          </div>
+          ) : (
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {isFullyPaid ? "Balance settled" : "Balance due"}
+                </p>
+                <Chip
+                  size="sm"
+                  variant="soft"
+                  color={isFullyPaid ? "success" : amountPaid > 0 ? "warning" : "default"}
+                >
+                  {isFullyPaid ? "Paid in full" : amountPaid > 0 ? "Partial" : "Unpaid"}
+                </Chip>
+              </div>
+              <p className="mt-2 text-2xl font-semibold tracking-[-0.02em] tabular-nums text-foreground">
+                {formatCurrency(isFullyPaid ? 0 : outstandingBalance, currency)}
+              </p>
+              <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+                Paid {formatCurrency(amountPaid, currency)} of {formatCurrency(totalDue, currency)}
+              </p>
+            </div>
+          )}
+
+          {credit > 0 && !refundOpen && (
+            <Button variant="secondary" onPress={openRefund} className="shrink-0 rounded-xl font-semibold max-md:h-11">
+              Record refund
+            </Button>
+          )}
 
           {!controlled && canTakePayment && !isFullyPaid && !showForm && (
             <Button variant="primary" onPress={openForm} className="shrink-0 rounded-xl font-semibold">
@@ -297,6 +370,104 @@ export function BookingPaymentsPanel({
         </form>
       )}
 
+      {refundOpen && (
+        <form
+          onSubmit={handleRecordRefund}
+          className="mx-6 mt-4 flex flex-col gap-3 rounded-2xl border border-border/60 p-4"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-foreground">Record refund</span>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              aria-label="Close refund form"
+              onPress={() => setRefundOpen(false)}
+              className="rounded-lg text-muted-foreground max-md:size-11"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </Button>
+          </div>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Give the money back to the guest yourself (cash, mobile money or bank transfer). This only records
+            it. Oriel never sends refunds.
+          </p>
+
+          {group && (
+            <HeroSelectField
+              label="Room"
+              value={refundLineId}
+              onValueChange={(id) => {
+                setRefundLineId(id);
+                const line = refundableLines.find((l) => l.id === id);
+                if (line) setRefundAmount(String(lineCredit(line.amountPaid, line.totalAmount)));
+              }}
+              options={refundableLines.map((l) => ({
+                value: l.id,
+                label: `${l.roomTypeName ?? "Room"} · ${formatCurrency(lineCredit(l.amountPaid, l.totalAmount), currency)} to refund`,
+              }))}
+              ariaLabel="Room line to refund"
+            />
+          )}
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Amount given back ({currency})
+              </label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
+                className="h-11 rounded-xl border-border/70 bg-card text-base tabular-nums sm:h-10 sm:text-sm"
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">How</label>
+              <HeroSelectField
+                value={refundMethod}
+                onValueChange={(v) => setRefundMethod(v as typeof refundMethod)}
+                options={[
+                  { value: "cash", label: "Cash" },
+                  { value: "mobile_money", label: "Mobile Money" },
+                  { value: "bank_transfer", label: "Bank Transfer" },
+                  { value: "pos", label: "POS" },
+                  { value: "other", label: "Other" },
+                ]}
+                ariaLabel="Refund method"
+              />
+            </div>
+          </div>
+
+          <Input
+            value={refundNotes}
+            onChange={(e) => setRefundNotes(e.target.value)}
+            placeholder="Who gave it back, or a reference (optional)"
+            className="h-11 rounded-xl border-border/70 bg-card text-base sm:h-10 sm:text-sm"
+          />
+
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <Button variant="tertiary" onPress={() => setRefundOpen(false)} className="rounded-xl max-md:h-11">
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              isPending={savingRefund}
+              isDisabled={!refundAmount || Number(refundAmount) <= 0 || !refundLineId}
+              className="rounded-xl font-semibold max-md:h-11"
+            >
+              Save refund
+            </Button>
+          </div>
+        </form>
+      )}
+
       {/* Charges band */}
       <section aria-label="Charges" className="px-6 pt-4">
         <h3 className="text-xs font-medium text-muted-foreground">Charges</h3>
@@ -338,13 +509,28 @@ export function BookingPaymentsPanel({
                 quiet
               />
             )}
+            {booking.earlyDepartureFee > 0 && (
+              <ChargeRow
+                name="Early departure fee"
+                sub="Nights not used after an early check-out"
+                amount={formatCurrency(booking.earlyDepartureFee, currency)}
+              />
+            )}
             <ChargeRow name="Total charges" amount={formatCurrency(booking.totalAmount, currency)} strong />
           </>
         )}
         {group && (
           <>
             {group.taxAmount > 0 && (
-              <ChargeRow name="Tax" amount={formatCurrency(group.taxAmount, currency)} quiet />
+              <ChargeRow name="Tax" sub="Included in the rooms above" amount={formatCurrency(group.taxAmount, currency)} quiet />
+            )}
+            {group.earlyDepartureFee > 0 && (
+              <ChargeRow
+                name="Early departure fees"
+                sub="Included in the rooms above"
+                amount={formatCurrency(group.earlyDepartureFee, currency)}
+                quiet
+              />
             )}
             <ChargeRow name="Total charges" amount={formatCurrency(group.total, currency)} strong />
           </>

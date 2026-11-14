@@ -8,6 +8,8 @@ import { canTransitionBooking } from "@/lib/booking-status";
 import { checkInBooking, checkOutBooking } from "@/app/dashboard/actions";
 import { updateBookingStatus } from "@/app/actions/bookings";
 import type { FullBookingDetail } from "./booking-detail-types";
+import { useEarlyCheckoutGate } from "@/app/dashboard/_components/early-checkout-dialog";
+import type { EarlyDepartureResult } from "@/lib/bookings/early-departure";
 
 interface BookingActionBarProps {
   booking: FullBookingDetail;
@@ -15,7 +17,7 @@ interface BookingActionBarProps {
   onAction: (
     action: string,
     optimisticStatus: string,
-    actionFn: () => Promise<{ success: boolean; error?: string }>
+    actionFn: () => Promise<{ success: boolean; error?: string; early?: EarlyDepartureResult }>
   ) => void;
   /** Render inline inside a page header instead of as a full-width card strip. */
   inline?: boolean;
@@ -32,6 +34,7 @@ export function BookingActionBar({
   inline = false,
 }: BookingActionBarProps) {
   const [confirmCancel, setConfirmCancel] = React.useState(false);
+  const earlyCheckout = useEarlyCheckoutGate();
 
   const isGroupMember = !!booking.group;
   const roomTarget =
@@ -54,8 +57,16 @@ export function BookingActionBar({
   const handleCheckIn = () =>
     onAction("check_in", "checked_in", () => checkInBooking(booking.id));
 
-  const handleCheckOut = () =>
-    onAction("check_out", "checked_out", () => checkOutBooking(booking.id));
+  // Leaving before the booked date shortens the stay and can change the bill: ask first.
+  const handleCheckOut = async () => {
+    const gate = await earlyCheckout.confirm({
+      bookingIds: [booking.id],
+      guestName: booking.guest?.fullName ?? "The guest",
+      checkOut: booking.checkOut,
+    });
+    if (!gate.ok) return;
+    onAction("check_out", "checked_out", () => checkOutBooking(booking.id, gate.optionsFor(booking.id)));
+  };
 
   const handleConfirm = () =>
     onAction("confirm", "confirmed", () => updateBookingStatus(booking.id, "confirmed"));
@@ -176,6 +187,7 @@ export function BookingActionBar({
           </AlertDialog.Dialog>
         </AlertDialog.Container>
       </AlertDialog.Backdrop>
+      {earlyCheckout.dialog}
     </>
   );
 }

@@ -40,8 +40,12 @@ export function BookingFolioPrintButton({
     const totalAmount = group ? group.total : booking.totalAmount;
     const subtotalAmount = group ? group.subtotal : booking.subtotal || booking.totalAmount;
     const taxAmount = group ? group.taxAmount : booking.taxAmount || 0;
+    const earlyDepartureFee = group ? group.earlyDepartureFee : booking.earlyDepartureFee || 0;
     const paidAmount = group ? group.amountPaid : booking.amountPaid || 0;
     const balance = Math.max(0, totalAmount - paidAmount);
+    // Paid above the bill (an early check-out took nights off it): show what
+    // the hotel owes back instead of a zero balance.
+    const refundDue = Math.max(0, Math.round((paidAmount - totalAmount) * 100) / 100);
     const nights = getNights(booking.checkIn, booking.checkOut, booking.nights);
 
     const checkInDate = booking.checkIn ? parseISO(booking.checkIn) : new Date();
@@ -174,6 +178,7 @@ export function BookingFolioPrintButton({
     <tbody>
       ${chargesRowsHtml}
       ${taxAmount > 0 ? `<tr><td>—</td><td>Tax</td><td class="num">${escapeHtml(formatCurrency(taxAmount, currency))}</td></tr>` : ""}
+      ${earlyDepartureFee > 0 ? `<tr><td>—</td><td>Early departure fee (nights not used)</td><td class="num">${escapeHtml(formatCurrency(earlyDepartureFee, currency))}</td></tr>` : ""}
     </tbody>
   </table>
   ${
@@ -188,9 +193,14 @@ export function BookingFolioPrintButton({
   <div class="totals">
     <div class="totals-row"><span>Subtotal</span><span>${escapeHtml(formatCurrency(subtotalAmount, currency))}</span></div>
     ${taxAmount > 0 ? `<div class="totals-row"><span>Tax</span><span>${escapeHtml(formatCurrency(taxAmount, currency))}</span></div>` : ""}
+    ${earlyDepartureFee > 0 ? `<div class="totals-row"><span>Early departure fee</span><span>${escapeHtml(formatCurrency(earlyDepartureFee, currency))}</span></div>` : ""}
     <div class="totals-row"><span>Total charges</span><span>${escapeHtml(formatCurrency(totalAmount, currency))}</span></div>
     <div class="totals-row" style="color:#15803d;"><span>Paid</span><span>−${escapeHtml(formatCurrency(paidAmount, currency))}</span></div>
-    <div class="totals-row final"><span>Balance due</span><span style="color:${balance > 0 ? "#dc2626" : "#15803d"};">${escapeHtml(formatCurrency(balance, currency))}</span></div>
+    ${
+      refundDue > 0
+        ? `<div class="totals-row final"><span>Refund due to guest</span><span style="color:#b45309;">${escapeHtml(formatCurrency(refundDue, currency))}</span></div>`
+        : `<div class="totals-row final"><span>Balance due</span><span style="color:${balance > 0 ? "#dc2626" : "#15803d"};">${escapeHtml(formatCurrency(balance, currency))}</span></div>`
+    }
   </div>
   <div class="footer">Thank you for staying with ${escapeHtml(hotelName)}</div>
   <script>window.onload = function() { window.print(); };</script>

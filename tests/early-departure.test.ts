@@ -1,0 +1,95 @@
+import { describe, expect, it } from "vitest";
+import {
+  earlyCheckoutToast,
+  isEarlyDeparture,
+  parseEarlyDeparturePreview,
+  parseEarlyDepartureResult,
+  readEarlyDeparturePolicy,
+} from "@/lib/bookings/early-departure";
+
+const outcome = {
+  booking_id: "b1",
+  currency: "GHS",
+  check_out_before: "2026-11-17",
+  check_out_after: "2026-11-14",
+  nights_released: 3,
+  released_amount: "1188.00",
+  early_departure_fee: 1188,
+  total_before: 1485,
+  total_after: 1485,
+  amount_paid: 500,
+  overpaid: 0,
+  payment_status: "partial",
+};
+
+describe("early departures", () => {
+  it("is early only when the stay would end before its booked departure", () => {
+    expect(isEarlyDeparture("2026-11-12", "2026-11-17", "2026-11-14")).toBe(true);
+    expect(isEarlyDeparture("2026-11-12", "2026-11-14", "2026-11-14")).toBe(false);
+    // Leaving on arrival day keeps one night, so a one-night stay is never early.
+    expect(isEarlyDeparture("2026-11-14", "2026-11-15", "2026-11-14")).toBe(false);
+    expect(isEarlyDeparture("2026-11-14", "2026-11-17", "2026-11-14")).toBe(true);
+  });
+
+  it("defaults to keeping the bill when the hotel never chose", () => {
+    expect(readEarlyDeparturePolicy(null)).toBe("charge");
+    expect(readEarlyDeparturePolicy({ early_departure_policy: "release" })).toBe("release");
+    expect(readEarlyDeparturePolicy({ early_departure_policy: "refund" })).toBe("charge");
+  });
+
+  it("reads the SQL result, including numeric strings", () => {
+    expect(parseEarlyDepartureResult({ ...outcome, policy: "charge", departure_date: "2026-11-14" })).toMatchObject({
+      policy: "charge",
+      nightsReleased: 3,
+      releasedAmount: 1188,
+      earlyDepartureFee: 1188,
+      totalAfter: 1485,
+    });
+    expect(() => parseEarlyDepartureResult({ ...outcome, policy: "refund", departure_date: "2026-11-14" })).toThrow();
+    expect(() => parseEarlyDepartureResult({ ...outcome, total_after: "n/a", policy: "charge", departure_date: "x" })).toThrow();
+  });
+
+  it("reads a preview, or null when the guest is not leaving early", () => {
+    expect(parseEarlyDeparturePreview({ early: false })).toBeNull();
+    const preview = parseEarlyDeparturePreview({
+      early: true,
+      policy: "release",
+      departure_date: "2026-11-14",
+      charge: outcome,
+      release: { ...outcome, early_departure_fee: 0, total_after: 297, overpaid: 203 },
+    });
+    expect(preview).toMatchObject({ policy: "release", release: { totalAfter: 297, overpaid: 203 } });
+  });
+});
+
+describe("same-day departures", () => {
+  it("parses the room question from the preview and the result", () => {
+    const preview = parseEarlyDeparturePreview({
+      early: true, policy: "charge", departure_date: "2026-11-14",
+      same_day: true, held_night: "2026-11-14", can_hold_room: true,
+      charge: outcome, release: outcome,
+    });
+    expect(preview).toMatchObject({ sameDay: true, heldNight: "2026-11-14", canHoldRoom: true });
+    const result = parseEarlyDepartureResult({ ...outcome, policy: "charge", departure_date: "2026-11-14", same_day: true, room_held: true });
+    expect(result).toMatchObject({ sameDay: true, roomHeld: true });
+    expect(earlyCheckoutToast({ ...result, overpaid: 0, earlyDepartureFee: 0 }).text).toBe(
+      "Checked out early. The bill is unchanged. The room stays off sale for the night charged."
+    );
+  });
+});
+
+describe("earlyCheckoutToast", () => {
+  const base = parseEarlyDepartureResult({ ...outcome, policy: "charge", departure_date: "2026-11-14" });
+
+  it("tells staff to give money back in person when the guest overpaid", () => {
+    const t = earlyCheckoutToast({ ...base, policy: "release", overpaid: 1188 });
+    expect(t.tone).toBe("warning");
+    expect(t.text).toMatch(/Give the guest back GH₵1,188\.00, then record the refund/);
+  });
+
+  it("does not announce a zero fee", () => {
+    expect(earlyCheckoutToast({ ...base, overpaid: 0, earlyDepartureFee: 0 }).text).toBe(
+      "Checked out early. The bill is unchanged."
+    );
+  });
+});

@@ -165,6 +165,9 @@ describe("past nights from recorded history", () => {
     expect(wasInHouseOnNight(stay, "2026-10-01", "UTC")).toBe(false);
     expect(wasInHouseOnNight({ ...stay, check_out_at: null }, "2026-10-01", "UTC")).toBe(true);
     expect(wasInHouseOnNight({ ...stay, status: "checked_in" }, "2026-10-01", "UTC")).toBe(true);
+    // A guest who leaves on their arrival day still used that night.
+    expect(wasInHouseOnNight({ ...stay, check_in: "2026-10-01" }, "2026-10-01", "UTC")).toBe(true);
+    expect(wasInHouseOnNight({ ...stay, check_in: "2026-10-01" }, "2026-10-02", "UTC")).toBe(false);
     // The business day follows the property's time zone, not UTC.
     expect(wasInHouseOnNight({ ...stay, check_out_at: "2026-10-01T03:00:00Z" }, "2026-09-30", "America/New_York")).toBe(false);
   });

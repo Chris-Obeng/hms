@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit";
-import { requireMinRole } from "@/lib/auth";
+import { requireMinRole, toActionError } from "@/lib/auth";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { can } from "@/lib/roles";
 import { notifyHotelStaff } from "@/lib/notifications/notify-hotel-staff";
 import { buildPaymentReceivedNotification } from "@/lib/notifications/staff-notifications";
@@ -61,6 +62,8 @@ export interface GroupLineItem {
   roomRate: number | null;
   subtotal: number;
   taxAmount: number | null;
+  /** Kept for nights not used after an early check-out (part of totalAmount). */
+  earlyDepartureFee: number;
   totalAmount: number;
   amountPaid: number;
   outstanding: number;
@@ -75,6 +78,7 @@ export interface BookingGroupSummary {
   outstanding: number;
   subtotal: number;
   taxAmount: number;
+  earlyDepartureFee: number;
   totalRooms: number;
   lines: GroupLineItem[];
 }
@@ -97,6 +101,8 @@ export interface FullBookingDetail {
   roomRate: number | null;
   subtotal: number;
   taxAmount: number | null;
+  /** Kept for nights not used after an early check-out (part of totalAmount). */
+  earlyDepartureFee: number;
   currency: string | null;
   estimatedArrival: string | null;
   specialRequests: string | null;
@@ -152,7 +158,7 @@ export async function getFullBookingDetail(
         id, reference, status, payment_status, payment_preference, source,
         check_in, check_out, nights, adults, children,
         total_amount, amount_paid, outstanding_balance, room_rate,
-        subtotal, tax_amount, currency,
+        subtotal, tax_amount, early_departure_fee, currency,
         estimated_arrival, special_requests, internal_notes,
         check_in_at, check_out_at, cancelled_at, cancellation_reason,
         created_at, updated_at,
@@ -183,7 +189,7 @@ export async function getFullBookingDetail(
         .select(
           `
           id, reference, rooms_count, adults, children,
-          check_in, check_out, nights, room_rate, subtotal, tax_amount,
+          check_in, check_out, nights, room_rate, subtotal, tax_amount, early_departure_fee,
           total_amount, amount_paid, outstanding_balance, payment_status, status,
           room_types(name), rooms(room_number)
         `
@@ -213,6 +219,7 @@ export async function getFullBookingDetail(
             roomRate: r.room_rate,
             subtotal: r.subtotal ?? 0,
             taxAmount: r.tax_amount,
+            earlyDepartureFee: Number(r.early_departure_fee ?? 0),
             totalAmount: total,
             amountPaid: paid,
             outstanding: r.outstanding_balance ?? Math.max(0, total - paid),
@@ -232,6 +239,7 @@ export async function getFullBookingDetail(
           outstanding: lines.reduce((s, l) => s + (isTerminal(l) ? 0 : l.outstanding), 0),
           subtotal: lines.reduce((s, l) => s + (isCancelled(l) ? 0 : l.subtotal), 0),
           taxAmount: lines.reduce((s, l) => s + (isCancelled(l) ? 0 : l.taxAmount ?? 0), 0),
+          earlyDepartureFee: lines.reduce((s, l) => s + (isCancelled(l) ? 0 : l.earlyDepartureFee), 0),
           totalRooms: lines.reduce((s, l) => s + Math.max(1, l.roomsCount ?? 1), 0),
           lines,
         };
@@ -318,6 +326,7 @@ export async function getFullBookingDetail(
       roomRate: booking.room_rate,
       subtotal: booking.subtotal,
       taxAmount: booking.tax_amount,
+      earlyDepartureFee: Number(booking.early_departure_fee ?? 0),
       currency: booking.currency,
       estimatedArrival: booking.estimated_arrival,
       specialRequests: booking.special_requests,
@@ -369,6 +378,80 @@ export async function getFullBookingDetail(
 }
 
 // ── Record Payment ───────────────────────────────────────────────
+
+const RecordRefundSchema = z.object({
+  bookingId: z.string().uuid(),
+  amount: z.coerce.number().positive("Amount must be positive"),
+  method: z.enum(["cash", "mobile_money", "bank_transfer", "pos", "other"]),
+  notes: z.string().max(500).optional().or(z.literal("")),
+});
+
+export type RecordRefundInput = z.infer<typeof RecordRefundSchema>;
+
+/**
+ * Records money the hotel gave back to a guest in person (after an early
+ * check-out took nights off the bill). Oriel never starts a Paystack refund:
+ * the hotel pays the guest itself and this only writes it down. Only the
+ * amount paid above the bill can be refunded.
+ */
+export async function recordRefund(
+  input: RecordRefundInput
+): Promise<{ success: true; creditLeft: number } | { success: false; error: string }> {
+  try {
+    const parsed = RecordRefundSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message || "Invalid input" };
+    }
+    const { supabase, hotelId, staffId, staffName } = await getHotelScopedClient("manager", "record refunds");
+    const data = parsed.data;
+
+    // Service role: the function writes amount_paid, which staff cannot write directly.
+    const { data: result, error } = await supabaseAdmin.rpc("record_manual_refund", {
+      p_hotel_id: hotelId,
+      p_booking_id: data.bookingId,
+      p_amount: data.amount,
+      p_method: data.method,
+      ...(data.notes ? { p_notes: data.notes } : {}),
+      ...(staffId ? { p_recorded_by: staffId } : {}),
+    });
+
+    if (error) {
+      if (error.details === "refund_exceeds_credit") {
+        const max = Number(error.hint ?? 0);
+        return {
+          success: false,
+          error: max > 0 ? `You can refund up to ${max.toFixed(2)}.` : "This guest hasn't paid more than the bill.",
+        };
+      }
+      if (error.details === "booking_not_found") return { success: false, error: "Booking not found" };
+      console.error("[recordRefund]", error);
+      return { success: false, error: "Could not record the refund. Try again." };
+    }
+
+    const out = (result ?? {}) as { payment_id?: string; credit_left?: number | string; amount_paid?: number | string };
+    await writeAuditLog(supabase, {
+      hotelId,
+      staffId,
+      staffName,
+      action: "payment.refunded",
+      entityType: "booking",
+      entityId: data.bookingId,
+      afterState: {
+        amount_refunded: data.amount,
+        refund_method: data.method,
+        given_in_person: true,
+        payment_id: out.payment_id ?? null,
+        amount_paid: Number(out.amount_paid ?? 0),
+      },
+    });
+
+    revalidatePath("/dashboard/bookings");
+    revalidatePath("/dashboard/payments");
+    return { success: true, creditLeft: Number(out.credit_left ?? 0) };
+  } catch (err) {
+    return toActionError(err, { action: "bookings.recordRefund", bookingId: input?.bookingId });
+  }
+}
 
 const RecordPaymentSchema = z.object({
   bookingId: z.string().uuid(),

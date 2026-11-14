@@ -15,6 +15,7 @@ export type AuditAction =
   | "booking.cancelled"
   | "booking.checked_in"
   | "booking.checked_out"
+  | "booking.early_checkout"
   | "booking.notes_updated"
   | "booking.status_changed"
   | "booking.move"

@@ -23,6 +23,26 @@ export default async function OutstandingPage() {
     .order("check_in", { ascending: true })
     .limit(500);
 
+  // Guests who paid more than their bill (an early check-out took nights off
+  // it). The hotel gives the money back in person and records it as a refund.
+  const { data: credits } = await supabase
+    .from("bookings")
+    .select("id, reference, check_out, total_amount, amount_paid, outstanding_balance, guests(full_name, phone)")
+    .eq("hotel_id", hotel.id)
+    .neq("status", "cancelled")
+    .lt("outstanding_balance", 0)
+    .order("check_out", { ascending: false })
+    .limit(200);
+
+  const refunds = (credits ?? []).map((b) => ({
+    id: b.id,
+    reference: b.reference,
+    checkOut: b.check_out,
+    refundDue: Math.round(-(b.outstanding_balance ?? 0) * 100) / 100,
+    guestName: (b.guests as { full_name?: string | null } | null)?.full_name ?? "Unknown",
+    guestPhone: (b.guests as { phone?: string | null } | null)?.phone ?? null,
+  }));
+
   const rows = (bookings ?? []).map((b) => ({
     id: b.id,
     reference: b.reference,
@@ -40,5 +60,13 @@ export default async function OutstandingPage() {
 
   const totalOutstanding = rows.reduce((s, r) => s + r.outstandingBalance, 0);
 
-  return <OutstandingClient data={rows} currency={hotel.currency ?? "GHS"} totalOutstanding={totalOutstanding} hotelId={hotel.id} />;
+  return (
+    <OutstandingClient
+      data={rows}
+      refunds={refunds}
+      currency={hotel.currency ?? "GHS"}
+      totalOutstanding={totalOutstanding}
+      hotelId={hotel.id}
+    />
+  );
 }

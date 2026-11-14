@@ -5,6 +5,7 @@ import { requireMinRole } from "@/lib/auth";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { type HotelCurrency } from "@/lib/money";
+import { readEarlyDeparturePolicy } from "@/lib/bookings/early-departure";
 
 // ── Hotel Profile ────────────────────────────────────────────────────
 
@@ -23,6 +24,8 @@ export const hotelSettingsSchema = z.object({
   cancellationPolicy: z.string().max(500).optional().or(z.literal("")),
   taxEnabled: z.boolean().default(false),
   taxPercentage: z.number().min(0).max(100).default(0),
+  /** What an early check-out does with the nights the guest did not use. */
+  earlyDeparturePolicy: z.enum(["charge", "release"]).default("charge"),
 });
 
 export type HotelProfileInput = z.infer<typeof hotelSettingsSchema>;
@@ -65,6 +68,7 @@ export async function getHotelProfile(): Promise<
         coverImageUrl: data.cover_image_url,
         taxEnabled: (settings.tax_enabled as boolean) ?? false,
         taxPercentage: (settings.tax_percentage as number) ?? 0,
+        earlyDeparturePolicy: readEarlyDeparturePolicy(settings),
       },
     };
   } catch (err) {
@@ -117,6 +121,7 @@ export async function updateHotelProfile(
           ...existingSettings,
           tax_enabled: data.taxEnabled,
           tax_percentage: data.taxPercentage,
+          early_departure_policy: data.earlyDeparturePolicy,
         },
       })
       .eq("id", ctx.hotelId);

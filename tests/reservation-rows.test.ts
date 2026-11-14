@@ -122,3 +122,20 @@ describe("collapseReservationGroups", () => {
     expect(rows).toHaveLength(2);
   });
 });
+
+describe("collapseReservationGroups — a refund owed on one room", () => {
+  it("does not cancel out what another room still owes", () => {
+    const refunded = roomRow({ total_amount: 297, amount_paid: 1485, outstanding_balance: -1188, payment_status: "paid" });
+    const owing = roomRow({
+      id: SIBLING_ID,
+      reference: "3133888972154",
+      status: "checked_in",
+      total_amount: 1188,
+      amount_paid: 0,
+      outstanding_balance: 1188,
+    });
+    const [row] = collapseReservationGroups([refunded, owing]);
+    expect(row.outstandingBalance).toBe(1188);
+    expect(row.paymentStatus).toBe("partial");
+  });
+});
