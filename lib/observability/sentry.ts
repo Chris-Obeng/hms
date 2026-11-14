@@ -19,6 +19,12 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+import {
+  GUEST_ACCESS_QUERY_PARAM,
+  redactGuestAccessToken,
+  redactGuestAccessTokenDeep,
+} from "@/lib/bookings/guest-access-link";
+
 /** Subsystem the failure belongs to. Kept small on purpose — it is a facet. */
 export type RoomlineScope =
   | "paystack-webhook"
@@ -377,6 +383,65 @@ export function scrubEventLocalVariables(event: Sentry.ErrorEvent): Sentry.Error
     }
   }
   return event;
+}
+
+/**
+ * Removes guest booking access tokens (`?t=…`, see lib/bookings/guest-access.ts)
+ * from everything on an event that can hold a URL: the request, breadcrumbs,
+ * the message and exception values. A token in Sentry would let anyone with
+ * dashboard access open that guest's booking. Never throws.
+ */
+export function redactGuestAccessFromEvent<T extends Sentry.Event>(event: T): T {
+  try {
+    const request = event.request;
+    if (request) {
+      if (typeof request.url === "string") request.url = redactGuestAccessToken(request.url);
+      const query = request.query_string;
+      if (typeof query === "string") {
+        request.query_string = redactGuestAccessToken(`?${query}`).slice(1);
+      } else if (Array.isArray(query)) {
+        request.query_string = query.map(([key, value]) =>
+          key === GUEST_ACCESS_QUERY_PARAM ? [key, "[redacted]"] : [key, value]
+        ) as typeof query;
+      } else if (query && typeof query === "object" && GUEST_ACCESS_QUERY_PARAM in query) {
+        request.query_string = { ...query, [GUEST_ACCESS_QUERY_PARAM]: "[redacted]" };
+      }
+      if (request.headers) redactGuestAccessTokenDeep(request.headers, 2);
+    }
+    if (event.breadcrumbs) redactGuestAccessTokenDeep(event.breadcrumbs, 4);
+    if (typeof event.message === "string") event.message = redactGuestAccessToken(event.message);
+    for (const exception of event.exception?.values ?? []) {
+      if (typeof exception.value === "string") {
+        exception.value = redactGuestAccessToken(exception.value);
+      }
+    }
+    if (typeof event.transaction === "string") {
+      event.transaction = redactGuestAccessToken(event.transaction);
+    }
+  } catch {
+    // Telemetry hooks must never drop the event or throw into the app.
+  }
+  return event;
+}
+
+/** Server and edge `beforeSend`: frame locals scrubbed, guest access tokens removed. */
+export function scrubServerEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent {
+  return redactGuestAccessFromEvent(scrubEventLocalVariables(event));
+}
+
+/** `beforeBreadcrumb`: guest access tokens removed from navigation and fetch URLs. */
+export function redactGuestAccessFromBreadcrumb(
+  breadcrumb: Sentry.Breadcrumb
+): Sentry.Breadcrumb {
+  try {
+    if (typeof breadcrumb.message === "string") {
+      breadcrumb.message = redactGuestAccessToken(breadcrumb.message);
+    }
+    if (breadcrumb.data) redactGuestAccessTokenDeep(breadcrumb.data, 3);
+  } catch {
+    // Never drop a breadcrumb over redaction.
+  }
+  return breadcrumb;
 }
 
 /**

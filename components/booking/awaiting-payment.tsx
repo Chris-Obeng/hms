@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Spinner } from "@heroui/react";
 import { Check, Clock, Phone, XCircle } from "lucide-react";
 
+import { confirmationPath } from "@/lib/bookings/guest-access-link";
+
 import { BookingStatusHero } from "./booking-status-hero";
 import { CompletePaymentPanel } from "./complete-payment-panel";
 
@@ -40,6 +42,8 @@ interface AwaitingPaymentProps {
   slug: string;
   /** Booking (or group) reference. */
   reference: string;
+  /** Signed guest access token from the page URL; null for a legacy link. */
+  accessToken: string | null;
   /** Paystack transaction reference from the checkout redirect, if any. */
   paymentRef: string | null;
   firstName: string;
@@ -59,6 +63,7 @@ interface AwaitingPaymentProps {
 export function AwaitingPayment({
   slug,
   reference,
+  accessToken,
   paymentRef,
   firstName,
   amountLabel,
@@ -147,7 +152,7 @@ export function AwaitingPayment({
       return;
     }
     router.replace(
-      `/${encodeURIComponent(slug)}/confirmation?bref=${encodeURIComponent(reference)}&trxref=${encodeURIComponent(openReference)}`
+      confirmationPath(slug, reference, { accessToken, paymentReference: openReference })
     );
   };
 
@@ -233,6 +238,7 @@ export function AwaitingPayment({
         <CompletePaymentPanel
           slug={slug}
           reference={reference}
+          accessToken={accessToken}
           amountLabel={amountLabel}
           title={failed ? "Try your payment again" : "Finish your payment"}
           description={
@@ -262,7 +268,12 @@ export function AwaitingPayment({
         title={`Almost there, ${firstName}.`}
         subtitle="Complete your payment below to confirm this reservation."
       />
-      <CompletePaymentPanel slug={slug} reference={reference} amountLabel={amountLabel} />
+      <CompletePaymentPanel
+        slug={slug}
+        reference={reference}
+        accessToken={accessToken}
+        amountLabel={amountLabel}
+      />
     </>
   );
 }
