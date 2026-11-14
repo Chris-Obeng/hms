@@ -34,8 +34,10 @@ export function OccupancyCard({
 
   const isReady = metric.state === "ready";
   const isDeficit = metric.availableRooms !== null && metric.availableRooms < 0;
-  // Past nights: inventory history is not stored, so say so once, quietly.
-  const isHistorical = metric.basis === "historical-unavailable";
+  // A past night with no room records (before the property's first record,
+  // or history not set up): say why once, quietly.
+  const isUnrecorded = metric.basis === "historical-unavailable";
+  const isPast = metric.basis === "historical" || isUnrecorded;
 
   return (
     <section
@@ -52,16 +54,15 @@ export function OccupancyCard({
         </span>
       )}
 
-      <AboutOccupancy className="absolute right-2 top-2 sm:right-4 sm:top-4" />
+      <AboutOccupancy past={isPast} className="absolute right-2 top-2 sm:right-4 sm:top-4" />
 
-      {isHistorical && (
+      {isUnrecorded && (
         <p role="note" className="pr-10 text-sm leading-relaxed text-muted-foreground">
-          Historical room inventory isn&apos;t recorded, so occupancy can&apos;t be shown for past
-          nights.
+          {metric.issues[0] ?? "No room inventory is recorded for this night."}
         </p>
       )}
 
-      {!isHistorical && metric.issues.length > 0 && (
+      {!isUnrecorded && metric.issues.length > 0 && (
         <div
           role={metric.state === "inconsistent" ? "alert" : "note"}
           className={cn(
@@ -77,7 +78,7 @@ export function OccupancyCard({
         </div>
       )}
 
-      {!isHistorical && (
+      {!isUnrecorded && (
         <div
           className={cn(
             "flex gap-6",
@@ -173,7 +174,7 @@ function Stat({
 }
 
 /** What the percentage means, on demand instead of as standing text. */
-function AboutOccupancy({ className }: { className?: string }) {
+function AboutOccupancy({ past, className }: { past: boolean; className?: string }) {
   return (
     <Popover>
       <Button
@@ -190,8 +191,9 @@ function AboutOccupancy({ className }: { className?: string }) {
       </Button>
       <Popover.Content placement="bottom end" className="max-w-64 rounded-2xl">
         <Popover.Dialog aria-label="About occupancy" className="p-4 text-sm leading-relaxed text-muted-foreground outline-none">
-          Booked rooms as a share of the rooms you can sell that night. Out-of-service and blocked
-          rooms are left out.
+          {past
+            ? "Rooms checked in that night as a share of the rooms you could sell, as they stood at the end of the day. Out-of-service and blocked rooms are left out."
+            : "Booked rooms as a share of the rooms you can sell that night. Out-of-service and blocked rooms are left out."}
         </Popover.Dialog>
       </Popover.Content>
     </Popover>

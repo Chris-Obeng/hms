@@ -1,6 +1,12 @@
 /**
  * A room-night sales snapshot, not a measure of guests physically in house.
  *
+ * Today and later nights come from live inventory (buildRoomsSoldMetric).
+ * Past nights come from recorded history (buildHistoricalRoomsSold): the
+ * physical rooms on record for that date, the rooms out of service or
+ * blocked at the end of that business day, and the stays checked in that
+ * night. Live room status is never used for a past night.
+ *
  * When valid: total = outOfService + blocked + sold + held + available.
  * Out-of-service takes precedence over a dated block. The donut's denominator
  * is sellable = total - outOfService - blocked = sold + held + available.
@@ -25,7 +31,7 @@ export interface OccupancyCounts {
 export interface RoomsSoldMetric {
   date: string;
   asOf: string;
-  basis: "live" | "projection" | "historical-unavailable";
+  basis: "live" | "projection" | "historical" | "historical-unavailable";
   state: "ready" | "empty" | "unavailable" | "inconsistent";
   totalRooms: number | null;
   outOfService: number | null;
@@ -39,7 +45,10 @@ export interface RoomsSoldMetric {
   issues: string[];
 }
 
-export function unavailableRoomsSold(context: OccupancyContext): RoomsSoldMetric {
+export function unavailableRoomsSold(
+  context: OccupancyContext,
+  issue = "No room inventory is recorded for this night.",
+): RoomsSoldMetric {
   return {
     date: context.date,
     asOf: context.asOf,
@@ -53,7 +62,7 @@ export function unavailableRoomsSold(context: OccupancyContext): RoomsSoldMetric
     sellableRooms: null,
     availableRooms: null,
     soldPercent: null,
-    issues: ["Historical room inventory is not recorded for this date. Today's room status cannot establish past rooms sold or capacity."],
+    issues: [issue],
   };
 }
 
@@ -63,10 +72,14 @@ export function calculateRoomsSold(
   counts: OccupancyCounts,
   issues: string[] = [],
 ): RoomsSoldMetric {
-  if (context.date < context.businessToday) return unavailableRoomsSold(context);
   const base = {
     ...unavailableRoomsSold(context),
-    basis: context.date === context.businessToday ? "live" as const : "projection" as const,
+    basis:
+      context.date < context.businessToday
+        ? ("historical" as const)
+        : context.date === context.businessToday
+          ? ("live" as const)
+          : ("projection" as const),
     issues: [...issues],
   };
   if (Object.values(counts).some((count) => !Number.isSafeInteger(count) || count < 0)) {
@@ -195,6 +208,61 @@ export function buildRoomsSoldMetric({
     }
   }
   return calculateRoomsSold(context, counts, [...issues]);
+}
+
+export interface InventoryRecord {
+  effective_date: string;
+  capacity_by_type: unknown;
+  time_zone: string;
+}
+
+/**
+ * A past night from recorded history. Inputs are already scoped to the night:
+ * `inventory` is the latest physical-capacity record on or before it, the room
+ * ids are those out of service / blocked at the end of that business day, and
+ * `stays` are checked-in or checked-out bookings covering it (the same rule
+ * Night Audit uses for room nights). Holds have resolved by then, so none.
+ */
+export function buildHistoricalRoomsSold({
+  context, timeZone, inventory, outOfServiceRoomIds, blockedRoomIds, stays,
+}: {
+  context: OccupancyContext;
+  timeZone: string;
+  inventory: InventoryRecord | null;
+  outOfServiceRoomIds: readonly string[];
+  blockedRoomIds: readonly string[];
+  stays: readonly { id: string; rooms_count: number }[];
+}): RoomsSoldMetric {
+  if (!inventory) return unavailableRoomsSold(context);
+  // Same rule as Reports: a timezone change starts a new baseline, so a record
+  // taken under another zone does not describe this property-local night.
+  if (inventory.time_zone !== timeZone) {
+    return unavailableRoomsSold(context, "Room inventory for this night was recorded under a different time zone.");
+  }
+  const capacity = inventory.capacity_by_type;
+  if (!capacity || typeof capacity !== "object" || Array.isArray(capacity)) {
+    return calculateRoomsSold(context, { totalRooms: NaN, outOfService: 0, blocked: 0, soldRooms: 0, heldRooms: 0 });
+  }
+  let totalRooms = 0;
+  for (const count of Object.values(capacity as Record<string, unknown>)) {
+    totalRooms += typeof count === "number" && Number.isSafeInteger(count) && count >= 0 ? count : NaN;
+  }
+  // Out of service takes precedence over a block, as it does live.
+  const outOfService = new Set(outOfServiceRoomIds);
+  const blocked = new Set(blockedRoomIds.filter((id) => !outOfService.has(id)));
+  const issues: string[] = [];
+  const seen = new Set<string>();
+  let soldRooms = 0;
+  for (const stay of stays) {
+    if (seen.has(stay.id)) issues.push("Duplicate stays prevent a reliable rooms-sold total.");
+    seen.add(stay.id);
+    soldRooms += Number.isSafeInteger(stay.rooms_count) && stay.rooms_count >= 1 ? stay.rooms_count : NaN;
+  }
+  return calculateRoomsSold(
+    context,
+    { totalRooms, outOfService: outOfService.size, blocked: blocked.size, soldRooms, heldRooms: 0 },
+    [...new Set(issues)],
+  );
 }
 
 export function formatSoldPercent(percent: number): string {

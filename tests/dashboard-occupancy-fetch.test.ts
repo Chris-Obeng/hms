@@ -7,8 +7,8 @@ const now = new Date("2026-10-21T12:00:00Z");
 beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(now); });
 afterEach(() => { vi.useRealTimers(); });
 
-function clientWithInventory({ roomCount = 3, failTable, missingCount = false, rpcAvailable = 2 }: {
-  roomCount?: number; failTable?: string; missingCount?: boolean; rpcAvailable?: number;
+function clientWithInventory({ roomCount = 3, failTable, failCode = "42501", missingCount = false, rpcAvailable = 2, zone = "UTC" }: {
+  roomCount?: number; failTable?: string; failCode?: string; missingCount?: boolean; rpcAvailable?: number; zone?: string;
 } = {}) {
   const requests: { url: URL; init: RequestInit | undefined }[] = [];
   const rooms = Array.from({ length: roomCount }, (_, i) => ({ id: `r-${i}`, room_type_id: "standard", status: "available" }));
@@ -17,7 +17,8 @@ function clientWithInventory({ roomCount = 3, failTable, missingCount = false, r
     const url = new URL(input instanceof Request ? input.url : input.toString());
     requests.push({ url, init });
     const name = url.pathname.split("/").pop();
-    if (name === failTable) return new Response(JSON.stringify({ message: "inventory permission denied", code: "42501", details: null, hint: null }), { status: 403, headers: { "Content-Type": "application/json" } });
+    if (name === failTable) return new Response(JSON.stringify({ message: "inventory permission denied", code: failCode, details: null, hint: null }), { status: 403, headers: { "Content-Type": "application/json" } });
+    if (name === "reports_inventory_history") return new Response(JSON.stringify([{ effective_date: "2026-10-01", capacity_by_type: { standard: roomCount }, time_zone: zone }]), { headers: { "Content-Type": "application/json" } });
     if (name === "room_type_available_counts") return new Response(JSON.stringify([{ room_type_id: "standard", available: rpcAvailable }]), { headers: { "Content-Type": "application/json" } });
     const rows = name === "rooms" ? rooms : name === "bookings" ? reservations : [];
     const offset = Number(url.searchParams.get("offset") ?? 0);
@@ -50,16 +51,33 @@ describe("dashboard occupancy data boundary", () => {
       p_room_type_ids: ["standard"], p_from: "2026-10-21", p_to: "2026-10-22",
     });
   });
-  it("does not call live inventory or the forward-only RPC for historical days", async () => {
-    const { supabase, fetchMock } = clientWithInventory();
-    expect(await fetchDashboardOccupancy(supabase, "hotel-a", "2026-10-20", "UTC")).toMatchObject({ state: "unavailable", totalRooms: null });
-    expect(fetchMock).not.toHaveBeenCalled();
+  it("reads recorded history, never live inventory or the forward-only RPC, for historical days", async () => {
+    const { supabase, requests } = clientWithInventory();
+    const metric = await fetchDashboardOccupancy(supabase, "hotel-a", "2026-10-20", "UTC");
+    expect(metric).toMatchObject({ basis: "historical", state: "ready", totalRooms: 3, soldRooms: 1, outOfService: 0, blocked: 0 });
+    const names = requests.map(({ url }) => url.pathname.split("/").pop());
+    expect(names).not.toContain("rooms");
+    expect(names).not.toContain("availability_blocks");
+    expect(names).not.toContain("room_type_available_counts");
+    for (const { url } of requests) expect(url.searchParams.get("hotel_id")).toBe("eq.hotel-a");
+    // State as of the end of the business day; stays that were checked in.
+    const status = requests.find(({ url }) => url.pathname.endsWith("/room_status_history"))!.url;
+    expect(status.searchParams.get("valid_from")).toBe("lt.2026-10-21T00:00:00.000Z");
+    expect(status.searchParams.get("or")).toBe('(valid_to.is.null,valid_to.gte."2026-10-21T00:00:00.000Z")');
+    const stays = requests.find(({ url }) => url.pathname.endsWith("/bookings"))!.url;
+    expect(stays.searchParams.get("status")).toBe("in.(checked_in,checked_out)");
+    expect(stays.searchParams.get("check_in")).toBe("lte.2026-10-20");
+    expect(stays.searchParams.get("check_out")).toBe("gt.2026-10-20");
   });
   it("resolves past versus future using the property's business date", async () => {
     vi.setSystemTime(new Date("2026-10-21T23:30:00Z"));
-    const { supabase, fetchMock } = clientWithInventory();
-    expect(await fetchDashboardOccupancy(supabase, "hotel-a", "2026-10-21", "Asia/Tokyo")).toMatchObject({ state: "unavailable" });
-    expect(fetchMock).not.toHaveBeenCalled();
+    const { supabase, requests } = clientWithInventory({ zone: "Asia/Tokyo" });
+    expect(await fetchDashboardOccupancy(supabase, "hotel-a", "2026-10-21", "Asia/Tokyo")).toMatchObject({ basis: "historical" });
+    expect(requests.map(({ url }) => url.pathname.split("/").pop())).not.toContain("rooms");
+  });
+  it("says history is not set up when the history tables are missing", async () => {
+    const { supabase } = clientWithInventory({ failTable: "room_status_history", failCode: "PGRST205" });
+    expect(await fetchDashboardOccupancy(supabase, "hotel-a", "2026-10-20", "UTC")).toMatchObject({ state: "unavailable", basis: "historical-unavailable" });
   });
   it("paginates inventory instead of silently using the first page", async () => {
     const { supabase, requests } = clientWithInventory({ roomCount: 1001, rpcAvailable: 1000 });

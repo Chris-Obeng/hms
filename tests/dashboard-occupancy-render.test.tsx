@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { OccupancyCard } from "@/app/dashboard/_components/occupancy-card";
-import { calculateRoomsSold } from "@/lib/metrics/dashboard-occupancy";
+import { calculateRoomsSold, unavailableRoomsSold } from "@/lib/metrics/dashboard-occupancy";
 
 const context = { date: "2026-10-21", businessToday: "2026-10-21", asOf: "2026-10-21T12:00:00Z" };
 const counts = { totalRooms: 8, outOfService: 1, blocked: 1, soldRooms: 2, heldRooms: 1 };
@@ -73,13 +73,20 @@ describe("occupancy card", () => {
     expect(screen.queryByRole("img")).toBeNull();
   });
 
-  it("explains historical unavailability and never labels it tonight", () => {
+  it("shows a recorded past night like any other, never labelled tonight", () => {
     render(
       <OccupancyCard metric={calculateRoomsSold({ ...context, date: "2026-10-20" }, counts)} />
     );
     expect(screen.getByText("October 20, 2026")).toBeTruthy();
-    expect(screen.getByRole("note").textContent).toContain("Historical room inventory");
+    expect(screen.getByText("33.3%")).toBeTruthy();
+    expect(screen.queryByRole("note")).toBeNull();
     expect(screen.queryByText(/Tonight/)).toBeNull();
+  });
+
+  it("explains a past night with no room records", () => {
+    render(<OccupancyCard metric={unavailableRoomsSold({ ...context, date: "2026-06-01" })} />);
+    expect(screen.getByRole("note").textContent).toContain("No room inventory is recorded");
+    expect(screen.queryByRole("img")).toBeNull();
   });
 
   it("keeps the data's actual date visible during a date switch", () => {
