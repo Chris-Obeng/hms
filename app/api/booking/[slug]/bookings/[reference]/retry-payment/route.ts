@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { initializeTransaction, isUsableSubaccount } from "@/lib/paystack";
 import { sumMinor, toMinor } from "@/lib/money";
-import { computePlatformFeeMinor, getPlatformFeeConfig } from "@/lib/platform/fees";
+import {
+  computePlatformFeeMinor,
+  startPlatformFeeConfigRead,
+  type PlatformFeeConfig,
+} from "@/lib/platform/fees";
 import { rateLimit } from "@/lib/rate-limit";
 import {
   captureError,
@@ -80,6 +84,11 @@ async function handleRetryPayment(
     return NextResponse.json({ error: "Online payment is not available." }, { status: 400 });
   }
 
+  // Read the platform fee while the booking is looked up, not after: one
+  // database round trip less before the guest reaches Paystack. Awaited where
+  // the fee is used, so a failure is still handled there.
+  const feeConfigPromise = startPlatformFeeConfigRead();
+
   const { data: booking, error: bookingErr } = await supabaseAdmin
     .from("bookings")
     .select(
@@ -111,7 +120,7 @@ async function handleRetryPayment(
   // path settles every sibling via settle_online_group_payment_atomic. Single-room
   // holds (group_id NULL) fall through to the unchanged path below.
   if (booking.group_id) {
-    return await handleGroupRetryPayment(req, slug, hotel, booking.group_id);
+    return await handleGroupRetryPayment(req, slug, hotel, booking.group_id, feeConfigPromise);
   }
 
   if (booking.status === "cancelled") {
@@ -158,7 +167,7 @@ async function handleRetryPayment(
     // Platform fee on the amount actually charged this retry (the remaining
     // balance, not the original total). Stored on the attempt and sent to
     // Paystack as transaction_charge; zero fee omits it.
-    const feeConfig = await getPlatformFeeConfig();
+    const feeConfig = await feeConfigPromise;
     const platformFeeMinor = computePlatformFeeMinor(feeConfig, amountMinor, attemptCurrency);
 
     // Durable payment intent BEFORE the reference reaches Paystack: the
@@ -270,7 +279,8 @@ async function handleGroupRetryPayment(
     currency: string | null;
     paystack_subaccount_code: string | null;
   },
-  groupId: string
+  groupId: string,
+  feeConfigPromise: Promise<PlatformFeeConfig>
 ) {
   const { data: lines, error: linesErr } = await supabaseAdmin
     .from("bookings")
@@ -335,7 +345,7 @@ async function handleGroupRetryPayment(
   const payRef = `${anchor.reference}-r${Date.now()}`;
 
   try {
-    const feeConfig = await getPlatformFeeConfig();
+    const feeConfig = await feeConfigPromise;
     const platformFeeMinor = computePlatformFeeMinor(feeConfig, amountMinor, currency);
 
     // One attempt on the anchor, keyed by the group reference — the settle RPC
