@@ -507,7 +507,10 @@ export async function recordPayment(
 
     // Insert payment and atomically increment amount_paid in one DB transaction,
     // eliminating the read-modify-write race that could drop concurrent payments.
-    const { data: rpcResult, error: rpcError } = await supabase
+    // Service role: the client-write guard stops a staff JWT from changing
+    // amount_paid ("Cannot directly modify immutable or financial booking
+    // fields"). The staff role and the booking's hotel are checked above.
+    const { data: rpcResult, error: rpcError } = await supabaseAdmin
       .rpc("record_payment_atomic", {
         p_hotel_id:    hotelId,
         p_booking_id:  data.bookingId,
@@ -519,7 +522,8 @@ export async function recordPayment(
       });
 
     if (rpcError || !rpcResult?.[0]?.payment_id) {
-      return { success: false, error: rpcError?.message || "Failed to record payment" };
+      if (rpcError) console.error("[recordPayment]", rpcError);
+      return { success: false, error: "Could not record the payment. Refresh and try again." };
     }
 
     const payment = { id: rpcResult[0].payment_id as string };
