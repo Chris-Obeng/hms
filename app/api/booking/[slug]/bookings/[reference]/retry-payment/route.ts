@@ -14,6 +14,12 @@ import {
   flushSentry,
 } from "@/lib/observability/sentry";
 import { bookingReferenceParam, hotelSlugParam } from "@/lib/validation/params";
+import {
+  GUEST_ACCESS_HEADER,
+  resolveGuestAccess,
+  signGuestAccess,
+} from "@/lib/bookings/guest-access";
+import { confirmationPath } from "@/lib/bookings/guest-access-link";
 
 /**
  * Paystack statuses after which no more money can arrive on a transaction, so
@@ -80,6 +86,10 @@ function chargeStillOpenResponse(paymentReference: string) {
  *
  * Re-initializes a Paystack transaction for a booking that is still an unpaid
  * online-payment hold (guest closed the checkout tab, card declined, etc.).
+ *
+ * Requires the guest access token (header `x-booking-access`, see
+ * lib/bookings/guest-access.ts) for current-format references; without a valid
+ * one the booking is reported as not found.
  *
  * Only ever issues a NEW authorization URL — it never mutates booking state.
  * Refuses (409, `paymentInProgress`) while the previous checkout can still
@@ -173,7 +183,11 @@ async function handleRetryPayment(
     });
   }
 
-  if (!booking) {
+  // Same answer as an unknown reference, so a guess cannot learn that it hit.
+  if (
+    !booking ||
+    resolveGuestAccess(hotel.id, booking, req.headers.get(GUEST_ACCESS_HEADER)) === "denied"
+  ) {
     return NextResponse.json({ error: "Booking not found" }, { status: 404 });
   }
 
@@ -219,7 +233,9 @@ async function handleRetryPayment(
   const guest = booking.guests as { email?: string | null } | null;
 
   // Derive the callback from the request origin — never client-supplied headers.
-  const callbackUrl = `${req.nextUrl.origin}/${slug}/confirmation?bref=${booking.reference}`;
+  const callbackUrl = `${req.nextUrl.origin}${confirmationPath(slug, booking.reference, {
+    accessToken: signGuestAccess(hotel.id, booking.id),
+  })}`;
   const payRef = `${booking.reference}-r${Date.now()}`;
 
   const attemptCurrency = booking.currency ?? hotel.currency ?? "GHS";
@@ -412,7 +428,9 @@ async function handleGroupRetryPayment(
   }
 
   const guest = anchor.guests as { email?: string | null } | null;
-  const callbackUrl = `${req.nextUrl.origin}/${slug}/confirmation?bref=${anchor.reference}`;
+  const callbackUrl = `${req.nextUrl.origin}${confirmationPath(slug, anchor.reference, {
+    accessToken: signGuestAccess(hotel.id, groupId),
+  })}`;
   const payRef = `${anchor.reference}-r${Date.now()}`;
 
   try {

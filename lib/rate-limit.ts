@@ -1,7 +1,12 @@
-import { NextRequest } from "next/server";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { captureError } from "@/lib/observability/sentry";
+
+/**
+ * Anything that exposes request headers: a route handler's `NextRequest`, or
+ * the `headers()` of a server component render.
+ */
+export type RateLimitRequest = { headers: { get(name: string): string | null } };
 
 /**
  * Rate limiting for public endpoints.
@@ -102,7 +107,7 @@ function getLimiter(name: string, limit: number, windowSeconds: number): Ratelim
  * Extracts the best-effort client identity from proxy headers.
  * Falls back to a constant when no proxy headers exist (local dev).
  */
-export function getClientIp(req: NextRequest): string {
+export function getClientIp(req: RateLimitRequest): string {
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) {
     const first = forwarded.split(",")[0]?.trim();
@@ -112,7 +117,7 @@ export function getClientIp(req: NextRequest): string {
 }
 
 function memoryRateLimit(
-  req: NextRequest,
+  req: RateLimitRequest,
   { name, limit, windowSeconds }: RateLimitOptions
 ): RateLimitResult {
   const now = Date.now();
@@ -140,7 +145,7 @@ function memoryRateLimit(
 }
 
 export async function rateLimit(
-  req: NextRequest,
+  req: RateLimitRequest,
   options: RateLimitOptions
 ): Promise<RateLimitResult> {
   if (!upstashEnabled) return memoryRateLimit(req, options);

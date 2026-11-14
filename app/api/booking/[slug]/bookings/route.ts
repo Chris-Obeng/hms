@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { initializeTransaction, isUsableSubaccount } from "@/lib/paystack";
+import { signGuestAccess } from "@/lib/bookings/guest-access";
+import { confirmationPath } from "@/lib/bookings/guest-access-link";
 import { fromMinor } from "@/lib/money";
 import {
   computePlatformFeeMinor,
@@ -440,6 +442,9 @@ export async function POST(
     // Room assignment stays with staff: a public booking holds inventory of the
     // room type, not a numbered room.
     const booking = created.booking;
+    // Signed link token for the guest's confirmation page; null only when
+    // BOOKING_LINK_SECRET is missing, which guest-access reports itself.
+    const accessToken = signGuestAccess(hotel.id, booking.booking_id);
 
     if (data.payment_preference === "pay_at_checkin") {
       // Confirmed reservation — notify staff and email the guest right away.
@@ -499,6 +504,7 @@ export async function POST(
       return NextResponse.json({
         bookingId: booking.booking_id,
         reference: booking.reference,
+        accessToken,
         roomsCount: data.rooms_count,
       });
     }
@@ -506,7 +512,7 @@ export async function POST(
     // ── pay_now: hand off to Paystack ────────────────────────────
     // Derive the callback from the request URL, never from the client-supplied
     // Origin header — Paystack would otherwise redirect guests to any host.
-    const callbackUrl = `${req.nextUrl.origin}/${slug}/confirmation?bref=${booking.reference}`;
+    const callbackUrl = `${req.nextUrl.origin}${confirmationPath(slug, booking.reference, { accessToken })}`;
     const payRef = `${booking.reference}-${Date.now()}`;
 
     try {
@@ -578,6 +584,7 @@ export async function POST(
       return NextResponse.json({
         bookingId: booking.booking_id,
         reference: booking.reference,
+        accessToken,
         roomsCount: data.rooms_count,
         paymentRequired: true,
         authorizationUrl: txn.authorization_url,
@@ -798,6 +805,8 @@ async function createGroupBooking(
   }
 
   const group = created.group;
+  // One token for the whole reservation, bound to the anchor (every line's group_id).
+  const accessToken = signGuestAccess(hotel.id, group.group_id);
   const roomsLabel = `${totalRooms} ${totalRooms === 1 ? "room" : "rooms"}`;
   const groupTotal = fromMinor(group.group_total_minor, group.currency);
 
@@ -863,13 +872,14 @@ async function createGroupBooking(
     return NextResponse.json({
       bookingId: group.group_id,
       reference: group.group_reference,
+      accessToken,
       roomsCount: totalRooms,
     });
   }
 
   // ── pay_now: one Paystack handoff for the whole group total ──────
   // Callback carries the group reference, same shape the single path uses.
-  const callbackUrl = `${req.nextUrl.origin}/${slug}/confirmation?bref=${group.group_reference}`;
+  const callbackUrl = `${req.nextUrl.origin}${confirmationPath(slug, group.group_reference, { accessToken })}`;
   const payRef = `${group.group_reference}-${Date.now()}`;
 
   try {
@@ -941,6 +951,7 @@ async function createGroupBooking(
     return NextResponse.json({
       bookingId: group.group_id,
       reference: group.group_reference,
+      accessToken,
       roomsCount: totalRooms,
       paymentRequired: true,
       authorizationUrl: txn.authorization_url,

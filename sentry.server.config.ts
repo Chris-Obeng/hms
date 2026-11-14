@@ -15,7 +15,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 
-import { scrubEventLocalVariables } from "@/lib/observability/sentry";
+import { redactGuestAccessFromBreadcrumb, scrubServerEvent } from "@/lib/observability/sentry";
 
 Sentry.init({
   // Unset DSN (local dev, CI) makes the SDK a no-op rather than an error.
@@ -42,7 +42,9 @@ Sentry.init({
   // collected without widening what leaves the process unredacted.
   includeLocalVariables: process.env.SENTRY_INCLUDE_LOCAL_VARIABLES === "true",
 
-  beforeSend: scrubEventLocalVariables,
+  // Also strips guest booking access tokens (`?t=`) from URLs and breadcrumbs.
+  beforeSend: scrubServerEvent,
+  beforeBreadcrumb: redactGuestAccessFromBreadcrumb,
 
   // Next.js control-flow signals are thrown, not failures.
   ignoreErrors: ["NEXT_REDIRECT", "NEXT_NOT_FOUND", "NEXT_HTTP_ERROR_FALLBACK"],
