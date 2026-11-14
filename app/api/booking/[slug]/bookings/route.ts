@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { initializeTransaction, isUsableSubaccount } from "@/lib/paystack";
+import { initializeTransaction, isUsableSubaccount, newPaystackReference } from "@/lib/paystack";
 import { fromMinor } from "@/lib/money";
 import { computePlatformFeeMinor, getPlatformFeeConfig } from "@/lib/platform/fees";
 import {
@@ -447,7 +447,7 @@ export async function POST(
     // Derive the callback from the request URL, never from the client-supplied
     // Origin header — Paystack would otherwise redirect guests to any host.
     const callbackUrl = `${req.nextUrl.origin}/${slug}/confirmation?bref=${booking.reference}`;
-    const payRef = `${booking.reference}-${Date.now()}`;
+    const payRef = newPaystackReference(booking.reference);
 
     try {
       // Platform fee (RoomLine's cut) for this charge. Stored on the attempt so
@@ -819,7 +819,7 @@ async function createGroupBooking(
   // ── pay_now: one Paystack handoff for the whole group total ──────
   // Callback carries the group reference, same shape the single path uses.
   const callbackUrl = `${req.nextUrl.origin}/${slug}/confirmation?bref=${group.group_reference}`;
-  const payRef = `${group.group_reference}-${Date.now()}`;
+  const payRef = newPaystackReference(group.group_reference);
 
   try {
     // Platform fee on the group total (one cut for the whole reservation),

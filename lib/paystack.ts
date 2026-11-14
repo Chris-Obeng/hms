@@ -44,6 +44,31 @@ export function isUsableSubaccount(hotel: {
 }
 
 /**
+ * New Paystack transaction reference for a booking payment, e.g.
+ * `K7MX4Q-1794644482272-3fa9c01b2e7d` (or `K7MX4Q-r1794644482272-…` for a retry).
+ *
+ * Paystack needs a reference that is unique across RoomLine's whole account, and
+ * `payments` / `payment_attempts` enforce that with UNIQUE (paystack_reference).
+ * Booking references are only unique per hotel (`bookings_hotel_reference_key`),
+ * so two hotels can share one, and a timestamp alone could collide in the same
+ * millisecond. The 48-bit random suffix keeps every payment reference distinct.
+ * The booking reference stays as the prefix so staff can find a payment in the
+ * Paystack dashboard.
+ *
+ * Output uses only characters Paystack accepts (alphanumerics and `-`) and stays
+ * well under `paystackReferenceParam`'s 120-character limit.
+ */
+export function newPaystackReference(
+  bookingReference: string,
+  kind: "initial" | "retry" = "initial"
+): string {
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  const suffix = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  return `${bookingReference}-${kind === "retry" ? "r" : ""}${Date.now()}-${suffix}`;
+}
+
+/**
  * Groupable label for a request path: query string dropped and id-looking
  * segments collapsed, so `/transaction/verify/RL-8H2K91` groups with every other
  * verify call instead of opening a new Sentry issue per reference.

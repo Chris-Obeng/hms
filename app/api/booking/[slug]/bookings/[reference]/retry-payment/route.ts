@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { initializeTransaction, isUsableSubaccount } from "@/lib/paystack";
+import { initializeTransaction, isUsableSubaccount, newPaystackReference } from "@/lib/paystack";
 import { sumMinor, toMinor } from "@/lib/money";
 import { computePlatformFeeMinor, getPlatformFeeConfig } from "@/lib/platform/fees";
 import { rateLimit } from "@/lib/rate-limit";
@@ -149,7 +149,7 @@ async function handleRetryPayment(
 
   // Derive the callback from the request origin — never client-supplied headers.
   const callbackUrl = `${req.nextUrl.origin}/${slug}/confirmation?bref=${booking.reference}`;
-  const payRef = `${booking.reference}-r${Date.now()}`;
+  const payRef = newPaystackReference(booking.reference, "retry");
 
   const attemptCurrency = booking.currency ?? hotel.currency ?? "GHS";
   const amountMinor = toMinor(remaining, attemptCurrency);
@@ -332,7 +332,7 @@ async function handleGroupRetryPayment(
 
   const guest = anchor.guests as { email?: string | null } | null;
   const callbackUrl = `${req.nextUrl.origin}/${slug}/confirmation?bref=${anchor.reference}`;
-  const payRef = `${anchor.reference}-r${Date.now()}`;
+  const payRef = newPaystackReference(anchor.reference, "retry");
 
   try {
     const feeConfig = await getPlatformFeeConfig();

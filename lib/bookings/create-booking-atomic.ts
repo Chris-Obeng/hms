@@ -87,7 +87,10 @@ export type ResolvedNight = {
 
 export type CreateBookingResult = {
   booking_id: string;
-  /** Bare 13-digit OTA-style number generated in the database. */
+  /**
+   * 6-character code generated in the database (e.g. `K7MX4Q`). Unique within
+   * the hotel only, so always look it up together with `hotel_id`.
+   */
   reference: string;
   guest_id: string;
   guest_created: boolean;
