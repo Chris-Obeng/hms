@@ -130,7 +130,7 @@ export default async function DashboardLayout({
               : undefined
           }
         />
-        <main className="native-scroll flex-1 pt-14 px-4 pb-4 md:px-6 md:pb-6 lg:px-8 lg:pb-8 bg-background">
+        <main className="native-scroll flex-1 pt-[calc(3.5rem+env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:pl-[max(1.5rem,env(safe-area-inset-left))] md:pr-[max(1.5rem,env(safe-area-inset-right))] md:pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:pl-8 lg:pr-8 lg:pb-8 bg-background">
           <DashboardPwaShell>{children}</DashboardPwaShell>
         </main>
       </div>

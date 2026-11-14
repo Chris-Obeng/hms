@@ -70,7 +70,9 @@ export function AppHeader({
       <header
         data-slot="app-header"
         className={cn(
-          "fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-2 px-2 sm:gap-4 sm:px-4 lg:px-6",
+          // Safe areas: the header grows under a notch / status bar and keeps
+          // clear of landscape side insets, so it blends with the status bar.
+          "fixed inset-x-0 top-0 z-30 flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center gap-2 pt-[env(safe-area-inset-top)] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] sm:gap-4 sm:pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1rem,env(safe-area-inset-right))] lg:pl-[max(1.5rem,env(safe-area-inset-left))] lg:pr-[max(1.5rem,env(safe-area-inset-right))]",
           "border-b border-border/50 bg-background/80 backdrop-blur-xl supports-backdrop-filter:bg-background/70"
         )}
       >

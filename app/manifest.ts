@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { LAUNCH_BACKGROUND } from "@/lib/brand/splash";
 
 // Icons are generated from lib/brand/mark.ts by `pnpm icons`. Each purpose gets
 // its own entry: a single icon tagged "any maskable" is either padded too much
@@ -26,13 +27,16 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: "en",
     dir: "ltr",
     start_url: "/dashboard",
-    scope: "/dashboard",
+    // "/" so sign-in, onboarding and invites stay inside the installed app
+    // window instead of opening a browser bar when the session has expired.
+    scope: "/",
     display: "standalone",
     display_override: ["standalone", "minimal-ui"],
-    // background_color paints the PWA splash before the app renders, so it stays
-    // the app's paper colour. theme_color is deliberately absent: the window
-    // chrome is left to the platform default (see the viewport note in layout.tsx).
-    background_color: "#FAFAF8",
+    // Android builds its splash from background_color + the largest `any` icon.
+    // Both colours equal the dashboard's background and header, so launch goes
+    // splash → header with no flash or colour jump (iOS: lib/brand/splash.ts).
+    background_color: LAUNCH_BACKGROUND,
+    theme_color: LAUNCH_BACKGROUND,
     orientation: "any",
     categories: ["business", "productivity", "travel"],
     prefer_related_applications: false,

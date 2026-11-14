@@ -11,12 +11,16 @@
  *   icons/icon-180x180.png        full-bleed apple-touch-icon (iOS masks corners)
  *   icons/icon-monochrome-512.png alpha-only silhouette, manifest `monochrome`
  *   icons/badge-96x96.png         alpha-only silhouette, notification badge
+ *   apple-touch-icon.png          same as icons/icon-180x180.png, at the path iOS probes
+ *   splash/apple-splash-*.png     iOS launch screens (lib/brand/splash.ts): the tile
+ *                                 centred on the dashboard's background colour
  */
 import sharp from "sharp";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { tileSvg, fullBleedSvg, monochromeSvg } from "../lib/brand/mark.ts";
+import { BRAND, tileSvg, fullBleedSvg, monochromeSvg } from "../lib/brand/mark.ts";
+import { LAUNCH_BACKGROUND, SPLASH_SCREENS } from "../lib/brand/splash.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, "..", "public");
@@ -26,8 +30,18 @@ const iconsDir = join(publicDir, "icons");
 const png = (svg, size) =>
   sharp(Buffer.from(svg), { density: 288 }).resize(size, size).png({ compressionLevel: 9 }).toBuffer();
 
-async function write(name, svg, size) {
-  writeFileSync(join(iconsDir, name), await png(svg, size));
+// Full-bleed icons (maskable, apple-touch-icon) carry no alpha channel at all:
+// iOS paints transparency black and Android masks expect an opaque square.
+const opaquePng = (svg, size) =>
+  sharp(Buffer.from(svg), { density: 288 })
+    .resize(size, size)
+    .flatten({ background: BRAND.ink })
+    .removeAlpha()
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+
+async function write(name, svg, size, encode = png) {
+  writeFileSync(join(iconsDir, name), await encode(svg, size));
   console.log(`Wrote icons/${name}`);
 }
 
@@ -42,9 +56,12 @@ console.log("Wrote icons/icon.svg");
 await write("icon-96x96.png", tile, 96);
 await write("icon-192x192.png", tile, 192);
 await write("icon-512x512.png", tile, 512);
-await write("icon-192-maskable.png", maskable, 192);
-await write("icon-512-maskable.png", maskable, 512);
-await write("icon-180x180.png", fullBleedSvg(0.92), 180);
+await write("icon-192-maskable.png", maskable, 192, opaquePng);
+await write("icon-512-maskable.png", maskable, 512, opaquePng);
+const touchIcon = fullBleedSvg(0.92);
+await write("icon-180x180.png", touchIcon, 180, opaquePng);
+writeFileSync(join(publicDir, "apple-touch-icon.png"), await opaquePng(touchIcon, 180));
+console.log("Wrote apple-touch-icon.png");
 await write("icon-monochrome-512.png", monochromeSvg(0.9), 512);
 // Android shows badges in the status bar at ~24 dp; a full-size glyph keeps it legible.
 await write("badge-96x96.png", monochromeSvg(1.2), 96);
@@ -71,3 +88,24 @@ images.forEach((image, i) => {
 });
 writeFileSync(join(publicDir, "favicon.ico"), Buffer.concat([header, ...images]));
 console.log("Wrote favicon.ico");
+
+// iOS launch screens: flat colour + one centred tile, so a palette PNG is tiny.
+const splashDir = join(publicDir, "splash");
+mkdirSync(splashDir, { recursive: true });
+for (const screen of SPLASH_SCREENS) {
+  const logo = await sharp(Buffer.from(tile), { density: 576 }).resize(screen.logo, screen.logo).png().toBuffer();
+  const out = await sharp({
+    create: { width: screen.width, height: screen.height, channels: 3, background: LAUNCH_BACKGROUND },
+  })
+    .composite([
+      {
+        input: logo,
+        left: Math.round((screen.width - screen.logo) / 2),
+        top: Math.round((screen.height - screen.logo) / 2),
+      },
+    ])
+    .png({ palette: true, colours: 64, compressionLevel: 9 })
+    .toBuffer();
+  writeFileSync(join(publicDir, screen.url.slice(1)), out);
+}
+console.log(`Wrote ${SPLASH_SCREENS.length} splash screens`);
