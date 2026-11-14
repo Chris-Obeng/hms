@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { preconnect } from "react-dom";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { toast, ListBox, Select } from "@heroui/react";
+import { toast, ListBox, Select, Spinner } from "@heroui/react";
 import { format, parseISO } from "date-fns";
 import { COUNTRIES } from "@/lib/countries-data";
 import {
@@ -37,6 +38,7 @@ import {
   X,
 } from "lucide-react";
 import { RoomGallery } from "@/components/booking/room-gallery";
+import { RoomQuantitySelect } from "@/components/booking/room-quantity-select";
 import { fromMinor, sumMinor, toMinor } from "@/lib/money";
 import { BookingDateRangePicker } from "@/components/booking/booking-date-range-picker";
 import { GuestPickerPopover } from "@/components/booking/guest-picker-popover";
@@ -248,6 +250,24 @@ export function BookingWizard({
   });
   const [availNonce, setAvailNonce] = React.useState(0);
   const roomsListRef = React.useRef<HTMLDivElement>(null);
+
+  // Online payment ends on Paystack's hosted checkout. Opening the connection
+  // while the guest fills in their details saves the DNS, TCP and TLS setup
+  // when "Book now" sends them there.
+  if (section === 2 && paymentPref === "pay_now") {
+    preconnect("https://checkout.paystack.com");
+  }
+
+  // The spinner stays on while the browser leaves for Paystack. If the guest
+  // comes back with the Back button, the page can be restored from the
+  // back/forward cache with it still on, so switch it off again.
+  React.useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) setSubmitting(false);
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   const goToSection = React.useCallback((next: BookingStepId) => {
     if (next === 1 || next === 2) {
@@ -637,6 +657,7 @@ export function BookingWizard({
       return;
     }
 
+    let leaving = false;
     setSubmitting(true);
     try {
       const guestFields = {
@@ -701,15 +722,20 @@ export function BookingWizard({
         );
         return;
       }
+      // Leaving the page: keep the spinner on until the next page replaces
+      // this one. Switching it off here showed "Book now" again while the
+      // browser was still loading, and a second tap made a second booking.
+      leaving = true;
       if (data.paymentRequired && data.authorizationUrl) {
         window.location.assign(data.authorizationUrl);
         return;
       }
       router.push(`/${slug}/confirmation?reference=${data.reference}`);
     } catch {
+      leaving = false;
       toast.danger("Network error. Please try again.");
     } finally {
-      setSubmitting(false);
+      if (!leaving) setSubmitting(false);
     }
   }
 
@@ -1269,7 +1295,7 @@ export function BookingWizard({
                                 key={c.name}
                                 id={c.name}
                                 textValue={`${c.name} ${c.dialCode}`}
-                                className="text-sm px-3 py-2 rounded-lg cursor-pointer hover:bg-[#F5F5F5] flex items-center gap-2 text-[#18181B]"
+                                className="text-sm ps-3 pe-8 py-2 rounded-lg cursor-pointer hover:bg-[#F5F5F5] flex items-center gap-2 text-[#18181B]"
                               >
                                 <span
                                   className="text-base leading-none"
@@ -1626,12 +1652,14 @@ export function BookingWizard({
                     <button
                       type="button"
                       disabled={submitting}
+                      aria-busy={submitting}
+                      data-pending={submitting || undefined}
                       onClick={handleBookSubmit}
                       className="booking-btn-primary h-10 w-full text-base inline-flex items-center justify-center gap-2 cursor-pointer touch-manipulation"
                     >
                       {submitting ? (
                         <>
-                          <Loader2 className="size-4 animate-spin" />
+                          <Spinner size="sm" color="current" />
                           <span>Processing...</span>
                         </>
                       ) : (
@@ -1652,12 +1680,14 @@ export function BookingWizard({
                 <button
                   type="button"
                   disabled={submitting}
+                  aria-busy={submitting}
+                  data-pending={submitting || undefined}
                   onClick={handleBookSubmit}
                   className="booking-btn-primary h-10 w-full text-base inline-flex items-center justify-center gap-2 cursor-pointer touch-manipulation"
                 >
                   {submitting ? (
                     <>
-                      <Loader2 className="size-4 animate-spin" />
+                      <Spinner size="sm" color="current" />
                       <span>Processing...</span>
                     </>
                   ) : (
@@ -1773,8 +1803,6 @@ function StayRoomCard({
           room.maxChildren === 1 ? "child" : "children"
         }`
       : `Sleeps ${room.maxAdults} ${room.maxAdults === 1 ? "adult" : "adults"}`;
-
-  const qtyOptions = Array.from({ length: maxSelectable }, (_, i) => i + 1);
 
   return (
     <div
@@ -1912,30 +1940,17 @@ function StayRoomCard({
                   </p>
                 </div>
 
-                {/* Room qty selector + Desktop Book button */}
+                {/* Room qty selector + Desktop Select button */}
                 <div className="flex items-center gap-3 shrink-0">
-                  <div className="relative">
-                    <select
-                      aria-label={`Number of rooms for ${room.name}`}
-                      value={selectedQty}
-                      disabled={atLimit && !inCart}
-                      onChange={(e) =>
-                        onQtyChange(Number.parseInt(e.target.value, 10))
-                      }
-                      className="h-10 md:h-10 w-[96px] md:w-[104px] appearance-none rounded-xl border border-[#DEDEE0] bg-white pl-3 pr-8 text-xs md:text-sm font-medium text-[#18181B] outline-none hover:border-[#A1A1AA] focus:border-[#0485F7] cursor-pointer disabled:opacity-50"
-                    >
-                      {inCart && <option value={0}>0 rooms</option>}
-                      {qtyOptions.map((q) => (
-                        <option key={q} value={q}>
-                          {q} {q === 1 ? "room" : "rooms"}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#71717A]"
-                      strokeWidth={2}
-                    />
-                  </div>
+                  <RoomQuantitySelect
+                    roomName={room.name}
+                    value={selectedQty}
+                    maxSelectable={maxSelectable}
+                    inCart={inCart}
+                    isDisabled={atLimit && !inCart}
+                    onChange={onQtyChange}
+                    className="w-[96px] md:w-[104px]"
+                  />
 
                   {inCart ? (
                     <div className="hidden md:flex items-center gap-2">
@@ -1963,13 +1978,13 @@ function StayRoomCard({
                       onClick={onBook}
                       className="hidden md:inline-flex booking-btn-primary h-10 px-4 items-center justify-center text-base cursor-pointer touch-manipulation"
                     >
-                      {atLimit ? "Limit reached" : "Book"}
+                      {atLimit ? "Limit reached" : "Select"}
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* Mobile full-width Book / Selected button (`oiv2Z`) */}
+              {/* Mobile full-width Select / Selected button (`oiv2Z`) */}
               <div className="md:hidden">
                 {inCart ? (
                   <div className="flex items-center gap-2">
@@ -1997,7 +2012,7 @@ function StayRoomCard({
                     onClick={onBook}
                     className="booking-btn-primary h-10 w-full flex items-center justify-center text-base cursor-pointer touch-manipulation"
                   >
-                    {atLimit ? "Limit reached" : "Book"}
+                    {atLimit ? "Limit reached" : "Select"}
                   </button>
                 )}
               </div>
