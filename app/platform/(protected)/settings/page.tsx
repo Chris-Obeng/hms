@@ -42,7 +42,7 @@ export default async function PlatformSettingsPage() {
           Platform settings
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Manage RoomLine&apos;s online booking commission and super-admin
+          Manage Oriel&apos;s online booking commission and super-admin
           two-factor security.
         </p>
       </header>

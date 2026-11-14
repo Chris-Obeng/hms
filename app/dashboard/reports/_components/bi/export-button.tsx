@@ -65,7 +65,7 @@ export function ExportButton({ range, overview, occupancy, guests, revenue, room
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `roomline-reports-${range.startDate}_${range.endDate}.csv`;
+    anchor.download = `oriel-reports-${range.startDate}_${range.endDate}.csv`;
     anchor.click();
     URL.revokeObjectURL(url);
   }

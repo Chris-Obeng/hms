@@ -14,13 +14,13 @@ export const SUSPENSION_REASONS = {
     adminLabel: "Account review",
     title: "We're reviewing the account",
     owner: "We need a few details from you before access comes back. Reply to our email or contact support.",
-    staff: "RoomLine is reviewing the hotel's account with the owner.",
+    staff: "Oriel is reviewing the hotel's account with the owner.",
   },
   requested: {
     adminLabel: "Requested by the hotel",
     title: "Paused at the hotel's request",
     owner: "Access was paused at your request. Contact support whenever you're ready to resume.",
-    staff: "Your hotel's owner asked RoomLine to pause access for now.",
+    staff: "Your hotel's owner asked Oriel to pause access for now.",
   },
   other: {
     adminLabel: "Other",

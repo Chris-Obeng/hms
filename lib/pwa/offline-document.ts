@@ -6,8 +6,8 @@ export const offlineDocument = `<!doctype html>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="color-scheme" content="light">
     <meta name="robots" content="noindex">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%2310241E'/%3E%3Cpath d='M140 368V232a92 92 0 0 1 184 0v136z' fill='%23D8B25C'/%3E%3Cpath d='M140 368V226l82 24v104z' fill='%2310241E'/%3E%3Cpath d='M140 368V232a92 92 0 0 1 184 0v136M140 368h236' fill='none' stroke='%23F6F6F3' stroke-width='36' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-    <title>Connection unavailable · RoomLine</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%23141413'/%3E%3Ccircle cx='256' cy='256' r='158' fill='%23FFC23D'/%3E%3Cpath d='M204 342V222a52 52 0 0 1 104 0v120z' fill='%23141413'/%3E%3C/svg%3E">
+    <title>Connection unavailable · Oriel</title>
     <style>
       *, *::before, *::after {
         box-sizing: border-box;
@@ -22,7 +22,7 @@ export const offlineDocument = `<!doctype html>
         --ink: #0f172a;
         --ink-secondary: #475467;
         --ink-tertiary: #526071;
-        --brass: #b8924a;
+        --brass: #ffc23d;
         --primary: #1d4ed8;
         --primary-hover: #1e40af;
         --primary-active: #1e3a8a;
@@ -474,13 +474,12 @@ export const offlineDocument = `<!doctype html>
   <body>
     <header class="topbar">
       <div class="brand">
-        <!-- Open-door mark: geometry mirrors lib/brand/mark.ts (this document stays import-free). -->
-        <svg class="brand-mark" aria-hidden="true" focusable="false" viewBox="122 122 272 264" width="19" height="18">
-          <path class="light" d="M140 368V232a92 92 0 0 1 184 0v136z"/>
-          <path d="M140 368V226l82 24v104z" fill="currentColor"/>
-          <path d="M140 368V232a92 92 0 0 1 184 0v136M140 368h236" fill="none" stroke="currentColor" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Oriel mark: geometry mirrors lib/brand/mark.ts (this document stays import-free). -->
+        <svg class="brand-mark" aria-hidden="true" focusable="false" viewBox="98 98 316 316" width="20" height="20">
+          <circle class="light" cx="256" cy="256" r="158"/>
+          <path d="M204 342V222a52 52 0 0 1 104 0v120z" fill="currentColor"/>
         </svg>
-        <span class="brand-name">RoomLine</span>
+        <span class="brand-name">Oriel</span>
       </div>
       <div class="signal-pill">
         <span class="signal-dot" aria-hidden="true"></span>
@@ -509,7 +508,7 @@ export const offlineDocument = `<!doctype html>
         </div>
       </div>
       <h1 id="offline-title">You’re offline</h1>
-      <p class="lead">Check your connection to get back to your workspace.</p>
+      <p class="lead">Check your connection to get back to your front desk.</p>
       <div class="actions">
         <a id="offline-retry" href="/dashboard">
           <svg class="retry-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -623,12 +622,12 @@ export const offlineDocument = `<!doctype html>
 
             if (!response.ok || response.headers.get("x-roomline-offline") === "1") {
               setSignalState("offline", "warning");
-              status.textContent = "RoomLine is still unavailable. Please try again.";
+              status.textContent = "Oriel is still unavailable. Please try again.";
               return;
             }
 
             setSignalState("online", "success");
-            status.textContent = "Connection available. Opening RoomLine…";
+            status.textContent = "Connection available. Opening Oriel…";
             window.location.assign(target.href);
           } catch (_) {
             setSignalState("offline", "warning");

@@ -21,8 +21,8 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     // `id` is the installed app's identity: changing it orphans existing installs.
     id: "/dashboard",
-    name: "RoomLine",
-    short_name: "RoomLine",
+    name: "Oriel",
+    short_name: "Oriel",
     description: "Hotel management and direct booking platform",
     lang: "en",
     dir: "ltr",

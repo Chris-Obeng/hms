@@ -29,11 +29,11 @@ export function JoinSignUp({
     <AuthShell
       aside={{
         title: `Welcome to ${hotelName}.`,
-        body: "Create your RoomLine account to accept the invite. Your manager sees you on the team as soon as you're in.",
+        body: "Create your Oriel account to accept the invite. Your manager sees you on the team as soon as you're in.",
       }}
       topAction={
         <>
-          <span className="hidden sm:inline">Already on RoomLine?</span>
+          <span className="hidden sm:inline">Already on Oriel?</span>
           <Link href="/sign-in" className="rl-link">
             Sign in
           </Link>

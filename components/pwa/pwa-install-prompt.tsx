@@ -108,7 +108,7 @@ export function PwaInstallPrompt({
             <Modal.Icon className="bg-primary/[0.08] text-primary ring-1 ring-primary/15">
               <Smartphone className="size-5" />
             </Modal.Icon>
-            <Modal.Heading>Install RoomLine</Modal.Heading>
+            <Modal.Heading>Install Oriel</Modal.Heading>
           </Modal.Header>
 
           <Modal.Body>
@@ -120,7 +120,7 @@ export function PwaInstallPrompt({
               </p>
             ) : (
               <p className="text-base leading-relaxed text-muted-foreground">
-                Open RoomLine from your home screen in a dedicated window.
+                Open Oriel from your home screen in a dedicated window.
               </p>
             )}
           </Modal.Body>

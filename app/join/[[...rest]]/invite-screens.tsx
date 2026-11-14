@@ -139,7 +139,7 @@ export function InviteProblemScreen({
       <div className="rl-screen-actions">
         {primary}
         <Link href="/" className={buttonVariants({ size: "lg", variant: "outline" })}>
-          Go to RoomLine
+          Go to Oriel
         </Link>
       </div>
     </AuthShell>

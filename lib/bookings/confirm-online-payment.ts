@@ -217,7 +217,7 @@ export async function alertOncePerBooking(
 }
 
 /**
- * Best-effort mirror of RoomLine's platform fee onto the settled payment row.
+ * Best-effort mirror of Oriel's platform fee onto the settled payment row.
  *
  * The fee was computed at initialize and stashed in the attempt metadata as
  * `platform_fee_minor` (charge-currency subunits). Paystack realises it at

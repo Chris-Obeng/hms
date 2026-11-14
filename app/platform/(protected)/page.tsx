@@ -260,7 +260,7 @@ export default async function HotelOversightPage({
       <div className="space-y-1">
         <h1 className="text-page-title text-foreground">Hotel Oversight</h1>
         <p className="text-caption text-muted-foreground">
-          Portfolio health and revenue across every RoomLine property.
+          Portfolio health and revenue across every Oriel property.
         </p>
       </div>
 

@@ -46,8 +46,8 @@ async function write(name, svg, size, encode = png) {
 }
 
 const tile = tileSvg();
-// Glyph reaches 182 px from the centre on the 512 grid; at 0.9 it sits at
-// 164 px, inside the 204.8 px maskable safe radius with room to breathe.
+// The disc reaches 158 px from the centre on the 512 grid; at 0.9 it sits at
+// 142 px, inside the 204.8 px maskable safe radius with room to breathe.
 const maskable = fullBleedSvg(0.9);
 
 writeFileSync(join(iconsDir, "icon.svg"), `${tile}\n`);

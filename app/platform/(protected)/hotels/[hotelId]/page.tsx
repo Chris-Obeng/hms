@@ -13,7 +13,7 @@ import { HotelLifecycleActions } from "./_lifecycle-actions";
 import { HotelDetailTabs } from "./_hotel-tabs";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Hotel · RoomLine Platform" };
+export const metadata = { title: "Hotel · Oriel Platform" };
 
 const AUDIT_LABELS: Record<string, string> = {
   "hotel.approve": "Approved",

@@ -28,7 +28,7 @@ function escapeHtml(value: string | number | null | undefined): string {
 export function BookingFolioPrintButton({
   booking,
   currency,
-  hotelName = "RoomLine Property",
+  hotelName = "Oriel Property",
   hotelAddress,
   hotelPhone,
 }: BookingFolioPrintProps) {

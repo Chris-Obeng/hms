@@ -147,7 +147,7 @@ export function useNotifications({
 
   const lastChimeAtRef = React.useRef(0);
   /**
-   * One short chime per burst, and only while RoomLine is on screen:
+   * One short chime per burst, and only while Oriel is on screen:
    * - Hidden tab: the push / OS notification carries its own sound, so a
    *   second chime from a background tab would double up.
    * - Bursts (a group booking writes several alerts): at most one chime

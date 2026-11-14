@@ -1,7 +1,7 @@
 /**
  * Shared payout-visibility data layer.
  *
- * RoomLine takes online bookings via Paystack split payments: each guest charge
+ * Oriel takes online bookings via Paystack split payments: each guest charge
  * settles the hotel's share directly to that hotel's Paystack subaccount bank
  * account (Ghana default: AUTO, T+1). Paystack emits no settlement webhook, so
  * payout state is read live from the Settlements API and reconciled against our

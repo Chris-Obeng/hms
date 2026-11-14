@@ -11,7 +11,7 @@ import { DashboardSearch } from "@/app/dashboard/_components/dashboard-search";
 import type { GuestSearchResult } from "@/app/actions/customers";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
-import { RoomLineMark } from "@/components/brand/roomline-mark";
+import { OrielMark } from "@/components/brand/oriel-mark";
 
 const NewBookingModal = dynamic(
   () => import("@/components/bookings/new-booking-modal").then((mod) => mod.NewBookingModal),
@@ -91,12 +91,12 @@ export function AppHeader({
 
           <Link
             href="/dashboard"
-            aria-label="RoomLine front desk"
+            aria-label="Oriel front desk"
             className="ui-press flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-1 md:min-h-10 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
-            <RoomLineMark size={24} />
+            <OrielMark size={24} />
             <span className="truncate text-md font-bold tracking-tight text-foreground">
-              RoomLine
+              Oriel
             </span>
           </Link>
         </div>

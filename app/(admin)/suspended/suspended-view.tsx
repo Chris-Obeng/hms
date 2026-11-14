@@ -39,8 +39,8 @@ export function SuspendedView({
   const title = closed ? `${hotelName}'s account is closed` : `Access to ${hotelName} is paused`;
   const body = closed
     ? isOwner
-      ? "This RoomLine account was closed. Contact support if you'd like to reopen it."
-      : `This RoomLine account was closed. ${owner?.name ?? "Your hotel's owner"} can tell you more.`
+      ? "This Oriel account was closed. Contact support if you'd like to reopen it."
+      : `This Oriel account was closed. ${owner?.name ?? "Your hotel's owner"} can tell you more.`
     : isOwner
       ? why.owner
       : why.staff;
@@ -56,7 +56,7 @@ export function SuspendedView({
         {reason === "billing" && isOwner && !closed ? "Settle billing with support" : "Contact support"}
       </a>
     ) : (
-      <a href={mailto(owner.email, `RoomLine access for ${hotelName}`)} className={buttonVariants({ size: "lg" })}>
+      <a href={mailto(owner.email, `Oriel access for ${hotelName}`)} className={buttonVariants({ size: "lg" })}>
         Email {ownerLabel}
       </a>
     );
@@ -91,7 +91,7 @@ export function SuspendedView({
           </div>
           <div>
             <dt>{isOwner ? "Who can restore it" : "Who to ask"}</dt>
-            <dd>{isOwner ? "You, with RoomLine support" : (owner?.name ?? "Your hotel's owner")}</dd>
+            <dd>{isOwner ? "You, with Oriel support" : (owner?.name ?? "Your hotel's owner")}</dd>
           </div>
         </dl>
       ) : null}
@@ -110,7 +110,7 @@ export function SuspendedView({
         {primary}
         {!isOwner && owner?.email ? (
           <a href={supportHref} className={buttonVariants({ size: "lg", variant: "outline" })}>
-            Contact RoomLine support
+            Contact Oriel support
           </a>
         ) : null}
         <SignOutButton redirectUrl="/sign-in">

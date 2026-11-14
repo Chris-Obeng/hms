@@ -50,7 +50,7 @@ export default async function DeactivatedPage() {
     ? {
         icon: <Clock3 size={20} aria-hidden="true" />,
         title: `We're verifying ${hotelName}`,
-        body: "Your workspace is set up. We check every new property before its booking page goes live, usually within a day.",
+        body: "Your account is set up. We check every new property before its booking page goes live, usually within a day.",
       }
     : {
         icon: <UserRound size={20} aria-hidden="true" />,

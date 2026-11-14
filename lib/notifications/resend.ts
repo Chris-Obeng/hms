@@ -1,7 +1,7 @@
 ﻿/**
  * lib/notifications/resend.ts
  *
- * Resend email sender for RoomLine.
+ * Resend email sender for Oriel.
  *
  * Architecture:
  *   - Single platform-level Resend account (env RESEND_API_KEY).
@@ -35,7 +35,7 @@ const EMAIL_ADDRESS_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
 /**
  * Extracts and validates a bare RFC-safe email address from `RESEND_FROM_ADDRESS`.
- * Tolerates both `"bookings@domain.com"` and `"RoomLine <bookings@domain.com>"`
+ * Tolerates both `"bookings@domain.com"` and `"Oriel <bookings@domain.com>"`
  * so operators never end up with broken double-bracket `From:` headers (`HIGH-02`).
  */
 export function parseResendFromAddress(raw: string | undefined): string {
@@ -108,7 +108,7 @@ export async function sendEmailViaResend(
   // Sanitise hotel name + subject: strip CR/LF, quotes, and angle brackets to prevent header injection.
   const sanitisedName =
     params.hotelName.replace(/[\r\n"<>]/g, " ").replace(/\s+/g, " ").trim() ||
-    "RoomLine";
+    "Oriel";
   const sanitisedSubject = params.subject.replace(/[\r\n]/g, " ").trim();
   const from = `"${sanitisedName}" <${fromAddress}>`;
   const redactedRecipient = redactEmailForLog(params.to);

@@ -11,7 +11,7 @@ import {
 import { assertPlatformAdmin } from "../_guard";
 
 /**
- * Platform admin server action — edit the per-transaction fee RoomLine charges
+ * Platform admin server action — edit the per-transaction fee Oriel charges
  * hotels. Delegates to update_platform_fee_atomic, which writes the singleton
  * public.platform_settings row (id = 1) and its audit row in one transaction, so
  * a fee change can never persist without its audit trail. Realised as Paystack
@@ -73,7 +73,7 @@ export async function updatePlatformFeeSettings(
     ) {
       return {
         success: false,
-        error: `Percentage fee must be 0% or at least ${MIN_PLATFORM_FEE_PERCENT.toFixed(1)}% (RoomLine absorbs Paystack's 1.95% processing fee from this cut).`,
+        error: `Percentage fee must be 0% or at least ${MIN_PLATFORM_FEE_PERCENT.toFixed(1)}% (Oriel absorbs Paystack's 1.95% processing fee from this cut).`,
       };
     }
 

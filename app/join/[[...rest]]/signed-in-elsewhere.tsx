@@ -7,7 +7,7 @@ import { AuthShell } from "@/components/brand/auth-shell";
 import { InviteCard } from "./invite-screens";
 
 /**
- * A valid invite opened while signed in to a different RoomLine account.
+ * A valid invite opened while signed in to a different Oriel account.
  * Invites create a new staff account, so the way forward is to sign out and
  * come straight back to this link; the current account is not touched.
  */
@@ -42,7 +42,7 @@ export function SignedInElsewhere({
               This browser is signed in as <strong className="text-[var(--rl-ink)]">{email}</strong>.
             </>
           ) : (
-            "This browser is signed in to another RoomLine account."
+            "This browser is signed in to another Oriel account."
           )}{" "}
           Sign out to create your account for {hotelName}. You&apos;ll come straight back here.
         </p>

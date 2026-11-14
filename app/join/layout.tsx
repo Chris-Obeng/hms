@@ -3,7 +3,7 @@ import { brandFontVariables } from "@/components/brand/fonts";
 
 export const metadata: Metadata = {
   title: "Join your team",
-  description: "Accept your RoomLine staff invite.",
+  description: "Accept your Oriel staff invite.",
   robots: { index: false, follow: false },
 };
 
