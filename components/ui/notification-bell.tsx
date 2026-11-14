@@ -141,7 +141,7 @@ export function NotificationBell({
         data-slot="notification-bell"
         data-open={isOpen ? "true" : undefined}
         className={cn(
-          "relative size-10 shrink-0 rounded-lg text-muted-foreground transition-[transform,background-color,color] duration-150 ease-[var(--ease-out-ui)] md:size-8",
+          "relative size-10 shrink-0 rounded-lg text-muted-foreground transition-[transform,background-color,color] duration-150 ease-[var(--ease-out-ui)] md:pointer-fine:size-8",
           "max-md:after:absolute max-md:after:-inset-0.5 max-md:after:content-['']",
           "active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100",
           "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",

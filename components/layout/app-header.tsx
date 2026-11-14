@@ -30,7 +30,7 @@ export interface AppHeaderProps {
 }
 
 const ICON_BUTTON =
-  "size-11 min-w-11 shrink-0 rounded-lg text-muted-foreground md:size-8 md:min-w-8 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground";
+  "size-11 min-w-11 shrink-0 rounded-lg text-muted-foreground md:pointer-fine:size-8 md:pointer-fine:min-w-8 [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground";
 
 export function AppHeader({
   hotelId,
@@ -127,7 +127,7 @@ export function AppHeader({
             size="sm"
             onPress={openNewBooking}
             aria-label="New booking"
-            className="min-w-10 gap-2 rounded-full px-0 text-sm font-semibold max-sm:size-11 sm:px-4"
+            className="min-w-10 gap-2 rounded-full px-0 text-sm font-semibold max-sm:size-11 sm:px-4 pointer-coarse:h-11"
           >
             <Plus className="size-4" aria-hidden="true" />
             <span className="hidden sm:inline">New booking</span>

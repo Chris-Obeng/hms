@@ -10,7 +10,6 @@ import {
   ChevronDown,
   MessageSquareText,
   MoonStar,
-  RotateCw,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -19,7 +18,6 @@ import {
   Chip,
   Dropdown,
   Label,
-  SearchField,
   Skeleton,
 } from "@heroui/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -75,14 +73,10 @@ interface ActivityListProps {
   onNoShow?: (bookingId: string) => void;
   onViewDetails?: (booking: ActivityBooking) => void;
   onTakePayment?: (booking: ActivityBooking) => void;
-  onRefresh?: () => void;
   onNewBooking?: () => void;
-  /**
-   * Controlled filter text. When set, the page owns the search field and the
-   * list renders without its own toolbar.
-   */
-  searchQuery?: string;
-  onSearchQueryChange?: (query: string) => void;
+  /** Filter text. The page owns the search field (one search box on screen). */
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
 }
 
 type PendingConfirm =
@@ -125,20 +119,12 @@ export function ActivityList({
   onNoShow,
   onViewDetails,
   onTakePayment,
-  onRefresh,
   onNewBooking,
-  searchQuery: controlledQuery,
+  searchQuery,
   onSearchQueryChange,
   onHoverPrefetch,
 }: ActivityListProps & { onHoverPrefetch?: (id: string) => void }) {
   const queryClient = useQueryClient();
-  const [localQuery, setLocalQuery] = React.useState("");
-  const isControlled = controlledQuery !== undefined;
-  const searchQuery = isControlled ? controlledQuery : localQuery;
-  const setSearchQuery = React.useCallback(
-    (q: string) => (isControlled ? onSearchQueryChange?.(q) : setLocalQuery(q)),
-    [isControlled, onSearchQueryChange]
-  );
   const [pendingConfirm, setPendingConfirm] = React.useState<PendingConfirm>(null);
 
   const handleHoverPrefetch = React.useCallback(
@@ -265,42 +251,9 @@ export function ActivityList({
   return (
     <div>
       {/* The tab counts already say how many; this line is for screen readers. */}
-      {isControlled && (
-        <p className="sr-only" aria-live="polite">
-          {summary}
-        </p>
-      )}
-      {/* Toolbar: one line of context, the filter, refresh */}
-      {!isControlled && <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <p className="text-sm font-medium tabular-nums text-foreground" aria-live="polite">
-          {summary}
-        </p>
-        <div className="flex items-center gap-2">
-          <SearchField
-            aria-label="Filter activity"
-            value={searchQuery}
-            onChange={setSearchQuery}
-            className="min-w-0 flex-1 sm:w-64 sm:flex-initial"
-          >
-            <SearchField.Group className="rounded-full bg-secondary/70">
-              <SearchField.SearchIcon />
-              <SearchField.Input placeholder="Filter by guest, room or ref" />
-              <SearchField.ClearButton />
-            </SearchField.Group>
-          </SearchField>
-          {onRefresh && (
-            <Button
-              isIconOnly
-              variant="ghost"
-              aria-label="Refresh activity"
-              onPress={onRefresh}
-              className="shrink-0 rounded-full text-muted-foreground max-md:size-11"
-            >
-              <RotateCw className="size-4" />
-            </Button>
-          )}
-        </div>
-      </div>}
+      <p className="sr-only" aria-live="polite">
+        {summary}
+      </p>
 
       {filteredBookings.length === 0 ? (
         <EmptyState
@@ -308,7 +261,7 @@ export function ActivityList({
           title={empty?.title ?? "Nothing here"}
           hint={empty?.hint ?? "Reservations matching this view appear here."}
           tone={activeTab === "overbookings" && !searchQuery ? "success" : "neutral"}
-          onClear={() => setSearchQuery("")}
+          onClear={() => onSearchQueryChange("")}
           onNewBooking={
             onNewBooking && (activeTab === "arrivals" || activeTab === "bookings")
               ? onNewBooking
@@ -316,7 +269,7 @@ export function ActivityList({
           }
         />
       ) : (
-        <div className={cn(!isControlled && "border-t border-border")}>
+        <div>
           <div
             aria-hidden="true"
             className={cn(
@@ -526,18 +479,18 @@ function SplitAction({
 }) {
   if (items.length === 0) {
     return (
-      <Button size="sm" variant={variant} onPress={onMain} className="rounded-full px-4 font-semibold max-md:h-10">
+      <Button size="sm" variant={variant} onPress={onMain} className="rounded-full px-4 font-semibold max-md:h-10 pointer-coarse:h-10">
         {label}
       </Button>
     );
   }
   return (
     <ButtonGroup size="sm" variant={variant} className="overflow-hidden rounded-full">
-      <Button onPress={onMain} className="px-4 font-semibold max-md:h-10">
+      <Button onPress={onMain} className="px-4 font-semibold max-md:h-10 pointer-coarse:h-10">
         {label}
       </Button>
       <Dropdown>
-        <Button isIconOnly size="sm" variant={variant} aria-label={menuLabel} className="max-md:size-10">
+        <Button isIconOnly size="sm" variant={variant} aria-label={menuLabel} className="max-md:size-10 pointer-coarse:size-10">
           <ButtonGroup.Separator />
           <ChevronDown className="size-4" />
         </Button>

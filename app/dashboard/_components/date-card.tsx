@@ -39,8 +39,11 @@ interface DateNavigatorProps {
  * The business-date control: one white pill with a day back, the date, and a
  * day forward. The date reads day-first ("Sat 14 Nov", as the booking rows
  * do); Yesterday, Today and Tomorrow get a small tag. Pressing the date opens
- * a calendar with those three as one-tap shortcuts. Away from today, a "Today"
- * button sits beside the pill.
+ * a calendar with those three as one-tap shortcuts. Away from today (from
+ * 360 px up), a "Today" button sits beside the pill.
+ *
+ * Controls stay touch-sized on touch screens at every width and only tighten
+ * for a mouse.
  *
  * No motion on stepping: people page through days many times a shift, and the
  * new date should simply be there. The popover grows from the pill (HeroUI
@@ -69,7 +72,8 @@ export function DateNavigator({
   };
   const toCd = (value: string) => toCalendarDate(parseLocalDate(value));
   const showYear = selectedDate.getFullYear() !== todayDate.getFullYear();
-  const label = format(selectedDate, showYear ? "EEE d MMM yyyy" : "EEE d MMM");
+  const weekday = format(selectedDate, "EEE");
+  const label = format(selectedDate, showYear ? "d MMM yyyy" : "d MMM");
 
   const pick = React.useCallback(
     (date: Date) => {
@@ -90,7 +94,7 @@ export function DateNavigator({
         role="group"
         aria-label="Business date"
         aria-disabled={isDisabled || undefined}
-        className="flex h-12 min-w-0 flex-1 items-center gap-1 rounded-full border border-border bg-card p-1 shadow-[0_1px_2px_rgb(20_20_19/0.04)] sm:flex-initial md:h-10"
+        className="flex h-12 min-w-0 flex-1 items-center gap-1 rounded-full border border-border bg-card p-1 shadow-[0_1px_2px_rgb(20_20_19/0.04)] sm:flex-initial md:pointer-fine:h-10"
       >
         <StepButton
           label="Previous day"
@@ -105,15 +109,21 @@ export function DateNavigator({
             variant="ghost"
             isDisabled={isDisabled}
             aria-label={`Change date, currently ${format(selectedDate, "EEEE d MMMM yyyy")}`}
-            className="h-10 min-w-0 flex-1 justify-center gap-2 rounded-full px-3 text-sm font-semibold tabular-nums text-foreground sm:min-w-48 md:h-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary"
+            className="h-10 min-w-0 flex-1 justify-center gap-2 rounded-full px-3 text-sm font-semibold tabular-nums text-foreground sm:min-w-48 md:pointer-fine:h-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary"
           >
-            <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <span className="truncate">{label}</span>
+            {/* Phones keep the date itself: the icon goes first, then (away
+                from today, where the Today button already says so) the tag,
+                and below 360 px the weekday. */}
+            <CalendarDays className="size-4 shrink-0 text-muted-foreground max-sm:hidden" aria-hidden="true" />
+            <span className="truncate">
+              <span className="max-[22.5rem]:hidden">{weekday} </span>
+              {label}
+            </span>
             {relative && (
               <span
                 className={cn(
                   "inline-grid h-5 shrink-0 place-items-center rounded-full px-2 text-2xs font-semibold",
-                  isToday ? "bg-[var(--accent-soft)] text-primary" : "bg-secondary text-muted-foreground"
+                  isToday ? "bg-[var(--accent-soft)] text-primary" : "bg-secondary text-muted-foreground max-sm:hidden"
                 )}
               >
                 {relative}
@@ -135,7 +145,7 @@ export function DateNavigator({
                       isDisabled={!s.enabled}
                       onPress={() => pick(s.date)}
                       className={cn(
-                        "h-8 w-full min-w-0 rounded-full px-2 text-xs font-semibold",
+                        "h-8 w-full min-w-0 rounded-full px-2 text-xs font-semibold pointer-coarse:h-10",
                         current
                           ? "bg-card text-foreground shadow-[0_1px_2px_rgb(20_20_19/0.08)]"
                           : "text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
@@ -185,7 +195,9 @@ export function DateNavigator({
           variant="ghost"
           onPress={() => pick(todayDate)}
           isDisabled={isDisabled}
-          className="h-12 shrink-0 rounded-full px-4 font-semibold text-primary md:h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-soft)]"
+          // Below 360 px the date needs the room; Today stays one tap away in
+          // the calendar's shortcuts.
+          className="h-12 shrink-0 rounded-full px-4 font-semibold text-primary max-[22.5rem]:hidden md:pointer-fine:h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-soft)]"
         >
           Today
         </Button>
@@ -212,7 +224,7 @@ function StepButton({
       aria-label={label}
       isDisabled={isDisabled}
       onPress={onPress}
-      className="size-10 min-w-10 shrink-0 rounded-full text-foreground md:size-8 md:min-w-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary"
+      className="size-10 min-w-10 shrink-0 rounded-full text-foreground md:pointer-fine:size-8 md:pointer-fine:min-w-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary"
     >
       {children}
     </Button>
