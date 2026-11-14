@@ -5,40 +5,41 @@
  * ────────────────────────────────────────────────────────────────────────── */
 
 :is(.ob-root, .ob-portal) {
-  --ob-bg: #ffffff;
-  --ob-surface: #ffffff;
-  --ob-subtle: #fafafa;
-  --ob-muted-bg: #f4f4f5;
+  /* Brand tokens from app/rl-theme.css; onboarding keeps its own names. */
+  --ob-bg: var(--rl-paper);
+  --ob-surface: var(--rl-card);
+  --ob-subtle: var(--rl-paper);
+  --ob-muted-bg: var(--rl-paper-2);
 
-  --ob-ink: #09090b;
-  --ob-ink-secondary: #52525b;
-  --ob-ink-muted: #71717a;
-  --ob-ink-faint: #a1a1aa;
+  --ob-ink: var(--rl-ink);
+  --ob-ink-secondary: var(--rl-text);
+  --ob-ink-muted: var(--rl-muted);
+  --ob-ink-faint: var(--rl-faint);
 
-  --ob-border: #e4e4e7;
-  --ob-border-hover: #d4d4d8;
-  --ob-hairline: #f1f1f3;
+  --ob-border: var(--rl-line-strong);
+  --ob-border-hover: rgb(20 20 19 / 0.32);
+  --ob-hairline: var(--rl-line);
 
-  --ob-primary: #18181b;
-  --ob-primary-hover: #27272a;
-  --ob-primary-fg: #ffffff;
-  --ob-ring: rgb(24 24 27 / 0.08);
+  --ob-primary: var(--rl-ink);
+  --ob-primary-hover: var(--rl-ink-hover);
+  --ob-primary-fg: var(--rl-on-ink);
+  --ob-ring: rgb(20 20 19 / 0.1);
 
-  --ob-ok-fg: #059669;
-  --ob-ok-bg: #ecfdf5;
-  --ob-err-fg: #dc2626;
-  --ob-err-bg: #fef2f2;
-  --ob-err-border: #fecaca;
-  --ob-err-ring: rgb(220 38 38 / 0.1);
+  --ob-ok-fg: var(--rl-ok);
+  --ob-ok-bg: var(--rl-ok-wash);
+  --ob-err-fg: var(--rl-danger);
+  --ob-err-bg: var(--rl-danger-wash);
+  --ob-err-border: rgb(163 58 30 / 0.3);
+  --ob-err-ring: rgb(163 58 30 / 0.12);
 
-  --ob-font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --ob-font-sans: var(--rl-font-t);
   --ob-font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 
-  --ob-radius: 0.5rem; /* 8px unified radius across inputs, selects & buttons */
-  --ob-control-h: 2.5rem; /* 40px desktop, 44px coarse pointer below */
+  --ob-radius: var(--rl-radius-control);
+  --ob-control-h: 3rem; /* 48 px, same as auth fields */
 
-  --ob-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --ob-press-ms: 120ms;
+  --ob-ease-out: var(--rl-ease);
+  --ob-press-ms: var(--rl-t-press);
   --ob-ui-ms: 160ms;
 
   /* Scoped HeroUI v3 variables for Select & ListBox popovers */
@@ -70,11 +71,7 @@
   --field-border: var(--ob-border);
 }
 
-@media (pointer: coarse) {
-  :is(.ob-root, .ob-portal) {
-    --ob-control-h: 2.75rem; /* 44px Apple HIG touch floor */
-  }
-}
+
 
 .ob-root {
   min-height: 100dvh;
@@ -284,11 +281,27 @@
 /* ── Minimal 3-Bar Progress Track ───────────────────────────────────────── */
 
 .ob-progress-row {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.ob-progress-meta {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 2rem;
+}
+
+.ob-progress-label {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ob-ink-muted);
+}
+
+.ob-progress-label strong {
+  font-weight: 600;
+  color: var(--ob-ink);
 }
 
 .ob-progress {
@@ -298,8 +311,10 @@
 }
 
 .ob-progress-seg {
-  width: 2.5rem;
+  position: relative;
+  flex: 1;
   height: 0.25rem;
+  overflow: hidden;
   border-radius: 999px;
   border: 0;
   padding: 0;
@@ -315,6 +330,9 @@
 }
 
 button.ob-progress-seg {
+  height: 1.25rem;
+  background-clip: content-box;
+  padding-block: 0.5rem;
   cursor: pointer;
 }
 
@@ -339,7 +357,7 @@ button.ob-progress-seg:focus-visible {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 999px;
-  background-color: #10b981;
+  background-color: var(--rl-ok);
 }
 
 /* ── Step Typography ────────────────────────────────────────────────────── */
@@ -349,10 +367,10 @@ button.ob-progress-seg:focus-visible {
 }
 
 .ob-title {
-  font-size: clamp(1.5rem, 1.35rem + 0.5vw, 1.6875rem); /* 24px - 27px */
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.03em;
+  font-size: var(--rl-step-title);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
   color: var(--ob-ink);
   margin: 0;
   outline: none;
@@ -360,7 +378,7 @@ button.ob-progress-seg:focus-visible {
 
 .ob-subtitle {
   margin: 0.5rem 0 0;
-  font-size: 0.9rem;
+  font-size: 1rem;
   line-height: 1.5;
   color: var(--ob-ink-muted);
 }
@@ -421,7 +439,6 @@ button.ob-progress-seg:focus-visible {
   border-radius: var(--ob-radius);
   border: 1px solid var(--ob-border);
   background-color: var(--ob-surface);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
   overflow: hidden;
   transition:
     border-color var(--ob-ui-ms) ease,
@@ -498,7 +515,7 @@ button.ob-progress-seg:focus-visible {
   border-radius: var(--ob-radius) !important;
   border: 1px solid var(--ob-border) !important;
   background-color: var(--ob-surface) !important;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03) !important;
+  box-shadow: none !important;
   padding-inline: 0.75rem !important;
   font-size: 1rem !important;
   color: var(--ob-ink) !important;
@@ -539,7 +556,6 @@ button.ob-progress-seg:focus-visible {
   border-radius: var(--ob-radius);
   border: 1px solid var(--ob-border);
   background-color: var(--ob-surface);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
   padding-left: 0.75rem;
   padding-right: 0.25rem;
   transition:
@@ -688,9 +704,9 @@ button.ob-progress-seg:focus-visible {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  min-height: 2.75rem; /* 44px universal tap target */
+  min-height: 3rem; /* 48 px, same as auth buttons */
   padding: 0 1.5rem;
-  border-radius: var(--ob-radius);
+  border-radius: 999px;
   font-family: var(--ob-font-sans);
   font-size: 0.875rem;
   font-weight: 600;
@@ -708,9 +724,6 @@ button.ob-progress-seg:focus-visible {
   border: 1px solid var(--ob-primary);
   background-color: var(--ob-primary);
   color: var(--ob-primary-fg);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.14),
-    0 1px 2px rgb(9 9 11 / 0.12);
 }
 
 .ob-btn-secondary {

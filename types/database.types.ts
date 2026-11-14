@@ -1851,6 +1851,7 @@ export type Database = {
           created_at: string
           expires_at: string
           id: string
+          invited_by_staff_id: string | null
           is_used: boolean
           role: string
           token: string
@@ -1860,6 +1861,7 @@ export type Database = {
           created_at?: string
           expires_at: string
           id?: string
+          invited_by_staff_id?: string | null
           is_used?: boolean
           role: string
           token: string
@@ -1869,11 +1871,20 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
+          invited_by_staff_id?: string | null
           is_used?: boolean
           role?: string
           token?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "staff_invitations_invited_by_staff_id_fkey"
+            columns: ["invited_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       staff_profiles: {
         Row: {

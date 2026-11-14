@@ -1,11 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { SignOutButton } from "@clerk/nextjs";
+import { buttonVariants } from "@heroui/react";
+import { Clock3, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { SignOutButton } from "@clerk/nextjs";
-import { Clock, UserRound } from "lucide-react";
+import { AuthShell } from "@/components/brand/auth-shell";
 
 export const dynamic = "force-dynamic";
+
+const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "support@roomline.pro";
 
 export default async function DeactivatedPage() {
   const { orgId, userId } = await auth();
@@ -15,15 +19,10 @@ export default async function DeactivatedPage() {
 
   const supabase = await createClient();
 
-  // Fetch status of hotel + staff in parallel (hotel status via supabaseAdmin
-  // scoped strictly to orgId because deactivated/pending staff are excluded
-  // from get_user_hotel_ids()).
+  // Hotel status via supabaseAdmin scoped strictly to orgId, because
+  // deactivated/pending staff are excluded from get_user_hotel_ids().
   const [hotelResult, staffResult] = await Promise.all([
-    supabaseAdmin
-      .from("hotels")
-      .select("id, name, status")
-      .eq("clerk_org_id", orgId)
-      .single(),
+    supabaseAdmin.from("hotels").select("id, name, status").eq("clerk_org_id", orgId).single(),
     supabase
       .from("staff_profiles")
       .select("id, is_active, role")
@@ -35,79 +34,52 @@ export default async function DeactivatedPage() {
   const hotel = hotelResult.data;
   const staff = staffResult.data;
 
-  // Self-heal: if hotel is active AND staff is active + non-pending, let them back to dashboard
-  if (
-    hotel &&
-    hotel.status === "active" &&
-    staff &&
-    staff.is_active &&
-    staff.role &&
-    staff.role !== "pending"
-  ) {
+  // Self-heal: active hotel and active, assigned staff go back to the dashboard.
+  if (hotel && hotel.status === "active" && staff && staff.is_active && staff.role && staff.role !== "pending") {
     redirect("/dashboard");
   }
 
-  // Redirect to suspended page if hotel status warrants it
   if (hotel && (hotel.status === "suspended" || hotel.status === "cancelled")) {
     redirect("/suspended");
   }
 
-  // Determine dynamic message based on reason and database state
-  const isHotelPending = hotel && hotel.status === "pending";
-  const isStaffInactive = !staff || !staff.is_active || staff.role === "pending";
+  const hotelName = hotel?.name || "your property";
+  const isHotelPending = hotel?.status === "pending";
 
-  let title = "Access Restricted";
-  let eyebrow = "Deactivated";
-  let description = "Your account does not have active access to the application.";
-
-  if (isHotelPending) {
-    title = "Activation Pending";
-    eyebrow = "Pending Review";
-    description = `Your property profile for "${hotel?.name || "Your Hotel"}" is set up and awaiting approval by platform administrators.`;
-  } else if (isStaffInactive) {
-    title = "Awaiting Approval";
-    eyebrow = "Profile Inactive";
-    description = "Your staff profile is currently deactivated. Please contact your property manager to approve and activate your account.";
-  }
+  const copy = isHotelPending
+    ? {
+        icon: <Clock3 size={20} aria-hidden="true" />,
+        title: `We're verifying ${hotelName}`,
+        body: "Your workspace is set up. We check every new property before its booking page goes live, usually within a day.",
+      }
+    : {
+        icon: <UserRound size={20} aria-hidden="true" />,
+        title: "Your access is waiting for approval",
+        body: `Your account at ${hotelName} isn't active yet. Ask your manager to approve you from the staff list, then sign in again.`,
+      };
 
   return (
-    <main className="w-full min-h-[100dvh] bg-background text-foreground flex items-center justify-center p-4 font-sans">
-      <div className="w-full max-w-md rounded-2xl border border-border/50 bg-card p-8 shadow-xs">
-        <div className="mx-auto mb-6 grid size-11 place-items-center rounded-full bg-secondary text-muted-foreground">
-          {isHotelPending ? (
-            <Clock className="size-5" aria-hidden />
-          ) : (
-            <UserRound className="size-5" aria-hidden />
-          )}
-        </div>
-
-        <p className="mb-2 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {eyebrow}
-        </p>
-
-        <h1 className="text-center text-xl font-semibold tracking-tight text-foreground">
-          {title}
-        </h1>
-
-        <p className="mt-2 mb-8 text-center text-sm leading-relaxed text-muted-foreground">
-          {description}
-        </p>
-
-        <div className="flex w-full flex-col gap-3">
-          <SignOutButton>
-            <button className="h-10 w-full cursor-pointer rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
-              Sign Out
-            </button>
-          </SignOutButton>
-
-          <a
-            href="#"
-            className="flex h-10 w-full items-center justify-center rounded-xl border border-border bg-secondary px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Contact Support
-          </a>
-        </div>
+    <AuthShell width="status">
+      <span className="rl-status-mark" data-tone="sun">
+        {copy.icon}
+      </span>
+      <div className="rl-screen-head">
+        <h1 className="rl-title">{copy.title}</h1>
+        <p className="rl-sub">{copy.body}</p>
       </div>
-    </main>
+      <div className="rl-screen-actions">
+        <a
+          href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Access for ${hotelName}`)}`}
+          className={buttonVariants({ size: "lg" })}
+        >
+          Contact support
+        </a>
+        <SignOutButton redirectUrl="/sign-in">
+          <button type="button" className={buttonVariants({ size: "lg", variant: "outline" })}>
+            Sign out
+          </button>
+        </SignOutButton>
+      </div>
+    </AuthShell>
   );
 }

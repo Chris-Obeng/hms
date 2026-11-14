@@ -1,0 +1,413 @@
+/* ──────────────────────────────────────────────────────────────────────────
+ * Account screens: sign-in, sign-up, staff invite, suspended / deactivated.
+ * Layout for components/brand/auth-shell.tsx and the screens inside it.
+ * Tokens come from app/rl-theme.css.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+.rl-auth {
+  display: grid;
+  min-height: 100dvh;
+  background: var(--rl-paper);
+}
+
+.rl-auth *,
+.rl-auth *::before,
+.rl-auth *::after {
+  box-sizing: border-box;
+}
+
+.rl-auth-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.rl-auth-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rl-s4);
+  height: 64px;
+  padding-inline: var(--rl-margin);
+}
+
+.rl-auth-top-action {
+  display: flex;
+  align-items: center;
+  gap: var(--rl-s3);
+  font-size: var(--rl-step-small);
+  color: var(--rl-muted);
+}
+
+.rl-auth-top-action .rl-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.rl-auth-body {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: var(--rl-s6) var(--rl-margin) var(--rl-s7);
+}
+
+.rl-auth-body:focus {
+  outline: none;
+}
+
+.rl-auth-column {
+  width: 100%;
+}
+
+.rl-auth-column--form {
+  max-width: 400px;
+}
+
+.rl-auth-column--status {
+  max-width: 480px;
+}
+
+@media (min-width: 640px) {
+  .rl-auth-body {
+    align-items: center;
+    padding-block: var(--rl-s7) var(--rl-s9);
+  }
+}
+
+.rl-auth-foot {
+  padding: var(--rl-s4) var(--rl-margin) var(--rl-s5);
+  font-size: var(--rl-step-micro);
+  color: var(--rl-faint);
+}
+
+/* Desktop: ink panel on the left */
+.rl-auth-aside {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .rl-auth--split {
+    grid-template-columns: minmax(400px, 5fr) 7fr;
+  }
+
+  .rl-auth--split .rl-auth-brand {
+    visibility: hidden;
+  }
+
+  .rl-auth-aside {
+    position: sticky;
+    top: 0;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 100dvh;
+    padding: var(--rl-s6) var(--rl-s7) var(--rl-s7);
+    overflow: hidden;
+    background: var(--rl-night);
+    color: var(--rl-on-ink);
+  }
+
+  .rl-auth-aside .rl-auth-aside-brand {
+    color: var(--rl-on-ink);
+  }
+
+  .rl-auth-door {
+    position: relative;
+    align-self: center;
+    justify-self: center;
+    width: min(44%, 220px);
+    transform: translateY(-12%);
+  }
+
+  .rl-auth-door-mark {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .rl-auth-door-light {
+    position: absolute;
+    inset: 0 0 auto;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 512 / 1152;
+    overflow: visible;
+    animation: rl-theme-light 1200ms ease 400ms both;
+  }
+
+  .rl-auth-aside-copy {
+    display: grid;
+    gap: var(--rl-s3);
+    max-width: 26rem;
+  }
+
+  .rl-auth-aside-title {
+    margin: 0;
+    font-family: var(--rl-font-d);
+    font-size: clamp(2rem, 1.2rem + 1.4vw, 2.75rem);
+    font-weight: 800;
+    line-height: 1.02;
+    letter-spacing: -0.045em;
+    text-wrap: balance;
+  }
+
+  .rl-auth-aside-body {
+    margin: 0;
+    color: var(--rl-on-ink-muted);
+    text-wrap: pretty;
+  }
+}
+
+@keyframes rl-theme-light {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── Screen header (title + one line) used above forms and messages ───── */
+
+.rl-screen-head {
+  display: grid;
+  gap: var(--rl-s2);
+}
+
+.rl-screen-actions {
+  display: grid;
+  gap: var(--rl-s3);
+  margin-top: var(--rl-s6);
+}
+
+.rl-screen-actions .button {
+  width: 100%;
+}
+
+.rl-screen-note {
+  margin: var(--rl-s5) 0 0;
+  font-size: var(--rl-step-small);
+  line-height: 1.5;
+  color: var(--rl-muted);
+}
+
+/* Status mark: a quiet tile above a status title */
+.rl-status-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: var(--rl-s5);
+  border-radius: var(--rl-radius-panel);
+  background: var(--rl-card);
+  border: 1px solid var(--rl-line);
+  color: var(--rl-ink);
+}
+
+.rl-status-mark[data-tone="sun"] {
+  background: var(--rl-sun-wash);
+  border-color: rgb(216 178 92 / 0.5);
+  color: var(--rl-sun-deep);
+}
+
+/* Fact list: label / value rows in a quiet card */
+.rl-facts-card {
+  margin: var(--rl-s5) 0 0;
+  padding: 0 var(--rl-s4);
+  border: 1px solid var(--rl-line);
+  border-radius: var(--rl-radius-panel);
+  background: var(--rl-card);
+}
+
+.rl-facts-card > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rl-s4);
+  padding-block: var(--rl-s3);
+}
+
+.rl-facts-card > div + div {
+  border-top: 1px solid var(--rl-line);
+}
+
+.rl-facts-card dt {
+  font-size: var(--rl-step-small);
+  color: var(--rl-muted);
+}
+
+.rl-facts-card dd {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--rl-step-small);
+  font-weight: 600;
+  color: var(--rl-ink);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* Reassurance line with a check */
+.rl-assure {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rl-s3);
+  margin-top: var(--rl-s5);
+  padding: var(--rl-s3) var(--rl-s4);
+  border-radius: var(--rl-radius-control);
+  background: var(--rl-ok-wash);
+  color: var(--rl-ok);
+  font-size: var(--rl-step-small);
+  line-height: 1.5;
+}
+
+.rl-assure svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ── Staff invite ──────────────────────────────────────────────────────── */
+
+.rl-invite-card {
+  display: grid;
+  gap: var(--rl-s4);
+  margin-bottom: var(--rl-s6);
+  padding: var(--rl-s5);
+  border: 1px solid var(--rl-line);
+  border-radius: var(--rl-radius-panel);
+  background: var(--rl-card);
+}
+
+.rl-invite-hotel {
+  display: flex;
+  align-items: center;
+  gap: var(--rl-s3);
+  min-width: 0;
+}
+
+.rl-invite-avatar {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--rl-radius-control);
+  background: var(--rl-night);
+  color: var(--rl-sun);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.rl-invite-kicker {
+  margin: 0;
+  font-size: var(--rl-step-small);
+  color: var(--rl-muted);
+}
+
+.rl-invite-name {
+  margin: 0;
+  font-family: var(--rl-font-d);
+  font-size: var(--rl-step-title);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  color: var(--rl-ink);
+  overflow-wrap: anywhere;
+}
+
+.rl-invite-role {
+  display: grid;
+  gap: var(--rl-s1);
+  padding-top: var(--rl-s4);
+  border-top: 1px solid var(--rl-line);
+}
+
+.rl-invite-role-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--rl-s2);
+  margin: 0;
+  font-weight: 600;
+  color: var(--rl-ink);
+}
+
+.rl-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 var(--rl-s2);
+  border-radius: var(--rl-radius-chip);
+  background: var(--rl-sun-wash);
+  color: var(--rl-sun-deep);
+  font-size: var(--rl-step-micro);
+  font-weight: 600;
+}
+
+.rl-invite-role-body,
+.rl-invite-meta {
+  margin: 0;
+  font-size: var(--rl-step-small);
+  color: var(--rl-muted);
+}
+
+.rl-invite-form-head {
+  margin: 0 0 var(--rl-s4);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--rl-ink);
+}
+
+/* Processing bar for "Adding you to the hotel" */
+.rl-progress {
+  position: relative;
+  height: 4px;
+  margin-top: var(--rl-s6);
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--rl-paper-2);
+}
+
+.rl-progress::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: inherit;
+  background: var(--rl-ink);
+  animation: rl-progress 1400ms var(--rl-ease-in-out) infinite;
+}
+
+@keyframes rl-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rl-progress::after {
+    width: 100%;
+    animation: rl-progress-fade 1600ms ease-in-out infinite alternate;
+  }
+
+  @keyframes rl-progress-fade {
+    from {
+      opacity: 0.35;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .rl-auth-door-light {
+    animation: none;
+  }
+}

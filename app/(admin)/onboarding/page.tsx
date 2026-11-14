@@ -724,21 +724,21 @@ function OnboardingWizard({
       {/* Focused Single-Axis Onboarding Column */}
       <main id="main-content" className="ob-main" tabIndex={-1}>
         <div className="ob-column">
-          <div className="ob-progress-row">
-            <StepIndicator
-              currentStep={step}
-              totalSteps={STEP_COUNT}
-              labels={STEP_LABELS}
-              onStepSelect={jumpToStep}
-              disabled={loading}
-            />
-            {isDirty && (
-              <span className="ob-saved-note">
-                <span className="ob-saved-dot" aria-hidden="true" />
-                Draft saved
-              </span>
-            )}
-          </div>
+          <StepIndicator
+            currentStep={step}
+            totalSteps={STEP_COUNT}
+            labels={STEP_LABELS}
+            onStepSelect={jumpToStep}
+            disabled={loading}
+            aside={
+              isDirty ? (
+                <span className="ob-saved-note">
+                  <span className="ob-saved-dot" aria-hidden="true" />
+                  Draft saved
+                </span>
+              ) : null
+            }
+          />
 
           {error && (
             <div className="ob-alert" role="alert">
@@ -773,10 +773,10 @@ function OnboardingWizard({
                     tabIndex={-1}
                     className="ob-title"
                   >
-                    Create your property
+                    Name your property
                   </h1>
                   <p className="ob-subtitle">
-                    Three basics to set up your workspace. Everything stays editable in Settings.
+                    Three basics. You can change any of it later in Settings.
                   </p>
                 </div>
 
@@ -843,10 +843,10 @@ function OnboardingWizard({
                     tabIndex={-1}
                     className="ob-title"
                   >
-                    Location &amp; contact
+                    Where guests will find you
                   </h1>
                   <p className="ob-subtitle">
-                    Shown on guest confirmations once your property is verified.
+                    Shown on booking confirmations once we verify your property.
                   </p>
                 </div>
 
@@ -1030,7 +1030,7 @@ function CompletionScreen({
           <div className="ob-header-block">
             <h1 className="ob-title">{name} is ready</h1>
             <p className="ob-subtitle">
-              Your admin workspace is live. Direct booking opens once property verification completes.
+              Your workspace is live. Your booking page opens once we verify the property, usually within a day.
             </p>
           </div>
 

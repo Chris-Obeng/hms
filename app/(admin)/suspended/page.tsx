@@ -1,65 +1,79 @@
-﻿export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 
-import { auth } from "@clerk/nextjs/server";
+import type { Metadata } from "next";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { SignOutButton } from "@clerk/nextjs";
-import { ShieldAlert } from "lucide-react";
+import { isSuspensionReason, type SuspensionReason } from "@/lib/platform/suspension";
+import { SuspendedView } from "./suspended-view";
+
+export const metadata: Metadata = {
+  title: "Access paused",
+  robots: { index: false, follow: false },
+};
+
+const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "support@roomline.pro";
 
 export default async function SuspendedPage() {
   const { orgId, userId } = await auth();
 
-  // If not logged in, redirect to sign-in
   if (!userId || !orgId) {
     redirect("/sign-in");
   }
 
-  // Query hotel status scoped strictly to verified Clerk orgId
+  // Hotel status scoped strictly to the verified Clerk orgId.
   const { data: hotel } = await supabaseAdmin
     .from("hotels")
     .select("id, name, status")
     .eq("clerk_org_id", orgId)
     .single();
 
-  // Self-heal: if hotel is active/pending, let them back to dashboard/deactivated
+  // Self-heal: an active or pending hotel goes back through the dashboard gate.
   if (hotel && hotel.status !== "suspended" && hotel.status !== "cancelled") {
     redirect("/dashboard");
   }
 
+  const [staffResult, ownerResult, reasonResult, user] = await Promise.all([
+    supabaseAdmin
+      .from("staff_profiles")
+      .select("role")
+      .eq("clerk_user_id", userId)
+      .eq("clerk_org_id", orgId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("staff_profiles")
+      .select("full_name, email")
+      .eq("clerk_org_id", orgId)
+      .eq("role", "super_admin")
+      .eq("is_active", true)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    hotel
+      ? supabaseAdmin
+          .from("platform_admin_audit_logs")
+          .select("after_state")
+          .eq("hotel_id", hotel.id)
+          .eq("action", "hotel.suspend")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    currentUser(),
+  ]);
+
+  const afterState = reasonResult.data?.after_state as { reason?: unknown } | null | undefined;
+  const reason: SuspensionReason | null = isSuspensionReason(afterState?.reason) ? afterState.reason : null;
+
   return (
-    <main className="w-full min-h-[100dvh] bg-background text-foreground flex items-center justify-center p-4 font-sans">
-      <div className="w-full max-w-md rounded-2xl border border-border/50 bg-card p-8 shadow-xs">
-        <div className="mx-auto mb-6 grid size-11 place-items-center rounded-full bg-red-500/10 text-red-600">
-          <ShieldAlert className="size-5" aria-hidden />
-        </div>
-
-        <p className="mb-2 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Access suspended
-        </p>
-
-        <h1 className="text-center text-xl font-semibold tracking-tight text-foreground">
-          {hotel?.name || "Your Hotel"} is suspended
-        </h1>
-
-        <p className="mt-2 mb-8 text-center text-sm leading-relaxed text-muted-foreground">
-          Access to this property has been temporarily suspended. Please contact platform administration to resolve this issue.
-        </p>
-
-        <div className="flex w-full flex-col gap-3">
-          <SignOutButton>
-            <button className="h-10 w-full cursor-pointer rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
-              Sign Out
-            </button>
-          </SignOutButton>
-
-          <a
-            href="mailto:support@RoomLine.pro"
-            className="flex h-10 w-full items-center justify-center rounded-xl border border-border bg-secondary px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Contact Support
-          </a>
-        </div>
-      </div>
-    </main>
+    <SuspendedView
+      hotelName={hotel?.name || "Your hotel"}
+      status={hotel?.status === "cancelled" ? "cancelled" : "suspended"}
+      isOwner={staffResult.data?.role === "super_admin"}
+      reason={reason}
+      owner={ownerResult.data ? { name: ownerResult.data.full_name, email: ownerResult.data.email } : null}
+      supportEmail={SUPPORT_EMAIL}
+      userEmail={user?.primaryEmailAddress?.emailAddress ?? null}
+    />
   );
 }
