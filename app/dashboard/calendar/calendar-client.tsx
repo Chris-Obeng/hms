@@ -830,9 +830,14 @@ function CalendarClientContent({
       const booking = bookings.find((item) => item.id === bookingId);
       if (!booking) return;
 
-      const target = pickBestRoom(booking, { rooms, bookings, blocks: availabilityBlocks });
+      const target = pickBestRoom(booking, {
+        rooms,
+        bookings,
+        blocks: availabilityBlocks,
+        today: businessDateKey,
+      });
       if (!target) {
-        toast.danger("No free room of this type for these dates");
+        toast.danger("No room of this type is free for the whole stay. Move a booking or change the dates.");
         return;
       }
       await runBookingWrite(
@@ -842,7 +847,7 @@ function CalendarClientContent({
         "Couldn't assign the room. Try again."
       );
     },
-    [availabilityBlocks, bookings, canEdit, rooms, runBookingWrite]
+    [availabilityBlocks, bookings, businessDateKey, canEdit, rooms, runBookingWrite]
   );
 
   // ── Block writes ─────────────────────────────────────────────────────

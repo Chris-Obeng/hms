@@ -323,8 +323,9 @@ export async function createBooking(
       payment_preference: data.paymentPreference,
       source: data.source,
       // A desk booking holds a numbered room from the moment it is taken. The
-      // function picks the lowest-numbered free room of the type, and leaves
-      // room_id null rather than failing a valid reservation if none is free.
+      // function picks the best free room of the type (see
+      // bookings_private.pick_best_room), and leaves room_id null rather than
+      // failing a valid reservation if none is free for the whole stay.
       assign_room: true,
       room_id: data.roomId ?? null,
       guest_id: data.guestId ?? null,
@@ -646,9 +647,8 @@ export async function createBookingGroup(
         rooms_count: 1,
         // Desk books hold numbered rooms straight away, so an assigned row per
         // physical unit stays that way through timeline drags. The writer picks
-        // the lowest-numbered free room when assign_room is true and still
-        // succeeds as unassigned when none is free, so a valid reservation is
-        // never lost.
+        // the best free room when assign_room is true and still succeeds as
+        // unassigned when none is free, so a valid reservation is never lost.
         assign_room: true,
       })),
     });

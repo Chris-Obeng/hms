@@ -651,6 +651,9 @@ export function TimelineCalendar({
     return map;
   }, [blocks]);
 
+  // The tray is the fallback for stays without a room. New reservations get
+  // the best free room automatically, so a stay lands here only when no single
+  // room was free for the whole stay (or a paid hold came back after expiry).
   // Only stays that touch the visible window: the loaded range can be wider
   // than the view (the page seeds 37 days), and an arrival three weeks out
   // does not belong in this week's tray.
