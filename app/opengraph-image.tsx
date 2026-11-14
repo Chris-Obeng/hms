@@ -23,14 +23,14 @@ export default function OpengraphImage() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          backgroundColor: "#10241E",
+          backgroundColor: "#141413",
           padding: 72,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           {/* Open-door mark (lib/brand/mark.ts) on the ink background. */}
           <svg viewBox={GLYPH_VIEWBOX} width={41} height={40}>
-            <path d={MARK_LIGHT_PATH} fill={BRAND.brass} />
+            <path d={MARK_LIGHT_PATH} fill={BRAND.sun} />
             <path d={MARK_LEAF_PATH} fill={BRAND.ink} />
             <path
               d={MARK_FRAME_PATH}
@@ -49,7 +49,7 @@ export default function OpengraphImage() {
               letterSpacing: "-0.03em",
             }}
           >
-            RoomLine.
+            RoomLine
           </span>
         </div>
 
@@ -68,13 +68,13 @@ export default function OpengraphImage() {
             <span>Run a calmer</span>
             <span>front desk.</span>
           </div>
-          <div style={{ color: "#A6B6B0", fontSize: 26, maxWidth: 820 }}>
+          <div style={{ color: "#B8B3AA", fontSize: 26, maxWidth: 820 }}>
             Reservations, rooms, Mobile Money payments, and night audit for
             independent hotels in Ghana.
           </div>
         </div>
 
-        <div style={{ color: "#D8B25C", fontSize: 20, fontWeight: 600 }}>
+        <div style={{ color: "#FFC23D", fontSize: 20, fontWeight: 600 }}>
           Accra, Ghana
         </div>
       </div>

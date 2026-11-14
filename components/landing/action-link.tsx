@@ -1,31 +1,33 @@
 import Link from "next/link";
+import { buttonVariants } from "@heroui/react";
 
 type ActionLinkProps = {
   href?: string;
   label?: string;
-  /** `ink` on paper, `brass` on the forest band. */
-  tone?: "ink" | "brass";
-  size?: "md" | "sm";
+  size?: "md" | "lg";
   className?: string;
 };
 
-/** The page's one primary action. Same name everywhere: "Create workspace". */
+/**
+ * The page's one primary action, a HeroUI button rendered as a link. Same name
+ * everywhere: "Create workspace". On the forest band it turns brass
+ * (`.rl-on-ink` in app/rl-theme.css).
+ */
 export function ActionLink({
   href = "/sign-up",
   label = "Create workspace",
-  tone = "ink",
-  size = "md",
+  size = "lg",
   className,
 }: ActionLinkProps) {
-  const classes = ["rl-btn", `rl-btn--${tone}`, size === "sm" ? "rl-btn--sm" : "", className ?? ""]
-    .filter(Boolean)
-    .join(" ");
-
   return (
-    <Link href={href} prefetch={false} className={classes}>
+    <Link
+      href={href}
+      prefetch={false}
+      className={buttonVariants({ variant: "primary", size, className })}
+    >
       <span>{label}</span>
       <svg
-        className="rl-btn-arrow"
+        className="rl-arrow"
         viewBox="0 0 16 16"
         width="16"
         height="16"
@@ -55,9 +57,8 @@ export function SecondaryLink({
   children: React.ReactNode;
   className?: string;
 }) {
-  const external = href.startsWith("#");
-  const cls = ["rl-link", className ?? ""].filter(Boolean).join(" ");
-  return external ? (
+  const cls = ["rl-link rl-link--action", className ?? ""].filter(Boolean).join(" ");
+  return href.startsWith("#") ? (
     <a href={href} className={cls}>
       {children}
     </a>

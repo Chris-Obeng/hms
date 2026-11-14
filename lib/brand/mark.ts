@@ -1,7 +1,7 @@
 /**
  * RoomLine brand mark — the single source of truth for its geometry and colour.
  *
- * The mark is an arched doorway with its door swung open: warm brass light
+ * The mark is an arched doorway with its door swung open: marigold light
  * fills the room behind it, and the threshold runs on past the right jamb as a
  * single line. Room + line.
  *
@@ -12,12 +12,12 @@
  */
 
 export const BRAND = {
-  /** Deep forest ink — tile background and the open door leaf. */
-  ink: "#10241E",
-  /** Warm brass — the lit room behind the door. */
-  brass: "#D8B25C",
+  /** Near-black ink — tile background and the open door leaf. */
+  ink: "#141413",
+  /** Marigold sun — the lit room behind the door. */
+  sun: "#FFC23D",
   /** Paper — the door frame and threshold line. */
-  paper: "#F6F6F3",
+  paper: "#FBFAF7",
 } as const;
 
 /** Lit interior of the doorway (filled). */
@@ -50,7 +50,7 @@ function markShapes({ light, leaf, frame }: MarkColors): string {
   );
 }
 
-const TILE_COLORS: MarkColors = { light: BRAND.brass, leaf: BRAND.ink, frame: BRAND.paper };
+const TILE_COLORS: MarkColors = { light: BRAND.sun, leaf: BRAND.ink, frame: BRAND.paper };
 
 /** Rounded-square app icon (transparent corners). Favicons, `any` icons, UI. */
 export function tileSvg(): string {

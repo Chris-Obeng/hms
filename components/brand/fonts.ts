@@ -1,19 +1,20 @@
-import { Fraunces, Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 
 /**
- * Landing-only font instances. Imported from the page tree, so Next preloads
- * them on `/` alone; the app's root layout keeps its own preload:false copies.
- * The variables are applied on the `.rl-landing` wrapper and nowhere else.
+ * Brand-surface font: the landing page, auth, onboarding, the staff invite
+ * page and the account-status pages. Imported from those route trees only, so
+ * Next preloads it there; the dashboard keeps the root layout's preload:false
+ * copy.
+ *
+ * One family, used two ways: tight 700–800 for display, 400–600 for text. It
+ * is the product's own face, so marketing and app read as one thing.
+ *
+ * Apply `brandFontVariables` next to `rl-theme` on the outer wrapper.
  */
-export const landingDisplay = Fraunces({
-  subsets: ["latin"],
-  axes: ["opsz"],
-  variable: "--rl-font-display",
-  display: "swap",
-});
-
-export const landingText = Plus_Jakarta_Sans({
+const brandText = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--rl-font-text",
   display: "swap",
 });
+
+export const brandFontVariables = brandText.variable;

@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 @import "tw-animate-css";
+@import "./rl-theme.css";
+@import "./rl-pages.css";
 @import "./landing.css";
 
 /* .heroui-docs is tracked reference material for agents, not app source. */
