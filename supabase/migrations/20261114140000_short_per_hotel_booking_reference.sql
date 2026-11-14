@@ -11,7 +11,8 @@
 --   * 6 characters from a 28-symbol alphabet: the digits 2-9 and the consonants
 --     B C D F G H J K M N P Q R S T V W X Y Z.
 --   * Left out on purpose: 0/O and 1/I/L, which look alike in many fonts and
---     over the phone, and the vowels A E I O U, so a code cannot spell a word.
+--     over the phone, and the vowels A E I O U, so codes rarely form words.
+--     Y is kept, so a few words are still possible (e.g. RHYTHM).
 --   * 28^6 = 481,890,304 codes per hotel. A hotel with 100,000 bookings on file
 --     has about a 1 in 4,800 chance that a new code is already taken, and the
 --     loop below then draws another one.
@@ -34,6 +35,10 @@
 --     transaction that draws the same code waits, then sees the committed row
 --     and draws again. Every caller (create_booking_atomic, and through it
 --     create_booking_group_atomic) generates and inserts in one transaction.
+--     This relies on READ COMMITTED, where the existence check after the lock
+--     takes a fresh snapshot. Every caller runs at READ COMMITTED (PostgREST's
+--     default). Under REPEATABLE READ or SERIALIZABLE the waiting transaction
+--     still sees the code as free, and its INSERT fails with 23505.
 --     The unique constraint stays as the final guarantee.
 --
 -- Existing data
@@ -136,7 +141,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.generate_booking_reference(uuid, text) IS
-  'Returns a new 6-character booking reference (alphabet 23456789BCDFGHJKMNPQRSTVWXYZ) that is unused within p_hotel_id. Takes a transaction-scoped advisory lock on (hotel, code); call it in the same transaction as the INSERT. p_prefix is ignored. Service-role only.';
+  'Returns a new 6-character booking reference (alphabet 23456789BCDFGHJKMNPQRSTVWXYZ) that is unused within p_hotel_id. Takes a transaction-scoped advisory lock on (hotel, code); call it in the same READ COMMITTED transaction as the INSERT (under REPEATABLE READ a concurrent duplicate can still raise 23505). p_prefix is ignored. Service-role only.';
 
 -- Privileges are preserved by CREATE OR REPLACE. Restated so this file is the
 -- single place to read them.
