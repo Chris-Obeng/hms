@@ -404,7 +404,7 @@ function BookingRow({
       onClick={() => onViewDetails?.(booking)}
       onMouseEnter={() => onHoverPrefetch?.(booking.id)}
       onFocusCapture={() => onHoverPrefetch?.(booking.id)}
-      className={cn(ROW_GRID, "cursor-pointer px-4 py-4 transition-colors duration-150 ease-[var(--ease-out-ui)] active:bg-secondary/80 sm:px-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary/50")}
+      className={cn(ROW_GRID, "cursor-pointer px-4 py-4 transition-colors duration-150 ease-[ease] active:bg-secondary/80 sm:px-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary/50")}
     >
       {/* Guest */}
       <div className="flex min-w-0 items-start gap-3 [grid-area:guest] md:items-center">

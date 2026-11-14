@@ -38,13 +38,13 @@ export function MobileTabBar() {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "ui-press flex h-full flex-col items-center justify-center gap-1 text-2xs font-semibold outline-none focus-visible:bg-secondary",
-                  active ? "text-foreground" : "text-muted-foreground"
+                  active ? "text-primary" : "text-muted-foreground"
                 )}
               >
                 <span
                   className={cn(
-                    "grid h-8 w-12 place-items-center rounded-full transition-colors duration-200",
-                    active && "bg-[var(--sun-wash)]"
+                    "grid h-8 w-12 place-items-center rounded-full transition-colors duration-150 ease-[ease]",
+                    active && "bg-[var(--accent-soft)]"
                   )}
                 >
                   <Icon className="size-5" strokeWidth={active ? 2.25 : 1.75} aria-hidden="true" />

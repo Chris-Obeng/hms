@@ -622,7 +622,7 @@ export function DashboardClient({
       <div
         aria-busy={isDateSwitching}
         className={cn(
-          "mx-auto w-full max-w-7xl space-y-4 pt-4 transition-opacity duration-150 md:space-y-6 md:pt-6",
+          "mx-auto w-full max-w-7xl space-y-4 pt-4 transition-opacity duration-150 ease-[ease] md:space-y-6 md:pt-6",
           isDateSwitching && "opacity-60"
         )}
       >
@@ -644,7 +644,9 @@ export function DashboardClient({
               onBlur={() => {
                 if (!searchQuery) setFilterOpen(false);
               }}
-              className="order-last basis-full sm:order-none sm:ml-auto sm:w-72 sm:basis-auto"
+              // Grows in from the filter icon it replaces (right edge), 200 ms ease-out.
+              // Reduced motion keeps only the fade.
+              className="order-last basis-full origin-right transition-[opacity,scale] duration-200 ease-[var(--ease-out-ui)] starting:scale-[0.97] starting:opacity-0 motion-reduce:transition-opacity motion-reduce:starting:scale-100 sm:order-none sm:ml-auto sm:w-72 sm:basis-auto"
             >
               <SearchField.Group className="rounded-full border border-border bg-card shadow-none max-md:h-11">
                 <SearchField.SearchIcon />

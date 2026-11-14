@@ -291,9 +291,12 @@
   color-scheme: light;
 
   /* ── Oriel app palette ───────────────────────────────────────
-   *  Warm paper and near-black ink, the same family as the brand
-   *  surfaces (app/rl-theme.css). Marigold is an accent, never a
-   *  surface; booking statuses keep their own semantic colours.
+   *  Warm paper and ink text, the same family as the brand surfaces
+   *  (app/rl-theme.css). Ultramarine is the one action colour: it
+   *  pairs with the marigold mark (blue against yellow-orange) and
+   *  stays clear of every booking status colour (paid and in-house
+   *  green, partial amber, unpaid red). Marigold is an accent, never
+   *  a surface.
    * ──────────────────────────────────────────────────────────── */
   --background: #fbfaf7;
   --foreground: #141413;
@@ -301,7 +304,8 @@
   --card-foreground: #141413;
   --popover: #ffffff;
   --popover-foreground: #141413;
-  --primary: #141413;
+  /* Ultramarine. White on it is 7.2:1. */
+  --primary: #2f49d1;
   --primary-foreground: #ffffff;
   --secondary: #f3f1ec;
   --secondary-foreground: #2b2a27;
@@ -312,7 +316,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: #e7e3db;
   --input: #dcd7cd;
-  --ring: #141413;
+  --ring: #2f49d1;
   /* Brand accents for the app (marigold sun, its deep text tone) */
   --sun: #ffc23d;
   --sun-wash: #fff1cc;
@@ -332,15 +336,15 @@
   --ease-out-ui: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out-ui: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
-  /* Sidebar: warm paper panel with ink active states */
+  /* Sidebar: warm paper panel with ultramarine active states */
   --sidebar: #f7f5f0;
   --sidebar-foreground: #141413;
-  --sidebar-primary: #141413;
+  --sidebar-primary: #2f49d1;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #ece8e0;
   --sidebar-accent-foreground: #141413;
   --sidebar-border: #e4dfd6;
-  --sidebar-ring: #141413;
+  --sidebar-ring: #2f49d1;
 
   /* HeroUI v3 semantic surfaces. Fields, popovers, and calendars stop
    * falling back to HeroUI stock defaults. */
@@ -374,6 +378,13 @@
   --button-bg-hover: color-mix(in oklch, var(--primary) 86%, white);
   --button-bg-pressed: color-mix(in oklch, var(--primary) 80%, white);
   --button-fg: var(--primary-foreground);
+}
+
+/* Secondary buttons (Check out, Collect…) are quiet: ink text on warm grey.
+ * HeroUI tints them with the action colour, which made every row compete
+ * with the one primary action. */
+.button--secondary {
+  --button-fg: var(--secondary-foreground);
 }
 
 /* ── Control heights (8-point) ────────────────────────────────────────

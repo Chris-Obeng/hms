@@ -53,18 +53,18 @@ export function ActivityTabs({ tabs, activeTab, onTabChange, children }: Activit
                 className="group h-14 w-auto flex-none gap-2 px-0 text-sm font-medium text-muted-foreground data-[selected=true]:font-semibold data-[selected=true]:text-foreground"
               >
                 {tab.label}
-                {/* Counts are small pills; the selected one turns ink, a conflict count turns red. */}
+                {/* Counts are small pills; the selected one takes the brand tint, a conflict count turns red. */}
                 <span
                   className={cn(
-                    "inline-grid h-5 min-w-5 place-items-center rounded-full px-2 text-2xs font-semibold tabular-nums transition-colors duration-150",
+                    "inline-grid h-5 min-w-5 place-items-center rounded-full px-2 text-2xs font-semibold tabular-nums transition-colors duration-150 ease-[ease]",
                     isAlert
                       ? "bg-destructive/10 text-destructive"
-                      : "bg-secondary text-muted-foreground group-data-[selected=true]:bg-foreground group-data-[selected=true]:text-background"
+                      : "bg-secondary text-muted-foreground group-data-[selected=true]:bg-[var(--accent-soft)] group-data-[selected=true]:text-primary"
                   )}
                 >
                   {tab.count}
                 </span>
-                <Tabs.Indicator className="rounded-t-sm bg-foreground" />
+                <Tabs.Indicator className="rounded-t-sm bg-primary" />
               </Tabs.Tab>
             );
           })}
