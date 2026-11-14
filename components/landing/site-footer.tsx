@@ -56,7 +56,7 @@ export function SiteFooter() {
         </p>
         <div className="rl-footer-bottom">
           <p>© {new Date().getFullYear()} Oriel</p>
-          <p>Made in Accra</p>
+          <p>Made in Ghana</p>
         </div>
       </div>
     </footer>

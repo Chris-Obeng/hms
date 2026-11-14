@@ -106,9 +106,9 @@ const STOPS: Stop[] = [
             ["Revenue", "GHS 12,480"],
           ].map(([k, v]) => (
             <li key={k}>
-              <span className="rl-frag-check" aria-hidden="true">
-                ✓
-              </span>
+              <svg className="rl-frag-check" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+                <path d="M3.5 8.5 6.5 11.5 12.5 4.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
               <span className="rl-frag-strong">{k}</span>
               <span className="rl-frag-amount">{v}</span>
             </li>

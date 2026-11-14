@@ -1,14 +1,16 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { OrielGlyph, OrielMark } from "@/components/brand/oriel-mark";
+import { WindowView } from "@/components/brand/window-view";
 
 /**
  * The frame every Oriel account screen sits in: sign-in, sign-up, the
  * staff invite, and the account-status pages.
  *
  * Phones get one column: wordmark, the screen's single task, a quiet footer.
- * From 1024 px a marigold panel on the left shows a glimpse of the product
- * and one line of copy, so the form keeps the right side to itself.
+ * From 1024 px a marigold panel on the left holds the brand illustration (the
+ * view through an oriel window) and one line of copy, so the form keeps the
+ * right side to itself.
  */
 export function AuthShell({
   children,
@@ -34,35 +36,7 @@ export function AuthShell({
             <OrielMark size={28} />
             <span className="rl-wordmark-text">oriel</span>
           </Link>
-          <div className="rl-auth-today">
-            <div className="rl-auth-today-head">
-              <span>Today · Labadi Courtyard</span>
-              <span className="rl-auth-today-live">Live</span>
-            </div>
-            <dl className="rl-auth-today-grid">
-              <div>
-                <dt>Arrivals</dt>
-                <dd>6</dd>
-              </div>
-              <div>
-                <dt>Departures</dt>
-                <dd>4</dd>
-              </div>
-              <div>
-                <dt>Rooms sold</dt>
-                <dd>18 of 24</dd>
-              </div>
-              <div>
-                <dt>Taken today</dt>
-                <dd>GHS 4,820</dd>
-              </div>
-            </dl>
-            <div className="rl-auth-today-row">
-              <span className="rl-auth-today-dot" />
-              <span>Nana Yaa Asare paid with MTN MoMo</span>
-              <span className="rl-auth-today-amt">GHS 1,350</span>
-            </div>
-          </div>
+          <WindowView className="rl-auth-window" />
           <div className="rl-auth-aside-copy">
             <p className="rl-auth-aside-title">{aside.title}</p>
             <p className="rl-auth-aside-body">{aside.body}</p>
@@ -84,7 +58,7 @@ export function AuthShell({
         </main>
 
         <footer className="rl-auth-foot">
-          {footer ?? <span>© {new Date().getFullYear()} Oriel · Accra</span>}
+          {footer ?? <span>© {new Date().getFullYear()} Oriel · Made in Ghana</span>}
         </footer>
       </div>
     </div>

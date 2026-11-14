@@ -68,12 +68,20 @@ One 440 px form column. From 1024 px a live preview of the guest booking page si
 - **Server poster.** Frame 0 is rendered as HTML and sized with container-query units (`--u`), so the frame has content before any JavaScript runs and the layout does not shift.
 - **Remotion Studio.** Run `pnpm film:studio` to edit timings, or `pnpm film:render` to export an MP4.
 
+Booking colours in the calendar film are the product's own status palette from `app/dashboard/calendar/calendar.css`: confirmed is blue, in house is green, pending is amber, checked out is slate, and out of order is hatched. A legend sits under the wide cut. New bookings arrive as a system-style notification with the Oriel icon, not a coloured toast.
+
+On phones and tablets the calendar is a phone screen inside a phone frame, rising out of the marigold tile and cropped at the bottom, with wider day columns that run off the edge like a scrolled calendar.
+
 The two films are:
 
 | Film | Shows | Cuts |
 | --- | --- | --- |
-| Calendar (hero) | A booking-page booking paid with MoMo lands on the calendar, week revenue rises by GHS 1,350, and an arrival is checked in | 1280×800 from 1024 px, 520×700 below |
+| Calendar (hero) | A booking-page booking paid with MoMo lands on the calendar, week revenue rises by GHS 1,350, and an arrival is checked in | 1280×800 from 1024 px, 390×700 phone screen below |
 | Folio (showcase) | A MoMo approval takes a GHS 1,360 balance to zero, then the night audit closes the day | 480×640 |
+
+## Brand illustration
+
+`components/brand/window-view.tsx`: an arched window (the shape in the mark) with mullion and transom, framing a lagoon sky, a marigold sun and red earth. It fills the sign-in and sign-up panel (the sun rises once on load) and stands in for photos in the onboarding preview.
 
 ## Account screens
 
@@ -94,4 +102,5 @@ The two films are:
 - **Name clearance.** Trademark and domain checks for Oriel, then point `NEXT_PUBLIC_SUPPORT_EMAIL` at the new domain.
 - **Pricing and customer proof.** Both are left off the page until real numbers and customers exist. The trust section states only facts the product backs today.
 - **Photography.** Commission photos of real Ghanaian guesthouses (front desks, morning light, staff at work) before adding any imagery.
+- **Clerk branding.** "Secured by Clerk" is removed in the Clerk Dashboard (Customization, then Branding), which needs a paid Clerk plan; it is not hidden in code. "Development mode" only appears with development keys.
 - **Accept with an existing account.** Invites currently require a new account. Accepting with the signed-in account needs a server action that mirrors the Clerk webhook.

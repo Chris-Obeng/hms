@@ -958,7 +958,7 @@ button.ob-progress-seg:focus-visible {
 
   .ob-preview {
     display: grid;
-    gap: 1rem;
+    gap: 1.25rem;
     justify-items: center;
     align-self: stretch;
     align-content: center;
@@ -968,18 +968,14 @@ button.ob-progress-seg:focus-visible {
   }
 }
 
-.ob-preview-label,
-.ob-preview-note {
+.ob-preview-label {
+  max-width: 20rem;
   margin: 0;
   font-size: 0.8125rem;
-  font-weight: 600;
-  color: rgb(20 20 19 / 0.7);
-  text-align: center;
-}
-
-.ob-preview-note {
-  max-width: 20rem;
   font-weight: 500;
+  line-height: 1.5;
+  color: rgb(20 20 19 / 0.72);
+  text-align: center;
 }
 
 .ob-preview-device {
@@ -987,62 +983,56 @@ button.ob-progress-seg:focus-visible {
   overflow: hidden;
   border-radius: 1.5rem;
   background: var(--ob-surface);
-  box-shadow: 0 32px 64px -32px rgb(20 20 19 / 0.5);
+  box-shadow: 0 32px 64px -32px rgb(20 20 19 / 0.45);
 }
 
 .ob-preview-url {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0.75rem;
+  margin: 0.75rem 0.75rem 0;
   padding: 0.5rem 0.75rem;
   border-radius: 999px;
   background: var(--ob-muted-bg);
   font-size: 0.75rem;
   color: var(--ob-ink-muted);
+  text-align: center;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-.ob-preview-lock {
-  flex-shrink: 0;
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  background: var(--rl-ok);
+.ob-preview-url strong {
+  font-weight: 600;
+  color: var(--ob-ink);
 }
 
 .ob-preview-cover {
   position: relative;
-  height: 8rem;
-  margin: 0 0.75rem;
-  border-radius: 1rem;
-  background:
-    radial-gradient(circle at 70% 120%, var(--rl-sun) 0 34%, transparent 35%),
-    var(--rl-lagoon);
-}
-
-.ob-preview-initial {
-  position: absolute;
-  left: 1rem;
-  bottom: -1.25rem;
   display: grid;
   place-items: center;
-  width: 3rem;
-  height: 3rem;
-  border: 3px solid var(--ob-surface);
-  border-radius: 0.75rem;
-  background: var(--rl-ink);
-  color: var(--rl-sun);
-  font-size: 1.25rem;
-  font-weight: 800;
+  height: 9rem;
+  margin: 0.75rem 0.75rem 0;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: var(--rl-sun-wash);
+}
+
+.ob-preview-art {
+  width: 5.5rem;
+  height: auto;
+  margin-top: 1.5rem;
+}
+
+.ob-preview-cover-note {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.5rem;
+  font-size: 0.6875rem;
+  color: var(--rl-sun-deep);
 }
 
 .ob-preview-body {
   display: grid;
   gap: 1rem;
-  padding: 2rem 1.25rem 1.25rem;
+  padding: 1.25rem;
 }
 
 .ob-preview-kicker {
@@ -1052,7 +1042,7 @@ button.ob-progress-seg:focus-visible {
 }
 
 .ob-preview-title {
-  margin: -0.75rem 0 0;
+  margin: 0.25rem 0 0;
   font-size: 1.5rem;
   font-weight: 800;
   line-height: 1.1;
@@ -1065,46 +1055,16 @@ button.ob-progress-seg:focus-visible {
   color: var(--ob-ink-faint);
 }
 
-.ob-preview-dates {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  overflow: hidden;
-  border: 1px solid var(--ob-border);
-  border-radius: 0.75rem;
-}
-
-.ob-preview-dates > div {
-  display: grid;
-  gap: 0.125rem;
-  padding: 0.5rem 0.75rem;
-}
-
-.ob-preview-dates > div + div {
-  border-left: 1px solid var(--ob-border);
-}
-
-.ob-preview-dates span,
-.ob-preview-room span:not(.ob-preview-book),
-.ob-preview-contact span {
-  font-size: 0.75rem;
-  color: var(--ob-ink-muted);
-}
-
-.ob-preview-dates strong,
-.ob-preview-room strong {
-  font-size: 0.875rem;
-  color: var(--ob-ink);
-}
-
-.ob-preview-room {
+.ob-preview-search {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-}
-
-.ob-preview-room > div {
-  display: grid;
+  padding: 0.25rem 0.25rem 0.25rem 1rem;
+  border: 1px solid var(--ob-border);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  color: var(--ob-ink-muted);
 }
 
 .ob-preview-book {
@@ -1114,15 +1074,33 @@ button.ob-progress-seg:focus-visible {
   color: var(--rl-on-ink);
   font-size: 0.75rem;
   font-weight: 700;
+  white-space: nowrap;
+}
+
+.ob-preview-meta {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--ob-ink-muted);
 }
 
 .ob-preview-contact {
-  display: grid;
-  gap: 0.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--ob-hairline);
-  opacity: 0.45;
+  font-size: 0.75rem;
+  color: var(--ob-ink-muted);
+  opacity: 0.5;
   transition: opacity var(--ob-ui-ms) ease;
+}
+
+.ob-preview-contact span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ob-preview-contact[data-on="true"] {

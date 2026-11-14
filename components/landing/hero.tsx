@@ -4,12 +4,6 @@ import { ProductFilm } from "./film/product-film";
 
 const d = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
 
-const PAYMENTS = [
-  "Mobile money",
-  "Visa and Mastercard",
-  "Cash",
-  "Bank transfer",
-] as const;
 
 export function Hero() {
   return (
@@ -20,8 +14,7 @@ export function Hero() {
     >
       <div className="rl-wrap">
         <div className="rl-hero-copy">
-          <p className="rl-eyebrow rl-rise" style={d(0)}>
-            <span className="rl-eyebrow-dot" aria-hidden="true" />
+          <p className="rl-kicker rl-rise" style={d(0)}>
             For independent hotels and guesthouses
           </p>
           <h1 id="hero-heading" className="rl-display">
@@ -41,23 +34,13 @@ export function Hero() {
               <ActionLink />
               <SecondaryLink href="/sign-in">Sign in</SecondaryLink>
             </div>
-            <ul
-              className="rl-pay rl-rise"
-              style={d(380)}
-              aria-label="Payments Oriel takes"
-            >
-              {PAYMENTS.map((p) => (
-                <li key={p}>{p}</li>
-              ))}
-            </ul>
+            <p className="rl-pay rl-rise" style={d(380)}>
+              Takes mobile money, Visa, Mastercard, cash and bank transfer
+            </p>
           </div>
         </div>
 
-        <figure className="rl-hero-film rl-rise" style={d(260)}>
-          <figcaption className="rl-fig" aria-hidden="true">
-            <span>Fig. 01</span>
-            <span>The room calendar</span>
-          </figcaption>
+        <div className="rl-hero-film rl-rise" style={d(260)}>
           <div className="rl-tile rl-tile--sun">
             <ProductFilm
               film="calendar"
@@ -65,7 +48,7 @@ export function Hero() {
               description="A booking from the hotel's own booking page arrives, paid with MTN Mobile Money. It appears on the room calendar for room 202, the week's revenue rises by GHS 1,350, and a waiting guest in room 104 is checked in."
             />
           </div>
-        </figure>
+        </div>
       </div>
     </section>
   );

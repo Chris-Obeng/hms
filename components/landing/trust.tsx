@@ -6,22 +6,18 @@ import type { CSSProperties } from "react";
  */
 const FACTS = [
   {
-    no: "01",
     title: "Payments through Paystack",
     body: "Card and mobile money are processed by Paystack and settled in GHS.",
   },
   {
-    no: "02",
     title: "Access by role",
     body: "Staff see only what their role allows. The audit log records who changed what, and when.",
   },
   {
-    no: "03",
     title: "Installs from the browser",
     body: "Add Oriel to any phone's home screen. No app store, no new hardware.",
   },
   {
-    no: "04",
     title: "Your numbers, exportable",
     body: "Export occupancy, revenue and guest reports as CSV at any time.",
   },
@@ -40,9 +36,6 @@ export function Trust() {
         <ul className="rl-facts" data-reveal="">
           {FACTS.map((f, i) => (
             <li key={f.title} className="rl-fact rl-r" style={{ "--i": i } as CSSProperties}>
-              <span className="rl-fact-no" aria-hidden="true">
-                {f.no}
-              </span>
               <h3 className="rl-fact-title">{f.title}</h3>
               <p className="rl-fact-body">{f.body}</p>
             </li>

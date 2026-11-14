@@ -35,19 +35,15 @@ export function Showcase() {
           </dl>
         </div>
 
-        <figure className="rl-showcase-film" data-reveal="">
-          <figcaption className="rl-fig rl-r" aria-hidden="true">
-            <span>Fig. 02</span>
-            <span>Folio and night audit</span>
-          </figcaption>
-          <div className="rl-r rl-tile rl-tile--laterite" style={{ "--i": 1 } as CSSProperties}>
+        <div className="rl-showcase-film" data-reveal="">
+          <div className="rl-r rl-tile rl-tile--laterite">
             <ProductFilm
               film="folio"
               label="Oriel guest folio and night audit"
               description="A guest folio for Kwame Asante, room 204, totals GHS 1,360. A mobile money payment is approved, the balance drops to zero and shows Settled. Then the night audit shows 42 of 42 payments matched, 18 of 24 rooms sold and GHS 12,480 revenue, and the day is closed."
             />
           </div>
-        </figure>
+        </div>
       </div>
     </section>
   );

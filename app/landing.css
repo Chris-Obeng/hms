@@ -346,26 +346,10 @@
   justify-items: start;
 }
 
-.rl-landing .rl-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--rl-s2);
-  min-height: 32px;
-  padding: 0 var(--rl-s3);
-  border: 1px solid var(--rl-line-strong);
-  border-radius: var(--rl-radius-pill);
-  background: var(--rl-card);
+.rl-landing .rl-kicker {
   font-size: var(--rl-step-small);
-  font-weight: 500;
-  color: var(--rl-text);
-}
-
-.rl-landing .rl-eyebrow-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--rl-sun);
-  box-shadow: 0 0 0 3px rgb(255 194 61 / 0.25);
+  font-weight: 600;
+  color: var(--rl-sun-deep);
 }
 
 .rl-landing .rl-hero-side {
@@ -380,41 +364,12 @@
 }
 
 .rl-landing .rl-pay {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--rl-s2);
-}
-
-.rl-landing .rl-pay li {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 0 var(--rl-s3);
-  border-radius: var(--rl-radius-pill);
-  background: var(--rl-paper-2);
-  font-size: var(--rl-step-micro);
-  font-weight: 600;
-  color: var(--rl-text);
+  font-size: var(--rl-step-small);
+  color: var(--rl-faint);
 }
 
 .rl-landing .rl-hero-film {
   margin: clamp(48px, 2rem + 3vw, 80px) 0 0;
-}
-
-/* Figure caption, set like a drawing label */
-.rl-landing .rl-fig {
-  display: flex;
-  gap: var(--rl-s4);
-  margin-bottom: var(--rl-s3);
-  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: var(--rl-step-micro);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--rl-faint);
-}
-
-.rl-landing .rl-fig span:first-child {
-  color: var(--rl-ink);
 }
 
 @media (min-width: 1024px) {
@@ -425,7 +380,7 @@
     align-items: end;
   }
 
-  .rl-landing .rl-eyebrow {
+  .rl-landing .rl-kicker {
     grid-column: 1 / -1;
   }
 
@@ -480,11 +435,25 @@
   opacity: 1;
 }
 
-/* Calendar: the wide cut from 1024 px, the phone cut below (WIDE_QUERY) */
+/* Calendar: the wide cut from 1024 px (WIDE_QUERY). Below that the phone cut
+   sits in a phone, rising out of the marigold tile and cropped at the bottom. */
 .rl-landing .rl-film--calendar .rl-film-frame {
-  aspect-ratio: 520 / 700;
-  max-width: 520px;
-  margin-inline: auto;
+  aspect-ratio: 390 / 700;
+  width: min(80%, 320px);
+  margin: 0 auto -96px;
+  border: 8px solid var(--rl-night);
+  border-radius: 48px;
+  box-shadow: 0 32px 64px -24px rgb(20 20 19 / 0.45);
+}
+
+.rl-landing .rl-hero-film .rl-tile {
+  overflow: hidden;
+}
+
+@media (max-width: 1023px) {
+  .rl-landing .rl-hero-film .rl-tile {
+    padding: 32px 0 0;
+  }
 }
 
 .rl-landing .rl-film--calendar .rl-film-stage--wide {
@@ -494,7 +463,11 @@
 @media (min-width: 1024px) {
   .rl-landing .rl-film--calendar .rl-film-frame {
     aspect-ratio: 1280 / 800;
-    max-width: none;
+    width: auto;
+    margin: 0;
+    border: 1px solid var(--rl-line);
+    border-radius: var(--rl-radius-frame);
+    box-shadow: var(--rl-shadow-frame);
   }
 
   .rl-landing .rl-film--calendar .rl-film-stage--wide {
@@ -503,6 +476,13 @@
 
   .rl-landing .rl-film--calendar .rl-film-stage--compact {
     display: none;
+  }
+}
+
+/* The pause/replay control sits above the crop on phones */
+@media (max-width: 1023px) {
+  .rl-landing .rl-film--calendar .rl-film-control {
+    bottom: 112px;
   }
 }
 
@@ -684,7 +664,7 @@
   border-radius: var(--rl-radius-frame);
   color: var(--rl-ink);
   outline-offset: 4px;
-  animation: rl-landing-panel 360ms var(--rl-ease) both;
+  animation: rl-landing-panel 240ms var(--rl-ease) both;
 }
 
 .rl-landing .rl-tour-copy {
@@ -912,7 +892,6 @@
 
 .rl-landing .rl-frag-check {
   color: var(--rl-sun);
-  font-weight: 700;
 }
 
 .rl-landing .rl-frag-done {
@@ -1125,19 +1104,9 @@
 
 .rl-landing .rl-fact {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  column-gap: var(--rl-s4);
-  row-gap: var(--rl-s1);
+  gap: var(--rl-s1);
   padding-block: var(--rl-s5);
   border-bottom: 1px solid var(--rl-line-strong);
-}
-
-.rl-landing .rl-fact-no {
-  grid-row: span 2;
-  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: var(--rl-step-micro);
-  color: var(--rl-faint);
-  padding-top: 4px;
 }
 
 .rl-landing .rl-fact-title {

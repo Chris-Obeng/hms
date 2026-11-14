@@ -6,5 +6,6 @@
   {"file": "components/layout/app-sidebar-overlay.tsx", "token": "pl-9", "reason": "Child nav labels line up with the parent label (px-2 + icon + gap-3)"},
   {"file": "components/ui/notes-disclosure.tsx", "token": "pl-9", "reason": "List text lines up with the summary text after the chevron"},
   {"file": "components/layout/app-header.tsx", "token": "sm:size-3.5", "reason": "Plus glyph size kept after design review (PR #28)"},
-  {"file": "components/ui/notification-bell.tsx", "token": "max-md:after:-inset-0.5", "reason": "Hit-area overhang kept after design review (PR #28)"}
+  {"file": "components/ui/notification-bell.tsx", "token": "max-md:after:-inset-0.5", "reason": "Hit-area overhang kept after design review (PR #28)"},
+  {"file": "app/landing.css", "token": "48px", "reason": "Phone bezel corner on the landing calendar film: a device radius, not a UI radius"}
 ]

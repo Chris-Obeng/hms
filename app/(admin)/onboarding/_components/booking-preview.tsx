@@ -1,8 +1,19 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
+import { WindowView } from "@/components/brand/window-view";
+
+const noopSubscribe = () => () => {};
+
+/** "https://example.com/" → "example.com", so the preview reads like an address bar. */
+function displayHost(raw: string) {
+  return raw.replace(/^[a-z]+:\/\//i, "").replace(/\/+$/, "");
+}
+
 /**
  * Live preview of the guest booking page, built from what the owner has typed
- * so far. Decorative (aria-hidden): every value is already in a labelled field.
+ * so far. It shows the payoff of the form: the page guests will book on.
+ * Decorative (aria-hidden): every value is already in a labelled field.
  */
 export function BookingPreview({
   name,
@@ -25,60 +36,55 @@ export function BookingPreview({
   slug: string;
   step: number;
 }) {
-  const host =
-    process.env.NEXT_PUBLIC_BASE_DOMAIN ?? (typeof window !== "undefined" ? window.location.host : "oriel");
-  const title = name || "Your property";
+  // The configured booking domain, else this site's host. The server snapshot
+  // never reads `window`, so server and client agree on the first frame.
+  const configured = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? "";
+  const host = useSyncExternalStore(
+    noopSubscribe,
+    () => displayHost(configured || window.location.host),
+    () => displayHost(configured),
+  );
   const place = [city, country].filter(Boolean).join(", ");
-  const initial = (name.trim().charAt(0) || "O").toUpperCase();
 
   return (
     <aside className="ob-preview" aria-hidden="true">
-      <p className="ob-preview-label">Your booking page, as guests will see it</p>
       <div className="ob-preview-device">
         <div className="ob-preview-url">
-          <span className="ob-preview-lock" />
-          {host}/{slug || "your-property"}
+          {host || "oriel"}/<strong>{slug || "your-property"}</strong>
         </div>
+
         <div className="ob-preview-cover">
-          <span className="ob-preview-initial">{initial}</span>
+          <WindowView className="ob-preview-art" />
+          <span className="ob-preview-cover-note">Your photos go here</span>
         </div>
+
         <div className="ob-preview-body">
-          <p className="ob-preview-kicker">
-            {hotelType || "Hotel"}
-            {place ? ` · ${place}` : ""}
-          </p>
-          <p className="ob-preview-title" data-empty={name ? undefined : "true"}>
-            {title}
-          </p>
-
-          <div className="ob-preview-dates">
-            <div>
-              <span>Check-in</span>
-              <strong>Fri 14 Nov</strong>
-            </div>
-            <div>
-              <span>Check-out</span>
-              <strong>Sun 16 Nov</strong>
-            </div>
+          <div>
+            <p className="ob-preview-kicker">
+              {hotelType || "Hotel"}
+              {place ? ` · ${place}` : ""}
+            </p>
+            <p className="ob-preview-title" data-empty={name ? undefined : "true"}>
+              {name || "Your property"}
+            </p>
           </div>
 
-          <div className="ob-preview-room">
-            <div>
-              <strong>Choose a room</strong>
-              <span>
-                {rooms} {rooms === 1 ? "room" : "rooms"} on your calendar
-              </span>
-            </div>
-            <span className="ob-preview-book">Book</span>
+          <div className="ob-preview-search">
+            <span>Choose your dates</span>
+            <span className="ob-preview-book">Check availability</span>
           </div>
+
+          <p className="ob-preview-meta">
+            {rooms} {rooms === 1 ? "room" : "rooms"} · Mobile money and card
+          </p>
 
           <div className="ob-preview-contact" data-on={step >= 2 ? "true" : undefined}>
-            <span>{phone || "Phone number"}</span>
-            <span>{email || "Booking email"}</span>
+            <span>{phone || "Phone"}</span>
+            <span>{email || "Email"}</span>
           </div>
         </div>
       </div>
-      <p className="ob-preview-note">Guests pay with mobile money or card. You can add photos and rates next.</p>
+      <p className="ob-preview-label">This is the page guests will book on. It fills in as you type.</p>
     </aside>
   );
 }

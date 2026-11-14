@@ -117,74 +117,16 @@
     color: var(--rl-ink);
   }
 
-  .rl-auth-today {
+  .rl-auth-window {
     align-self: center;
     justify-self: center;
-    width: min(100%, 400px);
-    padding: var(--rl-s5);
-    border-radius: var(--rl-radius-frame);
-    background: var(--rl-card);
-    box-shadow: 0 32px 64px -32px rgb(20 20 19 / 0.45);
-    animation: rl-theme-enter 700ms var(--rl-ease) 120ms both;
+    width: min(64%, 300px);
+    height: auto;
+    max-height: 56dvh;
   }
 
-  .rl-auth-today-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: var(--rl-step-small);
-    font-weight: 600;
-  }
-
-  .rl-auth-today-live {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--rl-s1);
-    padding: 2px var(--rl-s2);
-    border-radius: var(--rl-radius-pill);
-    background: var(--rl-ok-wash);
-    color: var(--rl-ok);
-    font-size: var(--rl-step-micro);
-  }
-
-  .rl-auth-today-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--rl-s4);
-    margin: var(--rl-s5) 0;
-  }
-
-  .rl-auth-today-grid dt {
-    font-size: var(--rl-step-micro);
-    color: var(--rl-muted);
-  }
-
-  .rl-auth-today-grid dd {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 800;
-    letter-spacing: -0.04em;
-  }
-
-  .rl-auth-today-row {
-    display: flex;
-    align-items: center;
-    gap: var(--rl-s2);
-    padding-top: var(--rl-s4);
-    border-top: 1px solid var(--rl-line);
-    font-size: var(--rl-step-small);
-  }
-
-  .rl-auth-today-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--rl-sun);
-  }
-
-  .rl-auth-today-amt {
-    margin-left: auto;
-    font-weight: 700;
+  .rl-auth-window .rl-window-sun {
+    animation: rl-window-rise 1400ms var(--rl-ease) 200ms both;
   }
 
   .rl-auth-aside-copy {
@@ -207,6 +149,15 @@
     margin: 0;
     color: rgb(20 20 19 / 0.72);
     text-wrap: pretty;
+  }
+}
+
+@keyframes rl-window-rise {
+  from {
+    transform: translateY(56px);
+  }
+  to {
+    transform: none;
   }
 }
 
@@ -453,7 +404,7 @@
     }
   }
 
-  .rl-auth-today {
+  .rl-auth-window .rl-window-sun {
     animation: none;
   }
 }
