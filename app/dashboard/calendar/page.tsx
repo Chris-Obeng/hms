@@ -11,7 +11,7 @@ import { QueryClient, dehydrate, HydrationBoundary, defaultShouldDehydrateQuery 
 import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
 import { CAPS } from "@/lib/cache/prefetch-helpers";
 export const metadata = {
-  title: "Calendar | Oriel",
+  title: "Calendar",
 };
 
 export default async function CalendarPage() {

@@ -81,7 +81,11 @@ export default async function JoinPage(props: {
   const res = await validateInviteToken(token);
 
   if (!res.success) {
-    if (userId && res.reason === "used") redirect("/dashboard");
+    // A used link is expected once its own invitee has joined: send members
+    // on. Anyone else sees why the link no longer works.
+    if (userId && res.reason === "used" && res.clerkOrgId && (await isMemberOf(userId, res.clerkOrgId))) {
+      redirect("/dashboard");
+    }
     return (
       <InviteProblemScreen
         problem={res.reason}

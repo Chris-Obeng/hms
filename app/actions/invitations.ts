@@ -76,7 +76,10 @@ export type ValidInvite = {
 
 export async function validateInviteToken(
   token: string
-): Promise<ValidInvite | { success: false; reason: InviteProblem; error: string; hotelName?: string }> {
+): Promise<
+  | ValidInvite
+  | { success: false; reason: InviteProblem; error: string; hotelName?: string; clerkOrgId?: string }
+> {
   try {
     const { data: invite, error: inviteError } = await supabaseAdmin
       .from("staff_invitations")
@@ -91,7 +94,8 @@ export async function validateInviteToken(
       return { success: false, reason: "not_found", error: "Invitation not found or invalid" };
     }
 
-    const [{ data: hotel }, { data: inviter }] = await Promise.all([
+    // The inviter's name is a nicety; the hotel is required.
+    const [{ data: hotel, error: hotelError }, { data: inviter }] = await Promise.all([
       supabaseAdmin.from("hotels").select("name").eq("clerk_org_id", invite.clerk_org_id).maybeSingle(),
       invite.invited_by_staff_id
         ? supabaseAdmin
@@ -102,12 +106,17 @@ export async function validateInviteToken(
         : Promise.resolve({ data: null }),
     ]);
 
+    if (hotelError) {
+      return { success: false, reason: "unavailable", error: "Failed to look up the hotel" };
+    }
+
     if (invite.is_used) {
       return {
         success: false,
         reason: "used",
         error: "Invitation link has already been used",
         hotelName: hotel?.name,
+        clerkOrgId: invite.clerk_org_id,
       };
     }
 
