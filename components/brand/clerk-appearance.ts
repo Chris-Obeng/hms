@@ -1,5 +1,5 @@
 /**
- * Clerk appearance for every RoomLine-branded auth surface (sign-in, sign-up,
+ * Clerk appearance for every Oriel-branded auth surface (sign-in, sign-up,
  * staff invite). Clerk renders the form; our shell supplies the frame, so the
  * card is flattened and Clerk's own logo is hidden.
  *
@@ -28,7 +28,7 @@ export const clerkAppearance = {
     colorInput: "#FFFFFF",
     colorInputForeground: TEXT,
     colorNeutral: INK,
-    colorBorder: "#CFCBC4",
+    colorBorder: "#BFBAB1",
     colorRing: INK,
     colorDanger: "#A33A1E",
     colorSuccess: "#1F7A4D",
@@ -72,7 +72,7 @@ export const clerkAppearance = {
     socialButtonsBlockButton: {
       minHeight: "48px",
       borderRadius: "999px",
-      boxShadow: "0 0 0 1px #CFCBC4",
+      boxShadow: "0 0 0 1px #BFBAB1",
       fontWeight: 600,
     },
     dividerLine: { background: "rgba(20, 20, 19, 0.1)" },
@@ -81,7 +81,7 @@ export const clerkAppearance = {
     formFieldInput: {
       minHeight: "48px",
       fontSize: "1rem",
-      boxShadow: "0 0 0 1px #CFCBC4",
+      boxShadow: "0 0 0 1px #BFBAB1",
       "&:focus": { boxShadow: "0 0 0 1px #141413, 0 0 0 4px rgba(20, 20, 19, 0.12)" },
     },
     formFieldErrorText: { fontSize: "0.8125rem", color: "#A33A1E" },
@@ -102,7 +102,7 @@ export const clerkAppearance = {
     footerAction: { justifyContent: "flex-start", padding: 0 },
     footerActionText: { color: MUTED, fontSize: "0.9375rem" },
     footerActionLink: { color: INK, fontWeight: 600, fontSize: "0.9375rem" },
-    identityPreview: { borderColor: "#CFCBC4" },
+    identityPreview: { borderColor: "#BFBAB1" },
     otpCodeFieldInput: { minHeight: "52px", fontSize: "1.25rem" },
   },
 } as const;

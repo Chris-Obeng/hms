@@ -5,8 +5,8 @@ import { AuthShell } from "@/components/brand/auth-shell";
 import { clerkAppearance } from "@/components/brand/clerk-appearance";
 
 export const metadata: Metadata = {
-  title: "Create your workspace",
-  description: "Create a RoomLine account for your hotel or guesthouse.",
+  title: "Set up your hotel",
+  description: "Create a Oriel account for your hotel or guesthouse.",
 };
 
 export default function SignUpPage() {

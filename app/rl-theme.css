@@ -1,5 +1,5 @@
 /* ──────────────────────────────────────────────────────────────────────────
- * RoomLine brand surfaces: one token set for the landing page, sign-in and
+ * Oriel brand surfaces: one token set for the landing page, sign-in and
  * sign-up, onboarding, the staff invite page and the account-status pages.
  * See docs/design-system.md.
  *
@@ -144,6 +144,12 @@
   outline-offset: 3px;
 }
 
+/* Headings and regions focused by script (tabindex -1) only move the reading position. */
+.rl-theme [tabindex="-1"]:focus,
+.rl-theme [tabindex="-1"]:focus-visible {
+  outline: none;
+}
+
 /* ── Buttons: HeroUI Button and buttonVariants() links, branded ──────── */
 
 /* Same layer as HeroUI so utility classes on an element still win. */
@@ -266,9 +272,11 @@
 }
 
 .rl-theme .rl-wordmark-text {
-  font-size: 1.125rem;
-  font-weight: 700;
-  letter-spacing: -0.025em;
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.055em;
+  text-transform: lowercase;
 }
 
 .rl-theme .rl-sr {

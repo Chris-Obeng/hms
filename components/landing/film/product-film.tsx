@@ -43,7 +43,7 @@ export function ProductFilm({
   className,
 }: {
   film: FilmId;
-  /** Accessible name of the figure, e.g. "RoomLine room calendar". */
+  /** Accessible name of the figure, e.g. "Oriel room calendar". */
   label: string;
   /** What the film shows, for screen readers. */
   description: string;

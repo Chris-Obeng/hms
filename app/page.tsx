@@ -8,9 +8,11 @@ import { Features } from "@/components/landing/features";
 import { Setup } from "@/components/landing/setup";
 import { Trust } from "@/components/landing/trust";
 import { ClosingCta } from "@/components/landing/closing-cta";
+import { DirectCalculator } from "@/components/landing/direct-calculator";
+import { Faq } from "@/components/landing/faq";
 import { RevealObserver } from "@/components/landing/reveal-observer";
 
-const title = "RoomLine: hotel software for independent hotels in Ghana";
+const title = "Oriel: hotel software for independent hotels and guesthouses";
 const description =
   "Run a calmer front desk. A live room calendar, mobile money, card and cash on one GHS bill, your own booking page and a one-click night audit for hotels and guesthouses.";
 
@@ -31,7 +33,7 @@ export const metadata: Metadata = {
     description,
     type: "website",
     locale: "en_GH",
-    siteName: "RoomLine",
+    siteName: "Oriel",
   },
   twitter: {
     card: "summary_large_image",
@@ -61,8 +63,10 @@ export default function HomePage() {
         <Hero />
         <Showcase />
         <Features />
+        <DirectCalculator />
         <Setup />
         <Trust />
+        <Faq />
         <ClosingCta />
       </main>
       <SiteFooter />

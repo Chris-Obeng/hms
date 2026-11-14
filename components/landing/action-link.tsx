@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { buttonVariants } from "@heroui/react";
 
+/** The one primary action, same words everywhere. */
+export const PRIMARY_ACTION = "Set up your hotel";
+
 type ActionLinkProps = {
   href?: string;
   label?: string;
@@ -9,31 +12,14 @@ type ActionLinkProps = {
 };
 
 /**
- * The page's one primary action, a HeroUI button rendered as a link. Same name
- * everywhere: "Create workspace". On the forest band it turns brass
- * (`.rl-on-ink` in app/rl-theme.css).
+ * The page's primary action, a HeroUI button rendered as a link. On the ink
+ * band it turns marigold (`.rl-on-ink` in app/rl-theme.css).
  */
-export function ActionLink({
-  href = "/sign-up",
-  label = "Create workspace",
-  size = "lg",
-  className,
-}: ActionLinkProps) {
+export function ActionLink({ href = "/sign-up", label = PRIMARY_ACTION, size = "lg", className }: ActionLinkProps) {
   return (
-    <Link
-      href={href}
-      prefetch={false}
-      className={buttonVariants({ variant: "primary", size, className })}
-    >
+    <Link href={href} prefetch={false} className={buttonVariants({ variant: "primary", size, className })}>
       <span>{label}</span>
-      <svg
-        className="rl-arrow"
-        viewBox="0 0 16 16"
-        width="16"
-        height="16"
-        aria-hidden="true"
-        focusable="false"
-      >
+      <svg className="rl-arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
         <path
           d="M3.5 8h9M8.5 4l4 4-4 4"
           fill="none"

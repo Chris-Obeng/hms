@@ -1,25 +1,63 @@
 import Link from "next/link";
 import { Logo, Wordmark } from "./logo";
 
+const COLUMNS = [
+  {
+    title: "Product",
+    links: [
+      { href: "#product", label: "Room calendar" },
+      { href: "#direct", label: "Direct bookings" },
+      { href: "#how-it-works", label: "How it works" },
+    ],
+  },
+  {
+    title: "Account",
+    links: [
+      { href: "/sign-up", label: "Set up your hotel" },
+      { href: "/sign-in", label: "Sign in" },
+      { href: "#questions", label: "Questions" },
+    ],
+  },
+] as const;
+
 export function SiteFooter() {
   return (
     <footer className="rl-footer">
-      <div className="rl-wrap rl-footer-row">
-        <a href="#top" className="rl-wordmark" aria-label="RoomLine, back to top">
-          <Logo />
-          <Wordmark />
-        </a>
-        <nav aria-label="Footer" className="rl-footer-links">
-          <a href="#product">Product</a>
-          <a href="#how-it-works">How it works</a>
-          <Link href="/sign-in" prefetch={false}>
-            Sign in
-          </Link>
-          <Link href="/sign-up" prefetch={false}>
-            Create workspace
-          </Link>
-        </nav>
-        <p className="rl-footer-meta">© {new Date().getFullYear()} RoomLine · Made in Accra</p>
+      <div className="rl-wrap">
+        <div className="rl-footer-top">
+          <div className="rl-footer-brand">
+            <a href="#top" className="rl-wordmark" aria-label="Oriel, back to top">
+              <Logo />
+              <Wordmark />
+            </a>
+            <p className="rl-footer-line">Hotel software for independent hotels and guesthouses.</p>
+          </div>
+          {COLUMNS.map((col) => (
+            <nav key={col.title} aria-label={col.title} className="rl-footer-col">
+              <p className="rl-footer-head">{col.title}</p>
+              <ul>
+                {col.links.map((l) => (
+                  <li key={l.href}>
+                    {l.href.startsWith("#") ? (
+                      <a href={l.href}>{l.label}</a>
+                    ) : (
+                      <Link href={l.href} prefetch={false}>
+                        {l.label}
+                      </Link>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
+        </div>
+        <p className="rl-footer-giant" aria-hidden="true">
+          oriel
+        </p>
+        <div className="rl-footer-bottom">
+          <p>© {new Date().getFullYear()} Oriel</p>
+          <p>Made in Accra</p>
+        </div>
       </div>
     </footer>
   );

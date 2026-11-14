@@ -36,7 +36,8 @@ import { OnboardingInput as OBInput } from "./_components/onboarding-input";
 import { OnboardingSelect as OBSelect } from "./_components/onboarding-select";
 import { RoomStepper } from "./_components/room-stepper";
 import "./onboarding.css";
-import { RoomLineMark } from "@/components/brand/roomline-mark";
+import { OrielGlyph } from "@/components/brand/oriel-mark";
+import { BookingPreview } from "./_components/booking-preview";
 
 // ─── Draft persistence ─────────────────────────────────────────────────────────
 
@@ -270,9 +271,9 @@ const STEP_LABELS = ["Property", "Location & contact"];
 
 function BrandLink() {
   return (
-    <Link href="/" className="ob-brand" aria-label="RoomLine home">
-      <RoomLineMark size={26} />
-      <span className="ob-brand-name">RoomLine</span>
+    <Link href="/" className="ob-brand" aria-label="Oriel home">
+      <OrielGlyph size={24} />
+      <span className="ob-brand-name">oriel</span>
     </Link>
   );
 }
@@ -723,6 +724,7 @@ function OnboardingWizard({
 
       {/* Focused Single-Axis Onboarding Column */}
       <main id="main-content" className="ob-main" tabIndex={-1}>
+        <div className="ob-layout">
         <div className="ob-column">
           <StepIndicator
             currentStep={step}
@@ -948,10 +950,10 @@ function OnboardingWizard({
                             className="animate-spin"
                             aria-hidden="true"
                           />
-                          <span>Creating workspace…</span>
+                          <span>Setting up your hotel…</span>
                         </>
                       ) : (
-                        <span>Create workspace</span>
+                        <span>Finish setup</span>
                       )}
                     </button>
                   </div>
@@ -959,6 +961,18 @@ function OnboardingWizard({
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
+        <BookingPreview
+          name={trimmedName}
+          hotelType={values.hotel_type ?? "Hotel"}
+          rooms={roomCount}
+          city={(values.city ?? "").trim()}
+          country={values.country ?? ""}
+          phone={values.phone ? `${dialPrefix ?? ""} ${values.phone}`.trim() : ""}
+          email={(values.email ?? "").trim()}
+          slug={slugPreview}
+          step={step}
+        />
         </div>
       </main>
     </div>
@@ -1024,13 +1038,13 @@ function CompletionScreen({
       <main id="main-content" className="ob-main">
         <div className="ob-column">
           <div className="ob-done-icon" aria-hidden="true">
-            <Check size={20} strokeWidth={2.4} />
+            <OrielGlyph size={48} />
           </div>
 
           <div className="ob-header-block">
             <h1 className="ob-title">{name} is ready</h1>
             <p className="ob-subtitle">
-              Your workspace is live. Your booking page opens once we verify the property, usually within a day.
+              Your front desk is ready to use. Your booking page opens once we verify the property, usually within a day.
             </p>
           </div>
 
@@ -1068,38 +1082,34 @@ function CompletionScreen({
               </div>
             )}
 
-            <div className="ob-actions">
-              <button
-                type="button"
-                onClick={() => router.push("/dashboard/rooms")}
-                className="ob-btn-primary"
-              >
-                <span>Set up rooms &amp; rates</span>
-                <ArrowRight
-                  size={15}
-                  strokeWidth={2.2}
-                  className="ob-btn-arrow"
-                  aria-hidden="true"
-                />
-              </button>
-            </div>
+            <ol className="ob-next" aria-label="Next steps">
+              {[
+                { href: "/dashboard/rooms", title: "Add rooms and rates", body: "Room types, numbers and nightly prices." },
+                { href: "/dashboard/staff", title: "Invite your team", body: "Send a link; each person gets their own role." },
+                { href: "/dashboard/settings/payments", title: "Connect payouts", body: "Where online payments settle: bank or MoMo." },
+              ].map((item, i) => (
+                <li key={item.href}>
+                  <button type="button" className="ob-next-item" onClick={() => router.push(item.href)}>
+                    <span className="ob-next-no" aria-hidden="true">{i + 1}</span>
+                    <span className="ob-next-text">
+                      <span className="ob-next-title">{item.title}</span>
+                      <span className="ob-next-body">{item.body}</span>
+                    </span>
+                    <ArrowRight size={16} strokeWidth={2} aria-hidden="true" className="ob-next-arrow" />
+                  </button>
+                </li>
+              ))}
+            </ol>
           </div>
 
           <div className="ob-secondary-links">
             <button
               type="button"
-              onClick={() => router.push("/dashboard/staff")}
-              className="ob-text-action"
-            >
-              <span>Invite staff members</span>
-              <ArrowRight size={13} strokeWidth={2} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
               onClick={() => router.push("/dashboard")}
               className="ob-text-action"
             >
-              <span>Open dashboard</span>
+              <span>Skip to the dashboard</span>
+              <ArrowRight size={13} strokeWidth={2} aria-hidden="true" />
             </button>
           </div>
         </div>

@@ -4,14 +4,16 @@ import { Logo, Wordmark } from "./logo";
 
 const NAV = [
   { href: "#product", label: "Product" },
+  { href: "#direct", label: "Direct bookings" },
   { href: "#how-it-works", label: "How it works" },
+  { href: "#questions", label: "Questions" },
 ] as const;
 
 export function SiteHeader() {
   return (
     <header className="rl-header">
       <div className="rl-wrap rl-header-row">
-        <a href="#top" className="rl-wordmark" aria-label="RoomLine, back to top">
+        <a href="#top" className="rl-wordmark" aria-label="Oriel, back to top">
           <Logo />
           <Wordmark />
         </a>

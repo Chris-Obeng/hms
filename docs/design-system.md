@@ -1,8 +1,20 @@
-# RoomLine brand surfaces: design system
+# Oriel brand surfaces: design system
 
 Covers the landing page, sign-in, sign-up, onboarding, the staff invite page, the account-status pages (`/suspended`, `/deactivated`) and the installed PWA's launch. The dashboard and guest booking pages keep their own theme.
 
 Tokens: `app/rl-theme.css`. Account-screen layout: `app/rl-pages.css`. Landing layout: `app/landing.css`. Brand mark: `lib/brand/mark.ts`.
+
+## Name and mark
+
+**Oriel.** An oriel is a bay window that throws light into a room. The name is short, English, and works in any market, and it gives the brand one idea: light coming in through a window.
+
+**Mark.** A marigold sun with an arched window cut through it. It reads as the "O" of Oriel and as light seen through a window. Two shapes, so it holds at 16 px. The geometry lives in `lib/brand/mark.ts`; `OrielMark` (ink tile), `OrielGlyph` (bare) and `OrielLogo` (lockup) live in `components/brand/oriel-mark.tsx`. The wordmark is lowercase Plus Jakarta Sans 800.
+
+Explorations are in `docs/brand/`. The chosen mark is R3 on `logo-explorations-2.png`. References used for direction: Airbnb's Bélo (one shape, one idea), Mercury and Linear (restraint, typographic confidence), and Mews (colour fields).
+
+Internal identifiers keep the old prefix on purpose: CSS classes (`rl-*`), storage keys, the `X-RoomLine-Offline` header, the service worker cache names and the calendar UID domain. Changing them would break installed apps, saved drafts and subscribed calendars.
+
+**Before launch:** run a trademark search for "Oriel" in hotel software in your launch markets, and confirm the support domain. `NEXT_PUBLIC_SUPPORT_EMAIL` still defaults to the existing `support@roomline.pro` mailbox.
 
 ## Audit (before this redesign)
 
@@ -20,7 +32,7 @@ Tokens: `app/rl-theme.css`. Account-screen layout: `app/rl-pages.css`. Landing l
 
 | Token | Hex | Use |
 | --- | --- | --- |
-| `--rl-sun` | `#FFC23D` | Marigold. The lit doorway in the logo, the hero tile, the CTA on ink |
+| `--rl-sun` | `#FFC23D` | Marigold. The lit doorway in the logo, the hero tile, the call to action on ink and the sign-in panel |
 | `--rl-laterite` | `#FF7A52` | Coral of the red earth. The showcase tile and its accent rules |
 | `--rl-lagoon` | `#A9DCFF` | Atlantic sky. A benefit card; its wash is a page tone |
 | `--rl-dusk` | `#D9CCFF` | Evening lilac. Its wash is a page tone |
@@ -29,11 +41,24 @@ Tokens: `app/rl-theme.css`. Account-screen layout: `app/rl-pages.css`. Landing l
 
 Ghana shows up as warm light and red earth, plus real details: GHS amounts, MTN MoMo, Accra time, and local names alongside international ones. It never uses flag colours or kente.
 
-**Type.** Plus Jakarta Sans only, which is also the product's face. Display text is 800 weight with −0.045em tracking (44 → 88 px). Headings are 700 weight with −0.035em (32 → 56 px), and body text is 16 px.
+**Type.** Plus Jakarta Sans only, which is also the product's face. Section headings are two-tone (after Linear): the point in ink, the explanation in the same size at 42% ink. Display text is 800 weight with −0.045em tracking (44 → 88 px). Headings are 700 weight with −0.035em (32 → 56 px), and body text is 16 px.
 
 **Spacing and shape.** The spacing scale is 4, 8, 12, 16, 24, 32, 48, 64, 96 and 128 px. Radii are 8 for chips, 12 for fields, 16 for panels and 24 for frames and tiles; buttons are pills. Every control on account screens is 48 px tall.
 
 **Motion.** Every curve uses `cubic-bezier(0.23, 1, 0.32, 1)`. Presses scale to 0.97 over 140 ms, hovers only change colour, reveals rise 16 px once with a 60 ms stagger, and screens enter with a 420 ms fade-rise. As the landing page scrolls, its background eases between section tones over 700 ms through a registered `--rl-tone` custom property. With reduced motion there is no travel, the films show their final frame, and tones switch instantly.
+
+## Landing page
+
+Header, hero, product showcase (Fig. 02), three benefit cards, a direct-booking calculator, how it works, trust facts, questions, closing call to action, and a footer with a full-width wordmark.
+
+- **Primary action:** "Set up your hotel" everywhere (`PRIMARY_ACTION` in `components/landing/action-link.tsx`).
+- **Figure labels:** "Fig. 01 / The room calendar" in mono above each film, like a drawing label.
+- **Calculator:** after Airbnb's earnings estimator. It is plain arithmetic on the visitor's own numbers (rooms, rate, rooms sold, commission) and shows what a booking site would take. It makes no claim about Oriel's fees.
+- **Questions:** a HeroUI Accordion. Every answer states only what the product does today.
+
+## Onboarding
+
+One 440 px form column. From 1024 px a live preview of the guest booking page sits beside it on a marigold field and fills in as the owner types: name, type, city, rooms, phone and email. The preview is hidden on phones so the form stays fast and focused. The final step says "Finish setup". The done screen shows the booking link and three numbered next steps (rooms and rates, team, payouts).
 
 ## Product films (Remotion)
 
@@ -66,6 +91,7 @@ The two films are:
 
 ## Open items
 
+- **Name clearance.** Trademark and domain checks for Oriel, then point `NEXT_PUBLIC_SUPPORT_EMAIL` at the new domain.
 - **Pricing and customer proof.** Both are left off the page until real numbers and customers exist. The trust section states only facts the product backs today.
 - **Photography.** Commission photos of real Ghanaian guesthouses (front desks, morning light, staff at work) before adding any imagery.
 - **Accept with an existing account.** Invites currently require a new account. Accepting with the signed-in account needs a server action that mirrors the Clerk webhook.

@@ -6,7 +6,7 @@ import { clerkAppearance } from "@/components/brand/clerk-appearance";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to your RoomLine front desk.",
+  description: "Sign in to your Oriel front desk.",
 };
 
 export default function SignInPage() {
@@ -18,9 +18,9 @@ export default function SignInPage() {
       }}
       topAction={
         <>
-          <span className="hidden sm:inline">New to RoomLine?</span>
+          <span className="hidden sm:inline">New to Oriel?</span>
           <Link href="/sign-up" className="rl-link">
-            Create workspace
+            Set up your hotel
           </Link>
         </>
       }

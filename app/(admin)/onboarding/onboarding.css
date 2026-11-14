@@ -1,7 +1,7 @@
 /* ──────────────────────────────────────────────────────────────────────────
- * RoomLine Onboarding — Pure Architectural SaaS Precision
- * Crisp white canvas, single-axis 440px column, unified 10px control geometry,
- * Plus Jakarta Sans + Geist Mono, zero nested card clutter.
+ * Oriel onboarding. One 440 px form column on paper; from 1024 px a live
+ * preview of the guest booking page sits beside it on a marigold field.
+ * Tokens come from app/rl-theme.css (mapped to --ob-* below).
  * ────────────────────────────────────────────────────────────────────────── */
 
 :is(.ob-root, .ob-portal) {
@@ -137,7 +137,7 @@
   transition: transform var(--ob-ui-ms) var(--ob-ease-out);
 }
 
-.ob-skip:focus {
+.ob-skip:focus-visible {
   transform: translateY(0);
 }
 
@@ -186,9 +186,10 @@
 }
 
 .ob-brand-name {
-  font-size: 0.9375rem;
-  font-weight: 700;
-  letter-spacing: -0.025em;
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.055em;
   color: var(--ob-ink);
 }
 
@@ -367,6 +368,7 @@ button.ob-progress-seg:focus-visible {
 }
 
 .ob-title {
+  text-wrap: balance;
   font-size: var(--rl-step-title);
   font-weight: 700;
   line-height: 1.1;
@@ -815,14 +817,8 @@ button.ob-progress-seg:focus-visible {
 
 .ob-done-icon {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: var(--ob-radius);
-  background-color: var(--ob-ok-bg);
-  color: var(--ob-ok-fg);
   margin-bottom: 1.5rem;
+  animation: rl-theme-enter 600ms var(--ob-ease-out) both;
 }
 
 .ob-copy-field {
@@ -930,6 +926,307 @@ button.ob-progress-seg:focus-visible {
 }
 
 /* ── Reduced Motion & Forced Colors ─────────────────────────────────────── */
+
+/* ── Layout with live preview ───────────────────────────────────────────── */
+
+.ob-layout {
+  width: 100%;
+}
+
+.ob-preview {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .ob-main {
+    padding-inline: clamp(1.5rem, 4vw, 3rem);
+  }
+
+  .ob-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: clamp(2rem, 5vw, 5rem);
+    align-items: center;
+    max-width: 72rem;
+    margin-inline: auto;
+  }
+
+  .ob-layout > .ob-column {
+    margin-inline: 0 0;
+    justify-self: end;
+  }
+
+  .ob-preview {
+    display: grid;
+    gap: 1rem;
+    justify-items: center;
+    align-self: stretch;
+    align-content: center;
+    padding: 2.5rem;
+    border-radius: 1.5rem;
+    background: var(--rl-sun);
+  }
+}
+
+.ob-preview-label,
+.ob-preview-note {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgb(20 20 19 / 0.7);
+  text-align: center;
+}
+
+.ob-preview-note {
+  max-width: 20rem;
+  font-weight: 500;
+}
+
+.ob-preview-device {
+  width: min(100%, 22rem);
+  overflow: hidden;
+  border-radius: 1.5rem;
+  background: var(--ob-surface);
+  box-shadow: 0 32px 64px -32px rgb(20 20 19 / 0.5);
+}
+
+.ob-preview-url {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  background: var(--ob-muted-bg);
+  font-size: 0.75rem;
+  color: var(--ob-ink-muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ob-preview-lock {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--rl-ok);
+}
+
+.ob-preview-cover {
+  position: relative;
+  height: 8rem;
+  margin: 0 0.75rem;
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at 70% 120%, var(--rl-sun) 0 34%, transparent 35%),
+    var(--rl-lagoon);
+}
+
+.ob-preview-initial {
+  position: absolute;
+  left: 1rem;
+  bottom: -1.25rem;
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border: 3px solid var(--ob-surface);
+  border-radius: 0.75rem;
+  background: var(--rl-ink);
+  color: var(--rl-sun);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.ob-preview-body {
+  display: grid;
+  gap: 1rem;
+  padding: 2rem 1.25rem 1.25rem;
+}
+
+.ob-preview-kicker {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--ob-ink-muted);
+}
+
+.ob-preview-title {
+  margin: -0.75rem 0 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  color: var(--ob-ink);
+  overflow-wrap: anywhere;
+}
+
+.ob-preview-title[data-empty="true"] {
+  color: var(--ob-ink-faint);
+}
+
+.ob-preview-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  border: 1px solid var(--ob-border);
+  border-radius: 0.75rem;
+}
+
+.ob-preview-dates > div {
+  display: grid;
+  gap: 0.125rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.ob-preview-dates > div + div {
+  border-left: 1px solid var(--ob-border);
+}
+
+.ob-preview-dates span,
+.ob-preview-room span:not(.ob-preview-book),
+.ob-preview-contact span {
+  font-size: 0.75rem;
+  color: var(--ob-ink-muted);
+}
+
+.ob-preview-dates strong,
+.ob-preview-room strong {
+  font-size: 0.875rem;
+  color: var(--ob-ink);
+}
+
+.ob-preview-room {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ob-preview-room > div {
+  display: grid;
+}
+
+.ob-preview-book {
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  background: var(--rl-ink);
+  color: var(--rl-on-ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.ob-preview-contact {
+  display: grid;
+  gap: 0.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--ob-hairline);
+  opacity: 0.45;
+  transition: opacity var(--ob-ui-ms) ease;
+}
+
+.ob-preview-contact[data-on="true"] {
+  opacity: 1;
+}
+
+/* ── Completion: next steps ─────────────────────────────────────────────── */
+
+.ob-next {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-next-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  min-height: 4.5rem;
+  padding: 1rem;
+  border: 1px solid var(--ob-border);
+  border-radius: 1rem;
+  background: var(--ob-surface);
+  color: var(--ob-ink);
+  font-family: var(--ob-font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--ob-ui-ms) ease,
+    transform var(--ob-press-ms) var(--ob-ease-out);
+}
+
+.ob-next-item:active {
+  transform: scale(0.98);
+}
+
+.ob-next-item:focus-visible {
+  outline: 2px solid var(--ob-ink);
+  outline-offset: 2px;
+}
+
+.ob-next-no {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--rl-sun-wash);
+  color: var(--rl-sun-deep);
+  font-weight: 800;
+}
+
+.ob-next li:first-child .ob-next-no {
+  background: var(--rl-sun);
+  color: var(--rl-ink);
+}
+
+.ob-next-text {
+  display: grid;
+  flex: 1;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.ob-next-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.ob-next-body {
+  font-size: 0.8125rem;
+  color: var(--ob-ink-muted);
+}
+
+.ob-next-arrow {
+  flex-shrink: 0;
+  color: var(--ob-ink-muted);
+  transition: transform var(--ob-ui-ms) var(--ob-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ob-next-item:hover {
+    border-color: var(--ob-border-hover);
+  }
+
+  .ob-next-item:hover .ob-next-arrow {
+    transform: translateX(3px);
+    color: var(--ob-ink);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-next-item:active {
+    transform: none;
+  }
+
+  .ob-done-icon {
+    animation: none;
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .ob-skip,

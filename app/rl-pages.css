@@ -105,40 +105,86 @@
     top: 0;
     display: grid;
     grid-template-rows: auto 1fr auto;
+    gap: var(--rl-s6);
     height: 100dvh;
     padding: var(--rl-s6) var(--rl-s7) var(--rl-s7);
     overflow: hidden;
-    background: var(--rl-night);
-    color: var(--rl-on-ink);
+    background: var(--rl-sun);
+    color: var(--rl-ink);
   }
 
   .rl-auth-aside .rl-auth-aside-brand {
-    color: var(--rl-on-ink);
+    color: var(--rl-ink);
   }
 
-  .rl-auth-door {
-    position: relative;
+  .rl-auth-today {
     align-self: center;
     justify-self: center;
-    width: min(44%, 220px);
-    transform: translateY(-12%);
+    width: min(100%, 400px);
+    padding: var(--rl-s5);
+    border-radius: var(--rl-radius-frame);
+    background: var(--rl-card);
+    box-shadow: 0 32px 64px -32px rgb(20 20 19 / 0.45);
+    animation: rl-theme-enter 700ms var(--rl-ease) 120ms both;
   }
 
-  .rl-auth-door-mark {
-    position: relative;
-    display: block;
-    width: 100%;
-    height: auto;
+  .rl-auth-today-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: var(--rl-step-small);
+    font-weight: 600;
   }
 
-  .rl-auth-door-light {
-    position: absolute;
-    inset: 0 0 auto;
-    width: 100%;
-    height: auto;
-    aspect-ratio: 512 / 1152;
-    overflow: visible;
-    animation: rl-theme-light 1200ms ease 400ms both;
+  .rl-auth-today-live {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--rl-s1);
+    padding: 2px var(--rl-s2);
+    border-radius: var(--rl-radius-pill);
+    background: var(--rl-ok-wash);
+    color: var(--rl-ok);
+    font-size: var(--rl-step-micro);
+  }
+
+  .rl-auth-today-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--rl-s4);
+    margin: var(--rl-s5) 0;
+  }
+
+  .rl-auth-today-grid dt {
+    font-size: var(--rl-step-micro);
+    color: var(--rl-muted);
+  }
+
+  .rl-auth-today-grid dd {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+  }
+
+  .rl-auth-today-row {
+    display: flex;
+    align-items: center;
+    gap: var(--rl-s2);
+    padding-top: var(--rl-s4);
+    border-top: 1px solid var(--rl-line);
+    font-size: var(--rl-step-small);
+  }
+
+  .rl-auth-today-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--rl-sun);
+  }
+
+  .rl-auth-today-amt {
+    margin-left: auto;
+    font-weight: 700;
   }
 
   .rl-auth-aside-copy {
@@ -149,17 +195,17 @@
 
   .rl-auth-aside-title {
     margin: 0;
-    font-family: var(--rl-font-d);
     font-size: clamp(2rem, 1.2rem + 1.4vw, 2.75rem);
     font-weight: 800;
     line-height: 1.02;
     letter-spacing: -0.045em;
+    word-spacing: 0.04em;
     text-wrap: balance;
   }
 
   .rl-auth-aside-body {
     margin: 0;
-    color: var(--rl-on-ink-muted);
+    color: rgb(20 20 19 / 0.72);
     text-wrap: pretty;
   }
 }
@@ -407,7 +453,7 @@
     }
   }
 
-  .rl-auth-door-light {
+  .rl-auth-today {
     animation: none;
   }
 }
