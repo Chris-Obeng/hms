@@ -10,7 +10,6 @@ import {
   ChevronDown,
   MessageSquareText,
   MoonStar,
-  RotateCw,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -19,7 +18,6 @@ import {
   Chip,
   Dropdown,
   Label,
-  SearchField,
   Skeleton,
 } from "@heroui/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -36,6 +34,7 @@ import {
 import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
 import { CAPS, isFresh, onIdle } from "@/lib/cache/prefetch-helpers";
 import type { ActivityTab } from "./activity-tabs";
+import { GuestAvatar } from "./guest-avatar";
 
 export interface ActivityBooking {
   id: string;
@@ -74,8 +73,10 @@ interface ActivityListProps {
   onNoShow?: (bookingId: string) => void;
   onViewDetails?: (booking: ActivityBooking) => void;
   onTakePayment?: (booking: ActivityBooking) => void;
-  onRefresh?: () => void;
   onNewBooking?: () => void;
+  /** Filter text. The page owns the search field (one search box on screen). */
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
 }
 
 type PendingConfirm =
@@ -93,12 +94,14 @@ const EMPTY_COPY: Record<ActivityTab, { title: string; hint: string }> = {
 };
 
 /**
- * Row grid shared by the header band and every row: two columns on phones
- * (guest | pay, stay | action), five from md up.
+ * Row grid shared by the header band and every row: two rows of two on
+ * phones (guest | pay, then stay | action), four columns on tablets (room folds into the guest
+ * line), five from lg up.
  */
 const ROW_GRID =
-  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 [grid-template-areas:'guest_pay'_'stay_action'] " +
-  "md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_6rem_9rem] md:items-center md:gap-x-4 md:[grid-template-areas:'guest_room_stay_pay_action']";
+  "grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 gap-y-2 [grid-template-areas:'guest_guest_pay'_'stay_action_action'] " +
+  "md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_7rem_9rem] md:items-center md:gap-x-4 md:[grid-template-areas:'guest_stay_pay_action'] " +
+  "lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_7rem_9rem] lg:[grid-template-areas:'guest_room_stay_pay_action']";
 
 /**
  * Front-desk queue for the selected view. Each row answers the four questions a
@@ -116,12 +119,12 @@ export function ActivityList({
   onNoShow,
   onViewDetails,
   onTakePayment,
-  onRefresh,
   onNewBooking,
+  searchQuery,
+  onSearchQueryChange,
   onHoverPrefetch,
 }: ActivityListProps & { onHoverPrefetch?: (id: string) => void }) {
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = React.useState("");
   const [pendingConfirm, setPendingConfirm] = React.useState<PendingConfirm>(null);
 
   const handleHoverPrefetch = React.useCallback(
@@ -247,37 +250,10 @@ export function ActivityList({
 
   return (
     <div>
-      {/* Toolbar: one line of context, the filter, refresh */}
-      <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <p className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
-          {summary}
-        </p>
-        <div className="flex items-center gap-2">
-          <SearchField
-            aria-label="Filter activity"
-            value={searchQuery}
-            onChange={setSearchQuery}
-            className="min-w-0 flex-1 sm:w-64 sm:flex-initial"
-          >
-            <SearchField.Group className="rounded-xl">
-              <SearchField.SearchIcon />
-              <SearchField.Input placeholder="Filter by guest, room or ref" />
-              <SearchField.ClearButton />
-            </SearchField.Group>
-          </SearchField>
-          {onRefresh && (
-            <Button
-              isIconOnly
-              variant="ghost"
-              aria-label="Refresh activity"
-              onPress={onRefresh}
-              className="shrink-0 rounded-xl text-muted-foreground max-md:size-11"
-            >
-              <RotateCw className="size-4" />
-            </Button>
-          )}
-        </div>
-      </div>
+      {/* The tab counts already say how many; this line is for screen readers. */}
+      <p className="sr-only" aria-live="polite">
+        {summary}
+      </p>
 
       {filteredBookings.length === 0 ? (
         <EmptyState
@@ -285,7 +261,7 @@ export function ActivityList({
           title={empty?.title ?? "Nothing here"}
           hint={empty?.hint ?? "Reservations matching this view appear here."}
           tone={activeTab === "overbookings" && !searchQuery ? "success" : "neutral"}
-          onClear={() => setSearchQuery("")}
+          onClear={() => onSearchQueryChange("")}
           onNewBooking={
             onNewBooking && (activeTab === "arrivals" || activeTab === "bookings")
               ? onNewBooking
@@ -293,21 +269,21 @@ export function ActivityList({
           }
         />
       ) : (
-        <div className="border-t border-border/50">
+        <div>
           <div
             aria-hidden="true"
             className={cn(
               ROW_GRID,
-              "hidden border-b border-border/50 px-6 py-2 text-xs font-medium text-muted-foreground md:grid"
+              "hidden border-b border-border bg-secondary/40 px-6 py-2 text-xs font-medium text-muted-foreground md:grid"
             )}
           >
-            <span className="[grid-area:guest]">Guest</span>
-            <span className="[grid-area:room]">Room</span>
+            <span className="pl-12 [grid-area:guest]">Guest</span>
+            <span className="hidden [grid-area:room] lg:block">Room</span>
             <span className="[grid-area:stay]">Stay</span>
             <span className="[grid-area:pay]">Payment</span>
             <span className="[grid-area:action]" />
           </div>
-          <ul role="list" className="divide-y divide-border/50">
+          <ul role="list" className="divide-y divide-border">
             {filteredBookings.map((b) => (
               <BookingRow
                 key={b.id}
@@ -366,7 +342,8 @@ function BookingRow({
   const isCancelled = booking.status === "cancelled" || booking.status === "no_show";
   const owesMoney = booking.paymentStatus !== "paid" && !isCancelled;
   const paymentLabel = booking.paymentStatus === "partial" ? "Collect balance" : "Take payment";
-  const stay = `${formatStayRange(booking.checkIn, booking.checkOut)} · ${nights} ${nights === 1 ? "night" : "nights"}`;
+  const nightsLabel = `${nights} ${nights === 1 ? "night" : "nights"}`;
+  const guestsLabel = `${totalGuests} ${totalGuests === 1 ? "guest" : "guests"}`;
 
   const paymentItem =
     owesMoney && onTakePayment
@@ -380,20 +357,21 @@ function BookingRow({
       onClick={() => onViewDetails?.(booking)}
       onMouseEnter={() => onHoverPrefetch?.(booking.id)}
       onFocusCapture={() => onHoverPrefetch?.(booking.id)}
-      className={cn(ROW_GRID, "cursor-pointer px-4 py-3 transition-colors duration-150 ease-[var(--ease-out-ui)] active:bg-secondary/80 sm:px-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary/50")}
+      className={cn(ROW_GRID, "cursor-pointer px-4 py-4 transition-colors duration-150 ease-[ease] active:bg-secondary/80 sm:px-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary/50")}
     >
       {/* Guest */}
-      <div className="min-w-0 [grid-area:guest]">
-        {/* Wraps so the notes icon and Conflict chip drop below a long name on
-            phones instead of squeezing it to one letter. */}
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+      <div className="flex min-w-0 items-start gap-3 [grid-area:guest] md:items-center">
+        <GuestAvatar name={booking.guestName} />
+        <div className="min-w-0 flex-1">
+        {/* One line: a long name truncates, the notes icon and Conflict chip keep their size. */}
+        <div className="flex min-w-0 items-center gap-2">
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               onViewDetails?.(booking);
             }}
-            className="min-w-0 max-w-full truncate rounded-sm text-left text-sm font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-w-0 truncate rounded-sm text-left text-sm font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {booking.guestName}
           </button>
@@ -410,19 +388,17 @@ function BookingRow({
             </Chip>
           )}
         </div>
-        {/* Phones fold the room into the guest line; desktop gives it a column. */}
-        <p className="mt-1 truncate text-xs text-muted-foreground md:hidden">
+        {/* Phones and tablets fold the room into the guest line; desktop gives it a column. */}
+        <p className="mt-1 truncate text-xs text-muted-foreground lg:hidden">
           {room ?? <span className="font-medium text-amber-700">Unassigned</span>}
           {booking.roomType && <> · {booking.roomType}</>}
           {booking.roomsCount > 1 && <> · ×{booking.roomsCount}</>}
         </p>
-        <p className="mt-1 hidden truncate text-xs text-muted-foreground md:block">
-          {totalGuests} {totalGuests === 1 ? "guest" : "guests"}
-        </p>
+        </div>
       </div>
 
       {/* Room (desktop) */}
-      <div className="hidden min-w-0 [grid-area:room] md:block">
+      <div className="hidden min-w-0 [grid-area:room] lg:block">
         <p className="truncate text-sm font-medium text-foreground">
           {room ?? <span className="text-amber-700">Unassigned</span>}
           {booking.roomsCount > 1 && (
@@ -436,13 +412,16 @@ function BookingRow({
 
       {/* Stay */}
       <div className="min-w-0 self-center [grid-area:stay]">
-        <p className="truncate text-xs tabular-nums text-muted-foreground md:hidden">{stay}</p>
+        <p className="truncate text-sm tabular-nums text-foreground md:hidden">
+          {formatStayRange(booking.checkIn, booking.checkOut)}
+          <span className="text-muted-foreground"> · {nightsLabel}</span>
+        </p>
         <div className="hidden md:block">
           <p className="truncate text-sm tabular-nums text-foreground">
             {formatStayRange(booking.checkIn, booking.checkOut)}
           </p>
-          <p className="mt-1 text-xs tabular-nums text-muted-foreground">
-            {nights} {nights === 1 ? "night" : "nights"}
+          <p className="mt-1 truncate text-xs tabular-nums text-muted-foreground">
+            {nightsLabel} · {guestsLabel}
           </p>
         </div>
       </div>
@@ -500,18 +479,18 @@ function SplitAction({
 }) {
   if (items.length === 0) {
     return (
-      <Button size="sm" variant={variant} onPress={onMain} className="rounded-xl px-4 font-semibold max-md:h-11">
+      <Button size="sm" variant={variant} onPress={onMain} className="rounded-full px-4 font-semibold max-md:h-10 pointer-coarse:h-10">
         {label}
       </Button>
     );
   }
   return (
-    <ButtonGroup size="sm" variant={variant} className="rounded-xl">
-      <Button onPress={onMain} className="px-4 font-semibold max-md:h-11">
+    <ButtonGroup size="sm" variant={variant} className="overflow-hidden rounded-full">
+      <Button onPress={onMain} className="px-4 font-semibold max-md:h-10 pointer-coarse:h-10">
         {label}
       </Button>
       <Dropdown>
-        <Button isIconOnly size="sm" variant={variant} aria-label={menuLabel} className="max-md:size-11">
+        <Button isIconOnly size="sm" variant={variant} aria-label={menuLabel} className="max-md:size-10 pointer-coarse:size-10">
           <ButtonGroup.Separator />
           <ChevronDown className="size-4" />
         </Button>
@@ -551,8 +530,26 @@ function DotLabel({ dot, label }: { dot: string | undefined; label: string }) {
   );
 }
 
+/** Payment as a soft pill: green when settled, amber part paid, red still owed. */
+const PAYMENT_PILL: Record<string, string> = {
+  paid: "bg-emerald-50 text-emerald-800 ring-emerald-600/15",
+  partial: "bg-amber-50 text-amber-800 ring-amber-600/20",
+  unpaid: "bg-rose-50 text-rose-700 ring-rose-600/15",
+  refunded: "bg-secondary text-muted-foreground ring-border",
+};
+
 function PaymentStatus({ status }: { status: string }) {
-  return <DotLabel dot={PAYMENT_DOT_COLORS[status]} label={getPaymentLabel(status)} />;
+  return (
+    <span
+      className={cn(
+        "inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full px-2 text-xs font-semibold ring-1 ring-inset",
+        PAYMENT_PILL[status] ?? PAYMENT_PILL.refunded
+      )}
+    >
+      <span aria-hidden="true" className={cn("size-2 rounded-full", PAYMENT_DOT_COLORS[status] ?? STATUS_DOT_FALLBACK)} />
+      {getPaymentLabel(status)}
+    </span>
+  );
 }
 
 /** Booking state shown in the action column once there is no next step. */

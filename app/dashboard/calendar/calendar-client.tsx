@@ -949,7 +949,9 @@ function CalendarClientContent({
   const switchingRange = isFetching && isPlaceholderData;
 
   return (
-    <div className="cal-wrap flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col overflow-hidden bg-background">
+    // Phones: stop above the bottom tab bar (the layout pads main by 5rem plus
+    // the home-indicator inset), so the last rows are never under it.
+    <div className="cal-wrap flex h-[calc(100dvh-3.5rem-env(safe-area-inset-top)-5rem-env(safe-area-inset-bottom))] min-h-0 flex-col overflow-hidden bg-background md:h-[calc(100dvh-3.5rem)]">
       <CalendarToolbar
         startDate={startDate}
         days={days}

@@ -93,8 +93,8 @@ function buildPushCopy(notif: NotificationRow | undefined): {
 } {
   if (!notif) {
     return {
-      title: "RoomLine update",
-      body: "Open RoomLine to view the latest front-desk update.",
+      title: "Oriel update",
+      body: "Open Oriel to view the latest front-desk update.",
       url: "/dashboard",
       urgency: "normal",
     };
@@ -173,7 +173,7 @@ function buildPushCopy(notif: NotificationRow | undefined): {
 
   return {
     title,
-    body: body || "Tap to view details in RoomLine.",
+    body: body || "Tap to view details in Oriel.",
     url,
     urgency: notif.type && HIGH_URGENCY_TYPES.has(notif.type) ? "high" : "normal",
   };

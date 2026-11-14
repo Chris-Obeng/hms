@@ -111,7 +111,7 @@ export function PushOptInPrompt({
 
           <Modal.Body>
             <p className="text-base leading-relaxed text-muted-foreground">
-              Booking and payment alerts on this device, even when RoomLine is closed.
+              Booking and payment alerts on this device, even when Oriel is closed.
             </p>
           </Modal.Body>
 

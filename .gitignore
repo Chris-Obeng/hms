@@ -100,3 +100,6 @@ nul
 
 # zcode workspace state & config (contains Supabase MCP access token - never commit)
 .zcode/
+
+# clerk configuration (can include secrets)
+/.clerk/

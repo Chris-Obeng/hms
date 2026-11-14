@@ -109,7 +109,7 @@ type RejectionContext = {
  * staff and never reach a guest — this endpoint is unauthenticated.
  *
  * Guest-visible 4xx outcomes are the endpoint working and are not reported. Two
- * cases mean RoomLine is broken and are: `unpriced_stay`, where the hotel has
+ * cases mean Oriel is broken and are: `unpriced_stay`, where the hotel has
  * published dates it has no price for and so loses every booking in that range
  * behind a plausible "unavailable"; and anything unclassified — a missing grant,
  * a stale migration, a bug.
@@ -257,7 +257,7 @@ function rejectionResponse(
  * - Guest identity is never sent. The request body carries a name, email and
  *   phone number; only the hotel id, booking id and reference travel.
  * - Guest-visible 4xx rejections (bad input, policy, no availability) are not
- *   captured — they are the endpoint working. Only failures RoomLine caused are.
+ *   captured — they are the endpoint working. Only failures Oriel caused are.
  */
 export async function POST(
   req: NextRequest,
@@ -516,7 +516,7 @@ export async function POST(
     const payRef = newPaystackReference(booking.reference);
 
     try {
-      // Platform fee (RoomLine's cut) for this charge. Stored on the attempt so
+      // Platform fee (Oriel's cut) for this charge. Stored on the attempt so
       // it can be recorded onto the payment after settlement, and sent to
       // Paystack as transaction_charge so the split routes it to the main
       // account. A zero fee omits transaction_charge, so the subaccount split is

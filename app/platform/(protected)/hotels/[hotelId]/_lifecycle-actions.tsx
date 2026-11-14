@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AlertDialog, Button, toast } from "@heroui/react";
+import { AlertDialog, Button, Label, Radio, RadioGroup, toast } from "@heroui/react";
+import { SUSPENSION_REASONS, type SuspensionReason } from "@/lib/platform/suspension";
 import { setHotelStatus, type LifecycleAction } from "../../_actions";
 
 const ACTION_COPY: Record<
@@ -53,6 +54,7 @@ export function HotelLifecycleActions({
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [acting, setActing] = React.useState(false);
+  const [reason, setReason] = React.useState<SuspensionReason>("billing");
 
   const action = lifecycleFor(status);
   if (!action) return null;
@@ -61,7 +63,7 @@ export function HotelLifecycleActions({
   async function run() {
     setActing(true);
     try {
-      const result = await setHotelStatus(hotelId, action!);
+      const result = await setHotelStatus(hotelId, action!, action === "suspend" ? reason : undefined);
       if (result.success) {
         toast.success(
           action === "approve"
@@ -102,7 +104,29 @@ export function HotelLifecycleActions({
               <AlertDialog.Icon status={copy.variant === "danger" ? "danger" : "success"} />
               <AlertDialog.Heading id="lifecycle-heading">{copy.title}</AlertDialog.Heading>
             </AlertDialog.Header>
-            <AlertDialog.Body>{copy.body(hotelName)}</AlertDialog.Body>
+            <AlertDialog.Body>
+              <p>{copy.body(hotelName)}</p>
+              {action === "suspend" ? (
+                <RadioGroup
+                  className="mt-4"
+                  value={reason}
+                  onChange={(v) => setReason(v as SuspensionReason)}
+                  name="suspension-reason"
+                >
+                  <Label>Reason shown to the hotel</Label>
+                  {(Object.keys(SUSPENSION_REASONS) as SuspensionReason[]).map((key) => (
+                    <Radio key={key} value={key}>
+                      <Radio.Content>
+                        <Radio.Control>
+                          <Radio.Indicator />
+                        </Radio.Control>
+                        {SUSPENSION_REASONS[key].adminLabel}
+                      </Radio.Content>
+                    </Radio>
+                  ))}
+                </RadioGroup>
+              ) : null}
+            </AlertDialog.Body>
             <AlertDialog.Footer>
               <Button slot="close" variant="tertiary" className="min-h-11" isDisabled={acting}>
                 Cancel

@@ -89,7 +89,7 @@ async function getPushRegistration(): Promise<ServiceWorkerRegistration> {
   if (!isWebPushSupported()) {
     if (isIosNonStandaloneBrowser()) {
       throw new Error(
-        "Add RoomLine to your Home Screen first (tap Share → Add to Home Screen) to enable alerts on iPhone or iPad"
+        "Add Oriel to your Home Screen first (tap Share → Add to Home Screen) to enable alerts on iPhone or iPad"
       );
     }
     throw new Error("Push notifications are not supported on this browser");
@@ -181,7 +181,7 @@ export async function enableWebPush(): Promise<{
   if (!isWebPushSupported()) {
     if (isIosNonStandaloneBrowser()) {
       throw new Error(
-        "Add RoomLine to your Home Screen first (tap Share → Add to Home Screen) to enable alerts on iPhone or iPad"
+        "Add Oriel to your Home Screen first (tap Share → Add to Home Screen) to enable alerts on iPhone or iPad"
       );
     }
     throw new Error("Push notifications are not supported on this browser");

@@ -4,56 +4,66 @@ import Link from "next/link";
 import { SignUp } from "@clerk/nextjs";
 import { useEffect } from "react";
 import { setInviteTokenCookie } from "./actions";
-import { RoomLineGlyph } from "@/components/brand/roomline-mark";
+import { AuthShell } from "@/components/brand/auth-shell";
+import { clerkAppearance } from "@/components/brand/clerk-appearance";
+import { InviteCard } from "./invite-screens";
 
-export function JoinSignUp({ token, hotelName, role }: { token: string; hotelName: string; role: string }) {
-  useEffect(() => { setInviteTokenCookie(token); }, [token]);
+export function JoinSignUp({
+  token,
+  hotelName,
+  role,
+  inviterName,
+  expiresLabel,
+}: {
+  token: string;
+  hotelName: string;
+  role: string;
+  inviterName: string | null;
+  expiresLabel: string;
+}) {
+  useEffect(() => {
+    setInviteTokenCookie(token);
+  }, [token]);
+
   return (
-    <div className="min-h-screen bg-[#FDFCFA] flex flex-col">
-      <header className="border-b border-[#E9E2D6] bg-[#FDFCFA]/80 backdrop-blur">
-        <div className="mx-auto w-full max-w-[80rem] px-6 lg:px-8 flex h-18 items-center justify-between">
-          <Link href="/" className="inline-flex items-center gap-2 text-[#0F1D1A]" style={{ fontFamily: "var(--font-fraunces)" }}>
-            <RoomLineGlyph size={22} className="text-[#0F1D1A]" />
-            <span className="text-xl font-bold tracking-[-0.04em]">RoomLine<span className="text-[#C8A96A]">.</span></span>
+    <AuthShell
+      aside={{
+        title: `Welcome to ${hotelName}.`,
+        body: "Create your Oriel account to accept the invite. Your manager sees you on the team as soon as you're in.",
+      }}
+      topAction={
+        <>
+          <span className="hidden sm:inline">Already on Oriel?</span>
+          <Link href="/sign-in" className="rl-link">
+            Sign in
           </Link>
-          <span className="text-xs font-medium text-[#8A9692]">Staff invite</span>
-        </div>
-      </header>
-      <div className="flex-1 grid lg:grid-cols-[1.05fr_.95fr] min-h-0">
-        <div className="hidden lg:flex flex-col justify-between bg-[#0F1D1A] text-[#FFFCF8] p-10 xl:p-12">
-          <div>
-            <p className="text-2xs font-semibold tracking-[0.14em] uppercase text-[#A8B5B0]">You&apos;re invited</p>
-            <h1 className="mt-3 text-[2rem] xl:text-[2.25rem] font-medium leading-[1.05] tracking-[-0.04em]" style={{ fontFamily: "var(--font-fraunces)" }}>
-              Welcome to<br />{hotelName}
-            </h1>
-            <p className="mt-3 max-w-sm text-sm leading-6 text-[#A8B5B0]">
-              Join as <span className="text-[#FFFCF8] font-semibold capitalize">{role.replace("_", " ")}</span>. Create your account to accept the invite — takes 30 seconds.
-            </p>
-          </div>
-          <p className="text-xs text-[#A8B5B0]">Invite secured · Expires in 7 days</p>
-        </div>
-        <div className="flex items-center justify-center p-6 sm:p-10 bg-[#FDFCFA]">
-          <div className="w-full max-w-md">
-            <div className="lg:hidden mb-6">
-              <h1 className="text-2xl font-semibold tracking-tight text-[#0F1D1A]" style={{ fontFamily: "var(--font-fraunces)" }}>Welcome to {hotelName}</h1>
-              <p className="mt-1 text-sm text-[#6B7571]">Invited as <span className="font-semibold text-[#0F1D1A] capitalize">{role.replace("_", " ")}</span>.</p>
-            </div>
-            <SignUp
-              path="/join"
-              signInUrl="/sign-in"
-              fallbackRedirectUrl="/join/sso-callback"
-              unsafeMetadata={{ inviteToken: token }}
-              appearance={{
-                elements: {
-                  card: "shadow-none border border-[#E9E2D6] rounded-2xl bg-white",
-                  headerTitle: "text-[#0F1D1A]",
-                  formButtonPrimary: "bg-[#0F1D1A] hover:bg-[#1C2E2B] rounded-full",
-                },
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      <InviteCard
+        hotelName={hotelName}
+        role={role}
+        inviterName={inviterName}
+        expiresLabel={expiresLabel}
+      />
+      <SignUp
+        path="/join"
+        signInUrl="/sign-in"
+        fallbackRedirectUrl="/join/sso-callback"
+        unsafeMetadata={{ inviteToken: token }}
+        appearance={{
+          ...clerkAppearance,
+          elements: {
+            ...clerkAppearance.elements,
+            // The invite card already says where and why; keep Clerk's title small.
+            headerTitle: {
+              ...clerkAppearance.elements.headerTitle,
+              fontSize: "1.25rem",
+              letterSpacing: "-0.02em",
+            },
+          },
+        }}
+      />
+    </AuthShell>
   );
 }

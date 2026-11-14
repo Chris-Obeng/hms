@@ -64,7 +64,7 @@ export function PlatformMfaCard({
       const supabase = createPlatformBrowserClient();
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: "totp",
-        friendlyName: `RoomLine Admin (${new Date().toISOString().slice(0, 10)})`,
+        friendlyName: `Oriel Admin (${new Date().toISOString().slice(0, 10)})`,
       });
       if (error || !data) {
         throw error ?? new Error("Could not start TOTP enrollment.");

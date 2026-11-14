@@ -2,24 +2,26 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { OccupancyCard } from "@/app/dashboard/_components/occupancy-card";
-import { calculateRoomsSold } from "@/lib/metrics/dashboard-occupancy";
+import { calculateRoomsSold, unavailableRoomsSold } from "@/lib/metrics/dashboard-occupancy";
 
 const context = { date: "2026-10-21", businessToday: "2026-10-21", asOf: "2026-10-21T12:00:00Z" };
 const counts = { totalRooms: 8, outOfService: 1, blocked: 1, soldRooms: 2, heldRooms: 1 };
 
-describe("rooms-sold card", () => {
-  it("labels the exact night, denominator, separate holds, compact capacity footer, and one-decimal center", () => {
+describe("occupancy card", () => {
+  it("labels the exact night, denominator, separate holds, excluded rooms, and one-decimal center", () => {
     const metric = calculateRoomsSold(context, counts);
     const { container } = render(<OccupancyCard metric={metric} />);
-    expect(screen.getByRole("heading", { name: "Rooms sold" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Occupancy, October 21, 2026" })).toBeTruthy();
     expect(screen.getByText("October 21, 2026")).toBeTruthy();
     expect(screen.getByRole("img").getAttribute("aria-label")).toContain(
-      "2 of 6 sellable rooms, 33.3 percent. 1 pending holds and 3 available to sell"
+      "2 of 6 sellable rooms booked, 33.3 percent. 1 on hold, 3 available"
     );
     expect(screen.getByText("33.3%")).toBeTruthy();
-    expect(screen.getByText("Pending holds").nextElementSibling?.textContent).toBe("1");
-    expect(screen.getByText("Available to sell").nextElementSibling?.textContent).toBe("3");
-    expect(screen.getByText(/1 out of service · 1 blocked/)).toBeTruthy();
+    expect(screen.getByText("Booked").nextElementSibling?.textContent).toBe("2");
+    expect(screen.getByText("On hold").nextElementSibling?.textContent).toBe("1");
+    expect(screen.getByText("Available").nextElementSibling?.textContent).toBe("3");
+    expect(screen.getByText("Out of service").nextElementSibling?.textContent).toBe("1");
+    expect(screen.getByText("Blocked").nextElementSibling?.textContent).toBe("1");
     const soldArc = container.querySelector('circle[stroke="var(--primary)"]');
     expect(Number(soldArc?.getAttribute("stroke-dasharray")?.split(" ")[0])).toBe(
       metric.soldPercent
@@ -65,19 +67,40 @@ describe("rooms-sold card", () => {
         metric={calculateRoomsSold(context, { ...counts, soldRooms: 9, heldRooms: 0 })}
       />
     );
-    expect(screen.getByText("Check inventory")).toBeTruthy();
+    // One notice, not a notice plus a second "Check inventory" panel.
+    expect(screen.getByText("Check these counts")).toBeTruthy();
+    expect(screen.queryByText("Check inventory")).toBeNull();
     expect(screen.getByRole("alert").textContent).toContain("exceed sellable inventory by 3 rooms");
     expect(screen.getByText(/sellable rooms \(150%\)/)).toBeTruthy();
     expect(screen.queryByRole("img")).toBeNull();
   });
 
-  it("explains historical unavailability and never labels it tonight", () => {
+  it("shows a recorded past night like any other, never labelled tonight", () => {
     render(
       <OccupancyCard metric={calculateRoomsSold({ ...context, date: "2026-10-20" }, counts)} />
     );
     expect(screen.getByText("October 20, 2026")).toBeTruthy();
-    expect(screen.getByRole("note").textContent).toContain("Historical room inventory");
+    expect(screen.getByText("33.3%")).toBeTruthy();
+    expect(screen.queryByRole("note")).toBeNull();
     expect(screen.queryByText(/Tonight/)).toBeNull();
+  });
+
+  it("labels a past night's rooms as occupied, in past-tense copy", () => {
+    render(
+      <OccupancyCard
+        metric={calculateRoomsSold({ ...context, date: "2026-10-20" }, { ...counts, soldRooms: 9, heldRooms: 0 })}
+      />
+    );
+    expect(screen.getByRole("alert").textContent).toContain("Occupied rooms exceed the rooms you could sell by 3 rooms");
+    expect(screen.getByRole("alert").textContent).not.toContain("holds");
+    expect(screen.getByText("Occupied")).toBeTruthy();
+    expect(screen.queryByText("Booked")).toBeNull();
+  });
+
+  it("explains a past night with no room records", () => {
+    render(<OccupancyCard metric={unavailableRoomsSold({ ...context, date: "2026-06-01" })} />);
+    expect(screen.getByRole("note").textContent).toContain("No room inventory is recorded");
+    expect(screen.queryByRole("img")).toBeNull();
   });
 
   it("keeps the data's actual date visible during a date switch", () => {

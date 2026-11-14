@@ -1,37 +1,25 @@
 import Link from "next/link";
+import { buttonVariants } from "@heroui/react";
+
+/** The one primary action, same words everywhere. */
+export const PRIMARY_ACTION = "Set up your hotel";
 
 type ActionLinkProps = {
   href?: string;
   label?: string;
-  /** `ink` on paper, `brass` on the forest band. */
-  tone?: "ink" | "brass";
-  size?: "md" | "sm";
+  size?: "md" | "lg";
   className?: string;
 };
 
-/** The page's one primary action. Same name everywhere: "Create workspace". */
-export function ActionLink({
-  href = "/sign-up",
-  label = "Create workspace",
-  tone = "ink",
-  size = "md",
-  className,
-}: ActionLinkProps) {
-  const classes = ["rl-btn", `rl-btn--${tone}`, size === "sm" ? "rl-btn--sm" : "", className ?? ""]
-    .filter(Boolean)
-    .join(" ");
-
+/**
+ * The page's primary action, a HeroUI button rendered as a link. On the ink
+ * band it turns marigold (`.rl-on-ink` in app/rl-theme.css).
+ */
+export function ActionLink({ href = "/sign-up", label = PRIMARY_ACTION, size = "lg", className }: ActionLinkProps) {
   return (
-    <Link href={href} prefetch={false} className={classes}>
+    <Link href={href} prefetch={false} className={buttonVariants({ variant: "primary", size, className })}>
       <span>{label}</span>
-      <svg
-        className="rl-btn-arrow"
-        viewBox="0 0 16 16"
-        width="16"
-        height="16"
-        aria-hidden="true"
-        focusable="false"
-      >
+      <svg className="rl-arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
         <path
           d="M3.5 8h9M8.5 4l4 4-4 4"
           fill="none"
@@ -55,9 +43,8 @@ export function SecondaryLink({
   children: React.ReactNode;
   className?: string;
 }) {
-  const external = href.startsWith("#");
-  const cls = ["rl-link", className ?? ""].filter(Boolean).join(" ");
-  return external ? (
+  const cls = ["rl-link rl-link--action", className ?? ""].filter(Boolean).join(" ");
+  return href.startsWith("#") ? (
     <a href={href} className={cls}>
       {children}
     </a>

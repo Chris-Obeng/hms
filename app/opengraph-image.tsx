@@ -1,18 +1,11 @@
 import { ImageResponse } from "next/og";
-import {
-  BRAND,
-  GLYPH_VIEWBOX,
-  MARK_FRAME_PATH,
-  MARK_LEAF_PATH,
-  MARK_LIGHT_PATH,
-  MARK_STROKE_WIDTH,
-} from "@/lib/brand/mark";
+import { BRAND, GLYPH_VIEWBOX, MARK_DISC, MARK_WINDOW_PATH } from "@/lib/brand/mark";
 
-export const alt =
-  "RoomLine — Hotel software for independent properties in Ghana";
+export const alt = "Oriel: hotel software for independent hotels and guesthouses";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
+/** Social card: ink ground, the mark and wordmark, the headline, one marigold field. */
 export default function OpengraphImage() {
   return new ImageResponse(
     (
@@ -21,61 +14,62 @@ export default function OpengraphImage() {
           width: "100%",
           height: "100%",
           display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          backgroundColor: "#10241E",
-          padding: 72,
+          backgroundColor: BRAND.ink,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          {/* Open-door mark (lib/brand/mark.ts) on the ink background. */}
-          <svg viewBox={GLYPH_VIEWBOX} width={41} height={40}>
-            <path d={MARK_LIGHT_PATH} fill={BRAND.brass} />
-            <path d={MARK_LEAF_PATH} fill={BRAND.ink} />
-            <path
-              d={MARK_FRAME_PATH}
-              fill="none"
-              stroke={BRAND.paper}
-              strokeWidth={MARK_STROKE_WIDTH}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            width: 760,
+            padding: 72,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <svg viewBox={GLYPH_VIEWBOX} width={48} height={48}>
+              <circle cx={MARK_DISC.cx} cy={MARK_DISC.cy} r={MARK_DISC.r} fill={BRAND.sun} />
+              <path d={MARK_WINDOW_PATH} fill={BRAND.ink} />
+            </svg>
+            <span style={{ color: "#FFFFFF", fontSize: 44, fontWeight: 800, letterSpacing: "-0.05em" }}>
+              oriel
+            </span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                color: "#FFFFFF",
+                fontSize: 80,
+                fontWeight: 800,
+                lineHeight: 0.98,
+                letterSpacing: "-0.045em",
+              }}
+            >
+              <span>Run a calmer</span>
+              <span>front desk.</span>
+            </div>
+            <div style={{ color: "#B8B3AA", fontSize: 28, lineHeight: 1.35 }}>
+              Bookings, rooms, mobile money and the night audit for independent hotels.
+            </div>
+          </div>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            margin: 40,
+            borderRadius: 40,
+            backgroundColor: BRAND.sun,
+          }}
+        >
+          <svg viewBox={GLYPH_VIEWBOX} width={260} height={260}>
+            <circle cx={MARK_DISC.cx} cy={MARK_DISC.cy} r={MARK_DISC.r} fill={BRAND.ink} />
+            <path d={MARK_WINDOW_PATH} fill={BRAND.sun} />
           </svg>
-          <span
-            style={{
-              color: "#F4F4F0",
-              fontSize: 34,
-              fontWeight: 700,
-              letterSpacing: "-0.03em",
-            }}
-          >
-            RoomLine.
-          </span>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div
-            style={{
-              color: "#F4F4F0",
-              fontSize: 76,
-              fontWeight: 700,
-              lineHeight: 0.98,
-              letterSpacing: "-0.04em",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <span>Run a calmer</span>
-            <span>front desk.</span>
-          </div>
-          <div style={{ color: "#A6B6B0", fontSize: 26, maxWidth: 820 }}>
-            Reservations, rooms, Mobile Money payments, and night audit for
-            independent hotels in Ghana.
-          </div>
-        </div>
-
-        <div style={{ color: "#D8B25C", fontSize: 20, fontWeight: 600 }}>
-          Accra, Ghana
         </div>
       </div>
     ),

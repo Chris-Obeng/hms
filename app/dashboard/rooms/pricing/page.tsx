@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PricingClient } from "./pricing-client";
 
 export const metadata = {
-  title: "Rates | RoomLine",
+  title: "Rates",
 };
 
 export default async function PricingPage({

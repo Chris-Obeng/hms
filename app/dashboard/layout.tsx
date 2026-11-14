@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { SidebarProvider, Sidebar } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/app-sidebar-overlay'
 import { AppHeader } from '@/components/layout/app-header'
+import { MobileTabBar } from '@/components/layout/mobile-tab-bar'
 import { DashboardPwaShell } from '@/components/pwa/dashboard-pwa-shell'
 import { SentryStaffContext } from '@/components/observability/sentry-staff-context'
 import { identifyStaff } from '@/lib/observability/sentry'
@@ -114,6 +115,7 @@ export default async function DashboardLayout({
       <div className="flex min-h-screen w-full flex-col">
         <AppHeader
           hotelId={hotel.id}
+          hotelName={hotel.name}
           staffId={staff.id}
           notificationCount={notificationCount ?? 0}
           roomTypes={roomTypes.map((roomType) => ({
@@ -130,9 +132,10 @@ export default async function DashboardLayout({
               : undefined
           }
         />
-        <main className="native-scroll flex-1 pt-14 px-4 pb-4 md:px-6 md:pb-6 lg:px-8 lg:pb-8 bg-background">
+        <main className="native-scroll flex-1 pt-[calc(3.5rem+env(safe-area-inset-top))] pb-[calc(5rem+env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:pl-[max(1.5rem,env(safe-area-inset-left))] md:pr-[max(1.5rem,env(safe-area-inset-right))] md:pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:pl-8 lg:pr-8 lg:pb-8 bg-background">
           <DashboardPwaShell>{children}</DashboardPwaShell>
         </main>
+        <MobileTabBar />
       </div>
     </SidebarProvider>
   )

@@ -1,133 +1,131 @@
 import { validateInviteToken } from "@/app/actions/invitations";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { ProcessingInvite } from "./processing-invite";
 import { JoinSignUp } from "./join-signup";
+import { SignedInElsewhere } from "./signed-in-elsewhere";
+import { InviteProblemScreen, formatInviteExpiry } from "./invite-screens";
 import { getInviteTokenCookie } from "./actions";
 
+async function isMemberOf(userId: string, clerkOrgId: string): Promise<boolean | null> {
+  try {
+    const clerk = await clerkClient();
+    const memberships = await clerk.users.getOrganizationMembershipList({ userId });
+    return memberships.data.some((m) => m.organization.id === clerkOrgId);
+  } catch (err) {
+    console.error("Failed to check org membership:", err);
+    return null;
+  }
+}
+
+/**
+ * Staff invite landing page.
+ *
+ *   valid, signed out       → invite card + create account (JoinSignUp)
+ *   valid, just signed up   → "Adding you to …" while the webhook runs
+ *   valid, other account    → signed in as someone else: sign out and continue
+ *   missing / not found     → link doesn't work
+ *   expired / used          → friendly dead-end with a next step
+ */
 export default async function JoinPage(props: {
   searchParams: Promise<{ token?: string; sign_up_force_redirect_url?: string }>;
   params: Promise<{ rest?: string[] }>;
 }) {
   const params = await props.params;
   const searchParams = await props.searchParams;
-  
-  // Handle Clerk OAuth callback - check auth state first
+
+  // Clerk OAuth callback: route the new account to the right place.
   if (params.rest?.[0] === "sso-callback") {
     const { userId } = await auth();
-    
+
     if (userId) {
-      // User just signed up/in via OAuth - check if they have org membership
       const storedToken = await getInviteTokenCookie();
       if (storedToken) {
-        // Validate token to get org info
         const res = await validateInviteToken(storedToken);
         if (res.success) {
-          const clerk = await clerkClient();
-          try {
-            const memberships = await clerk.users.getOrganizationMembershipList({ userId });
-            const isMember = memberships.data.some(m => m.organization.id === res.clerkOrgId);
-            
-            if (isMember) {
-              // Already added by webhook - go to dashboard
-              redirect("/dashboard");
-            } else {
-              // Not member yet - show processing UI
-              redirect(`/join/processing?orgId=${res.clerkOrgId}&hotel=${encodeURIComponent(res.hotelName)}&role=${res.role}`);
-            }
-          } catch (err) {
-            console.error("Failed to check membership:", err);
-          }
+          const member = await isMemberOf(userId, res.clerkOrgId);
+          if (member) redirect("/dashboard");
+          if (member === false) redirect(`/join?token=${encodeURIComponent(storedToken)}`);
         }
       }
     }
-    
-    // Not authenticated or no token - try to extract token and redirect
+
     const redirectUrl = searchParams.sign_up_force_redirect_url;
     if (redirectUrl) {
+      let forwarded: string | null = null;
       try {
-        const url = new URL(redirectUrl);
-        const token = url.searchParams.get("token");
-        if (token) {
-          redirect(`/join?token=${token}`);
-        }
+        forwarded = new URL(redirectUrl).searchParams.get("token");
       } catch (err) {
         console.error("Failed to parse redirect URL:", err);
       }
+      // redirect() throws, so it stays outside the try block.
+      if (forwarded) redirect(`/join?token=${encodeURIComponent(forwarded)}`);
     }
     const storedToken = await getInviteTokenCookie();
-    if (storedToken) {
-      redirect(`/join?token=${storedToken}`);
-    }
-    // Fallback if no token found
+    if (storedToken) redirect(`/join?token=${encodeURIComponent(storedToken)}`);
     redirect("/join");
   }
 
   const { token } = searchParams;
-
-  // Check if user already authenticated (from OAuth callback)
   const { userId } = await auth();
-  
-  // If authenticated and no token in URL, check cookie
-  if (userId && !token) {
-    const storedToken = await getInviteTokenCookie();
-    if (storedToken) {
-      // Try to get org info from cookie token without validating (might be used)
-      // Just check membership directly
-      redirect("/dashboard");
-    }
+
+  // Signed in with no token in the URL: the invite was already handled.
+  if (userId && !token && (await getInviteTokenCookie())) {
+    redirect("/dashboard");
   }
 
   if (!token) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[#FDFCFA] p-6">
-        <div className="max-w-md w-full bg-white border border-[#E9E2D6] rounded-2xl p-6 shadow-sm text-center space-y-2">
-          <h2 className="text-lg font-semibold text-[#9B2C2C]">Invalid invite link</h2>
-          <p className="text-sm text-[#6B7571]">The invitation token is missing. Ask your manager to resend the invite.</p>
-        </div>
-      </div>
-    );
+    return <InviteProblemScreen problem="missing" />;
   }
 
   const res = await validateInviteToken(token);
 
   if (!res.success) {
-    // If token already used and user is authenticated, redirect to dashboard
-    if (userId && res.error === "Invitation link has already been used") {
+    // A used link is expected once its own invitee has joined: send members
+    // on. Anyone else sees why the link no longer works.
+    if (userId && res.reason === "used" && res.clerkOrgId && (await isMemberOf(userId, res.clerkOrgId))) {
       redirect("/dashboard");
     }
-    
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#FDFCFA] p-6">
-        <div className="max-w-md w-full bg-white border border-[#E9E2D6] rounded-2xl p-6 shadow-sm text-center space-y-2">
-          <h2 className="text-lg font-semibold text-[#9B2C2C]">Invalid invite link</h2>
-          <p className="text-sm text-[#6B7571]">{res.error}</p>
-        </div>
-      </div>
+      <InviteProblemScreen
+        problem={res.reason}
+        hotelName={res.hotelName}
+        retryHref={`/join?token=${encodeURIComponent(token)}`}
+      />
     );
   }
 
-  const { hotelName, role, clerkOrgId } = res;
+  const { hotelName, role, clerkOrgId, inviterName } = res;
+  const expiresLabel = formatInviteExpiry(res.expiresAt);
 
-  // userId already fetched above
   if (userId) {
-    // Check if user already member of this org
-    const clerk = await clerkClient();
-    try {
-      const memberships = await clerk.users.getOrganizationMembershipList({ userId });
-      const isMember = memberships.data.some(m => m.organization.id === clerkOrgId);
-      
-      if (isMember) {
-        // Already member, go to dashboard
-        redirect("/dashboard");
-      }
-    } catch (err) {
-      console.error("Failed to check org membership:", err);
+    if (await isMemberOf(userId, clerkOrgId)) redirect("/dashboard");
+
+    // Signed up with this very invite: the webhook is adding them now.
+    const user = await currentUser();
+    if (user?.unsafeMetadata?.inviteToken === token) {
+      return <ProcessingInvite hotelName={hotelName} role={role} orgId={clerkOrgId} />;
     }
-    
-    // Not member yet - show processing state with client-side polling
-    return <ProcessingInvite hotelName={hotelName} role={role} orgId={clerkOrgId} />;
+
+    return (
+      <SignedInElsewhere
+        token={token}
+        email={user?.primaryEmailAddress?.emailAddress ?? null}
+        hotelName={hotelName}
+        role={role}
+        inviterName={inviterName}
+        expiresLabel={expiresLabel}
+      />
+    );
   }
 
-  return <JoinSignUp token={token} hotelName={hotelName} role={role} />;
+  return (
+    <JoinSignUp
+      token={token}
+      hotelName={hotelName}
+      role={role}
+      inviterName={inviterName}
+      expiresLabel={expiresLabel}
+    />
+  );
 }

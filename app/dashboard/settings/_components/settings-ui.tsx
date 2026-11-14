@@ -88,7 +88,8 @@ export function SaveBar({
 }) {
   if (!visible) return null;
   return (
-    <div className="sticky bottom-4 z-20 mt-6 lg:ml-[14rem]">
+    // Phones: sit above the bottom tab bar (4rem plus the home-indicator inset).
+    <div className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-20 mt-6 md:bottom-4 lg:ml-[14rem]">
       <Card className="flex-row items-center justify-between gap-3 rounded-2xl border border-border/70 px-4 py-3 shadow-[0_8px_30px_rgb(15_23_42/0.12)] animate-in fade-in-0 slide-in-from-bottom-2 duration-200 ease-[var(--ease-out-ui)] motion-reduce:animate-none">
         <p className="text-sm font-medium text-foreground">Unsaved changes</p>
         <div className="flex items-center gap-2">

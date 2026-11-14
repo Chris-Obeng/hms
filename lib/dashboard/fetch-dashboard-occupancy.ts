@@ -1,7 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
-import { businessToday } from "@/lib/business-date";
-import { buildRoomsSoldMetric, unavailableRoomsSold } from "@/lib/metrics/dashboard-occupancy";
+import { businessDayBounds, businessToday } from "@/lib/business-date";
+import {
+  buildHistoricalRoomsSold,
+  buildRoomsSoldMetric,
+  unavailableRoomsSold,
+  type OccupancyContext,
+} from "@/lib/metrics/dashboard-occupancy";
+
+/** PostgREST / Postgres codes for a table that does not exist (yet). */
+const MISSING_TABLE = new Set(["PGRST205", "42P01"]);
 
 const PAGE_SIZE = 500;
 
@@ -35,8 +43,10 @@ export async function fetchDashboardOccupancy(
   const now = new Date();
   const context = { date, businessToday: businessToday(timeZone, now), asOf: now.toISOString() };
   // Current room status and the forward availability RPC are not historical
-  // evidence. Do not even query them for an earlier business day.
-  if (date < context.businessToday) return unavailableRoomsSold(context);
+  // evidence. An earlier business day reads recorded history instead.
+  if (date < context.businessToday) {
+    return fetchHistoricalOccupancy(supabase, hotelId, date, timeZone, context);
+  }
   const [rooms, reservations, blocks] = await Promise.all([
     readInventoryRows((from, to) => supabase.from("rooms")
       .select("id, status, room_type_id", { count: "exact" })
@@ -66,4 +76,60 @@ export async function fetchDashboardOccupancy(
   return buildRoomsSoldMetric({
     context, rooms, reservations, blockedRoomIds: blocks.map((block) => block.room_id), availability: availability.data,
   });
+}
+
+/**
+ * A past night, from recorded history. The state is read at the end of that
+ * business day (property-local midnight), the moment Night Audit closes it:
+ * a room counts as out of service or blocked if it was at that instant.
+ */
+async function fetchHistoricalOccupancy(
+  supabase: SupabaseClient<Database>,
+  hotelId: string,
+  date: string,
+  timeZone: string,
+  context: OccupancyContext,
+) {
+  const dayEnd = businessDayBounds(date, timeZone).endISO;
+  // A period [valid_from, valid_to) covers the instant just before dayEnd.
+  const coversDayEnd = `valid_to.is.null,valid_to.gte."${dayEnd}"`;
+  try {
+    const [inventory, outOfService, blocks, stays] = await Promise.all([
+      supabase.from("reports_inventory_history")
+        .select("effective_date, capacity_by_type, time_zone")
+        .eq("hotel_id", hotelId).lte("effective_date", date)
+        .order("effective_date", { ascending: false }).limit(1)
+        .then((res) => {
+          if (res.error) throw res.error;
+          return res.data?.[0] ?? null;
+        }),
+      readInventoryRows((from, to) => supabase.from("room_status_history")
+        .select("id, room_id", { count: "exact" })
+        .eq("hotel_id", hotelId).in("status", ["maintenance", "out_of_service"])
+        .lt("valid_from", dayEnd).or(coversDayEnd).order("id").range(from, to)),
+      readInventoryRows((from, to) => supabase.from("availability_block_history")
+        .select("id, room_id", { count: "exact" })
+        .eq("hotel_id", hotelId).lte("start_date", date).gt("end_date", date)
+        .lt("valid_from", dayEnd).or(coversDayEnd).order("id").range(from, to)),
+      readInventoryRows((from, to) => supabase.from("bookings")
+        .select("id, rooms_count, room_id, status, check_out_at", { count: "exact" })
+        .eq("hotel_id", hotelId).in("status", ["checked_in", "checked_out"])
+        .lte("check_in", date).gt("check_out", date).order("id").range(from, to)),
+    ]);
+    return buildHistoricalRoomsSold({
+      context,
+      timeZone,
+      inventory,
+      outOfServiceRoomIds: outOfService.map((row) => row.room_id),
+      blockedRoomIds: blocks.map((row) => row.room_id),
+      stays,
+    });
+  } catch (error) {
+    const code = (error as { code?: string } | null)?.code;
+    // Before the history migration is applied, say so instead of failing the page.
+    if (code && MISSING_TABLE.has(code)) {
+      return unavailableRoomsSold(context, "Occupancy history isn't set up for this property yet.");
+    }
+    throw error;
+  }
 }

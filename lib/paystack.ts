@@ -229,7 +229,7 @@ export interface TransactionInitInput {
    * overriding the subaccount's percentage split for this charge.
    *
    * - When `platformFeeMinor > 0`: pass `transaction_charge: platformFeeMinor`
-   *   together with `bearer: "account"`. RoomLine absorbs Paystack's 1.95%
+   *   together with `bearer: "account"`. Oriel absorbs Paystack's 1.95%
    *   Ghana processing fee out of `transaction_charge` (so `transaction_charge`
    *   must strictly exceed `ceil(amount * 0.0195)` or Paystack rejects the
    *   split with HTTP 400), and the hotel subaccount receives
@@ -240,7 +240,7 @@ export interface TransactionInitInput {
    */
   transaction_charge?: number;
   /**
-   * Who bears Paystack's processing fee: `'account'` (RoomLine main account,
+   * Who bears Paystack's processing fee: `'account'` (Oriel main account,
    * passed explicitly whenever `transaction_charge > 0`) or `'subaccount'`.
    * Omitted when `transaction_charge` is omitted (`platformFeeMinor === 0`).
    */

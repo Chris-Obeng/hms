@@ -208,7 +208,7 @@ export default function NotificationSettingsPage() {
   }
 
   const pushStatus = iosNeedsInstall
-    ? { tone: "default" as const, text: "On iPhone, add RoomLine to your Home Screen first." }
+    ? { tone: "default" as const, text: "On iPhone, add Oriel to your Home Screen first." }
     : !pushSupported
       ? { tone: "default" as const, text: "Not supported in this browser." }
       : notificationPermission === "denied"

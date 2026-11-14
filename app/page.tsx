@@ -1,16 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { landingDisplay, landingText } from "@/components/landing/fonts";
+import { brandFontVariables } from "@/components/brand/fonts";
 import { SiteHeader } from "@/components/landing/site-header";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { Hero } from "@/components/landing/hero";
+import { Showcase } from "@/components/landing/showcase";
 import { Features } from "@/components/landing/features";
 import { Setup } from "@/components/landing/setup";
+import { Trust } from "@/components/landing/trust";
 import { ClosingCta } from "@/components/landing/closing-cta";
+import { DirectCalculator } from "@/components/landing/direct-calculator";
+import { Faq } from "@/components/landing/faq";
 import { RevealObserver } from "@/components/landing/reveal-observer";
 
-const title = "RoomLine: hotel software for independent hotels in Ghana";
+const title = "Oriel: hotel software for independent hotels and guesthouses";
 const description =
-  "Run a calmer front desk. A live room calendar, MoMo, card and cash on one GHS bill, a commission-free booking page and a one-click night audit for hotels and guesthouses in Ghana.";
+  "Run a calmer front desk. A live room calendar, mobile money, card and cash on one GHS bill, your own booking page and a one-click night audit for hotels and guesthouses.";
 
 const deploymentHost =
   process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
@@ -29,19 +33,12 @@ export const metadata: Metadata = {
     description,
     type: "website",
     locale: "en_GH",
-    siteName: "RoomLine",
+    siteName: "Oriel",
   },
   twitter: {
     card: "summary_large_image",
     title,
     description,
-  },
-  icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "48x48" },
-      { url: "/icons/icon.svg", type: "image/svg+xml" },
-    ],
-    apple: "/icons/icon-180x180.png",
   },
 };
 
@@ -50,24 +47,26 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
-  themeColor: "#f5f3ee",
+  // Matches the sticky header, so mobile browser chrome blends into it.
+  themeColor: "#fbfaf7",
   colorScheme: "light",
 };
 
 export default function HomePage() {
   return (
-    <div
-      id="top"
-      className={`rl-landing ${landingDisplay.variable} ${landingText.variable}`}
-    >
+    <div id="top" className={`rl-theme rl-landing ${brandFontVariables}`}>
       <a href="#main-content" className="rl-skip">
         Skip to content
       </a>
       <SiteHeader />
       <main id="main-content" tabIndex={-1}>
         <Hero />
+        <Showcase />
         <Features />
+        <DirectCalculator />
         <Setup />
+        <Trust />
+        <Faq />
         <ClosingCta />
       </main>
       <SiteFooter />

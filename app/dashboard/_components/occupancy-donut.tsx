@@ -6,9 +6,12 @@ import { formatSoldPercent, type RoomsSoldMetric } from "@/lib/metrics/dashboard
 import { cn } from "@/lib/utils";
 
 /**
- * Static arcs use the exact same fraction as the center; no padded angles,
- * rounded caps or mount animation that temporarily misrepresents a room count.
- * Static rendering also fully respects reduced-motion preferences.
+ * Occupancy ring. Arcs use exactly the fraction printed in the centre: no
+ * padded angles, rounded caps or mount animation that would briefly show a
+ * wrong room count. Static, so it also respects reduced motion.
+ *
+ * Booked is ink, holds are hatched marigold, the track is what is still free.
+ * Size comes from `className` (the card makes it 112 px, 176 px from xl).
  */
 export function OccupancyDonut({
   metric,
@@ -66,8 +69,8 @@ export function OccupancyDonut({
   return (
     <div
       role="img"
-      aria-label={`Rooms sold for ${dateLabel}: ${metric.soldRooms} of ${metric.sellableRooms} sellable rooms, ${display} percent. ${metric.heldRooms} pending holds and ${metric.availableRooms} available to sell. Out-of-service and blocked rooms are excluded.`}
-      className={cn("relative aspect-square w-24 shrink-0", className)}
+      aria-label={`Occupancy for ${dateLabel}: ${metric.soldRooms} of ${metric.sellableRooms} sellable rooms ${metric.basis === "historical" ? "occupied" : "booked"}, ${display} percent. ${metric.heldRooms} on hold, ${metric.availableRooms} available. Out-of-service and blocked rooms are left out.`}
+      className={cn("relative aspect-square shrink-0", className)}
     >
       <svg viewBox="0 0 200 200" className="size-full" aria-hidden="true" focusable="false">
         <defs>
@@ -78,17 +81,17 @@ export function OccupancyDonut({
             patternUnits="userSpaceOnUse"
             patternTransform="rotate(45)"
           >
-            <rect width="6" height="6" fill="oklch(0.75 0.15 75)" />
+            <rect width="6" height="6" fill="var(--sun)" />
             <path d="M 0 0 V 6" stroke="var(--card)" strokeWidth="2.2" />
           </pattern>
         </defs>
-        <g transform="rotate(-90 100 100)" fill="none" strokeWidth="20">
-          <circle cx="100" cy="100" r="84" stroke="var(--secondary)" />
+        <g transform="rotate(-90 100 100)" fill="none" strokeWidth="16">
+          <circle cx="100" cy="100" r="90" stroke="var(--secondary)" />
           {sold > 0 && (
             <circle
               cx="100"
               cy="100"
-              r="84"
+              r="90"
               pathLength="100"
               stroke="var(--primary)"
               strokeDasharray={`${sold} ${100 - sold}`}
@@ -98,7 +101,7 @@ export function OccupancyDonut({
             <circle
               cx="100"
               cy="100"
-              r="84"
+              r="90"
               pathLength="100"
               stroke={`url(#${patternId})`}
               strokeDasharray={`${held} ${100 - held}`}
@@ -109,9 +112,14 @@ export function OccupancyDonut({
       </svg>
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 grid place-items-center text-md font-semibold tracking-tight tabular-nums text-foreground"
+        className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
       >
-        {display}%
+        <span className="text-xl font-bold leading-none tracking-[-0.03em] tabular-nums text-foreground xl:text-[32px]">
+          {display}%
+        </span>
+        <span className="mt-1 text-2xs font-medium text-muted-foreground xl:mt-2 xl:text-xs">
+          Occupancy
+        </span>
       </span>
     </div>
   );

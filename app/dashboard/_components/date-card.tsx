@@ -3,7 +3,7 @@
 import * as React from "react";
 import { addDays, differenceInCalendarDays, format, startOfDay, subDays } from "date-fns";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import { Button, ButtonGroup, Calendar, Popover } from "@heroui/react";
+import { Button, Calendar, Popover } from "@heroui/react";
 import { CalendarDate } from "@internationalized/date";
 import { cn } from "@/lib/utils";
 
@@ -20,13 +20,7 @@ function parseLocalDate(dateStr?: string): Date {
   return new Date(`${dateStr}T00:00:00`);
 }
 
-function relativeLabel(selected: Date, today: Date): string | null {
-  const diff = differenceInCalendarDays(startOfDay(selected), startOfDay(today));
-  if (diff === 0) return "Today";
-  if (diff === 1) return "Tomorrow";
-  if (diff === -1) return "Yesterday";
-  return null;
-}
+const RELATIVE: Record<number, string> = { [-1]: "Yesterday", 0: "Today", 1: "Tomorrow" };
 
 interface DateNavigatorProps {
   selectedDate: Date;
@@ -42,9 +36,18 @@ interface DateNavigatorProps {
 }
 
 /**
- * One business-date control for every viewport: step a day back or forward,
- * or open the calendar from the centre segment. A "Today" shortcut appears
- * only once the operator has moved away from the property's current day.
+ * The business-date control: one white pill with a day back, the date, and a
+ * day forward. The date reads day-first ("Sat 14 Nov", as the booking rows
+ * do); Yesterday, Today and Tomorrow get a small tag. Pressing the date opens
+ * a calendar with those three as one-tap shortcuts. Away from today (from
+ * 360 px up), a "Today" button sits beside the pill.
+ *
+ * Controls stay touch-sized on touch screens at every width and only tighten
+ * for a mouse.
+ *
+ * No motion on stepping: people page through days many times a shift, and the
+ * new date should simply be there. The popover grows from the pill (HeroUI
+ * sets the transform origin to the trigger).
  */
 export function DateNavigator({
   selectedDate,
@@ -57,66 +60,109 @@ export function DateNavigator({
 }: DateNavigatorProps) {
   const [calendarOpen, setCalendarOpen] = React.useState(false);
   const todayDate = React.useMemo(() => parseLocalDate(todayDateStr), [todayDateStr]);
-  const isToday = startOfDay(selectedDate).getTime() === startOfDay(todayDate).getTime();
-  const relative = relativeLabel(selectedDate, todayDate);
+  const offset = differenceInCalendarDays(startOfDay(selectedDate), startOfDay(todayDate));
+  const isToday = offset === 0;
+  const relative = RELATIVE[offset] ?? null;
   const selectedStr = format(selectedDate, "yyyy-MM-dd");
   const atMin = Boolean(minDateStr && selectedStr <= minDateStr);
   const atMax = Boolean(maxDateStr && selectedStr >= maxDateStr);
+  const inBounds = (d: Date) => {
+    const s = format(d, "yyyy-MM-dd");
+    return (!minDateStr || s >= minDateStr) && (!maxDateStr || s <= maxDateStr);
+  };
   const toCd = (value: string) => toCalendarDate(parseLocalDate(value));
+  const showYear = selectedDate.getFullYear() !== todayDate.getFullYear();
+  const weekday = format(selectedDate, "EEE");
+  const label = format(selectedDate, showYear ? "d MMM yyyy" : "d MMM");
 
-  const goToToday = React.useCallback(() => {
-    onDateChange(todayDate);
-    setCalendarOpen(false);
-  }, [onDateChange, todayDate]);
+  const pick = React.useCallback(
+    (date: Date) => {
+      onDateChange(date);
+      setCalendarOpen(false);
+    },
+    [onDateChange]
+  );
+
+  const shortcuts = [-1, 0, 1].map((days) => {
+    const date = addDays(todayDate, days);
+    return { days, date, label: RELATIVE[days], enabled: inBounds(date) };
+  });
 
   return (
     <div className={cn("flex min-w-0 items-center gap-2", className)}>
-      <ButtonGroup variant="secondary" className="min-w-0 flex-1 sm:flex-initial">
-        <Button
-          isIconOnly
-          aria-label="Previous day"
+      <div
+        role="group"
+        aria-label="Business date"
+        aria-disabled={isDisabled || undefined}
+        className="flex h-12 min-w-0 flex-1 items-center gap-1 rounded-full border border-border bg-card p-1 shadow-[0_1px_2px_rgb(20_20_19/0.04)] sm:flex-initial md:pointer-fine:h-10"
+      >
+        <StepButton
+          label="Previous day"
           isDisabled={isDisabled || atMin}
           onPress={() => onDateChange(subDays(selectedDate, 1))}
-          className="text-muted-foreground max-md:size-11"
         >
           <ChevronLeft className="size-4" />
-        </Button>
+        </StepButton>
 
         <Popover isOpen={calendarOpen} onOpenChange={setCalendarOpen}>
           <Button
-            variant="secondary"
+            variant="ghost"
             isDisabled={isDisabled}
-            aria-label={`Change date, currently ${format(selectedDate, "EEEE, MMMM d, yyyy")}`}
-            className="min-w-0 flex-1 gap-2 px-3 font-semibold tabular-nums max-md:h-11 sm:min-w-48"
+            aria-label={`Change date, currently ${format(selectedDate, "EEEE d MMMM yyyy")}`}
+            className="h-10 min-w-0 flex-1 justify-center gap-2 rounded-full px-3 text-sm font-semibold tabular-nums text-foreground sm:min-w-48 md:pointer-fine:h-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary"
           >
-            <ButtonGroup.Separator />
-            <CalendarDays className="size-4 shrink-0 text-primary" aria-hidden="true" />
+            {/* Phones keep the date itself: the icon goes first, then (away
+                from today, where the Today button already says so) the tag,
+                and below 360 px the weekday. */}
+            <CalendarDays className="size-4 shrink-0 text-muted-foreground max-sm:hidden" aria-hidden="true" />
             <span className="truncate">
-              {relative ? (
-                <>
-                  {relative}
-                  <span className="font-normal text-muted-foreground">
-                    {" "}
-                    · {format(selectedDate, "EEE, MMM d")}
-                  </span>
-                </>
-              ) : (
-                format(selectedDate, "EEE, MMM d, yyyy")
-              )}
+              <span className="max-[22.5rem]:hidden">{weekday} </span>
+              {label}
             </span>
+            {relative && (
+              <span
+                className={cn(
+                  "inline-grid h-5 shrink-0 place-items-center rounded-full px-2 text-2xs font-semibold",
+                  isToday ? "bg-[var(--accent-soft)] text-primary" : "bg-secondary text-muted-foreground max-sm:hidden"
+                )}
+              >
+                {relative}
+              </span>
+            )}
           </Button>
           <Popover.Content placement="bottom" className="w-auto rounded-2xl p-0">
             <Popover.Dialog aria-label="Select business date" className="p-3 outline-none">
+              {/* One-tap days, the ones the desk asks for most */}
+              <div role="group" aria-label="Shortcuts" className="mb-3 grid grid-cols-3 gap-1 rounded-full bg-secondary p-1">
+                {shortcuts.map((s) => {
+                  const current = s.days === offset;
+                  return (
+                    <Button
+                      key={s.days}
+                      size="sm"
+                      variant="ghost"
+                      aria-pressed={current}
+                      isDisabled={!s.enabled}
+                      onPress={() => pick(s.date)}
+                      className={cn(
+                        "h-8 w-full min-w-0 rounded-full px-2 text-xs font-semibold pointer-coarse:h-10",
+                        current
+                          ? "bg-card text-foreground shadow-[0_1px_2px_rgb(20_20_19/0.08)]"
+                          : "text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground"
+                      )}
+                    >
+                      {s.label}
+                    </Button>
+                  );
+                })}
+              </div>
               <Calendar
                 aria-label="Select business date"
                 value={toCalendarDate(selectedDate)}
                 minValue={minDateStr ? toCd(minDateStr) : undefined}
                 maxValue={maxDateStr ? toCd(maxDateStr) : undefined}
                 onChange={(date) => {
-                  if (date) {
-                    onDateChange(fromCalendarDate(date as CalendarDate));
-                    setCalendarOpen(false);
-                  }
+                  if (date) pick(fromCalendarDate(date as CalendarDate));
                 }}
               >
                 <Calendar.Header>
@@ -131,38 +177,56 @@ export function DateNavigator({
                   <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
                 </Calendar.Grid>
               </Calendar>
-              {!isToday && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  fullWidth
-                  onPress={goToToday}
-                  className="mt-2 font-semibold text-primary"
-                >
-                  Jump to today
-                </Button>
-              )}
             </Popover.Dialog>
           </Popover.Content>
         </Popover>
 
-        <Button
-          isIconOnly
-          aria-label="Next day"
+        <StepButton
+          label="Next day"
           isDisabled={isDisabled || atMax}
           onPress={() => onDateChange(addDays(selectedDate, 1))}
-          className="text-muted-foreground max-md:size-11"
         >
-          <ButtonGroup.Separator />
           <ChevronRight className="size-4" />
-        </Button>
-      </ButtonGroup>
+        </StepButton>
+      </div>
 
-      {!isToday && (
-        <Button variant="ghost" onPress={goToToday} isDisabled={isDisabled} className="shrink-0 font-semibold text-primary max-md:h-11">
+      {!isToday && inBounds(todayDate) && (
+        <Button
+          variant="ghost"
+          onPress={() => pick(todayDate)}
+          isDisabled={isDisabled}
+          // Below 360 px the date needs the room; Today stays one tap away in
+          // the calendar's shortcuts.
+          className="h-12 shrink-0 rounded-full px-4 font-semibold text-primary max-[22.5rem]:hidden md:pointer-fine:h-10 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--accent-soft)]"
+        >
           Today
         </Button>
       )}
     </div>
+  );
+}
+
+function StepButton({
+  label,
+  isDisabled,
+  onPress,
+  children,
+}: {
+  label: string;
+  isDisabled: boolean;
+  onPress: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Button
+      isIconOnly
+      variant="ghost"
+      aria-label={label}
+      isDisabled={isDisabled}
+      onPress={onPress}
+      className="size-10 min-w-10 shrink-0 rounded-full text-foreground md:pointer-fine:size-8 md:pointer-fine:min-w-8 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary"
+    >
+      {children}
+    </Button>
   );
 }

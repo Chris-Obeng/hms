@@ -54,8 +54,8 @@ export function NumberStepper({
           onClick={handleDecrement}
           disabled={value <= min}
           className={cn(
-            "h-full w-12 flex items-center justify-center transition-all duration-200 border-r-2 border-border",
-            "hover:bg-primary/10 active:bg-primary/20 active:scale-95",
+            "h-full w-12 flex items-center justify-center transition-[background-color,scale] duration-150 ease-[var(--ease-out-ui)] border-r-2 border-border",
+            "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/10 active:bg-primary/20 active:scale-[0.97]",
             "disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
           )}
@@ -72,7 +72,7 @@ export function NumberStepper({
             key={value}
             className={cn(
               "text-2xl font-bold tabular-nums text-foreground",
-              "animate-in fade-in zoom-in duration-200"
+              "animate-in fade-in zoom-in-95 duration-150 motion-reduce:zoom-in-100"
             )}
           >
             {value}
@@ -85,8 +85,8 @@ export function NumberStepper({
           onClick={handleIncrement}
           disabled={value >= max}
           className={cn(
-            "h-full w-12 flex items-center justify-center transition-all duration-200 border-l-2 border-border",
-            "hover:bg-primary/10 active:bg-primary/20 active:scale-95",
+            "h-full w-12 flex items-center justify-center transition-[background-color,scale] duration-150 ease-[var(--ease-out-ui)] border-l-2 border-border",
+            "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/10 active:bg-primary/20 active:scale-[0.97]",
             "disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
           )}
@@ -100,9 +100,9 @@ export function NumberStepper({
         {/* Progress indicator - shows relative position */}
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted/30">
           <div
-            className="h-full bg-primary/60 transition-all duration-300 ease-out"
+            className="h-full w-full origin-left bg-primary/60 transition-transform duration-200 ease-[var(--ease-out-ui)]"
             style={{
-              width: `${((value - min) / (max - min)) * 100}%`,
+              transform: `scaleX(${(value - min) / (max - min)})`,
             }}
           />
         </div>

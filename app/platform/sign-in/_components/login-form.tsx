@@ -220,7 +220,7 @@ export function PlatformLoginForm({
         <CardHeader className="pb-4">
           <CardTitle className="text-xl text-foreground">Sign in</CardTitle>
           <CardDescription className="text-foreground/50">
-            Internal access only — authorised RoomLine team
+            Internal access only — authorised Oriel team
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -232,7 +232,7 @@ export function PlatformLoginForm({
               <Input
                 id="email"
                 type="email"
-                placeholder="you@RoomLineprp.com"
+                placeholder="you@company.com"
                 required
                 autoComplete="email"
                 value={email}

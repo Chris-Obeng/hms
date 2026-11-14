@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
   title: "Set up your property",
-  description: "Open your RoomLine front-desk workspace and direct booking page.",
+  description: "Set up your property on Oriel: front desk and direct booking page.",
 };
 
 /**

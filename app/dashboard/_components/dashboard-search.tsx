@@ -397,7 +397,7 @@ export function DashboardSearch({ onNewBooking }: { onNewBooking?: () => void })
         >
           <div
             className={cn(
-              "flex h-8 items-center gap-2 rounded-lg border px-3 transition-[background-color,border-color,box-shadow] duration-150",
+              "flex h-8 items-center gap-2 rounded-lg border px-3 pointer-coarse:h-10 transition-[background-color,border-color,box-shadow] duration-150",
               open
                 ? "border-ring/60 bg-background ring-4 ring-ring/10"
                 : "border-transparent bg-secondary/80 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary"

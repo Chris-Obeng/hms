@@ -266,7 +266,7 @@ export function StaffClient({
 
   const handleShareWhatsApp = () => {
     const text = encodeURIComponent(
-      `Join our hotel team on RoomLine! Sign up using this link: ${inviteLink}`
+      `Join our hotel team on Oriel! Sign up using this link: ${inviteLink}`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
   };

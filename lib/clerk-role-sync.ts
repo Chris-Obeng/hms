@@ -1,7 +1,7 @@
 /**
  * Pure role-reconciliation helpers for Clerk organization membership webhooks (`HIGH-07`).
  *
- * Clerk Organizations only expose `org:admin` and `org:member`, whereas RoomLine
+ * Clerk Organizations only expose `org:admin` and `org:member`, whereas Oriel
  * persists granular hotel roles (`super_admin`, `manager`, `front_desk`,
  * `read_only`, `pending`) and `is_active` state in `public.staff_profiles`.
  */
@@ -45,7 +45,7 @@ export function resolveClerkCreatedMembership(params: {
 }
 
 /**
- * Computes the next RoomLine role for `organizationMembership.updated`.
+ * Computes the next Oriel role for `organizationMembership.updated`.
  * - `org:admin` promotes to `'super_admin'`.
  * - Non-admin (`org:member`) ONLY demotes `'super_admin'` → `'front_desk'`;
  *   existing `'manager'`, `'front_desk'`, `'read_only'`, and `'pending'` roles

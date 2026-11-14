@@ -128,6 +128,50 @@ export type Database = {
           },
         ]
       }
+      availability_block_history: {
+        Row: {
+          block_id: string
+          end_date: string
+          hotel_id: string
+          id: number
+          room_id: string
+          source: string
+          start_date: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          block_id: string
+          end_date: string
+          hotel_id: string
+          id?: never
+          room_id: string
+          source: string
+          start_date: string
+          valid_from: string
+          valid_to?: string | null
+        }
+        Update: {
+          block_id?: string
+          end_date?: string
+          hotel_id?: string
+          id?: never
+          room_id?: string
+          source?: string
+          start_date?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "availability_block_history_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       availability_blocks: {
         Row: {
           created_at: string | null
@@ -1609,6 +1653,44 @@ export type Database = {
           },
         ]
       }
+      room_status_history: {
+        Row: {
+          hotel_id: string
+          id: number
+          room_id: string
+          source: string
+          status: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          hotel_id: string
+          id?: never
+          room_id: string
+          source: string
+          status: string
+          valid_from: string
+          valid_to?: string | null
+        }
+        Update: {
+          hotel_id?: string
+          id?: never
+          room_id?: string
+          source?: string
+          status?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_status_history_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       room_types: {
         Row: {
           amenities: Json | null
@@ -1851,6 +1933,7 @@ export type Database = {
           created_at: string
           expires_at: string
           id: string
+          invited_by_staff_id: string | null
           is_used: boolean
           role: string
           token: string
@@ -1860,6 +1943,7 @@ export type Database = {
           created_at?: string
           expires_at: string
           id?: string
+          invited_by_staff_id?: string | null
           is_used?: boolean
           role: string
           token: string
@@ -1869,11 +1953,20 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
+          invited_by_staff_id?: string | null
           is_used?: boolean
           role?: string
           token?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "staff_invitations_invited_by_staff_id_fkey"
+            columns: ["invited_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       staff_profiles: {
         Row: {

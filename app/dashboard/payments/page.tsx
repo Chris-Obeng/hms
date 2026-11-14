@@ -6,7 +6,7 @@ import { businessToday } from "@/lib/business-date";
 import { getPaymentActivity, type PaymentActivityStatus } from "./actions";
 import { PaymentsClient } from "./payments-client";
 
-export const metadata = { title: "Payments · RoomLine" };
+export const metadata = { title: "Payments · Oriel" };
 
 export default async function PaymentsPage({ searchParams }: { searchParams: Promise<{ tab?: string; date?: string; startDate?: string; endDate?: string; status?: string; method?: string; search?: string; page?: string }> }) {
   const params = await searchParams;

@@ -42,7 +42,7 @@ export function ActivityTabs({ tabs, activeTab, onTabChange, children }: Activit
       {/* Styling lives in utilities (not global CSS) so it always wins over HeroUI's
           component layer. This theme maps HeroUI's --accent and --muted to pale
           surfaces, so labels and the indicator read brand / muted-foreground tokens. */}
-      <Tabs.ListContainer className="border-border/70">
+      <Tabs.ListContainer className="border-border">
         <Tabs.List aria-label="Front-desk activity views" className="gap-6 px-4 sm:px-6">
           {tabs.map((tab) => {
             const isAlert = tab.key === "overbookings" && tab.count > 0;
@@ -50,16 +50,16 @@ export function ActivityTabs({ tabs, activeTab, onTabChange, children }: Activit
               <Tabs.Tab
                 key={tab.key}
                 id={tab.key}
-                className="group h-12 w-auto flex-none gap-2 px-0 text-sm font-medium text-muted-foreground data-[selected=true]:font-semibold data-[selected=true]:text-foreground"
+                className="group h-14 w-auto flex-none gap-2 px-0 text-sm font-medium text-muted-foreground data-[selected=true]:font-semibold data-[selected=true]:text-foreground"
               >
                 {tab.label}
-                {/* Counts are quiet numbers, not pills; only a conflict count takes a colour. */}
+                {/* Counts are small pills; the selected one takes the brand tint, a conflict count turns red. */}
                 <span
                   className={cn(
-                    "text-xs font-medium tabular-nums",
+                    "inline-grid h-5 min-w-5 place-items-center rounded-full px-2 text-2xs font-semibold tabular-nums transition-colors duration-150 ease-[ease]",
                     isAlert
-                      ? "text-destructive"
-                      : "text-muted-foreground group-data-[selected=true]:text-foreground"
+                      ? "bg-destructive/10 text-destructive"
+                      : "bg-secondary text-muted-foreground group-data-[selected=true]:bg-[var(--accent-soft)] group-data-[selected=true]:text-primary"
                   )}
                 >
                   {tab.count}

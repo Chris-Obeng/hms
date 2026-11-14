@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { assertPlatformAdmin } from "./_guard";
 import { buildHotelPayoutOverview, type HotelPayoutOverview } from "@/lib/payouts";
+import { isSuspensionReason, type SuspensionReason } from "@/lib/platform/suspension";
 
 /**
  * Platform admin server actions — Hotel Oversight.
@@ -29,12 +30,18 @@ export type LifecycleAction = "approve" | "suspend" | "reactivate";
 
 export async function setHotelStatus(
   hotelId: string,
-  action: LifecycleAction
+  action: LifecycleAction,
+  /** Suspend only: shown to the hotel's staff on /suspended. */
+  reason?: SuspensionReason
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Validate the id shape before it reaches any query — never trust client params.
     if (!/^[0-9a-f-]{36}$/i.test(hotelId)) {
       return { success: false, error: "Invalid hotel" };
+    }
+
+    if (reason !== undefined && (action !== "suspend" || !isSuspensionReason(reason))) {
+      return { success: false, error: "Invalid suspension reason" };
     }
 
     const { adminId, adminEmail } = await assertPlatformAdmin();
@@ -90,7 +97,7 @@ export async function setHotelStatus(
         entity_type: "hotel",
         entity_id: hotelId,
         before_state: { status: hotel.status },
-        after_state: { status: target },
+        after_state: action === "suspend" ? { status: target, reason: reason ?? "other" } : { status: target },
       });
 
     if (auditError) {

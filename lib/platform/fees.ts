@@ -1,7 +1,7 @@
 /**
  * lib/platform/fees.ts
  *
- * Platform fee: the cut RoomLine takes from each online booking payment.
+ * Platform fee: the cut Oriel takes from each online booking payment.
  *
  * Single global config stored in the `platform_settings` singleton (id = 1),
  * editable by platform admins. Realised per transaction as Paystack's
@@ -28,7 +28,7 @@ export const PAYSTACK_GHANA_FEE_BPS = 195;
 
 /**
  * Minimum non-zero percentage platform fee (2.0%).
- * RoomLine bears Paystack's 1.95% processing fee out of `transaction_charge`
+ * Oriel bears Paystack's 1.95% processing fee out of `transaction_charge`
  * (`bearer: "account"`), and Paystack rejects `POST /transaction/initialize`
  * with HTTP 400 whenever `transaction_charge` is smaller than its 1.95% fee.
  */

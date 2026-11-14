@@ -5,7 +5,7 @@ import { ReportsClient } from "./reports-client";
 import { shiftReportDate } from "./_components/report-utils";
 
 export const metadata = {
-  title: "Reports | RoomLine",
+  title: "Reports",
 };
 
 export default async function ReportsPage() {

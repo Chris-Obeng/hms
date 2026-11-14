@@ -90,7 +90,7 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
       roundedPct < MIN_PLATFORM_FEE_PERCENT
     ) {
       toast.danger(
-        `Percentage fee must be 0% or at least ${MIN_PLATFORM_FEE_PERCENT.toFixed(1)}% because RoomLine absorbs Paystack's 1.95% processing fee.`
+        `Percentage fee must be 0% or at least ${MIN_PLATFORM_FEE_PERCENT.toFixed(1)}% because Oriel absorbs Paystack's 1.95% processing fee.`
       );
       return;
     }
@@ -181,7 +181,7 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
                 <NumberField.IncrementButton />
               </NumberField.Group>
               <Description>
-                Enter 0% for no platform fee, or {MIN_PLATFORM_FEE_PERCENT.toFixed(1)}%–{MAX_PLATFORM_FEE_PERCENT.toFixed(1)}% (RoomLine absorbs Paystack&apos;s 1.95% processing fee out of this commission).
+                Enter 0% for no platform fee, or {MIN_PLATFORM_FEE_PERCENT.toFixed(1)}%–{MAX_PLATFORM_FEE_PERCENT.toFixed(1)}% (Oriel absorbs Paystack&apos;s 1.95% processing fee out of this commission).
               </Description>
             </NumberField>
           ) : (
@@ -237,8 +237,8 @@ export function PlatformFeeSettingsForm({ initial }: { initial: FormValues }) {
             <p className="font-medium text-foreground">How the fee is applied</p>
               <p>
                 The guest is charged the full booking total. When a platform fee is
-                active, RoomLine bears Paystack&apos;s 1.95% Ghana processing fee out
-                of RoomLine&apos;s commission (<code>bearer: &quot;account&quot;</code>) and the
+                active, Oriel bears Paystack&apos;s 1.95% Ghana processing fee out
+                of Oriel&apos;s commission (<code>bearer: &quot;account&quot;</code>) and the
                 hotel&apos;s subaccount receives the full remaining balance net.
               </p>
               <p>

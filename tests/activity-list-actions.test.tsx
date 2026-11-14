@@ -73,6 +73,8 @@ describe("ActivityList cancel / no-show dropdown", () => {
     renderList(
       <ActivityList
         bookings={[booking()]}
+        searchQuery=""
+        onSearchQueryChange={vi.fn()}
         onCheckIn={vi.fn()}
         onCancel={onCancel}
         onNoShow={vi.fn()}
@@ -94,6 +96,8 @@ describe("ActivityList cancel / no-show dropdown", () => {
     renderList(
       <ActivityList
         bookings={[booking()]}
+        searchQuery=""
+        onSearchQueryChange={vi.fn()}
         onCheckIn={vi.fn()}
         onCancel={vi.fn()}
         onNoShow={vi.fn()}
@@ -115,6 +119,8 @@ describe("ActivityList cancel / no-show dropdown", () => {
     renderList(
       <ActivityList
         bookings={[booking()]}
+        searchQuery=""
+        onSearchQueryChange={vi.fn()}
         onCheckIn={vi.fn()}
         onCancel={onCancel}
         onNoShow={vi.fn()}
@@ -137,6 +143,8 @@ describe("ActivityList cancel / no-show dropdown", () => {
     renderList(
       <ActivityList
         bookings={[booking()]}
+        searchQuery=""
+        onSearchQueryChange={vi.fn()}
         onCheckIn={vi.fn()}
         onCancel={vi.fn()}
         onNoShow={onNoShow}

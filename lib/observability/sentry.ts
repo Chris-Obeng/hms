@@ -1,7 +1,7 @@
 /**
  * Sentry capture helpers.
  *
- * Everything RoomLine reports to Sentry goes through this module, for three
+ * Everything Oriel reports to Sentry goes through this module, for three
  * reasons:
  *
  *  1. Consistent tags. Tags are the only searchable dimension in Sentry, so the

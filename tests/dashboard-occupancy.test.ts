@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildRoomsSoldMetric, calculateRoomsSold, formatSoldPercent,
+  buildHistoricalRoomsSold, buildRoomsSoldMetric, calculateRoomsSold, formatSoldPercent, wasInHouseOnNight,
   type OccupancyContext, type OccupancyCounts, type OccupancyReservation, type OccupancyRoom,
 } from "@/lib/metrics/dashboard-occupancy";
 
@@ -50,7 +50,12 @@ describe("rooms-sold denominator and count validation", () => {
     expect(calculateRoomsSold(context, { ...counts, soldRooms })).toMatchObject({ state: "inconsistent", soldPercent: null, soldRooms: null });
   });
   it("does not reconstruct past facts from live status", () => {
-    expect(calculateRoomsSold({ ...context, date: "2026-10-20" }, { ...counts, soldRooms: 4 })).toMatchObject({ state: "unavailable", basis: "historical-unavailable", soldRooms: null, totalRooms: null });
+    const past = { ...context, date: "2026-10-20" };
+    const live = buildRoomsSoldMetric({ context: past, rooms, reservations: [reservation()], blockedRoomIds: [], availability: [{ room_type_id: "standard", available: 9 }] });
+    expect(live).toMatchObject({ state: "unavailable", basis: "historical-unavailable", soldRooms: null, totalRooms: null });
+  });
+  it("labels recorded past counts as historical", () => {
+    expect(calculateRoomsSold({ ...context, date: "2026-10-20" }, { ...counts, soldRooms: 4 })).toMatchObject({ state: "ready", basis: "historical", soldRooms: 4, soldPercent: 40 });
   });
   it("identifies future values as a projection", () => {
     expect(calculateRoomsSold({ ...context, date: "2026-10-22" }, counts).basis).toBe("projection");
@@ -111,5 +116,75 @@ describe("availability-compatible room-night inventory", () => {
   });
   it("requires every expected room type in the authoritative RPC response", () => {
     expect(buildRoomsSoldMetric({ context, rooms, reservations: [], blockedRoomIds: [], availability: [] }).state).toBe("inconsistent");
+  });
+});
+
+describe("past nights from recorded history", () => {
+  const past = { ...context, date: "2026-10-20" };
+  const inventory = { effective_date: "2026-10-01", capacity_by_type: { standard: 6, suite: 2 }, time_zone: "UTC" };
+  const history = (overrides: Partial<Parameters<typeof buildHistoricalRoomsSold>[0]> = {}) =>
+    buildHistoricalRoomsSold({
+      context: past, timeZone: "UTC", inventory,
+      outOfServiceRoomIds: ["r1"], blockedRoomIds: ["r1", "r2"],
+      stays: [{ id: "s1", rooms_count: 1 }, { id: "s2", rooms_count: 2 }],
+      ...overrides,
+    });
+  it("uses recorded capacity, end-of-day exclusions and checked-in stays", () => {
+    // r1 is both out of service and blocked: it counts once, as out of service.
+    expect(history()).toMatchObject({
+      state: "ready", basis: "historical", totalRooms: 8, outOfService: 1, blocked: 1,
+      soldRooms: 3, heldRooms: 0, sellableRooms: 6, availableRooms: 3, soldPercent: 50,
+    });
+  });
+  it("is unavailable before the first inventory record", () => {
+    expect(history({ inventory: null })).toMatchObject({ state: "unavailable", basis: "historical-unavailable", totalRooms: null });
+  });
+  it("does not carry a record across a time-zone change", () => {
+    expect(history({ inventory: { ...inventory, time_zone: "Africa/Accra" } })).toMatchObject({ state: "unavailable" });
+  });
+  it("shows a double-booked night instead of capping it", () => {
+    const metric = history({ outOfServiceRoomIds: [], blockedRoomIds: [], stays: Array.from({ length: 9 }, (_, i) => ({ id: `s${i}`, rooms_count: 1 })) });
+    expect(metric).toMatchObject({ state: "inconsistent", soldRooms: 9, availableRooms: -1 });
+  });
+  it("stops counting a guest from the day they checked out early", () => {
+    // Room 8 on 2026-10-01 in production: booked 09-30 → 10-02, checked out
+    // 10-01 07:10, and the room resold that day. One room, not two.
+    const metric = history({
+      context: { ...past, date: "2026-10-01" },
+      outOfServiceRoomIds: [], blockedRoomIds: [],
+      stays: [
+        { id: "early", rooms_count: 1, room_id: "r8", status: "checked_out", check_out_at: "2026-10-01T07:10:00Z" },
+        { id: "next", rooms_count: 1, room_id: "r8", status: "checked_out", check_out_at: "2026-10-16T13:51:00Z" },
+      ],
+    });
+    expect(metric).toMatchObject({ state: "ready", soldRooms: 1 });
+  });
+  it("still counts the night before an early check-out, and keeps booked dates without a check-out time", () => {
+    const stay = { id: "s", rooms_count: 1, status: "checked_out", check_out_at: "2026-10-01T07:10:00Z" };
+    expect(wasInHouseOnNight(stay, "2026-09-30", "UTC")).toBe(true);
+    expect(wasInHouseOnNight(stay, "2026-10-01", "UTC")).toBe(false);
+    expect(wasInHouseOnNight({ ...stay, check_out_at: null }, "2026-10-01", "UTC")).toBe(true);
+    expect(wasInHouseOnNight({ ...stay, status: "checked_in" }, "2026-10-01", "UTC")).toBe(true);
+    // The business day follows the property's time zone, not UTC.
+    expect(wasInHouseOnNight({ ...stay, check_out_at: "2026-10-01T03:00:00Z" }, "2026-09-30", "America/New_York")).toBe(false);
+  });
+  it("flags a stay in a room recorded as out of service or blocked", () => {
+    const metric = history({ stays: [{ id: "s1", rooms_count: 1, room_id: "r2", status: "checked_in" }] });
+    expect(metric.state).toBe("inconsistent");
+    expect(metric.issues.join(" ")).toContain("out of service or blocked");
+  });
+  it("flags two stays in the same room on one night", () => {
+    const metric = history({
+      outOfServiceRoomIds: [], blockedRoomIds: [],
+      stays: [
+        { id: "a", rooms_count: 1, room_id: "r5", status: "checked_in" },
+        { id: "b", rooms_count: 1, room_id: "r5", status: "checked_in" },
+      ],
+    });
+    expect(metric.state).toBe("inconsistent");
+    expect(metric.issues.join(" ")).toContain("same room");
+  });
+  it("rejects invalid recorded capacity", () => {
+    expect(history({ inventory: { ...inventory, capacity_by_type: { standard: -1 } } }).state).toBe("inconsistent");
   });
 });

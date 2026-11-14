@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 @import "tw-animate-css";
+@import "./rl-theme.css";
+@import "./rl-pages.css";
 @import "./landing.css";
 
 /* .heroui-docs is tracked reference material for agents, not app source. */
@@ -58,7 +60,8 @@
   --color-gold-hover: #e5c158;
   --color-ivory: #f5f0e8;
   --color-forest: #0a0f0d;
-  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-brand: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-display:
     var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
@@ -287,25 +290,37 @@
      `colorScheme: "light"` in the root viewport meta. */
   color-scheme: light;
 
-  --background: oklch(0.993 0.003 250);
-  --foreground: oklch(0.17 0.02 260);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.17 0.02 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.17 0.02 260);
-  /* Brand: confident indigo-blue */
-  --primary: oklch(0.52 0.19 261);
-  --primary-foreground: oklch(0.985 0.005 250);
-  --secondary: oklch(0.965 0.008 255);
-  --secondary-foreground: oklch(0.28 0.03 262);
-  --muted: oklch(0.962 0.007 255);
-  --muted-foreground: oklch(0.51 0.024 260);
-  --accent: oklch(0.952 0.014 255);
-  --accent-foreground: oklch(0.32 0.06 262);
+  /* ── Oriel app palette ───────────────────────────────────────
+   *  Warm paper and ink text, the same family as the brand surfaces
+   *  (app/rl-theme.css). Ultramarine is the one action colour: it
+   *  pairs with the marigold mark (blue against yellow-orange) and
+   *  stays clear of every booking status colour (paid and in-house
+   *  green, partial amber, unpaid red). Marigold is an accent, never
+   *  a surface.
+   * ──────────────────────────────────────────────────────────── */
+  --background: #fbfaf7;
+  --foreground: #141413;
+  --card: #ffffff;
+  --card-foreground: #141413;
+  --popover: #ffffff;
+  --popover-foreground: #141413;
+  /* Ultramarine. White on it is 7.0:1. */
+  --primary: #2f49d1;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f1ec;
+  --secondary-foreground: #2b2a27;
+  --muted: #f3f1ec;
+  --muted-foreground: #66625b;
+  --accent: #efece5;
+  --accent-foreground: #141413;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.907 0.01 256);
-  --input: oklch(0.907 0.01 256);
-  --ring: oklch(0.62 0.16 261);
+  --border: #e7e3db;
+  --input: #dcd7cd;
+  --ring: #2f49d1;
+  /* Brand accents for the app (marigold sun, its deep text tone) */
+  --sun: #ffc23d;
+  --sun-wash: #fff1cc;
+  --sun-deep: #8a5a00;
   /* Charts: distinct, professional, colorblind-aware */
   --chart-1: oklch(0.58 0.19 261);   /* brand blue    */
   --chart-2: oklch(0.66 0.15 165);   /* emerald       */
@@ -321,15 +336,15 @@
   --ease-out-ui: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out-ui: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
-  /* Sidebar: soft cool-tinted panel with navy active states */
-  --sidebar: oklch(0.978 0.006 253);
-  --sidebar-foreground: oklch(0.24 0.025 261);
-  --sidebar-primary: oklch(0.52 0.19 261);
-  --sidebar-primary-foreground: oklch(0.985 0.005 250);
-  --sidebar-accent: oklch(0.94 0.016 256);
-  --sidebar-accent-foreground: oklch(0.28 0.05 262);
-  --sidebar-border: oklch(0.91 0.012 255);
-  --sidebar-ring: oklch(0.62 0.16 261);
+  /* Sidebar: warm paper panel with ultramarine active states */
+  --sidebar: #f7f5f0;
+  --sidebar-foreground: #141413;
+  --sidebar-primary: #2f49d1;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ece8e0;
+  --sidebar-accent-foreground: #141413;
+  --sidebar-border: #e4dfd6;
+  --sidebar-ring: #2f49d1;
 
   /* HeroUI v3 semantic surfaces. Fields, popovers, and calendars stop
    * falling back to HeroUI stock defaults. */
@@ -344,14 +359,16 @@
   --default: var(--secondary);
   --default-foreground: var(--secondary-foreground);
   --default-hover: color-mix(in oklch, var(--secondary) 96%, var(--foreground));
-  --accent-hover: color-mix(in oklch, var(--primary) 90%, black);
+  --accent-hover: color-mix(in oklch, var(--primary) 86%, white);
   --accent-soft: color-mix(in oklch, var(--primary) 12%, transparent);
   --accent-soft-foreground: var(--primary);
   --field-background: var(--card);
   --field-foreground: var(--foreground);
   --field-placeholder: var(--muted-foreground);
-  --field-border: color-mix(in oklch, var(--input) 80%, var(--foreground));
-  --field-border-hover: color-mix(in oklch, var(--input) 60%, var(--foreground));
+  /* Field outlines need 3:1 against the card and the page (WCAG 1.4.11):
+   * 62% is about 3.5:1 on white, 45% about 5:1 on hover. */
+  --field-border: color-mix(in oklch, var(--input) 62%, var(--foreground));
+  --field-border-hover: color-mix(in oklch, var(--input) 45%, var(--foreground));
   --field-border-focus: var(--ring);
   --focus: var(--ring);
 }
@@ -360,9 +377,16 @@
  * darkens the brand instead of flashing a mismatched fill. */
 .button--primary {
   --button-bg: var(--primary);
-  --button-bg-hover: color-mix(in oklch, var(--primary) 90%, black);
-  --button-bg-pressed: color-mix(in oklch, var(--primary) 90%, black);
+  --button-bg-hover: color-mix(in oklch, var(--primary) 86%, white);
+  --button-bg-pressed: color-mix(in oklch, var(--primary) 80%, white);
   --button-fg: var(--primary-foreground);
+}
+
+/* Secondary buttons (Check out, Collect…) are quiet: ink text on warm grey.
+ * HeroUI tints them with the action colour, which made every row compete
+ * with the one primary action. */
+.button--secondary {
+  --button-fg: var(--secondary-foreground);
 }
 
 /* ── Control heights (8-point) ────────────────────────────────────────
@@ -439,7 +463,7 @@
   }
 
   ::selection {
-    background: color-mix(in oklch, var(--primary) 30%, transparent);
+    background: color-mix(in oklch, var(--sun) 55%, transparent);
     color: var(--foreground);
   }
 }
@@ -644,7 +668,7 @@
 .switch {
   --accent: var(--primary);
   --accent-foreground: var(--primary-foreground);
-  --accent-hover: color-mix(in oklch, var(--primary) 90%, black);
+  --accent-hover: color-mix(in oklch, var(--primary) 86%, white);
   /* Off track: HeroUI uses --default (= --secondary here), which nearly
    * matches a white card. 44% ink gives ~3.4:1 against the card and the white
    * thumb (WCAG 1.4.11 asks 3:1 for controls). */
@@ -728,9 +752,15 @@ html.pwa-standalone [data-slot="app-header"] {
   background: color-mix(in oklch, var(--background) 92%, transparent);
 }
 
-/* Toasts sit above home indicator on notched phones */
+/* Toasts sit above the home indicator, and above the dashboard tab bar on phones */
 .toaster {
   bottom: calc(env(safe-area-inset-bottom) + 0.75rem) !important;
+}
+
+@media (width < 48rem) {
+  body:has(.rl-tabbar) :is(.toaster, .toast-region[class*="toast-region--bottom"]) {
+    bottom: calc(env(safe-area-inset-bottom) + 4.75rem) !important;
+  }
 }
 
 @media (hover: none) and (pointer: coarse) {

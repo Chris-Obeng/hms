@@ -82,7 +82,7 @@ export async function GET(
    * Whether Paystack has already told us this transaction succeeded.
    *
    * This is what separates "the verify call itself broke" from "money is
-   * captured and RoomLine failed to record it". Before this flag, every throw in
+   * captured and Oriel failed to record it". Before this flag, every throw in
    * the block below — including a Paystack timeout during an outage, which is
    * already reported by paystackFetch — was captured as `fatal`, so the one
    * severity reserved for lost money also fired for problems that cost nothing
