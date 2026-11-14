@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { readEarlyDeparturePolicy } from "@/lib/bookings/early-departure";
 import { createClient } from "@/lib/supabase/server";
 import { can } from "@/lib/roles";
 import { HotelSettingsClient } from "./hotel-client";
@@ -55,6 +56,7 @@ export default async function HotelSettingsPage() {
         cancellationPolicy: hotel.cancellation_policy || "",
         taxEnabled: ((hotel.settings as Record<string, unknown>)?.tax_enabled as boolean) ?? false,
         taxPercentage: ((hotel.settings as Record<string, unknown>)?.tax_percentage as number) ?? 0,
+        earlyDeparturePolicy: readEarlyDeparturePolicy(hotel.settings),
       }}
       logoUrl={hotel.logo_url}
       coverImageUrl={hotel.cover_image_url}

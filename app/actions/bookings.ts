@@ -784,6 +784,13 @@ export async function updateBookingStatus(
       return { success: false, error: "Invalid status" };
     }
 
+    // One check-out path: it frees the room and shortens an early departure.
+    if (status === "checked_out") {
+      const { checkOutBooking } = await import("@/app/dashboard/actions");
+      const result = await checkOutBooking(bookingId);
+      return { success: result.success, ...(result.error ? { error: result.error } : {}) };
+    }
+
     const supabase = await createClient();
 
     // Fetch booking before update — needed for transition validation, audit, notifications

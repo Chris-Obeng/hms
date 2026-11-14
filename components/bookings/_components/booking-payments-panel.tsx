@@ -338,6 +338,13 @@ export function BookingPaymentsPanel({
                 quiet
               />
             )}
+            {booking.earlyDepartureFee > 0 && (
+              <ChargeRow
+                name="Early departure fee"
+                sub="Nights not used after an early check-out"
+                amount={formatCurrency(booking.earlyDepartureFee, currency)}
+              />
+            )}
             <ChargeRow name="Total charges" amount={formatCurrency(booking.totalAmount, currency)} strong />
           </>
         )}
@@ -345,6 +352,13 @@ export function BookingPaymentsPanel({
           <>
             {group.taxAmount > 0 && (
               <ChargeRow name="Tax" amount={formatCurrency(group.taxAmount, currency)} quiet />
+            )}
+            {group.earlyDepartureFee > 0 && (
+              <ChargeRow
+                name="Early departure fees"
+                amount={formatCurrency(group.earlyDepartureFee, currency)}
+                quiet
+              />
             )}
             <ChargeRow name="Total charges" amount={formatCurrency(group.total, currency)} strong />
           </>

@@ -340,6 +340,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           currency: string | null
+          early_departure_fee: number
           estimated_arrival: string | null
           external_booking_id: string | null
           group_id: string | null
@@ -380,6 +381,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           currency?: string | null
+          early_departure_fee?: number
           estimated_arrival?: string | null
           external_booking_id?: string | null
           group_id?: string | null
@@ -420,6 +422,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           currency?: string | null
+          early_departure_fee?: number
           estimated_arrival?: string | null
           external_booking_id?: string | null
           group_id?: string | null
@@ -2092,6 +2095,14 @@ export type Database = {
           status: string
         }[]
       }
+      check_out_early: {
+        Args: {
+          p_booking_id: string
+          p_hotel_id: string
+          p_unused_nights?: string
+        }
+        Returns: Json
+      }
       check_room_availability: {
         Args: {
           p_check_in: string
@@ -2203,6 +2214,10 @@ export type Database = {
         Returns: string
       }
       prune_push_delivery_data: { Args: never; Returns: undefined }
+      preview_early_check_out: {
+        Args: { p_booking_id: string; p_hotel_id: string }
+        Returns: Json
+      }
       prune_rate_and_ari_data: {
         Args: { p_batch_limit?: number; p_prune_history?: boolean }
         Returns: {

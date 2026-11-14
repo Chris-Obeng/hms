@@ -61,6 +61,8 @@ export interface GroupLineItem {
   roomRate: number | null;
   subtotal: number;
   taxAmount: number | null;
+  /** Kept for nights not used after an early check-out (part of totalAmount). */
+  earlyDepartureFee: number;
   totalAmount: number;
   amountPaid: number;
   outstanding: number;
@@ -75,6 +77,7 @@ export interface BookingGroupSummary {
   outstanding: number;
   subtotal: number;
   taxAmount: number;
+  earlyDepartureFee: number;
   totalRooms: number;
   lines: GroupLineItem[];
 }
@@ -97,6 +100,8 @@ export interface FullBookingDetail {
   roomRate: number | null;
   subtotal: number;
   taxAmount: number | null;
+  /** Kept for nights not used after an early check-out (part of totalAmount). */
+  earlyDepartureFee: number;
   currency: string | null;
   estimatedArrival: string | null;
   specialRequests: string | null;
@@ -152,7 +157,7 @@ export async function getFullBookingDetail(
         id, reference, status, payment_status, payment_preference, source,
         check_in, check_out, nights, adults, children,
         total_amount, amount_paid, outstanding_balance, room_rate,
-        subtotal, tax_amount, currency,
+        subtotal, tax_amount, early_departure_fee, currency,
         estimated_arrival, special_requests, internal_notes,
         check_in_at, check_out_at, cancelled_at, cancellation_reason,
         created_at, updated_at,
@@ -183,7 +188,7 @@ export async function getFullBookingDetail(
         .select(
           `
           id, reference, rooms_count, adults, children,
-          check_in, check_out, nights, room_rate, subtotal, tax_amount,
+          check_in, check_out, nights, room_rate, subtotal, tax_amount, early_departure_fee,
           total_amount, amount_paid, outstanding_balance, payment_status, status,
           room_types(name), rooms(room_number)
         `
@@ -213,6 +218,7 @@ export async function getFullBookingDetail(
             roomRate: r.room_rate,
             subtotal: r.subtotal ?? 0,
             taxAmount: r.tax_amount,
+            earlyDepartureFee: Number(r.early_departure_fee ?? 0),
             totalAmount: total,
             amountPaid: paid,
             outstanding: r.outstanding_balance ?? Math.max(0, total - paid),
@@ -232,6 +238,7 @@ export async function getFullBookingDetail(
           outstanding: lines.reduce((s, l) => s + (isTerminal(l) ? 0 : l.outstanding), 0),
           subtotal: lines.reduce((s, l) => s + (isCancelled(l) ? 0 : l.subtotal), 0),
           taxAmount: lines.reduce((s, l) => s + (isCancelled(l) ? 0 : l.taxAmount ?? 0), 0),
+          earlyDepartureFee: lines.reduce((s, l) => s + (isCancelled(l) ? 0 : l.earlyDepartureFee), 0),
           totalRooms: lines.reduce((s, l) => s + Math.max(1, l.roomsCount ?? 1), 0),
           lines,
         };
@@ -318,6 +325,7 @@ export async function getFullBookingDetail(
       roomRate: booking.room_rate,
       subtotal: booking.subtotal,
       taxAmount: booking.tax_amount,
+      earlyDepartureFee: Number(booking.early_departure_fee ?? 0),
       currency: booking.currency,
       estimatedArrival: booking.estimated_arrival,
       specialRequests: booking.special_requests,

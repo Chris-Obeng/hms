@@ -23,6 +23,7 @@ import { updateHotelProfile } from "@/app/actions/settings";
 import { saveHotelImageUrl } from "@/app/actions/upload";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { type HotelCurrency } from "@/lib/money";
+import { type EarlyDeparturePolicy } from "@/lib/bookings/early-departure";
 import { SaveBar, SettingsGroup, SettingsRow } from "../_components/settings-ui";
 
 const TIMEZONE_OPTIONS = [
@@ -66,6 +67,7 @@ interface HotelSettingsClientProps {
     cancellationPolicy: string;
     taxEnabled: boolean;
     taxPercentage: number;
+    earlyDeparturePolicy: EarlyDeparturePolicy;
   };
   logoUrl: string | null;
   coverImageUrl: string | null;
@@ -374,6 +376,39 @@ export function HotelSettingsClient({
             </NumberField.Group>
           </NumberField>
         )}
+      </SettingsGroup>
+
+      <SettingsGroup title="Early check-out">
+        <Select
+          fullWidth
+          isDisabled={disabled}
+          value={values.earlyDeparturePolicy}
+          onChange={(v) => v && set("earlyDeparturePolicy", v as EarlyDeparturePolicy)}
+        >
+          <Label>When a guest leaves before their booked departure</Label>
+          <Select.Trigger className={FIELD_H}>
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox>
+              <ListBox.Item id="charge" textValue="Charge the unused nights">
+                Charge the unused nights
+                <ListBox.ItemIndicator />
+              </ListBox.Item>
+              <ListBox.Item id="release" textValue="Take the unused nights off the bill">
+                Take the unused nights off the bill
+                <ListBox.ItemIndicator />
+              </ListBox.Item>
+            </ListBox>
+          </Select.Popover>
+        </Select>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Either way the stay ends on the day they leave, so the nights they didn&apos;t use go back on sale and
+          aren&apos;t counted as occupied. Charging keeps the bill as booked and shows the difference as an early
+          departure fee. Taking them off lowers the bill; if the guest has paid more, Oriel reminds you to refund
+          it. Staff can choose differently for one guest when they check them out.
+        </p>
       </SettingsGroup>
 
       {canEdit && (

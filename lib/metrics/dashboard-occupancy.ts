@@ -228,20 +228,25 @@ export interface HistoricalStay {
   rooms_count: number;
   room_id?: string | null;
   status?: string | null;
+  /** First night of the stay. */
+  check_in?: string | null;
   /** When the guest actually checked out; null while still checked in. */
   check_out_at?: string | null;
 }
 
 /**
  * Whether a checked-in or checked-out stay booked over `date` was really in
- * house that night. A guest who checks out early stops counting from the
- * business day they left, so a room resold that day is not counted twice.
- * Leaving at 07:00 on the 1st means the night of the 31st was the last one;
- * a same-day check-in and check-out uses no night at all. Stays with no
- * recorded check-out time keep their booked dates.
+ * house that night. Checking out early now shortens the stay itself
+ * (check_out_early), so for those stays this agrees with the booked dates;
+ * it guards stays checked out before that change. A guest who leaves early
+ * stops counting from the business day they left, so a room resold that day
+ * is not counted twice. The first night always counts: a guest who leaves on
+ * their arrival day used it (as the stay keeps that night when shortened).
+ * Stays with no recorded check-out time keep their booked dates.
  */
 export function wasInHouseOnNight(stay: HistoricalStay, date: string, timeZone: string): boolean {
   if (stay.status !== "checked_out" || !stay.check_out_at) return true;
+  if (stay.check_in && date <= stay.check_in) return true;
   const left = new Date(stay.check_out_at);
   if (!Number.isFinite(left.getTime())) return true;
   return businessDate(timeZone, left) > date;
@@ -255,9 +260,8 @@ export function wasInHouseOnNight(stay: HistoricalStay, date: string, timeZone: 
  * checked out before the night is dropped (see wasInHouseOnNight). Holds have
  * resolved by then, so none.
  *
- * Night Audit still counts room nights by booked dates, because its revenue
- * comes from the booked nightly rates. The two differ only on nights after an
- * early check-out.
+ * Night Audit counts booked dates; with early check-outs shortening the stay,
+ * the two agree.
  */
 export function buildHistoricalRoomsSold({
   context, timeZone, inventory, outOfServiceRoomIds, blockedRoomIds, stays,
