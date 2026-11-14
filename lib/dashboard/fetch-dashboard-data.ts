@@ -62,7 +62,7 @@ export async function fetchDashboardData(
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, rooms_count, created_at, special_requests, internal_notes,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, rooms_count, created_at, cancelled_at, special_requests, internal_notes,
         guests(full_name, email, phone),
         rooms(room_number),
         room_types(name)
@@ -74,7 +74,7 @@ export async function fetchDashboardData(
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, rooms_count, created_at, special_requests, internal_notes,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, rooms_count, created_at, cancelled_at, special_requests, internal_notes,
         guests(full_name, email, phone),
         rooms(room_number),
         room_types(name)
@@ -86,7 +86,7 @@ export async function fetchDashboardData(
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, rooms_count, created_at, special_requests, internal_notes,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, rooms_count, created_at, cancelled_at, special_requests, internal_notes,
         guests(full_name, email, phone),
         rooms(room_number),
         room_types(name)
@@ -98,7 +98,7 @@ export async function fetchDashboardData(
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, rooms_count, created_at, special_requests, internal_notes,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, rooms_count, created_at, cancelled_at, special_requests, internal_notes,
         guests(full_name, email, phone), rooms(room_number), room_types(name)
       `)
       .eq("hotel_id", hotelId)
@@ -119,7 +119,7 @@ export async function fetchDashboardData(
     supabase
       .from("bookings")
       .select(`
-        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, rooms_count, group_id, created_at, special_requests, internal_notes,
+        id, reference, check_in, check_out, status, payment_status, total_amount, amount_paid, outstanding_balance, adults, children, source, nights, room_id, rooms_count, group_id, created_at, cancelled_at, special_requests, internal_notes,
         guests(full_name, email, phone), rooms(room_number), room_types(name)
       `)
       .eq("hotel_id", hotelId)
@@ -176,6 +176,11 @@ export async function fetchDashboardData(
   const cancellationsList = (cancellationsRes.data || []).map(mapBooking);
   const dateBookingsList = (dateBookingsRes.data || []).map(mapBooking);
 
+  // One row per booking across every list. A booking can come back from more
+  // than one query (a booking created and cancelled on the same day is in both
+  // New bookings and Cancellations), so every query selects the same columns,
+  // including cancelled_at. Otherwise the first copy wins and the
+  // Cancellations tab counts a row its list can't show.
   const seen = new Set<string>();
   const uniqueBookings = [...arrivalsList, ...departuresList].filter((b) => {
     if (seen.has(b.id)) return false;
