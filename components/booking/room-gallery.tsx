@@ -3,11 +3,11 @@
 import * as React from "react";
 import Image from "next/image";
 import { Modal, Drawer } from "@heroui/react";
+import { RoomQuantitySelect } from "./room-quantity-select";
 import {
   X,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   Check,
   BedDouble,
   Users,
@@ -188,11 +188,6 @@ export function RoomGallery({
       Available
     </span>
   ) : null;
-
-  const qtyOptions = Array.from(
-    { length: Math.max(1, maxSelectable) },
-    (_, i) => i + 1
-  );
 
   const photoStage = (aspectClass: string) => (
     <div className="flex flex-col gap-3 min-h-0 h-full">
@@ -389,28 +384,15 @@ export function RoomGallery({
         </span>
       ) : (
         <div className="flex items-center gap-3 shrink-0">
-          <div className="relative">
-            <select
-              aria-label={`Number of rooms for ${roomName}`}
-              value={selectedQty}
-              disabled={atLimit && !inCart}
-              onChange={(e) =>
-                onQtyChange(Number.parseInt(e.target.value, 10))
-              }
-              className="h-10 w-24 appearance-none rounded-xl border border-[#DEDEE0] bg-white pl-3 pr-8 text-sm font-medium text-[#18181B] outline-none hover:border-[#A1A1AA] focus:border-[#0485F7] cursor-pointer disabled:opacity-50"
-            >
-              {inCart && <option value={0}>0 rooms</option>}
-              {qtyOptions.map((q) => (
-                <option key={q} value={q}>
-                  {q} {q === 1 ? "room" : "rooms"}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#71717A]"
-              strokeWidth={2}
-            />
-          </div>
+          <RoomQuantitySelect
+            roomName={roomName}
+            value={selectedQty}
+            maxSelectable={maxSelectable}
+            inCart={inCart}
+            isDisabled={atLimit && !inCart}
+            onChange={onQtyChange}
+            className="w-24"
+          />
 
           {inCart ? (
             <button
@@ -431,7 +413,7 @@ export function RoomGallery({
               }}
               className="booking-btn-primary h-10 px-4 inline-flex items-center justify-center text-md cursor-pointer touch-manipulation"
             >
-              {atLimit ? "Limit reached" : "Book"}
+              {atLimit ? "Limit reached" : "Select"}
             </button>
           )}
         </div>

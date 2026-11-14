@@ -72,6 +72,21 @@ export async function getPlatformFeeConfig(): Promise<PlatformFeeConfig> {
 }
 
 /**
+ * Starts getPlatformFeeConfig() early, so the read overlaps other database
+ * work instead of adding a round trip before the Paystack call.
+ *
+ * Await the result where the fee is needed: a rejection still surfaces there,
+ * inside that call site's error handling. The no-op handler only stops a
+ * promise that is never awaited (the request ended early) from being reported
+ * as an unhandled rejection.
+ */
+export function startPlatformFeeConfigRead(): Promise<PlatformFeeConfig> {
+  const read = getPlatformFeeConfig();
+  read.catch(() => {});
+  return read;
+}
+
+/**
  * The platform fee for one charge, in the charge currency's smallest unit.
  *
  * - Percentage: round(totalMinor × pct / 100) — integer math, currency-agnostic.
