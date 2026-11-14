@@ -8,7 +8,7 @@
 --      * hard rules: same room type, active, not maintenance/out of service,
 --        no availability block and no active stay over [check_in, check_out).
 --        Abandoned payment holds still count as occupying the room here, since
---        bookings_no_room_date_overlap counts them until they are swept, so a
+--        bookings_no_room_overlap counts them until they are swept, so a
 --        chosen room can never fail the insert;
 --      * for a stay starting today or earlier, a vacant ready room
 --        (status 'available') first, so the guest can go straight in;
@@ -16,15 +16,27 @@
 --        and the room's neighbouring stays (each side capped at 30). Back to
 --        back stays come first and empty rooms stay free for long bookings;
 --      * then room number in numeric order ("room 2" before "room 10").
+--    Only stays of the same room type within 30 nights of the stay are read
+--    (further ones cannot change the result, since each gap is capped at 30),
+--    so the cost does not grow with the hotel's whole booking history.
+--    bookings_private.property_today() gives the hotel's local date without
+--    scanning pg_timezone_names on every call.
 -- 2. create_booking_atomic() uses it when assign_room is true, and now takes
 --    the (hotel, room type) advisory lock before it reads availability, so
---    concurrent bookings cannot pick the same room. Everything else in the
---    function is unchanged from 20261112063939 (verified against the live
---    definition before this change).
+--    concurrent bookings cannot pick the same room. A staff-chosen room is
+--    also checked against abandoned holds, like the picker, so a desk booking
+--    of that room gets "room_conflict" instead of failing the overlap
+--    constraint. Everything else in the function is unchanged from
+--    20261112063939 (verified against the live definition before this change).
 -- 3. expire_stale_payment_holds() releases the room of a hold it cancels. A
 --    payment that lands after expiry revives the hold; with its old room kept,
 --    a colleague's booking of that room since would mark the paid guest as
 --    sold out even when another room of the type is free.
+-- 4. public.pick_best_room_for_booking() lets the calendar's "Assign" button
+--    use the same rule for an existing unassigned stay (service role only).
+-- 5. assert_availability_block_no_booking_conflict() no longer ignores
+--    abandoned holds: they keep their room until swept, so a block over one
+--    would leave a revived (late-paid) stay on a blocked room.
 -- =============================================================================
 
 BEGIN;
@@ -35,6 +47,34 @@ SET LOCAL statement_timeout = '30s';
 -- ── 1. Room picker ────────────────────────────────────────────────────────────
 CREATE SCHEMA IF NOT EXISTS bookings_private;
 REVOKE ALL ON SCHEMA bookings_private FROM PUBLIC, anon, authenticated, service_role;
+
+-- The hotel's local date. An unknown or malformed zone falls back to the
+-- database date (UTC), matching businessToday() in lib/business-date.ts, which
+-- falls back to UTC. Only IANA-style names are tried: POSIX strings such as
+-- 'UTC+3' mean the opposite offset in Postgres and are rejected by the
+-- browser, so they fall back on both sides.
+CREATE OR REPLACE FUNCTION bookings_private.property_today(p_hotel_id uuid)
+RETURNS date
+LANGUAGE plpgsql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, public
+AS $fn$
+DECLARE
+  v_zone text;
+BEGIN
+  SELECT h.timezone INTO v_zone FROM public.hotels h WHERE h.id = p_hotel_id;
+  IF v_zone IS NULL OR v_zone !~ '^[A-Za-z][A-Za-z0-9_]*(/[A-Za-z0-9_+-]+)*$' THEN
+    RETURN current_date;
+  END IF;
+  RETURN (now() AT TIME ZONE v_zone)::date;
+EXCEPTION WHEN invalid_parameter_value THEN
+  RETURN current_date;
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION bookings_private.property_today(uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION bookings_private.pick_best_room(
   p_hotel_id uuid,
@@ -49,21 +89,25 @@ STABLE
 SECURITY INVOKER
 SET search_path = pg_catalog, public
 AS $fn$
+  -- Only stays on rooms of this type, within 30 nights of the stay: a stay
+  -- further away cannot change the order, since each gap is capped at 30.
+  -- Filtering on the room (not bookings.room_type_id) also covers an assigned
+  -- stay whose room_type_id is NULL.
   WITH stays AS (
     SELECT b.room_id, b.check_in, b.check_out
       FROM public.bookings b
+      JOIN public.rooms tr
+        ON tr.id = b.room_id
+       AND tr.hotel_id = p_hotel_id
+       AND tr.room_type_id = p_room_type_id
      WHERE b.hotel_id = p_hotel_id
-       AND b.room_id IS NOT NULL
        AND b.status IN ('pending', 'confirmed', 'checked_in')
+       AND b.check_in < p_check_out + 30
+       AND b.check_out > p_check_in - 30
        AND (p_exclude_booking_id IS NULL OR b.id <> p_exclude_booking_id)
   ),
   property_today AS (
-    SELECT COALESCE(
-             (SELECT (now() AT TIME ZONE h.timezone)::date
-                FROM public.hotels h
-               WHERE h.id = p_hotel_id
-                 AND h.timezone IN (SELECT tz.name FROM pg_catalog.pg_timezone_names tz)),
-             current_date) AS d
+    SELECT bookings_private.property_today(p_hotel_id) AS d
   )
   SELECT r.id
     FROM public.rooms r
@@ -95,7 +139,7 @@ AS $fn$
 $fn$;
 
 COMMENT ON FUNCTION bookings_private.pick_best_room(uuid, uuid, date, date, uuid) IS
-  'Best free room of a type for [check_in, check_out), or NULL. Hard rules: active, in service, unblocked, no overlapping active stay (abandoned holds included). Order: ready rooms first for stays starting today, then tightest fit with neighbouring stays, then numeric room number. Used by create_booking_atomic(assign_room).';
+  'Best free room of a type for [check_in, check_out), or NULL. Hard rules: active, in service, unblocked, no overlapping active stay (abandoned holds included). Order: ready rooms first for stays starting today, then tightest fit with neighbouring stays, then numeric room number. Used by create_booking_atomic(assign_room) and pick_best_room_for_booking().';
 
 REVOKE ALL ON FUNCTION bookings_private.pick_best_room(uuid, uuid, date, date, uuid)
   FROM PUBLIC, anon, authenticated, service_role;
@@ -233,7 +277,8 @@ BEGIN
   -- take the same lock at INSERT; taking it here as well means two bookings
   -- racing for the last free room cannot both choose it: the second waits,
   -- then sees the first. Re-entrant, so the group writer (which already holds
-  -- it) is unaffected.
+  -- it) is unaffected. Lock order is type, then guest row, the same order the
+  -- booking triggers (type lock BEFORE, guest statistics AFTER) already use.
   PERFORM pg_advisory_xact_lock(
     hashtextextended(v_hotel_id::text || ':' || v_room_type_id::text, 0)
   );
@@ -269,6 +314,9 @@ BEGIN
         USING ERRCODE = 'P0001', DETAIL = 'room_not_bookable';
     END IF;
 
+    -- Abandoned holds count here too: bookings_no_room_overlap counts them
+    -- until they are swept, so ignoring them only turned a named
+    -- room_conflict into a bare overlap violation at INSERT.
     DECLARE
       v_conflict text;
     BEGIN
@@ -279,13 +327,6 @@ BEGIN
        WHERE b.room_id = v_room_id
          AND b.hotel_id = v_hotel_id
          AND b.status IN ('pending', 'confirmed', 'checked_in')
-         AND NOT (
-               b.status = 'pending'
-           AND b.payment_status = 'unpaid'
-           AND b.payment_preference = 'pay_now'
-           AND b.source = 'direct'
-           AND b.created_at < now() - interval '30 minutes'
-         )
          AND b.check_in < v_check_out
          AND b.check_out > v_check_in
        LIMIT 1;
@@ -518,5 +559,92 @@ COMMENT ON FUNCTION public.expire_stale_payment_holds() IS
 
 REVOKE ALL ON FUNCTION public.expire_stale_payment_holds() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.expire_stale_payment_holds() TO service_role;
+
+-- ── 4. Best room for an existing unassigned stay (calendar "Assign") ─────────
+-- The calendar only loads the visible dates, so it cannot see neighbouring
+-- or overlapping stays outside them. The server action asks here instead and
+-- then assigns through its usual checks. NULL when no single room is free,
+-- the booking is not open, or it does not belong to the hotel.
+CREATE OR REPLACE FUNCTION public.pick_best_room_for_booking(
+  p_hotel_id uuid,
+  p_booking_id uuid
+)
+RETURNS uuid
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $fn$
+  SELECT bookings_private.pick_best_room(
+           b.hotel_id, b.room_type_id, b.check_in, b.check_out, b.id)
+    FROM public.bookings b
+   WHERE b.id = p_booking_id
+     AND b.hotel_id = p_hotel_id
+     AND b.room_type_id IS NOT NULL
+     AND b.status IN ('pending', 'confirmed', 'checked_in')
+$fn$;
+
+COMMENT ON FUNCTION public.pick_best_room_for_booking(uuid, uuid) IS
+  'Best free room (bookings_private.pick_best_room) for an open booking of the hotel, excluding the booking itself, or NULL. Service role only; the caller assigns it.';
+
+REVOKE ALL ON FUNCTION public.pick_best_room_for_booking(uuid, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.pick_best_room_for_booking(uuid, uuid) TO service_role;
+
+-- ── 5. Blocks respect abandoned holds until they are swept ──────────────────
+-- Same body as 20261112063939 minus the abandoned-hold exemption. Such a hold
+-- keeps its room until expire_stale_payment_holds() runs, and a late payment
+-- in that window confirms it in place, so a block over it would leave a paid
+-- stay on a blocked room.
+CREATE OR REPLACE FUNCTION public.assert_availability_block_no_booking_conflict()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $fn$
+DECLARE
+  v_room_type_id uuid;
+  v_conflict_ref text;
+BEGIN
+  SELECT r.room_type_id INTO v_room_type_id
+    FROM public.rooms r
+   WHERE r.id = NEW.room_id
+     AND r.hotel_id = NEW.hotel_id;
+
+  IF v_room_type_id IS NULL THEN
+    RAISE EXCEPTION 'Room % does not belong to hotel %', NEW.room_id, NEW.hotel_id
+      USING ERRCODE = '23503';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended(NEW.hotel_id::text || ':' || v_room_type_id::text, 0)
+  );
+
+  SELECT b.reference INTO v_conflict_ref
+    FROM public.bookings b
+   WHERE b.hotel_id = NEW.hotel_id
+     AND b.room_id = NEW.room_id
+     AND b.status IN ('pending', 'confirmed', 'checked_in')
+     AND b.check_in < NEW.end_date
+     AND b.check_out > NEW.start_date
+   ORDER BY b.check_in
+   LIMIT 1;
+
+  IF v_conflict_ref IS NOT NULL THEN
+    RAISE EXCEPTION 'Room % has active booking % overlapping [% to %)',
+      NEW.room_id, v_conflict_ref, NEW.start_date, NEW.end_date
+      USING ERRCODE = '23P01',
+            CONSTRAINT = 'availability_blocks_no_booking_overlap',
+            DETAIL = 'room_conflict',
+            HINT = v_conflict_ref;
+  END IF;
+
+  RETURN NEW;
+END;
+$fn$;
+
+COMMENT ON FUNCTION public.assert_availability_block_no_booking_conflict() IS
+  'BEFORE INSERT/UPDATE guard on availability_blocks: serializes on (hotel_id, room_type_id) with assert_room_type_inventory() and refuses blocks overlapping an active assigned reservation, abandoned payment holds included until they are swept.';
+
+REVOKE ALL ON FUNCTION public.assert_availability_block_no_booking_conflict() FROM PUBLIC, anon, authenticated;
 
 COMMIT;

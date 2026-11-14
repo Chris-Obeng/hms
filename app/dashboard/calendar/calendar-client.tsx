@@ -17,7 +17,7 @@ import { CAPS, onIdle, isFresh } from "@/lib/cache/prefetch-helpers";
 import { getSourceLabel, getStatusLabel } from "@/lib/booking-status";
 import { toStoredBlockRange } from "@/lib/calendar-domain";
 import {
-  assignBookingToRoom,
+  autoAssignBooking,
   getCalendarData,
   moveBooking,
   previewRoomTypeMove,
@@ -153,7 +153,8 @@ function CalendarClientContent({
   const calendarScope = React.useMemo(() => ["calendar", orgId, hotelId] as const, [orgId, hotelId]);
 
   // The server-rendered seed may stand in for any view inside its range until
-  // the first change: after that it is stale and views load fresh data.
+  // the first change or the first fresh read: after that it is stale and views
+  // load fresh data.
   const [seedValid, setSeedValid] = React.useState(true);
   // When the seed was read. The server's clock may run ahead of this one, so
   // never stamp it later than now: a seed stamped in the future would count as
@@ -205,7 +206,14 @@ function CalendarClientContent({
     refetch,
   } = useQuery({
     queryKey: qk.calendar(orgId || "", hotelId, dateStr, days),
-    queryFn: () => getCalendarData(dateStr, days),
+    // Once any range has been read again (including the 60s backstop below),
+    // the seed is older than what the server has shown, e.g. a block a
+    // colleague deleted, so other views stop reusing it.
+    queryFn: async () => {
+      const data = await getCalendarData(dateStr, days);
+      setSeedValid(false);
+      return data;
+    },
     enabled: !!orgId,
     initialData: canReuseSeed ? initialData : undefined,
     initialDataUpdatedAt: canReuseSeed ? seedUpdatedAt : undefined,
@@ -562,6 +570,10 @@ function CalendarClientContent({
     const handleStatus = (status: string, err?: Error) => {
       setRealtimeStatus(status === "SUBSCRIBED" ? "live" : "reconnecting");
       if (status === "SUBSCRIBED") {
+        // A rejoin by realtime-js itself may land before our own retry fires;
+        // cancel it, or it would tear the healthy channel down and refetch twice.
+        if (retryTimer) window.clearTimeout(retryTimer);
+        retryTimer = undefined;
         if (interrupted) batchRefresh();
         joined = true;
         interrupted = false;
@@ -737,7 +749,11 @@ function CalendarClientContent({
     async (
       bookingId: string,
       patch: BookingPatch,
-      write: () => Promise<{ success: true } | { success: false; error: string }>,
+      /** On success the write may return the patch the server actually
+       *  applied (e.g. the room it chose), which replaces the guess. */
+      write: () => Promise<
+        { success: true; patch?: BookingPatch } | { success: false; error: string }
+      >,
       fallbackError: string
     ) => {
       if (savingRef.current.has(bookingId)) return;
@@ -747,6 +763,9 @@ function CalendarClientContent({
       try {
         const result = await write();
         if (!result.success) throw new Error(result.error);
+        if (result.patch) {
+          putEntry(setBookingPatches, bookingId, { value: result.patch, settledAt: null, token });
+        }
         settleEntry(setBookingPatches, bookingId, token);
         resyncAfterWrite();
       } catch (error) {
@@ -830,20 +849,27 @@ function CalendarClientContent({
       const booking = bookings.find((item) => item.id === bookingId);
       if (!booking) return;
 
-      const target = pickBestRoom(booking, {
+      // The server picks the room: it sees every stay, not just the loaded
+      // dates. The local pick only places the bar at once, and the server's
+      // answer replaces it (they differ only when stays outside the view matter).
+      const guess = pickBestRoom(booking, {
         rooms,
         bookings,
         blocks: availabilityBlocks,
         today: businessDateKey,
       });
-      if (!target) {
-        toast.danger("No room of this type is free for the whole stay. Move a booking or change the dates.");
-        return;
-      }
       await runBookingWrite(
         bookingId,
-        buildBookingPatch(booking, target, booking.checkIn, booking.checkOut),
-        () => assignBookingToRoom(bookingId, target.id),
+        buildBookingPatch(booking, guess, booking.checkIn, booking.checkOut),
+        async () => {
+          const result = await autoAssignBooking(bookingId);
+          if (!result.success) return result;
+          const room = rooms.find((item) => item.id === result.roomId) ?? null;
+          return {
+            success: true,
+            ...(room ? { patch: buildBookingPatch(booking, room, booking.checkIn, booking.checkOut) } : {}),
+          };
+        },
         "Couldn't assign the room. Try again."
       );
     },

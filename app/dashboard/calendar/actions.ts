@@ -745,6 +745,63 @@ export async function assignBookingToRoom(
   }
 }
 
+export type AutoAssignResult =
+  | { success: true; roomId: string }
+  | { success: false; error: string };
+
+/**
+ * Assigns an unassigned booking to the best free room, chosen on the server
+ * by `public.pick_best_room_for_booking` (the rule new reservations get). The
+ * calendar only loads the visible dates, so it cannot see neighbouring or
+ * overlapping stays outside them; the database can. The pick is then written
+ * through `assignBookingToRoom`, so every check and the audit entry still apply.
+ */
+export async function autoAssignBooking(bookingId: string): Promise<AutoAssignResult> {
+  try {
+    const { hotelId } = await getHotelScopedClient();
+
+    const { role } = await getCurrentStaffRole();
+    if (!can(role, "calendar:edit")) {
+      return { success: false, error: "You don't have permission to assign rooms" };
+    }
+    if (!uuidParam.safeParse(bookingId).success) {
+      return { success: false, error: "Invalid booking" };
+    }
+
+    // Service role: the picker is not exposed to staff JWTs. hotelId comes
+    // from the session, and the function only answers for that hotel's
+    // open bookings.
+    const { data: roomId, error } = await supabaseAdmin.rpc("pick_best_room_for_booking", {
+      p_hotel_id: hotelId,
+      p_booking_id: bookingId,
+    });
+    if (error) {
+      reportCalendarFailure("autoAssignBooking: pick failed", {
+        hotelId,
+        bookingId,
+        tags: { code: error.code },
+        contexts: { supabase: { message: error.message } },
+      });
+      return { success: false, error: "Couldn't assign the room. Try again." };
+    }
+    if (!roomId) {
+      return {
+        success: false,
+        error: "No room of this type is free for the whole stay. Move a booking or change the dates.",
+      };
+    }
+
+    const assigned = await assignBookingToRoom(bookingId, roomId);
+    return assigned.success ? { success: true, roomId } : assigned;
+  } catch (err) {
+    reportCalendarFailure("autoAssignBooking: unexpected failure", {
+      bookingId,
+      contexts: { error: { message: err instanceof Error ? err.message : String(err) } },
+    });
+    return { success: false, error: "Assignment failed — try again" };
+  }
+}
+
 // ── Move Booking (drag-and-drop) ──────────────────────────────────────
 
 export type MoveBookingResult =

@@ -2105,6 +2105,10 @@ export type Database = {
       get_user_clerk_org_ids: { Args: never; Returns: string[] }
       get_user_hotel_ids: { Args: never; Returns: string[] }
       hotel_currency: { Args: { p_hotel_id: string }; Returns: string }
+      pick_best_room_for_booking: {
+        Args: { p_booking_id: string; p_hotel_id: string }
+        Returns: string
+      }
       prune_push_delivery_data: { Args: never; Returns: undefined }
       prune_rate_and_ari_data: {
         Args: { p_batch_limit?: number; p_prune_history?: boolean }
