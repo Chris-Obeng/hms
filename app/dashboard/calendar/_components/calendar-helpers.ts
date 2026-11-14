@@ -102,8 +102,8 @@ export const CALENDAR_LEGEND: LegendItem[] = [
 
 export const BLOCK_REASONS = [
   { value: "maintenance", label: "Maintenance" },
-  { value: "deep_cleaning", label: "Deep Cleaning" },
-  { value: "owner_use", label: "Owner Use" },
+  { value: "deep_cleaning", label: "Deep cleaning" },
+  { value: "owner_use", label: "Owner use" },
   { value: "renovation", label: "Renovation" },
   { value: "other", label: "Other" },
 ] as const;
