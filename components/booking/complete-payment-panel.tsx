@@ -1,12 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, Lock } from "lucide-react";
+import { Spinner } from "@heroui/react";
+import { Lock } from "lucide-react";
 
 interface CompletePaymentPanelProps {
   slug: string;
   reference: string;
   amountLabel: string;
+  /** Overrides the panel heading, e.g. after a failed attempt. */
+  title?: string;
+  /** Overrides the line under the heading. */
+  description?: React.ReactNode;
+  /** Overrides the button text. */
+  ctaLabel?: string;
   /** Shown when a previous attempt visibly failed (card declined, timeout). */
   note?: string | null;
 }
@@ -20,10 +27,24 @@ export function CompletePaymentPanel({
   slug,
   reference,
   amountLabel,
+  title,
+  description,
+  ctaLabel,
   note,
 }: CompletePaymentPanelProps) {
   const [starting, setStarting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(note ?? null);
+
+  // Returning with the browser's Back button can restore this page from the
+  // back/forward cache with the spinner still on. Reset it so the guest can
+  // try again.
+  React.useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) setStarting(false);
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   async function start() {
     if (starting) return;
@@ -36,7 +57,8 @@ export function CompletePaymentPanel({
       );
       const data = await res.json().catch(() => null);
       if (res.ok && data?.authorizationUrl) {
-        window.location.href = data.authorizationUrl as string;
+        // Keep the spinner on until Paystack's page replaces this one.
+        window.location.assign(data.authorizationUrl as string);
         return;
       }
       setError(
@@ -45,9 +67,8 @@ export function CompletePaymentPanel({
       );
     } catch {
       setError("Network error. Please check your connection and try again.");
-    } finally {
-      setStarting(false);
     }
+    setStarting(false);
   }
 
   return (
@@ -58,14 +79,18 @@ export function CompletePaymentPanel({
         </span>
         <div className="min-w-0">
           <p className="text-sm font-semibold text-[var(--bk-ink)]">
-            Payment required to confirm
+            {title ?? "Payment required to confirm"}
           </p>
           <p className="text-xs text-[var(--bk-muted)] mt-1 leading-relaxed">
-            Your room is held for 30 minutes. Complete the secure payment of{" "}
-            <span className="booking-price font-semibold text-[var(--bk-ink)]">
-              {amountLabel}
-            </span>{" "}
-            to confirm this reservation.
+            {description ?? (
+              <>
+                Your room is held for 30 minutes. Complete the secure payment of{" "}
+                <span className="booking-price font-semibold text-[var(--bk-ink)]">
+                  {amountLabel}
+                </span>{" "}
+                to confirm this reservation.
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -83,15 +108,16 @@ export function CompletePaymentPanel({
         type="button"
         onClick={start}
         disabled={starting}
+        aria-busy={starting}
         className="booking-cta booking-cta-accent w-full h-12 rounded-xl text-sm touch-manipulation inline-flex items-center justify-center gap-2"
       >
         {starting ? (
           <>
-            <Loader2 className="size-4 animate-spin" />
+            <Spinner size="sm" color="current" />
             Starting secure checkout…
           </>
         ) : (
-          <>Pay {amountLabel} securely</>
+          <>{ctaLabel ?? `Pay ${amountLabel} securely`}</>
         )}
       </button>
     </div>
