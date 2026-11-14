@@ -2213,11 +2213,11 @@ export type Database = {
         Args: { p_booking_id: string; p_hotel_id: string }
         Returns: string
       }
-      prune_push_delivery_data: { Args: never; Returns: undefined }
       preview_early_check_out: {
         Args: { p_booking_id: string; p_hotel_id: string }
         Returns: Json
       }
+      prune_push_delivery_data: { Args: never; Returns: undefined }
       prune_rate_and_ari_data: {
         Args: { p_batch_limit?: number; p_prune_history?: boolean }
         Returns: {
