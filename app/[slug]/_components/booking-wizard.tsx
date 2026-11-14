@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { preconnect } from "react-dom";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { toast, ListBox, Select } from "@heroui/react";
+import { Label, ListBox, Radio, RadioGroup, Select, Spinner } from "@heroui/react";
 import { format, parseISO } from "date-fns";
 import { COUNTRIES } from "@/lib/countries-data";
 import {
@@ -28,8 +29,6 @@ import {
   User,
   Mail,
   Flag,
-  CircleCheckBig,
-  Circle,
   CircleAlert,
   Lock,
   Check,
@@ -37,6 +36,13 @@ import {
   X,
 } from "lucide-react";
 import { RoomGallery } from "@/components/booking/room-gallery";
+import { RoomQuantitySelect } from "@/components/booking/room-quantity-select";
+import { bookingToast } from "@/components/booking/booking-toast";
+import { openPaystackCheckout, preloadPaystackPopup } from "@/lib/paystack-popup";
+import {
+  findPhoneCountry,
+  PhoneCountryPicker,
+} from "@/components/booking/phone-country-picker";
 import { fromMinor, sumMinor, toMinor } from "@/lib/money";
 import { BookingDateRangePicker } from "@/components/booking/booking-date-range-picker";
 import { GuestPickerPopover } from "@/components/booking/guest-picker-popover";
@@ -140,6 +146,19 @@ type PricedLine = {
   blocked: boolean;
 };
 
+const PAYMENT_OPTIONS = [
+  {
+    id: "pay_now",
+    title: "Pay online",
+    desc: "Card or mobile money · instant confirmation",
+  },
+  {
+    id: "pay_at_checkin",
+    title: "Pay on arrival",
+    desc: "Reserve free · settle at check-in",
+  },
+] as const;
+
 const DEFAULT_MAX_CHILDREN = 6;
 function childrenCapFor(rt: { maxChildren: number }): number {
   return rt.maxChildren > 0 ? rt.maxChildren : DEFAULT_MAX_CHILDREN;
@@ -230,6 +249,9 @@ export function BookingWizard({
   const [guestEmail, setGuestEmail] = React.useState("");
   const [localPhone, setLocalPhone] = React.useState("");
   const [nationality, setNationality] = React.useState("Ghana");
+  // The number's country is chosen on its own: a Nigerian guest can have a
+  // Ghanaian number. Stored as an ISO code, defaulting to Ghana.
+  const [phoneCountry, setPhoneCountry] = React.useState("GH");
   const [showExtras, setShowExtras] = React.useState(false);
   const [specialRequests, setSpecialRequests] = React.useState("");
   const [paymentPref, setPaymentPref] = React.useState<
@@ -248,6 +270,50 @@ export function BookingWizard({
   });
   const [availNonce, setAvailNonce] = React.useState(0);
   const roomsListRef = React.useRef<HTMLDivElement>(null);
+
+  // Online payment runs in Paystack's checkout (an iframe from
+  // checkout.paystack.com, or that site itself as the fallback). Opening the
+  // connection while the guest fills in their details saves the DNS, TCP and
+  // TLS setup.
+  const preparePaystack = section === 2 && paymentPref === "pay_now";
+  if (preparePaystack) {
+    preconnect("https://checkout.paystack.com");
+  }
+
+  // Load Paystack's checkout while the guest types, so the form opens over
+  // the page as soon as the booking is created. A failed load is retried on
+  // "Book now", which falls back to the hosted checkout page.
+  React.useEffect(() => {
+    if (preparePaystack) preloadPaystackPopup().catch(() => {});
+  }, [preparePaystack]);
+
+  // Set once "Book now" has created a payment hold: from then on this page
+  // must not offer "Book now" again for the same stay.
+  const createdHoldRef = React.useRef<{
+    reference: string;
+    paymentReference: string;
+  } | null>(null);
+
+  // The spinner stays on while the browser leaves for Paystack's hosted page.
+  // Back can restore this page from the back/forward cache with it still on.
+  // If a hold was created, go to its confirmation page, which checks the
+  // payment; re-enabling "Book now" would let a second tap make a second
+  // booking. Otherwise just switch the spinner off.
+  React.useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      const hold = createdHoldRef.current;
+      if (hold) {
+        router.replace(
+          `/${slug}/confirmation?bref=${encodeURIComponent(hold.reference)}&trxref=${encodeURIComponent(hold.paymentReference)}`
+        );
+        return;
+      }
+      setSubmitting(false);
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, [router, slug]);
 
   const goToSection = React.useCallback((next: BookingStepId) => {
     if (next === 1 || next === 2) {
@@ -298,7 +364,7 @@ export function BookingWizard({
         if (cancelled) return;
         if (!json?.rooms) {
           setResolvedPrices({});
-          toast.danger(
+          bookingToast.danger(
             "Could not load live rates for these dates. Please try again."
           );
           return;
@@ -544,10 +610,8 @@ export function BookingWizard({
     pricesResolved &&
     pricedLines.every((p) => !p.blocked);
 
-  const selectedCountryObj =
-    countryList.find((c) => c.name === nationality) ?? countryList[0];
-  const selectedDialCode = selectedCountryObj?.dialCode || "+233";
-  const selectedCountryCode = selectedCountryObj?.code || "GH";
+  const nationalityCountry = countryList.find((c) => c.name === nationality);
+  const selectedDialCode = findPhoneCountry(phoneCountry).dialCode;
 
   // Build compact E.164/international phone string from prefix + local number
   // so it satisfies the server's `z.string().min(7).max(20)` schema even when
@@ -631,12 +695,13 @@ export function BookingWizard({
 
     const isGroup = totalRooms > 1;
     if (totalRooms > RESERVATION_ROOM_CAP) {
-      toast.danger(
+      bookingToast.danger(
         `A reservation can hold up to ${RESERVATION_ROOM_CAP} rooms. Please adjust your selection.`
       );
       return;
     }
 
+    let leaving = false;
     setSubmitting(true);
     try {
       const guestFields = {
@@ -680,7 +745,7 @@ export function BookingWizard({
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         if (res.status === 409) {
-          toast.danger(
+          bookingToast.danger(
             data?.error ??
               "A room was just taken for these dates. Adjust your selection or change your dates."
           );
@@ -689,27 +754,49 @@ export function BookingWizard({
           return;
         }
         if (res.status === 410 || res.status === 400) {
-          toast.danger(
+          bookingToast.danger(
             data?.error ??
               "Reservation failed. Please check your details and try again."
           );
           if (res.status === 410) goToSection(1);
           return;
         }
-        toast.danger(
+        bookingToast.danger(
           data?.error ?? "Reservation failed. Please check your details."
         );
         return;
       }
+      // Leaving the page: keep the spinner on until the next page replaces
+      // this one. Switching it off here showed "Book now" again while the
+      // browser was still loading, and a second tap made a second booking.
+      leaving = true;
       if (data.paymentRequired && data.authorizationUrl) {
-        window.location.assign(data.authorizationUrl);
+        createdHoldRef.current = {
+          reference: data.reference,
+          paymentReference: data.paymentReference ?? "",
+        };
+        // The hold now exists, so every way out of checkout leads to the
+        // confirmation page, which verifies the payment with Paystack. Staying
+        // here after a cancel would let "Book now" create a second booking.
+        const toConfirmation = (paymentReference: string) =>
+          router.push(
+            `/${slug}/confirmation?bref=${encodeURIComponent(data.reference)}&trxref=${encodeURIComponent(paymentReference)}`
+          );
+        await openPaystackCheckout({
+          accessCode: data.accessCode,
+          authorizationUrl: data.authorizationUrl,
+          reference: data.paymentReference ?? "",
+          onSuccess: toConfirmation,
+          onClose: toConfirmation,
+        });
         return;
       }
       router.push(`/${slug}/confirmation?reference=${data.reference}`);
     } catch {
-      toast.danger("Network error. Please try again.");
+      leaving = false;
+      bookingToast.danger("Network error. Please try again.");
     } finally {
-      setSubmitting(false);
+      if (!leaving) setSubmitting(false);
     }
   }
 
@@ -1199,9 +1286,10 @@ export function BookingWizard({
                             : "border-[#DEDEE0]"
                         }`}
                       >
-                        <span className="inline-flex shrink-0 items-center bg-[#F5F5F5] border-r border-[#DEDEE0] px-3 text-xs font-medium text-[#71717A] select-none">
-                          {selectedCountryCode} {selectedDialCode}
-                        </span>
+                        <PhoneCountryPicker
+                          value={phoneCountry}
+                          onChange={setPhoneCountry}
+                        />
                         <input
                           id="bk-phone"
                           type="tel"
@@ -1242,7 +1330,7 @@ export function BookingWizard({
                         <Select.Trigger className="h-11 md:h-10 w-full rounded-xl border border-[#DEDEE0] bg-white px-3 text-sm text-[#18181B] flex items-center justify-between shadow-none hover:border-[#A1A1AA] focus-visible:border-[#0485F7]">
                           <Select.Value>
                             {({ defaultChildren, isPlaceholder }) => {
-                              if (isPlaceholder || !selectedCountryObj) {
+                              if (isPlaceholder || !nationalityCountry) {
                                 return (
                                   <span className="flex items-center gap-2 text-[#71717A]">
                                     <Flag className="size-4 shrink-0 text-[#71717A]" />
@@ -1254,7 +1342,7 @@ export function BookingWizard({
                                 <span className="flex items-center gap-2 truncate text-[#18181B]">
                                   <Flag className="size-4 shrink-0 text-[#71717A]" />
                                   <span className="truncate">
-                                    {selectedCountryObj.name}
+                                    {nationalityCountry.name}
                                   </span>
                                 </span>
                               );
@@ -1268,23 +1356,12 @@ export function BookingWizard({
                               <ListBox.Item
                                 key={c.name}
                                 id={c.name}
-                                textValue={`${c.name} ${c.dialCode}`}
-                                className="text-sm px-3 py-2 rounded-lg cursor-pointer hover:bg-[#F5F5F5] flex items-center gap-2 text-[#18181B]"
+                                textValue={c.name}
+                                className="text-sm ps-3 pe-8 py-2 rounded-lg cursor-pointer hover:bg-[#F5F5F5] flex items-center gap-2 text-[#18181B]"
                               >
-                                <span
-                                  className="text-base leading-none"
-                                  aria-hidden
-                                >
-                                  {c.flag}
-                                </span>
                                 <span className="flex-1 truncate">
                                   {c.name}
                                 </span>
-                                {c.dialCode ? (
-                                  <span className="text-xs text-[#71717A] shrink-0">
-                                    {c.dialCode}
-                                  </span>
-                                ) : null}
                                 <ListBox.ItemIndicator />
                               </ListBox.Item>
                             ))}
@@ -1325,71 +1402,56 @@ export function BookingWizard({
 
                   {/* Payment selection card (`DhW2Y` / `ultj7`) */}
                   {hotel.paymentPolicy === "choice" && hotel.hasPaystack && (
-                    <div className="rounded-2xl md:rounded-3xl bg-white border border-[#E4E4E7] p-4 md:p-6 space-y-3 md:space-y-3">
-                      <h2 className="text-md font-semibold text-[#18181B]">
+                    <RadioGroup
+                      name="payment_preference"
+                      value={paymentPref}
+                      onChange={(value) =>
+                        setPaymentPref(
+                          value === "pay_at_checkin" ? "pay_at_checkin" : "pay_now"
+                        )
+                      }
+                      className="rounded-2xl md:rounded-3xl bg-white border border-[#E4E4E7] p-4 md:p-6 gap-3 [--field-border:#A1A1AA] [--border-width-field:1px]"
+                    >
+                      <Label className="text-md font-semibold text-[#18181B]">
                         Payment
-                      </h2>
-
-                      {(
-                        [
-                          {
-                            id: "pay_now" as const,
-                            title: "Pay online",
-                            desc: "Card or mobile money · instant confirmation",
-                          },
-                          {
-                            id: "pay_at_checkin" as const,
-                            title: "Pay on arrival",
-                            desc: "Reserve free · settle at check-in",
-                          },
-                        ] as const
-                      ).map((opt) => {
-                        const active = paymentPref === opt.id;
-                        return (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => setPaymentPref(opt.id)}
-                            aria-pressed={active}
-                            className={`flex w-full items-center gap-3 rounded-xl bg-white p-3 md:p-4 text-left transition-colors cursor-pointer touch-manipulation ${
-                              active
-                                ? "border-[1.5px] border-[#0485F7]"
-                                : "border border-[#E4E4E7] hover:border-[#DEDEE0]"
-                            }`}
+                      </Label>
+                      {PAYMENT_OPTIONS.map((opt) => (
+                        <Radio key={opt.id} value={opt.id} className="mt-0 w-full">
+                          <Radio.Content
+                            className={[
+                              "flex w-full items-center gap-3 rounded-xl border bg-white p-3 md:p-4 cursor-pointer touch-manipulation transition-colors",
+                              "border-[#E4E4E7] [@media(hover:hover)]:data-[hovered=true]:border-[#DEDEE0]",
+                              "data-[selected=true]:border-[#0485F7] data-[selected=true]:shadow-[inset_0_0_0_0.5px_#0485F7]",
+                              "data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-[#0485F7]/30",
+                            ].join(" ")}
                           >
-                            {active ? (
-                              <CircleCheckBig
-                                className="size-4 md:size-5 shrink-0 text-[#0485F7]"
-                                strokeWidth={2}
-                              />
-                            ) : (
-                              <Circle
-                                className="size-4 md:size-5 shrink-0 text-[#A1A1AA]"
-                                strokeWidth={1.75}
-                              />
-                            )}
+                            <Radio.Control className="shrink-0">
+                              <Radio.Indicator />
+                            </Radio.Control>
                             <span className="flex flex-col gap-1 min-w-0">
                               <span className="text-sm font-semibold text-[#18181B]">
                                 {opt.title}
                               </span>
-                              <span className="text-2xs md:text-xs text-[#71717A]">
+                              <span className="text-2xs md:text-xs font-normal text-[#71717A]">
                                 {opt.desc}
                               </span>
                             </span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                          </Radio.Content>
+                        </Radio>
+                      ))}
+                    </RadioGroup>
                   )}
 
-                  {/* Booking details card (`FPIqF` Desktop / `z0O03` Mobile) */}
-                  <div className="rounded-2xl md:rounded-3xl bg-white border border-[#E4E4E7] p-4 md:p-6 space-y-3">
+                  {/* Booking details card (`FPIqF`): the nightly breakdown. Phones
+                      skip it: the booking summary at the top already lists
+                      the same lines and total. */}
+                  <div className="hidden md:block rounded-3xl bg-white border border-[#E4E4E7] p-6 space-y-3">
                     <h2 className="text-md font-semibold text-[#18181B]">
                       Booking details
                     </h2>
 
-                    {/* Desktop nightly breakdown with room thumbnails */}
-                    <div className="hidden md:block space-y-3">
+                    {/* Nightly breakdown with room thumbnails */}
+                    <div className="space-y-3">
                       {pricedLines.map((p, idx) => {
                         const img = p.line.roomType.images[0]?.url ?? null;
                         const lineAdults = p.rooms.reduce(
@@ -1452,43 +1514,6 @@ export function BookingWizard({
                           </React.Fragment>
                         );
                       })}
-                    </div>
-
-                    {/* Mobile compact breakdown (`z0O03`) */}
-                    <div className="md:hidden space-y-2">
-                      {pricedLines.map((p) => (
-                        <div
-                          key={p.line.id}
-                          className="flex items-center justify-between gap-3 text-xs"
-                        >
-                          <span className="text-[#71717A] truncate">
-                            {p.qty > 1 ? `${p.qty} × ` : ""}
-                            {p.line.roomType.name} · {nights}{" "}
-                            {nights === 1 ? "night" : "nights"}
-                          </span>
-                          <span className="booking-mono font-medium text-[#18181B] shrink-0">
-                            {fmt(p.subtotal)}
-                          </span>
-                        </div>
-                      ))}
-                      {hotel.taxEnabled && taxAmount > 0 && (
-                        <div className="flex items-center justify-between gap-3 text-xs">
-                          <span className="text-[#71717A]">
-                            Taxes & fees ({hotel.taxPercentage}%)
-                          </span>
-                          <span className="booking-mono font-medium text-[#18181B] shrink-0">
-                            {fmt(taxAmount)}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between gap-3 pt-1">
-                        <span className="text-sm font-semibold text-[#18181B]">
-                          Total
-                        </span>
-                        <span className="booking-mono text-sm font-semibold tracking-[-0.3px] text-[#18181B]">
-                          {fmt(total)}
-                        </span>
-                      </div>
                     </div>
                   </div>
 
@@ -1626,12 +1651,14 @@ export function BookingWizard({
                     <button
                       type="button"
                       disabled={submitting}
+                      aria-busy={submitting}
+                      data-pending={submitting || undefined}
                       onClick={handleBookSubmit}
                       className="booking-btn-primary h-10 w-full text-base inline-flex items-center justify-center gap-2 cursor-pointer touch-manipulation"
                     >
                       {submitting ? (
                         <>
-                          <Loader2 className="size-4 animate-spin" />
+                          <Spinner size="sm" color="current" />
                           <span>Processing...</span>
                         </>
                       ) : (
@@ -1652,12 +1679,14 @@ export function BookingWizard({
                 <button
                   type="button"
                   disabled={submitting}
+                  aria-busy={submitting}
+                  data-pending={submitting || undefined}
                   onClick={handleBookSubmit}
                   className="booking-btn-primary h-10 w-full text-base inline-flex items-center justify-center gap-2 cursor-pointer touch-manipulation"
                 >
                   {submitting ? (
                     <>
-                      <Loader2 className="size-4 animate-spin" />
+                      <Spinner size="sm" color="current" />
                       <span>Processing...</span>
                     </>
                   ) : (
@@ -1773,8 +1802,6 @@ function StayRoomCard({
           room.maxChildren === 1 ? "child" : "children"
         }`
       : `Sleeps ${room.maxAdults} ${room.maxAdults === 1 ? "adult" : "adults"}`;
-
-  const qtyOptions = Array.from({ length: maxSelectable }, (_, i) => i + 1);
 
   return (
     <div
@@ -1912,30 +1939,17 @@ function StayRoomCard({
                   </p>
                 </div>
 
-                {/* Room qty selector + Desktop Book button */}
+                {/* Room qty selector + Desktop Select button */}
                 <div className="flex items-center gap-3 shrink-0">
-                  <div className="relative">
-                    <select
-                      aria-label={`Number of rooms for ${room.name}`}
-                      value={selectedQty}
-                      disabled={atLimit && !inCart}
-                      onChange={(e) =>
-                        onQtyChange(Number.parseInt(e.target.value, 10))
-                      }
-                      className="h-10 md:h-10 w-[96px] md:w-[104px] appearance-none rounded-xl border border-[#DEDEE0] bg-white pl-3 pr-8 text-xs md:text-sm font-medium text-[#18181B] outline-none hover:border-[#A1A1AA] focus:border-[#0485F7] cursor-pointer disabled:opacity-50"
-                    >
-                      {inCart && <option value={0}>0 rooms</option>}
-                      {qtyOptions.map((q) => (
-                        <option key={q} value={q}>
-                          {q} {q === 1 ? "room" : "rooms"}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#71717A]"
-                      strokeWidth={2}
-                    />
-                  </div>
+                  <RoomQuantitySelect
+                    roomName={room.name}
+                    value={selectedQty}
+                    maxSelectable={maxSelectable}
+                    inCart={inCart}
+                    isDisabled={atLimit && !inCart}
+                    onChange={onQtyChange}
+                    className="w-[96px] md:w-[104px]"
+                  />
 
                   {inCart ? (
                     <div className="hidden md:flex items-center gap-2">
@@ -1963,13 +1977,13 @@ function StayRoomCard({
                       onClick={onBook}
                       className="hidden md:inline-flex booking-btn-primary h-10 px-4 items-center justify-center text-base cursor-pointer touch-manipulation"
                     >
-                      {atLimit ? "Limit reached" : "Book"}
+                      {atLimit ? "Limit reached" : "Select"}
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* Mobile full-width Book / Selected button (`oiv2Z`) */}
+              {/* Mobile full-width Select / Selected button (`oiv2Z`) */}
               <div className="md:hidden">
                 {inCart ? (
                   <div className="flex items-center gap-2">
@@ -1997,7 +2011,7 @@ function StayRoomCard({
                     onClick={onBook}
                     className="booking-btn-primary h-10 w-full flex items-center justify-center text-base cursor-pointer touch-manipulation"
                   >
-                    {atLimit ? "Limit reached" : "Book"}
+                    {atLimit ? "Limit reached" : "Select"}
                   </button>
                 )}
               </div>

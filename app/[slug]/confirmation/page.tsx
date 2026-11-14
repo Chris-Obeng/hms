@@ -3,14 +3,14 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
-import { Check, Plus, Phone, Clock, XCircle } from "lucide-react";
+import { Check, Plus, Phone, XCircle } from "lucide-react";
 import { CopyButton } from "@/components/booking/copy-button";
-import { PaymentVerifier } from "@/components/booking/payment-verifier";
-import { CompletePaymentPanel } from "@/components/booking/complete-payment-panel";
+import { AwaitingPayment } from "@/components/booking/awaiting-payment";
+import { BookingStatusHero } from "@/components/booking/booking-status-hero";
 import { BookingHeader } from "@/components/booking/booking-progress";
 import { fromMinor, sumMinor, toMinor } from "@/lib/money";
 import { occupancyText } from "@/lib/bookings/cart";
-import { bookingReferenceParam } from "@/lib/validation/params";
+import { bookingReferenceParam, paystackReferenceParam } from "@/lib/validation/params";
 import { getPublicHotel } from "../_lib/get-public-hotel";
 
 export const dynamic = "force-dynamic";
@@ -77,11 +77,20 @@ export default async function ConfirmationPage({
   const sp = await searchParams;
 
   const reference = scalar(sp.bref) ?? scalar(sp.reference);
-  const trxref = scalar(sp.trxref) ?? scalar(sp.reference);
 
   if (!reference || !bookingReferenceParam.safeParse(reference).success) {
     notFound();
   }
+
+  // Paystack's redirect appends `trxref` and `reference` (both the transaction
+  // reference) to the callback URL, which carries the booking as `bref`.
+  // Without `bref`, `reference` is the booking itself, not a payment to check.
+  const paymentRefCandidate =
+    scalar(sp.trxref) ?? (scalar(sp.bref) ? scalar(sp.reference) : undefined);
+  const paymentRef =
+    paymentRefCandidate && paystackReferenceParam.safeParse(paymentRefCandidate).success
+      ? paymentRefCandidate
+      : null;
 
   const hotel = await getPublicHotel(slug);
   if (!hotel) notFound();
@@ -220,64 +229,39 @@ export default async function ConfirmationPage({
       >
         <div className="w-full max-w-[720px] space-y-4 md:space-y-6">
           {/* ── Hero status header (`rHbwg` / `CXvyB`) ── */}
-          <div className="flex flex-col items-center text-center gap-3 md:gap-3">
-            {state === "confirmed" ? (
-              <div className="flex size-12 md:size-14 items-center justify-center rounded-full bg-[#17C964]/15 text-[#17C964]">
-                <Check
-                  className="size-6 md:size-6"
-                  strokeWidth={2.5}
-                />
-              </div>
-            ) : state === "awaiting_payment" ? (
-              <div className="flex size-12 md:size-14 items-center justify-center rounded-full bg-[#F5A524]/15 text-[#F5A524]">
-                <Clock
-                  className="size-6 md:size-6"
-                  strokeWidth={2}
-                />
-              </div>
-            ) : (
-              <div className="flex size-12 md:size-14 items-center justify-center rounded-full bg-[#FF383C]/12 text-[#FF383C]">
-                <XCircle
-                  className="size-6 md:size-6"
-                  strokeWidth={2}
-                />
-              </div>
-            )}
-
-            <div className="space-y-1">
-              <h1 className="text-2xl md:text-[28px] font-semibold tracking-[-0.4px] text-[#18181B] leading-tight">
-                {state === "confirmed"
-                  ? `You're booked, ${firstName}.`
-                  : state === "awaiting_payment"
-                    ? `Almost there, ${firstName}.`
-                    : state === "expired"
-                      ? "Reservation expired"
-                      : "Reservation cancelled"}
-              </h1>
-              <p className="text-xs md:text-sm text-[#71717A]">
-                {state === "confirmed"
-                  ? guestEmail
-                    ? `Confirmation sent to ${guestEmail}`
-                    : "Your reservation is confirmed."
-                  : state === "awaiting_payment"
-                    ? "Complete your payment below to confirm this reservation."
-                    : state === "expired"
-                      ? "Payment was not completed within the 30-minute hold window."
-                      : "This reservation is no longer active."}
-              </p>
-            </div>
-          </div>
-
-          {/* ── Awaiting payment panels ── */}
-          {state === "awaiting_payment" && trxref && (
-            <PaymentVerifier paymentRef={trxref} slug={slug} />
-          )}
-
-          {state === "awaiting_payment" && (
-            <CompletePaymentPanel
+          {state === "awaiting_payment" ? (
+            // Checks a returning payment before it ever asks for one.
+            <AwaitingPayment
+              // A new transaction (retry in the popup) starts a new check.
+              key={paymentRef ?? "unpaid"}
               slug={slug}
               reference={booking.reference}
+              paymentRef={paymentRef}
+              firstName={firstName}
               amountLabel={fmtMoney(sumTotal)}
+              hotelPhone={hotel.phone ?? null}
+            />
+          ) : state === "confirmed" ? (
+            <BookingStatusHero
+              tone="success"
+              icon={<Check className="size-6" strokeWidth={2.5} />}
+              title={`You're booked, ${firstName}.`}
+              subtitle={
+                guestEmail
+                  ? `Confirmation sent to ${guestEmail}`
+                  : "Your reservation is confirmed."
+              }
+            />
+          ) : (
+            <BookingStatusHero
+              tone="danger"
+              icon={<XCircle className="size-6" strokeWidth={2} />}
+              title={state === "expired" ? "Reservation expired" : "Reservation cancelled"}
+              subtitle={
+                state === "expired"
+                  ? "Payment was not completed within the 30-minute hold window."
+                  : "This reservation is no longer active."
+              }
             />
           )}
 

@@ -1,8 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { initializeTransaction, isUsableSubaccount, newPaystackReference } from "@/lib/paystack";
 import { fromMinor } from "@/lib/money";
-import { computePlatformFeeMinor, getPlatformFeeConfig } from "@/lib/platform/fees";
+import {
+  computePlatformFeeMinor,
+  getPlatformFeeConfig,
+  startPlatformFeeConfigRead,
+} from "@/lib/platform/fees";
 import {
   abortUnpaidBooking,
   abortUnpaidGroup,
@@ -34,6 +38,55 @@ import { GroupSchema, Schema } from "./booking-schemas";
 // Request shapes live in ./booking-schemas so their contract is unit-testable
 // without booting Next/Clerk/Supabase (tests/booking-request-schema.test.ts).
 
+/**
+ * Adds the Paystack reference to `initiated_payment_refs` on the booking row
+ * (the group anchor for a group) once the response has been sent, so the write
+ * does not delay the guest's handoff to Paystack.
+ *
+ * Nothing in the payment path reads this column any more. Settlement
+ * (settle_online_payment_atomic) and the reconciliation sweep
+ * (reconcile_pending_payments, 20261112160347) both work from
+ * payment_attempts, which is written before Paystack sees the reference. The
+ * column is kept as a per-booking audit list.
+ *
+ * The write only applies while the list is still empty. A guest who retries
+ * quickly can reach retry-payment before this runs; that route appends its own
+ * reference, and overwriting the list here would drop it.
+ */
+function recordInitiatedPaymentRefAfterResponse(input: {
+  bookingId: string;
+  payRef: string;
+  hotelId: string;
+  slug: string;
+}): void {
+  after(async () => {
+    const context = {
+      scope: "booking-funnel",
+      step: "payment_init",
+      level: "warning",
+      hotelId: input.hotelId,
+      bookingId: input.bookingId,
+      reference: input.payRef,
+      tags: { "hotel.slug": input.slug },
+    } as const;
+    try {
+      const { error } = await supabaseAdmin
+        .from("bookings")
+        .update({ initiated_payment_refs: [input.payRef] })
+        .eq("id", input.bookingId)
+        .filter("initiated_payment_refs", "eq", "{}");
+      if (error) {
+        // Audit gap only: settlement and the sweep key on payment_attempts.
+        captureSupabaseError(error, "bookings.update.initiated_payment_refs", context);
+      }
+    } catch (err) {
+      captureError(err, context);
+    } finally {
+      // Runs after the route's own flush, so flush again for this event.
+      await flushSentry();
+    }
+  });
+}
 
 /** What the reporter needs to describe a stay that could not be written. */
 type RejectionContext = {
@@ -334,6 +387,13 @@ export async function POST(
     const funnelStep: BookingFunnelStep =
       data.payment_preference === "pay_now" ? "hold" : "confirm";
 
+    // The fee read does not depend on the booking, so it runs alongside the
+    // booking transaction instead of after it: one database round trip less
+    // before the guest reaches Paystack. Awaited in the same place as before,
+    // so a failure still aborts the hold.
+    const feeConfigPromise =
+      data.payment_preference === "pay_now" ? startPlatformFeeConfigRead() : null;
+
     // One transaction resolves the guest, generates the reference, prices every
     // night and passes the inventory gate, then writes `bookings` and
     // `booking_nights` together. The quote the guest is charged and the rates
@@ -455,7 +515,7 @@ export async function POST(
       // Paystack as transaction_charge so the split routes it to the main
       // account. A zero fee omits transaction_charge, so the subaccount split is
       // byte-for-byte what it was before this feature.
-      const feeConfig = await getPlatformFeeConfig();
+      const feeConfig = await (feeConfigPromise ?? getPlatformFeeConfig());
       const platformFeeMinor = computePlatformFeeMinor(
         feeConfig,
         booking.total_minor,
@@ -508,28 +568,12 @@ export async function POST(
         metadata: { booking_id: booking.booking_id, hotel_id: hotel.id, booking_reference: booking.reference },
       });
 
-      // Remember every reference handed to Paystack so the reconciliation sweep
-      // can verify a payment even if the guest never returns and the webhook is
-      // delayed past hold expiry.
-      const { error: refsErr } = await supabaseAdmin
-        .from("bookings")
-        .update({ initiated_payment_refs: [payRef] })
-        .eq("id", booking.booking_id);
-
-      if (refsErr) {
-        // The guest is being sent to Paystack with a reference RoomLine has not
-        // stored. If the webhook is lost too, the sweep has nothing to verify and
-        // a paid booking expires as an abandoned hold.
-        captureSupabaseError(refsErr, "bookings.update.initiated_payment_refs", {
-          scope: "booking-funnel",
-          step: "payment_init",
-          level: "error",
-          hotelId: hotel.id,
-          bookingId: booking.booking_id,
-          reference: payRef,
-          tags: { "hotel.slug": slug },
-        });
-      }
+      recordInitiatedPaymentRefAfterResponse({
+        bookingId: booking.booking_id,
+        payRef,
+        hotelId: hotel.id,
+        slug,
+      });
 
       return NextResponse.json({
         bookingId: booking.booking_id,
@@ -537,6 +581,9 @@ export async function POST(
         roomsCount: data.rooms_count,
         paymentRequired: true,
         authorizationUrl: txn.authorization_url,
+        // Paystack Popup completes the same transaction on the booking page
+        // (resumeTransaction); authorizationUrl is the hosted fallback.
+        accessCode: txn.access_code,
         paymentReference: payRef,
       });
     } catch (paystackErr) {
@@ -702,6 +749,10 @@ async function createGroupBooking(
     );
   }
 
+  // Same as the single path: read the fee alongside the group transaction.
+  const feeConfigPromise =
+    data.payment_preference === "pay_now" ? startPlatformFeeConfigRead() : null;
+
   // One transaction composes create_booking_atomic per line; any line's
   // inventory/overlap loss rolls the whole group back. Every line shares the
   // anchor's id as group_id and the anchor's reference as the group reference.
@@ -824,7 +875,7 @@ async function createGroupBooking(
   try {
     // Platform fee on the group total (one cut for the whole reservation),
     // stored on the anchor attempt and sent to Paystack as transaction_charge.
-    const feeConfig = await getPlatformFeeConfig();
+    const feeConfig = await (feeConfigPromise ?? getPlatformFeeConfig());
     const platformFeeMinor = computePlatformFeeMinor(
       feeConfig,
       group.group_total_minor,
@@ -878,24 +929,14 @@ async function createGroupBooking(
       },
     });
 
-    // Reconciliation reads the anchor row's initiated_payment_refs — one entry
-    // for the whole group; sibling rows carry no payment intent of their own.
-    const { error: refsErr } = await supabaseAdmin
-      .from("bookings")
-      .update({ initiated_payment_refs: [payRef] })
-      .eq("id", group.group_id);
-
-    if (refsErr) {
-      captureSupabaseError(refsErr, "bookings.update.initiated_payment_refs", {
-        scope: "booking-funnel",
-        step: "payment_init",
-        level: "error",
-        hotelId: hotel.id,
-        bookingId: group.group_id,
-        reference: payRef,
-        tags: { "hotel.slug": slug },
-      });
-    }
+    // One entry on the anchor for the whole group; sibling rows carry no
+    // payment intent of their own.
+    recordInitiatedPaymentRefAfterResponse({
+      bookingId: group.group_id,
+      payRef,
+      hotelId: hotel.id,
+      slug,
+    });
 
     return NextResponse.json({
       bookingId: group.group_id,
@@ -903,6 +944,7 @@ async function createGroupBooking(
       roomsCount: totalRooms,
       paymentRequired: true,
       authorizationUrl: txn.authorization_url,
+      accessCode: txn.access_code,
       paymentReference: payRef,
     });
   } catch (paystackErr) {

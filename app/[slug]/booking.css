@@ -168,6 +168,14 @@
   cursor: not-allowed !important;
 }
 
+/* Working, not unavailable: a pending button keeps its colour so the white
+   spinner stays readable. */
+.booking-btn-primary[data-pending]:disabled {
+  background: var(--bk-accent) !important;
+  color: var(--bk-on-accent) !important;
+  cursor: progress !important;
+}
+
 .booking-btn-primary:focus-visible {
   outline: 2px solid var(--bk-accent);
   outline-offset: 2px;
@@ -235,34 +243,6 @@
 .booking-cta:hover:not(:disabled),
 .booking-cta-accent:hover:not(:disabled) {
   background: var(--bk-accent-hover) !important;
-}
-
-.booking-verify-pill {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  font-size: 0.8125rem;
-  border-radius: 0.75rem;
-  padding: 0.75rem 1rem;
-}
-
-.booking-verify-pill[data-state="confirmed"] {
-  color: var(--bk-success);
-  background: var(--bk-success-soft);
-}
-
-.booking-verify-pill[data-state="polling"] {
-  color: var(--bk-muted);
-  background: var(--bk-surface);
-  border: 1px solid var(--bk-line);
-}
-
-.booking-verify-note {
-  font-size: 0.75rem;
-  line-height: 1.5;
-  text-align: center;
-  color: var(--bk-muted);
 }
 
 /* ============================================================================
@@ -429,4 +409,10 @@
   .booking-room-card {
     transition: none !important;
   }
+}
+
+/* Booking toasts sit at the top on phones (see booking-toast.tsx); keep them
+   clear of the notch. */
+.toast-region--top.booking-portal {
+  top: max(1rem, env(safe-area-inset-top));
 }
