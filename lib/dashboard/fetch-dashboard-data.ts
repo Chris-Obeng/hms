@@ -162,7 +162,6 @@ export async function fetchDashboardData(
     status: b.status || "confirmed",
     paymentStatus: b.payment_status || "unpaid",
     totalAmount: b.total_amount,
-    balanceDue: Math.max(0, b.outstanding_balance ?? b.total_amount - (b.amount_paid ?? 0)),
     source: b.source || "direct",
     createdAt: b.created_at ?? null,
     cancelledAt: b.cancelled_at ?? null,

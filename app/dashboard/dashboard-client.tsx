@@ -2,16 +2,14 @@
 
 import * as React from "react";
 import { addDays, format } from "date-fns";
-import { Alert, AlertDialog, Button, Card, Skeleton, toast } from "@heroui/react";
+import { Alert, AlertDialog, Button, Card, SearchField, Skeleton, toast } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, ListFilter, RotateCw } from "lucide-react";
 import PullToRefresh from "react-simple-pull-to-refresh";
 
 import { OccupancyCard } from "./_components/occupancy-card";
-import { TodayHeader } from "./_components/today-header";
-import { TodayStrip } from "./_components/today-strip";
-import { PaymentsDue } from "./_components/payments-due";
+import { DateNavigator } from "./_components/date-card";
 import { ActivityTabs, buildActivityTabs, type ActivityTab } from "./_components/activity-tabs";
 import { ActivityList, type ActivityBooking } from "./_components/activity-list";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
@@ -76,7 +74,6 @@ function getServerPointerSnapshot() {
 
 export function DashboardClient({
   hotelId,
-  hotelName,
   currency,
   hotelTimezone,
   orgId: initialOrgId,
@@ -96,6 +93,9 @@ export function DashboardClient({
     () => new Date(`${initialDate}T00:00:00`)
   );
   const [activeTab, setActiveTab] = React.useState<ActivityTab>("arrivals");
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [filterOpen, setFilterOpen] = React.useState(false);
+  const showFilter = filterOpen || searchQuery.length > 0;
   const [selectedBookingId, setSelectedBookingId] = React.useState<string | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
   const [detailInitialTab, setDetailInitialTab] = React.useState<"overview" | "payments">(
@@ -622,28 +622,61 @@ export function DashboardClient({
       <div
         aria-busy={isDateSwitching}
         className={cn(
-          "mx-auto w-full max-w-7xl space-y-6 pt-6 transition-opacity duration-150 md:space-y-8 md:pt-8",
+          "mx-auto w-full max-w-7xl space-y-4 pt-4 transition-opacity duration-150 md:space-y-6 md:pt-6",
           isDateSwitching && "opacity-60"
         )}
       >
-        <TodayHeader
-          hotelName={hotelName}
-          hotelTimezone={hotelTimezone}
-          selectedDate={selectedDate}
-          todayDateStr={propertyTodayStr}
-          onDateChange={handleDateChange}
-        />
-
-        <TodayStrip
-          stats={stats}
-          collected={data.quickStats.totalRevenue}
-          currency={currency}
-          activeTab={activeTab}
-          onSelect={(tab) => {
-            setActiveTab(tab);
-            document.getElementById("front-desk-activity")?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
-        />
+        {/* One row of controls. The list filter stays an icon until it is
+            needed, so the header search is the only search box on screen. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <DateNavigator
+            selectedDate={selectedDate}
+            onDateChange={handleDateChange}
+            todayDateStr={propertyTodayStr}
+            className="min-w-0 flex-1 sm:flex-initial"
+          />
+          {showFilter && (
+            <SearchField
+              autoFocus={filterOpen}
+              aria-label="Filter this list"
+              value={searchQuery}
+              onChange={setSearchQuery}
+              onBlur={() => {
+                if (!searchQuery) setFilterOpen(false);
+              }}
+              className="order-last basis-full sm:order-none sm:ml-auto sm:w-72 sm:basis-auto"
+            >
+              <SearchField.Group className="rounded-full border border-border bg-card shadow-none max-md:h-11">
+                <SearchField.SearchIcon />
+                <SearchField.Input placeholder="Guest, room or reference" />
+                <SearchField.ClearButton />
+              </SearchField.Group>
+            </SearchField>
+          )}
+          <div className={cn("flex items-center gap-1", !showFilter && "sm:ml-auto")}>
+            {!showFilter && (
+              <Button
+                isIconOnly
+                variant="ghost"
+                aria-label="Filter this list"
+                onPress={() => setFilterOpen(true)}
+                className="shrink-0 rounded-full text-muted-foreground max-md:size-11"
+              >
+                <ListFilter className="size-4" />
+              </Button>
+            )}
+            {/* Phones pull to refresh instead. */}
+            <Button
+              isIconOnly
+              variant="ghost"
+              aria-label="Refresh"
+              onPress={() => void refetch()}
+              className="hidden shrink-0 rounded-full text-muted-foreground md:inline-flex"
+            >
+              <RotateCw className="size-4" />
+            </Button>
+          </div>
+        </div>
 
         {error && (
           <Alert status="warning" className="rounded-2xl">
@@ -658,12 +691,18 @@ export function DashboardClient({
           </Alert>
         )}
 
-        <div className="grid grid-cols-1 items-start gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        {/* Occupancy leads on phones and tablets (one compact card), and moves
+            to a sticky side column from 1280 px. */}
+        <div className="grid grid-cols-1 items-start gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+          <aside className="min-w-0 xl:sticky xl:top-20 xl:col-start-2 xl:row-start-1">
+            <OccupancyCard metric={data.occupancy} isDateSwitching={isDateSwitching} />
+          </aside>
+
           <Card
             id="front-desk-activity"
             role="region"
             aria-label="Front-desk activity"
-            className="min-w-0 scroll-mt-20 gap-0 overflow-hidden rounded-2xl border border-border p-0 shadow-[0_1px_2px_rgb(20_20_19/0.04)]"
+            className="min-w-0 gap-0 overflow-hidden rounded-2xl border border-border p-0 shadow-[0_1px_2px_rgb(20_20_19/0.04)] xl:col-start-1 xl:row-start-1"
           >
             <ActivityTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
               <ActivityList
@@ -671,7 +710,8 @@ export function DashboardClient({
                 activeTab={activeTab}
                 pendingCount={activePendingCount}
                 loading={loading}
-                onRefresh={() => void refetch()}
+                searchQuery={searchQuery}
+                onSearchQueryChange={setSearchQuery}
                 onNewBooking={openNewBookingModal}
                 onCheckIn={(id) => {
                   if (!checkingIn.has(id)) handleCheckIn(id);
@@ -694,16 +734,6 @@ export function DashboardClient({
               />
             </ActivityTabs>
           </Card>
-
-          <aside className="grid min-w-0 gap-4 md:grid-cols-2 lg:gap-6 xl:sticky xl:top-20 xl:grid-cols-1">
-            <OccupancyCard metric={data.occupancy} isDateSwitching={isDateSwitching} />
-            <PaymentsDue
-              bookings={data.bookings}
-              dateStr={dateParamStr}
-              currency={currency}
-              onCollect={handleTakePayment}
-            />
-          </aside>
         </div>
 
         <BookingDetailDrawer
@@ -788,27 +818,22 @@ export function DashboardClient({
 
 export function DashboardSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 pt-6 md:space-y-8 md:pt-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-48 rounded-md" />
-          <Skeleton className="h-8 w-64 rounded-lg" />
-        </div>
-        <Skeleton className="h-10 w-full rounded-full md:w-72" />
+    <div className="mx-auto w-full max-w-7xl space-y-4 pt-4 md:space-y-6 md:pt-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Skeleton className="h-10 w-full rounded-full sm:w-64" />
+        <Skeleton className="h-10 w-full rounded-full sm:w-72" />
       </div>
 
-      <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-border bg-card lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="space-y-3 p-4 sm:p-6">
-            <Skeleton className="h-4 w-20 rounded-md" />
-            <Skeleton className="h-8 w-12 rounded-lg" />
-            <Skeleton className="h-1 w-full rounded-full" />
+      <div className="grid grid-cols-1 items-start gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="flex items-center gap-6 rounded-2xl border border-border bg-card p-4 sm:p-6 xl:col-start-2 xl:row-start-1 xl:flex-col xl:items-stretch">
+          <Skeleton className="size-28 shrink-0 rounded-full xl:mx-auto xl:size-44" />
+          <div className="flex-1 space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-4 w-full rounded-md" />
+            ))}
           </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 items-start gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        </div>
+        <div className="overflow-hidden rounded-2xl border border-border bg-card xl:col-start-1 xl:row-start-1">
           <div className="flex gap-6 border-b border-border px-6 py-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-4 w-20 shrink-0 rounded-md" />
@@ -822,17 +847,6 @@ export function DashboardSkeleton() {
                 <Skeleton className="h-8 w-24 rounded-full" />
               </div>
             ))}
-          </div>
-        </div>
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
-          <Skeleton className="h-4 w-24 rounded-md" />
-          <div className="flex items-center gap-6">
-            <Skeleton className="size-24 shrink-0 rounded-full" />
-            <div className="flex-1 space-y-3">
-              <Skeleton className="h-4 w-full rounded-md" />
-              <Skeleton className="h-4 w-full rounded-md" />
-              <Skeleton className="h-4 w-full rounded-md" />
-            </div>
           </div>
         </div>
       </div>

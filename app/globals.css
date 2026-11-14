@@ -60,7 +60,8 @@
   --color-gold-hover: #e5c158;
   --color-ivory: #f5f0e8;
   --color-forest: #0a0f0d;
-  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-brand: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-display:
     var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;

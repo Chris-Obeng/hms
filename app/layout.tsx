@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans, Geist_Mono, Fraunces } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, Geist_Mono, Fraunces } from "next/font/google";
 import { ToastProvider } from "@/components/toast-provider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -28,12 +28,23 @@ const fraunces = Fraunces({
   preload: false,
 });
 
+// Brand face: the wordmark and the brand surfaces (which also load their own
+// copy via components/brand/fonts.ts). Variable, so the 800 wordmark is real.
 const jakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  subsets: ["latin", "latin-ext"],
   variable: "--font-jakarta",
   display: "swap",
   preload: false,
+});
+
+// App face: Inter is drawn for dense interface text, has true tabular
+// figures, and latin-ext carries the cedi sign (U+20B5) so "GH₵" never falls
+// back to a system font mid-word. Preloaded because the signed-in app is
+// where people spend their day.
+const inter = Inter({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-inter",
+  display: "swap",
 });
 
 /** Clerk's start screens in Oriel's voice (the rest stays Clerk's default copy). */
@@ -113,7 +124,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${jakarta.variable} ${geistMono.variable} ${fraunces.variable} font-sans h-full antialiased`}
+      className={`${inter.variable} ${jakarta.variable} ${geistMono.variable} ${fraunces.variable} font-sans h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="native-shell min-h-dvh flex flex-col font-sans">

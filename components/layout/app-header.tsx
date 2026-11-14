@@ -99,7 +99,7 @@ export function AppHeader({
             className="ui-press flex min-h-11 min-w-0 items-center gap-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/50 md:min-h-10"
           >
             <OrielGlyph size={24} />
-            <span className="hidden text-xl font-extrabold lowercase leading-none tracking-[-0.055em] text-foreground lg:inline">
+            <span className="hidden font-brand text-xl font-extrabold lowercase leading-none tracking-[-0.055em] text-foreground lg:inline">
               oriel
             </span>
             {hotelName && (

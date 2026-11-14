@@ -56,8 +56,6 @@ export interface ActivityBooking {
   status: string;
   paymentStatus: string;
   totalAmount: number;
-  /** Amount still owed on the booking, in major units. */
-  balanceDue?: number;
   source: string;
   createdAt?: string | null;
   cancelledAt?: string | null;
@@ -79,6 +77,12 @@ interface ActivityListProps {
   onTakePayment?: (booking: ActivityBooking) => void;
   onRefresh?: () => void;
   onNewBooking?: () => void;
+  /**
+   * Controlled filter text. When set, the page owns the search field and the
+   * list renders without its own toolbar.
+   */
+  searchQuery?: string;
+  onSearchQueryChange?: (query: string) => void;
 }
 
 type PendingConfirm =
@@ -96,12 +100,12 @@ const EMPTY_COPY: Record<ActivityTab, { title: string; hint: string }> = {
 };
 
 /**
- * Row grid shared by the header band and every row: two columns on phones
- * (guest | pay, stay | action), four on tablets (room folds into the guest
+ * Row grid shared by the header band and every row: two rows of two on
+ * phones (guest | pay, then stay | action), four columns on tablets (room folds into the guest
  * line), five from lg up.
  */
 const ROW_GRID =
-  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-3 [grid-template-areas:'guest_pay'_'stay_stay'_'action_action'] " +
+  "grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 gap-y-2 [grid-template-areas:'guest_guest_pay'_'stay_action_action'] " +
   "md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_7rem_9rem] md:items-center md:gap-x-4 md:[grid-template-areas:'guest_stay_pay_action'] " +
   "lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_7rem_9rem] lg:[grid-template-areas:'guest_room_stay_pay_action']";
 
@@ -123,10 +127,18 @@ export function ActivityList({
   onTakePayment,
   onRefresh,
   onNewBooking,
+  searchQuery: controlledQuery,
+  onSearchQueryChange,
   onHoverPrefetch,
 }: ActivityListProps & { onHoverPrefetch?: (id: string) => void }) {
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = React.useState("");
+  const [localQuery, setLocalQuery] = React.useState("");
+  const isControlled = controlledQuery !== undefined;
+  const searchQuery = isControlled ? controlledQuery : localQuery;
+  const setSearchQuery = React.useCallback(
+    (q: string) => (isControlled ? onSearchQueryChange?.(q) : setLocalQuery(q)),
+    [isControlled, onSearchQueryChange]
+  );
   const [pendingConfirm, setPendingConfirm] = React.useState<PendingConfirm>(null);
 
   const handleHoverPrefetch = React.useCallback(
@@ -252,8 +264,14 @@ export function ActivityList({
 
   return (
     <div>
+      {/* The tab counts already say how many; this line is for screen readers. */}
+      {isControlled && (
+        <p className="sr-only" aria-live="polite">
+          {summary}
+        </p>
+      )}
       {/* Toolbar: one line of context, the filter, refresh */}
-      <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      {!isControlled && <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p className="text-sm font-medium tabular-nums text-foreground" aria-live="polite">
           {summary}
         </p>
@@ -282,7 +300,7 @@ export function ActivityList({
             </Button>
           )}
         </div>
-      </div>
+      </div>}
 
       {filteredBookings.length === 0 ? (
         <EmptyState
@@ -298,7 +316,7 @@ export function ActivityList({
           }
         />
       ) : (
-        <div className="border-t border-border">
+        <div className={cn(!isControlled && "border-t border-border")}>
           <div
             aria-hidden="true"
             className={cn(
@@ -371,7 +389,8 @@ function BookingRow({
   const isCancelled = booking.status === "cancelled" || booking.status === "no_show";
   const owesMoney = booking.paymentStatus !== "paid" && !isCancelled;
   const paymentLabel = booking.paymentStatus === "partial" ? "Collect balance" : "Take payment";
-  const stay = `${formatStayRange(booking.checkIn, booking.checkOut)} · ${nights} ${nights === 1 ? "night" : "nights"}`;
+  const nightsLabel = `${nights} ${nights === 1 ? "night" : "nights"}`;
+  const guestsLabel = `${totalGuests} ${totalGuests === 1 ? "guest" : "guests"}`;
 
   const paymentItem =
     owesMoney && onTakePayment
@@ -391,16 +410,15 @@ function BookingRow({
       <div className="flex min-w-0 items-start gap-3 [grid-area:guest] md:items-center">
         <GuestAvatar name={booking.guestName} />
         <div className="min-w-0 flex-1">
-        {/* Wraps so the notes icon and Conflict chip drop below a long name on
-            phones instead of squeezing it to one letter. */}
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+        {/* One line: a long name truncates, the notes icon and Conflict chip keep their size. */}
+        <div className="flex min-w-0 items-center gap-2">
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               onViewDetails?.(booking);
             }}
-            className="min-w-0 max-w-full truncate rounded-sm text-left text-sm font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-w-0 truncate rounded-sm text-left text-sm font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {booking.guestName}
           </button>
@@ -423,9 +441,6 @@ function BookingRow({
           {booking.roomType && <> · {booking.roomType}</>}
           {booking.roomsCount > 1 && <> · ×{booking.roomsCount}</>}
         </p>
-        <p className="mt-1 hidden truncate text-xs text-muted-foreground lg:block">
-          {totalGuests} {totalGuests === 1 ? "guest" : "guests"}
-        </p>
         </div>
       </div>
 
@@ -444,13 +459,16 @@ function BookingRow({
 
       {/* Stay */}
       <div className="min-w-0 self-center [grid-area:stay]">
-        <p className="truncate pl-12 text-sm tabular-nums text-foreground md:hidden">{stay}</p>
+        <p className="truncate text-sm tabular-nums text-foreground md:hidden">
+          {formatStayRange(booking.checkIn, booking.checkOut)}
+          <span className="text-muted-foreground"> · {nightsLabel}</span>
+        </p>
         <div className="hidden md:block">
           <p className="truncate text-sm tabular-nums text-foreground">
             {formatStayRange(booking.checkIn, booking.checkOut)}
           </p>
-          <p className="mt-1 text-xs tabular-nums text-muted-foreground">
-            {nights} {nights === 1 ? "night" : "nights"}
+          <p className="mt-1 truncate text-xs tabular-nums text-muted-foreground">
+            {nightsLabel} · {guestsLabel}
           </p>
         </div>
       </div>
@@ -462,7 +480,7 @@ function BookingRow({
 
       {/* Next step */}
       <div
-        className="flex items-center justify-end [grid-area:action] max-md:justify-start max-md:pl-12"
+        className="flex items-center justify-end [grid-area:action]"
         onClick={(e) => e.stopPropagation()}
       >
         {booking.status === "confirmed" && onCheckIn ? (
@@ -508,18 +526,18 @@ function SplitAction({
 }) {
   if (items.length === 0) {
     return (
-      <Button size="sm" variant={variant} onPress={onMain} className="rounded-full px-4 font-semibold max-md:h-11 max-md:w-full">
+      <Button size="sm" variant={variant} onPress={onMain} className="rounded-full px-4 font-semibold max-md:h-10">
         {label}
       </Button>
     );
   }
   return (
-    <ButtonGroup size="sm" variant={variant} className="overflow-hidden rounded-full max-md:w-full">
-      <Button onPress={onMain} className="px-4 font-semibold max-md:h-11 max-md:flex-1">
+    <ButtonGroup size="sm" variant={variant} className="overflow-hidden rounded-full">
+      <Button onPress={onMain} className="px-4 font-semibold max-md:h-10">
         {label}
       </Button>
       <Dropdown>
-        <Button isIconOnly size="sm" variant={variant} aria-label={menuLabel} className="max-md:size-11">
+        <Button isIconOnly size="sm" variant={variant} aria-label={menuLabel} className="max-md:size-10">
           <ButtonGroup.Separator />
           <ChevronDown className="size-4" />
         </Button>
