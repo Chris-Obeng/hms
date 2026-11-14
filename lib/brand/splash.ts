@@ -8,7 +8,7 @@
  */
 
 /** Paints the splash and the manifest background: the dashboard's first screen. */
-export const LAUNCH_BACKGROUND = "#FBFDFF";
+export const LAUNCH_BACKGROUND = "#FBFAF7";
 
 type Device = { w: number; h: number; dpr: number; tablet?: boolean };
 

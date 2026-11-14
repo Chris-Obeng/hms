@@ -23,7 +23,7 @@ Internal identifiers keep the old prefix on purpose: CSS classes (`rl-*`), stora
 3. **Auth pages repeated themselves.** Our heading said "Welcome back", then Clerk's card said "Sign in to My Application". Two cards and two titles stacked, with Clerk's own shadowed card inside our frame.
 4. **The invite page had wrong facts.** It said "Expires in 7 days" when invites last 48 hours, never said who sent the invite, showed raw error strings, and a signed-in user with another account polled forever on "Adding you…".
 5. **The suspended page read as a punishment.** A red shield, "is suspended", one sentence and no reason or reassurance. Owners and staff saw the same text, the deactivated page linked support to `#`, and the support email had odd casing.
-6. **The PWA launched with a colour jump.** The manifest `background_color` (#FAFAF8) did not match the dashboard (#FBFDFF), there were no iOS startup images, the scope was `/dashboard` (sign-in opened a browser bar inside the installed app), and the fixed header ignored safe-area insets.
+6. **The PWA launched with a colour jump.** The manifest `background_color` (#FAFAF8) did not match the dashboard (#FBFAF7), there were no iOS startup images, the scope was `/dashboard` (sign-in opened a browser bar inside the installed app), and the fixed header ignored safe-area insets.
 7. **Type and spacing drifted.** Onboarding titles were 24–27 px semibold, auth titles were 32–36 px serif, and buttons were 40, 44 and pill-shaped in different places.
 
 ## Direction
@@ -93,9 +93,22 @@ The two films are:
 ## PWA launch
 
 - **Icons.** `pnpm icons` builds everything from `lib/brand/mark.ts`. The 192 and 512 `any` icons are rounded tiles. The maskable icons are full-bleed with the glyph at 80% of the safe radius. The 180 px apple-touch-icon is opaque. The favicon is an SVG plus a 16/32/48 ICO.
-- **Splash.** The iOS set is 30 exact-size startup images (`lib/brand/splash.ts`): every iPhone size from SE to 16 Pro Max, and iPads in both orientations. Each centres the tile at 27% of screen width on phones (capped at 200 CSS px on iPad) over `#FBFDFF`, the dashboard background. Android's splash is built from the same `background_color`, `theme_color` and icon.
+- **Splash.** The iOS set is 30 exact-size startup images (`lib/brand/splash.ts`): every iPhone size from SE to 16 Pro Max, and iPads in both orientations. Each centres the tile at 27% of screen width on phones (capped at 200 CSS px on iPad) over `#FBFAF7`, the dashboard background. Android's splash is built from the same `background_color`, `theme_color` and icon.
 - **Shell.** The page uses `viewport-fit=cover`. The header grows by `safe-area-inset-top` and respects side insets, and the content clears the home indicator. The status bar style is `default` and the theme colour equals the header.
 - **Scope.** The scope is `/`, so expired sessions, onboarding and invites stay inside the app window. The `id` is unchanged (`/dashboard`), so existing installs keep their identity.
+
+## Dashboard
+
+The signed-in app uses the brand palette in a quieter form. Colour marks status and money; everything else is paper, ink and warm greys.
+
+- **App theme.** `app/globals.css` `:root` sets the tokens HeroUI and Tailwind read. Background `#FBFAF7`, cards white, primary ink `#141413` (hover mixes in 14% white), secondary and muted `#F3F1EC`, muted text `#66625B` (6.06:1 on white), border `#E7E3DB`, input `#DCD7CD`, focus ring ink. `--sun`, `--sun-wash` and `--sun-deep` carry the marigold accent; text selection is sun. Chart colours and `--pen-accent` are unchanged. This theme applies to every dashboard page, so links and tints that were indigo are now ink and warm grey.
+- **Header** (`components/layout/app-header.tsx`). Stays 56 px so sticky offsets on other pages still line up. Left: glyph, "oriel", a slash and the hotel name; below 1024 px the wordmark and slash drop, leaving the glyph and hotel name. Centre: search. Right: a pill "New booking" (a round plus button on phones), notifications and the avatar (sun-wash fallback). The menu button is hidden on phones.
+- **Tab bar** (`components/layout/mobile-tab-bar.tsx`, phones only). Today, Calendar, Bookings, Rooms and More (opens the full menu). It clears the home indicator; the main area and toasts are padded to sit above it.
+- **Today page** (`app/dashboard/dashboard-client.tsx`).
+  - The greeting follows the hotel's time zone and renders on the client only, so the server shows "Welcome back".
+  - The day strip is one card with four parts: Arrivals, Departures, In house and Collected. Two across on phones and tablets, four from 1024 px. The Arrivals and Departures bars show work done in the calendar's status colours (in house `#0E8050`, checked out `#818A95`). Tapping a part opens its list; Collected links to Payments.
+  - The activity list has tabs with counts, guest initials on tinted discs, and a payment pill per row (paid green, partial amber, unpaid red). Rows have five columns from 1024 px. On tablets the room folds into the guest line. On phones the action button runs full width.
+  - The side column holds "Rooms sold" (sold in ink, holds in sun) and "Still to collect": the largest balances for the day with a Collect button each. It sits beside the list from 1280 px and below it, two across, on tablets.
 
 ## Open items
 

@@ -78,7 +78,7 @@ export function OccupancyDonut({
             patternUnits="userSpaceOnUse"
             patternTransform="rotate(45)"
           >
-            <rect width="6" height="6" fill="oklch(0.75 0.15 75)" />
+            <rect width="6" height="6" fill="var(--sun)" />
             <path d="M 0 0 V 6" stroke="var(--card)" strokeWidth="2.2" />
           </pattern>
         </defs>
@@ -109,7 +109,7 @@ export function OccupancyDonut({
       </svg>
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 grid place-items-center text-md font-semibold tracking-tight tabular-nums text-foreground"
+        className="pointer-events-none absolute inset-0 grid place-items-center text-lg font-extrabold tracking-[-0.03em] tabular-nums text-foreground"
       >
         {display}%
       </span>

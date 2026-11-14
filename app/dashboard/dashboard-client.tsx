@@ -8,8 +8,10 @@ import { useAuth } from "@clerk/nextjs";
 import { CalendarClock } from "lucide-react";
 import PullToRefresh from "react-simple-pull-to-refresh";
 
-import { DateNavigator } from "./_components/date-card";
 import { OccupancyCard } from "./_components/occupancy-card";
+import { TodayHeader } from "./_components/today-header";
+import { TodayStrip } from "./_components/today-strip";
+import { PaymentsDue } from "./_components/payments-due";
 import { ActivityTabs, buildActivityTabs, type ActivityTab } from "./_components/activity-tabs";
 import { ActivityList, type ActivityBooking } from "./_components/activity-list";
 import { BookingDetailDrawer } from "@/components/bookings/booking-detail-drawer";
@@ -620,23 +622,28 @@ export function DashboardClient({
       <div
         aria-busy={isDateSwitching}
         className={cn(
-          "mx-auto w-full max-w-7xl space-y-6 pt-6 transition-opacity duration-150 md:pt-8",
+          "mx-auto w-full max-w-7xl space-y-6 pt-6 transition-opacity duration-150 md:space-y-8 md:pt-8",
           isDateSwitching && "opacity-60"
         )}
       >
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0 space-y-1">
-            <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">
-              Front desk
-            </h1>
-            <p className="truncate text-sm leading-5 text-muted-foreground">{hotelName}</p>
-          </div>
-          <DateNavigator
-            selectedDate={selectedDate}
-            onDateChange={handleDateChange}
-            todayDateStr={propertyTodayStr}
-          />
-        </header>
+        <TodayHeader
+          hotelName={hotelName}
+          hotelTimezone={hotelTimezone}
+          selectedDate={selectedDate}
+          todayDateStr={propertyTodayStr}
+          onDateChange={handleDateChange}
+        />
+
+        <TodayStrip
+          stats={stats}
+          collected={data.quickStats.totalRevenue}
+          currency={currency}
+          activeTab={activeTab}
+          onSelect={(tab) => {
+            setActiveTab(tab);
+            document.getElementById("front-desk-activity")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+        />
 
         {error && (
           <Alert status="warning" className="rounded-2xl">
@@ -651,11 +658,12 @@ export function DashboardClient({
           </Alert>
         )}
 
-        <div className="grid grid-cols-1 items-start gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="grid grid-cols-1 items-start gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
           <Card
+            id="front-desk-activity"
             role="region"
             aria-label="Front-desk activity"
-            className="min-w-0 gap-0 overflow-hidden rounded-3xl border border-border/60 p-0 shadow-[0_1px_2px_rgb(15_23_42/0.04)]"
+            className="min-w-0 scroll-mt-20 gap-0 overflow-hidden rounded-2xl border border-border p-0 shadow-[0_1px_2px_rgb(20_20_19/0.04)]"
           >
             <ActivityTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
               <ActivityList
@@ -687,8 +695,14 @@ export function DashboardClient({
             </ActivityTabs>
           </Card>
 
-          <aside className="min-w-0 xl:sticky xl:top-20">
+          <aside className="grid min-w-0 gap-4 md:grid-cols-2 lg:gap-6 xl:sticky xl:top-20 xl:grid-cols-1">
             <OccupancyCard metric={data.occupancy} isDateSwitching={isDateSwitching} />
+            <PaymentsDue
+              bookings={data.bookings}
+              dateStr={dateParamStr}
+              currency={currency}
+              onCollect={handleTakePayment}
+            />
           </aside>
         </div>
 
@@ -774,33 +788,43 @@ export function DashboardClient({
 
 export function DashboardSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 pt-6 md:pt-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mx-auto w-full max-w-7xl space-y-6 pt-6 md:space-y-8 md:pt-8">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-2">
-          <Skeleton className="h-8 w-40 rounded-lg" />
-          <Skeleton className="h-4 w-32 rounded-md" />
+          <Skeleton className="h-4 w-48 rounded-md" />
+          <Skeleton className="h-8 w-64 rounded-lg" />
         </div>
-        <Skeleton className="h-10 w-full rounded-xl sm:w-72" />
+        <Skeleton className="h-10 w-full rounded-full md:w-72" />
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="overflow-hidden rounded-3xl border border-border/60 bg-card">
-          <div className="flex gap-6 border-b border-border/50 px-6 py-4">
+      <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-border bg-card lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="space-y-3 p-4 sm:p-6">
+            <Skeleton className="h-4 w-20 rounded-md" />
+            <Skeleton className="h-8 w-12 rounded-lg" />
+            <Skeleton className="h-1 w-full rounded-full" />
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 items-start gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          <div className="flex gap-6 border-b border-border px-6 py-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-4 w-20 shrink-0 rounded-md" />
             ))}
           </div>
           <div className="space-y-4 p-6">
-            <Skeleton className="h-10 w-full rounded-xl sm:ml-auto sm:w-64" />
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3">
+                <Skeleton className="size-10 shrink-0 rounded-full" />
                 <Skeleton className="h-4 flex-1 rounded-md" />
-                <Skeleton className="h-8 w-24 rounded-xl" />
+                <Skeleton className="h-8 w-24 rounded-full" />
               </div>
             ))}
           </div>
         </div>
-        <div className="space-y-4 rounded-3xl border border-border/60 bg-card p-6">
+        <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
           <Skeleton className="h-4 w-24 rounded-md" />
           <div className="flex items-center gap-6">
             <Skeleton className="size-24 shrink-0 rounded-full" />

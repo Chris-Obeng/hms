@@ -36,6 +36,7 @@ import {
 import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
 import { CAPS, isFresh, onIdle } from "@/lib/cache/prefetch-helpers";
 import type { ActivityTab } from "./activity-tabs";
+import { GuestAvatar } from "./guest-avatar";
 
 export interface ActivityBooking {
   id: string;
@@ -55,6 +56,8 @@ export interface ActivityBooking {
   status: string;
   paymentStatus: string;
   totalAmount: number;
+  /** Amount still owed on the booking, in major units. */
+  balanceDue?: number;
   source: string;
   createdAt?: string | null;
   cancelledAt?: string | null;
@@ -94,11 +97,13 @@ const EMPTY_COPY: Record<ActivityTab, { title: string; hint: string }> = {
 
 /**
  * Row grid shared by the header band and every row: two columns on phones
- * (guest | pay, stay | action), five from md up.
+ * (guest | pay, stay | action), four on tablets (room folds into the guest
+ * line), five from lg up.
  */
 const ROW_GRID =
-  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 [grid-template-areas:'guest_pay'_'stay_action'] " +
-  "md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_6rem_9rem] md:items-center md:gap-x-4 md:[grid-template-areas:'guest_room_stay_pay_action']";
+  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-3 [grid-template-areas:'guest_pay'_'stay_stay'_'action_action'] " +
+  "md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_7rem_9rem] md:items-center md:gap-x-4 md:[grid-template-areas:'guest_stay_pay_action'] " +
+  "lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_7rem_9rem] lg:[grid-template-areas:'guest_room_stay_pay_action']";
 
 /**
  * Front-desk queue for the selected view. Each row answers the four questions a
@@ -248,8 +253,8 @@ export function ActivityList({
   return (
     <div>
       {/* Toolbar: one line of context, the filter, refresh */}
-      <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <p className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
+      <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <p className="text-sm font-medium tabular-nums text-foreground" aria-live="polite">
           {summary}
         </p>
         <div className="flex items-center gap-2">
@@ -259,7 +264,7 @@ export function ActivityList({
             onChange={setSearchQuery}
             className="min-w-0 flex-1 sm:w-64 sm:flex-initial"
           >
-            <SearchField.Group className="rounded-xl">
+            <SearchField.Group className="rounded-full bg-secondary/70">
               <SearchField.SearchIcon />
               <SearchField.Input placeholder="Filter by guest, room or ref" />
               <SearchField.ClearButton />
@@ -271,7 +276,7 @@ export function ActivityList({
               variant="ghost"
               aria-label="Refresh activity"
               onPress={onRefresh}
-              className="shrink-0 rounded-xl text-muted-foreground max-md:size-11"
+              className="shrink-0 rounded-full text-muted-foreground max-md:size-11"
             >
               <RotateCw className="size-4" />
             </Button>
@@ -293,21 +298,21 @@ export function ActivityList({
           }
         />
       ) : (
-        <div className="border-t border-border/50">
+        <div className="border-t border-border">
           <div
             aria-hidden="true"
             className={cn(
               ROW_GRID,
-              "hidden border-b border-border/50 px-6 py-2 text-xs font-medium text-muted-foreground md:grid"
+              "hidden border-b border-border bg-secondary/40 px-6 py-2 text-xs font-medium text-muted-foreground md:grid"
             )}
           >
-            <span className="[grid-area:guest]">Guest</span>
-            <span className="[grid-area:room]">Room</span>
+            <span className="pl-12 [grid-area:guest]">Guest</span>
+            <span className="hidden [grid-area:room] lg:block">Room</span>
             <span className="[grid-area:stay]">Stay</span>
             <span className="[grid-area:pay]">Payment</span>
             <span className="[grid-area:action]" />
           </div>
-          <ul role="list" className="divide-y divide-border/50">
+          <ul role="list" className="divide-y divide-border">
             {filteredBookings.map((b) => (
               <BookingRow
                 key={b.id}
@@ -380,10 +385,12 @@ function BookingRow({
       onClick={() => onViewDetails?.(booking)}
       onMouseEnter={() => onHoverPrefetch?.(booking.id)}
       onFocusCapture={() => onHoverPrefetch?.(booking.id)}
-      className={cn(ROW_GRID, "cursor-pointer px-4 py-3 transition-colors duration-150 ease-[var(--ease-out-ui)] active:bg-secondary/80 sm:px-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary/50")}
+      className={cn(ROW_GRID, "cursor-pointer px-4 py-4 transition-colors duration-150 ease-[var(--ease-out-ui)] active:bg-secondary/80 sm:px-6 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-secondary/50")}
     >
       {/* Guest */}
-      <div className="min-w-0 [grid-area:guest]">
+      <div className="flex min-w-0 items-start gap-3 [grid-area:guest] md:items-center">
+        <GuestAvatar name={booking.guestName} />
+        <div className="min-w-0 flex-1">
         {/* Wraps so the notes icon and Conflict chip drop below a long name on
             phones instead of squeezing it to one letter. */}
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -410,19 +417,20 @@ function BookingRow({
             </Chip>
           )}
         </div>
-        {/* Phones fold the room into the guest line; desktop gives it a column. */}
-        <p className="mt-1 truncate text-xs text-muted-foreground md:hidden">
+        {/* Phones and tablets fold the room into the guest line; desktop gives it a column. */}
+        <p className="mt-1 truncate text-xs text-muted-foreground lg:hidden">
           {room ?? <span className="font-medium text-amber-700">Unassigned</span>}
           {booking.roomType && <> · {booking.roomType}</>}
           {booking.roomsCount > 1 && <> · ×{booking.roomsCount}</>}
         </p>
-        <p className="mt-1 hidden truncate text-xs text-muted-foreground md:block">
+        <p className="mt-1 hidden truncate text-xs text-muted-foreground lg:block">
           {totalGuests} {totalGuests === 1 ? "guest" : "guests"}
         </p>
+        </div>
       </div>
 
       {/* Room (desktop) */}
-      <div className="hidden min-w-0 [grid-area:room] md:block">
+      <div className="hidden min-w-0 [grid-area:room] lg:block">
         <p className="truncate text-sm font-medium text-foreground">
           {room ?? <span className="text-amber-700">Unassigned</span>}
           {booking.roomsCount > 1 && (
@@ -436,7 +444,7 @@ function BookingRow({
 
       {/* Stay */}
       <div className="min-w-0 self-center [grid-area:stay]">
-        <p className="truncate text-xs tabular-nums text-muted-foreground md:hidden">{stay}</p>
+        <p className="truncate pl-12 text-sm tabular-nums text-foreground md:hidden">{stay}</p>
         <div className="hidden md:block">
           <p className="truncate text-sm tabular-nums text-foreground">
             {formatStayRange(booking.checkIn, booking.checkOut)}
@@ -454,7 +462,7 @@ function BookingRow({
 
       {/* Next step */}
       <div
-        className="flex items-center justify-end [grid-area:action]"
+        className="flex items-center justify-end [grid-area:action] max-md:justify-start max-md:pl-12"
         onClick={(e) => e.stopPropagation()}
       >
         {booking.status === "confirmed" && onCheckIn ? (
@@ -500,14 +508,14 @@ function SplitAction({
 }) {
   if (items.length === 0) {
     return (
-      <Button size="sm" variant={variant} onPress={onMain} className="rounded-xl px-4 font-semibold max-md:h-11">
+      <Button size="sm" variant={variant} onPress={onMain} className="rounded-full px-4 font-semibold max-md:h-11 max-md:w-full">
         {label}
       </Button>
     );
   }
   return (
-    <ButtonGroup size="sm" variant={variant} className="rounded-xl">
-      <Button onPress={onMain} className="px-4 font-semibold max-md:h-11">
+    <ButtonGroup size="sm" variant={variant} className="overflow-hidden rounded-full max-md:w-full">
+      <Button onPress={onMain} className="px-4 font-semibold max-md:h-11 max-md:flex-1">
         {label}
       </Button>
       <Dropdown>
@@ -551,8 +559,26 @@ function DotLabel({ dot, label }: { dot: string | undefined; label: string }) {
   );
 }
 
+/** Payment as a soft pill: green when settled, amber part paid, red still owed. */
+const PAYMENT_PILL: Record<string, string> = {
+  paid: "bg-emerald-50 text-emerald-800 ring-emerald-600/15",
+  partial: "bg-amber-50 text-amber-800 ring-amber-600/20",
+  unpaid: "bg-rose-50 text-rose-700 ring-rose-600/15",
+  refunded: "bg-secondary text-muted-foreground ring-border",
+};
+
 function PaymentStatus({ status }: { status: string }) {
-  return <DotLabel dot={PAYMENT_DOT_COLORS[status]} label={getPaymentLabel(status)} />;
+  return (
+    <span
+      className={cn(
+        "inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full px-2 text-xs font-semibold ring-1 ring-inset",
+        PAYMENT_PILL[status] ?? PAYMENT_PILL.refunded
+      )}
+    >
+      <span aria-hidden="true" className={cn("size-2 rounded-full", PAYMENT_DOT_COLORS[status] ?? STATUS_DOT_FALLBACK)} />
+      {getPaymentLabel(status)}
+    </span>
+  );
 }
 
 /** Booking state shown in the action column once there is no next step. */

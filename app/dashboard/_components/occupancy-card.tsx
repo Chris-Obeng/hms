@@ -37,11 +37,11 @@ export function OccupancyCard({
       role="region"
       aria-labelledby={titleId}
       aria-busy={isDateSwitching}
-      className="gap-4 rounded-3xl border border-border/60 p-4 shadow-[0_1px_2px_rgb(15_23_42/0.04)] sm:p-6"
+      className="gap-4 rounded-2xl border border-border p-4 shadow-[0_1px_2px_rgb(20_20_19/0.04)] sm:p-6"
     >
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 id={titleId} className="text-sm font-semibold text-foreground">
+          <h2 id={titleId} className="text-md font-semibold tracking-tight text-foreground">
             Rooms sold
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -112,7 +112,7 @@ export function OccupancyCard({
               <Row
                 count={metric.heldRooms}
                 label="Pending holds"
-                marker="border-[1.5px] border-dashed border-amber-600 bg-amber-500/15"
+                marker="bg-[var(--sun)]"
               />
               <Row
                 count={metric.availableRooms}
