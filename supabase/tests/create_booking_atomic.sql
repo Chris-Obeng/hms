@@ -75,8 +75,8 @@ BEGIN
     'estimated_arrival',  '2:30 PM',
     'reference_prefix',   'AP'));
   -- The prefix is accepted and ignored: generate_booking_reference() has issued
-  -- bare 13-digit OTA-style references since 20260713203000. Asserted so the
-  -- format is pinned rather than assumed.
+  -- 6-character references since 20261114140000. Asserted so the format is
+  -- pinned rather than assumed.
 
   v_bid := (v_out->>'booking_id')::uuid;
   SELECT * INTO v_row FROM public.bookings WHERE id = v_bid;
@@ -88,11 +88,11 @@ BEGIN
   END IF;
 
   -- generate_booking_reference accepts a prefix argument and ignores it: the body
-  -- loops on a random 13-digit number until it is globally unique, so every
-  -- reference is bare digits. Assert that shape to keep the contract pinned.
+  -- draws a random 6-character code until it is unused within the hotel, using
+  -- only 23456789BCDFGHJKMNPQRSTVWXYZ. Assert that shape to keep the contract pinned.
   IF v_row.nights <> 3 OR v_row.outstanding_balance <> 3037.50
      OR v_row.currency <> 'GHS' OR v_row.estimated_arrival <> '14:30'::time
-     OR v_row.reference !~ '^[0-9]{13}$' OR v_row.room_id IS NOT NULL THEN
+     OR v_row.reference !~ '^[23456789BCDFGHJKMNPQRSTVWXYZ]{6}$' OR v_row.room_id IS NOT NULL THEN
     RAISE EXCEPTION 'FAIL 1b: booking shape wrong — % / % / % / %',
       v_row.nights, v_row.outstanding_balance, v_row.estimated_arrival, v_row.reference;
   END IF;

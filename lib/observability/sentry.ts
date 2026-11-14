@@ -99,9 +99,10 @@ const PII_KEY_PATTERN =
  * stripped from the value as well.
  *
  * Applied to contexts only, never to tags. That exemption is load-bearing here:
- * `generate_booking_reference` returns a bare 13-digit OTA-style number, so a
- * booking reference is itself a long digit run. Redacting tag values would erase
- * the one handle support needs to find a guest's reservation.
+ * Bookings created before 20261114140000 carry bare 13-digit references, and
+ * Paystack references embed a 13-digit timestamp, so both are long digit runs.
+ * Redacting tag values would erase the one handle support needs to find a
+ * guest's reservation.
  */
 const EMAIL_VALUE_PATTERN = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
 const LONG_DIGIT_RUN_PATTERN = /\d{7,}/g;

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { initializeTransaction, isUsableSubaccount, verifyTransaction } from "@/lib/paystack";
+import {
+  initializeTransaction,
+  isUsableSubaccount,
+  newPaystackReference,
+  verifyTransaction,
+} from "@/lib/paystack";
 import { sumMinor, toMinor } from "@/lib/money";
 import {
   computePlatformFeeMinor,
@@ -236,7 +241,7 @@ async function handleRetryPayment(
   const callbackUrl = `${req.nextUrl.origin}${confirmationPath(slug, booking.reference, {
     accessToken: signGuestAccess(hotel.id, booking.id),
   })}`;
-  const payRef = `${booking.reference}-r${Date.now()}`;
+  const payRef = newPaystackReference(booking.reference, "retry");
 
   const attemptCurrency = booking.currency ?? hotel.currency ?? "GHS";
   const amountMinor = toMinor(remaining, attemptCurrency);
@@ -431,7 +436,7 @@ async function handleGroupRetryPayment(
   const callbackUrl = `${req.nextUrl.origin}${confirmationPath(slug, anchor.reference, {
     accessToken: signGuestAccess(hotel.id, groupId),
   })}`;
-  const payRef = `${anchor.reference}-r${Date.now()}`;
+  const payRef = newPaystackReference(anchor.reference, "retry");
 
   try {
     // The group's checkouts are all keyed on the anchor.

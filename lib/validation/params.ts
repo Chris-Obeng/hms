@@ -32,9 +32,11 @@ export const hotelSlugParam = z
 /**
  * Booking reference as presented by a guest.
  *
- * `public.generate_booking_reference` returns a bare 13-digit OTA-style number,
- * but references also arrive from imports and older records, so the rule stays
- * uppercase-alphanumeric with hyphens rather than digits-only.
+ * `public.generate_booking_reference` returns a 6-character code (e.g.
+ * `K7MX4Q`) that is unique within its hotel only, so a reference must always
+ * be looked up together with the hotel resolved from the URL. Older records
+ * carry 13-digit numbers or prefixed codes such as `HOP-2026-00001`, so the
+ * rule stays uppercase-alphanumeric with hyphens.
  *
  * Validated before use because the reference reaches an ICS calendar body and a
  * `Content-Disposition` filename, where unescaped input allows header and
@@ -49,8 +51,9 @@ export const bookingReferenceParam = z
 /**
  * Paystack transaction reference from a callback or webhook.
  *
- * Retries append a suffix (`<booking reference>-r<timestamp>`), so this is
- * longer than a booking reference and permits lowercase.
+ * Built by `newPaystackReference` as `<booking reference>-<timestamp>-<hex>`
+ * (`-r<timestamp>` for retries), so this is longer than a booking reference and
+ * permits lowercase.
  */
 export const paystackReferenceParam = z
   .string()
