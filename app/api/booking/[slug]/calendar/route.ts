@@ -3,6 +3,15 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/rate-limit";
 import { captureSupabaseError, flushSentry } from "@/lib/observability/sentry";
 import { bookingReferenceParam, hotelSlugParam } from "@/lib/validation/params";
+import { GUEST_ACCESS_QUERY_PARAM, resolveGuestAccess } from "@/lib/bookings/guest-access";
+
+/**
+ * GET /api/booking/[slug]/calendar?reference=<booking reference>&t=<access token>
+ *
+ * Calendar (.ics) file for a guest's stay. Current-format references need the
+ * guest access token (lib/bookings/guest-access.ts); legacy references without
+ * one get the file without the guest's name.
+ */
 
 export async function GET(
   req: NextRequest,
@@ -57,7 +66,7 @@ export async function GET(
   const { data: booking, error: bookingErr } = await supabaseAdmin
     .from("bookings")
     .select(
-      "reference, check_in, check_out, nights, guests(full_name, email), room_types(name)"
+      "id, group_id, reference, check_in, check_out, nights, guests(full_name), room_types(name)"
     )
     .eq("hotel_id", hotel.id)
     .eq("reference", reference)
@@ -81,8 +90,20 @@ export async function GET(
     return new NextResponse("Booking not found", { status: 404 });
   }
 
+  const access = resolveGuestAccess(
+    hotel.id,
+    booking,
+    req.nextUrl.searchParams.get(GUEST_ACCESS_QUERY_PARAM)
+  );
+  // Same answer as an unknown reference, so a guess cannot learn that it hit.
+  if (access === "denied") {
+    return new NextResponse("Booking not found", { status: 404 });
+  }
+
   const guestName =
-    (booking.guests as { full_name?: string | null } | null)?.full_name ?? "Guest";
+    access === "full"
+      ? ((booking.guests as { full_name?: string | null } | null)?.full_name ?? "Guest")
+      : "Guest";
   const roomName =
     (booking.room_types as { name?: string | null } | null)?.name ?? "Room";
 

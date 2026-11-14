@@ -11,7 +11,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 
-import { scrubEventLocalVariables } from "@/lib/observability/sentry";
+import { redactGuestAccessFromBreadcrumb, scrubServerEvent } from "@/lib/observability/sentry";
 
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
@@ -26,7 +26,9 @@ Sentry.init({
 
   // `includeLocalVariables` is unavailable here, but the same redaction runs so
   // both runtimes have identical PII behaviour.
-  beforeSend: scrubEventLocalVariables,
+  // Also strips guest booking access tokens (`?t=`) from URLs and breadcrumbs.
+  beforeSend: scrubServerEvent,
+  beforeBreadcrumb: redactGuestAccessFromBreadcrumb,
 
   ignoreErrors: ["NEXT_REDIRECT", "NEXT_NOT_FOUND", "NEXT_HTTP_ERROR_FALLBACK"],
 });

@@ -6,10 +6,13 @@ import { Spinner } from "@heroui/react";
 import { Lock } from "lucide-react";
 
 import { openPaystackCheckout, preloadPaystackPopup } from "@/lib/paystack-popup";
+import { GUEST_ACCESS_HEADER, confirmationPath } from "@/lib/bookings/guest-access-link";
 
 interface CompletePaymentPanelProps {
   slug: string;
   reference: string;
+  /** Signed guest access token; sent with the retry and kept in every link. */
+  accessToken: string | null;
   amountLabel: string;
   /** Overrides the panel heading, e.g. after a failed attempt. */
   title?: string;
@@ -35,6 +38,7 @@ interface CompletePaymentPanelProps {
 export function CompletePaymentPanel({
   slug,
   reference,
+  accessToken,
   amountLabel,
   title,
   description,
@@ -70,16 +74,17 @@ export function CompletePaymentPanel({
     try {
       const res = await fetch(
         `/api/booking/${encodeURIComponent(slug)}/bookings/${encodeURIComponent(reference)}/retry-payment`,
-        { method: "POST" }
+        {
+          method: "POST",
+          headers: accessToken ? { [GUEST_ACCESS_HEADER]: accessToken } : undefined,
+        }
       );
       const data = await res.json().catch(() => null);
       // Keep the spinner on until the page changes. The reloaded page checks
       // the transaction with Paystack, so a guest who closes the form
       // mid-payment is not asked to pay again blindly.
       const toVerification = (paymentReference: string) =>
-        router.replace(
-          `/${encodeURIComponent(slug)}/confirmation?bref=${encodeURIComponent(reference)}&trxref=${encodeURIComponent(paymentReference)}`
-        );
+        router.replace(confirmationPath(slug, reference, { accessToken, paymentReference }));
       if (res.status === 409 && data?.paymentInProgress && data.paymentReference) {
         // The previous checkout may still take money: check it instead.
         const openReference = String(data.paymentReference);

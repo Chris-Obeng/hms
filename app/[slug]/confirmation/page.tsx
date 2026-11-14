@@ -1,9 +1,11 @@
+import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
-import { Check, Plus, Phone, XCircle } from "lucide-react";
+import { Check, Clock, Plus, Phone, XCircle } from "lucide-react";
 import { CopyButton } from "@/components/booking/copy-button";
 import { AwaitingPayment } from "@/components/booking/awaiting-payment";
 import { BookingStatusHero } from "@/components/booking/booking-status-hero";
@@ -11,9 +13,19 @@ import { BookingHeader } from "@/components/booking/booking-progress";
 import { fromMinor, sumMinor, toMinor } from "@/lib/money";
 import { occupancyText } from "@/lib/bookings/cart";
 import { bookingReferenceParam, paystackReferenceParam } from "@/lib/validation/params";
+import { rateLimit } from "@/lib/rate-limit";
+import { maskEmail, resolveGuestAccess } from "@/lib/bookings/guest-access";
+import { GUEST_ACCESS_QUERY_PARAM, calendarPath } from "@/lib/bookings/guest-access-link";
 import { getPublicHotel } from "../_lib/get-public-hotel";
 
 export const dynamic = "force-dynamic";
+
+// The URL carries the guest's access token: keep it out of search indexes and
+// out of the Referer sent to other origins.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+  referrer: "same-origin",
+};
 
 type SearchParamValue = string | string[] | undefined;
 
@@ -76,6 +88,14 @@ export default async function ConfirmationPage({
   const { slug } = await params;
   const sp = await searchParams;
 
+  // Generous for a guest (each payment check reloads the page) and a hard stop
+  // for anyone walking references. A throttled request learns nothing.
+  const rl = await rateLimit(
+    { headers: await headers() },
+    { name: "booking-confirmation", limit: 60, windowSeconds: 60 }
+  );
+  if (!rl.ok) return <ThrottledNotice />;
+
   const reference = scalar(sp.bref) ?? scalar(sp.reference);
 
   if (!reference || !bookingReferenceParam.safeParse(reference).success) {
@@ -106,6 +126,13 @@ export default async function ConfirmationPage({
 
   if (!booking) notFound();
 
+  // A current-format reference opens only with the token from the guest's own
+  // link; a wrong or missing token looks exactly like an unknown booking.
+  const access = resolveGuestAccess(hotel.id, booking, scalar(sp[GUEST_ACCESS_QUERY_PARAM]));
+  if (access === "denied") notFound();
+  // Forwarded only when it verified, so every link built below stays valid.
+  const accessToken = access === "full" ? (scalar(sp[GUEST_ACCESS_QUERY_PARAM]) ?? null) : null;
+
   const groupId = booking.group_id;
   const isGroup = groupId != null;
   let lines: GroupLine[] = [];
@@ -135,8 +162,10 @@ export default async function ConfirmationPage({
   const guestName =
     (booking.guests as { full_name?: string | null } | null)?.full_name ??
     "Guest";
-  const guestEmail =
+  const rawGuestEmail =
     (booking.guests as { email?: string | null } | null)?.email ?? null;
+  // Legacy links carry no token, so the address is shown masked.
+  const guestEmail = access === "full" ? rawGuestEmail : maskEmail(rawGuestEmail);
   const singleRoomRel = booking.room_types as RoomTypeRel;
   const singleRoomName = singleRoomRel?.name ?? "Room";
 
@@ -168,7 +197,7 @@ export default async function ConfirmationPage({
       maximumFractionDigits: 2,
     })}`;
   const firstName = guestName.trim().split(/\s+/)[0] || "Guest";
-  const calendarUrl = `/api/booking/${slug}/calendar?reference=${reference}`;
+  const calendarUrl = calendarPath(slug, booking.reference, accessToken);
   const checkInClock = fmtClockTime(hotel.check_in_time);
   const checkOutClock = fmtClockTime(hotel.check_out_time);
 
@@ -236,6 +265,7 @@ export default async function ConfirmationPage({
               key={paymentRef ?? "unpaid"}
               slug={slug}
               reference={booking.reference}
+              accessToken={accessToken}
               paymentRef={paymentRef}
               firstName={firstName}
               amountLabel={fmtMoney(sumTotal)}
@@ -447,6 +477,22 @@ export default async function ConfirmationPage({
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+/** Shown instead of the booking when this client is over the page's rate limit. */
+function ThrottledNotice() {
+  return (
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[#F5F5F5] booking-safe-x py-6">
+      <div className="w-full max-w-[720px]">
+        <BookingStatusHero
+          tone="warning"
+          icon={<Clock className="size-6" strokeWidth={2} />}
+          title="Too many requests"
+          subtitle="Please wait a minute, then reload this page."
+        />
+      </div>
     </div>
   );
 }

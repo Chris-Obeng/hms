@@ -52,6 +52,7 @@ import {
   type BookingStepId,
 } from "@/components/booking/booking-progress";
 import { RESERVATION_ROOM_CAP } from "@/lib/bookings/expand-cart-lines";
+import { confirmationPath } from "@/lib/bookings/guest-access-link";
 
 export interface RoomImage {
   url: string;
@@ -291,6 +292,7 @@ export function BookingWizard({
   // must not offer "Book now" again for the same stay.
   const createdHoldRef = React.useRef<{
     reference: string;
+    accessToken: string | null;
     paymentReference: string;
   } | null>(null);
 
@@ -305,7 +307,10 @@ export function BookingWizard({
       const hold = createdHoldRef.current;
       if (hold) {
         router.replace(
-          `/${slug}/confirmation?bref=${encodeURIComponent(hold.reference)}&trxref=${encodeURIComponent(hold.paymentReference)}`
+          confirmationPath(slug, hold.reference, {
+            accessToken: hold.accessToken,
+            paymentReference: hold.paymentReference,
+          })
         );
         return;
       }
@@ -773,6 +778,7 @@ export function BookingWizard({
       if (data.paymentRequired && data.authorizationUrl) {
         createdHoldRef.current = {
           reference: data.reference,
+          accessToken: data.accessToken ?? null,
           paymentReference: data.paymentReference ?? "",
         };
         // The hold now exists, so every way out of checkout leads to the
@@ -780,7 +786,10 @@ export function BookingWizard({
         // here after a cancel would let "Book now" create a second booking.
         const toConfirmation = (paymentReference: string) =>
           router.push(
-            `/${slug}/confirmation?bref=${encodeURIComponent(data.reference)}&trxref=${encodeURIComponent(paymentReference)}`
+            confirmationPath(slug, data.reference, {
+              accessToken: data.accessToken ?? null,
+              paymentReference,
+            })
           );
         await openPaystackCheckout({
           accessCode: data.accessCode,
@@ -791,7 +800,7 @@ export function BookingWizard({
         });
         return;
       }
-      router.push(`/${slug}/confirmation?reference=${data.reference}`);
+      router.push(confirmationPath(slug, data.reference, { accessToken: data.accessToken ?? null }));
     } catch {
       leaving = false;
       bookingToast.danger("Network error. Please try again.");
