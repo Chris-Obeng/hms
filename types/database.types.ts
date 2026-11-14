@@ -128,6 +128,50 @@ export type Database = {
           },
         ]
       }
+      availability_block_history: {
+        Row: {
+          block_id: string
+          end_date: string
+          hotel_id: string
+          id: number
+          room_id: string
+          source: string
+          start_date: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          block_id: string
+          end_date: string
+          hotel_id: string
+          id?: never
+          room_id: string
+          source: string
+          start_date: string
+          valid_from: string
+          valid_to?: string | null
+        }
+        Update: {
+          block_id?: string
+          end_date?: string
+          hotel_id?: string
+          id?: never
+          room_id?: string
+          source?: string
+          start_date?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "availability_block_history_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       availability_blocks: {
         Row: {
           created_at: string | null
@@ -1602,6 +1646,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "reports_inventory_history_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      room_status_history: {
+        Row: {
+          hotel_id: string
+          id: number
+          room_id: string
+          source: string
+          status: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          hotel_id: string
+          id?: never
+          room_id: string
+          source: string
+          status: string
+          valid_from: string
+          valid_to?: string | null
+        }
+        Update: {
+          hotel_id?: string
+          id?: never
+          room_id?: string
+          source?: string
+          status?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_status_history_hotel_id_fkey"
             columns: ["hotel_id"]
             isOneToOne: false
             referencedRelation: "hotels"

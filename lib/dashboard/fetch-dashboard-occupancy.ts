@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, Json } from "@/types/database.types";
+import type { Database } from "@/types/database.types";
 import { businessDayBounds, businessToday } from "@/lib/business-date";
 import {
   buildHistoricalRoomsSold,
@@ -7,27 +7,6 @@ import {
   unavailableRoomsSold,
   type OccupancyContext,
 } from "@/lib/metrics/dashboard-occupancy";
-
-// History tables (20261021223243, 20261114170000) are not in the generated
-// Database yet; describe them locally, as lib/reports/data.ts does. Reads stay
-// on the caller's RLS-bound client.
-type HistoryTables = {
-  reports_inventory_history: {
-    Row: { id: string; hotel_id: string; effective_date: string; capacity_by_type: Json; time_zone: string; captured_at: string };
-    Insert: never; Update: never; Relationships: [];
-  };
-  room_status_history: {
-    Row: { id: number; hotel_id: string; room_id: string; status: string; valid_from: string; valid_to: string | null; source: string };
-    Insert: never; Update: never; Relationships: [];
-  };
-  availability_block_history: {
-    Row: { id: number; hotel_id: string; block_id: string; room_id: string; start_date: string; end_date: string; valid_from: string; valid_to: string | null; source: string };
-    Insert: never; Update: never; Relationships: [];
-  };
-};
-type HistoryDatabase = Omit<Database, "public"> & {
-  public: Omit<Database["public"], "Tables"> & { Tables: Database["public"]["Tables"] & HistoryTables };
-};
 
 /** PostgREST / Postgres codes for a table that does not exist (yet). */
 const MISSING_TABLE = new Set(["PGRST205", "42P01"]);
@@ -66,7 +45,7 @@ export async function fetchDashboardOccupancy(
   // Current room status and the forward availability RPC are not historical
   // evidence. An earlier business day reads recorded history instead.
   if (date < context.businessToday) {
-    return fetchHistoricalOccupancy(supabase as unknown as SupabaseClient<HistoryDatabase>, hotelId, date, timeZone, context);
+    return fetchHistoricalOccupancy(supabase, hotelId, date, timeZone, context);
   }
   const [rooms, reservations, blocks] = await Promise.all([
     readInventoryRows((from, to) => supabase.from("rooms")
@@ -105,7 +84,7 @@ export async function fetchDashboardOccupancy(
  * a room counts as out of service or blocked if it was at that instant.
  */
 async function fetchHistoricalOccupancy(
-  supabase: SupabaseClient<HistoryDatabase>,
+  supabase: SupabaseClient<Database>,
   hotelId: string,
   date: string,
   timeZone: string,
