@@ -44,6 +44,17 @@ function reportCalendarFailure(
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
+/** Why a block was refused: the first stay it would cover, named so staff can
+ *  find it. `rows` comes from a `limit(3)` read, so 3 means "3 or more". */
+function blockConflictMessage(
+  rows: Array<{ reference: string; check_in: string; check_out: string }>
+): string {
+  const first = rows[0];
+  const dates = `${format(parseISO(first.check_in), "MMM d")} – ${format(parseISO(first.check_out), "MMM d")}`;
+  const more = rows.length >= 3 ? " and at least 2 more stays" : rows.length === 2 ? " and 1 more stay" : "";
+  return `A reservation uses this room on these nights: ${first.reference} (${dates})${more}. Move it to another room or change the dates.`;
+}
+
 async function getHotelScopedClient() {
   const ctx = await requireMinRole("read_only", "view calendar");
   const supabase = await createClient();
@@ -1407,12 +1418,7 @@ export async function createAvailabilityBlock(
       .limit(3);
 
     if (overlapping && overlapping.length > 0) {
-      const first = overlapping[0];
-      const count = overlapping.length >= 3 ? "3+" : `${overlapping.length}`;
-      return {
-        success: false,
-        error: `Room has ${count} reservation(s) in this window — first: ${first.reference} (${first.check_in} → ${first.check_out}). Move or cancel it first.`,
-      };
+      return { success: false, error: blockConflictMessage(overlapping) };
     }
 
     const { error } = await supabase
@@ -1513,12 +1519,7 @@ export async function updateAvailabilityBlock(
       .limit(3);
 
     if (overlapping && overlapping.length > 0) {
-      const first = overlapping[0];
-      const count = overlapping.length >= 3 ? "3+" : `${overlapping.length}`;
-      return {
-        success: false,
-        error: `Room has ${count} reservation(s) in this window — first: ${first.reference} (${first.check_in} → ${first.check_out}). Move or cancel it first.`,
-      };
+      return { success: false, error: blockConflictMessage(overlapping) };
     }
 
     const { error } = await supabase
