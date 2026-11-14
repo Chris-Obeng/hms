@@ -287,16 +287,33 @@ export function BookingWizard({
     if (preparePaystack) preloadPaystackPopup().catch(() => {});
   }, [preparePaystack]);
 
-  // The spinner stays on while the browser leaves for Paystack. If the guest
-  // comes back with the Back button, the page can be restored from the
-  // back/forward cache with it still on, so switch it off again.
+  // Set once "Book now" has created a payment hold: from then on this page
+  // must not offer "Book now" again for the same stay.
+  const createdHoldRef = React.useRef<{
+    reference: string;
+    paymentReference: string;
+  } | null>(null);
+
+  // The spinner stays on while the browser leaves for Paystack's hosted page.
+  // Back can restore this page from the back/forward cache with it still on.
+  // If a hold was created, go to its confirmation page, which checks the
+  // payment; re-enabling "Book now" would let a second tap make a second
+  // booking. Otherwise just switch the spinner off.
   React.useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) setSubmitting(false);
+      if (!event.persisted) return;
+      const hold = createdHoldRef.current;
+      if (hold) {
+        router.replace(
+          `/${slug}/confirmation?bref=${encodeURIComponent(hold.reference)}&trxref=${encodeURIComponent(hold.paymentReference)}`
+        );
+        return;
+      }
+      setSubmitting(false);
     };
     window.addEventListener("pageshow", onPageShow);
     return () => window.removeEventListener("pageshow", onPageShow);
-  }, []);
+  }, [router, slug]);
 
   const goToSection = React.useCallback((next: BookingStepId) => {
     if (next === 1 || next === 2) {
@@ -754,6 +771,10 @@ export function BookingWizard({
       // browser was still loading, and a second tap made a second booking.
       leaving = true;
       if (data.paymentRequired && data.authorizationUrl) {
+        createdHoldRef.current = {
+          reference: data.reference,
+          paymentReference: data.paymentReference ?? "",
+        };
         // The hold now exists, so every way out of checkout leads to the
         // confirmation page, which verifies the payment with Paystack. Staying
         // here after a cancel would let "Book now" create a second booking.

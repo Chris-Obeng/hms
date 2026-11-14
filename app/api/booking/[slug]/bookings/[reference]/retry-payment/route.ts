@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { initializeTransaction, isUsableSubaccount } from "@/lib/paystack";
+import { initializeTransaction, isUsableSubaccount, verifyTransaction } from "@/lib/paystack";
 import { sumMinor, toMinor } from "@/lib/money";
 import {
   computePlatformFeeMinor,
@@ -16,12 +16,74 @@ import {
 import { bookingReferenceParam, hotelSlugParam } from "@/lib/validation/params";
 
 /**
+ * Paystack statuses after which no more money can arrive on a transaction, so
+ * starting another one cannot charge the guest twice. Paystack documents
+ * `abandoned` as "the customer hasn't completed the transaction".
+ */
+const NO_CHARGE_STATUSES = new Set(["abandoned", "failed", "reversed"]);
+
+/**
+ * The reference of the booking's latest checkout if Paystack may still take
+ * money on it (success, or a mobile money / transfer payment still being
+ * processed), else null.
+ *
+ * Every retry creates a new Paystack transaction, so without this check a
+ * guest who closed the form while a mobile money prompt was still on their
+ * phone could approve that prompt and also pay the new transaction.
+ *
+ * Throws when the answer is unknown (database error, Paystack unreachable):
+ * the caller then refuses to start a new charge rather than risk a second one.
+ */
+async function latestChargeStillOpen(
+  hotelId: string,
+  bookingId: string
+): Promise<string | null> {
+  const { data: attempt, error } = await supabaseAdmin
+    .from("payment_attempts")
+    .select("paystack_reference")
+    .eq("hotel_id", hotelId)
+    .eq("booking_id", bookingId)
+    .eq("status", "initialized")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`payment_attempts lookup failed: ${error.message}`);
+  if (!attempt) return null;
+
+  try {
+    const txn = await verifyTransaction(attempt.paystack_reference);
+    return NO_CHARGE_STATUSES.has(txn.status) ? null : attempt.paystack_reference;
+  } catch (err) {
+    // 400/404 means Paystack has no such transaction: an earlier retry wrote
+    // the attempt and then failed to initialize it, so nothing can be charged
+    // on it. Anything else (429, 5xx, network) leaves the question open.
+    if (err instanceof Error && /^Paystack (400|404) /.test(err.message)) return null;
+    throw err;
+  }
+}
+
+/** The guest's earlier checkout may still go through: verify it, don't pay again. */
+function chargeStillOpenResponse(paymentReference: string) {
+  return NextResponse.json(
+    {
+      error:
+        "Your last payment attempt is still being processed. Please wait for it to finish before paying again.",
+      paymentInProgress: true,
+      paymentReference,
+    },
+    { status: 409 }
+  );
+}
+
+/**
  * POST /api/booking/[slug]/bookings/[reference]/retry-payment
  *
  * Re-initializes a Paystack transaction for a booking that is still an unpaid
  * online-payment hold (guest closed the checkout tab, card declined, etc.).
  *
  * Only ever issues a NEW authorization URL — it never mutates booking state.
+ * Refuses (409, `paymentInProgress`) while the previous checkout can still
+ * take money; see latestChargeStillOpen.
  * Confirmation still arrives exclusively through the webhook / verify path.
  *
  * Observability: this is the guest's second attempt at paying, so a failure here
@@ -164,6 +226,9 @@ async function handleRetryPayment(
   const amountMinor = toMinor(remaining, attemptCurrency);
 
   try {
+    const openReference = await latestChargeStillOpen(hotel.id, booking.id);
+    if (openReference) return chargeStillOpenResponse(openReference);
+
     // Platform fee on the amount actually charged this retry (the remaining
     // balance, not the original total). Stored on the attempt and sent to
     // Paystack as transaction_charge; zero fee omits it.
@@ -215,8 +280,9 @@ async function handleRetryPayment(
       },
     });
 
-    // Track the new reference for the reconciliation sweep (cap 10 so repeated
-    // retries on a stale hold can't grow the array unbounded).
+    // Audit list of references handed to Paystack (cap 10 so repeated retries
+    // on a stale hold can't grow the array unbounded). Settlement and the
+    // reconciliation sweep work from payment_attempts, not this column.
     const nextRefs = [...(booking.initiated_payment_refs ?? []), payRef].slice(-10);
     const { error: refsErr } = await supabaseAdmin
       .from("bookings")
@@ -224,12 +290,12 @@ async function handleRetryPayment(
       .eq("id", booking.id);
 
     if (refsErr) {
-      // The guest is on their way to Paystack with a reference the sweep cannot
-      // see, so a lost webhook means a paid hold expires unconfirmed.
+      // Audit gap only: the payment_attempts row written above is what
+      // settlement and the sweep use.
       captureSupabaseError(refsErr, "bookings.update.initiated_payment_refs", {
         scope: "booking-funnel",
         step: "payment_init",
-        level: "error",
+        level: "warning",
         hotelId: hotel.id,
         bookingId: booking.id,
         reference: payRef,
@@ -350,6 +416,10 @@ async function handleGroupRetryPayment(
   const payRef = `${anchor.reference}-r${Date.now()}`;
 
   try {
+    // The group's checkouts are all keyed on the anchor.
+    const openReference = await latestChargeStillOpen(hotel.id, groupId);
+    if (openReference) return chargeStillOpenResponse(openReference);
+
     const feeConfig = await feeConfigPromise;
     const platformFeeMinor = computePlatformFeeMinor(feeConfig, amountMinor, currency);
 
@@ -395,7 +465,8 @@ async function handleGroupRetryPayment(
       },
     });
 
-    // Reconciliation reads only the anchor's refs — one entry for the group.
+    // Audit list on the anchor only, one entry for the group. Settlement and
+    // the reconciliation sweep work from payment_attempts.
     const nextRefs = [...(anchor.initiated_payment_refs ?? []), payRef].slice(-10);
     const { error: refsErr } = await supabaseAdmin
       .from("bookings")
@@ -406,7 +477,7 @@ async function handleGroupRetryPayment(
       captureSupabaseError(refsErr, "bookings.update.initiated_payment_refs", {
         scope: "booking-funnel",
         step: "payment_init",
-        level: "error",
+        level: "warning",
         hotelId: hotel.id,
         bookingId: groupId,
         reference: payRef,

@@ -20,9 +20,21 @@ type Phase = "unpaid" | "verifying" | "confirmed" | "failed" | "not_completed" |
 
 /** Checks after the redirect, 2 seconds apart. */
 const FIRST_RUN_CHECKS = 8;
-/** "Check again" keeps the verify route under its 10-per-minute limit. */
+/** Checks per "Check again" press. */
 const RECHECK_CHECKS = 3;
 const CHECK_INTERVAL_MS = 2000;
+/**
+ * The verify route allows 10 calls a minute per IP, and a first run plus a
+ * quick "Check again" is 11. On a 429 the next check waits for Retry-After,
+ * capped so the guest is not left waiting with no feedback for long.
+ */
+const MAX_RATE_LIMIT_WAIT_MS = 30_000;
+/**
+ * `abandoned` can arrive moments after the guest closes the form while a
+ * mobile money charge is still being registered, so it is confirmed once more
+ * after this delay before the page offers a new payment.
+ */
+const ABANDONED_RECONFIRM_MS = 5000;
 
 interface AwaitingPaymentProps {
   slug: string;
@@ -61,14 +73,22 @@ export function AwaitingPayment({
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let checks = 0;
+    let abandonedOnce = false;
 
     async function check() {
       let status: string | null = null;
+      let nextDelay = CHECK_INTERVAL_MS;
       try {
         const res = await fetch(
           `/api/booking/${encodeURIComponent(slug)}/payments/verify?reference=${encodeURIComponent(paymentRef!)}`,
           { cache: "no-store" }
         );
+        if (res.status === 429) {
+          const retryAfterSeconds = Number(res.headers.get("Retry-After"));
+          if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+            nextDelay = Math.min(retryAfterSeconds * 1000, MAX_RATE_LIMIT_WAIT_MS);
+          }
+        }
         const data = (await res.json().catch(() => null)) as
           | { verified?: boolean; status?: unknown }
           | null;
@@ -92,12 +112,17 @@ export function AwaitingPayment({
         return;
       }
       if (status === "abandoned") {
-        setPhase("not_completed");
+        if (abandonedOnce) {
+          setPhase("not_completed");
+          return;
+        }
+        abandonedOnce = true;
+        timer = setTimeout(check, ABANDONED_RECONFIRM_MS);
         return;
       }
 
       checks += 1;
-      if (checks < run.checks) timer = setTimeout(check, CHECK_INTERVAL_MS);
+      if (checks < run.checks) timer = setTimeout(check, nextDelay);
       else setPhase("unconfirmed");
     }
 
@@ -111,6 +136,19 @@ export function AwaitingPayment({
   const checkAgain = () => {
     setPhase("verifying");
     setRun((previous) => ({ id: previous.id + 1, checks: RECHECK_CHECKS }));
+  };
+
+  // Paystack's answer for this checkout changed since it was checked (a
+  // mobile money charge came through late): follow it from the start.
+  const followOpenPayment = (openReference: string) => {
+    if (openReference === paymentRef) {
+      setPhase("verifying");
+      setRun((previous) => ({ id: previous.id + 1, checks: FIRST_RUN_CHECKS }));
+      return;
+    }
+    router.replace(
+      `/${encodeURIComponent(slug)}/confirmation?bref=${encodeURIComponent(reference)}&trxref=${encodeURIComponent(openReference)}`
+    );
   };
 
   if (phase === "verifying") {
@@ -210,6 +248,7 @@ export function AwaitingPayment({
             </>
           }
           ctaLabel={failed ? "Try again" : `Pay ${amountLabel} securely`}
+          onPaymentInProgress={followOpenPayment}
         />
       </>
     );

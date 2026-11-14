@@ -39,14 +39,19 @@ import { GroupSchema, Schema } from "./booking-schemas";
 // without booting Next/Clerk/Supabase (tests/booking-request-schema.test.ts).
 
 /**
- * Stores the Paystack reference on the booking row (the group anchor for a
- * group) once the response has been sent, so the write no longer delays the
- * guest's handoff to Paystack.
+ * Adds the Paystack reference to `initiated_payment_refs` on the booking row
+ * (the group anchor for a group) once the response has been sent, so the write
+ * does not delay the guest's handoff to Paystack.
  *
- * Nothing needs it sooner. The settlement RPC matches charges against
- * payment_attempts, which is written before Paystack sees the reference. This
- * column only feeds the reconciliation sweep, which skips attempts younger
- * than 3 minutes.
+ * Nothing in the payment path reads this column any more. Settlement
+ * (settle_online_payment_atomic) and the reconciliation sweep
+ * (reconcile_pending_payments, 20261112160347) both work from
+ * payment_attempts, which is written before Paystack sees the reference. The
+ * column is kept as a per-booking audit list.
+ *
+ * The write only applies while the list is still empty. A guest who retries
+ * quickly can reach retry-payment before this runs; that route appends its own
+ * reference, and overwriting the list here would drop it.
  */
 function recordInitiatedPaymentRefAfterResponse(input: {
   bookingId: string;
@@ -58,7 +63,7 @@ function recordInitiatedPaymentRefAfterResponse(input: {
     const context = {
       scope: "booking-funnel",
       step: "payment_init",
-      level: "error",
+      level: "warning",
       hotelId: input.hotelId,
       bookingId: input.bookingId,
       reference: input.payRef,
@@ -68,11 +73,10 @@ function recordInitiatedPaymentRefAfterResponse(input: {
       const { error } = await supabaseAdmin
         .from("bookings")
         .update({ initiated_payment_refs: [input.payRef] })
-        .eq("id", input.bookingId);
+        .eq("id", input.bookingId)
+        .filter("initiated_payment_refs", "eq", "{}");
       if (error) {
-        // The guest was sent to Paystack with a reference RoomLine has not
-        // stored. If the webhook is lost too, the sweep has nothing to verify
-        // and a paid booking expires as an abandoned hold.
+        // Audit gap only: settlement and the sweep key on payment_attempts.
         captureSupabaseError(error, "bookings.update.initiated_payment_refs", context);
       }
     } catch (err) {
@@ -564,9 +568,6 @@ export async function POST(
         metadata: { booking_id: booking.booking_id, hotel_id: hotel.id, booking_reference: booking.reference },
       });
 
-      // Remember every reference handed to Paystack so the reconciliation sweep
-      // can verify a payment even if the guest never returns and the webhook is
-      // delayed past hold expiry.
       recordInitiatedPaymentRefAfterResponse({
         bookingId: booking.booking_id,
         payRef,
@@ -928,8 +929,8 @@ async function createGroupBooking(
       },
     });
 
-    // Reconciliation reads the anchor row's initiated_payment_refs — one entry
-    // for the whole group; sibling rows carry no payment intent of their own.
+    // One entry on the anchor for the whole group; sibling rows carry no
+    // payment intent of their own.
     recordInitiatedPaymentRefAfterResponse({
       bookingId: group.group_id,
       payRef,

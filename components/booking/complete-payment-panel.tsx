@@ -19,6 +19,11 @@ interface CompletePaymentPanelProps {
   ctaLabel?: string;
   /** Shown when a previous attempt visibly failed (card declined, timeout). */
   note?: string | null;
+  /**
+   * The server refused a new payment because this checkout may still take
+   * money. Defaults to reloading the page to check that reference.
+   */
+  onPaymentInProgress?: (paymentReference: string) => void;
 }
 
 /**
@@ -35,6 +40,7 @@ export function CompletePaymentPanel({
   description,
   ctaLabel,
   note,
+  onPaymentInProgress,
 }: CompletePaymentPanelProps) {
   const router = useRouter();
   const [starting, setStarting] = React.useState(false);
@@ -67,14 +73,25 @@ export function CompletePaymentPanel({
         { method: "POST" }
       );
       const data = await res.json().catch(() => null);
+      // Keep the spinner on until the page changes. The reloaded page checks
+      // the transaction with Paystack, so a guest who closes the form
+      // mid-payment is not asked to pay again blindly.
+      const toVerification = (paymentReference: string) =>
+        router.replace(
+          `/${encodeURIComponent(slug)}/confirmation?bref=${encodeURIComponent(reference)}&trxref=${encodeURIComponent(paymentReference)}`
+        );
+      if (res.status === 409 && data?.paymentInProgress && data.paymentReference) {
+        // The previous checkout may still take money: check it instead.
+        const openReference = String(data.paymentReference);
+        if (onPaymentInProgress) {
+          onPaymentInProgress(openReference);
+          setStarting(false);
+        } else {
+          toVerification(openReference);
+        }
+        return;
+      }
       if (res.ok && data?.authorizationUrl) {
-        // Keep the spinner on until the page changes. Success or not, the
-        // reloaded page checks this transaction with Paystack, so a guest who
-        // closes the form mid-payment is not asked to pay again blindly.
-        const toVerification = (paymentReference: string) =>
-          router.replace(
-            `/${encodeURIComponent(slug)}/confirmation?bref=${encodeURIComponent(reference)}&trxref=${encodeURIComponent(paymentReference)}`
-          );
         await openPaystackCheckout({
           accessCode: data.accessCode,
           authorizationUrl: data.authorizationUrl as string,

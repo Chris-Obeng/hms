@@ -74,17 +74,9 @@ export async function openPaystackCheckout({
     return;
   }
 
-  let popup: PaystackPop;
-  try {
-    popup = await preloadPaystackPopup();
-  } catch {
-    window.location.assign(authorizationUrl);
-    return;
-  }
-
   // Exactly one outcome per checkout, whichever arrives first.
   let settled = false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let popup: PaystackPop | undefined;
   let transaction: PopupTransaction | undefined;
   const settle = () => {
     if (settled) return false;
@@ -95,16 +87,32 @@ export async function openPaystackCheckout({
 
   const fallBackToRedirect = () => {
     if (!settle()) return;
-    if (transaction) {
+    if (popup && transaction) {
       try {
-        // Closing it fires onCancel, which `settled` now ignores.
-        popup.cancelTransaction(transaction);
+        // Closing it fires onCancel, which `settled` now ignores. The library
+        // matches on the numeric id (set once the form loads) and otherwise
+        // closes the active transaction, which is this one.
+        popup.cancelTransaction(transaction.id ?? undefined);
       } catch {
         // The form may never have opened; nothing to close.
       }
     }
     window.location.assign(authorizationUrl);
   };
+
+  // The limit starts before the library download, not after it: the booking
+  // hold already exists, and a stalled chunk on a slow network would otherwise
+  // leave the guest on a spinner with no way to pay.
+  const timer = setTimeout(fallBackToRedirect, LOAD_TIMEOUT_MS);
+
+  try {
+    popup = await preloadPaystackPopup();
+  } catch {
+    fallBackToRedirect();
+    return;
+  }
+  // The timer won while the library was downloading; the redirect has started.
+  if (settled) return;
 
   try {
     transaction = popup.resumeTransaction(accessCode, {
@@ -120,8 +128,5 @@ export async function openPaystackCheckout({
   } catch {
     // Never leave the guest without a way to pay: the booking already exists.
     fallBackToRedirect();
-    return;
   }
-
-  if (!settled) timer = setTimeout(fallBackToRedirect, LOAD_TIMEOUT_MS);
 }
