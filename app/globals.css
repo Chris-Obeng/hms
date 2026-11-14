@@ -304,7 +304,7 @@
   --card-foreground: #141413;
   --popover: #ffffff;
   --popover-foreground: #141413;
-  /* Ultramarine. White on it is 7.2:1. */
+  /* Ultramarine. White on it is 7.0:1. */
   --primary: #2f49d1;
   --primary-foreground: #ffffff;
   --secondary: #f3f1ec;
@@ -365,8 +365,10 @@
   --field-background: var(--card);
   --field-foreground: var(--foreground);
   --field-placeholder: var(--muted-foreground);
-  --field-border: color-mix(in oklch, var(--input) 80%, var(--foreground));
-  --field-border-hover: color-mix(in oklch, var(--input) 60%, var(--foreground));
+  /* Field outlines need 3:1 against the card and the page (WCAG 1.4.11):
+   * 62% is about 3.5:1 on white, 45% about 5:1 on hover. */
+  --field-border: color-mix(in oklch, var(--input) 62%, var(--foreground));
+  --field-border-hover: color-mix(in oklch, var(--input) 45%, var(--foreground));
   --field-border-focus: var(--ring);
   --focus: var(--ring);
 }

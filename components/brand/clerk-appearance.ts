@@ -9,6 +9,8 @@
 const INK = "#141413";
 const TEXT = "#1F1E1C";
 const MUTED = "#5F5B55";
+/** Field and button outlines: 3.5:1 on white (WCAG 1.4.11 asks 3:1). */
+const FIELD_LINE = "#8C8983";
 const SANS = 'var(--rl-font-text), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
 
 export const clerkAppearance = {
@@ -72,7 +74,7 @@ export const clerkAppearance = {
     socialButtonsBlockButton: {
       minHeight: "48px",
       borderRadius: "999px",
-      boxShadow: "0 0 0 1px #BFBAB1",
+      boxShadow: `0 0 0 1px ${FIELD_LINE}`,
       fontWeight: 600,
     },
     dividerLine: { background: "rgba(20, 20, 19, 0.1)" },
@@ -81,7 +83,7 @@ export const clerkAppearance = {
     formFieldInput: {
       minHeight: "48px",
       fontSize: "1rem",
-      boxShadow: "0 0 0 1px #BFBAB1",
+      boxShadow: `0 0 0 1px ${FIELD_LINE}`,
       "&:focus": { boxShadow: "0 0 0 1px #141413, 0 0 0 4px rgba(20, 20, 19, 0.12)" },
     },
     formFieldErrorText: { fontSize: "0.8125rem", color: "#A33A1E" },

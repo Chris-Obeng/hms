@@ -18,6 +18,9 @@
 
   --ob-border: var(--rl-line-strong);
   --ob-border-hover: rgb(20 20 19 / 0.32);
+  /* Field outlines at 3:1 or more on card and paper (WCAG 1.4.11). */
+  --ob-field-border: rgb(20 20 19 / 0.48);
+  --ob-field-border-hover: rgb(20 20 19 / 0.64);
   --ob-hairline: var(--rl-line);
 
   --ob-primary: var(--rl-ink);
@@ -68,7 +71,7 @@
   --field-background: var(--ob-surface);
   --field-foreground: var(--ob-ink);
   --field-placeholder: var(--ob-ink-faint);
-  --field-border: var(--ob-border);
+  --field-border: var(--ob-field-border);
 }
 
 
@@ -439,7 +442,7 @@ button.ob-progress-seg:focus-visible {
   align-items: stretch;
   min-height: var(--ob-control-h);
   border-radius: var(--ob-radius);
-  border: 1px solid var(--ob-border);
+  border: 1px solid var(--ob-field-border);
   background-color: var(--ob-surface);
   overflow: hidden;
   transition:
@@ -515,7 +518,7 @@ button.ob-progress-seg:focus-visible {
 .ob-select-trigger {
   min-height: var(--ob-control-h) !important;
   border-radius: var(--ob-radius) !important;
-  border: 1px solid var(--ob-border) !important;
+  border: 1px solid var(--ob-field-border) !important;
   background-color: var(--ob-surface) !important;
   box-shadow: none !important;
   padding-inline: 0.75rem !important;
@@ -546,7 +549,7 @@ button.ob-progress-seg:focus-visible {
 @media (hover: hover) and (pointer: fine) {
   .ob-input-wrap:hover:not(:focus-within):not([data-invalid="true"]),
   .ob-select-trigger:hover:not([data-focus-visible="true"]) {
-    border-color: var(--ob-border-hover) !important;
+    border-color: var(--ob-field-border-hover) !important;
   }
 }
 
@@ -556,7 +559,7 @@ button.ob-progress-seg:focus-visible {
   align-items: center;
   min-height: var(--ob-control-h);
   border-radius: var(--ob-radius);
-  border: 1px solid var(--ob-border);
+  border: 1px solid var(--ob-field-border);
   background-color: var(--ob-surface);
   padding-left: 0.75rem;
   padding-right: 0.25rem;
@@ -572,7 +575,7 @@ button.ob-progress-seg:focus-visible {
 
 @media (hover: hover) and (pointer: fine) {
   .ob-number-shell:hover:not(:focus-within) {
-    border-color: var(--ob-border-hover);
+    border-color: var(--ob-field-border-hover);
   }
 }
 
