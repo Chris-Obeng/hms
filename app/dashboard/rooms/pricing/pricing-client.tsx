@@ -215,7 +215,7 @@ export function PricingClient({
       .channel(`hotel:${hotelId}:rates`)
       .on("postgres_changes", { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` }, refreshRoomsLeft)
       .on("postgres_changes", { event: "*", schema: "public", table: "availability_blocks", filter: `hotel_id=eq.${hotelId}` }, refreshRoomsLeft)
-      .subscribe(onRealtimeStatus({ label: "rates", hotelId, table: "bookings,availability_blocks" }));
+      .subscribe(onRealtimeStatus({ label: "rates", hotelId, table: "bookings,availability_blocks", onRecovered: refreshRoomsLeft }));
     return () => {
       inventory.cancel();
       void supabase.removeChannel(channel);

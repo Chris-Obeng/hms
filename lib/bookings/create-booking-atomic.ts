@@ -57,7 +57,7 @@ export type CreateBookingPayload = {
   payment_status?: string;
   payment_preference?: string;
   source?: string;
-  /** Pick the lowest-numbered free room of the type. Never fatal if none is. */
+  /** Pick the best free room of the type (bookings_private.pick_best_room). Never fatal if none is: the booking is then unassigned. */
   assign_room?: boolean;
   room_id?: string | null;
   /** Skips the email/phone lookup and uses this guest directly. */

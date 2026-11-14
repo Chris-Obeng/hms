@@ -351,6 +351,12 @@ export async function POST(
       payment_status: "unpaid",
       payment_preference: data.payment_preference,
       source: "direct",
+      // Every stay lands on a numbered room straight away (the best free room
+      // of the type, chosen inside the same transaction); staff move it on the
+      // calendar if they need to. If no single room is free for the whole stay
+      // the booking is still taken, unassigned, and shows in the calendar's
+      // unassigned tray.
+      assign_room: true,
       guest_name: data.guest_name,
       guest_email: data.guest_email,
       guest_phone: data.guest_phone,
@@ -718,6 +724,8 @@ async function createGroupBooking(
       adults: l.adults,
       children: l.children,
       rooms_count: l.rooms_count,
+      // Each room line gets its own best free room, as on a single booking.
+      assign_room: true,
       // Only sent when the line carries its own text. The group writer merges
       // shared fields with per-line keys (`v_shared || v_line`), and a per-line
       // `null` would clobber the reservation-level special_requests — the guest's

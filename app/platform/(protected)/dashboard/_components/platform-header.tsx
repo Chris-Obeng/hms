@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
+import { createPlatformBrowserClient } from "@/lib/supabase/platform-browser";
 import type { PlatformAdmin } from "./platform-sidebar";
 
 // ── Route title map ────────────────────────────────────────────
@@ -47,7 +47,9 @@ export function PlatformHeader({ admin }: { admin: PlatformAdmin | null }) {
     : (admin?.email?.[0] ?? "A").toUpperCase();
 
   async function handleSignOut() {
-    const supabase = createClient();
+    // Platform admins sign in with Supabase Auth, so sign-out goes through the
+    // platform client. The staff client (Clerk tokens) has no `auth` API.
+    const supabase = createPlatformBrowserClient();
     await supabase.auth.signOut();
     router.push("/platform/sign-in");
     router.refresh();

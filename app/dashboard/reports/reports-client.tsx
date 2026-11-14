@@ -33,7 +33,7 @@ export interface ReportsClientProps {
   initialEndDate: string;
 }
 
-const CONTEXT_TITLE = "Business Intelligence";
+const CONTEXT_TITLE = "Reports";
 const CONTEXT_CHANGED = "The active property, settings or report dates changed. Reload this page to continue.";
 /** Same page title as Rooms, Rates and Guests. */
 const TITLE_CLASS = "text-2xl font-semibold tracking-[-0.02em] text-foreground";

@@ -159,23 +159,30 @@ export function DashboardClient({
     if (!orgId) return;
     const supabase = createClient();
     const refresh = createCoalescer();
+    const refreshDashboard = () =>
+      refresh.schedule(() => {
+        queryClient.invalidateQueries({
+          queryKey: qk.dashboard(orgId, hotelId, dateParamStr),
+        });
+        queryClient.invalidateQueries({
+          queryKey: qk.dashboard(orgId, hotelId, businessToday(hotelTimezone)),
+        });
+      });
     const channel = supabase
       .channel(`hotel:${hotelId}:dashboard`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bookings", filter: `hotel_id=eq.${hotelId}` },
-        () =>
-          refresh.schedule(() => {
-            queryClient.invalidateQueries({
-              queryKey: qk.dashboard(orgId, hotelId, dateParamStr),
-            });
-            queryClient.invalidateQueries({
-              queryKey: qk.dashboard(orgId, hotelId, businessToday(hotelTimezone)),
-            });
-          })
+        refreshDashboard
       )
       .subscribe(
-        onRealtimeStatus({ label: "dashboard", hotelId, orgId, table: "bookings" })
+        onRealtimeStatus({
+          label: "dashboard",
+          hotelId,
+          orgId,
+          table: "bookings",
+          onRecovered: refreshDashboard,
+        })
       );
     return () => {
       refresh.cancel();

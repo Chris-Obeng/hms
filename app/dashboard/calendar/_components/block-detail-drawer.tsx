@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
 import { Drawer, Button, AlertDialog, toast } from "@heroui/react";
 import { CalendarOff, LockOpen, Pencil, UserRound } from "lucide-react";
 
@@ -18,10 +19,10 @@ interface BlockDetailDrawerProps {
   canUnblock: boolean;
   canEditBlocks: boolean;
   onEdit: (block: CalendarAvailabilityBlock) => void;
-  onUnblocked: (
-    optimisticDeletedId?: string,
-    restoreBlock?: CalendarAvailabilityBlock
-  ) => Promise<void> | void;
+  /** The block leaves the rack before the server answers (optimistic). */
+  onUnblockStart: (blockId: string) => void;
+  /** The server answered: keep it removed, or put it back. */
+  onUnblockEnd: (blockId: string, removed: boolean) => void;
 }
 
 export function BlockDetailDrawer({
@@ -33,7 +34,8 @@ export function BlockDetailDrawer({
   canUnblock,
   canEditBlocks,
   onEdit,
-  onUnblocked,
+  onUnblockStart,
+  onUnblockEnd,
 }: BlockDetailDrawerProps) {
   const isMobile = useIsMobile();
   const [confirming, setConfirming] = React.useState(false);
@@ -42,23 +44,19 @@ export function BlockDetailDrawer({
 
   const handleUnblock = async () => {
     if (!block || unblocking) return;
-    const targetBlock = block;
+    const targetId = block.id;
     setUnblocking(true);
     setConfirming(false);
     onClose();
-    await onUnblocked(targetBlock.id);
+    onUnblockStart(targetId);
     try {
-      const result = await deleteAvailabilityBlock(targetBlock.id);
-      if (result.success) {
-        await onUnblocked();
-        toast.success(`${displayRoom} is available again`);
-      } else {
-        await onUnblocked(undefined, targetBlock);
-        toast.danger(result.error || "Failed to remove block");
-      }
+      const result = await deleteAvailabilityBlock(targetId);
+      onUnblockEnd(targetId, result.success);
+      if (result.success) toast.success(`${displayRoom} is available again`);
+      else toast.danger(result.error || "Failed to remove block");
     } catch {
-      await onUnblocked(undefined, targetBlock);
-      toast.danger("Failed to remove block — check your connection and try again");
+      onUnblockEnd(targetId, false);
+      toast.danger("Failed to remove block. Check your connection and try again.");
     } finally {
       setUnblocking(false);
     }
@@ -67,6 +65,12 @@ export function BlockDetailDrawer({
   const reasonLabel = block?.reason
     ? BLOCK_REASON_LABELS[block.reason] ?? block.reason.replaceAll("_", " ")
     : "Blocked";
+  // end_date is stored exclusive (the first night the room is free again);
+  // staff picked the last blocked night, so that is what the drawer shows.
+  const lastNight = block ? format(addDays(parseISO(block.endDate), -1), "yyyy-MM-dd") : null;
+  const nights = block
+    ? Math.max(1, differenceInCalendarDays(parseISO(block.endDate), parseISO(block.startDate)))
+    : 0;
 
   return (
     <Drawer.Backdrop
@@ -105,10 +109,18 @@ export function BlockDetailDrawer({
                   aria-label="Blocked dates"
                   className="rounded-2xl border border-border/60 bg-card p-4"
                 >
-                  <p className="mb-2 text-xs font-medium text-muted-foreground">Blocked dates</p>
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">Blocked nights</p>
                   <p className="text-sm font-semibold tabular-nums text-foreground">
                     {formatDateFull(block.startDate)}
-                    <span className="mx-2 text-muted-foreground/50">→</span>
+                    {lastNight !== block.startDate && (
+                      <>
+                        <span className="mx-2 text-muted-foreground/50">–</span>
+                        {formatDateFull(lastNight)}
+                      </>
+                    )}
+                  </p>
+                  <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+                    {nights} {nights === 1 ? "night" : "nights"} · free again{" "}
                     {formatDateFull(block.endDate)}
                   </p>
                 </section>

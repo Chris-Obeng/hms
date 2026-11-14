@@ -92,7 +92,7 @@ const navGroups: NavGroup[] = [
   {
     title: "Insights",
     items: [
-      { title: "Business Intelligence", url: "/dashboard/reports", icon: BarChart3 },
+      { title: "Reports", url: "/dashboard/reports", icon: BarChart3 },
       { title: "Night audit", url: "/dashboard/night-audit", icon: Clock },
     ],
   },

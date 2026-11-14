@@ -161,8 +161,15 @@ export function occupancyFromAvailability(rows: AvailabilityRow[]) {
   const booked = rows.reduce((sum, r) => sum + (r.booked ?? 0), 0);
   return { availableRoomNights: capacity, roomNightsSold: booked, occupancyPct: occupancy(booked, capacity) };
 }
+/** Not clamped: a figure over 100% is a data signal (overlapping stays), reported by `oversoldDays`. */
 export function occupancy(booked: number, capacity: number | null): number | null {
   return capacity == null || capacity <= 0 ? null : Math.round(booked / capacity * 1000) / 10;
+}
+/** Dates whose earned room-nights exceed that day's recorded room count, in date order. */
+export function oversoldDays(facts: Pick<NightFact, "date" | "roomNights">[], capacity: { date: string; capacity: number | null }[]): string[] {
+  const sold = new Map<string, number>();
+  for (const fact of facts) sold.set(fact.date, (sold.get(fact.date) ?? 0) + fact.roomNights);
+  return capacity.filter(day => day.capacity != null && (sold.get(day.date) ?? 0) > day.capacity).map(day => day.date);
 }
 export function adr(revenue: number, roomNights: number): number { return roomNights > 0 ? Math.round(revenue / roomNights * 100) / 100 : 0; }
 export function revpar(revenue: number, capacity: number | null): number | null { return capacity == null || capacity <= 0 ? null : Math.round(revenue / capacity * 100) / 100; }

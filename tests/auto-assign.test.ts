@@ -46,9 +46,12 @@ function booking(overrides: Partial<CalendarBooking> = {}): CalendarBooking {
   };
 }
 
+/** The bookings below arrive on this business date. */
+const TODAY = "2026-08-23";
+
 describe("pickBestRoom", () => {
   it("returns null when the booking has no room type", () => {
-    expect(pickBestRoom(booking({ roomTypeId: null }), { rooms: [room()], bookings: [] })).toBeNull();
+    expect(pickBestRoom(booking({ roomTypeId: null }), { rooms: [room()], bookings: [], today: TODAY })).toBeNull();
   });
 
   it("skips rooms of a different type and out-of-service rooms", () => {
@@ -57,28 +60,28 @@ describe("pickBestRoom", () => {
       room({ id: "broken", status: "maintenance" }),
       room({ id: "ok" }),
     ];
-    expect(pickBestRoom(booking(), { rooms, bookings: [] })?.id).toBe("ok");
+    expect(pickBestRoom(booking(), { rooms, bookings: [], today: TODAY })?.id).toBe("ok");
   });
 
   it("skips rooms with an overlapping active booking", () => {
     const rooms = [room({ id: "taken" }), room({ id: "free", roomNumber: "102" })];
     const bookings = [booking({ id: "other", roomId: "taken" })];
-    expect(pickBestRoom(booking(), { rooms, bookings })?.id).toBe("free");
+    expect(pickBestRoom(booking(), { rooms, bookings, today: TODAY })?.id).toBe("free");
   });
 
   it("prefers clean/available rooms over rooms that are still occupied", () => {
     const rooms = [room({ id: "dirty", roomNumber: "105", status: "occupied" }), room({ id: "clean", roomNumber: "103" })];
-    expect(pickBestRoom(booking(), { rooms, bookings: [] })?.id).toBe("clean");
+    expect(pickBestRoom(booking(), { rooms, bookings: [], today: TODAY })?.id).toBe("clean");
   });
 
   it("breaks ties by numeric room number", () => {
     const rooms = [room({ id: "nine", roomNumber: "9" }), room({ id: "ten", roomNumber: "10" })];
-    expect(pickBestRoom(booking(), { rooms, bookings: [] })?.id).toBe("nine");
+    expect(pickBestRoom(booking(), { rooms, bookings: [], today: TODAY })?.id).toBe("nine");
   });
 
   it("ignores cancelled bookings when computing occupancy pressure", () => {
     const rooms = [room({ id: "with-cancelled" })];
     const bookings = [booking({ id: "ghost", roomId: "with-cancelled", status: "cancelled" })];
-    expect(pickBestRoom(booking(), { rooms, bookings })?.id).toBe("with-cancelled");
+    expect(pickBestRoom(booking(), { rooms, bookings, today: TODAY })?.id).toBe("with-cancelled");
   });
 });

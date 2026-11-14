@@ -51,12 +51,23 @@ responses with missing or mismatched metadata cannot be displayed or exported.
 
 Apply `20261021223243_reports_inventory_history.sql` before these room reports.
 It captures one dated closing active-physical-room inventory map per hotel/day.
-The first captured day is an explicit baseline; earlier capacity is unknown.
 Private trigger functions capture room insert/delete/activation/type changes
 and hotel creation/timezone changes. Hotel locks serialize room writers. The
 migration briefly locks room/hotel tables for the initial baseline. Read access
 is active-staff tenant-scoped; direct API writes and public function execution
-are revoked. No existing historical room list is backfilled.
+are revoked.
+
+`20261113223000_backfill_reports_inventory_history.sql` rebuilt the days before
+each hotel's first capture once, from room creation dates (a room counts from
+its property-local creation date; the hotel's creation date gets an empty map
+when it came first). It ran only for hotels whose rooms still reproduce that
+first capture: no room created by then is inactive now (deactivation dates are
+not recorded), no audited edit has ever changed a room's type (a later swap
+keeps the counts but would misattribute earlier days), and the active rooms
+match the per-type counts exactly. Other hotels keep their first capture
+as the baseline. Rebuilt rows have a `captured_at` long after their
+`effective_date`. Dates before a hotel's earliest row remain unknown, and the
+report code still never derives past capacity from current rooms.
 
 The denominator is **active physical inventory at day end**, retaining rooms in
 maintenance/out-of-service and availability blocks. It is not operational

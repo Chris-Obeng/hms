@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { ReportsClient } from "./reports-client";
 import { shiftReportDate } from "./_components/report-utils";
 
+export const metadata = {
+  title: "Reports | RoomLine",
+};
+
 export default async function ReportsPage() {
   let context;
   try { context = await requireMinRole("read_only", "view reports"); }

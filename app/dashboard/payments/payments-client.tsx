@@ -96,9 +96,10 @@ export function PaymentsClient({
   React.useEffect(() => {
     const supabase = createClient();
     const refresh = createCoalescer();
+    const reload = () => refresh.schedule(() => void loadActivity());
     const channel = supabase.channel(`hotel:${hotelId}:payments-page`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "payments", filter: `hotel_id=eq.${hotelId}` }, () => refresh.schedule(() => void loadActivity()))
-      .subscribe(onRealtimeStatus({ label: "payments", hotelId, table: "payments" }));
+      .on("postgres_changes", { event: "*", schema: "public", table: "payments", filter: `hotel_id=eq.${hotelId}` }, reload)
+      .subscribe(onRealtimeStatus({ label: "payments", hotelId, table: "payments", onRecovered: reload }));
     return () => { refresh.cancel(); supabase.removeChannel(channel); };
   }, [hotelId, loadActivity]);
 
