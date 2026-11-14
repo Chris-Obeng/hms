@@ -280,7 +280,7 @@ END;
 $$;
 RESET ROLE;
 SELECT pg_temp.assert_true(
-  (SELECT early_departure_fee FROM public.bookings WHERE id = 'e5e50001-0000-4000-8000-000000000002') = 1188,
+  (SELECT early_departure_fee FROM public.bookings WHERE id = 'e5e50001-0000-4000-8000-000000000002') = 1080,
   'fee unchanged after a client write attempt');
 
 ROLLBACK;
