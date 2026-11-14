@@ -1,8 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Spinner } from "@heroui/react";
 import { Lock } from "lucide-react";
+
+import { openPaystackCheckout, preloadPaystackPopup } from "@/lib/paystack-popup";
 
 interface CompletePaymentPanelProps {
   slug: string;
@@ -20,8 +23,9 @@ interface CompletePaymentPanelProps {
 
 /**
  * Guest-facing "finish your payment" panel for bookings still in the unpaid
- * payment-hold state. Requests a fresh Paystack authorization URL and sends
- * the browser there. Never mutates booking state itself.
+ * payment-hold state. Starts a fresh Paystack transaction and completes it in
+ * Paystack's checkout over this page, falling back to the hosted checkout
+ * page. Never mutates booking state itself.
  */
 export function CompletePaymentPanel({
   slug,
@@ -32,8 +36,15 @@ export function CompletePaymentPanel({
   ctaLabel,
   note,
 }: CompletePaymentPanelProps) {
+  const router = useRouter();
   const [starting, setStarting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(note ?? null);
+
+  // The panel only shows when a payment is due, so get Paystack's checkout
+  // ready while the guest reads it.
+  React.useEffect(() => {
+    preloadPaystackPopup().catch(() => {});
+  }, []);
 
   // Returning with the browser's Back button can restore this page from the
   // back/forward cache with the spinner still on. Reset it so the guest can
@@ -57,8 +68,20 @@ export function CompletePaymentPanel({
       );
       const data = await res.json().catch(() => null);
       if (res.ok && data?.authorizationUrl) {
-        // Keep the spinner on until Paystack's page replaces this one.
-        window.location.assign(data.authorizationUrl as string);
+        // Keep the spinner on until the page changes. Success or not, the
+        // reloaded page checks this transaction with Paystack, so a guest who
+        // closes the form mid-payment is not asked to pay again blindly.
+        const toVerification = (paymentReference: string) =>
+          router.replace(
+            `/${encodeURIComponent(slug)}/confirmation?bref=${encodeURIComponent(reference)}&trxref=${encodeURIComponent(paymentReference)}`
+          );
+        await openPaystackCheckout({
+          accessCode: data.accessCode,
+          authorizationUrl: data.authorizationUrl as string,
+          reference: data.paymentReference ?? "",
+          onSuccess: toVerification,
+          onClose: toVerification,
+        });
         return;
       }
       setError(

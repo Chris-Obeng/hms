@@ -410,3 +410,9 @@
     transition: none !important;
   }
 }
+
+/* Booking toasts sit at the top on phones (see booking-toast.tsx); keep them
+   clear of the notch. */
+.toast-region--top.booking-portal {
+  top: max(1rem, env(safe-area-inset-top));
+}

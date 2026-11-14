@@ -580,6 +580,9 @@ export async function POST(
         roomsCount: data.rooms_count,
         paymentRequired: true,
         authorizationUrl: txn.authorization_url,
+        // Paystack Popup completes the same transaction on the booking page
+        // (resumeTransaction); authorizationUrl is the hosted fallback.
+        accessCode: txn.access_code,
         paymentReference: payRef,
       });
     } catch (paystackErr) {
@@ -940,6 +943,7 @@ async function createGroupBooking(
       roomsCount: totalRooms,
       paymentRequired: true,
       authorizationUrl: txn.authorization_url,
+      accessCode: txn.access_code,
       paymentReference: payRef,
     });
   } catch (paystackErr) {

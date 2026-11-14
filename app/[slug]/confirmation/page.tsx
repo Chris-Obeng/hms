@@ -232,6 +232,8 @@ export default async function ConfirmationPage({
           {state === "awaiting_payment" ? (
             // Checks a returning payment before it ever asks for one.
             <AwaitingPayment
+              // A new transaction (retry in the popup) starts a new check.
+              key={paymentRef ?? "unpaid"}
               slug={slug}
               reference={booking.reference}
               paymentRef={paymentRef}

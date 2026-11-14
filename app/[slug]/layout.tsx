@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { notFound } from "next/navigation";
 import { getPublicHotel } from "./_lib/get-public-hotel";
+import { BookingToastProvider } from "@/components/booking/booking-toast";
 import "./booking.css";
 
 const inter = Inter({
@@ -49,6 +50,7 @@ export default async function SlugLayout({ children, params }: Props) {
       className={`${inter.variable} ${jetbrainsMono.variable} booking-body min-h-[100dvh]`}
     >
       {children}
+      <BookingToastProvider />
     </div>
   );
 }

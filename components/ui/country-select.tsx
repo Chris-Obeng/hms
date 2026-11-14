@@ -13,7 +13,6 @@ import { COUNTRIES } from "@/lib/countries-data";
 export const countryOptions = COUNTRIES.map((country) => ({
   value: country.name,
   label: country.name,
-  flag: country.flag,
   code: country.code,
   dialCode: country.dialCode,
 }));
@@ -56,7 +55,6 @@ export function CountrySelect({
           {({ defaultChildren, isPlaceholder }) =>
             !isPlaceholder && selected ? (
               <span className="flex w-full items-center gap-2">
-                <span className="text-base leading-none" aria-hidden="true">{selected.flag}</span>
                 <span className="truncate">{selected.label}</span>
                 <span className="ml-auto shrink-0 text-xs text-muted-foreground">{selected.dialCode}</span>
               </span>
@@ -87,7 +85,6 @@ export function CountrySelect({
                 id={country.value}
                 textValue={`${country.label} ${country.code} ${country.dialCode}`}
               >
-                <span className="mr-1 text-base leading-none" aria-hidden="true">{country.flag}</span>
                 <span className="font-medium">{country.label}</span>
                 <span className="ml-auto text-xs text-muted-foreground">{country.dialCode}</span>
                 <ListBox.ItemIndicator />

@@ -237,7 +237,12 @@ async function handleRetryPayment(
       });
     }
 
-    return NextResponse.json({ authorizationUrl: txn.authorization_url });
+    return NextResponse.json({
+      authorizationUrl: txn.authorization_url,
+      // Completed in Paystack Popup on the confirmation page; the URL is the fallback.
+      accessCode: txn.access_code,
+      paymentReference: payRef,
+    });
   } catch (err) {
     console.error("[booking/retry-payment]", err);
     // lib/paystack.ts reports the API failure; this records that a guest with an
@@ -409,7 +414,12 @@ async function handleGroupRetryPayment(
       });
     }
 
-    return NextResponse.json({ authorizationUrl: txn.authorization_url });
+    return NextResponse.json({
+      authorizationUrl: txn.authorization_url,
+      // Completed in Paystack Popup on the confirmation page; the URL is the fallback.
+      accessCode: txn.access_code,
+      paymentReference: payRef,
+    });
   } catch (err) {
     console.error("[booking/retry-payment]", err);
     captureError(err, {
