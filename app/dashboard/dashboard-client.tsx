@@ -24,9 +24,9 @@ import { businessDate, businessToday } from "@/lib/business-date";
 import { updateBookingStatus } from "@/app/actions/bookings";
 import { checkInBooking, checkOutBooking } from "./actions";
 import { EarlyCheckoutDialog } from "./_components/early-checkout-dialog";
-import { isEarlyDeparture, type EarlyDeparturePolicy } from "@/lib/bookings/early-departure";
+import { earlyCheckoutToast, type EarlyDeparturePolicy } from "@/lib/bookings/early-departure";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface DashboardClientProps {
@@ -335,19 +335,11 @@ export function DashboardClient({
     onSuccess: ({ early }) => {
       if (!early) {
         toast.success("Guest checked out successfully");
-      } else if (early.overpaid > 0) {
-        toast.warning(
-          `Checked out early. Refund ${formatCurrency(early.overpaid, early.currency)} to the guest.`
-        );
-      } else if (early.policy === "release") {
-        toast.success(
-          `Checked out early. The bill is now ${formatCurrency(early.totalAfter, early.currency)}.`
-        );
-      } else {
-        toast.success(
-          `Checked out early. ${formatCurrency(early.earlyDepartureFee, early.currency)} kept as an early departure fee.`
-        );
+        return;
       }
+      const message = earlyCheckoutToast(early);
+      if (message.tone === "warning") toast.warning(message.text);
+      else toast.success(message.text);
     },
     onSettled: (_data, _error, { bookingId }) => {
       setCheckingOut((prev) => {
@@ -374,7 +366,9 @@ export function DashboardClient({
   const handleCheckOut = React.useCallback(
     (bookingId: string) => {
       const booking = data?.bookings.find((item: ActivityBooking) => item.id === bookingId);
-      if (booking && isEarlyDeparture(booking.checkIn, booking.checkOut, propertyTodayStr)) {
+      // Any departure before the booked date asks first. The dialog shows the
+      // bill change when the stay is shortened (see EarlyCheckoutDialog).
+      if (booking && booking.checkOut > propertyTodayStr) {
         setEarlyCheckoutBooking(booking);
         return;
       }
@@ -776,7 +770,15 @@ export function DashboardClient({
         />
 
         <EarlyCheckoutDialog
-          target={earlyCheckoutBooking}
+          target={
+            earlyCheckoutBooking
+              ? {
+                  bookingIds: [earlyCheckoutBooking.id],
+                  guestName: earlyCheckoutBooking.guestName,
+                  checkOut: earlyCheckoutBooking.checkOut,
+                }
+              : null
+          }
           onCancel={closeEarlyConfirmation}
           onConfirm={confirmEarlyCheckout}
         />

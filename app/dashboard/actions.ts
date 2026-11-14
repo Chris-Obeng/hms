@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { writeAuditLog } from "@/lib/audit";
 import { requireMinRole, toActionError } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -119,37 +120,60 @@ export async function checkOutBooking(
     if (booking.status !== "checked_in") return { success: false, error: "Booking is not checked in" };
 
     const today = businessToday(hotel?.timezone || "UTC");
-    let early: EarlyDepartureResult | undefined;
 
-    if (isEarlyDeparture(booking.check_in, booking.check_out, today)) {
-      // Shortens the stay and checks out in one transaction. Service role:
-      // the function writes nights and money, which staff cannot write directly.
+    // Shortens the stay and checks out in one transaction. Service role: the
+    // function writes nights and money, which staff cannot write directly.
+    // "not_early" means the business day turned over since the read.
+    const state: { early?: EarlyDepartureResult; shortened: boolean } = { shortened: false };
+    const checkOutEarly = async (): Promise<"done" | "not_early" | "failed"> => {
       const { data, error } = await supabaseAdmin.rpc("check_out_early", {
         p_booking_id: bookingId,
         p_hotel_id: ctx.hotelId,
         ...(options.unusedNights ? { p_unused_nights: options.unusedNights } : {}),
       });
       if (error) {
-        // The business day turned over between the read and the call: the
-        // guest is now leaving on their booked day, so check out normally.
-        if (!(error.details === "not_early")) {
-          console.error("[checkOutBooking:check_out_early]", error);
-          return { success: false, error: "Could not check out early. Refresh and try again." };
-        }
-      } else {
-        early = parseEarlyDepartureResult(data);
+        if (error.details === "not_early") return "not_early";
+        console.error("[checkOutBooking:check_out_early]", error);
+        return "failed";
+      }
+      state.shortened = true;
+      // The check-out is committed: never fail the action on an unexpected
+      // result shape, or the room and audit steps below would be skipped.
+      try {
+        state.early = parseEarlyDepartureResult(data);
+      } catch (parseError) {
+        console.error("[checkOutBooking:parse]", parseError, data);
+      }
+      return "done";
+    };
+
+    let outcome: "done" | "not_early" | "failed" = "not_early";
+
+    if (isEarlyDeparture(booking.check_in, booking.check_out, today)) {
+      outcome = await checkOutEarly();
+      if (outcome === "failed") {
+        return { success: false, error: "Could not check out early. Refresh and try again." };
       }
     }
 
-    if (!early) {
+    if (outcome === "not_early") {
       const { error } = await supabase
         .from("bookings")
         .update({ status: "checked_out", check_out_at: new Date().toISOString() })
         .eq("id", bookingId)
         .eq("hotel_id", ctx.hotelId);
 
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        // The database decides what "early" means; if it says this guest is
+        // leaving early after all (time zone or midnight), shorten the stay.
+        if (error.details !== "early_departure") return { success: false, error: error.message };
+        if ((await checkOutEarly()) !== "done") {
+          return { success: false, error: "Could not check out early. Refresh and try again." };
+        }
+      }
     }
+
+    const { early, shortened } = state;
 
     if (booking.room_id) {
       const { count: otherActiveCount, error: countError } = await supabase
@@ -176,7 +200,7 @@ export async function checkOutBooking(
       hotelId: ctx.hotelId,
       staffId: ctx.staffId,
       staffName: ctx.staffName,
-      action: early ? "booking.early_checkout" : "booking.checked_out",
+      action: shortened ? "booking.early_checkout" : "booking.checked_out",
       entityType: "booking",
       entityId: bookingId,
       beforeState: early ? { reference: booking.reference, check_out: early.checkOutBefore } : undefined,
@@ -189,23 +213,33 @@ export async function checkOutBooking(
             unused_nights: early.policy === "charge" ? "charged as early departure fee" : "released from the bill",
             ...(early.earlyDepartureFee > 0 ? { early_departure_fee: early.earlyDepartureFee } : {}),
           }
-        : { reference: booking.reference, status: "checked_out" },
+        : { reference: booking.reference, status: "checked_out", ...(shortened ? { stay_shortened: true } : {}) },
     });
 
     if (early && early.overpaid > 0) {
+      // The hotel hands the money back in person; Oriel never starts a
+      // Paystack refund. Staff then record it on the booking (recordRefund).
       const amount = `${early.currency} ${early.overpaid.toFixed(2)}`;
-      void import("@/lib/bookings/confirm-online-payment")
-        .then(({ alertOncePerBooking }) =>
-          alertOncePerBooking(
+      const why =
+        early.policy === "release"
+          ? "checked out early and the unused nights were taken off the bill"
+          : "checked out early";
+      const reference = booking.reference;
+      after(async () => {
+        try {
+          const { alertOncePerBooking } = await import("@/lib/bookings/confirm-online-payment");
+          await alertOncePerBooking(
             ctx.hotelId,
             bookingId,
             "payment_failed",
             `early-checkout-refund:${bookingId}`,
-            `Refund review needed (${booking.reference})`,
-            `The guest on ${booking.reference} checked out early and the unused nights were released. They have paid ${amount} more than the new total. Refund it.`
-          )
-        )
-        .catch((e: unknown) => console.error("[checkOutBooking:refund-review]", e));
+            `Refund due (${reference})`,
+            `The guest on ${reference} ${why}. They have paid ${amount} more than the new total. Give it back to them, then record the refund on the booking.`
+          );
+        } catch (e) {
+          console.error("[checkOutBooking:refund-review]", e);
+        }
+      });
     }
 
     revalidatePath("/dashboard");

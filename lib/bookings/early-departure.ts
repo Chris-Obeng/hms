@@ -16,6 +16,8 @@
  * A guest who leaves on their arrival day keeps one night: they used it.
  */
 
+import { formatCurrency } from "@/lib/format";
+
 export type EarlyDeparturePolicy = "charge" | "release";
 
 export const EARLY_DEPARTURE_POLICIES: readonly EarlyDeparturePolicy[] = ["charge", "release"];
@@ -132,4 +134,24 @@ function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+/** What to tell staff after an early check-out (shared by every check-out button). */
+export function earlyCheckoutToast(early: EarlyDepartureResult): { tone: "success" | "warning"; text: string } {
+  if (early.overpaid > 0) {
+    return {
+      tone: "warning",
+      text: `Checked out early. Give the guest back ${formatCurrency(early.overpaid, early.currency)}, then record the refund on their booking.`,
+    };
+  }
+  if (early.policy === "release") {
+    return { tone: "success", text: `Checked out early. The bill is now ${formatCurrency(early.totalAfter, early.currency)}.` };
+  }
+  if (early.earlyDepartureFee > 0) {
+    return {
+      tone: "success",
+      text: `Checked out early. ${formatCurrency(early.earlyDepartureFee, early.currency)} kept as an early departure fee.`,
+    };
+  }
+  return { tone: "success", text: "Checked out early. The bill is unchanged." };
 }

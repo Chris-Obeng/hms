@@ -24,7 +24,13 @@
 --        'release' the bill drops by the unused nights; any overpayment is
 --                  left for staff to refund.
 --   3. shortens the stays already checked out early (charge: no bill
---      changes). Nights already closed by Night Audit keep their receipts.
+--      changes). Nights already closed by Night Audit keep their receipts;
+--   4. adds public.record_manual_refund so staff can record money they gave
+--      back in person (cash, mobile money, bank transfer). It never contacts
+--      Paystack: the hotel refunds the guest itself.
+--
+-- The client-write guard also rejects a direct checked_in -> checked_out
+-- update that would leave early, so every early check-out is shortened.
 BEGIN;
 
 SET LOCAL lock_timeout = '5s';
@@ -48,6 +54,7 @@ DECLARE
   v_sub         text := COALESCE((SELECT auth.jwt()) ->> 'sub',  current_setting('request.jwt.claim.sub', true));
   v_invoker_rol text := COALESCE(current_setting('role', true), 'none');
   v_valid_move  boolean := false;
+  v_zone        text;
 BEGIN
   IF v_jwt_role = 'service_role'
      OR (
@@ -104,6 +111,16 @@ BEGIN
     IF NOT v_valid_move THEN
       RAISE EXCEPTION 'Invalid booking status transition from % to %', OLD.status, NEW.status
         USING ERRCODE = '22023';
+    END IF;
+
+    -- Leaving before the booked departure shortens the stay, which only
+    -- public.check_out_early may do. Same rule as that function.
+    IF OLD.status = 'checked_in' AND NEW.status = 'checked_out' THEN
+      SELECT h.timezone INTO v_zone FROM public.hotels h WHERE h.id = OLD.hotel_id;
+      IF greatest((clock_timestamp() AT TIME ZONE coalesce(v_zone, 'UTC'))::date, OLD.check_in + 1) < OLD.check_out THEN
+        RAISE EXCEPTION 'Checking out before the booked departure must go through check_out_early'
+          USING ERRCODE = '22023', DETAIL = 'early_departure';
+      END IF;
     END IF;
 
     IF NEW.status = 'cancelled'
@@ -406,6 +423,101 @@ BEGIN
   END LOOP;
 END;
 $$;
+
+-- ── 4. Recording a refund given in person ────────────────────────────────
+-- After an early check-out with the unused nights taken off the bill, the
+-- guest may have paid more than the new total. The hotel gives that money
+-- back itself; this records it. Only the credit can be refunded, so a bill
+-- is never left unpaid by a refund. No Paystack refund is ever started.
+CREATE FUNCTION public.record_manual_refund(
+  p_hotel_id    uuid,
+  p_booking_id  uuid,
+  p_amount      numeric,
+  p_method      text,
+  p_notes       text DEFAULT NULL,
+  p_recorded_by uuid DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $fn$
+DECLARE
+  v_currency     text;
+  v_total        numeric;
+  v_paid         numeric;
+  v_credit_minor bigint;
+  v_amount_minor bigint;
+  v_paid_minor   bigint;
+  v_status       text;
+  v_payment_id   uuid;
+BEGIN
+  IF p_method IS NULL OR p_method NOT IN ('cash', 'mobile_money', 'bank_transfer', 'pos', 'other') THEN
+    RAISE EXCEPTION 'refund method must be cash, mobile_money, bank_transfer, pos or other'
+      USING ERRCODE = 'P0001', DETAIL = 'invalid_payload';
+  END IF;
+
+  SELECT coalesce(b.currency, public.hotel_currency(b.hotel_id)), b.total_amount, coalesce(b.amount_paid, 0)
+    INTO v_currency, v_total, v_paid
+    FROM public.bookings b
+   WHERE b.id = p_booking_id
+     AND b.hotel_id = p_hotel_id
+     FOR UPDATE OF b;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'booking % not found', p_booking_id
+      USING ERRCODE = 'P0001', DETAIL = 'booking_not_found';
+  END IF;
+
+  v_paid_minor   := public.to_minor(v_paid, v_currency);
+  v_credit_minor := v_paid_minor - public.to_minor(v_total, v_currency);
+  v_amount_minor := public.to_minor(p_amount, v_currency);
+
+  IF p_amount IS NULL OR v_amount_minor <= 0 THEN
+    RAISE EXCEPTION 'refund amount must be positive'
+      USING ERRCODE = 'P0001', DETAIL = 'invalid_payload';
+  END IF;
+
+  IF v_amount_minor > v_credit_minor THEN
+    RAISE EXCEPTION 'refund is more than the guest has paid above the bill'
+      USING ERRCODE = 'P0001', DETAIL = 'refund_exceeds_credit',
+            HINT = public.from_minor(greatest(v_credit_minor, 0), v_currency)::text;
+  END IF;
+
+  INSERT INTO public.payments (
+    hotel_id, booking_id, amount, currency, method, status, paid_at, notes, recorded_by, metadata
+  ) VALUES (
+    p_hotel_id, p_booking_id, public.from_minor(v_amount_minor, v_currency), upper(v_currency),
+    'refund', 'refunded', now(), nullif(btrim(coalesce(p_notes, '')), ''), p_recorded_by,
+    jsonb_build_object('source', 'manual', 'refund_method', p_method)
+  )
+  RETURNING id INTO v_payment_id;
+
+  v_paid_minor := v_paid_minor - v_amount_minor;
+  v_status := CASE
+                WHEN v_paid_minor <= 0 THEN 'refunded'
+                WHEN v_paid_minor < public.to_minor(v_total, v_currency) THEN 'partial'
+                ELSE 'paid'
+              END;
+
+  UPDATE public.bookings b
+     SET amount_paid    = public.from_minor(v_paid_minor, v_currency),
+         payment_status = v_status
+   WHERE b.id = p_booking_id;
+
+  RETURN jsonb_build_object(
+    'payment_id',     v_payment_id,
+    'currency',       v_currency,
+    'amount',         public.from_minor(v_amount_minor, v_currency),
+    'amount_paid',    public.from_minor(v_paid_minor, v_currency),
+    'credit_left',    public.from_minor(v_credit_minor - v_amount_minor, v_currency),
+    'payment_status', v_status);
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION public.record_manual_refund(uuid, uuid, numeric, text, text, uuid)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.record_manual_refund(uuid, uuid, numeric, text, text, uuid) TO service_role;
 
 NOTIFY pgrst, 'reload schema';
 

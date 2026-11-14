@@ -24,13 +24,22 @@ interface OutstandingRow {
   roomType: string | null;
 }
 
+interface RefundRow {
+  id: string;
+  reference: string;
+  checkOut: string;
+  refundDue: number;
+  guestName: string;
+  guestPhone: string | null;
+}
+
 function fmt(amount: number, currency: string) {
   return `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export function OutstandingClient({
-  data, currency, totalOutstanding, hotelId,
-}: { data: OutstandingRow[]; currency: string; totalOutstanding: number; hotelId: string }) {
+  data, refunds = [], currency, totalOutstanding, hotelId,
+}: { data: OutstandingRow[]; refunds?: RefundRow[]; currency: string; totalOutstanding: number; hotelId: string }) {
   const router = useRouter();
   const [drawerBookingId, setDrawerBookingId] = React.useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -99,6 +108,44 @@ export function OutstandingClient({
           <p className="text-xs text-amber-600 mt-1">Across {data.length} confirmed booking{data.length !== 1 ? "s" : ""}</p>
         </div>
       </div>
+
+      {/* Refunds owed: paid above the bill after an early check-out */}
+      {refunds.length > 0 && (
+        <section aria-label="Refunds owed" className="rounded-xl border border-border/60 bg-card">
+          <div className="px-6 py-4 border-b border-border/50">
+            <p className="text-sm font-semibold text-foreground">
+              Refunds owed: {fmt(refunds.reduce((s, r) => s + r.refundDue, 0), currency)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              These guests paid more than their bill. Give the money back in person, then open the booking and
+              record the refund.
+            </p>
+          </div>
+          <ul>
+            {refunds.map((r) => (
+              <li key={r.id} className="flex items-center justify-between gap-4 px-6 py-3 border-b border-border/30 last:border-0">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{r.guestName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {r.reference} · left {format(parseISO(r.checkOut), "MMM d")}
+                    {r.guestPhone ? ` · ${r.guestPhone}` : ""}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="tabular-nums font-semibold text-amber-700">{fmt(r.refundDue, currency)}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setDrawerBookingId(r.id); setDrawerOpen(true); }}
+                    className="h-10 rounded-lg border border-border/60 px-3 text-sm font-medium text-foreground transition-colors max-md:h-11"
+                  >
+                    Open
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Search */}
       <input

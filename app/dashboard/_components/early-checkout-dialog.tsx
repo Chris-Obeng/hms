@@ -3,15 +3,45 @@
 import * as React from "react";
 import { AlertDialog, Button, Radio, RadioGroup, Skeleton } from "@heroui/react";
 import { CalendarClock } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { previewEarlyCheckout } from "@/app/dashboard/actions";
-import type { EarlyDeparturePolicy } from "@/lib/bookings/early-departure";
+import type { EarlyDeparturePolicy, EarlyDeparturePreview } from "@/lib/bookings/early-departure";
 import { formatCurrency, formatDate } from "@/lib/format";
 
 export interface EarlyCheckoutTarget {
-  id: string;
+  /** One booking, or every room of a group being checked out together. */
+  bookingIds: string[];
   guestName: string;
   checkOut: string;
+}
+
+export const earlyCheckoutPreviewKey = (bookingId: string) => ["early-checkout-preview", bookingId] as const;
+
+/** Loads one preview; `null` when the stay is not (or no longer) leaving early. */
+export async function loadEarlyCheckoutPreview(bookingId: string): Promise<EarlyDeparturePreview | null> {
+  const result = await previewEarlyCheckout(bookingId);
+  if (!result.success) throw new Error(result.error);
+  return result.preview;
+}
+
+/** Sums the early stays among `previews` (one guest or a whole group). */
+function summarize(previews: EarlyDeparturePreview[]) {
+  const sum = (pick: (p: EarlyDeparturePreview) => number) =>
+    Math.round(previews.reduce((s, p) => s + pick(p), 0) * 100) / 100;
+  const first = previews[0];
+  return {
+    policy: first.policy,
+    currency: first.charge.currency,
+    checkOutAfter: first.charge.checkOutAfter,
+    rooms: previews.length,
+    nights: previews.reduce((s, p) => s + p.charge.nightsReleased, 0),
+    chargeTotal: sum((p) => p.charge.totalAfter),
+    chargeFee: sum((p) => p.charge.releasedAmount),
+    chargeOwed: sum((p) => Math.max(0, p.charge.totalAfter - p.charge.amountPaid)),
+    releaseTotal: sum((p) => p.release.totalAfter),
+    releaseRefund: sum((p) => p.release.overpaid),
+    releaseOwed: sum((p) => Math.max(0, p.release.totalAfter - p.release.amountPaid)),
+  };
 }
 
 /**
@@ -29,35 +59,32 @@ export function EarlyCheckoutDialog({
   /** `undefined` applies the hotel's setting (used when the amounts didn't load). */
   onConfirm: (unusedNights: EarlyDeparturePolicy | undefined) => void;
 }) {
-  const targetId = target?.id ?? null;
-  const query = useQuery({
-    queryKey: ["early-checkout-preview", targetId],
-    enabled: targetId !== null,
-    staleTime: 0,
-    gcTime: 0,
-    retry: false,
-    queryFn: async () => {
-      const result = await previewEarlyCheckout(targetId as string);
-      if (!result.success) throw new Error(result.error);
-      if (!result.preview) throw new Error("This guest is no longer leaving early.");
-      return result.preview;
-    },
+  const ids = React.useMemo(() => target?.bookingIds ?? [], [target]);
+  const queries = useQueries({
+    queries: ids.map((id) => ({
+      queryKey: earlyCheckoutPreviewKey(id),
+      staleTime: 15_000,
+      gcTime: 60_000,
+      retry: false,
+      queryFn: () => loadEarlyCheckoutPreview(id),
+    })),
   });
-  // The staff member's pick for this guest; the hotel setting until they pick.
-  const [picked, setPicked] = React.useState<{ id: string; choice: EarlyDeparturePolicy } | null>(null);
 
-  const state =
-    query.isPending
-      ? ({ status: "loading" } as const)
-      : query.isError
-        ? ({ status: "error", message: query.error instanceof Error ? query.error.message : "Couldn't load the amounts." } as const)
-        : ({ status: "ready", preview: query.data } as const);
+  const isLoading = queries.some((q) => q.isPending);
+  const isError = !isLoading && queries.some((q) => q.isError);
+  const previews = isLoading || isError ? [] : queries.flatMap((q) => (q.data ? [q.data] : []));
+  const summary = previews.length > 0 ? summarize(previews) : null;
+  const notEarly = !isLoading && !isError && previews.length === 0;
+
+  // The staff member's pick for this check-out; the hotel setting until they pick.
+  const targetKey = ids.join(",");
+  const [picked, setPicked] = React.useState<{ key: string; choice: EarlyDeparturePolicy } | null>(null);
   const choice: EarlyDeparturePolicy | null =
-    picked && picked.id === targetId ? picked.choice : state.status === "ready" ? state.preview.policy : null;
+    picked && picked.key === targetKey ? picked.choice : summary ? summary.policy : null;
 
-  const preview = state.status === "ready" ? state.preview : null;
-  const nights = preview?.charge.nightsReleased ?? 0;
-  const currency = preview?.charge.currency;
+  const group = ids.length > 1;
+  const currency = summary?.currency;
+  const owed = summary ? (choice === "release" ? summary.releaseOwed : summary.chargeOwed) : 0;
 
   return (
     <AlertDialog.Backdrop
@@ -72,7 +99,9 @@ export function EarlyCheckoutDialog({
             <span aria-hidden="true" className="grid size-12 place-items-center rounded-2xl bg-amber-500/12 text-amber-700">
               <CalendarClock className="size-5" />
             </span>
-            <AlertDialog.Heading className="text-lg font-semibold text-foreground">Check out early?</AlertDialog.Heading>
+            <AlertDialog.Heading className="text-lg font-semibold text-foreground">
+              {notEarly ? "Check out now?" : group ? `Check out ${ids.length} rooms early?` : "Check out early?"}
+            </AlertDialog.Heading>
           </AlertDialog.Header>
           <AlertDialog.Body className="space-y-4">
             <p className="text-center text-sm leading-relaxed text-muted-foreground">
@@ -81,74 +110,98 @@ export function EarlyCheckoutDialog({
                 {target ? formatDate(target.checkOut, "EEE, d MMM") : ""}
               </span>
               .{" "}
-              {preview ? (
+              {summary ? (
                 <>
                   The stay now ends{" "}
                   <span className="font-semibold tabular-nums text-foreground">
-                    {formatDate(preview.charge.checkOutAfter, "EEE, d MMM")}
+                    {formatDate(summary.checkOutAfter, "EEE, d MMM")}
                   </span>{" "}
-                  and {nights} unused {nights === 1 ? "night goes" : "nights go"} back on sale.
+                  and {summary.nights} unused {summary.nights === 1 ? "night goes" : "nights go"} back on sale
+                  {group && summary.rooms !== ids.length ? ` (${summary.rooms} of ${ids.length} rooms leave early)` : ""}.
                 </>
+              ) : notEarly ? (
+                "Nothing on the bill changes."
               ) : (
                 "The stay ends today and the unused nights go back on sale."
               )}
             </p>
 
-            {state.status === "loading" && (
+            {isLoading && (
               <div className="space-y-2" aria-busy="true" aria-label="Working out the bill">
                 <Skeleton className="h-16 w-full rounded-2xl" />
                 <Skeleton className="h-16 w-full rounded-2xl" />
               </div>
             )}
 
-            {state.status === "error" && (
-              <p role="note" className="rounded-2xl bg-secondary/70 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-                {state.message} The hotel&apos;s early check-out setting will apply.
-              </p>
+            {isError && (
+              <div role="alert" className="flex flex-col gap-2 rounded-2xl bg-secondary/70 px-4 py-3">
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  We couldn&apos;t work out the new bill. Try again to see the amounts. If you check out anyway,
+                  the hotel&apos;s early check-out setting decides what happens to the unused nights.
+                </p>
+                <Button
+                  variant="tertiary"
+                  onPress={() => queries.forEach((q) => q.isError && void q.refetch())}
+                  className="self-start rounded-xl max-md:h-11"
+                >
+                  Try again
+                </Button>
+              </div>
             )}
 
-            {preview && choice && currency && (
+            {summary && choice && currency && (
               <RadioGroup
                 aria-label="What happens to the unused nights"
                 value={choice}
-                onChange={(v) => targetId && setPicked({ id: targetId, choice: v as EarlyDeparturePolicy })}
+                onChange={(v) => setPicked({ key: targetKey, choice: v as EarlyDeparturePolicy })}
                 className="gap-2"
               >
                 <Option
                   value="charge"
                   label="Charge the unused nights"
-                  isDefault={preview.policy === "charge"}
-                  detail={`The bill stays ${formatCurrency(preview.charge.totalAfter, currency)}; ${formatCurrency(
-                    preview.charge.releasedAmount,
-                    currency
-                  )} shows as an early departure fee.`}
+                  isDefault={summary.policy === "charge"}
+                  detail={
+                    summary.chargeFee > 0
+                      ? `The bill stays ${formatCurrency(summary.chargeTotal, currency)}; ${formatCurrency(
+                          summary.chargeFee,
+                          currency
+                        )} shows as an early departure fee.`
+                      : `The bill stays ${formatCurrency(summary.chargeTotal, currency)}.`
+                  }
                 />
                 <Option
                   value="release"
                   label="Take them off the bill"
-                  isDefault={preview.policy === "release"}
+                  isDefault={summary.policy === "release"}
                   detail={
-                    `The bill drops to ${formatCurrency(preview.release.totalAfter, currency)}.` +
-                    (preview.release.overpaid > 0
-                      ? ` Refund ${formatCurrency(preview.release.overpaid, currency)} to the guest.`
+                    `The bill drops to ${formatCurrency(summary.releaseTotal, currency)}.` +
+                    (summary.releaseRefund > 0
+                      ? ` Refund ${formatCurrency(summary.releaseRefund, currency)} to the guest.`
                       : "")
                   }
                 />
               </RadioGroup>
             )}
+
+            {summary && currency && owed > 0 && (
+              <p role="note" className="rounded-2xl bg-amber-500/10 px-4 py-3 text-xs leading-relaxed text-amber-900">
+                The guest still owes {formatCurrency(owed, currency)}. Take the payment before you check them
+                out. It can&apos;t be recorded afterwards.
+              </p>
+            )}
           </AlertDialog.Body>
           <AlertDialog.Footer className="flex-col-reverse gap-2 sm:flex-row">
-            <Button slot="close" variant="tertiary" fullWidth onPress={onCancel} className="rounded-xl">
+            <Button slot="close" variant="tertiary" fullWidth onPress={onCancel} className="rounded-xl max-md:h-11">
               Cancel
             </Button>
             <Button
               fullWidth
-              variant="primary"
-              isDisabled={state.status === "loading"}
-              onPress={() => onConfirm(state.status === "ready" && choice ? choice : undefined)}
-              className="rounded-xl font-semibold"
+              variant={isError ? "secondary" : "primary"}
+              isDisabled={isLoading}
+              onPress={() => onConfirm(summary && choice ? choice : undefined)}
+              className="rounded-xl font-semibold max-md:h-11"
             >
-              Check out early
+              {notEarly ? "Check out" : isError ? "Check out anyway" : "Check out early"}
             </Button>
           </AlertDialog.Footer>
         </AlertDialog.Dialog>
@@ -188,4 +241,41 @@ function Option({
       </Radio.Content>
     </Radio>
   );
+}
+
+/**
+ * Gate for any check-out button: asks the server whether the stays are
+ * leaving early and, if so, shows the dialog before anything is written.
+ * Resolves `{ ok: false }` when staff cancel.
+ */
+export function useEarlyCheckoutGate() {
+  const [pending, setPending] = React.useState<{
+    target: EarlyCheckoutTarget;
+    resolve: (r: { ok: boolean; unusedNights?: EarlyDeparturePolicy }) => void;
+  } | null>(null);
+
+  const confirm = React.useCallback(
+    async (target: EarlyCheckoutTarget): Promise<{ ok: boolean; unusedNights?: EarlyDeparturePolicy }> => {
+      const results = await Promise.allSettled(target.bookingIds.map((id) => loadEarlyCheckoutPreview(id)));
+      const needsDialog = results.some((r) => r.status === "rejected" || r.value !== null);
+      if (!needsDialog) return { ok: true };
+      return new Promise((resolve) => setPending({ target, resolve }));
+    },
+    []
+  );
+
+  const finish = (r: { ok: boolean; unusedNights?: EarlyDeparturePolicy }) => {
+    pending?.resolve(r);
+    setPending(null);
+  };
+
+  const dialog = pending ? (
+    <EarlyCheckoutDialog
+      target={pending.target}
+      onCancel={() => finish({ ok: false })}
+      onConfirm={(unusedNights) => finish({ ok: true, unusedNights })}
+    />
+  ) : null;
+
+  return { confirm, dialog };
 }

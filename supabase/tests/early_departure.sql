@@ -34,6 +34,8 @@ SELECT pg_temp.assert_true(has_function_privilege('service_role', 'public.check_
 SELECT pg_temp.assert_true(NOT has_function_privilege('authenticated', 'public.preview_early_check_out(uuid,uuid)', 'EXECUTE'), 'staff cannot call the preview directly');
 SELECT pg_temp.assert_true(has_function_privilege('service_role', 'public.preview_early_check_out(uuid,uuid)', 'EXECUTE'), 'the server can call the preview');
 SELECT pg_temp.assert_true(NOT has_function_privilege('service_role', 'bookings_private.shorten_stay(uuid,date,boolean,boolean)', 'EXECUTE'), 'the shortening helper is private');
+SELECT pg_temp.assert_true(NOT has_function_privilege('authenticated', 'public.record_manual_refund(uuid,uuid,numeric,text,text,uuid)', 'EXECUTE'), 'staff cannot call record_manual_refund directly');
+SELECT pg_temp.assert_true(has_function_privilege('service_role', 'public.record_manual_refund(uuid,uuid,numeric,text,text,uuid)', 'EXECUTE'), 'the server can record a refund');
 
 -- ── Fixture ──────────────────────────────────────────────────────────────
 INSERT INTO public.hotels (id, slug, name, clerk_org_id, timezone, currency, status) VALUES
@@ -59,6 +61,10 @@ INSERT INTO public.bookings (id, hotel_id, reference, check_in, check_out, room_
   ('e5e50001-0000-4000-8000-000000000004', 'e5e50000-0000-4000-8000-00000000000a', 'EARLY-ONTIME',
    (now() AT TIME ZONE 'UTC')::date - 1, (now() AT TIME ZONE 'UTC')::date,
    100, 100, 0, 100, 0, 'unpaid', 'checked_in', 'GHS'),
+  -- In house, leaving early, checked out by a direct client write.
+  ('e5e50001-0000-4000-8000-000000000006', 'e5e50000-0000-4000-8000-00000000000a', 'EARLY-DIRECT',
+   (now() AT TIME ZONE 'UTC')::date - 1, (now() AT TIME ZONE 'UTC')::date + 2,
+   100, 300, 0, 300, 0, 'unpaid', 'checked_in', 'GHS'),
   -- Not in house yet.
   ('e5e50001-0000-4000-8000-000000000005', 'e5e50000-0000-4000-8000-00000000000a', 'EARLY-CONF',
    (now() AT TIME ZONE 'UTC')::date, (now() AT TIME ZONE 'UTC')::date + 2,
@@ -156,6 +162,44 @@ SELECT pg_temp.assert_true(
 SELECT pg_temp.assert_true(
   pg_temp.detail_of($q$SELECT public.check_out_early('e5e50001-0000-4000-8000-000000000004', 'e5e50000-0000-4000-8000-00000000000a', 'refund')$q$) = 'invalid_payload',
   'only charge or release');
+
+-- ── Refund given in person (no Paystack) ─────────────────────────────────
+-- EARLY-REL was released above: paid 1485 against a bill of 297.
+SELECT pg_temp.assert_true(
+  pg_temp.detail_of($q$SELECT public.record_manual_refund('e5e50000-0000-4000-8000-00000000000a', 'e5e50001-0000-4000-8000-000000000001', 1188.01, 'cash', NULL, NULL)$q$) = 'refund_exceeds_credit',
+  'cannot refund more than the credit');
+SELECT pg_temp.assert_true(
+  pg_temp.detail_of($q$SELECT public.record_manual_refund('e5e50000-0000-4000-8000-00000000000a', 'e5e50001-0000-4000-8000-000000000001', 10, 'paystack_link', NULL, NULL)$q$) = 'invalid_payload',
+  'only in-person refund methods');
+SELECT pg_temp.assert_true(
+  pg_temp.detail_of($q$SELECT public.record_manual_refund('e5e50000-0000-4000-8000-00000000000a', 'e5e50001-0000-4000-8000-000000000002', 1, 'cash', NULL, NULL)$q$) = 'refund_exceeds_credit',
+  'a stay with no credit cannot be refunded');
+DO $$
+DECLARE
+  r jsonb := public.record_manual_refund('e5e50000-0000-4000-8000-00000000000a', 'e5e50001-0000-4000-8000-000000000001', 1188, 'mobile_money', 'Paid back at the desk', NULL);
+  b public.bookings%ROWTYPE;
+BEGIN
+  SELECT * INTO b FROM public.bookings WHERE id = 'e5e50001-0000-4000-8000-000000000001';
+  PERFORM pg_temp.assert_true(b.amount_paid = 297 AND b.outstanding_balance = 0 AND b.payment_status = 'paid', 'refund settles the credit');
+  PERFORM pg_temp.assert_true((r->>'credit_left')::numeric = 0, 'nothing left to refund');
+  PERFORM pg_temp.assert_true(
+    (SELECT count(*) FROM public.payments p
+      WHERE p.booking_id = b.id AND p.method = 'refund' AND p.status = 'refunded' AND p.amount = 1188
+        AND p.metadata->>'source' = 'manual' AND p.metadata->>'refund_method' = 'mobile_money'
+        AND p.paystack_reference IS NULL) = 1,
+    'one manual refund row, not linked to Paystack');
+END;
+$$;
+
+-- ── A direct client check-out cannot skip the shortening ────────────────
+SELECT set_config('request.jwt.claims', '{"sub":"early_manager","org_id":"org_early"}', true);
+SELECT pg_temp.assert_true(
+  pg_temp.detail_of($q$UPDATE public.bookings SET status = 'checked_out', check_out_at = now() WHERE id = 'e5e50001-0000-4000-8000-000000000006'$q$) = 'early_departure',
+  'a client write cannot check out early without shortening the stay');
+SELECT set_config('request.jwt.claims', '', true);
+SELECT pg_temp.assert_true(
+  (SELECT status FROM public.bookings WHERE id = 'e5e50001-0000-4000-8000-000000000006') = 'checked_in',
+  'still in house after the rejected write');
 
 -- ── Staff cannot write the fee directly ──────────────────────────────────
 SELECT set_config('request.jwt.claims', '{"sub":"early_manager","org_id":"org_early"}', true);

@@ -2235,6 +2235,17 @@ export type Database = {
         }[]
       }
       reconcile_pending_payments: { Args: never; Returns: number }
+      record_manual_refund: {
+        Args: {
+          p_amount: number
+          p_booking_id: string
+          p_hotel_id: string
+          p_method: string
+          p_notes?: string
+          p_recorded_by?: string
+        }
+        Returns: Json
+      }
       record_payment_atomic: {
         Args: {
           p_amount: number

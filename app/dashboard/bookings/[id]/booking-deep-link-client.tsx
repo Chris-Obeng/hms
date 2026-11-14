@@ -9,6 +9,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FullBookingDetail } from "@/app/actions/bookings-detail";
 import { updateBookingNotes } from "@/app/actions/bookings-detail";
 import { BookingActionBar } from "@/components/bookings/_components/booking-action-bar";
+import { useEarlyCheckoutGate } from "@/app/dashboard/_components/early-checkout-dialog";
+import {
+  earlyCheckoutToast,
+  type EarlyDeparturePolicy,
+  type EarlyDepartureResult,
+} from "@/lib/bookings/early-departure";
 import { BookingPaymentsPanel } from "@/components/bookings/_components/booking-payments-panel";
 import { BookingFolioPrintButton } from "@/components/bookings/_components/booking-folio-print";
 import { BookingStatusPill, ReferenceChip } from "@/components/bookings/_components/booking-status-pill";
@@ -75,11 +81,13 @@ export function BookingDeepLinkClient({
     void queryClient.invalidateQueries({ queryKey: ["calendar"] });
   }, [bookingId, queryClient]);
 
+  const earlyCheckout = useEarlyCheckoutGate();
+
   const handleAction = React.useCallback(
     async (
       action: string,
       optimisticStatus: string,
-      actionFn: () => Promise<{ success: boolean; error?: string }>
+      actionFn: () => Promise<{ success: boolean; error?: string; early?: EarlyDepartureResult }>
     ) => {
       if (!booking) return;
       const previous = booking;
@@ -95,7 +103,12 @@ export function BookingDeepLinkClient({
 
       try {
         const result = await actionFn();
-        if (result.success) {
+        if (result.success && result.early) {
+          const message = earlyCheckoutToast(result.early);
+          if (message.tone === "warning") toast.warning(message.text);
+          else toast.success(message.text);
+          refresh();
+        } else if (result.success) {
           toast.success(
             action === "check_in"
               ? "Guest checked in"
@@ -127,6 +140,17 @@ export function BookingDeepLinkClient({
   const handleRoomLineAction = React.useCallback(
     async (ids: string[], targetStatus: string, kind: "check_in" | "check_out") => {
       if (!booking?.group || ids.length === 0) return;
+      let unusedNights: EarlyDeparturePolicy | undefined;
+      if (kind === "check_out") {
+        // Leaving before the booked date shortens the stay: ask first.
+        const gate = await earlyCheckout.confirm({
+          bookingIds: ids,
+          guestName: booking.guest?.fullName ?? "The guest",
+          checkOut: booking.group.lines.find((l) => l.id === ids[0])?.checkOut ?? booking.checkOut,
+        });
+        if (!gate.ok) return;
+        unusedNights = gate.unusedNights;
+      }
       const previous = booking;
       setActionLoading(`bulk:${kind}`);
       setOptimisticPatch({
@@ -143,7 +167,10 @@ export function BookingDeepLinkClient({
         let ok = 0;
         let lastError: string | undefined;
         for (const id of ids) {
-          const r = kind === "check_in" ? await checkInBooking(id) : await checkOutBooking(id);
+          const r =
+            kind === "check_in"
+              ? await checkInBooking(id)
+              : await checkOutBooking(id, unusedNights ? { unusedNights } : {});
           if (r.success) ok += 1;
           else lastError = r.error;
         }
@@ -178,7 +205,7 @@ export function BookingDeepLinkClient({
         setActionLoading(null);
       }
     },
-    [booking, bookingId, queryClient, refresh, setOptimisticPatch]
+    [booking, bookingId, earlyCheckout, queryClient, refresh, setOptimisticPatch]
   );
 
   const handleOptimisticPayment = React.useCallback(
@@ -267,6 +294,7 @@ export function BookingDeepLinkClient({
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 pt-6 md:pt-8">
       <BackLink />
+      {earlyCheckout.dialog}
 
       {/* Identity + the one lifecycle action */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

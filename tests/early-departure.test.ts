@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  earlyCheckoutToast,
   isEarlyDeparture,
   parseEarlyDeparturePreview,
   parseEarlyDepartureResult,
@@ -58,5 +59,21 @@ describe("early departures", () => {
       release: { ...outcome, early_departure_fee: 0, total_after: 297, overpaid: 203 },
     });
     expect(preview).toMatchObject({ policy: "release", release: { totalAfter: 297, overpaid: 203 } });
+  });
+});
+
+describe("earlyCheckoutToast", () => {
+  const base = parseEarlyDepartureResult({ ...outcome, policy: "charge", departure_date: "2026-11-14" });
+
+  it("tells staff to give money back in person when the guest overpaid", () => {
+    const t = earlyCheckoutToast({ ...base, policy: "release", overpaid: 1188 });
+    expect(t.tone).toBe("warning");
+    expect(t.text).toMatch(/Give the guest back GH₵1,188\.00, then record the refund/);
+  });
+
+  it("does not announce a zero fee", () => {
+    expect(earlyCheckoutToast({ ...base, overpaid: 0, earlyDepartureFee: 0 }).text).toBe(
+      "Checked out early. The bill is unchanged."
+    );
   });
 });

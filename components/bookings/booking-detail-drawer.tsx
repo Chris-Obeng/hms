@@ -25,6 +25,8 @@ import { formatRoomLabel, getInitials } from "@/lib/format";
 import type { FullBookingDetail } from "@/app/actions/bookings-detail";
 import { updateBookingStatus } from "@/app/actions/bookings";
 import { checkInBooking, checkOutBooking } from "@/app/dashboard/actions";
+import { useEarlyCheckoutGate } from "@/app/dashboard/_components/early-checkout-dialog";
+import { earlyCheckoutToast, type EarlyDepartureResult } from "@/lib/bookings/early-departure";
 import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
 import { takeBookingDetail } from "@/lib/detail-prefetch";
 
@@ -59,6 +61,7 @@ export function BookingDetailDrawer({
   const [tab, setTab] = React.useState<DrawerTab>(initialTab);
   const [paymentFormOpen, setPaymentFormOpen] = React.useState(false);
   const [confirmAction, setConfirmAction] = React.useState<"cancel" | "reinstate" | null>(null);
+  const earlyCheckout = useEarlyCheckoutGate();
 
   // Seed from legacy detail-prefetch Map on first open (one-shot migration) → instant if hover-warmed before hydration
   const seededRef = React.useRef<string | null>(null);
@@ -122,7 +125,7 @@ export function BookingDetailDrawer({
   const handleAction = async (
     action: string,
     optimisticStatus: string,
-    actionFn: () => Promise<{ success: boolean; error?: string }>
+    actionFn: () => Promise<{ success: boolean; error?: string; early?: EarlyDepartureResult }>
   ) => {
     if (!booking) return;
     const previous = booking;
@@ -135,8 +138,14 @@ export function BookingDetailDrawer({
       cancelledAt: action === "cancel" ? now : action === "reinstate" ? null : booking.cancelledAt,
     } as Partial<FullBookingDetail>);
     try {
-      const result = await actionFn();
-      if (result.success) {
+      const result: { success: boolean; error?: string; early?: EarlyDepartureResult } = await actionFn();
+      if (result.success && result.early) {
+        const message = earlyCheckoutToast(result.early);
+        if (message.tone === "warning") toast.warning(message.text);
+        else toast.success(message.text);
+        setConfirmAction(null);
+        refresh();
+      } else if (result.success) {
         toast.success(
           action === "check_in"
             ? "Guest checked in"
@@ -165,8 +174,34 @@ export function BookingDetailDrawer({
     }
   };
 
+  // Every check-out asks first when the guest leaves before the booked date:
+  // shortening a stay deletes nights and can change the bill.
+  const confirmCheckOut = async (ids: string[]) => {
+    if (!booking) return { ok: false as const };
+    return earlyCheckout.confirm({
+      bookingIds: ids,
+      guestName: booking.guest?.fullName ?? "The guest",
+      checkOut: booking.group?.lines.find((l) => l.id === ids[0])?.checkOut ?? booking.checkOut,
+    });
+  };
+
+  const handleCheckOut = async (ids: string[]) => {
+    const gate = await confirmCheckOut(ids);
+    if (!gate.ok) return;
+    const unusedNights = gate.unusedNights;
+    await handleAction("check_out", "checked_out", () =>
+      checkOutBooking(ids[0], unusedNights ? { unusedNights } : {})
+    );
+  };
+
   const handleBulkAction = async (ids: string[], targetStatus: string, kind: "check_in" | "check_out") => {
     if (!booking?.group || !bookingId || ids.length === 0) return;
+    let unusedNights: "charge" | "release" | undefined;
+    if (kind === "check_out") {
+      const gate = await confirmCheckOut(ids);
+      if (!gate.ok) return;
+      unusedNights = gate.unusedNights;
+    }
     const prev = booking;
     const bulkKey = `bulk:${kind}`;
     setActionLoading(bulkKey);
@@ -180,7 +215,10 @@ export function BookingDetailDrawer({
       let ok = 0;
       let lastError: string | undefined;
       for (const id of ids) {
-        const fn = kind === "check_in" ? () => checkInBooking(id) : () => checkOutBooking(id);
+        const fn =
+          kind === "check_in"
+            ? () => checkInBooking(id)
+            : () => checkOutBooking(id, unusedNights ? { unusedNights } : {});
         const r = await fn();
         if (r.success) ok += 1;
         else lastError = r.error;
@@ -222,7 +260,7 @@ export function BookingDetailDrawer({
     ? canTransitionBooking(anchorStatus, "checked_in")
       ? { key: "check_in", label: `Check in ${roomLabel}`, run: () => handleAction("check_in", "checked_in", () => checkInBooking(booking.id)) }
       : canTransitionBooking(anchorStatus, "checked_out")
-        ? { key: "check_out", label: `Check out ${roomLabel}`, run: () => handleAction("check_out", "checked_out", () => checkOutBooking(booking.id)) }
+        ? { key: "check_out", label: `Check out ${roomLabel}`, run: () => void handleCheckOut([booking.id]) }
         : canTransitionBooking(anchorStatus, "confirmed") && anchorStatus === "pending"
           ? { key: "confirm", label: "Confirm reservation", run: () => handleAction("confirm", "confirmed", () => updateBookingStatus(booking.id, "confirmed")) }
           : null
@@ -487,6 +525,7 @@ export function BookingDetailDrawer({
               }}
             />
           )}
+          {earlyCheckout.dialog}
         </Drawer.Dialog>
       </Drawer.Content>
     </Drawer.Backdrop>

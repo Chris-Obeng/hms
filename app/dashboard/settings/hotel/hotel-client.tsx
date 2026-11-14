@@ -404,10 +404,11 @@ export function HotelSettingsClient({
           </Select.Popover>
         </Select>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Either way the stay ends on the day they leave, so the nights they didn&apos;t use go back on sale and
-          aren&apos;t counted as occupied. Charging keeps the bill as booked and shows the difference as an early
-          departure fee. Taking them off lowers the bill; if the guest has paid more, Oriel reminds you to refund
-          it. Staff can choose differently for one guest when they check them out.
+          Either way the stay ends on the day they leave, the nights they didn&apos;t use go back on sale, and
+          they don&apos;t count in your occupancy or room sales. Charging keeps the bill as booked and shows the
+          difference as an early departure fee. Taking them off lowers the bill. If the guest has already paid
+          more, you give the difference back yourself and record it on the booking. Staff can choose
+          differently for one guest when they check them out.
         </p>
       </SettingsGroup>
 

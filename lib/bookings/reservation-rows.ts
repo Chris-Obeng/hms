@@ -85,8 +85,10 @@ export function collapseReservationGroups(rows: ReservationRowSource[]): Booking
     const amountPaid = isGroup
       ? billed.reduce((s, m) => s + (m.amount_paid ?? 0), 0)
       : anchor.amount_paid ?? 0;
+    // A room paid above its bill (refund due after an early check-out) must
+    // not cancel out what another room still owes: sum only what is owed.
     const outstandingBalance = isGroup
-      ? billed.reduce((s, m) => s + (m.outstanding_balance ?? 0), 0)
+      ? billed.reduce((s, m) => s + Math.max(0, m.outstanding_balance ?? 0), 0)
       : anchor.outstanding_balance;
 
     bookings.push({
