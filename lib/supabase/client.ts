@@ -46,11 +46,22 @@ function buildClient() {
       realtime: {
         // Heartbeats from a Web Worker keep running when the tab is in the
         // background, where browsers throttle main-thread timers and the
-        // socket would otherwise drop silently.
+        // socket would otherwise drop silently. The worker is a blob: URL, so
+        // a future Content-Security-Policy needs `worker-src blob:`.
         worker: true,
-        // If the socket still drops (sleep, network change), reconnect at
-        // once instead of waiting for the next backoff step.
         heartbeatCallback: (status) => {
+          // supabase-js hands its first token to `realtime.setAuth(token)`,
+          // which marks it as manual and stops the per-heartbeat refresh. A
+          // bare setAuth() on every heartbeat puts the callback back in charge
+          // (and refreshes the token), so the socket never keeps an expired
+          // Clerk token. Clerk caches the token, so this is cheap.
+          if (status === "sent") {
+            void client.realtime.setAuth().catch((error: unknown) => {
+              console.error("[supabase/client] Realtime token refresh failed:", error);
+            });
+          }
+          // If the socket still drops (sleep, network change), reconnect at
+          // once instead of waiting for the next backoff step.
           if (status === "disconnected" && client.realtime.getChannels().length > 0) {
             client.realtime.connect();
           }
@@ -58,6 +69,12 @@ function buildClient() {
       },
     }
   );
+  // Undo the constructor's manual token straight away, too. This call resolves
+  // after the constructor's own one (same token source, one more await), so
+  // the callback mode wins.
+  void client.realtime.setAuth().catch((error: unknown) => {
+    console.error("[supabase/client] Realtime auth failed:", error);
+  });
   return client;
 }
 

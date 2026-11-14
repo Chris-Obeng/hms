@@ -510,6 +510,10 @@ export function useNotifications({
       if (status === "SUBSCRIBED") {
         isSubscribed = true;
         resubscribeAttempts = 0;
+        // realtime-js may rejoin on its own before our retry fires; cancel the
+        // retry so it does not tear the healthy channel down again.
+        if (retryTimer) clearTimeout(retryTimer);
+        retryTimer = null;
         // Inserts made while the channel was down are not replayed.
         if (interrupted) {
           if (pendingMutationsRef.current === 0) void refreshRef.current();

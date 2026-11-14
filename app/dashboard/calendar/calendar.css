@@ -7,11 +7,12 @@
    building are what the eye finds first. The rest are clear mid tints with a
    same-hue edge and deep ink. Pending and cancelled also get a dashed edge,
    so status never rests on hue alone. Explicit OKLCH values inside sRGB:
-   ink on fill 6.5:1 to 8.1:1 (white on emerald 4.97:1), edges 3.1:1 to
-   3.4:1 against the page so every strip outline is visible. */
+   ink on fill 6.5:1 to 8.1:1 (white on emerald 4.97:1). Edges are at least
+   3.15:1 against the page, including the weekend and today column washes,
+   so every strip outline stays visible. */
 :root {
   --cal-confirmed-fill: oklch(0.895 0.048 255);
-  --cal-confirmed-line: oklch(0.66 0.13 258);
+  --cal-confirmed-line: oklch(0.64 0.13 258);
   --cal-confirmed-ink: oklch(0.36 0.13 262);
 
   --cal-inhouse-fill: oklch(0.53 0.12 158);
@@ -21,19 +22,19 @@
   --cal-inhouse-mark: oklch(0.43 0.1 158);
 
   --cal-pending-fill: oklch(0.91 0.072 82);
-  --cal-pending-line: oklch(0.66 0.14 65);
-  --cal-pending-ink: oklch(0.4 0.1 55);
+  --cal-pending-line: oklch(0.64 0.14 65);
+  --cal-pending-ink: oklch(0.4 0.098 55);
 
   --cal-checkout-fill: oklch(0.895 0.012 255);
-  --cal-checkout-line: oklch(0.64 0.02 255);
+  --cal-checkout-line: oklch(0.63 0.02 255);
   --cal-checkout-ink: oklch(0.38 0.025 255);
 
   --cal-cancelled-fill: oklch(0.955 0.004 255);
-  --cal-cancelled-line: oklch(0.64 0.015 255);
+  --cal-cancelled-line: oklch(0.63 0.015 255);
   --cal-cancelled-ink: oklch(0.45 0.015 255);
 
   --cal-noshow-fill: oklch(0.9 0.048 15);
-  --cal-noshow-line: oklch(0.66 0.14 15);
+  --cal-noshow-line: oklch(0.65 0.14 15);
   --cal-noshow-ink: oklch(0.4 0.14 18);
 
   --cal-closure: #64748b;
@@ -384,7 +385,8 @@
       0 1px 2px rgb(15 23 42 / 0.06),
       0 4px 12px -4px rgb(15 23 42 / 0.16);
   }
-  .rl-booking-bar[data-cal-status="inhouse"]:hover {
+  /* Not on a clash: its red edge must survive hover. */
+  .rl-booking-bar[data-cal-status="inhouse"]:not(.is-conflict):hover {
     border-color: var(--rl-line);
   }
   .rl-booking-bar:hover .rl-resize-handle {
@@ -860,9 +862,14 @@
     box-shadow 150ms ease;
 }
 
+/* This rule is unlayered, so it beats HeroUI's layered focus ring (a
+   box-shadow). Keep the ring's shadows first, or a keyboard user loses the
+   ring on the selected segment. */
 .rl-segmented .toggle-button[data-selected="true"] {
   font-weight: 600;
   box-shadow:
+    var(--tw-ring-offset-shadow, 0 0 #0000),
+    var(--tw-ring-shadow, 0 0 #0000),
     0 1px 2px rgb(15 23 42 / 0.08),
     0 0 0 1px rgb(15 23 42 / 0.04);
 }
@@ -873,9 +880,10 @@
   }
 }
 
+/* Touch target on phones (8pt rule: 44px on mobile). */
 @media (max-width: 767px) {
   .rl-segmented .toggle-button {
-    height: 36px;
+    height: 44px;
   }
 }
 
