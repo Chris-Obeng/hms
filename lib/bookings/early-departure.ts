@@ -53,6 +53,12 @@ export interface EarlyDepartureOutcome {
 export interface EarlyDeparturePreview {
   policy: EarlyDeparturePolicy;
   departureDate: string;
+  /** Leaving on the arrival day: the stay keeps tonight. */
+  sameDay: boolean;
+  /** The night kept on a same-day departure (tonight), else null. */
+  heldNight: string | null;
+  /** Whether the room can be kept off sale tonight (it has a room and nobody else has it tonight). */
+  canHoldRoom: boolean;
   charge: EarlyDepartureOutcome;
   release: EarlyDepartureOutcome;
 }
@@ -60,6 +66,15 @@ export interface EarlyDeparturePreview {
 export interface EarlyDepartureResult extends EarlyDepartureOutcome {
   policy: EarlyDeparturePolicy;
   departureDate: string;
+  sameDay: boolean;
+  roomHeld: boolean;
+}
+
+/** What staff chose in the early check-out dialog, per booking. */
+export interface CheckOutOptions {
+  unusedNights?: EarlyDeparturePolicy;
+  /** Same-day departure: keep the room off sale tonight (true) or resell it (false). */
+  holdRoom?: boolean;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -105,6 +120,8 @@ export function parseEarlyDepartureResult(raw: unknown): EarlyDepartureResult {
     ...parseEarlyDepartureOutcome(raw),
     policy: policy(raw.policy),
     departureDate: str(raw.departure_date),
+    sameDay: raw.same_day === true,
+    roomHeld: raw.room_held === true,
   };
 }
 
@@ -115,6 +132,9 @@ export function parseEarlyDeparturePreview(raw: unknown): EarlyDeparturePreview 
   return {
     policy: policy(raw.policy),
     departureDate: str(raw.departure_date),
+    sameDay: raw.same_day === true,
+    heldNight: typeof raw.held_night === "string" ? raw.held_night : null,
+    canHoldRoom: raw.can_hold_room === true,
     charge: parseEarlyDepartureOutcome(raw.charge),
     release: parseEarlyDepartureOutcome(raw.release),
   };
@@ -138,6 +158,14 @@ function addDays(date: string, days: number): string {
 
 /** What to tell staff after an early check-out (shared by every check-out button). */
 export function earlyCheckoutToast(early: EarlyDepartureResult): { tone: "success" | "warning"; text: string } {
+  const message = baseToast(early);
+  if (early.sameDay) {
+    message.text += early.roomHeld ? " The room stays off sale for the night charged." : " The room is back on sale.";
+  }
+  return message;
+}
+
+function baseToast(early: EarlyDepartureResult): { tone: "success" | "warning"; text: string } {
   if (early.overpaid > 0) {
     return {
       tone: "warning",

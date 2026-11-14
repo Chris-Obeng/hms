@@ -48,12 +48,14 @@ function foldRange(ctx: ReportContext, stays: ReportStay[], nights: NightRow[], 
   if (completed.some(day => day.capacity == null)) warnings.push(`Historical capacity is unavailable for part or all of ${ymd(start)}–${ymd(end)}: no matching dated inventory baseline exists. Occupancy and RevPAR are unavailable; current rooms are never used to invent past capacity.`);
   if (capacity.some(day => day.date >= ctx.today)) warnings.push("Today's room night is incomplete and excluded from revenue, room-nights and capacity; today's occupancy and RevPAR are unavailable.");
   if (availableRoomNights === 0) warnings.push("Recorded capacity is zero; occupancy and RevPAR have no valid denominator.");
-  // Occupancy is never clamped; more room-nights than rooms means stays overlap
-  // (often an early check-out that kept its original departure date).
+  // Occupancy is never clamped; more room-nights than rooms means stays overlap.
+  // Early check-outs now shorten the stay, so the usual cause is a same-day
+  // departure whose room was put back on sale and resold that night, which
+  // STR counts as two rooms sold.
   const oversold = oversoldDays(allocation.facts, completed);
   if (oversold.length) {
     const listed = oversold.slice(0, 3).join(", ") + (oversold.length > 3 ? ` and ${oversold.length - 3} more` : "");
-    warnings.push(`Room-nights sold exceed the recorded rooms on ${listed}, so occupancy is over 100% there. Overlapping stays in the same room, such as an early check-out that kept its original departure date, are counted twice.`);
+    warnings.push(`Room-nights sold exceed the recorded rooms on ${listed}, so occupancy is over 100% there. This happens when a guest leaves on the day they arrived and the room is sold again that night: both stays count, as industry reports (STR) allow. To avoid it, keep the room off sale tonight when checking such a guest out.`);
   }
   const participating = new Set(allocation.facts.map(n => n.bookingId));
   return { ...allocation, warnings, availableRoomNights, capacity,

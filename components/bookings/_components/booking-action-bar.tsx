@@ -65,10 +65,7 @@ export function BookingActionBar({
       checkOut: booking.checkOut,
     });
     if (!gate.ok) return;
-    const unusedNights = gate.unusedNights;
-    onAction("check_out", "checked_out", () =>
-      checkOutBooking(booking.id, unusedNights ? { unusedNights } : {})
-    );
+    onAction("check_out", "checked_out", () => checkOutBooking(booking.id, gate.optionsFor(booking.id)));
   };
 
   const handleConfirm = () =>

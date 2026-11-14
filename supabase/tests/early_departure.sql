@@ -28,9 +28,9 @@ END;
 $$;
 
 -- ── Privileges ───────────────────────────────────────────────────────────
-SELECT pg_temp.assert_true(NOT has_function_privilege('authenticated', 'public.check_out_early(uuid,uuid,text)', 'EXECUTE'), 'staff cannot call check_out_early directly');
-SELECT pg_temp.assert_true(NOT has_function_privilege('anon', 'public.check_out_early(uuid,uuid,text)', 'EXECUTE'), 'anonymous cannot call check_out_early');
-SELECT pg_temp.assert_true(has_function_privilege('service_role', 'public.check_out_early(uuid,uuid,text)', 'EXECUTE'), 'the server can call check_out_early');
+SELECT pg_temp.assert_true(NOT has_function_privilege('authenticated', 'public.check_out_early(uuid,uuid,text,boolean)', 'EXECUTE'), 'staff cannot call check_out_early directly');
+SELECT pg_temp.assert_true(NOT has_function_privilege('anon', 'public.check_out_early(uuid,uuid,text,boolean)', 'EXECUTE'), 'anonymous cannot call check_out_early');
+SELECT pg_temp.assert_true(has_function_privilege('service_role', 'public.check_out_early(uuid,uuid,text,boolean)', 'EXECUTE'), 'the server can call check_out_early');
 SELECT pg_temp.assert_true(NOT has_function_privilege('authenticated', 'public.preview_early_check_out(uuid,uuid)', 'EXECUTE'), 'staff cannot call the preview directly');
 SELECT pg_temp.assert_true(has_function_privilege('service_role', 'public.preview_early_check_out(uuid,uuid)', 'EXECUTE'), 'the server can call the preview');
 SELECT pg_temp.assert_true(NOT has_function_privilege('service_role', 'bookings_private.shorten_stay(uuid,date,boolean,boolean)', 'EXECUTE'), 'the shortening helper is private');
@@ -42,6 +42,12 @@ INSERT INTO public.hotels (id, slug, name, clerk_org_id, timezone, currency, sta
   ('e5e50000-0000-4000-8000-00000000000a', 'early-probe', 'Early Probe', 'org_early', 'UTC', 'GHS', 'active');
 INSERT INTO public.staff_profiles (clerk_user_id, clerk_org_id, email, full_name, role, is_active) VALUES
   ('early_manager', 'org_early', 'manager@early.test', 'Manager', 'manager', true);
+
+INSERT INTO public.room_types (id, hotel_id, name, slug, base_price, weekend_price, max_adults, max_children) VALUES
+  ('e5e50002-0000-4000-8000-000000000001', 'e5e50000-0000-4000-8000-00000000000a', 'Early Double', 'early-double', 100, 100, 2, 0);
+INSERT INTO public.rooms (id, hotel_id, room_type_id, room_number, status) VALUES
+  ('e5e50003-0000-4000-8000-000000000001', 'e5e50000-0000-4000-8000-00000000000a', 'e5e50002-0000-4000-8000-000000000001', 'E-1', 'occupied'),
+  ('e5e50003-0000-4000-8000-000000000002', 'e5e50000-0000-4000-8000-00000000000a', 'e5e50002-0000-4000-8000-000000000001', 'E-2', 'occupied');
 
 -- Five nights from two days ago, sold at 100/200/300/400/500 with a 10% discount
 -- (subtotal 1350 of 1500) and 10% tax, fully paid. Two of the nights are used.
@@ -70,6 +76,16 @@ INSERT INTO public.bookings (id, hotel_id, reference, check_in, check_out, room_
    (now() AT TIME ZONE 'UTC')::date, (now() AT TIME ZONE 'UTC')::date + 2,
    100, 200, 0, 200, 0, 'unpaid', 'confirmed', 'GHS');
 
+-- Arrived today in a room, booked three nights, leaving today.
+INSERT INTO public.bookings (id, hotel_id, reference, room_type_id, room_id, check_in, check_out, room_rate, subtotal,
+                             tax_amount, total_amount, amount_paid, payment_status, status, currency) VALUES
+  ('e5e50001-0000-4000-8000-000000000007', 'e5e50000-0000-4000-8000-00000000000a', 'EARLY-HOLD',
+   'e5e50002-0000-4000-8000-000000000001', 'e5e50003-0000-4000-8000-000000000001',
+   (now() AT TIME ZONE 'UTC')::date, (now() AT TIME ZONE 'UTC')::date + 3, 100, 300, 0, 300, 0, 'unpaid', 'checked_in', 'GHS'),
+  ('e5e50001-0000-4000-8000-000000000008', 'e5e50000-0000-4000-8000-00000000000a', 'EARLY-RESELL',
+   'e5e50002-0000-4000-8000-000000000001', 'e5e50003-0000-4000-8000-000000000002',
+   (now() AT TIME ZONE 'UTC')::date, (now() AT TIME ZONE 'UTC')::date + 3, 100, 300, 0, 300, 0, 'unpaid', 'checked_in', 'GHS');
+
 INSERT INTO public.booking_nights (hotel_id, booking_id, stay_date, rooms_count, rate_minor, currency, source)
 SELECT 'e5e50000-0000-4000-8000-00000000000a', b.id, b.check_in + n, 1, (n + 1) * 10000, 'GHS', 'manual'
   FROM public.bookings b, generate_series(0, 4) n
@@ -87,7 +103,9 @@ BEGIN
   PERFORM pg_temp.assert_true((p#>>'{release,total_after}')::numeric = 297, 'release lowers the bill in proportion (discount and tax kept)');
   PERFORM pg_temp.assert_true((p#>>'{release,overpaid}')::numeric = 1188, 'release shows what to refund');
   PERFORM pg_temp.assert_true((p#>>'{charge,total_after}')::numeric = 1485, 'charge keeps the bill');
-  PERFORM pg_temp.assert_true((p#>>'{charge,early_departure_fee}')::numeric = 1188, 'charge turns the unused nights into the fee');
+  PERFORM pg_temp.assert_true((p#>>'{charge,early_departure_fee}')::numeric = 1080, 'charge turns the unused nights'' room charge into the fee');
+  PERFORM pg_temp.assert_true((p#>>'{charge,released_amount}')::numeric = 1188, 'the unused nights cost 1080 plus 108 tax');
+  PERFORM pg_temp.assert_true((p->>'same_day')::boolean IS FALSE, 'not a same-day departure');
   PERFORM pg_temp.assert_true(
     (SELECT check_out FROM public.bookings WHERE reference = 'EARLY-REL') = (now() AT TIME ZONE 'UTC')::date + 3
     AND (SELECT count(*) FROM public.booking_nights WHERE booking_id = 'e5e50001-0000-4000-8000-000000000001') = 5,
@@ -127,8 +145,10 @@ DECLARE
 BEGIN
   SELECT * INTO b FROM public.bookings WHERE id = 'e5e50001-0000-4000-8000-000000000002';
   PERFORM pg_temp.assert_true(r->>'policy' = 'charge', 'hotel default applied');
-  PERFORM pg_temp.assert_true(b.subtotal = 270 AND b.tax_amount = 27, 'room revenue is only the nights stayed');
-  PERFORM pg_temp.assert_true(b.early_departure_fee = 1188 AND b.total_amount = 1485, 'bill kept; fee holds the unused nights');
+  PERFORM pg_temp.assert_true(b.subtotal = 270, 'room revenue is only the nights stayed');
+  PERFORM pg_temp.assert_true(b.tax_amount = 135, 'the fee stays taxed: tax on the bill unchanged');
+  PERFORM pg_temp.assert_true(b.early_departure_fee = 1080 AND b.total_amount = 1485, 'bill kept; fee holds the unused nights');
+  PERFORM pg_temp.assert_true(b.subtotal + b.tax_amount + b.early_departure_fee = b.total_amount, 'total = subtotal + tax + fee');
   PERFORM pg_temp.assert_true(b.payment_status = 'partial' AND b.outstanding_balance = 985, 'balance unchanged');
 END;
 $$;
@@ -146,6 +166,48 @@ BEGIN
   PERFORM pg_temp.assert_true(b.check_out = b.check_in + 1, 'a guest who leaves on arrival day keeps one night');
   -- No booking_nights on record: shrinks by night count.
   PERFORM pg_temp.assert_true(b.subtotal = 100 AND b.total_amount = 100, 'priced by night count without nightly rates');
+END;
+$$;
+
+-- ── Same-day departure with a room: staff choose what happens tonight ───
+DO $$
+DECLARE
+  p jsonb := public.preview_early_check_out('e5e50001-0000-4000-8000-000000000007', 'e5e50000-0000-4000-8000-00000000000a');
+BEGIN
+  PERFORM pg_temp.assert_true((p->>'same_day')::boolean AND (p->>'can_hold_room')::boolean, 'preview offers to hold the room');
+  PERFORM pg_temp.assert_true((p->>'held_night')::date = (now() AT TIME ZONE 'UTC')::date, 'the held night is tonight');
+END;
+$$;
+SELECT pg_temp.assert_true(
+  pg_temp.detail_of($q$SELECT public.check_out_early('e5e50001-0000-4000-8000-000000000007', 'e5e50000-0000-4000-8000-00000000000a')$q$) = 'hold_room_required',
+  'a same-day departure must say what happens to the room tonight');
+SELECT pg_temp.assert_true(
+  (SELECT status FROM public.bookings WHERE id = 'e5e50001-0000-4000-8000-000000000007') = 'checked_in',
+  'nothing written when the choice is missing');
+DO $$
+DECLARE
+  r jsonb := public.check_out_early('e5e50001-0000-4000-8000-000000000007', 'e5e50000-0000-4000-8000-00000000000a', NULL, true);
+BEGIN
+  PERFORM pg_temp.assert_true((r->>'room_held')::boolean, 'room held');
+  PERFORM pg_temp.assert_true(
+    (SELECT count(*) FROM public.availability_blocks ab
+      WHERE ab.room_id = 'e5e50003-0000-4000-8000-000000000001'
+        AND ab.start_date = (now() AT TIME ZONE 'UTC')::date
+        AND ab.end_date = (now() AT TIME ZONE 'UTC')::date + 1) = 1,
+    'one-night block keeps the room off sale tonight');
+  PERFORM pg_temp.assert_true(
+    (SELECT check_out FROM public.bookings WHERE id = 'e5e50001-0000-4000-8000-000000000007') = (now() AT TIME ZONE 'UTC')::date + 1,
+    'the stay keeps its first night');
+END;
+$$;
+DO $$
+DECLARE
+  r jsonb := public.check_out_early('e5e50001-0000-4000-8000-000000000008', 'e5e50000-0000-4000-8000-00000000000a', NULL, false);
+BEGIN
+  PERFORM pg_temp.assert_true(NOT (r->>'room_held')::boolean, 'room put back on sale');
+  PERFORM pg_temp.assert_true(
+    NOT EXISTS (SELECT 1 FROM public.availability_blocks ab WHERE ab.room_id = 'e5e50003-0000-4000-8000-000000000002'),
+    'no block when the room goes back on sale');
 END;
 $$;
 

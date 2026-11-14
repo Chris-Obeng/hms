@@ -23,8 +23,8 @@ import { isCancelledOnDate, isInHouseOnDate } from "@/lib/calendar-domain";
 import { businessDate, businessToday } from "@/lib/business-date";
 import { updateBookingStatus } from "@/app/actions/bookings";
 import { checkInBooking, checkOutBooking } from "./actions";
-import { EarlyCheckoutDialog } from "./_components/early-checkout-dialog";
-import { earlyCheckoutToast, type EarlyDeparturePolicy } from "@/lib/bookings/early-departure";
+import { useEarlyCheckoutGate } from "./_components/early-checkout-dialog";
+import { earlyCheckoutToast, type CheckOutOptions } from "@/lib/bookings/early-departure";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -54,7 +54,7 @@ const defaultEmptyStats = {
 
 interface CheckOutVars {
   bookingId: string;
-  unusedNights?: EarlyDeparturePolicy;
+  options?: CheckOutOptions;
 }
 
 interface MutationCtx {
@@ -107,9 +107,7 @@ export function DashboardClient({
   const [detailInitialTab, setDetailInitialTab] = React.useState<"overview" | "payments">(
     "overview"
   );
-  const [earlyCheckoutBooking, setEarlyCheckoutBooking] = React.useState<ActivityBooking | null>(
-    null
-  );
+  const { confirm: confirmEarlyCheckout, dialog: earlyCheckoutDialog } = useEarlyCheckoutGate();
   const [earlyCheckinBooking, setEarlyCheckinBooking] = React.useState<ActivityBooking | null>(
     null
   );
@@ -290,8 +288,8 @@ export function DashboardClient({
   });
 
   const checkOutMutation = useMutation({
-    mutationFn: async ({ bookingId, unusedNights }: CheckOutVars) => {
-      const result = await checkOutBooking(bookingId, unusedNights ? { unusedNights } : {});
+    mutationFn: async ({ bookingId, options }: CheckOutVars) => {
+      const result = await checkOutBooking(bookingId, options ?? {});
       if (!result.success) throw new Error(result.error || "Check-out failed");
       return { bookingId, early: result.early };
     },
@@ -369,21 +367,18 @@ export function DashboardClient({
       // Any departure before the booked date asks first. The dialog shows the
       // bill change when the stay is shortened (see EarlyCheckoutDialog).
       if (booking && booking.checkOut > propertyTodayStr) {
-        setEarlyCheckoutBooking(booking);
+        void confirmEarlyCheckout(
+            { bookingIds: [booking.id], guestName: booking.guestName, checkOut: booking.checkOut },
+            { alwaysConfirm: true }
+          )
+          .then((gate) => {
+            if (gate.ok) checkOutMutation.mutate({ bookingId, options: gate.optionsFor(bookingId) });
+          });
         return;
       }
       checkOutMutation.mutate({ bookingId });
     },
-    [checkOutMutation, data?.bookings, propertyTodayStr]
-  );
-
-  const confirmEarlyCheckout = React.useCallback(
-    (unusedNights: EarlyDeparturePolicy | undefined) => {
-      if (!earlyCheckoutBooking) return;
-      checkOutMutation.mutate({ bookingId: earlyCheckoutBooking.id, unusedNights });
-      setEarlyCheckoutBooking(null);
-    },
-    [checkOutMutation, earlyCheckoutBooking]
+    [checkOutMutation, data?.bookings, confirmEarlyCheckout, propertyTodayStr]
   );
 
   const confirmEarlyCheckin = React.useCallback(() => {
@@ -393,7 +388,6 @@ export function DashboardClient({
   }, [checkInMutation, earlyCheckinBooking]);
 
   const closeEarlyConfirmation = React.useCallback(() => {
-    setEarlyCheckoutBooking(null);
     setEarlyCheckinBooking(null);
   }, []);
 
@@ -769,19 +763,7 @@ export function DashboardClient({
           onBookingChanged={handleBookingChanged}
         />
 
-        <EarlyCheckoutDialog
-          target={
-            earlyCheckoutBooking
-              ? {
-                  bookingIds: [earlyCheckoutBooking.id],
-                  guestName: earlyCheckoutBooking.guestName,
-                  checkOut: earlyCheckoutBooking.checkOut,
-                }
-              : null
-          }
-          onCancel={closeEarlyConfirmation}
-          onConfirm={confirmEarlyCheckout}
-        />
+        {earlyCheckoutDialog}
 
         {/* Early check-in confirmation */}
         <AlertDialog.Backdrop

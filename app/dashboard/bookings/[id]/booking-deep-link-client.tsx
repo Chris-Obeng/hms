@@ -12,7 +12,7 @@ import { BookingActionBar } from "@/components/bookings/_components/booking-acti
 import { useEarlyCheckoutGate } from "@/app/dashboard/_components/early-checkout-dialog";
 import {
   earlyCheckoutToast,
-  type EarlyDeparturePolicy,
+  type CheckOutOptions,
   type EarlyDepartureResult,
 } from "@/lib/bookings/early-departure";
 import { BookingPaymentsPanel } from "@/components/bookings/_components/booking-payments-panel";
@@ -81,7 +81,7 @@ export function BookingDeepLinkClient({
     void queryClient.invalidateQueries({ queryKey: ["calendar"] });
   }, [bookingId, queryClient]);
 
-  const earlyCheckout = useEarlyCheckoutGate();
+  const { confirm: confirmEarlyCheckout, dialog: earlyCheckoutDialog } = useEarlyCheckoutGate();
 
   const handleAction = React.useCallback(
     async (
@@ -140,16 +140,16 @@ export function BookingDeepLinkClient({
   const handleRoomLineAction = React.useCallback(
     async (ids: string[], targetStatus: string, kind: "check_in" | "check_out") => {
       if (!booking?.group || ids.length === 0) return;
-      let unusedNights: EarlyDeparturePolicy | undefined;
+      let optionsFor: (id: string) => CheckOutOptions = () => ({});
       if (kind === "check_out") {
         // Leaving before the booked date shortens the stay: ask first.
-        const gate = await earlyCheckout.confirm({
+        const gate = await confirmEarlyCheckout({
           bookingIds: ids,
           guestName: booking.guest?.fullName ?? "The guest",
           checkOut: booking.group.lines.find((l) => l.id === ids[0])?.checkOut ?? booking.checkOut,
         });
         if (!gate.ok) return;
-        unusedNights = gate.unusedNights;
+        optionsFor = gate.optionsFor;
       }
       const previous = booking;
       setActionLoading(`bulk:${kind}`);
@@ -170,7 +170,7 @@ export function BookingDeepLinkClient({
           const r =
             kind === "check_in"
               ? await checkInBooking(id)
-              : await checkOutBooking(id, unusedNights ? { unusedNights } : {});
+              : await checkOutBooking(id, optionsFor(id));
           if (r.success) ok += 1;
           else lastError = r.error;
         }
@@ -205,7 +205,7 @@ export function BookingDeepLinkClient({
         setActionLoading(null);
       }
     },
-    [booking, bookingId, earlyCheckout, queryClient, refresh, setOptimisticPatch]
+    [booking, bookingId, confirmEarlyCheckout, queryClient, refresh, setOptimisticPatch]
   );
 
   const handleOptimisticPayment = React.useCallback(
@@ -294,7 +294,7 @@ export function BookingDeepLinkClient({
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 pt-6 md:pt-8">
       <BackLink />
-      {earlyCheckout.dialog}
+      {earlyCheckoutDialog}
 
       {/* Identity + the one lifecycle action */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

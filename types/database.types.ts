@@ -2098,6 +2098,7 @@ export type Database = {
       check_out_early: {
         Args: {
           p_booking_id: string
+          p_hold_room?: boolean
           p_hotel_id: string
           p_unused_nights?: string
         }

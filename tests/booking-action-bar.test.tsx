@@ -260,6 +260,9 @@ describe("BookingActionBar — leaving before the booked date", () => {
       preview: {
         policy: "charge",
         departureDate: "2026-11-14",
+        sameDay: false,
+        heldNight: null,
+        canHoldRoom: false,
         charge: outcome,
         release: { ...outcome, earlyDepartureFee: 0, totalAfter: 100, overpaid: 400 },
       },
@@ -288,5 +291,46 @@ describe("BookingActionBar — leaving before the booked date", () => {
     await vi.waitFor(() => expect(onAction).toHaveBeenCalled());
     await onAction.mock.calls[0][2]();
     expect(vi.mocked(checkOutBooking)).toHaveBeenCalledWith(ANCHOR_ID, { unusedNights: "release" });
+  });
+
+  it("asks what happens to the room tonight when the guest leaves on arrival day", async () => {
+    const { previewEarlyCheckout } = await import("@/app/dashboard/actions");
+    vi.mocked(previewEarlyCheckout).mockResolvedValue({
+      success: true,
+      preview: {
+        policy: "charge",
+        departureDate: "2026-11-14",
+        sameDay: true,
+        heldNight: "2026-11-14",
+        canHoldRoom: true,
+        charge: { ...outcome, checkOutAfter: "2026-11-15", nightsReleased: 3 },
+        release: { ...outcome, checkOutAfter: "2026-11-15", nightsReleased: 3, earlyDepartureFee: 0, totalAfter: 100 },
+      },
+    });
+    vi.mocked(checkOutBooking).mockClear();
+    const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
+    const onAction = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <BookingActionBar
+          booking={booking({ status: "checked_in", group: null, groupId: null })}
+          actionLoading={null}
+          onAction={onAction}
+        />
+      </QueryClientProvider>
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Check out guest" }));
+
+    expect(await screen.findByText(/The guest keeps one night on the bill/)).toBeDefined();
+    const confirm = screen.getByRole("button", { name: "Check out early" });
+    // No default: staff must choose what happens to the room tonight.
+    expect(confirm.hasAttribute("disabled") || confirm.getAttribute("aria-disabled") === "true" || confirm.hasAttribute("data-disabled")).toBe(true);
+
+    await user.click(screen.getByRole("radio", { name: /Keep the room off sale tonight/ }));
+    await user.click(screen.getByRole("button", { name: "Check out early" }));
+    await vi.waitFor(() => expect(onAction).toHaveBeenCalled());
+    await onAction.mock.calls[0][2]();
+    expect(vi.mocked(checkOutBooking)).toHaveBeenCalledWith(ANCHOR_ID, { unusedNights: "charge", holdRoom: true });
   });
 });

@@ -26,7 +26,7 @@ import type { FullBookingDetail } from "@/app/actions/bookings-detail";
 import { updateBookingStatus } from "@/app/actions/bookings";
 import { checkInBooking, checkOutBooking } from "@/app/dashboard/actions";
 import { useEarlyCheckoutGate } from "@/app/dashboard/_components/early-checkout-dialog";
-import { earlyCheckoutToast, type EarlyDepartureResult } from "@/lib/bookings/early-departure";
+import { earlyCheckoutToast, type CheckOutOptions, type EarlyDepartureResult } from "@/lib/bookings/early-departure";
 import { bookingDetailCache } from "@/lib/cache/booking-detail-cache";
 import { takeBookingDetail } from "@/lib/detail-prefetch";
 
@@ -177,7 +177,7 @@ export function BookingDetailDrawer({
   // Every check-out asks first when the guest leaves before the booked date:
   // shortening a stay deletes nights and can change the bill.
   const confirmCheckOut = async (ids: string[]) => {
-    if (!booking) return { ok: false as const };
+    if (!booking) return { ok: false, optionsFor: () => ({}) };
     return earlyCheckout.confirm({
       bookingIds: ids,
       guestName: booking.guest?.fullName ?? "The guest",
@@ -188,19 +188,16 @@ export function BookingDetailDrawer({
   const handleCheckOut = async (ids: string[]) => {
     const gate = await confirmCheckOut(ids);
     if (!gate.ok) return;
-    const unusedNights = gate.unusedNights;
-    await handleAction("check_out", "checked_out", () =>
-      checkOutBooking(ids[0], unusedNights ? { unusedNights } : {})
-    );
+    await handleAction("check_out", "checked_out", () => checkOutBooking(ids[0], gate.optionsFor(ids[0])));
   };
 
   const handleBulkAction = async (ids: string[], targetStatus: string, kind: "check_in" | "check_out") => {
     if (!booking?.group || !bookingId || ids.length === 0) return;
-    let unusedNights: "charge" | "release" | undefined;
+    let optionsFor: (id: string) => CheckOutOptions = () => ({});
     if (kind === "check_out") {
       const gate = await confirmCheckOut(ids);
       if (!gate.ok) return;
-      unusedNights = gate.unusedNights;
+      optionsFor = gate.optionsFor;
     }
     const prev = booking;
     const bulkKey = `bulk:${kind}`;
@@ -218,7 +215,7 @@ export function BookingDetailDrawer({
         const fn =
           kind === "check_in"
             ? () => checkInBooking(id)
-            : () => checkOutBooking(id, unusedNights ? { unusedNights } : {});
+            : () => checkOutBooking(id, optionsFor(id));
         const r = await fn();
         if (r.success) ok += 1;
         else lastError = r.error;

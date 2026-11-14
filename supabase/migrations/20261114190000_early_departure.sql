@@ -8,21 +8,25 @@
 -- rooms sold, and money kept for unused nights is a fee, not room revenue.
 --
 -- This migration:
---   1. adds bookings.early_departure_fee, the part of the bill kept for nights
---      the guest did not use (part of total_amount, never of subtotal or
---      booking_nights, so it is never room revenue or a room night);
+--   1. adds bookings.early_departure_fee, the room charge kept for nights
+--      the guest did not use (part of total_amount and taxed, never part of
+--      subtotal or booking_nights, so it is never room revenue or a room
+--      night; USALI/STR treat it as miscellaneous income);
 --   2. adds public.check_out_early / public.preview_early_check_out
 --      (service role only; the server action checks the staff role first).
 --      The departure becomes the property's business date today, but never
 --      earlier than one night after check-in: a guest who leaves on their
---      arrival day still used that night. Unused nights are dropped from
---      booking_nights and the stay's subtotal and tax shrink in proportion.
---      What happens to the money follows the hotel's
---      settings.early_departure_policy:
---        'charge'  (default) the bill stays the same and the unused nights
---                  become the early departure fee, as before this change;
---        'release' the bill drops by the unused nights; any overpayment is
---                  left for staff to refund.
+--      arrival day still used that night (STR counts a rate-coded same-day
+--      stay as a room sold). For such a stay staff choose whether the room
+--      stays off sale tonight (a one-night availability block) or goes back
+--      on sale. Unused nights are dropped from booking_nights and the
+--      subtotal shrinks in proportion. What happens to the money follows the
+--      hotel's settings.early_departure_policy (or a per-stay choice):
+--        'charge'  (default) the bill and its tax stay the same; the unused
+--                  nights' room charge becomes the early departure fee;
+--        'release' the room charge and tax for the unused nights come off
+--                  the bill; any overpayment is given back by the hotel in
+--                  person and recorded with record_manual_refund.
 --   3. shortens the stays already checked out early (charge: no bill
 --      changes). Nights already closed by Night Audit keep their receipts;
 --   4. adds public.record_manual_refund so staff can record money they gave
@@ -40,7 +44,7 @@ ALTER TABLE public.bookings
   ADD COLUMN early_departure_fee numeric(10,2) NOT NULL DEFAULT 0
     CONSTRAINT bookings_early_departure_fee_nonnegative CHECK (early_departure_fee >= 0);
 COMMENT ON COLUMN public.bookings.early_departure_fee IS
-  'Amount kept for nights a guest did not use after checking out early. Included in total_amount; never in subtotal, tax_amount or booking_nights, so it is not room revenue or a room night.';
+  'Room charge kept for nights a guest did not use after checking out early. Included in total_amount and taxed (its tax stays in tax_amount); never in subtotal or booking_nights, so it is not room revenue or a room night.';
 
 -- Clients may not write it directly, like every other money field.
 CREATE OR REPLACE FUNCTION public.guard_bookings_client_write()
@@ -142,11 +146,12 @@ GRANT EXECUTE ON FUNCTION public.guard_bookings_client_write() TO service_role;
 CREATE SCHEMA IF NOT EXISTS bookings_private;
 REVOKE ALL ON SCHEMA bookings_private FROM PUBLIC, anon, authenticated, service_role;
 
--- Ends a stay at p_new_check_out. Subtotal and tax shrink in proportion to
--- the nights dropped (by their booked rates when every night is on record,
--- else by night count), so a discount or the tax rate the stay was sold at is
--- kept. With p_charge_unused the dropped amount becomes the early departure
--- fee and the bill stays the same; without it the bill drops by that amount.
+-- Ends a stay at p_new_check_out. The subtotal shrinks in proportion to the
+-- nights dropped (by their booked rates when every night is on record, else
+-- by night count), so a discount the stay was sold at is kept. With
+-- p_charge_unused the dropped room charge becomes the early departure fee and
+-- the tax stays on it, so the bill and its tax are unchanged; without it the
+-- room charge and its share of the tax come off the bill.
 -- With p_write false nothing is written (a preview).
 CREATE FUNCTION bookings_private.shorten_stay(
   p_booking_id uuid,
@@ -179,6 +184,7 @@ DECLARE
   v_new_sub_minor   bigint;
   v_new_tax_minor   bigint;
   v_released_minor  bigint;
+  v_tax_off_minor   bigint;
   v_fee_minor       bigint;
   v_total_minor     bigint;
   v_paid_minor      bigint;
@@ -222,12 +228,23 @@ BEGIN
   v_old_sub_minor  := public.to_minor(v_subtotal, v_currency);
   v_old_tax_minor  := public.to_minor(v_tax, v_currency);
   v_new_sub_minor  := round(v_old_sub_minor * v_ratio)::bigint;
-  v_new_tax_minor  := round(v_old_tax_minor * v_ratio)::bigint;
-  v_released_minor := (v_old_sub_minor - v_new_sub_minor) + (v_old_tax_minor - v_new_tax_minor);
-  v_fee_minor      := public.to_minor(v_fee, v_currency)
-                      + CASE WHEN p_charge_unused THEN v_released_minor ELSE 0 END;
-  v_total_minor    := public.to_minor(v_total, v_currency)
-                      - CASE WHEN p_charge_unused THEN 0 ELSE v_released_minor END;
+  -- Tax the unused nights carried, in proportion; the price of those nights
+  -- is their room charge plus this tax.
+  v_tax_off_minor  := v_old_tax_minor - round(v_old_tax_minor * v_ratio)::bigint;
+  v_released_minor := (v_old_sub_minor - v_new_sub_minor) + v_tax_off_minor;
+  IF p_charge_unused THEN
+    -- The fee is the room charge for the unused nights and stays taxed: the
+    -- guest pays the same and the tax recorded on the bill is unchanged, as
+    -- OPERA/Mews post a retained night with its own tax. The fee is never
+    -- room revenue or a room night (USALI: miscellaneous income).
+    v_new_tax_minor := v_old_tax_minor;
+    v_fee_minor     := public.to_minor(v_fee, v_currency) + (v_old_sub_minor - v_new_sub_minor);
+    v_total_minor   := public.to_minor(v_total, v_currency);
+  ELSE
+    v_new_tax_minor := v_old_tax_minor - v_tax_off_minor;
+    v_fee_minor     := public.to_minor(v_fee, v_currency);
+    v_total_minor   := public.to_minor(v_total, v_currency) - v_released_minor;
+  END IF;
   v_paid_minor     := public.to_minor(v_paid, v_currency);
 
   -- Same rule as reprice_booking_stay: only a stay already paid against moves
@@ -271,13 +288,56 @@ $fn$;
 REVOKE ALL ON FUNCTION bookings_private.shorten_stay(uuid, date, boolean, boolean)
   FROM PUBLIC, anon, authenticated, service_role;
 
+-- Whether the room of a same-day departure can be kept off sale for the
+-- night the stay keeps: it needs a physical room with no other active stay
+-- on that night.
+CREATE FUNCTION bookings_private.can_hold_room(p_booking_id uuid, p_night date)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $fn$
+  SELECT b.room_id IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1
+         FROM public.bookings o
+        WHERE o.hotel_id = b.hotel_id
+          AND o.room_id = b.room_id
+          AND o.id <> b.id
+          AND o.status IN ('pending', 'confirmed', 'checked_in')
+          AND o.check_in <= p_night
+          AND o.check_out > p_night)
+     AND NOT EXISTS (
+       SELECT 1
+         FROM public.availability_blocks ab
+        WHERE ab.hotel_id = b.hotel_id
+          AND ab.room_id = b.room_id
+          AND ab.start_date <= p_night
+          AND ab.end_date > p_night)
+    FROM public.bookings b
+   WHERE b.id = p_booking_id;
+$fn$;
+
+REVOKE ALL ON FUNCTION bookings_private.can_hold_room(uuid, date)
+  FROM PUBLIC, anon, authenticated, service_role;
+
 -- Checks a guest out before their booked departure, in one transaction:
 -- shortens the stay (see bookings_private.shorten_stay) and marks it
 -- checked out. p_unused_nights overrides the hotel's policy for this stay.
+--
+-- Same-day departure (the guest leaves on the day they arrived): the stay
+-- keeps that night, as STR counts a rate-coded same-day stay as a room sold.
+-- Staff must then say what happens to the room tonight (p_hold_room):
+--   true   keep it off sale tonight with an availability block, so the night
+--          is sold once (occupancy never exceeds 100%);
+--   false  put it back on sale; if it is resold, both stays count for the
+--          night, which STR allows (occupancy can exceed 100%).
 CREATE FUNCTION public.check_out_early(
   p_booking_id uuid,
   p_hotel_id uuid,
-  p_unused_nights text DEFAULT NULL
+  p_unused_nights text DEFAULT NULL,
+  p_hold_room boolean DEFAULT NULL
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -288,10 +348,13 @@ DECLARE
   v_status    text;
   v_check_in  date;
   v_check_out date;
+  v_room_id   uuid;
   v_zone      text;
   v_policy    text;
   v_today     date;
   v_new_out   date;
+  v_same_day  boolean;
+  v_held      boolean := false;
   v_result    jsonb;
 BEGIN
   IF p_unused_nights IS NOT NULL AND p_unused_nights NOT IN ('charge', 'release') THEN
@@ -299,9 +362,9 @@ BEGIN
       USING ERRCODE = 'P0001', DETAIL = 'invalid_payload';
   END IF;
 
-  SELECT b.status, b.check_in, b.check_out, coalesce(h.timezone, 'UTC'),
+  SELECT b.status, b.check_in, b.check_out, b.room_id, coalesce(h.timezone, 'UTC'),
          h.settings->>'early_departure_policy'
-    INTO v_status, v_check_in, v_check_out, v_zone, v_policy
+    INTO v_status, v_check_in, v_check_out, v_room_id, v_zone, v_policy
     FROM public.bookings b
     JOIN public.hotels h ON h.id = b.hotel_id
    WHERE b.id = p_booking_id
@@ -318,14 +381,20 @@ BEGIN
       USING ERRCODE = 'P0001', DETAIL = 'booking_not_in_house', HINT = v_status;
   END IF;
 
-  v_policy  := coalesce(p_unused_nights,
-                        CASE WHEN v_policy IN ('charge', 'release') THEN v_policy ELSE 'charge' END);
-  v_today   := (clock_timestamp() AT TIME ZONE v_zone)::date;
-  v_new_out := greatest(v_today, v_check_in + 1);
+  v_policy   := coalesce(p_unused_nights,
+                         CASE WHEN v_policy IN ('charge', 'release') THEN v_policy ELSE 'charge' END);
+  v_today    := (clock_timestamp() AT TIME ZONE v_zone)::date;
+  v_new_out  := greatest(v_today, v_check_in + 1);
+  v_same_day := v_new_out > v_today;
 
   IF v_new_out >= v_check_out THEN
     RAISE EXCEPTION 'booking % is not leaving early', p_booking_id
       USING ERRCODE = 'P0001', DETAIL = 'not_early';
+  END IF;
+
+  IF v_same_day AND p_hold_room IS NULL AND v_room_id IS NOT NULL THEN
+    RAISE EXCEPTION 'say whether to keep the room off sale tonight'
+      USING ERRCODE = 'P0001', DETAIL = 'hold_room_required';
   END IF;
 
   -- Check out first: the room guards only police active stays, and a room
@@ -338,7 +407,22 @@ BEGIN
 
   v_result := bookings_private.shorten_stay(p_booking_id, v_new_out, v_policy = 'charge', true);
 
-  RETURN v_result || jsonb_build_object('policy', v_policy, 'departure_date', v_today);
+  IF v_same_day AND p_hold_room IS TRUE THEN
+    IF NOT bookings_private.can_hold_room(p_booking_id, v_new_out - 1) THEN
+      RAISE EXCEPTION 'room % is already taken for %', v_room_id, v_new_out - 1
+        USING ERRCODE = 'P0001', DETAIL = 'room_already_taken';
+    END IF;
+    INSERT INTO public.availability_blocks (hotel_id, room_id, start_date, end_date, reason, notes)
+    VALUES (p_hotel_id, v_room_id, v_new_out - 1, v_new_out, 'Held after same-day check-out',
+            'Kept off sale for the night the departing guest is charged for.');
+    v_held := true;
+  END IF;
+
+  RETURN v_result || jsonb_build_object(
+    'policy',         v_policy,
+    'departure_date', v_today,
+    'same_day',       v_same_day,
+    'room_held',      v_held);
 END;
 $fn$;
 
@@ -357,6 +441,7 @@ DECLARE
   v_policy    text;
   v_today     date;
   v_new_out   date;
+  v_same_day  boolean;
 BEGIN
   SELECT b.status, b.check_in, b.check_out, coalesce(h.timezone, 'UTC'),
          h.settings->>'early_departure_policy'
@@ -371,8 +456,9 @@ BEGIN
       USING ERRCODE = 'P0001', DETAIL = 'booking_not_found';
   END IF;
 
-  v_today   := (clock_timestamp() AT TIME ZONE v_zone)::date;
-  v_new_out := greatest(v_today, v_check_in + 1);
+  v_today    := (clock_timestamp() AT TIME ZONE v_zone)::date;
+  v_new_out  := greatest(v_today, v_check_in + 1);
+  v_same_day := v_new_out > v_today;
 
   IF v_status IS DISTINCT FROM 'checked_in' OR v_new_out >= v_check_out THEN
     RETURN jsonb_build_object('early', false);
@@ -382,14 +468,17 @@ BEGIN
     'early',          true,
     'policy',         CASE WHEN v_policy IN ('charge', 'release') THEN v_policy ELSE 'charge' END,
     'departure_date', v_today,
+    'same_day',       v_same_day,
+    'held_night',     CASE WHEN v_same_day THEN v_new_out - 1 END,
+    'can_hold_room',  v_same_day AND bookings_private.can_hold_room(p_booking_id, v_new_out - 1),
     'charge',         bookings_private.shorten_stay(p_booking_id, v_new_out, true, false),
     'release',        bookings_private.shorten_stay(p_booking_id, v_new_out, false, false));
 END;
 $fn$;
 
-REVOKE ALL ON FUNCTION public.check_out_early(uuid, uuid, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.check_out_early(uuid, uuid, text, boolean) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.preview_early_check_out(uuid, uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.check_out_early(uuid, uuid, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.check_out_early(uuid, uuid, text, boolean) TO service_role;
 GRANT EXECUTE ON FUNCTION public.preview_early_check_out(uuid, uuid) TO service_role;
 
 -- ── 3. Stays already checked out early ───────────────────────────────────

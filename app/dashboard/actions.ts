@@ -12,7 +12,7 @@ import {
   isEarlyDeparture,
   parseEarlyDeparturePreview,
   parseEarlyDepartureResult,
-  type EarlyDeparturePolicy,
+  type CheckOutOptions,
   type EarlyDeparturePreview,
   type EarlyDepartureResult,
 } from "@/lib/bookings/early-departure";
@@ -94,13 +94,16 @@ export type CheckOutResult = {
  */
 export async function checkOutBooking(
   bookingId: string,
-  options: { unusedNights?: EarlyDeparturePolicy } = {}
+  options: CheckOutOptions = {}
 ): Promise<CheckOutResult> {
   if (!uuidSchema.safeParse(bookingId).success) {
     return { success: false, error: "Invalid booking ID" };
   }
   if (options.unusedNights !== undefined && !unusedNightsSchema.safeParse(options.unusedNights).success) {
     return { success: false, error: "Choose what happens to the unused nights" };
+  }
+  if (options.holdRoom !== undefined && typeof options.holdRoom !== "boolean") {
+    return { success: false, error: "Choose what happens to the room tonight" };
   }
   try {
     const ctx = await requireMinRole("front_desk", "check guests out");
@@ -125,14 +128,24 @@ export async function checkOutBooking(
     // function writes nights and money, which staff cannot write directly.
     // "not_early" means the business day turned over since the read.
     const state: { early?: EarlyDepartureResult; shortened: boolean } = { shortened: false };
-    const checkOutEarly = async (): Promise<"done" | "not_early" | "failed"> => {
+    type EarlyOutcome = "done" | "not_early" | "failed" | "hold_room_required" | "room_already_taken";
+    const earlyError = (outcome: EarlyOutcome) =>
+      outcome === "hold_room_required"
+        ? "The guest is leaving on the day they arrived. Choose whether the room stays off sale tonight."
+        : outcome === "room_already_taken"
+          ? "Another booking already has this room tonight, so it can't be kept off sale. Put it back on sale instead."
+          : "Could not check out early. Refresh and try again.";
+    const checkOutEarly = async (): Promise<EarlyOutcome> => {
       const { data, error } = await supabaseAdmin.rpc("check_out_early", {
         p_booking_id: bookingId,
         p_hotel_id: ctx.hotelId,
         ...(options.unusedNights ? { p_unused_nights: options.unusedNights } : {}),
+        ...(options.holdRoom !== undefined ? { p_hold_room: options.holdRoom } : {}),
       });
       if (error) {
         if (error.details === "not_early") return "not_early";
+        if (error.details === "hold_room_required") return "hold_room_required";
+        if (error.details === "room_already_taken") return "room_already_taken";
         console.error("[checkOutBooking:check_out_early]", error);
         return "failed";
       }
@@ -147,13 +160,11 @@ export async function checkOutBooking(
       return "done";
     };
 
-    let outcome: "done" | "not_early" | "failed" = "not_early";
+    let outcome: EarlyOutcome = "not_early";
 
     if (isEarlyDeparture(booking.check_in, booking.check_out, today)) {
       outcome = await checkOutEarly();
-      if (outcome === "failed") {
-        return { success: false, error: "Could not check out early. Refresh and try again." };
-      }
+      if (outcome !== "done" && outcome !== "not_early") return { success: false, error: earlyError(outcome) };
     }
 
     if (outcome === "not_early") {
@@ -167,9 +178,8 @@ export async function checkOutBooking(
         // The database decides what "early" means; if it says this guest is
         // leaving early after all (time zone or midnight), shorten the stay.
         if (error.details !== "early_departure") return { success: false, error: error.message };
-        if ((await checkOutEarly()) !== "done") {
-          return { success: false, error: "Could not check out early. Refresh and try again." };
-        }
+        const retried = await checkOutEarly();
+        if (retried !== "done") return { success: false, error: earlyError(retried) };
       }
     }
 
@@ -211,6 +221,7 @@ export async function checkOutBooking(
             check_out: early.checkOutAfter,
             nights_released: early.nightsReleased,
             unused_nights: early.policy === "charge" ? "charged as early departure fee" : "released from the bill",
+            ...(early.sameDay ? { room_tonight: early.roomHeld ? "kept off sale" : "back on sale" } : {}),
             ...(early.earlyDepartureFee > 0 ? { early_departure_fee: early.earlyDepartureFee } : {}),
           }
         : { reference: booking.reference, status: "checked_out", ...(shortened ? { stay_shortened: true } : {}) },

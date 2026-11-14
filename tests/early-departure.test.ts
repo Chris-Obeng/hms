@@ -62,6 +62,22 @@ describe("early departures", () => {
   });
 });
 
+describe("same-day departures", () => {
+  it("parses the room question from the preview and the result", () => {
+    const preview = parseEarlyDeparturePreview({
+      early: true, policy: "charge", departure_date: "2026-11-14",
+      same_day: true, held_night: "2026-11-14", can_hold_room: true,
+      charge: outcome, release: outcome,
+    });
+    expect(preview).toMatchObject({ sameDay: true, heldNight: "2026-11-14", canHoldRoom: true });
+    const result = parseEarlyDepartureResult({ ...outcome, policy: "charge", departure_date: "2026-11-14", same_day: true, room_held: true });
+    expect(result).toMatchObject({ sameDay: true, roomHeld: true });
+    expect(earlyCheckoutToast({ ...result, overpaid: 0, earlyDepartureFee: 0 }).text).toBe(
+      "Checked out early. The bill is unchanged. The room stays off sale for the night charged."
+    );
+  });
+});
+
 describe("earlyCheckoutToast", () => {
   const base = parseEarlyDepartureResult({ ...outcome, policy: "charge", departure_date: "2026-11-14" });
 
